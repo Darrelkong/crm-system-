@@ -14,7 +14,10 @@ import {
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
+import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
 import { CustomerTimeline } from "@/components/customers/customer-timeline";
+import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
+import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import {
   FOLLOW_UP_CHANNEL_LABELS,
@@ -68,8 +71,11 @@ export default async function CustomerDetailPage({ params }: Props) {
   }
 
   let view;
+  let scoresView;
   try {
-    view = formatCustomerForUser(user, customer);
+    const db = getDb();
+    scoresView = await enrichCustomerResponse(db, user, customer);
+    view = scoresView;
   } catch (err) {
     if (err instanceof PermissionError) {
       return (
@@ -292,6 +298,11 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
       )}
+
+      <CustomerScoresCards
+        scores={scoresView}
+        showMissingFields={view.accessLevel === "full"}
+      />
 
       <CustomerTimeline user={user} customer={customer} />
     </div>

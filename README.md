@@ -2,7 +2,56 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 13
+## 当前阶段：Phase 14
+
+客户热度评分 + 数据完整度评分（**动态计算**，无 migration）：
+
+| 功能 | 说明 |
+|------|------|
+| 客户热度 | `high` / `medium` / `low` / `silent` / `high_churn_risk` |
+| 数据完整度 | 0–100 分，见 `/help` → 客户热度与数据完整度 |
+| API | `GET /api/customers`、`GET /api/customers/:id` 含 `heatLevel`、`completenessScore` |
+| 筛选 | `/customers?heat=high_churn_risk`、`?completenessBelow=60` |
+| Dashboard | Admin/Staff KPI：流失高风险数、低完整度数（&lt; 60，不含归档） |
+
+## Phase 14 客户评分测试
+
+```bash
+npm run dev
+```
+
+### 1. Admin
+
+```bash
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/customers | jq '.items[0] | {heatLevel, completenessScore, heatReason, completenessMissingFields}'
+
+curl -s -b /tmp/crm-admin.txt "http://localhost:3000/api/customers?heat=high_churn_risk" | jq '.total'
+curl -s -b /tmp/crm-admin.txt "http://localhost:3000/api/customers?completenessBelow=60" | jq '.total'
+```
+
+访问 `/admin` 查看「流失高风险客户」「低完整度客户」KPI。
+
+### 2. Staff
+
+```bash
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/customers/CUSTOMER_ID | jq '.customer | {heatLevel, completenessScore, completenessMissingFields}'
+# 自己的客户：可有 completenessMissingFields
+
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/customers/POOL_ID | jq '.customer | {heatLevel, completenessScore, completenessMissingFields}'
+# 公共池：completenessMissingFields 应为 null
+
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" http://localhost:3000/api/customers/STAFF_B_CUSTOMER_ID
+# 期望 403
+```
+
+### 3. 页面
+
+- `/customers`：热度与完整度列 + 筛选表单
+- `/customers/:id`：热度卡片、完整度卡片（full 权限显示缺失项）
+
+---
+
+## Phase 13 客户时间线测试
 
 客户时间线 / 操作历史整合：
 

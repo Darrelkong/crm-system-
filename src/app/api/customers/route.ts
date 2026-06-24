@@ -2,15 +2,19 @@ export const dynamic = "force-dynamic";
 
 import { getDb, schema } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
-import {
-  formatCustomerForUser,
-} from "@/lib/permissions/customers";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import { listCustomersForUser } from "@/lib/customers/queries";
+import {
+  filterCustomersWithScores,
+  getCustomerIdsWithFollowUps,
+  getCustomersWithScores,
+  parseScoringListFilter,
+} from "@/lib/customers/scoring/service";
+import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
 
 export async function GET(request: Request) {
@@ -22,8 +26,19 @@ export async function GET(request: Request) {
       user.role === "admin" && statusParam === "archived"
         ? { status: "archived" as const }
         : {};
+    const scoringFilter = parseScoringListFilter(url.searchParams);
+
+    const db = getDb();
     const customers = await listCustomersForUser(user, filter);
-    const items = customers.map((c) => formatCustomerForUser(user, c));
+    const followUpSet = await getCustomerIdsWithFollowUps(
+      db,
+      customers.map((c) => c.id),
+    );
+    const settings = await getEffectiveSettings(db);
+    const items = filterCustomersWithScores(
+      getCustomersWithScores(user, customers, followUpSet, settings),
+      scoringFilter,
+    );
     return Response.json({ items, total: items.length });
   } catch (error) {
     return authErrorResponse(error);

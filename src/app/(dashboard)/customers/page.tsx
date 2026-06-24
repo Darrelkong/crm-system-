@@ -3,7 +3,14 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { requireAuth } from "@/lib/permissions/auth";
 import { listCustomersForUser } from "@/lib/customers/queries";
-import { formatCustomerForUser } from "@/lib/permissions/customers";
+import {
+  filterCustomersWithScores,
+  getCustomerIdsWithFollowUps,
+  getCustomersWithScores,
+} from "@/lib/customers/scoring/service";
+import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
+import { getEffectiveSettings } from "@/lib/settings/effective";
+import { getDb } from "@/lib/db";
 import { CUSTOMER_SOURCE_LABELS } from "@/lib/constants/customer-source-labels";
 import {
   CUSTOMER_TYPE_LABELS,
@@ -11,6 +18,12 @@ import {
 } from "@/lib/constants/customer-fields";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
 import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
+import {
+  CompletenessBadge,
+  HeatBadge,
+} from "@/components/customers/customer-scores-cards";
+import { HEAT_LEVEL_LABELS } from "@/lib/customers/scoring/constants";
+import type { HeatLevel } from "@/lib/customers/scoring/types";
 
 const STATUS_LABELS: Record<string, string> = {
   active: "活跃",
@@ -20,18 +33,47 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 type Props = {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{
+    status?: string;
+    heat?: string;
+    completenessBelow?: string;
+  }>;
 };
 
 export default async function CustomersPage({ searchParams }: Props) {
   const user = await requireAuth();
-  const { status } = await searchParams;
-  const showArchived = user.role === "admin" && status === "archived";
+  const params = await searchParams;
+  const showArchived = user.role === "admin" && params.status === "archived";
+
+  const db = getDb();
   const customers = await listCustomersForUser(
     user,
     showArchived ? { status: "archived" } : {},
   );
-  const views = customers.map((c) => formatCustomerForUser(user, c));
+  const followUpSet = await getCustomerIdsWithFollowUps(
+    db,
+    customers.map((c) => c.id),
+  );
+  const settings = await getEffectiveSettings(db);
+
+  const scoringFilter: {
+    heat?: HeatLevel;
+    completenessBelow?: number;
+  } = {};
+  if (params.heat && (HEAT_LEVELS as readonly string[]).includes(params.heat)) {
+    scoringFilter.heat = params.heat as HeatLevel;
+  }
+  if (params.completenessBelow) {
+    const n = Number(params.completenessBelow);
+    if (Number.isFinite(n)) scoringFilter.completenessBelow = n;
+  }
+
+  const views = filterCustomersWithScores(
+    getCustomersWithScores(user, customers, followUpSet, settings),
+    scoringFilter,
+  );
+
+  const baseQuery = showArchived ? "?status=archived" : "";
 
   return (
     <div>
@@ -74,6 +116,61 @@ export default async function CustomersPage({ searchParams }: Props) {
         )}
       </div>
 
+      {!showArchived && (
+        <form
+          method="get"
+          className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4"
+        >
+          <div>
+            <label htmlFor="heat" className="block text-xs font-medium text-slate-600">
+              客户热度
+            </label>
+            <select
+              id="heat"
+              name="heat"
+              defaultValue={params.heat ?? ""}
+              className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            >
+              <option value="">全部</option>
+              {HEAT_LEVELS.map((level) => (
+                <option key={level} value={level}>
+                  {HEAT_LEVEL_LABELS[level as HeatLevel]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label
+              htmlFor="completenessBelow"
+              className="block text-xs font-medium text-slate-600"
+            >
+              完整度低于
+            </label>
+            <input
+              id="completenessBelow"
+              name="completenessBelow"
+              type="number"
+              min={0}
+              max={100}
+              placeholder="60"
+              defaultValue={params.completenessBelow ?? ""}
+              className="mt-1 w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
+            />
+          </div>
+          <button
+            type="submit"
+            className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
+          >
+            筛选
+          </button>
+          {(params.heat || params.completenessBelow) && (
+            <Link href={`/customers${baseQuery}`} className="text-sm text-slate-500 hover:underline">
+              清除筛选
+            </Link>
+          )}
+        </form>
+      )}
+
       {views.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
           <p className="text-slate-500">
@@ -98,6 +195,8 @@ export default async function CustomersPage({ searchParams }: Props) {
                 <th className="px-4 py-3 text-left font-medium text-slate-600">来源</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">销售阶段</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">状态</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-600">客户热度</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-600">完整度</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">跟进状态</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">数据</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">创建时间</th>
@@ -127,6 +226,12 @@ export default async function CustomersPage({ searchParams }: Props) {
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
                       {STATUS_LABELS[c.status] ?? c.status}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <HeatBadge level={c.heatLevel} />
+                  </td>
+                  <td className="px-4 py-3">
+                    <CompletenessBadge score={c.completenessScore} />
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">

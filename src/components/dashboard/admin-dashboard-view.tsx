@@ -71,6 +71,29 @@ export async function AdminDashboardView({ user }: { user: User }) {
           value={stats.autoReclaimedThisMonth}
           hint="按审计日志统计"
         />
+        <KpiCard
+          label="流失高风险客户"
+          value={stats.highChurnRiskCustomers}
+          variant="danger"
+          hint={
+            <Link href="/customers?heat=high_churn_risk" className="text-indigo-600 hover:underline">
+              查看列表
+            </Link>
+          }
+        />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard
+          label="低完整度客户"
+          value={stats.lowCompletenessCustomers}
+          variant="warning"
+          hint={
+            <Link href="/customers?completenessBelow=60" className="text-indigo-600 hover:underline">
+              完整度 &lt; 60
+            </Link>
+          }
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

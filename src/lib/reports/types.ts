@@ -28,6 +28,8 @@ export type AdminDashboardStats = {
   validFollowUpsThisMonth: number;
   closedWonCustomers: number;
   autoReclaimedThisMonth: number;
+  highChurnRiskCustomers: number;
+  lowCompletenessCustomers: number;
   customersBySource: CountByLabel[];
   customersBySalesStage: CountByLabel[];
   customersByOwner: OwnerCount[];
@@ -57,5 +59,7 @@ export type StaffDashboardStats = {
   myClaimedFromPoolLast7Days: number;
   myNeverContactedCustomers: number;
   myReclaimRiskCustomers: number;
+  myHighChurnRiskCustomers: number;
+  myLowCompletenessCustomers: number;
   publicPoolClaimStatus: PublicPoolClaimSummary;
 };

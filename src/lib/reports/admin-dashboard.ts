@@ -13,6 +13,7 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { RECLAMATION_AUDIT_ACTIONS } from "@/lib/reclamation/constants";
 import { getEffectiveSettings } from "@/lib/settings/effective";
+import { computeScoringSummaryForAdmin } from "@/lib/customers/scoring/service";
 import {
   getBusinessMonthRange,
   getBusinessTodayRange,
@@ -195,6 +196,8 @@ export async function getAdminDashboardStats(
     .groupBy(schema.followUps.userId, schema.users.displayName)
     .orderBy(desc(count()));
 
+  const scoringSummary = await computeScoringSummaryForAdmin(db, now);
+
   return {
     totalCustomers: totalCustomersRow[0]?.value ?? 0,
     activeCustomers: activeCustomersRow[0]?.value ?? 0,
@@ -208,6 +211,8 @@ export async function getAdminDashboardStats(
     validFollowUpsThisMonth: validFollowUpsRow[0]?.value ?? 0,
     closedWonCustomers: closedWonRow[0]?.value ?? 0,
     autoReclaimedThisMonth: autoReclaimedRow[0]?.value ?? 0,
+    highChurnRiskCustomers: scoringSummary.highChurnRiskCustomers,
+    lowCompletenessCustomers: scoringSummary.lowCompletenessCustomers,
     customersBySource: sourceRows.map((r) => ({
       label: r.label,
       count: r.count,

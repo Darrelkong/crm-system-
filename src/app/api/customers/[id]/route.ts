@@ -4,12 +4,12 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
-  formatCustomerForUser,
   assertCanEditCustomer,
   PermissionError,
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
+import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
@@ -32,9 +32,11 @@ export async function GET(request: Request, context: RouteContext) {
       return Response.json({ error: "客户不存在" }, { status: 404 });
     }
 
+    const db = getDb();
+
     try {
-      const view = formatCustomerForUser(user, customer);
-      return Response.json({ customer: view });
+      const customerView = await enrichCustomerResponse(db, user, customer);
+      return Response.json({ customer: customerView });
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {
@@ -181,7 +183,9 @@ export async function PATCH(request: Request, context: RouteContext) {
     });
 
     const updated = await getCustomerById(id);
-    const view = updated ? formatCustomerForUser(user, updated) : null;
+    const view = updated
+      ? await enrichCustomerResponse(db, user, updated)
+      : null;
 
     return Response.json({ ok: true, id, customer: view });
   } catch (error) {

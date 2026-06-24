@@ -64,6 +64,29 @@ export async function StaffDashboardView({ user }: { user: User }) {
         />
       </div>
 
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <KpiCard
+          label="我的流失高风险"
+          value={stats.myHighChurnRiskCustomers}
+          variant="danger"
+          hint={
+            <Link href="/customers?heat=high_churn_risk" className="text-indigo-600 hover:underline">
+              查看客户
+            </Link>
+          }
+        />
+        <KpiCard
+          label="我的低完整度客户"
+          value={stats.myLowCompletenessCustomers}
+          variant="warning"
+          hint={
+            <Link href="/customers?completenessBelow=60" className="text-indigo-600 hover:underline">
+              完整度 &lt; 60
+            </Link>
+          }
+        />
+      </div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <RecentNotificationsCard user={user} />
         <RecentAnnouncementsCard user={user} />

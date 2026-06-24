@@ -16,6 +16,7 @@ import {
   getDaysWithoutValidFollowUp,
 } from "@/lib/reclamation/days";
 import { getEffectiveSettings } from "@/lib/settings/effective";
+import { computeScoringSummaryForStaff } from "@/lib/customers/scoring/service";
 import type { User } from "../../../drizzle/schema/users";
 import {
   getBusinessMonthRange,
@@ -169,6 +170,7 @@ export async function getStaffDashboardStats(
   }).length;
 
   const claimStatus = await getStaffClaimStatus(user.id, now, db);
+  const scoringSummary = await computeScoringSummaryForStaff(db, user, now);
 
   return {
     myCustomers: myCustomersRow[0]?.value ?? 0,
@@ -182,6 +184,8 @@ export async function getStaffDashboardStats(
     myClaimedFromPoolLast7Days: myClaimedRow[0]?.value ?? 0,
     myNeverContactedCustomers: myNeverContactedRow[0]?.value ?? 0,
     myReclaimRiskCustomers,
+    myHighChurnRiskCustomers: scoringSummary.highChurnRiskCustomers,
+    myLowCompletenessCustomers: scoringSummary.lowCompletenessCustomers,
     publicPoolClaimStatus: {
       claimedInLast7Days: claimStatus.claimedInLast7Days,
       remainingQuota: claimStatus.remainingQuota,
