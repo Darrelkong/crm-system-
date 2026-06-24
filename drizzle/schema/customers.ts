@@ -15,12 +15,15 @@ export const customers = sqliteTable(
   {
     id: text("id").primaryKey(),
     customerName: text("customer_name").notNull(),
+    customerType: text("customer_type").notNull().default("individual"),
+    phoneCountryCode: text("phone_country_code").notNull().default("+86"),
     phone: text("phone"),
     wechatId: text("wechat_id"),
     email: text("email"),
     source: text("source").notNull(),
     sourceRemark: text("source_remark"),
     notes: text("notes"),
+    salesStage: text("sales_stage").notNull().default("new_lead"),
     ownerId: text("owner_id").references(() => users.id),
     status: text("status", { enum: CUSTOMER_STATUSES })
       .notNull()

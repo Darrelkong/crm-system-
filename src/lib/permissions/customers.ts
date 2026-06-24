@@ -6,10 +6,15 @@ export type CustomerAccessLevel = "full" | "masked" | "denied";
 export type CustomerView = {
   id: string;
   customerName: string;
+  customerType: string;
+  salesStage: string;
   source: string;
   status: string;
   ownerId: string | null;
+  accessLevel: CustomerAccessLevel;
   isMasked: boolean;
+  // Sensitive — only present when accessLevel = "full"
+  phoneCountryCode?: string | null;
   phone?: string | null;
   wechatId?: string | null;
   email?: string | null;
@@ -114,9 +119,12 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
   return {
     id: customer.id,
     customerName: customer.customerName,
+    customerType: customer.customerType,
+    salesStage: customer.salesStage,
     source: customer.source,
     status: customer.status,
     ownerId: customer.ownerId,
+    accessLevel: "masked",
     isMasked: true,
     createdBy: customer.createdBy,
     updatedBy: customer.updatedBy,
@@ -129,10 +137,14 @@ export function toCustomerFullView(customer: Customer): CustomerView {
   return {
     id: customer.id,
     customerName: customer.customerName,
+    customerType: customer.customerType,
+    salesStage: customer.salesStage,
     source: customer.source,
     status: customer.status,
     ownerId: customer.ownerId,
+    accessLevel: "full",
     isMasked: false,
+    phoneCountryCode: customer.phoneCountryCode,
     phone: customer.phone,
     wechatId: customer.wechatId,
     email: customer.email,

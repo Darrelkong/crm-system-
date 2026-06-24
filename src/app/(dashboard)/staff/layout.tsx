@@ -14,6 +14,10 @@ export default async function StaffLayout({
       roleLabel="Staff"
       userName={user.displayName}
       userEmail={user.email}
+      navLinks={[
+        { href: "/staff", label: "工作台", active: true },
+        { href: "/customers", label: "客户管理" },
+      ]}
     >
       {children}
     </DashboardShell>

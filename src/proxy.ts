@@ -38,7 +38,7 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(loginUrl);
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
   const sessionUser = token ? await getSessionUser(token) : null;
@@ -80,9 +80,23 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/customers")) {
+    if (!sessionUser) {
+      return redirectToLogin(request);
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/", "/login", "/admin/:path*", "/staff/:path*"],
+  matcher: [
+    "/",
+    "/login",
+    "/admin/:path*",
+    "/staff/:path*",
+    "/customers",
+    "/customers/:path*",
+  ],
 };
