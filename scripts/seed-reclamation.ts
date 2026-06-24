@@ -133,7 +133,16 @@ INSERT INTO tasks (
 
 async function main() {
   const isRemote = process.argv.includes("--remote");
-  const flag = isRemote ? "--remote" : "--local";
+
+  if (isRemote) {
+    console.error(
+      "回收测试 seed 仅用于本地开发，禁止在生产/远程 D1 执行。",
+    );
+    console.error("请使用：npm run db:seed:reclamation:local");
+    process.exit(1);
+  }
+
+  const flag = "--local";
   const sql = buildReclamationSeedSql();
   const sqlFile = join(tmpdir(), `crm-seed-reclamation-${Date.now()}.sql`);
 

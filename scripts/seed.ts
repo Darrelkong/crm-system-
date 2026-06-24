@@ -3,6 +3,7 @@ import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { hashPassword } from "../src/lib/auth/password";
+import { validatePasswordPolicy } from "../src/lib/auth/password-policy";
 import { SEED_IDS } from "../src/lib/constants/seed-ids";
 
 type SeedUser = {
@@ -13,7 +14,13 @@ type SeedUser = {
   password: string;
 };
 
-const SEED_USERS: SeedUser[] = [
+const LOCAL_TEST_EMAILS = [
+  "admin@crm.local",
+  "staff-a@crm.local",
+  "staff-b@crm.local",
+] as const;
+
+const LOCAL_SEED_USERS: SeedUser[] = [
   {
     id: SEED_IDS.admin,
     email: "admin@crm.local",
@@ -48,7 +55,66 @@ function sqlValue(value: string | null | undefined): string {
   return `'${escapeSql(value)}'`;
 }
 
-async function buildSeedSql(): Promise<string> {
+function assertProductionSeedEnv(): { email: string; password: string } {
+  const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const password = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    console.error(
+      "生产 seed 必须设置 SEED_ADMIN_EMAIL 与 SEED_ADMIN_PASSWORD 环境变量。",
+    );
+    console.error("示例：");
+    console.error(
+      '  SEED_ADMIN_EMAIL=ops@yourcompany.com SEED_ADMIN_PASSWORD="YourStr0ngPass!" npm run db:seed:remote',
+    );
+    process.exit(1);
+  }
+
+  if (
+    email.endsWith("@crm.local") ||
+    (LOCAL_TEST_EMAILS as readonly string[]).includes(email)
+  ) {
+    console.error(
+      "生产环境禁止使用 @crm.local 或本地测试邮箱。请使用真实企业邮箱。",
+    );
+    process.exit(1);
+  }
+
+  const policy = validatePasswordPolicy(password);
+  if (!policy.valid) {
+    console.error(`生产 Admin 密码不符合策略：${policy.message}`);
+    process.exit(1);
+  }
+
+  return { email, password };
+}
+
+async function buildUserInsertSql(users: SeedUser[], now: string): Promise<string[]> {
+  const statements: string[] = [];
+  for (const user of users) {
+    const passwordHash = await hashPassword(user.password);
+    statements.push(`
+INSERT OR REPLACE INTO users (
+  id, email, display_name, password_hash, role, is_active,
+  failed_login_attempts, locked_until, created_at, updated_at
+) VALUES (
+  '${user.id}',
+  '${escapeSql(user.email)}',
+  '${escapeSql(user.displayName)}',
+  '${escapeSql(passwordHash)}',
+  '${user.role}',
+  1,
+  0,
+  NULL,
+  '${now}',
+  '${now}'
+);
+`.trim());
+  }
+  return statements;
+}
+
+async function buildLocalDevSeedSql(): Promise<string> {
   const now = new Date().toISOString();
   const statements: string[] = [
     "DELETE FROM sessions;",
@@ -84,27 +150,7 @@ async function buildSeedSql(): Promise<string> {
     );`,
   ];
 
-  for (const user of SEED_USERS) {
-    const passwordHash = await hashPassword(user.password);
-
-    statements.push(`
-INSERT OR REPLACE INTO users (
-  id, email, display_name, password_hash, role, is_active,
-  failed_login_attempts, locked_until, created_at, updated_at
-) VALUES (
-  '${user.id}',
-  '${escapeSql(user.email)}',
-  '${escapeSql(user.displayName)}',
-  '${escapeSql(passwordHash)}',
-  '${user.role}',
-  1,
-  0,
-  NULL,
-  '${now}',
-  '${now}'
-);
-`.trim());
-  }
+  statements.push(...(await buildUserInsertSql(LOCAL_SEED_USERS, now)));
 
   const testCustomers = [
     {
@@ -172,9 +218,9 @@ INSERT INTO customers (
   ${sqlValue(customer.ownerId)},
   '${customer.status}',
   ${sqlValue(customer.releaserUserId)},
-  ${sqlValue((customer as { releasedBy?: string | null }).releasedBy ?? customer.releaserUserId)},
-  ${sqlValue((customer as { poolEnteredAt?: string | null }).poolEnteredAt ?? null)},
-  ${sqlValue((customer as { poolReason?: string | null }).poolReason ?? null)},
+  ${sqlValue(customer.releasedBy)},
+  ${sqlValue(customer.poolEnteredAt)},
+  ${sqlValue(customer.poolReason)},
   '${customer.createdBy}',
   '${customer.createdBy}',
   '${now}',
@@ -186,10 +232,35 @@ INSERT INTO customers (
   return statements.join("\n\n");
 }
 
+async function buildProductionAdminSeedSql(): Promise<string> {
+  const { email, password } = assertProductionSeedEnv();
+  const now = new Date().toISOString();
+
+  const adminUser: SeedUser = {
+    id: SEED_IDS.admin,
+    email,
+    displayName: process.env.SEED_ADMIN_NAME?.trim() || "系统管理员",
+    role: "admin",
+    password,
+  };
+
+  const statements = await buildUserInsertSql([adminUser], now);
+  return statements.join("\n\n");
+}
+
 async function main() {
   const isRemote = process.argv.includes("--remote");
   const flag = isRemote ? "--remote" : "--local";
-  const sql = await buildSeedSql();
+
+  if (isRemote) {
+    console.log("生产 seed 模式：仅创建 Admin 账号，不创建测试 Staff 或测试客户。");
+  } else {
+    console.log("本地开发 seed 模式：创建测试账号与示例客户。");
+  }
+
+  const sql = isRemote
+    ? await buildProductionAdminSeedSql()
+    : await buildLocalDevSeedSql();
   const sqlFile = join(tmpdir(), `crm-seed-${Date.now()}.sql`);
 
   writeFileSync(sqlFile, sql, "utf8");
@@ -200,13 +271,18 @@ async function main() {
       cwd: join(import.meta.dirname, ".."),
     });
     console.log("\nSeed completed.");
-    console.log("Admin:  admin@crm.local  / Admin123!");
-    console.log("Staff A: staff-a@crm.local / StaffA123!");
-    console.log("Staff B: staff-b@crm.local / StaffB123!");
-    console.log("\nTest customer IDs:");
-    console.log(`  Staff A customer:    ${SEED_IDS.customerStaffA}`);
-    console.log(`  Staff B customer:    ${SEED_IDS.customerStaffB}`);
-    console.log(`  Public pool customer: ${SEED_IDS.customerPublicPool}`);
+    if (isRemote) {
+      console.log("生产 Admin 已写入（邮箱来自 SEED_ADMIN_EMAIL）。");
+      console.log("请立即登录并确认密码策略；勿在日志中打印密码。");
+    } else {
+      console.log("Admin:  admin@crm.local  / Admin123!");
+      console.log("Staff A: staff-a@crm.local / StaffA123!");
+      console.log("Staff B: staff-b@crm.local / StaffB123!");
+      console.log("\nTest customer IDs:");
+      console.log(`  Staff A customer:    ${SEED_IDS.customerStaffA}`);
+      console.log(`  Staff B customer:    ${SEED_IDS.customerStaffB}`);
+      console.log(`  Public pool customer: ${SEED_IDS.customerPublicPool}`);
+    }
   } finally {
     unlinkSync(sqlFile);
   }

@@ -7,6 +7,11 @@ SESSION_SECRET=change-me-to-a-long-random-string
 
 # Debug API（生产环境默认禁用，仅 Admin 排障时可设为 true）
 # ENABLE_DEBUG_API=false
+
+# 生产 seed（仅 db:seed:remote；本地 seed 不需要）
+# SEED_ADMIN_EMAIL=ops@yourcompany.com
+# SEED_ADMIN_PASSWORD=
+# SEED_ADMIN_NAME=系统管理员
 # CLOUDFLARE_ACCOUNT_ID=
 # CLOUDFLARE_DATABASE_ID=
 # CLOUDFLARE_D1_TOKEN=

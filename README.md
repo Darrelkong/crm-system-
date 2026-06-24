@@ -2,9 +2,23 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 14
+## 当前阶段：Phase 15A
 
-客户热度评分 + 数据完整度评分（**动态计算**，无 migration）：
+上线前安全检查 + Cloudflare 部署准备（**未部署正式域名**）。
+
+| 文档 | 说明 |
+|------|------|
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 部署、迁移、生产 seed、Cron、回滚与备份 |
+| [docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md](./docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md) | Admin/Staff/公共池/归档权限回归清单 |
+| [docs/ENV.md](./docs/ENV.md) | 环境变量说明 |
+
+**生产 seed：** 必须使用 `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD`（禁止 `@crm.local`）；本地仍用 `admin@crm.local` / `Admin123!`。
+
+**Turnstile：** 未启用（预留）。**Debug API：** 生产默认关闭。
+
+---
+
+## Phase 14（已完成）
 
 | 功能 | 说明 |
 |------|------|
