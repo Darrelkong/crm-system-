@@ -5,7 +5,8 @@
 # Session cookie signing（Phase 1 启用，生产环境必填）
 SESSION_SECRET=change-me-to-a-long-random-string
 
-# 生产环境 D1 迁移（仅 drizzle-kit 远程操作时需要）
+# Debug API（生产环境默认禁用，仅 Admin 排障时可设为 true）
+# ENABLE_DEBUG_API=false
 # CLOUDFLARE_ACCOUNT_ID=
 # CLOUDFLARE_DATABASE_ID=
 # CLOUDFLARE_D1_TOKEN=

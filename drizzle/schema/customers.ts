@@ -1,6 +1,15 @@
 import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
+export const CUSTOMER_STATUSES = [
+  "active",
+  "inactive",
+  "archived",
+  "public_pool",
+] as const;
+
+export type CustomerStatus = (typeof CUSTOMER_STATUSES)[number];
+
 export const customers = sqliteTable(
   "customers",
   {
@@ -11,12 +20,12 @@ export const customers = sqliteTable(
     email: text("email"),
     source: text("source").notNull(),
     sourceRemark: text("source_remark"),
-    ownerId: text("owner_id")
-      .notNull()
-      .references(() => users.id),
-    status: text("status", { enum: ["active", "inactive", "archived"] })
+    notes: text("notes"),
+    ownerId: text("owner_id").references(() => users.id),
+    status: text("status", { enum: CUSTOMER_STATUSES })
       .notNull()
       .default("active"),
+    releaserUserId: text("releaser_user_id").references(() => users.id),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id),
@@ -28,6 +37,8 @@ export const customers = sqliteTable(
     index("idx_customers_owner_id").on(table.ownerId),
     index("idx_customers_created_at").on(table.createdAt),
     index("idx_customers_phone").on(table.phone),
+    index("idx_customers_status").on(table.status),
+    index("idx_customers_releaser_user_id").on(table.releaserUserId),
   ],
 );
 

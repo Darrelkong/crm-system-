@@ -3,8 +3,10 @@ import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { hashPassword } from "../src/lib/auth/password";
+import { SEED_IDS } from "../src/lib/constants/seed-ids";
 
 type SeedUser = {
+  id: string;
   email: string;
   displayName: string;
   role: "admin" | "staff";
@@ -13,16 +15,25 @@ type SeedUser = {
 
 const SEED_USERS: SeedUser[] = [
   {
+    id: SEED_IDS.admin,
     email: "admin@crm.local",
     displayName: "系统管理员",
     role: "admin",
     password: process.env.SEED_ADMIN_PASSWORD ?? "Admin123!",
   },
   {
-    email: "staff@crm.local",
-    displayName: "测试员工",
+    id: SEED_IDS.staffA,
+    email: "staff-a@crm.local",
+    displayName: "员工 A",
     role: "staff",
-    password: process.env.SEED_STAFF_PASSWORD ?? "Staff123!",
+    password: process.env.SEED_STAFF_A_PASSWORD ?? "StaffA123!",
+  },
+  {
+    id: SEED_IDS.staffB,
+    email: "staff-b@crm.local",
+    displayName: "员工 B",
+    role: "staff",
+    password: process.env.SEED_STAFF_B_PASSWORD ?? "StaffB123!",
   },
 ];
 
@@ -30,12 +41,31 @@ function escapeSql(value: string): string {
   return value.replace(/'/g, "''");
 }
 
+function sqlValue(value: string | null | undefined): string {
+  if (value === null || value === undefined) {
+    return "NULL";
+  }
+  return `'${escapeSql(value)}'`;
+}
+
 async function buildSeedSql(): Promise<string> {
   const now = new Date().toISOString();
-  const statements: string[] = [];
+  const statements: string[] = [
+    "DELETE FROM sessions;",
+    `DELETE FROM customers WHERE id IN (
+      '${SEED_IDS.customerStaffA}',
+      '${SEED_IDS.customerStaffB}',
+      '${SEED_IDS.customerPublicPool}'
+    );`,
+    `DELETE FROM users WHERE email IN (
+      'admin@crm.local',
+      'staff@crm.local',
+      'staff-a@crm.local',
+      'staff-b@crm.local'
+    );`,
+  ];
 
   for (const user of SEED_USERS) {
-    const id = crypto.randomUUID();
     const passwordHash = await hashPassword(user.password);
 
     statements.push(`
@@ -43,7 +73,7 @@ INSERT INTO users (
   id, email, display_name, password_hash, role, is_active,
   failed_login_attempts, locked_until, created_at, updated_at
 ) VALUES (
-  '${id}',
+  '${user.id}',
   '${escapeSql(user.email)}',
   '${escapeSql(user.displayName)}',
   '${escapeSql(passwordHash)}',
@@ -53,15 +83,77 @@ INSERT INTO users (
   NULL,
   '${now}',
   '${now}'
-)
-ON CONFLICT(email) DO UPDATE SET
-  display_name = excluded.display_name,
-  password_hash = excluded.password_hash,
-  role = excluded.role,
-  is_active = 1,
-  failed_login_attempts = 0,
-  locked_until = NULL,
-  updated_at = excluded.updated_at;
+);
+`.trim());
+  }
+
+  const testCustomers = [
+    {
+      id: SEED_IDS.customerStaffA,
+      customerName: "Staff A 测试客户",
+      phone: "13800000001",
+      wechatId: "staff_a_wechat",
+      email: "staff-a-customer@example.com",
+      source: "referral",
+      sourceRemark: null,
+      notes: "Staff A 私有备注",
+      ownerId: SEED_IDS.staffA,
+      status: "active",
+      releaserUserId: null,
+      createdBy: SEED_IDS.staffA,
+    },
+    {
+      id: SEED_IDS.customerStaffB,
+      customerName: "Staff B 测试客户",
+      phone: "13800000002",
+      wechatId: "staff_b_wechat",
+      email: "staff-b-customer@example.com",
+      source: "douyin",
+      sourceRemark: null,
+      notes: "Staff B 私有备注",
+      ownerId: SEED_IDS.staffB,
+      status: "active",
+      releaserUserId: null,
+      createdBy: SEED_IDS.staffB,
+    },
+    {
+      id: SEED_IDS.customerPublicPool,
+      customerName: "公共池测试客户",
+      phone: "13800000003",
+      wechatId: "pool_wechat",
+      email: "pool-customer@example.com",
+      source: "other",
+      sourceRemark: "公共池来源备注",
+      notes: "公共池敏感备注",
+      ownerId: null,
+      status: "public_pool",
+      releaserUserId: SEED_IDS.staffA,
+      createdBy: SEED_IDS.staffA,
+    },
+  ];
+
+  for (const customer of testCustomers) {
+    statements.push(`
+INSERT INTO customers (
+  id, customer_name, phone, wechat_id, email, source, source_remark, notes,
+  owner_id, status, releaser_user_id, created_by, updated_by, created_at, updated_at
+) VALUES (
+  '${customer.id}',
+  '${escapeSql(customer.customerName)}',
+  ${sqlValue(customer.phone)},
+  ${sqlValue(customer.wechatId)},
+  ${sqlValue(customer.email)},
+  '${customer.source}',
+  ${sqlValue(customer.sourceRemark)},
+  ${sqlValue(customer.notes)},
+  ${sqlValue(customer.ownerId)},
+  '${customer.status}',
+  ${sqlValue(customer.releaserUserId)},
+  '${customer.createdBy}',
+  '${customer.createdBy}',
+  '${now}',
+  '${now}'
+);
 `.trim());
   }
 
@@ -82,11 +174,13 @@ async function main() {
       cwd: join(import.meta.dirname, ".."),
     });
     console.log("\nSeed completed.");
-    console.log("Admin: admin@crm.local");
-    console.log("Staff: staff@crm.local");
-    console.log(
-      "Default passwords are Admin123! / Staff123! unless overridden by env.",
-    );
+    console.log("Admin:  admin@crm.local  / Admin123!");
+    console.log("Staff A: staff-a@crm.local / StaffA123!");
+    console.log("Staff B: staff-b@crm.local / StaffB123!");
+    console.log("\nTest customer IDs:");
+    console.log(`  Staff A customer:    ${SEED_IDS.customerStaffA}`);
+    console.log(`  Staff B customer:    ${SEED_IDS.customerStaffB}`);
+    console.log(`  Public pool customer: ${SEED_IDS.customerPublicPool}`);
   } finally {
     unlinkSync(sqlFile);
   }

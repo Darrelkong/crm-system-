@@ -2,19 +2,17 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 1
+## 当前阶段：Phase 2
 
-已完成认证与会话系统，包括：
+已完成权限中间件与客户访问范围控制，包括：
 
-- Email 登录 / 退出（Web Crypto PBKDF2 密码哈希）
-- Admin / Staff 角色与独立工作台占位页
-- Session 管理（Cookie 存 token，数据库存 SHA-256 hash）
-- 连续 5 次登录失败锁定 30 分钟
-- `login_logs` / `audit_logs` 写入
-- `requireAuth` / `requireAdmin` 基础权限保护
-- 路由中间件：未登录访问 dashboard 重定向到登录页
+- `requireAuth` / `requireAdmin` / `requireStaff` / `getCurrentUser`
+- 客户权限：`assertCanAccessCustomer`、`assertCanEditCustomer`、`assertCanViewCustomerFullDetails`、`maskCustomerForStaff`
+- 公共池权限预留（`owner_id = null` 或 `status = public_pool`）
+- Debug API（仅开发环境）：`/api/debug/auth-check`、`/api/debug/customer-access/:id`
+- 权限拒绝写入 `audit_logs`
 
-**尚未实现**：客户管理、公共池、审批、报表、Turnstile、完整多语言（Phase 2+）。
+**尚未实现**：客户新增/列表 UI、公共池释放领取、跟进、报表（Phase 3+）。
 
 ## 技术栈
 
@@ -28,187 +26,125 @@
 
 ## 快速开始（本地）
 
-### 1. 安装依赖
-
 ```bash
 npm install
-```
-
-### 2. 配置环境变量
-
-```bash
 cp .dev.vars.example .dev.vars
-```
-
-### 3. 应用本地 D1 迁移
-
-```bash
 npm run db:migrate:local
-```
-
-### 4. 初始化测试账号
-
-```bash
 npm run db:seed:local
-```
-
-默认账号：
-
-| 角色 | 邮箱 | 默认密码 |
-|------|------|----------|
-| Admin | `admin@crm.local` | `Admin123!` |
-| Staff | `staff@crm.local` | `Staff123!` |
-
-可通过环境变量覆盖：
-
-```bash
-SEED_ADMIN_PASSWORD='YourSecurePass' npm run db:seed:local
-```
-
-### 5. 启动开发服务器
-
-```bash
 npm run dev
 ```
 
-浏览器访问 [http://localhost:3000](http://localhost:3000)（未登录会跳转到 `/login`）。
+### 测试账号（seed）
 
-## Phase 1 测试指南
+| 角色 | 邮箱 | 密码 |
+|------|------|------|
+| Admin | `admin@crm.local` | `Admin123!` |
+| Staff A | `staff-a@crm.local` | `StaffA123!` |
+| Staff B | `staff-b@crm.local` | `StaffB123!` |
 
-### Admin 登录
+### 测试客户 ID（seed）
+
+| 客户 | ID |
+|------|-----|
+| Staff A 名下 | `22222222-2222-2222-2222-222222222201` |
+| Staff B 名下 | `22222222-2222-2222-2222-222222222202` |
+| 公共池 | `22222222-2222-2222-2222-222222222203` |
+
+## Phase 2 权限测试指南
+
+### 1. 登录并保存 Cookie
 
 ```bash
-curl -i -c /tmp/crm-cookies.txt -X POST http://localhost:3000/api/auth/login \
+# Admin
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
   -H 'Content-Type: application/json' \
   -d '{"email":"admin@crm.local","password":"Admin123!"}'
-```
 
-期望：`200`，`redirect: "/admin"`，响应头 `Set-Cookie` 含 `crm_session` 且带 `HttpOnly`。
-
-浏览器：登录后进入 `/admin` 管理员工作台。
-
-### Staff 登录
-
-```bash
-curl -i -c /tmp/crm-staff.txt -X POST http://localhost:3000/api/auth/login \
+# Staff A
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
   -H 'Content-Type: application/json' \
-  -d '{"email":"staff@crm.local","password":"Staff123!"}'
+  -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+
+# Staff B
+curl -s -c /tmp/crm-staff-b.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"staff-b@crm.local","password":"StaffB123!"}'
 ```
 
-期望：`200`，`redirect: "/staff"`。Staff 访问 `/admin` 会被重定向到 `/staff`。
-
-### 5 次失败锁定
+### 2. Admin 权限（应全部 full / isMasked=false）
 
 ```bash
-for i in 1 2 3 4 5; do
-  curl -s -X POST http://localhost:3000/api/auth/login \
-    -H 'Content-Type: application/json' \
-    -d '{"email":"staff@crm.local","password":"wrong-password"}' | python3 -m json.tool
-done
+CUST_A=22222222-2222-2222-2222-222222222201
+CUST_B=22222222-2222-2222-2222-222222222202
+CUST_POOL=22222222-2222-2222-2222-222222222203
+
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/debug/customer-access/$CUST_A
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/debug/customer-access/$CUST_B
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/debug/customer-access/$CUST_POOL
 ```
 
-第 5 次期望返回 `423`，提示账号锁定 30 分钟。之后即使正确密码也无法登录，直到锁定过期。
+### 3. Staff A 权限
 
-验证锁定记录：
+```bash
+# 自己的客户 → full
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/debug/customer-access/$CUST_A
+
+# Staff B 客户 → 403 permission denied
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/debug/customer-access/$CUST_B
+
+# 公共池 → masked（无 phone/wechat/email/notes）
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/debug/customer-access/$CUST_POOL
+```
+
+### 4. Staff B 权限
+
+```bash
+curl -s -b /tmp/crm-staff-b.txt http://localhost:3000/api/debug/customer-access/$CUST_B   # full
+curl -s -b /tmp/crm-staff-b.txt http://localhost:3000/api/debug/customer-access/$CUST_A   # 403
+```
+
+### 5. 未登录
+
+```bash
+curl -s http://localhost:3000/api/debug/auth-check          # 401
+curl -s http://localhost:3000/api/debug/customer-access/$CUST_A  # 401
+```
+
+### 6. 验证 audit_logs
 
 ```bash
 npx wrangler d1 execute crm-db --local --command \
-  "SELECT email_attempted, success, failure_reason FROM login_logs ORDER BY created_at DESC LIMIT 6"
+  "SELECT action, entity_type, entity_id, user_id FROM audit_logs WHERE action LIKE 'permission.%' ORDER BY created_at DESC LIMIT 10"
 ```
 
-### 退出登录
+期望看到：`permission.denied.customer_access`、`permission.denied.unauthenticated`。
 
-```bash
-curl -i -b /tmp/crm-cookies.txt -X POST http://localhost:3000/api/auth/logout
-```
+## 客户访问规则摘要
 
-期望：`200`，Cookie 被清除，写入 `audit_logs`（`auth.logout`）。
-
-### 当前用户
-
-```bash
-curl -s -b /tmp/crm-cookies.txt http://localhost:3000/api/auth/me | python3 -m json.tool
-```
-
-### 健康检查
-
-```bash
-curl http://localhost:3000/api/health
-```
+| 场景 | Admin | Staff（负责人） | Staff（非负责人） |
+|------|-------|----------------|------------------|
+| 自己名下客户 | 完整 | 完整 | 拒绝 |
+| 他人名下客户 | 完整 | 拒绝 | 拒绝 |
+| 公共池客户 | 完整 | 脱敏 | 脱敏 |
+| 公共池原释放人 | 完整 | 脱敏（不得看完整） | 脱敏 |
 
 ## 常用命令
 
 | 命令 | 说明 |
 |------|------|
-| `npm run dev` | Next.js 本地开发（含 D1 模拟绑定） |
-| `npm run preview` | OpenNext 构建 + Wrangler 本地预览 |
-| `npm run deploy` | 构建并部署到 Cloudflare |
-| `npm run db:migrate:local` | 应用迁移到本地 D1 |
-| `npm run db:migrate:remote` | 应用迁移到远程 D1 |
-| `npm run db:seed:local` | 初始化 Admin/Staff 测试账号 |
-| `npm run cf-typegen` | 生成 `cloudflare-env.d.ts` 类型 |
-
-## 部署到 Cloudflare（生产）
-
-### 1. 创建远程 D1 数据库
-
-```bash
-npx wrangler d1 create crm-db
-```
-
-将返回的 `database_id` 写入 `wrangler.jsonc`。
-
-### 2. 应用远程迁移并 seed
-
-```bash
-npm run db:migrate:remote
-npm run db:seed:remote
-```
-
-### 3. 配置环境变量
-
-参见 [docs/ENV.md](./docs/ENV.md)。生产环境务必设置强随机 `SESSION_SECRET`。
-
-### 4. 部署
-
-```bash
-npm run deploy
-```
-
-## 数据库表
-
-| 表名 | Phase 1 状态 |
-|------|----------------|
-| `users` | ✅ 登录、锁定字段 |
-| `sessions` | ✅ 创建/销毁 |
-| `login_logs` | ✅ 登录成功/失败 |
-| `audit_logs` | ✅ 登录成功、退出、锁定 |
-| `customers` 等 | 仅建表，业务未实现 |
-
-## 项目结构
-
-```
-src/
-├── app/
-│   ├── (auth)/login/       # 登录页
-│   ├── (dashboard)/
-│   │   ├── admin/          # 管理员工作台
-│   │   └── staff/          # 员工工作台
-│   └── api/auth/           # login / logout / me
-├── lib/
-│   ├── auth/               # 密码、Session、锁定
-│   ├── audit/              # 审计日志写入
-│   └── permissions/        # requireAuth / requireAdmin
-└── middleware.ts           # 路由守卫
-```
-
-## 备份与回滚
-
-```bash
-git checkout backup-before-d1-migration   # 迁移前 Prisma 快照
-git checkout main                       # 当前 D1 版本
-```
+| `npm run dev` | 本地开发 |
+| `npm run build` | 生产构建 |
+| `npm run db:migrate:local` | 本地迁移 |
+| `npm run db:seed:local` | 初始化测试账号与客户 |
+| `npm run deploy` | 部署到 Cloudflare |
 
 ## 环境变量
 
 详见 [docs/ENV.md](./docs/ENV.md)。
+
+## 备份与回滚
+
+```bash
+git checkout backup-before-d1-migration
+git checkout main
+```

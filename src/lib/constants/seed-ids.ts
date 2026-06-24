@@ -1,0 +1,9 @@
+/** Stable seed IDs for local permission testing. */
+export const SEED_IDS = {
+  admin: "11111111-1111-1111-1111-111111111101",
+  staffA: "11111111-1111-1111-1111-111111111102",
+  staffB: "11111111-1111-1111-1111-111111111103",
+  customerStaffA: "22222222-2222-2222-2222-222222222201",
+  customerStaffB: "22222222-2222-2222-2222-222222222202",
+  customerPublicPool: "22222222-2222-2222-2222-222222222203",
+} as const;
