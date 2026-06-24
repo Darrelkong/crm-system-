@@ -2,16 +2,17 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 8.1
+## 当前阶段：Phase 9
 
-在 Phase 8 基础上加固已归档客户与审批边界规则：
+基础报表与 Admin / Staff 数据看板：
 
-- Staff 客户列表不显示 `archived` 客户；Admin 默认不显示，可通过 `/customers?status=archived` 查看
-- 已归档客户禁止编辑、跟进、释放公共池、提交审批（API 返回 400）
-- Staff 原 owner 可查看已归档客户基础详情；Admin 可查看完整详情
-- 自动回收仅处理 `status=active` 客户，已归档客户不参与
+- `GET /api/reports/admin-dashboard`（Admin only）
+- `GET /api/reports/staff-dashboard`（Staff only，Admin 访问返回 403）
+- `/admin`、`/staff` 首页 KPI 卡片 + 简单表格/进度条
 
-**尚未实现**：报表、导入导出、备份、完整多语言（Phase 9+）。
+**审计说明**：报表为只读聚合统计，本阶段不写入 `audit_logs`（避免高频噪音；不涉及单客户敏感数据越权）。
+
+**尚未实现**：导出、复杂图表、热度评分（Phase 10+）。
 
 ## 技术栈
 
@@ -186,6 +187,45 @@ npx wrangler d1 execute crm-db --local --command \
 ```
 
 **自动回收**：引擎查询条件为 `status = active`，`archived` / `inactive` / `public_pool` 均不参与（见 `src/lib/reclamation/engine.ts`）。
+
+## Phase 9 数据看板测试
+
+```bash
+npm run dev
+
+# 登录
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+
+# Admin 报表 → 200
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/reports/admin-dashboard | head -c 500
+
+# Staff 访问 Admin 报表 → 403
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/reports/admin-dashboard
+
+# Staff 报表 → 200
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/reports/staff-dashboard | head -c 500
+
+# 未登录 → 401
+curl -s http://localhost:3000/api/reports/admin-dashboard
+```
+
+UI：访问 `/admin` 查看全局 KPI；访问 `/staff` 查看个人数据。
+
+### 统计口径摘要
+
+| 指标 | 口径 |
+|------|------|
+| 总客户数 | `status != archived` |
+| 我的客户（Staff） | `owner_id = 我` 且 `status = active` |
+| 成交客户 | `sales_stage = closed_won` |
+| 有效跟进 | `is_valid_follow_up = 1` |
+| 今日任务 | `status=open` 且 `due_at` 在当天（UTC） |
+| 超期任务 | `status=open` 且 `due_at < now` |
+| 自动回收（本月） | `audit_logs.action = customer.auto_reclaimed_to_pool` |
+| 回收风险（Staff） | 我的 active 客户，6≤无有效跟进天数<8 |
 
 ## Phase 7 自动回收测试
 
