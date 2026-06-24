@@ -10,6 +10,7 @@ export interface Env {
 
 /**
  * Standalone Cloudflare Worker scheduled handler for daily auto-reclamation.
+ * Cron: 0 21 * * * UTC = 05:00 Asia/Shanghai (UTC+8)
  * Deploy with: npm run cron:deploy
  */
 export default {

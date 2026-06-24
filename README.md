@@ -2,17 +2,18 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 15A
+## 当前阶段：Phase 15A.1
 
-上线前安全检查 + Cloudflare 部署准备（**未部署正式域名**）。
+部署前安全加固小补丁（**未部署正式域名**）。
 
 | 文档 | 说明 |
 |------|------|
-| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 部署、迁移、生产 seed、Cron、回滚与备份 |
-| [docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md](./docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md) | Admin/Staff/公共池/归档权限回归清单 |
-| [docs/ENV.md](./docs/ENV.md) | 环境变量说明 |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 部署、迁移、Cron（UTC+8 05:00）、占位符清单 |
+| [docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md](./docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md) | 权限回归清单 |
 
-**生产 seed：** 必须使用 `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD`（禁止 `@crm.local`）；本地仍用 `admin@crm.local` / `Admin123!`。
+**Phase 15A.1：** `/import/*`、`/export/*` 已加入 `proxy.ts` Admin-only 路由保护；回收 Cron 与备份 Cron 统一为 `0 21 * * *` UTC（UTC+8 每天 05:00）。
+
+**生产 seed：** 必须使用 `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD`（禁止 `@crm.local`）。
 
 **Turnstile：** 未启用（预留）。**Debug API：** 生产默认关闭。
 
@@ -1071,17 +1072,17 @@ npx wrangler d1 execute crm-db --local --command \
 | 文件 | 说明 |
 |------|------|
 | `workers/reclamation-cron.ts` | 每日执行 `runReclamationCheck` |
-| `wrangler.cron.jsonc` | Cron 表达式 `0 5 * * *` |
+| `wrangler.cron.jsonc` | Cron 表达式 `0 21 * * *` |
 
-**时区说明（上线前请确认）：**
+**时区说明：**
 
 - Cloudflare Cron 使用 **UTC** 时间。
-- 当前配置 `0 5 * * *` = **每天 UTC 05:00**（北京时间 / 香港时间 / 台湾时间 = **13:00**）。
-- 若目标为 **中国 / 香港 / 台湾早上 05:00**，应改为 `0 21 * * *`（UTC 21:00 = 次日本地 05:00）。
-- 部署前请与业务方确认执行时区，再调整 `wrangler.cron.jsonc` 中的 cron 表达式。
+- `0 21 * * *` UTC = 中国 / 香港 / 台湾（UTC+8）每天早上 **05:00**。
+- 回收任务与备份任务均使用 `0 21 * * *`，在 UTC+8 早上 5 点执行。
 
 ```bash
 npm run cron:deploy
+npm run cron:backup:deploy
 ```
 
 也可使用外部 Cron 定时调用 `POST /api/admin/reclamation/run`（需 Admin 会话或后续改为 Service Token）。

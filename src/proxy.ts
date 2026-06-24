@@ -70,6 +70,16 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/import") || pathname.startsWith("/export")) {
+    if (!sessionUser) {
+      return redirectToLogin(request);
+    }
+    if (sessionUser.role !== "admin") {
+      return NextResponse.redirect(new URL("/staff", request.url));
+    }
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/staff")) {
     if (!sessionUser) {
       return redirectToLogin(request);
@@ -102,6 +112,8 @@ export const config = {
     "/",
     "/login",
     "/admin/:path*",
+    "/import/:path*",
+    "/export/:path*",
     "/staff/:path*",
     "/customers",
     "/customers/:path*",
