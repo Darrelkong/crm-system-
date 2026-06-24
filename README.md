@@ -2,20 +2,19 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 15A.1
+## 当前阶段：Phase 15B
 
-部署前安全加固小补丁（**未部署正式域名**）。
+Cloudflare 远程环境准备 + 预览部署准备（**未绑定正式域名，未执行 remote 操作**）。
 
 | 文档 | 说明 |
 |------|------|
-| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 部署、迁移、Cron（UTC+8 05:00）、占位符清单 |
+| [docs/PHASE_15B_REMOTE_PREP.md](./docs/PHASE_15B_REMOTE_PREP.md) | **本阶段** — 配置清单、migration/seed/deploy 命令模板 |
+| [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 完整部署指南 |
 | [docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md](./docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md) | 权限回归清单 |
 
-**Phase 15A.1：** `/import/*`、`/export/*` 已加入 `proxy.ts` Admin-only 路由保护；回收 Cron 与备份 Cron 统一为 `0 21 * * *` UTC（UTC+8 每天 05:00）。
+**阻塞项：** 需先 `npx wrangler login`；`database_id` 仍为占位符，替换前勿 deploy / remote migrate。
 
-**生产 seed：** 必须使用 `SEED_ADMIN_EMAIL` + `SEED_ADMIN_PASSWORD`（禁止 `@crm.local`）。
-
-**Turnstile：** 未启用（预留）。**Debug API：** 生产默认关闭。
+**Turnstile：** 未启用。**Debug API：** 生产默认关闭。
 
 ---
 
