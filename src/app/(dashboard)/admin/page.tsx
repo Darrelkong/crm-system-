@@ -13,7 +13,7 @@ export default async function AdminDashboardPage() {
         title={`你好，${user.displayName}`}
         description="管理员数据看板"
       />
-      <AdminDashboardView />
+      <AdminDashboardView user={user} />
     </div>
   );
 }

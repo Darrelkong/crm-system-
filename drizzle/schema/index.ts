@@ -14,3 +14,4 @@ export * from "./approvals";
 export * from "./import-jobs";
 export * from "./export-jobs";
 export * from "./backup-jobs";
+export * from "./announcements";

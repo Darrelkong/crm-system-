@@ -1,5 +1,6 @@
 import { requireStaff } from "@/lib/permissions/auth";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
+import { getStaffNavLinks } from "@/lib/layout/nav-links";
 
 export default async function StaffLayout({
   children,
@@ -14,12 +15,7 @@ export default async function StaffLayout({
       roleLabel="Staff"
       userName={user.displayName}
       userEmail={user.email}
-      navLinks={[
-        { href: "/staff", label: "工作台", active: true },
-        { href: "/customers", label: "客户管理" },
-        { href: "/public-pool", label: "公共池" },
-        { href: "/approvals", label: "审批中心" },
-      ]}
+      navLinks={getStaffNavLinks()}
     >
       {children}
     </DashboardShell>

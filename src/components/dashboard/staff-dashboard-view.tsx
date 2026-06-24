@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { KpiCard } from "@/components/dashboard/dashboard-widgets";
+import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
+import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
 import { getStaffDashboardStats } from "@/lib/reports/staff-dashboard";
 import { getDb } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
@@ -60,6 +62,11 @@ export async function StaffDashboardView({ user }: { user: User }) {
           value={stats.myClaimedFromPoolLast7Days}
           hint={`剩余名额 ${claim.remainingQuota} / ${claim.quotaLimit}`}
         />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RecentNotificationsCard user={user} />
+        <RecentAnnouncementsCard user={user} />
       </div>
 
       <Card>

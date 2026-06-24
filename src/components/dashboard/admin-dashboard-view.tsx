@@ -5,14 +5,17 @@ import {
   RankingTable,
   SimpleBarRow,
 } from "@/components/dashboard/dashboard-widgets";
+import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
+import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
 import { getAdminDashboardStats } from "@/lib/reports/admin-dashboard";
 import { getDb } from "@/lib/db";
+import type { User } from "../../../drizzle/schema/users";
 import { CUSTOMER_SOURCE_LABELS } from "@/lib/constants/customer-source-labels";
 import { SALES_STAGE_LABELS } from "@/lib/constants/customer-fields";
 import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
 import type { SalesStage } from "@/lib/constants/customer-fields";
 
-export async function AdminDashboardView() {
+export async function AdminDashboardView({ user }: { user: User }) {
   const db = getDb();
   const stats = await getAdminDashboardStats(db);
 
@@ -68,6 +71,11 @@ export async function AdminDashboardView() {
           value={stats.autoReclaimedThisMonth}
           hint="按审计日志统计"
         />
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <RecentNotificationsCard user={user} />
+        <RecentAnnouncementsCard user={user} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

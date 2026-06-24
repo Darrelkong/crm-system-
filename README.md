@@ -2,7 +2,93 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 11.1
+## 当前阶段：Phase 12
+
+通知中心 + 公告中心 + 帮助中心基础版：
+
+| 模块 | 说明 |
+|------|------|
+| **通知中心** | `GET /api/notifications`、标记已读、未读数量、`/notifications` 页面 |
+| **公告中心** | Admin 管理公告（`announcements` 表）、用户查看已发布公告 |
+| **帮助中心** | `/help` 静态规则说明（权限、公共池、跟进、审批等） |
+| **首页** | Admin / Staff 工作台展示最近 5 条通知、最近 3 条公告 |
+
+**审计**：`notification.read` / `notification.read_all` / `announcement.*` / `permission.denied.announcement_manage`
+
+## Phase 12 通知 / 公告 / 帮助测试
+
+```bash
+npm run db:migrate:local
+npm run dev
+```
+
+### 1. 登录
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+```
+
+### 2. 通知中心
+
+```bash
+# 未登录 → 401
+curl -s -w "\n%{http_code}\n" http://localhost:3000/api/notifications
+
+# 各自的通知列表
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/notifications | jq .
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/notifications | jq .
+
+# 未读数量
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/notifications/unread-count | jq .
+
+# 标记单条已读（将 :id 换为实际通知 ID）
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/notifications/NOTIFICATION_ID/read
+
+# 全部已读
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/notifications/read-all | jq .
+```
+
+Staff 无法查看或标记 Admin 的通知（他人 ID → 403）。页面：`/notifications`；首页「最近通知」模块。
+
+### 3. 公告中心
+
+```bash
+# Admin 创建草稿
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/announcements \
+  -H 'Content-Type: application/json' \
+  -d '{"title":"系统维护通知","content":"本周六维护。","audience":"all"}'
+
+# 发布（将 :id 换为公告 ID）
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/announcements/ANN_ID/publish | jq .
+
+# 用户查看已发布
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/announcements | jq .
+
+# audience=admin 时 Staff 列表中不可见；audience=staff 时 Admin 不可见（按规则过滤）
+
+# Staff 管理公告 → 403
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" http://localhost:3000/api/admin/announcements
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" -X POST http://localhost:3000/api/admin/announcements \
+  -H 'Content-Type: application/json' -d '{"title":"x","content":"y","audience":"all"}'
+```
+
+页面：Admin `/admin/announcements`；用户 `/announcements`；首页「最新公告」。
+
+### 4. 帮助中心
+
+浏览器访问 `/help`（Admin / Staff 均可）。内容涵盖：系统说明、客户权限、公共池、跟进与有效跟进、自动回收、审批、导入导出、备份、联系管理员。
+
+### 5. 审计
+
+修改设置、读通知、公告发布后检查 `audit_logs` 含 `notification.read`、`notification.read_all`、`announcement.created` 等。
+
+---
+
+## Phase 11.1 系统设置接入测试
 
 系统设置已接入核心业务逻辑（Admin 在 `/admin/settings` 修改后立即生效）：
 
