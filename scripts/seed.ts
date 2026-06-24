@@ -89,12 +89,22 @@ function assertProductionSeedEnv(): { email: string; password: string } {
   return { email, password };
 }
 
+const LOCAL_SEED_CUSTOMER_IDS = [
+  SEED_IDS.customerStaffA,
+  SEED_IDS.customerStaffB,
+  SEED_IDS.customerPublicPool,
+] as const;
+
+function seedCustomerIdSqlList(): string {
+  return LOCAL_SEED_CUSTOMER_IDS.map((id) => `'${id}'`).join(", ");
+}
+
 async function buildUserInsertSql(users: SeedUser[], now: string): Promise<string[]> {
   const statements: string[] = [];
   for (const user of users) {
     const passwordHash = await hashPassword(user.password);
     statements.push(`
-INSERT OR REPLACE INTO users (
+INSERT INTO users (
   id, email, display_name, password_hash, role, is_active,
   failed_login_attempts, locked_until, created_at, updated_at
 ) VALUES (
@@ -108,7 +118,16 @@ INSERT OR REPLACE INTO users (
   NULL,
   '${now}',
   '${now}'
-);
+)
+ON CONFLICT(id) DO UPDATE SET
+  email = excluded.email,
+  display_name = excluded.display_name,
+  password_hash = excluded.password_hash,
+  role = excluded.role,
+  is_active = excluded.is_active,
+  failed_login_attempts = excluded.failed_login_attempts,
+  locked_until = excluded.locked_until,
+  updated_at = excluded.updated_at;
 `.trim());
   }
   return statements;
@@ -116,38 +135,16 @@ INSERT OR REPLACE INTO users (
 
 async function buildLocalDevSeedSql(): Promise<string> {
   const now = new Date().toISOString();
+  const customerIds = seedCustomerIdSqlList();
   const statements: string[] = [
     "DELETE FROM sessions;",
-    `DELETE FROM tasks WHERE customer_id IN (
-      '${SEED_IDS.customerStaffA}',
-      '${SEED_IDS.customerStaffB}',
-      '${SEED_IDS.customerPublicPool}'
-    );`,
-    `DELETE FROM follow_ups WHERE customer_id IN (
-      '${SEED_IDS.customerStaffA}',
-      '${SEED_IDS.customerStaffB}',
-      '${SEED_IDS.customerPublicPool}'
-    );`,
-    `DELETE FROM field_change_logs WHERE customer_id IN (
-      '${SEED_IDS.customerStaffA}',
-      '${SEED_IDS.customerStaffB}',
-      '${SEED_IDS.customerPublicPool}'
-    );`,
-    `DELETE FROM reclamation_warning_logs WHERE customer_id IN (
-      '${SEED_IDS.customerStaffA}',
-      '${SEED_IDS.customerStaffB}',
-      '${SEED_IDS.customerPublicPool}'
-    );`,
-    `DELETE FROM notifications WHERE related_entity_id IN (
-      '${SEED_IDS.customerStaffA}',
-      '${SEED_IDS.customerStaffB}',
-      '${SEED_IDS.customerPublicPool}'
-    );`,
-    `DELETE FROM customers WHERE id IN (
-      '${SEED_IDS.customerStaffA}',
-      '${SEED_IDS.customerStaffB}',
-      '${SEED_IDS.customerPublicPool}'
-    );`,
+    `DELETE FROM approvals WHERE customer_id IN (${customerIds});`,
+    `DELETE FROM tasks WHERE customer_id IN (${customerIds});`,
+    `DELETE FROM follow_ups WHERE customer_id IN (${customerIds});`,
+    `DELETE FROM field_change_logs WHERE customer_id IN (${customerIds});`,
+    `DELETE FROM reclamation_warning_logs WHERE customer_id IN (${customerIds});`,
+    `DELETE FROM notifications WHERE related_entity_id IN (${customerIds});`,
+    `DELETE FROM customers WHERE id IN (${customerIds});`,
   ];
 
   statements.push(...(await buildUserInsertSql(LOCAL_SEED_USERS, now)));
@@ -225,7 +222,23 @@ INSERT INTO customers (
   '${customer.createdBy}',
   '${now}',
   '${now}'
-);
+)
+ON CONFLICT(id) DO UPDATE SET
+  customer_name = excluded.customer_name,
+  phone = excluded.phone,
+  wechat_id = excluded.wechat_id,
+  email = excluded.email,
+  source = excluded.source,
+  source_remark = excluded.source_remark,
+  notes = excluded.notes,
+  owner_id = excluded.owner_id,
+  status = excluded.status,
+  releaser_user_id = excluded.releaser_user_id,
+  released_by = excluded.released_by,
+  pool_entered_at = excluded.pool_entered_at,
+  pool_reason = excluded.pool_reason,
+  updated_by = excluded.updated_by,
+  updated_at = excluded.updated_at;
 `.trim());
   }
 
