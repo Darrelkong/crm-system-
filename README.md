@@ -2,9 +2,63 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 10C
+## 当前阶段：Phase 11
 
-数据库自动备份（Admin 专用）：
+用户管理 + 系统设置（Admin 专用）：
+
+- 用户列表、创建 Staff、停用/启用、重置密码、解锁
+- 登录记录查看（最近 100 条）
+- `system_settings` 基础读写
+- 审计：`user.created` / `user.disabled` / `user.enabled` / `user.password_reset` / `user.unlocked` / `system_settings.updated`
+
+**系统设置接入说明**：本阶段配置**仅保存到数据库**；自动回收、公共池配额、首次联系 SLA、无操作登出等业务逻辑仍使用代码内硬编码常量。报表业务时区仍使用 `src/lib/reports/dates.ts` 中的 `Asia/Shanghai`。
+
+## Phase 11 用户管理与系统设置测试
+
+```bash
+npm run dev
+```
+
+### 1. Admin 用户管理
+
+```bash
+# 登录
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+# 用户列表（无 password_hash）
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/admin/users | jq .
+
+# 创建 Staff
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/users \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"测试员工","email":"test-staff@crm.local","role":"staff","temporaryPassword":"TestStaff1"}'
+
+# 停用 / 启用 / 重置密码 / 解锁 — 见 /admin/users 页面或对应 API
+```
+
+### 2. Staff 拒绝
+
+```bash
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" http://localhost:3000/api/admin/users
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" http://localhost:3000/api/admin/login-logs
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' -d '{"settings":{"automatic_reclaim_days":"9"}}'
+# 期望 403
+```
+
+### 3. 登录记录与设置
+
+```bash
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/admin/login-logs | jq .
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/admin/settings | jq .
+```
+
+停用或重置密码后，该用户 **sessions 表记录被删除**，下次请求需重新登录。
+
+---
+
+## Phase 10C 数据库自动备份
 
 - `POST /api/admin/backups/run` — 手动触发 JSON 备份
 - `GET /api/admin/backups` — 最近 50 条 `backup_jobs`（不含 `storage_key`）

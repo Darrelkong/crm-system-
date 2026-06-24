@@ -20,6 +20,9 @@ export default async function AdminLayout({
         { href: "/import/customers", label: "客户导入" },
         { href: "/export/customers", label: "数据导出" },
         { href: "/admin/backups", label: "数据备份" },
+        { href: "/admin/users", label: "用户管理" },
+        { href: "/admin/login-logs", label: "登录记录" },
+        { href: "/admin/settings", label: "系统设置" },
         { href: "/public-pool", label: "公共池" },
         { href: "/approvals", label: "审批中心" },
       ]}
