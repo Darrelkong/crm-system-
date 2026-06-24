@@ -21,9 +21,9 @@ import {
 } from "@/lib/reclamation/constants";
 import type { User } from "../../../drizzle/schema/users";
 import {
-  getMonthStartIso,
-  getSevenDaysAgoIso,
-  getTodayRangeUtc,
+  getBusinessMonthRange,
+  getBusinessTodayRange,
+  getRollingSevenDaysAgoIso,
 } from "./dates";
 import type { StaffDashboardStats } from "./types";
 
@@ -32,10 +32,11 @@ export async function getStaffDashboardStats(
   user: User,
   now: Date = new Date(),
 ): Promise<StaffDashboardStats> {
-  const monthStart = getMonthStartIso(now);
+  const { start: monthStart, endExclusive: monthEndExclusive } =
+    getBusinessMonthRange(now);
   const nowIso = now.toISOString();
-  const sevenDaysAgo = getSevenDaysAgoIso(now);
-  const { start: todayStart, end: todayEnd } = getTodayRangeUtc(now);
+  const sevenDaysAgo = getRollingSevenDaysAgoIso(now);
+  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(now);
 
   const ownedActiveFilter = and(
     eq(schema.customers.ownerId, user.id),
@@ -97,6 +98,7 @@ export async function getStaffDashboardStats(
         and(
           eq(schema.customers.ownerId, user.id),
           gte(schema.customers.createdAt, monthStart),
+          lt(schema.customers.createdAt, monthEndExclusive),
           ne(schema.customers.status, "archived"),
         ),
       ),
@@ -107,6 +109,7 @@ export async function getStaffDashboardStats(
         and(
           eq(schema.followUps.userId, user.id),
           gte(schema.followUps.followUpTime, monthStart),
+          lt(schema.followUps.followUpTime, monthEndExclusive),
         ),
       ),
     db
@@ -116,6 +119,7 @@ export async function getStaffDashboardStats(
         and(
           eq(schema.followUps.userId, user.id),
           gte(schema.followUps.followUpTime, monthStart),
+          lt(schema.followUps.followUpTime, monthEndExclusive),
           eq(schema.followUps.isValidFollowUp, 1),
         ),
       ),

@@ -13,8 +13,8 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { RECLAMATION_AUDIT_ACTIONS } from "@/lib/reclamation/constants";
 import {
-  getMonthStartIso,
-  getTodayRangeUtc,
+  getBusinessMonthRange,
+  getBusinessTodayRange,
 } from "./dates";
 import type { AdminDashboardStats } from "./types";
 
@@ -22,9 +22,10 @@ export async function getAdminDashboardStats(
   db: Database,
   now: Date = new Date(),
 ): Promise<AdminDashboardStats> {
-  const monthStart = getMonthStartIso(now);
+  const { start: monthStart, endExclusive: monthEndExclusive } =
+    getBusinessMonthRange(now);
   const nowIso = now.toISOString();
-  const { start: todayStart, end: todayEnd } = getTodayRangeUtc(now);
+  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(now);
 
   const [
     totalCustomersRow,
@@ -87,19 +88,26 @@ export async function getAdminDashboardStats(
       .where(
         and(
           gte(schema.customers.createdAt, monthStart),
+          lt(schema.customers.createdAt, monthEndExclusive),
           ne(schema.customers.status, "archived"),
         ),
       ),
     db
       .select({ value: count() })
       .from(schema.followUps)
-      .where(gte(schema.followUps.followUpTime, monthStart)),
+      .where(
+        and(
+          gte(schema.followUps.followUpTime, monthStart),
+          lt(schema.followUps.followUpTime, monthEndExclusive),
+        ),
+      ),
     db
       .select({ value: count() })
       .from(schema.followUps)
       .where(
         and(
           gte(schema.followUps.followUpTime, monthStart),
+          lt(schema.followUps.followUpTime, monthEndExclusive),
           eq(schema.followUps.isValidFollowUp, 1),
         ),
       ),
@@ -122,6 +130,7 @@ export async function getAdminDashboardStats(
             RECLAMATION_AUDIT_ACTIONS.reclaimed,
           ),
           gte(schema.auditLogs.createdAt, monthStart),
+          lt(schema.auditLogs.createdAt, monthEndExclusive),
         ),
       ),
   ]);
@@ -171,7 +180,12 @@ export async function getAdminDashboardStats(
     })
     .from(schema.followUps)
     .innerJoin(schema.users, eq(schema.followUps.userId, schema.users.id))
-    .where(gte(schema.followUps.followUpTime, monthStart))
+    .where(
+      and(
+        gte(schema.followUps.followUpTime, monthStart),
+        lt(schema.followUps.followUpTime, monthEndExclusive),
+      ),
+    )
     .groupBy(schema.followUps.userId, schema.users.displayName)
     .orderBy(desc(count()));
 

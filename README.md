@@ -2,17 +2,15 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 9
+## 当前阶段：Phase 9.1
 
-基础报表与 Admin / Staff 数据看板：
+Phase 9 报表时区口径修正：
 
-- `GET /api/reports/admin-dashboard`（Admin only）
-- `GET /api/reports/staff-dashboard`（Staff only，Admin 访问返回 403）
-- `/admin`、`/staff` 首页 KPI 卡片 + 简单表格/进度条
+- Dashboard 统计使用业务时区 **Asia/Shanghai（UTC+8）**
+- 数据库存储仍为 UTC ISO 时间
+- 查询时将 UTC+8 的 today / thisMonth 边界换算为 UTC 后比较
 
-**审计说明**：报表为只读聚合统计，本阶段不写入 `audit_logs`（避免高频噪音；不涉及单客户敏感数据越权）。
-
-**尚未实现**：导出、复杂图表、热度评分（Phase 10+）。
+**尚未实现**：导出、备份、完整多语言（Phase 10+）。
 
 ## 技术栈
 
@@ -216,16 +214,31 @@ UI：访问 `/admin` 查看全局 KPI；访问 `/staff` 查看个人数据。
 
 ### 统计口径摘要
 
+**时区**：所有 today / thisMonth 指标按业务时区 `Asia/Shanghai`（UTC+8）计算；配置见 `src/lib/reports/dates.ts` 中的 `BUSINESS_TIMEZONE`。数据库存储 UTC，查询前将 UTC+8 日期边界转换为 UTC ISO 字符串。
+
 | 指标 | 口径 |
 |------|------|
 | 总客户数 | `status != archived` |
 | 我的客户（Staff） | `owner_id = 我` 且 `status = active` |
 | 成交客户 | `sales_stage = closed_won` |
 | 有效跟进 | `is_valid_follow_up = 1` |
-| 今日任务 | `status=open` 且 `due_at` 在当天（UTC） |
-| 超期任务 | `status=open` 且 `due_at < now` |
+| 今日任务 | `status=open` 且 `due_at` 在 UTC+8 当天 00:00–23:59:59.999 |
+| 超期任务 | `status=open` 且 `due_at < now`（即时比较，非日界） |
+| 本月指标 | `>= UTC+8 当月1日 00:00` 且 `< UTC+8 下月1日 00:00` |
+| 7 天领取数 | 滚动 7×24 小时（与公共池配额一致，非自然周） |
 | 自动回收（本月） | `audit_logs.action = customer.auto_reclaimed_to_pool` |
 | 回收风险（Staff） | 我的 active 客户，6≤无有效跟进天数<8 |
+
+### 时区边界测试
+
+```bash
+npx tsx scripts/test-report-timezone.ts
+```
+
+手动验证示例（UTC 2026-06-24 18:00 = UTC+8 次日 02:00，业务日为 6 月 25 日）：
+
+* `due_at = 2026-06-24T20:00:00.000Z`（UTC+8 6/25 04:00）→ 计入今日任务
+* `created_at = 2026-05-31T20:00:00.000Z`（UTC+8 6/1 04:00）→ 计入本月新增
 
 ## Phase 7 自动回收测试
 
