@@ -16,7 +16,8 @@
     "db:seed:remote": "tsx scripts/seed.ts --remote",
     "db:seed:reclamation:local": "tsx scripts/seed-reclamation.ts --local",
     "db:seed:reclamation:remote": "tsx scripts/seed-reclamation.ts --remote",
-    "cron:deploy": "wrangler deploy -c wrangler.cron.jsonc"
+    "cron:deploy": "wrangler deploy -c wrangler.cron.jsonc",
+    "cron:backup:deploy": "wrangler deploy -c wrangler.backup-cron.jsonc"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",

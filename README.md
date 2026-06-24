@@ -2,9 +2,91 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 10B.1
+## 当前阶段：Phase 10C
 
-客户导出安全加固：
+数据库自动备份（Admin 专用）：
+
+- `POST /api/admin/backups/run` — 手动触发 JSON 备份
+- `GET /api/admin/backups` — 最近 50 条 `backup_jobs`（不含 `storage_key`）
+- 存储：生产写 R2 `ATTACHMENTS` binding；本地开发失败时回退至 `.local-backups/`
+- 定时：`workers/backup-cron.ts`，Cron `0 21 * * *` UTC = **UTC+8 每天 05:00**
+- 失败时通知所有 Admin（`backup_failed`）
+- 审计：`backup.started` / `backup.completed` / `backup.failed`
+
+**尚未实现**：一键恢复、自动清理旧备份、备份加密（后续 Phase）。
+
+### 敏感字段与排除表
+
+| 范围 | 说明 |
+|------|------|
+| **users** | 导出除 `password_hash` 外的字段 |
+| **sessions** | **整表不备份**（含 `token_hash`） |
+| 其他业务表 | 全量备份 |
+
+### 本地与生产差异
+
+| 环境 | 存储 | 说明 |
+|------|------|------|
+| 生产 | R2 `backups/crm-backup-{UTC+8时间}.json` | `npm run cron:backup:deploy` 部署定时 Worker |
+| 本地 dev | 优先 R2 preview bucket；失败则 `.local-backups/` | 模拟失败：`BACKUP_FORCE_FAIL=1` |
+
+### 恢复说明（本阶段不提供一键恢复）
+
+1. **找到最近备份**：Admin 访问 `/admin/backups` 或查 `backup_jobs` 表 / R2 `backups/` 前缀
+2. **下载备份文件**：从 Cloudflare R2 控制台或 `wrangler r2 object get crm-attachments/backups/crm-backup-....json --file=backup.json`
+3. **测试环境验证**：在测试 D1 环境解析 JSON，核对 `tables` 与 `metadata.recordCount`
+4. **恢复生产前**：必须先对当前生产库再做一次手动备份
+5. **一键恢复**：后续 Phase 实现；当前仅备份 + 文档，**禁止**在未验证脚本的情况下直接覆盖生产数据
+
+## Phase 10C 备份测试
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run dev
+```
+
+### 1. Admin 手动备份
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/backups/run | jq .
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/admin/backups | jq .
+```
+
+验证：`backup_jobs.status=completed`，`audit_logs` 含 `backup.started` / `backup.completed`，JSON 中 `users` 无 `password_hash`。
+
+### 2. Staff 拒绝
+
+```bash
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" -X POST http://localhost:3000/api/admin/backups/run
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" http://localhost:3000/api/admin/backups
+# 期望 403；audit_logs 含 permission.denied.backup_run
+```
+
+### 3. 失败通知
+
+```bash
+BACKUP_FORCE_FAIL=1 npm run dev
+# 再次 POST /api/admin/backups/run → 500，backup_jobs failed，Admin 收到 backup_failed 通知
+```
+
+### 4. Cron 定时备份
+
+- 表达式：`0 21 * * *`（UTC）= UTC+8 每日 05:00
+- 部署：`npm run cron:backup:deploy`
+- 本地测试：`npx wrangler dev -c wrangler.backup-cron.jsonc --test-scheduled`
+
+Cron 备份：`backup_type=scheduled`，`triggered_by=null`。
+
+---
+
+## Phase 10B.1 导出安全加固
 
 - **Staff 默认不能导出**（API / 页面均 403）
 - **fields 白名单**：仅允许 18 个明确字段；未知字段 → 400 `invalid_export_field`

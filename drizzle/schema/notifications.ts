@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES = [
   "approval.rejected",
   "customer.transferred",
   "customer.closed_won.approved",
+  "backup_failed",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
