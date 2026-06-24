@@ -9,6 +9,8 @@ export const users = sqliteTable(
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["admin", "staff"] }).notNull(),
     isActive: integer("is_active").notNull().default(1),
+    failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
+    lockedUntil: text("locked_until"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

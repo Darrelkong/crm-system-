@@ -11,7 +11,9 @@
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "db:migrate:local": "wrangler d1 migrations apply crm-db --local",
-    "db:migrate:remote": "wrangler d1 migrations apply crm-db --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply crm-db --remote",
+    "db:seed:local": "tsx scripts/seed.ts --local",
+    "db:seed:remote": "tsx scripts/seed.ts --remote"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",

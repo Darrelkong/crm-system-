@@ -6,7 +6,7 @@
 |------|------|------|------|
 | `TURNSTILE_SITE_KEY` | Phase 2+ | 否 | Cloudflare Turnstile 站点公钥（登录页） |
 | `TURNSTILE_SECRET_KEY` | Phase 2+ | 否 | Turnstile 服务端校验密钥 |
-| `SESSION_SECRET` | Phase 1 | 是 | Session token 签名密钥，建议 ≥ 32 字节随机字符串 |
+| `SESSION_SECRET` | Phase 1 | 生产建议填写 | Session 相关预留配置；生产环境请使用强随机字符串 |
 | `CLOUDFLARE_ACCOUNT_ID` | 部署/远程迁移 | 生产必填 | Cloudflare 账号 ID |
 | `CLOUDFLARE_DATABASE_ID` | 部署/远程迁移 | 生产必填 | D1 数据库 UUID（`wrangler d1 create` 返回） |
 | `CLOUDFLARE_D1_TOKEN` | 远程迁移 | 可选 | Drizzle Kit 远程操作 API Token |
