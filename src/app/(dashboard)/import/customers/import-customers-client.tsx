@@ -23,8 +23,9 @@ type CommitResponse = {
   failedCount: number;
   createdCustomerIds: string[];
   errors: ImportIssue[];
-  skippedWarnings?: ImportIssue[];
+  warnings?: ImportIssue[];
   error?: string;
+  code?: string;
 };
 
 export function ImportCustomersClient() {
@@ -91,19 +92,11 @@ export function ImportCustomersClient() {
           csvText,
           fileName,
           jobId: precheck.jobId,
-          skipWarnings: true,
         }),
       });
       const data = (await res.json()) as CommitResponse;
       if (!res.ok) {
         setServerError(data.error ?? "导入失败");
-        if (data.errors?.length) {
-          setPrecheck((prev) =>
-            prev
-              ? { ...prev, errors: data.errors, invalidRows: data.failedCount }
-              : prev,
-          );
-        }
         return;
       }
       setCommitResult(data);
@@ -229,7 +222,7 @@ export function ImportCustomersClient() {
 
           {precheck.warnings.length > 0 && (
             <div className="mt-6">
-              <h4 className="text-sm font-medium text-amber-700">警告（导入时将跳过）</h4>
+              <h4 className="text-sm font-medium text-amber-700">警告（不阻止导入）</h4>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
                 {precheck.warnings.map((w, i) => (
                   <li key={i}>
@@ -247,8 +240,6 @@ export function ImportCustomersClient() {
           <h3 className="text-lg font-medium text-green-900">导入成功</h3>
           <p className="mt-2 text-sm text-green-800">
             成功导入 {commitResult.importedCount} 条客户
-            {commitResult.skippedCount > 0 &&
-              `，跳过 ${commitResult.skippedCount} 条`}
           </p>
           {commitResult.createdCustomerIds.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-green-900">

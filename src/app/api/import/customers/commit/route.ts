@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { commitCustomerImport } from "@/lib/import/customers/commit";
+import { ImportJobGuardError } from "@/lib/import/customers/job-guard";
 import { readCommitBody } from "@/lib/import/customers/request";
 import { requireImportAdmin } from "@/lib/permissions/import";
 import { authErrorResponse } from "@/lib/permissions/auth";
@@ -11,31 +12,29 @@ export async function POST(request: Request) {
     const user = await requireImportAdmin(request);
     const { ipAddress, userAgent } = getRequestMeta(request);
 
-    const { csvText, fileName, jobId, skipWarnings } =
-      await readCommitBody(request);
+    const { csvText, fileName, jobId } = await readCommitBody(request);
+
+    if (!jobId) {
+      return Response.json({ error: "缺少 jobId，请先预检" }, { status: 400 });
+    }
 
     const result = await commitCustomerImport({
       csvText,
       fileName,
-      skipWarnings,
       user,
       ipAddress,
       userAgent,
       jobId,
     });
 
-    if (result.failedCount > 0 || result.errors.length > 0) {
-      return Response.json(
-        {
-          error: "存在错误行，无法导入",
-          ...result,
-        },
-        { status: 400 },
-      );
-    }
-
     return Response.json(result);
   } catch (error) {
+    if (error instanceof ImportJobGuardError) {
+      return Response.json(
+        { error: error.message, code: error.code },
+        { status: error.status },
+      );
+    }
     if (
       error instanceof Error &&
       (error.message.startsWith("缺少") || error.message.startsWith("请上传"))

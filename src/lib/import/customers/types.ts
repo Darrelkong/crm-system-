@@ -50,5 +50,5 @@ export type CommitResult = {
   failedCount: number;
   createdCustomerIds: string[];
   errors: ImportIssue[];
-  skippedWarnings: ImportIssue[];
+  warnings: ImportIssue[];
 };

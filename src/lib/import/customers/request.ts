@@ -41,7 +41,6 @@ export async function readCommitBody(request: Request): Promise<{
   csvText: string;
   fileName: string | null;
   jobId: string | null;
-  skipWarnings: boolean;
 }> {
   const contentType = request.headers.get("content-type") ?? "";
 
@@ -65,12 +64,10 @@ export async function readCommitBody(request: Request): Promise<{
     }
 
     const jobId = formData.get("jobId");
-    const skipWarnings = formData.get("skipWarnings");
     return {
       csvText,
       fileName,
       jobId: typeof jobId === "string" ? jobId : null,
-      skipWarnings: skipWarnings !== "false",
     };
   }
 
@@ -78,7 +75,6 @@ export async function readCommitBody(request: Request): Promise<{
     csvText?: string;
     fileName?: string;
     jobId?: string;
-    skipWarnings?: boolean;
   };
 
   if (!body.csvText || typeof body.csvText !== "string") {
@@ -89,6 +85,5 @@ export async function readCommitBody(request: Request): Promise<{
     csvText: body.csvText,
     fileName: typeof body.fileName === "string" ? body.fileName : null,
     jobId: typeof body.jobId === "string" ? body.jobId : null,
-    skipWarnings: body.skipWarnings !== false,
   };
 }

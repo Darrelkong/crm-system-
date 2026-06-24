@@ -13,6 +13,10 @@ import type {
   PrecheckResult,
 } from "@/lib/import/customers/types";
 import type { User } from "../../../../drizzle/schema/users";
+import {
+  IMPORT_DEFAULTS,
+  IMPORT_DEFAULT_WARNINGS,
+} from "@/lib/import/customers/defaults";
 import type { ImportCsvColumn } from "@/lib/import/customers/constants";
 
 const CSV_FIELD_TO_INPUT: Record<string, string> = {
@@ -36,15 +40,15 @@ function toParsedRow(
     rowNumber,
     raw,
     customerName: raw.customer_name.trim(),
-    customerType: raw.customer_type.trim() || "individual",
-    phoneCountryCode: raw.phone_country_code.trim() || "+86",
+    customerType: raw.customer_type.trim() || IMPORT_DEFAULTS.customerType,
+    phoneCountryCode: raw.phone_country_code.trim() || IMPORT_DEFAULTS.phoneCountryCode,
     phone: raw.phone.trim() || null,
     wechatId: raw.wechat_id.trim() || null,
     email: raw.email.trim() || null,
     source: raw.source.trim(),
     sourceRemark: raw.source_remark.trim() || null,
     notes: raw.notes.trim() || null,
-    salesStage: raw.sales_stage.trim() || "new_lead",
+    salesStage: raw.sales_stage.trim() || IMPORT_DEFAULTS.salesStage,
   };
 }
 
@@ -277,7 +281,7 @@ export async function precheckCustomerImport(
         rowNumber: row.rowNumber,
         field: "customer_type",
         code: "default_customer_type",
-        message: "未填写客户类型，将默认 individual",
+        message: IMPORT_DEFAULT_WARNINGS.customerType,
       });
     }
     if (!row.raw.sales_stage.trim()) {
@@ -285,7 +289,7 @@ export async function precheckCustomerImport(
         rowNumber: row.rowNumber,
         field: "sales_stage",
         code: "default_sales_stage",
-        message: "未填写销售阶段，将默认 new_lead",
+        message: IMPORT_DEFAULT_WARNINGS.salesStage,
       });
     }
     if (!row.raw.phone_country_code.trim()) {
@@ -293,7 +297,7 @@ export async function precheckCustomerImport(
         rowNumber: row.rowNumber,
         field: "phone_country_code",
         code: "default_phone_country_code",
-        message: "未填写国家区号，将默认 +86",
+        message: IMPORT_DEFAULT_WARNINGS.phoneCountryCode,
       });
     }
 
@@ -359,15 +363,6 @@ export async function precheckCustomerImport(
   for (const list of rowWarnings.values()) warnings.push(...list);
 
   const errorRowNumbers = new Set(errors.map((e) => e.rowNumber));
-  const warningOnlyRows = new Set(
-    parsedRows
-      .filter(
-        (r) =>
-          !errorRowNumbers.has(r.rowNumber) &&
-          (rowWarnings.get(r.rowNumber)?.length ?? 0) > 0,
-      )
-      .map((r) => r.rowNumber),
-  );
 
   const duplicateRows = new Set(
     errors
@@ -375,14 +370,12 @@ export async function precheckCustomerImport(
       .map((e) => e.rowNumber),
   ).size;
 
+  /** Rows without errors are importable; warnings do not reduce this count. */
   const validRows = parsedRows.filter(
-    (r) =>
-      !errorRowNumbers.has(r.rowNumber) && !warningOnlyRows.has(r.rowNumber),
+    (r) => !errorRowNumbers.has(r.rowNumber),
   ).length;
 
-  const invalidRows = new Set([
-    ...errorRowNumbers,
-  ]).size;
+  const invalidRows = errorRowNumbers.size;
 
   const previewRows: ImportPreviewRow[] = parsedRows.slice(0, 50).map((row) => {
     const hasError = errorRowNumbers.has(row.rowNumber);

@@ -2,108 +2,79 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
+import {
+  assertCommitableImportJob,
+  ImportJobGuardError,
+} from "@/lib/import/customers/job-guard";
 import { precheckCustomerImport } from "@/lib/import/customers/precheck";
-import type {
-  CommitResult,
-  ImportIssue,
-  ParsedImportRow,
-} from "@/lib/import/customers/types";
+import type { CommitResult } from "@/lib/import/customers/types";
 import type { User } from "../../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 
 type CommitOptions = {
   csvText: string;
   fileName?: string | null;
-  skipWarnings?: boolean;
   user: User;
   ipAddress?: string | null;
   userAgent?: string | null;
-  jobId?: string | null;
+  jobId: string;
 };
-
-function rowHasOnlyWarnings(
-  row: ParsedImportRow,
-  errors: ImportIssue[],
-  warnings: ImportIssue[],
-): boolean {
-  const hasError = errors.some((e) => e.rowNumber === row.rowNumber);
-  if (hasError) return false;
-  return warnings.some((w) => w.rowNumber === row.rowNumber);
-}
 
 export async function commitCustomerImport(
   options: CommitOptions,
 ): Promise<CommitResult> {
-  const {
-    csvText,
-    fileName,
-    skipWarnings = true,
-    user,
-    ipAddress,
-    userAgent,
-    jobId: existingJobId,
-  } = options;
+  const { csvText, fileName, user, ipAddress, userAgent, jobId } = options;
 
   const precheck = await precheckCustomerImport(csvText, user);
-  const jobId = existingJobId ?? crypto.randomUUID();
   const db = getDb();
   const now = new Date().toISOString();
 
-  const errorRowNumbers = new Set(precheck.errors.map((e) => e.rowNumber));
+  try {
+    await assertCommitableImportJob(jobId, user, precheck);
+  } catch (error) {
+    if (error instanceof ImportJobGuardError) {
+      const updatable =
+        error.code === "precheck_has_errors" ||
+        error.code === "precheck_mismatch" ||
+        error.code === "job_has_errors";
 
-  if (precheck.invalidRows > 0 || precheck.errors.length > 0) {
-    await upsertImportJob(db, {
-      id: jobId,
-      status: "failed",
-      userId: user.id,
-      fileName,
-      precheck,
-      importedRows: 0,
-      completedAt: now,
-    });
+      if (updatable) {
+        await markImportJobFailed(db, {
+          jobId,
+          userId: user.id,
+          fileName,
+          precheck,
+          reason: error.code,
+          completedAt: now,
+        });
+      }
 
-    await writeAuditLog({
-      userId: user.id,
-      action: "customers.import.failed",
-      entityType: "import_job",
-      entityId: jobId,
-      ipAddress,
-      userAgent,
-      metadata: {
-        fileName,
-        totalRows: precheck.totalRows,
-        invalidRows: precheck.invalidRows,
-        reason: "precheck_errors",
-      },
-    });
+      await writeAuditLog({
+        userId: user.id,
+        action: "customers.import.failed",
+        entityType: "import_job",
+        entityId: jobId,
+        ipAddress,
+        userAgent,
+        metadata: {
+          fileName,
+          reason: error.code,
+          message: error.message,
+        },
+      });
 
-    return {
-      jobId,
-      importedCount: 0,
-      skippedCount: 0,
-      failedCount: precheck.invalidRows,
-      createdCustomerIds: [],
-      errors: precheck.errors,
-      skippedWarnings: [],
-    };
+      throw error;
+    }
+    throw error;
   }
 
-  const rowsToImport = precheck.rows.filter((row) => {
-    if (errorRowNumbers.has(row.rowNumber)) return false;
-    if (skipWarnings && rowHasOnlyWarnings(row, precheck.errors, precheck.warnings)) {
-      return false;
-    }
-    return true;
-  });
+  const errorRowNumbers = new Set(precheck.errors.map((e) => e.rowNumber));
 
-  const skippedWarnings = skipWarnings
-    ? precheck.warnings.filter((w) =>
-        rowsToImport.every((r) => r.rowNumber !== w.rowNumber),
-      )
-    : [];
+  const rowsToImport = precheck.rows.filter(
+    (row) => !errorRowNumbers.has(row.rowNumber),
+  );
 
   const createdCustomerIds: string[] = [];
-  const commitErrors: ImportIssue[] = [];
 
   try {
     for (const row of rowsToImport) {
@@ -161,11 +132,9 @@ export async function commitCustomerImport(
       });
     }
 
-    await upsertImportJob(db, {
+    await updateImportJob(db, {
       id: jobId,
       status: "completed",
-      userId: user.id,
-      fileName,
       precheck,
       importedRows: createdCustomerIds.length,
       completedAt: now,
@@ -182,7 +151,7 @@ export async function commitCustomerImport(
         fileName,
         totalRows: precheck.totalRows,
         importedCount: createdCustomerIds.length,
-        skippedCount: precheck.totalRows - createdCustomerIds.length,
+        warningCount: precheck.warnings.length,
         createdCustomerIds,
       },
     });
@@ -190,94 +159,106 @@ export async function commitCustomerImport(
     return {
       jobId,
       importedCount: createdCustomerIds.length,
-      skippedCount: precheck.totalRows - createdCustomerIds.length,
+      skippedCount: 0,
       failedCount: 0,
       createdCustomerIds,
-      errors: commitErrors,
-      skippedWarnings,
+      errors: [],
+      warnings: precheck.warnings,
     };
   } catch (error) {
-    await upsertImportJob(db, {
-      id: jobId,
-      status: "failed",
-      userId: user.id,
-      fileName,
-      precheck,
-      importedRows: createdCustomerIds.length,
-      completedAt: now,
-      errorExtra: String(error),
-    });
-
-    await writeAuditLog({
-      userId: user.id,
-      action: "customers.import.failed",
-      entityType: "import_job",
-      entityId: jobId,
-      ipAddress,
-      userAgent,
-      metadata: {
+    if (!(error instanceof ImportJobGuardError)) {
+      await markImportJobFailed(db, {
+        jobId,
+        userId: user.id,
         fileName,
-        importedBeforeFailure: createdCustomerIds.length,
-        error: String(error),
-      },
-    });
+        precheck,
+        reason: "commit_exception",
+        completedAt: now,
+        errorExtra: String(error),
+      });
+
+      await writeAuditLog({
+        userId: user.id,
+        action: "customers.import.failed",
+        entityType: "import_job",
+        entityId: jobId,
+        ipAddress,
+        userAgent,
+        metadata: {
+          fileName,
+          importedBeforeFailure: createdCustomerIds.length,
+          error: String(error),
+        },
+      });
+    }
 
     throw error;
   }
 }
 
-async function upsertImportJob(
+async function updateImportJob(
   db: Database,
   input: {
     id: string;
-    status: "prechecked" | "completed" | "failed";
-    userId: string;
-    fileName?: string | null;
+    status: "completed";
     precheck: Awaited<ReturnType<typeof precheckCustomerImport>>;
     importedRows: number;
-    completedAt?: string | null;
-    errorExtra?: string;
+    completedAt: string;
   },
 ): Promise<void> {
-  const now = new Date().toISOString();
   const summary = {
     errors: input.precheck.errors,
     warnings: input.precheck.warnings,
     duplicateRows: input.precheck.duplicateRows,
+  };
+
+  await db
+    .update(schema.importJobs)
+    .set({
+      status: input.status,
+      totalRows: input.precheck.totalRows,
+      validRows: input.precheck.validRows,
+      invalidRows: input.precheck.invalidRows,
+      importedRows: input.importedRows,
+      errorSummary: JSON.stringify(summary),
+      completedAt: input.completedAt,
+    })
+    .where(eq(schema.importJobs.id, input.id));
+}
+
+async function markImportJobFailed(
+  db: Database,
+  input: {
+    jobId: string;
+    userId: string;
+    fileName?: string | null;
+    precheck: Awaited<ReturnType<typeof precheckCustomerImport>>;
+    reason: string;
+    completedAt: string;
+    errorExtra?: string;
+  },
+): Promise<void> {
+  const summary = {
+    errors: input.precheck.errors,
+    warnings: input.precheck.warnings,
+    duplicateRows: input.precheck.duplicateRows,
+    reason: input.reason,
     errorExtra: input.errorExtra,
   };
 
-  const existing = await db
-    .select({ id: schema.importJobs.id })
-    .from(schema.importJobs)
-    .where(eq(schema.importJobs.id, input.id))
-    .limit(1);
-
-  const values = {
-    type: "customers" as const,
-    status: input.status,
-    uploadedBy: input.userId,
-    fileName: input.fileName ?? null,
-    totalRows: input.precheck.totalRows,
-    validRows: input.precheck.validRows,
-    invalidRows: input.precheck.invalidRows,
-    importedRows: input.importedRows,
-    errorSummary: JSON.stringify(summary),
-    completedAt: input.completedAt ?? null,
-  };
-
-  if (existing.length > 0) {
-    await db
-      .update(schema.importJobs)
-      .set(values)
-      .where(eq(schema.importJobs.id, input.id));
-  } else {
-    await db.insert(schema.importJobs).values({
-      id: input.id,
-      ...values,
-      createdAt: now,
-    });
-  }
+  await db
+    .update(schema.importJobs)
+    .set({
+      status: "failed",
+      fileName: input.fileName ?? null,
+      totalRows: input.precheck.totalRows,
+      validRows: input.precheck.validRows,
+      invalidRows: input.precheck.invalidRows,
+      importedRows: 0,
+      errorSummary: JSON.stringify(summary),
+      completedAt: input.completedAt,
+    })
+    .where(eq(schema.importJobs.id, input.jobId));
 }
 
 export async function createPrecheckImportJob(

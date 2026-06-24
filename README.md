@@ -2,16 +2,79 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 10A
+## 当前阶段：Phase 10A.1
 
-客户 CSV 导入（Admin 专用）：
+客户 CSV 导入加固：
 
-- 下载导入模板、CSV 预检、正式导入
-- 重复检查与客户新增 API 规则一致（phone / wechat_id / email，排除 archived）
-- 导入记录写入 `import_jobs` 表
-- 审计：`customers.import.precheck`、`customers.import.completed`、`customers.import.failed`、`customer.imported`
+- 空 `sales_stage` / `phone_country_code` / `customer_type` 使用默认值，**warning 不阻止导入**
+- commit 必须携带本人 `prechecked` 状态的 `jobId`，禁止重复提交
+- `import_jobs` 状态：`prechecked` → `completed` / `failed`
 
 **尚未实现**：客户导出、备份恢复、完整多语言（Phase 10B+）。
+
+## Phase 10A.1 导入默认值与 commit 安全测试
+
+### 1. 默认值（warning 不阻止导入）
+
+```bash
+cat > /tmp/import-defaults.csv <<'EOF'
+customer_name,customer_type,phone_country_code,phone,wechat_id,email,source,source_remark,notes,sales_stage
+默认字段客户,,,13900007777,,defaults@test.com,referral,,仅填必填项,
+EOF
+
+PRECHECK=$(curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/import/customers/precheck \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-defaults.csv),\"fileName\":\"import-defaults.csv\"}")
+
+echo "$PRECHECK" | jq '{validRows, invalidRows, warnings}'
+# 期望：validRows=1，invalidRows=0，warnings 含 default_customer_type / default_phone_country_code / default_sales_stage
+
+JOB_ID=$(echo "$PRECHECK" | jq -r .jobId)
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/import/customers/commit \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-defaults.csv),\"jobId\":\"$JOB_ID\"}" | jq .
+# 期望：importedCount=1；客户 sales_stage=new_lead, customer_type=individual, phone_country_code=+86
+```
+
+### 2. error 阻止导入
+
+```bash
+cat > /tmp/import-bad.csv <<'EOF'
+customer_name,customer_type,phone_country_code,phone,wechat_id,email,source,source_remark,notes,sales_stage
+,individual,+86,13900006666,,bad@test.com,referral,,缺名称,new_lead
+EOF
+
+BAD=$(curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/import/customers/precheck \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-bad.csv)}")
+BAD_JOB=$(echo "$BAD" | jq -r .jobId)
+
+curl -s -b /tmp/crm-admin.txt -w "\n%{http_code}\n" -X POST http://localhost:3000/api/import/customers/commit \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-bad.csv),\"jobId\":\"$BAD_JOB\"}"
+# 期望：400，code=job_has_errors 或 precheck_has_errors
+```
+
+### 3. commit 安全
+
+```bash
+# 重复 commit 已完成 job → 409 job_already_completed
+curl -s -b /tmp/crm-admin.txt -w "\n%{http_code}\n" -X POST http://localhost:3000/api/import/customers/commit \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-defaults.csv),\"jobId\":\"$JOB_ID\"}"
+
+# Staff commit Admin job → 403
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" -X POST http://localhost:3000/api/import/customers/commit \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-defaults.csv),\"jobId\":\"$JOB_ID\"}"
+
+# 不存在 job → 404
+curl -s -b /tmp/crm-admin.txt -w "\n%{http_code}\n" -X POST http://localhost:3000/api/import/customers/commit \
+  -H 'Content-Type: application/json' \
+  -d '{"csvText":"customer_name,source\nX,referral","jobId":"00000000-0000-0000-0000-000000000000"}'
+```
+
+---
 
 ## Phase 10A 客户导入测试
 
