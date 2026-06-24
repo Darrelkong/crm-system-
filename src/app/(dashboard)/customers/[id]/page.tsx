@@ -11,7 +11,9 @@ import {
   canReleaseToPool,
   assertCanViewFollowUps,
 } from "@/lib/permissions/customers";
+import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
+import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import {
   FOLLOW_UP_CHANNEL_LABELS,
@@ -87,6 +89,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   const showEditButton = canEditCustomer(user, customer);
   const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer);
+  const showApprovalButton = canSubmitApprovalRequest(user, customer);
 
   let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
   try {
@@ -113,6 +116,9 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {showApprovalButton && (
+            <CustomerApprovalRequests customerId={id} />
+          )}
           {showReleaseButton && (
             <ReleaseToPoolButton customerId={id} />
           )}

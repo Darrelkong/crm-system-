@@ -19,6 +19,7 @@ export default async function CustomersLayout({
         { href: dashboardHref, label: "工作台" },
         { href: "/customers", label: "客户管理", active: true },
         { href: "/public-pool", label: "公共池" },
+        { href: "/approvals", label: "审批中心" },
       ]}
     >
       {children}

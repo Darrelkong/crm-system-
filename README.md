@@ -2,17 +2,21 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 7.1
+## 当前阶段：Phase 8
 
-在 Phase 7 基础上加固自动回收规则：
+已完成审批中心基础版，包括：
 
-- 自动回收：`status=active` 且 `owner_id` 非空，连续 8 天无有效跟进 → 强制回收到公共池
-- **排除销售阶段**：`closed_won`、`closed_lost`、`invalid`、`on_hold` 不参与预警与回收
-- 提前预警：第 6 天、第 7 天向当前负责人发送通知（同日同客户不重复）
-- Admin 手动触发：`POST /api/admin/reclamation/run`
-- Cloudflare Cron Worker：`workers/reclamation-cron.ts`
+- `approvals` 表：删除 / 转移 / 合并 / 成交 / 二次转化申请
+- Staff 提交：`POST /api/customers/:id/approval-requests`
+- Admin 审批：`GET /api/approvals`、`POST /api/approvals/:id/approve|reject`
+- 页面：`/approvals`、客户详情「提交审批申请」
+- 通知与审计日志完整记录
 
-**尚未实现**：审批中心、报表、导入导出、完整多语言、客户热度评分（Phase 8+）。
+**删除申请实现说明**：提交时不修改客户数据，仅创建 `pending` 审批；Admin 批准后 `status = archived`（soft delete）。
+
+**合并申请实现说明**：本阶段仅完成审批工作流，批准后写入 `approval.merge.approved_placeholder` 审计，**不执行真实字段合并**。
+
+**尚未实现**：复杂合并 UI、报表、导入导出、完整多语言、客户热度评分（Phase 9+）。
 
 ## 技术栈
 
@@ -60,6 +64,92 @@ npm run dev
 | 最近已跟进 | `22222222-2222-2222-2222-222222222207` | 无动作 |
 | closed_won 10 天 | `22222222-2222-2222-2222-222222222208` | 不预警、不回收 |
 | closed_lost 10 天 | `22222222-2222-2222-2222-222222222209` | 不预警、不回收 |
+
+## Phase 8 审批中心测试
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run dev
+```
+
+### 1. 登录
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+
+curl -s -c /tmp/crm-staff-b.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-b@crm.local","password":"StaffB123!"}'
+```
+
+### 2. Staff 提交申请
+
+```bash
+CUST_A=22222222-2222-2222-2222-222222222201
+CUST_B=22222222-2222-2222-2222-222222222202
+CUST_POOL=22222222-2222-2222-2222-222222222203
+STAFF_B_ID=11111111-1111-1111-1111-111111111103
+
+# Staff A 删除申请 → 200
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_A/approval-requests \
+  -H 'Content-Type: application/json' -d '{"requestType":"delete_customer","reason":"测试删除"}'
+
+# Staff A 转移申请 → 200
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_A/approval-requests \
+  -H 'Content-Type: application/json' \
+  -d "{\"requestType\":\"transfer_customer\",\"reason\":\"测试转移\",\"targetUserId\":\"$STAFF_B_ID\"}"
+
+# Staff A 为 Staff B 客户提交 → 403
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_B/approval-requests \
+  -H 'Content-Type: application/json' -d '{"requestType":"delete_customer","reason":"越权"}'
+
+# Staff A 为公共池客户提交 → 403
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_POOL/approval-requests \
+  -H 'Content-Type: application/json' -d '{"requestType":"delete_customer","reason":"公共池"}'
+
+# Staff B 成交申请
+curl -s -b /tmp/crm-staff-b.txt -X POST http://localhost:3000/api/customers/$CUST_B/approval-requests \
+  -H 'Content-Type: application/json' \
+  -d '{"requestType":"closed_won","reason":"成交","payload":{"dealAmount":"100000","signingDate":"2026-06-01"}}'
+
+# 重复 pending 同类型 → 409
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_A/approval-requests \
+  -H 'Content-Type: application/json' -d '{"requestType":"delete_customer","reason":"重复"}'
+```
+
+### 3. Admin 审批
+
+```bash
+# 查看全部 pending
+curl -s -b /tmp/crm-admin.txt "http://localhost:3000/api/approvals?status=pending"
+
+# Staff 调用 approve → 403
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/approvals/<id>/approve \
+  -H 'Content-Type: application/json' -d '{"adminComment":"test"}'
+
+# Admin 驳回转移 / 批准删除 / 批准成交
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/approvals/<transfer-id>/reject \
+  -H 'Content-Type: application/json' -d '{"adminComment":"暂不转移"}'
+
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/approvals/<delete-id>/approve \
+  -H 'Content-Type: application/json' -d '{"adminComment":"同意归档"}'
+```
+
+### 4. 验证
+
+```bash
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT type, title FROM notifications WHERE type LIKE 'approval.%' ORDER BY created_at DESC LIMIT 10"
+
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT action, entity_id FROM audit_logs WHERE action LIKE 'approval.%' ORDER BY created_at DESC LIMIT 10"
+```
+
+UI：访问 `/approvals`；在客户详情页点击「提交审批申请」。
 
 ## Phase 7 自动回收测试
 

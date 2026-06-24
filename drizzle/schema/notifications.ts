@@ -5,6 +5,11 @@ export const NOTIFICATION_TYPES = [
   "auto_reclaim_warning_day_6",
   "auto_reclaim_warning_day_7",
   "customer_auto_reclaimed",
+  "approval.pending",
+  "approval.approved",
+  "approval.rejected",
+  "customer.transferred",
+  "customer.closed_won.approved",
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];

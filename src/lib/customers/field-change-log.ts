@@ -89,3 +89,24 @@ export async function writeFieldChangeLogs(
 
   return changedFields;
 }
+
+export async function writeFieldChangeLogEntry(
+  customerId: string,
+  fieldName: string,
+  oldValue: string | null,
+  newValue: string | null,
+  changedBy: string,
+): Promise<void> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  await db.insert(schema.fieldChangeLogs).values({
+    id: crypto.randomUUID(),
+    customerId,
+    fieldName,
+    oldValue,
+    newValue,
+    changedBy,
+    changedAt: now,
+  });
+}

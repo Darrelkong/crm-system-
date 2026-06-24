@@ -10,3 +10,4 @@ export * from "./login-logs";
 export * from "./system-settings";
 export * from "./notifications";
 export * from "./reclamation-warning-logs";
+export * from "./approvals";
