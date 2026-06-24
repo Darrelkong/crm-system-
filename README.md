@@ -2,7 +2,77 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 12
+## 当前阶段：Phase 13
+
+客户时间线 / 操作历史整合：
+
+| 模块 | 说明 |
+|------|------|
+| **API** | `GET /api/customers/:id/timeline` |
+| **详情页** | 客户详情底部「时间线」区域 |
+| **数据源** | audit_logs、field_change_logs、follow_ups、tasks、approvals |
+| **脱敏** | Staff 查看 public_pool / archived_basic 时隐藏敏感字段与跟进全文 |
+
+**越权审计**：`permission.denied.customer_timeline_access`（查看时间线被拒时写入）
+
+## Phase 13 客户时间线测试
+
+```bash
+npm run dev
+```
+
+### 1. 登录
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+```
+
+### 2. Admin 完整时间线
+
+```bash
+# 将 CUSTOMER_ID 换为 Staff A 的客户 ID
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/customers/CUSTOMER_ID/timeline | jq .
+```
+
+验证：`items` 按 `occurredAt` 倒序；含字段变更 `old_value`/`new_value`、跟进 `summary`、审批、公共池/自动回收等记录。
+
+### 3. Staff A 自己的客户
+
+```bash
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/customers/OWN_CUSTOMER_ID/timeline | jq .
+```
+
+### 4. Staff 越权 / 脱敏
+
+```bash
+# Staff B 的客户 → 403
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" \
+  http://localhost:3000/api/customers/STAFF_B_CUSTOMER_ID/timeline
+
+# 公共池客户 → 200，敏感字段变更显示「敏感字段已变更」，无 old/new
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/public-pool/customers | jq .
+# 取公共池客户 ID 后：
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/customers/POOL_ID/timeline | jq .
+
+# 未登录 → 401
+curl -s -w "\n%{http_code}\n" http://localhost:3000/api/customers/CUSTOMER_ID/timeline
+```
+
+### 5. 归档客户（Staff 负责人）
+
+对已归档且 `ownerId` 为 Staff A 的客户：`accessLevel` 为 `archived_basic`，时间线为脱敏基础视图。
+
+### 6. 页面
+
+访问 `/customers/:id`，页面底部应显示可滚动时间线列表。
+
+---
+
+## Phase 12 通知 / 公告 / 帮助测试
 
 通知中心 + 公告中心 + 帮助中心基础版：
 

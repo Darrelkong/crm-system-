@@ -14,6 +14,7 @@ import {
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
+import { CustomerTimeline } from "@/components/customers/customer-timeline";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import {
   FOLLOW_UP_CHANNEL_LABELS,
@@ -100,7 +101,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h2 className="text-xl font-semibold text-slate-900">{view.customerName}</h2>
@@ -291,6 +292,8 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
       )}
+
+      <CustomerTimeline user={user} customer={customer} />
     </div>
   );
 }
