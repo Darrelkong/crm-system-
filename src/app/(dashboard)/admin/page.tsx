@@ -1,5 +1,6 @@
 import { Card, PageHeader } from "@/components/ui/card";
 import { requireAdmin } from "@/lib/permissions/auth";
+import { DashboardTaskStats } from "@/components/dashboard/task-stats";
 
 export default async function AdminDashboardPage() {
   const user = await requireAdmin();
@@ -8,11 +9,16 @@ export default async function AdminDashboardPage() {
     <div>
       <PageHeader
         title={`你好，${user.displayName}`}
-        description="管理员首页。客户管理、审计日志等功能将在后续阶段开放。"
+        description="管理员工作台"
       />
+      <DashboardTaskStats user={user} />
       <Card>
         <p className="text-sm text-slate-600">
-          当前为 Phase 1 占位页面。你已以管理员身份登录，可访问全部后台能力（后续实现）。
+          管理员可查看全部客户的跟进任务。前往
+          <a href="/customers" className="mx-1 text-indigo-600 hover:underline">
+            客户管理
+          </a>
+          查看客户列表与跟进状态。
         </p>
       </Card>
     </div>

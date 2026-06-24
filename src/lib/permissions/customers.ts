@@ -25,6 +25,11 @@ export type CustomerView = {
   updatedBy?: string | null;
   createdAt: string;
   updatedAt: string;
+  lastFollowUpAt?: string | null;
+  lastValidFollowUpAt?: string | null;
+  nextFollowUpAt?: string | null;
+  neverContacted: boolean;
+  overdueFollowUp: boolean;
 };
 
 export class PermissionError extends Error {
@@ -120,6 +125,62 @@ export function canEditCustomer(user: User, customer: Customer): boolean {
   return customer.ownerId === user.id;
 }
 
+/** Same scope as edit: admin all, staff own only, not public pool. */
+export function assertCanAddFollowUp(user: User, customer: Customer): void {
+  if (user.role === "admin") return;
+
+  if (isPublicPoolCustomer(customer)) {
+    throw new PermissionError(
+      403,
+      "无权为该客户添加跟进",
+      "permission.denied.follow_up_access",
+    );
+  }
+
+  if (customer.ownerId !== user.id) {
+    throw new PermissionError(
+      403,
+      "无权为该客户添加跟进",
+      "permission.denied.follow_up_access",
+    );
+  }
+}
+
+export function canAddFollowUp(user: User, customer: Customer): boolean {
+  try {
+    assertCanAddFollowUp(user, customer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function assertCanViewFollowUps(user: User, customer: Customer): void {
+  if (getCustomerAccessLevel(user, customer) !== "full") {
+    throw new PermissionError(
+      403,
+      "无权查看该客户跟进记录",
+      "permission.denied.follow_up_access",
+    );
+  }
+}
+
+/** Follow-up list metadata (non-sensitive). */
+export function getCustomerFollowUpMeta(
+  customer: Customer,
+  now = new Date().toISOString(),
+) {
+  return {
+    lastFollowUpAt: customer.lastFollowUpAt ?? null,
+    lastValidFollowUpAt: customer.lastValidFollowUpAt ?? null,
+    nextFollowUpAt: customer.nextFollowUpAt ?? null,
+    neverContacted: !customer.lastValidFollowUpAt,
+    overdueFollowUp: !!(
+      customer.nextFollowUpAt && customer.nextFollowUpAt < now
+    ),
+  };
+}
+
 /** Staff view with sensitive fields removed. */
 export function maskCustomerForStaff(customer: Customer): CustomerView {
   return {
@@ -136,6 +197,7 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
     updatedBy: customer.updatedBy,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
+    ...getCustomerFollowUpMeta(customer),
   };
 }
 
@@ -161,6 +223,7 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     updatedBy: customer.updatedBy,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
+    ...getCustomerFollowUpMeta(customer),
   };
 }
 

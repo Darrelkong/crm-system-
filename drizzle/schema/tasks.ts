@@ -2,6 +2,12 @@ import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { customers } from "./customers";
 import { users } from "./users";
 
+export const TASK_STATUSES = ["open", "completed", "cancelled"] as const;
+export type TaskStatus = (typeof TASK_STATUSES)[number];
+
+export const TASK_TYPES = ["follow_up", "other"] as const;
+export type TaskType = (typeof TASK_TYPES)[number];
+
 export const tasks = sqliteTable(
   "tasks",
   {
@@ -17,11 +23,10 @@ export const tasks = sqliteTable(
       .references(() => users.id),
     title: text("title").notNull(),
     description: text("description"),
-    status: text("status", {
-      enum: ["pending", "in_progress", "done", "cancelled"],
-    })
+    type: text("type", { enum: TASK_TYPES }).notNull().default("follow_up"),
+    status: text("status", { enum: TASK_STATUSES })
       .notNull()
-      .default("pending"),
+      .default("open"),
     dueAt: text("due_at"),
     completedAt: text("completed_at"),
     createdAt: text("created_at").notNull(),
@@ -30,6 +35,8 @@ export const tasks = sqliteTable(
   (table) => [
     index("idx_tasks_assigned_to").on(table.assignedTo),
     index("idx_tasks_customer_id").on(table.customerId),
+    index("idx_tasks_status").on(table.status),
+    index("idx_tasks_due_at").on(table.dueAt),
   ],
 );
 

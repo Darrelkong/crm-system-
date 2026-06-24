@@ -1,6 +1,12 @@
-import { desc, eq, isNull, or } from "drizzle-orm";
+import { asc, eq, isNull, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
+
+const followUpSort = [
+  sql`CASE WHEN ${schema.customers.lastValidFollowUpAt} IS NULL THEN 0 ELSE 1 END`,
+  asc(schema.customers.lastValidFollowUpAt),
+  asc(schema.customers.createdAt),
+];
 
 export async function listCustomersForUser(user: User, limit = 100) {
   const db = getDb();
@@ -9,7 +15,7 @@ export async function listCustomersForUser(user: User, limit = 100) {
     return db
       .select()
       .from(schema.customers)
-      .orderBy(desc(schema.customers.createdAt))
+      .orderBy(...followUpSort)
       .limit(limit);
   }
 
@@ -23,7 +29,7 @@ export async function listCustomersForUser(user: User, limit = 100) {
         isNull(schema.customers.ownerId),
       ),
     )
-    .orderBy(desc(schema.customers.createdAt))
+    .orderBy(...followUpSort)
     .limit(limit);
 }
 

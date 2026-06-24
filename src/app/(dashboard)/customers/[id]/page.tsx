@@ -7,7 +7,18 @@ import {
   formatCustomerForUser,
   PermissionError,
   canEditCustomer,
+  canAddFollowUp,
+  assertCanViewFollowUps,
 } from "@/lib/permissions/customers";
+import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
+import {
+  FOLLOW_UP_CHANNEL_LABELS,
+  type FollowUpChannel,
+} from "@/lib/constants/follow-up-channels";
+import {
+  FOLLOW_UP_OUTCOME_LABELS,
+  type FollowUpOutcome,
+} from "@/lib/constants/follow-up-outcomes";
 import { CUSTOMER_SOURCE_LABELS } from "@/lib/constants/customer-source-labels";
 import {
   CUSTOMER_TYPE_LABELS,
@@ -72,6 +83,15 @@ export default async function CustomerDetailPage({ params }: Props) {
   }
 
   const showEditButton = canEditCustomer(user, customer);
+  const showFollowUpButton = canAddFollowUp(user, customer);
+
+  let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
+  try {
+    assertCanViewFollowUps(user, customer);
+    followUps = await listFollowUpsByCustomerId(id);
+  } catch {
+    // masked or denied — no follow-up list
+  }
 
   return (
     <div className="max-w-2xl">
@@ -90,6 +110,14 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {showFollowUpButton && (
+            <Link
+              href={`/customers/${id}/follow-ups/new`}
+              className="rounded-lg border border-indigo-600 px-4 py-2 text-sm font-medium text-indigo-600 hover:bg-indigo-50"
+            >
+              添加跟进
+            </Link>
+          )}
           {showEditButton && (
             <Link
               href={`/customers/${id}/edit`}
@@ -165,11 +193,78 @@ export default async function CustomerDetailPage({ params }: Props) {
           <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-400">系统信息</h3>
           <dl className="mt-2">
             <DetailRow label="负责人" value={view.ownerId ?? "（公共池）"} />
+            <DetailRow
+              label="最近跟进"
+              value={
+                view.lastFollowUpAt
+                  ? view.lastFollowUpAt.slice(0, 16).replace("T", " ")
+                  : undefined
+              }
+            />
+            <DetailRow
+              label="最近有效跟进"
+              value={
+                view.lastValidFollowUpAt
+                  ? view.lastValidFollowUpAt.slice(0, 16).replace("T", " ")
+                  : view.neverContacted
+                    ? "从未有效跟进"
+                    : undefined
+              }
+            />
+            <DetailRow
+              label="下次跟进"
+              value={
+                view.nextFollowUpAt
+                  ? `${view.nextFollowUpAt.slice(0, 16).replace("T", " ")}${view.overdueFollowUp ? "（已超期）" : ""}`
+                  : undefined
+              }
+            />
             <DetailRow label="创建时间" value={view.createdAt.slice(0, 16).replace("T", " ")} />
             <DetailRow label="更新时间" value={view.updatedAt.slice(0, 16).replace("T", " ")} />
           </dl>
         </div>
       </div>
+
+      {followUps.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-3 text-base font-semibold text-slate-900">跟进记录</h3>
+          <div className="space-y-3">
+            {followUps.map((fu) => (
+              <div
+                key={fu.id}
+                className="rounded-lg border border-slate-200 bg-white p-4"
+              >
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="font-medium text-slate-700">
+                    {fu.followUpTime.slice(0, 16).replace("T", " ")}
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-600">
+                    {FOLLOW_UP_CHANNEL_LABELS[fu.channel as FollowUpChannel] ?? fu.channel}
+                  </span>
+                  <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-indigo-700">
+                    {FOLLOW_UP_OUTCOME_LABELS[fu.outcome as FollowUpOutcome] ?? fu.outcome}
+                  </span>
+                  {fu.isValidFollowUp === 1 ? (
+                    <span className="rounded-full bg-green-100 px-2 py-0.5 text-green-700">
+                      有效跟进
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-slate-500">
+                      无效跟进
+                    </span>
+                  )}
+                </div>
+                <p className="mt-2 text-sm text-slate-800">{fu.summary}</p>
+                {fu.nextFollowUpAt && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    下次跟进：{fu.nextFollowUpAt.slice(0, 16).replace("T", " ")}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

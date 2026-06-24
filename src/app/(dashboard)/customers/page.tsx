@@ -63,6 +63,7 @@ export default async function CustomersPage() {
                 <th className="px-4 py-3 text-left font-medium text-slate-600">来源</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">销售阶段</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">状态</th>
+                <th className="px-4 py-3 text-left font-medium text-slate-600">跟进状态</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">数据</th>
                 <th className="px-4 py-3 text-left font-medium text-slate-600">创建时间</th>
               </tr>
@@ -91,6 +92,23 @@ export default async function CustomersPage() {
                     <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
                       {STATUS_LABELS[c.status] ?? c.status}
                     </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {c.neverContacted && (
+                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                          未有效跟进
+                        </span>
+                      )}
+                      {c.overdueFollowUp && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
+                          跟进超期
+                        </span>
+                      )}
+                      {!c.neverContacted && !c.overdueFollowUp && (
+                        <span className="text-xs text-slate-400">—</span>
+                      )}
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     {c.isMasked ? (

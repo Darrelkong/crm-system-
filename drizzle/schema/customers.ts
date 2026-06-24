@@ -33,6 +33,9 @@ export const customers = sqliteTable(
       .notNull()
       .references(() => users.id),
     updatedBy: text("updated_by").references(() => users.id),
+    lastFollowUpAt: text("last_follow_up_at"),
+    lastValidFollowUpAt: text("last_valid_follow_up_at"),
+    nextFollowUpAt: text("next_follow_up_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
