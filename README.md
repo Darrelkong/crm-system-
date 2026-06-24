@@ -2,15 +2,89 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 10A.1
+## 当前阶段：Phase 10B
 
-客户 CSV 导入加固：
+客户 CSV 导出（Admin 专用）：
 
-- 空 `sales_stage` / `phone_country_code` / `customer_type` 使用默认值，**warning 不阻止导入**
-- commit 必须携带本人 `prechecked` 状态的 `jobId`，禁止重复提交
-- `import_jobs` 状态：`prechecked` → `completed` / `failed`
+- `GET /api/export/customers` — 按 scope 导出，支持 `includeSensitive` 与 `fields`
+- 敏感字段控制：`includeSensitive=false` 时排除 phone / wechat_id / email / source_remark / notes
+- 导出记录写入 `export_jobs` 表
+- 审计：`customers.exported`、`customers.export.failed`、`permission.denied.export_customers`
 
-**尚未实现**：客户导出、备份恢复、完整多语言（Phase 10B+）。
+**尚未实现**：备份恢复、PDF/报表导出、Staff 授权导出（Phase 10C+）。
+
+## Phase 10B 客户导出测试
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run dev
+```
+
+### 1. 登录
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+```
+
+### 2. 权限
+
+```bash
+# Admin 导出 active → 200
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-active.csv \
+  "http://localhost:3000/api/export/customers?scope=all_active" && head -1 /tmp/export-active.csv
+
+# Admin 各 scope
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-pool.csv \
+  "http://localhost:3000/api/export/customers?scope=public_pool"
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-archived.csv \
+  "http://localhost:3000/api/export/customers?scope=archived"
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-all.csv \
+  "http://localhost:3000/api/export/customers?scope=all"
+
+# Staff → 403
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" \
+  "http://localhost:3000/api/export/customers?scope=all_active"
+
+# 未登录 → 401
+curl -s -w "\n%{http_code}\n" \
+  "http://localhost:3000/api/export/customers?scope=all_active"
+```
+
+浏览器：Admin 访问 `/export/customers` 可导出；Staff 访问返回 403。
+
+### 3. CSV 与敏感字段
+
+```bash
+# 含敏感字段（默认）
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-sensitive.csv \
+  "http://localhost:3000/api/export/customers?scope=all_active&includeSensitive=true"
+head -1 /tmp/export-sensitive.csv
+# 表头应含 phone,wechat_id,email
+
+# 不含敏感字段
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-masked.csv \
+  "http://localhost:3000/api/export/customers?scope=all_active&includeSensitive=false"
+head -1 /tmp/export-masked.csv
+# 表头不应含 phone,wechat_id,email,source_remark
+```
+
+验证：UTF-8 BOM、中文正常、文件名 `customers-export-YYYY-MM-DD.csv`（业务时区 UTC+8）。
+
+### 4. 审计与 export_jobs
+
+成功导出后检查：
+
+- `audit_logs` 含 `customers.exported`，metadata 含 scope、includeSensitive、fields、exportedCount、fileName
+- `export_jobs` 有 `status=completed` 记录，`exported_count` 与 CSV 数据行数一致
+
+Staff 被拒绝时 `audit_logs` 含 `permission.denied.export_customers`。
+
+---
 
 ## Phase 10A.1 导入默认值与 commit 安全测试
 

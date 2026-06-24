@@ -69,6 +69,12 @@ export function getBusinessMonthRange(now: Date = new Date()): {
   return { start, endExclusive };
 }
 
+/** Business calendar date as YYYY-MM-DD in UTC+8. */
+export function getBusinessDateYmd(now: Date = new Date()): string {
+  const { year, month, day } = getBusinessDateParts(now);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
 /** Rolling 7×24h window ending at `now` (not a calendar week). */
 export function getRollingSevenDaysAgoIso(now: Date = new Date()): string {
   return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();

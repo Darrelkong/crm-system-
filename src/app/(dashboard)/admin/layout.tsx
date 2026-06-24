@@ -18,6 +18,7 @@ export default async function AdminLayout({
         { href: "/admin", label: "工作台", active: true },
         { href: "/customers", label: "客户管理" },
         { href: "/import/customers", label: "客户导入" },
+        { href: "/export/customers", label: "数据导出" },
         { href: "/public-pool", label: "公共池" },
         { href: "/approvals", label: "审批中心" },
       ]}
