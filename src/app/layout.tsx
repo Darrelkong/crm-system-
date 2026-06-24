@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import { Providers } from "@/components/providers";
+import { defaultLocale } from "@/i18n/config";
+import { getMessages } from "@/i18n";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -13,9 +14,11 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const messages = getMessages(defaultLocale);
+
 export const metadata: Metadata = {
-  title: "CRM System",
-  description: "客戶關係管理系統",
+  title: messages.common.appName,
+  description: "内部客户关系管理系统",
 };
 
 export default function RootLayout({
@@ -25,11 +28,11 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="zh-TW"
+      lang={defaultLocale}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-50 text-slate-900">
-        <Providers>{children}</Providers>
+      <body className="flex min-h-full flex-col bg-slate-50 text-slate-900">
+        {children}
       </body>
     </html>
   );

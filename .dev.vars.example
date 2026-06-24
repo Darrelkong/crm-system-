@@ -1,0 +1,11 @@
+# Cloudflare Turnstile（Phase 2+ 登录验证，当前预留）
+# TURNSTILE_SITE_KEY=
+# TURNSTILE_SECRET_KEY=
+
+# Session cookie signing（Phase 1 启用）
+# SESSION_SECRET=change-me-to-a-long-random-string
+
+# 生产环境 D1 迁移（仅 drizzle-kit 远程操作时需要）
+# CLOUDFLARE_ACCOUNT_ID=
+# CLOUDFLARE_DATABASE_ID=
+# CLOUDFLARE_D1_TOKEN=
