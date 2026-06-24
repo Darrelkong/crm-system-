@@ -2,16 +2,67 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 10B
+## 当前阶段：Phase 10B.1
 
-客户 CSV 导出（Admin 专用）：
+客户导出安全加固：
 
-- `GET /api/export/customers` — 按 scope 导出，支持 `includeSensitive` 与 `fields`
-- 敏感字段控制：`includeSensitive=false` 时排除 phone / wechat_id / email / source_remark / notes
-- 导出记录写入 `export_jobs` 表
-- 审计：`customers.exported`、`customers.export.failed`、`permission.denied.export_customers`
+- **Staff 默认不能导出**（API / 页面均 403）
+- **fields 白名单**：仅允许 18 个明确字段；未知字段 → 400 `invalid_export_field`
+- **敏感字段**：phone / wechat_id / email / notes / source_remark
+- **includeSensitive=false** 时强制排除敏感列，无法通过 `fields` 参数绕过
+- **Admin 高风险导出**（`includeSensitive=true` 或 `scope=all|archived`）需前端二次确认
+- 审计 `customers.exported` 记录 **riskLevel**（low / medium / high）
 
-**尚未实现**：备份恢复、PDF/报表导出、Staff 授权导出（Phase 10C+）。
+**尚未实现**：备份恢复、Staff 授权导出（Phase 10C+）。
+
+## Phase 10B.1 导出安全测试
+
+```bash
+npm run dev
+# 需已登录 Admin cookie：/tmp/crm-admin.txt
+```
+
+### 1. 字段白名单
+
+```bash
+# 未知字段 → 400 invalid_export_field，不导出，写入 customers.export.failed
+curl -s -b /tmp/crm-admin.txt -w "\n%{http_code}\n" \
+  "http://localhost:3000/api/export/customers?scope=all_active&fields=id,customer_name,secret_field"
+```
+
+### 2. 敏感字段无法绕过
+
+```bash
+# includeSensitive=false + 手动指定 phone,email → CSV 表头不含 phone/email
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-no-bypass.csv \
+  "http://localhost:3000/api/export/customers?scope=all_active&includeSensitive=false&fields=id,customer_name,phone,email,wechat_id"
+head -1 /tmp/export-no-bypass.csv
+
+# includeSensitive=true → 含敏感字段
+curl -s -b /tmp/crm-admin.txt -o /tmp/export-with-sensitive.csv \
+  "http://localhost:3000/api/export/customers?scope=all_active&includeSensitive=true"
+head -1 /tmp/export-with-sensitive.csv
+```
+
+### 3. 权限与前端确认
+
+- Staff 访问 `GET /api/export/customers` → 403
+- Admin 在 `/export/customers` 选择「包含敏感字段」或 scope=`全部`/`归档` 时，点击导出弹出风险确认，勾选后才能下载
+- `scope=all_active` 且 `includeSensitive=false` 时无需二次确认
+
+### 4. riskLevel 审计
+
+成功导出后 `audit_logs.metadata` 应含 `riskLevel`：
+
+| 条件 | riskLevel |
+|------|-----------|
+| includeSensitive=false 且 scope=all_active | low |
+| includeSensitive=false 且 scope=all 或 archived | medium |
+| includeSensitive=true | high |
+
+`riskLevel` 目前仅记录在 `audit_logs`（`export_jobs` 表无专用列）。
+
+---
 
 ## Phase 10B 客户导出测试
 
