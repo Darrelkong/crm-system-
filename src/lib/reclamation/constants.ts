@@ -15,10 +15,16 @@ export function isReclamationExcludedSalesStage(salesStage: string): boolean {
   );
 }
 
+export const AUTO_RECLAIM_POOL_REASON_PREFIX = "自动回收：超过 ";
+
+/** @deprecated Use system_settings via getEffectiveSettings() */
 export const AUTO_RECLAIM_POOL_REASON = "自动回收：超过 8 天无有效跟进";
 
+/** @deprecated Use system_settings via getEffectiveSettings() */
 export const RECLAMATION_WARNING_DAY_6 = 6;
+/** @deprecated Use system_settings via getEffectiveSettings() */
 export const RECLAMATION_WARNING_DAY_7 = 7;
+/** @deprecated Use system_settings via getEffectiveSettings() */
 export const RECLAMATION_RECLAIM_DAYS = 8;
 
 export const RECLAMATION_AUDIT_ACTIONS = {

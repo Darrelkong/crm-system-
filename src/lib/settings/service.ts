@@ -1,4 +1,5 @@
 import { eq, inArray } from "drizzle-orm";
+import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
@@ -6,14 +7,14 @@ import {
   SETTING_KEYS,
   type SettingKey,
 } from "@/lib/settings/keys";
-import { isSettingKey, validateSettingValue } from "@/lib/settings/validation";
+import { isSettingKey, validateSettingsPatch } from "@/lib/settings/validation";
 import type { User } from "../../../drizzle/schema/users";
 
 export type SettingsMap = Record<SettingKey, string>;
 
-export async function getSystemSettings(): Promise<SettingsMap> {
-  const db = getDb();
-  const rows = await db
+export async function getSystemSettings(db?: Database): Promise<SettingsMap> {
+  const database = db ?? getDb();
+  const rows = await database
     .select()
     .from(schema.systemSettings)
     .where(inArray(schema.systemSettings.key, [...SETTING_KEYS]));
@@ -36,15 +37,17 @@ export async function updateSystemSettings(
   const now = new Date().toISOString();
   const changed: Partial<SettingsMap> = {};
 
+  const current = await getSystemSettings(db);
+  const consistencyError = validateSettingsPatch(current, updates);
+  if (consistencyError) {
+    throw new SettingsError(consistencyError);
+  }
+
   for (const [rawKey, rawValue] of Object.entries(updates)) {
     if (!isSettingKey(rawKey)) {
       throw new SettingsError(`未知配置项：${rawKey}`);
     }
     const value = String(rawValue).trim();
-    const error = validateSettingValue(rawKey, value);
-    if (error) {
-      throw new SettingsError(`${rawKey}: ${error}`);
-    }
 
     const existing = await db
       .select({ key: schema.systemSettings.key })

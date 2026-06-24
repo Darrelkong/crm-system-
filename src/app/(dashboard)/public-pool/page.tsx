@@ -30,7 +30,7 @@ export default async function PublicPoolPage() {
           <div className="rounded-lg border border-slate-200 bg-white p-4">
             <p className="text-xs text-slate-500">7 天内已领取</p>
             <p className="mt-1 text-xl font-semibold">
-              {claimStatus.claimedInLast7Days} / 5
+              {claimStatus.claimedInLast7Days} / {claimStatus.quotaLimit}
             </p>
           </div>
           <div className="rounded-lg border border-slate-200 bg-white p-4">

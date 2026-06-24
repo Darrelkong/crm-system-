@@ -12,6 +12,7 @@ import {
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { RECLAMATION_AUDIT_ACTIONS } from "@/lib/reclamation/constants";
+import { getEffectiveSettings } from "@/lib/settings/effective";
 import {
   getBusinessMonthRange,
   getBusinessTodayRange,
@@ -22,10 +23,15 @@ export async function getAdminDashboardStats(
   db: Database,
   now: Date = new Date(),
 ): Promise<AdminDashboardStats> {
+  const settings = await getEffectiveSettings(db);
+  const timezone = settings.businessTimezone;
   const { start: monthStart, endExclusive: monthEndExclusive } =
-    getBusinessMonthRange(now);
+    getBusinessMonthRange(now, timezone);
   const nowIso = now.toISOString();
-  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(now);
+  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
+    now,
+    timezone,
+  );
 
   const [
     totalCustomersRow,

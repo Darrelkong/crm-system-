@@ -37,6 +37,8 @@ export type AdminDashboardStats = {
 export type PublicPoolClaimSummary = {
   claimedInLast7Days: number;
   remainingQuota: number;
+  quotaLimit: number;
+  cooldownHours: number;
   inCooldown: boolean;
   cooldownUntil: string | null;
   canClaimNow: boolean;

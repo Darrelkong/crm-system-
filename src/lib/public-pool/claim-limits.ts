@@ -1,22 +1,26 @@
 import { and, desc, eq, gte } from "drizzle-orm";
+import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
-import {
-  CLAIM_COOLDOWN_MS,
-  CLAIM_QUOTA_DAYS,
-  CLAIM_QUOTA_MAX,
-  type StaffClaimStatus,
-} from "./constants";
+import { getEffectiveSettings } from "@/lib/settings/effective";
+import { CLAIM_QUOTA_DAYS, type StaffClaimStatus } from "./constants";
 
 export async function getStaffClaimStatus(
   userId: string,
   now = new Date(),
+  db?: Database,
 ): Promise<StaffClaimStatus> {
-  const db = getDb();
+  const database = db ?? getDb();
+  const settings = await getEffectiveSettings(database);
+
+  const quotaLimit = settings.publicPoolClaimQuota7Days;
+  const cooldownHours = settings.publicPoolClaimCooldownHours;
+  const cooldownMs = cooldownHours * 60 * 60 * 1000;
+
   const sevenDaysAgo = new Date(
     now.getTime() - CLAIM_QUOTA_DAYS * 24 * 60 * 60 * 1000,
   ).toISOString();
 
-  const recentClaims = await db
+  const recentClaims = await database
     .select({ id: schema.customers.id })
     .from(schema.customers)
     .where(
@@ -27,9 +31,9 @@ export async function getStaffClaimStatus(
     );
 
   const claimedInLast7Days = recentClaims.length;
-  const remainingQuota = Math.max(0, CLAIM_QUOTA_MAX - claimedInLast7Days);
+  const remainingQuota = Math.max(0, quotaLimit - claimedInLast7Days);
 
-  const lastClaimRows = await db
+  const lastClaimRows = await database
     .select({ claimedAt: schema.customers.claimedAt })
     .from(schema.customers)
     .where(eq(schema.customers.claimedBy, userId))
@@ -42,7 +46,7 @@ export async function getStaffClaimStatus(
   const lastClaimedAt = lastClaimRows[0]?.claimedAt;
   if (lastClaimedAt) {
     const cooldownEnd = new Date(
-      new Date(lastClaimedAt).getTime() + CLAIM_COOLDOWN_MS,
+      new Date(lastClaimedAt).getTime() + cooldownMs,
     );
     if (cooldownEnd > now) {
       inCooldown = true;
@@ -55,15 +59,17 @@ export async function getStaffClaimStatus(
 
   if (inCooldown) {
     canClaimNow = false;
-    blockedReason = "当前处于领取冷却期，请稍后再试";
+    blockedReason = `当前处于领取冷却期（${cooldownHours} 小时），请稍后再试`;
   } else if (remainingQuota <= 0) {
     canClaimNow = false;
-    blockedReason = "7 天领取名额已达上限";
+    blockedReason = `7 天内领取名额已达上限（${quotaLimit} 次）`;
   }
 
   return {
     claimedInLast7Days,
     remainingQuota,
+    quotaLimit,
+    cooldownHours,
     cooldownUntil,
     inCooldown,
     canClaimNow,

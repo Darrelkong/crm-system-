@@ -53,12 +53,12 @@ export async function StaffDashboardView({ user }: { user: User }) {
           label="自动回收风险"
           value={stats.myReclaimRiskCustomers}
           variant="danger"
-          hint="6–7 天无有效跟进"
+          hint="处于回收预警天数内"
         />
         <KpiCard
           label="7 天领取数"
           value={stats.myClaimedFromPoolLast7Days}
-          hint={`剩余名额 ${claim.remainingQuota}`}
+          hint={`剩余名额 ${claim.remainingQuota} / ${claim.quotaLimit}`}
         />
       </div>
 
@@ -70,12 +70,16 @@ export async function StaffDashboardView({ user }: { user: User }) {
           <div>
             <dt className="text-slate-500">7 天已领取</dt>
             <dd className="font-medium text-slate-900">
-              {claim.claimedInLast7Days} / 5
+              {claim.claimedInLast7Days} / {claim.quotaLimit}
             </dd>
           </div>
           <div>
             <dt className="text-slate-500">剩余名额</dt>
             <dd className="font-medium text-slate-900">{claim.remainingQuota}</dd>
+          </div>
+          <div>
+            <dt className="text-slate-500">冷却时间（小时）</dt>
+            <dd className="font-medium text-slate-900">{claim.cooldownHours}</dd>
           </div>
           <div>
             <dt className="text-slate-500">当前可领取</dt>

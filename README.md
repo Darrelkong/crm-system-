@@ -2,16 +2,123 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 11
+## 当前阶段：Phase 11.1
 
-用户管理 + 系统设置（Admin 专用）：
+系统设置已接入核心业务逻辑（Admin 在 `/admin/settings` 修改后立即生效）：
 
-- 用户列表、创建 Staff、停用/启用、重置密码、解锁
-- 登录记录查看（最近 100 条）
-- `system_settings` 基础读写
-- 审计：`user.created` / `user.disabled` / `user.enabled` / `user.password_reset` / `user.unlocked` / `system_settings.updated`
+| 配置项 | 接入位置 |
+|--------|----------|
+| `automatic_reclaim_days` / `reclaim_warning_day_1` / `reclaim_warning_day_2` | 自动回收引擎 `runReclamationCheck` |
+| `public_pool_claim_quota_7_days` / `public_pool_claim_cooldown_hours` | 公共池领取校验 + `GET /api/public-pool/claim-status` |
+| `first_contact_sla_hours` | 领取公共池客户后 `first_contact` 任务 `due_at` |
+| `business_timezone` | Admin / Staff Dashboard 报表日期边界（`Asia/Shanghai` 或 `UTC`） |
+| `inactivity_logout_minutes` | **仅保存**，尚未接入 session idle timeout（后续 Phase） |
 
-**系统设置接入说明**：本阶段配置**仅保存到数据库**；自动回收、公共池配额、首次联系 SLA、无操作登出等业务逻辑仍使用代码内硬编码常量。报表业务时区仍使用 `src/lib/reports/dates.ts` 中的 `Asia/Shanghai`。
+**业务时区**：`business_timezone` 当前仅支持 `Asia/Shanghai`（UTC+8 日历日）与 `UTC`（UTC 日历日）。Admin 与 Staff Dashboard 共用同一设置。
+
+**无操作登出**：`sessions` 表暂无 `last_activity` 字段，本阶段不改造 session 体系；`inactivity_logout_minutes` 可读写但不会影响登录态。
+
+## Phase 11.1 系统设置接入测试
+
+```bash
+npm run dev
+```
+
+### 1. 登录
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+```
+
+### 2. 设置校验（无效值拒绝保存）
+
+```bash
+# 回收天数顺序错误：day_2 必须 > day_1，reclaim 必须 > day_2
+curl -s -b /tmp/crm-admin.txt -w "\n%{http_code}\n" -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"reclaim_warning_day_1":"7","reclaim_warning_day_2":"6","automatic_reclaim_days":"8"}}'
+# 期望 400
+
+# 非法时区
+curl -s -b /tmp/crm-admin.txt -w "\n%{http_code}\n" -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"business_timezone":"America/New_York"}}'
+# 期望 400
+```
+
+### 3. 自动回收阈值
+
+```bash
+# 改为 10 天后，8 天未跟进客户不应被回收（需 seed 或手动构造客户后触发回收 cron/API）
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"automatic_reclaim_days":"10","reclaim_warning_day_1":"6","reclaim_warning_day_2":"7"}}'
+
+# 预警改为第 4 / 5 天
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"reclaim_warning_day_1":"4","reclaim_warning_day_2":"5","automatic_reclaim_days":"8"}}'
+```
+
+触发回收：部署 `npm run cron:deploy` 或本地调用回收逻辑；验证通知/审计文案使用配置天数。
+
+### 4. 公共池领取
+
+```bash
+# 7 天配额改为 2
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"public_pool_claim_quota_7_days":"2"}}'
+
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/public-pool/claim-status | jq .
+# 应显示 quotaLimit: 2
+
+# 冷却改为 1 小时
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"public_pool_claim_cooldown_hours":"1"}}'
+```
+
+Staff 第 3 次领取（配额=2 时）应返回 429；领取 API 与 claim-status 均读取最新配置。
+
+### 5. 首次联系 SLA
+
+```bash
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"first_contact_sla_hours":"12"}}'
+# 领取公共池客户后，tasks.due_at ≈ now + 12h
+```
+
+### 6. 报表时区
+
+```bash
+# UTC+8 业务日（默认）
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/admin/settings | jq .business_timezone
+
+# 切换 UTC
+curl -s -b /tmp/crm-admin.txt -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' \
+  -d '{"settings":{"business_timezone":"UTC"}}'
+# Admin / Staff Dashboard「今日待办」等 KPI 按 UTC 日历日统计
+```
+
+### 7. 权限与审计
+
+```bash
+# Staff 不能改设置
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" -X PATCH http://localhost:3000/api/admin/settings \
+  -H 'Content-Type: application/json' -d '{"settings":{"automatic_reclaim_days":"9"}}'
+# 期望 403
+
+# Admin 修改后 audit_logs 含 system_settings.updated
+```
+
+---
 
 ## Phase 11 用户管理与系统设置测试
 

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
+import { getEffectiveSettings } from "@/lib/settings/effective";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -11,8 +12,11 @@ export async function createFirstContactTask(
   audit?: { ipAddress?: string | null; userAgent?: string | null },
 ): Promise<string> {
   const db = getDb();
+  const settings = await getEffectiveSettings(db);
   const now = new Date();
-  const dueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const dueAt = new Date(
+    now.getTime() + settings.firstContactSlaHours * 60 * 60 * 1000,
+  ).toISOString();
   const taskId = crypto.randomUUID();
   const isoNow = now.toISOString();
 

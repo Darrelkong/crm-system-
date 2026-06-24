@@ -15,10 +15,7 @@ import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
 import {
   getDaysWithoutValidFollowUp,
 } from "@/lib/reclamation/days";
-import {
-  RECLAMATION_RECLAIM_DAYS,
-  RECLAMATION_WARNING_DAY_6,
-} from "@/lib/reclamation/constants";
+import { getEffectiveSettings } from "@/lib/settings/effective";
 import type { User } from "../../../drizzle/schema/users";
 import {
   getBusinessMonthRange,
@@ -32,11 +29,16 @@ export async function getStaffDashboardStats(
   user: User,
   now: Date = new Date(),
 ): Promise<StaffDashboardStats> {
+  const settings = await getEffectiveSettings(db);
+  const timezone = settings.businessTimezone;
   const { start: monthStart, endExclusive: monthEndExclusive } =
-    getBusinessMonthRange(now);
+    getBusinessMonthRange(now, timezone);
   const nowIso = now.toISOString();
   const sevenDaysAgo = getRollingSevenDaysAgoIso(now);
-  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(now);
+  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
+    now,
+    timezone,
+  );
 
   const ownedActiveFilter = and(
     eq(schema.customers.ownerId, user.id),
@@ -161,12 +163,12 @@ export async function getStaffDashboardStats(
   const myReclaimRiskCustomers = ownedActiveCustomers.filter((customer) => {
     const days = getDaysWithoutValidFollowUp(customer, now);
     return (
-      days >= RECLAMATION_WARNING_DAY_6 &&
-      days < RECLAMATION_RECLAIM_DAYS
+      days >= settings.reclaimWarningDay1 &&
+      days < settings.automaticReclaimDays
     );
   }).length;
 
-  const claimStatus = await getStaffClaimStatus(user.id, now);
+  const claimStatus = await getStaffClaimStatus(user.id, now, db);
 
   return {
     myCustomers: myCustomersRow[0]?.value ?? 0,
@@ -183,6 +185,8 @@ export async function getStaffDashboardStats(
     publicPoolClaimStatus: {
       claimedInLast7Days: claimStatus.claimedInLast7Days,
       remainingQuota: claimStatus.remainingQuota,
+      quotaLimit: claimStatus.quotaLimit,
+      cooldownHours: claimStatus.cooldownHours,
       inCooldown: claimStatus.inCooldown,
       cooldownUntil: claimStatus.cooldownUntil,
       canClaimNow: claimStatus.canClaimNow,

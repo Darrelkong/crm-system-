@@ -6,19 +6,20 @@ import { createNotification } from "@/lib/notifications/service";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { ReclamationWarningType } from "../../../drizzle/schema/reclamation-warning-logs";
 import {
-  AUTO_RECLAIM_POOL_REASON,
+  AUTO_RECLAIM_POOL_REASON_PREFIX,
   NOTIFICATION_TITLES,
   RECLAMATION_AUDIT_ACTIONS,
   RECLAMATION_EXCLUDED_SALES_STAGES,
-  RECLAMATION_RECLAIM_DAYS,
-  RECLAMATION_WARNING_DAY_6,
-  RECLAMATION_WARNING_DAY_7,
 } from "./constants";
 import {
   getDaysWithoutValidFollowUp,
   getReclamationAnchorAt,
   getWarningDateKey,
 } from "./days";
+import {
+  getEffectiveSettings,
+  type EffectiveSettings,
+} from "@/lib/settings/effective";
 
 export type ReclamationRunResult = {
   warningsDay6Count: number;
@@ -128,6 +129,7 @@ async function sendDay6Warning(
   customer: Customer,
   days: number,
   warningDate: string,
+  settings: EffectiveSettings,
 ): Promise<boolean> {
   if (!customer.ownerId) {
     return false;
@@ -144,7 +146,7 @@ async function sendDay6Warning(
     userId: customer.ownerId,
     type: "auto_reclaim_warning_day_6",
     title: NOTIFICATION_TITLES.warningDay6,
-    message: `客户「${customer.customerName}」已经 6 天没有有效跟进，请尽快跟进。`,
+    message: `客户「${customer.customerName}」已经 ${settings.reclaimWarningDay1} 天没有有效跟进，请尽快跟进。`,
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
   });
@@ -168,6 +170,7 @@ async function sendDay7Warning(
   customer: Customer,
   days: number,
   warningDate: string,
+  settings: EffectiveSettings,
 ): Promise<boolean> {
   if (!customer.ownerId) {
     return false;
@@ -184,7 +187,7 @@ async function sendDay7Warning(
     userId: customer.ownerId,
     type: "auto_reclaim_warning_day_7",
     title: NOTIFICATION_TITLES.warningDay7,
-    message: `客户「${customer.customerName}」已经 7 天没有有效跟进，若超过 8 天将自动回收到公共池。`,
+    message: `客户「${customer.customerName}」已经 ${settings.reclaimWarningDay2} 天没有有效跟进，若超过 ${settings.automaticReclaimDays} 天将自动回收到公共池。`,
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
   });
@@ -208,6 +211,7 @@ async function autoReclaimCustomer(
   customer: Customer,
   days: number,
   now: string,
+  settings: EffectiveSettings,
 ): Promise<boolean> {
   const previousOwnerId = customer.ownerId;
   if (!previousOwnerId) {
@@ -221,7 +225,7 @@ async function autoReclaimCustomer(
         ownerId: null,
         status: "public_pool",
         poolEnteredAt: now,
-        poolReason: AUTO_RECLAIM_POOL_REASON,
+        poolReason: `${AUTO_RECLAIM_POOL_REASON_PREFIX}${settings.automaticReclaimDays} 天无有效跟进`,
         releasedBy: null,
         releaserUserId: null,
         previousOwnerId,
@@ -259,7 +263,7 @@ async function autoReclaimCustomer(
       userId: previousOwnerId,
       type: "customer_auto_reclaimed",
       title: NOTIFICATION_TITLES.reclaimed,
-      message: `客户「${customer.customerName}」已超过 8 天无有效跟进，已自动回收到公共池。`,
+      message: `客户「${customer.customerName}」已超过 ${settings.automaticReclaimDays} 天无有效跟进，已自动回收到公共池。`,
       relatedEntityType: "customer",
       relatedEntityId: customer.id,
     });
@@ -284,7 +288,7 @@ async function autoReclaimCustomer(
 }
 
 /**
- * Evaluates active owned customers for day-6/day-7 warnings and 8-day auto-reclaim.
+ * Evaluates active owned customers for configured warning thresholds and auto-reclaim.
  * Only status=active with owner_id set participate.
  * Skips public_pool / inactive / archived, and closed sales stages
  * (closed_won, closed_lost, invalid, on_hold).
@@ -293,8 +297,13 @@ export async function runReclamationCheck(
   db: Database,
   now: Date = new Date(),
 ): Promise<ReclamationRunResult> {
+  const settings = await getEffectiveSettings(db);
   const warningDate = getWarningDateKey(now);
   const isoNow = now.toISOString();
+
+  const reclaimDays = settings.automaticReclaimDays;
+  const warningDay1 = settings.reclaimWarningDay1;
+  const warningDay2 = settings.reclaimWarningDay2;
 
   const eligibleCustomers = await db
     .select()
@@ -321,8 +330,14 @@ export async function runReclamationCheck(
   for (const customer of eligibleCustomers) {
     const days = getDaysWithoutValidFollowUp(customer, now);
 
-    if (days >= RECLAMATION_RECLAIM_DAYS) {
-      const reclaimed = await autoReclaimCustomer(db, customer, days, isoNow);
+    if (days >= reclaimDays) {
+      const reclaimed = await autoReclaimCustomer(
+        db,
+        customer,
+        days,
+        isoNow,
+        settings,
+      );
       if (reclaimed) {
         result.reclaimedCount += 1;
         result.affectedCustomerIds.push(customer.id);
@@ -332,8 +347,14 @@ export async function runReclamationCheck(
       continue;
     }
 
-    if (days >= RECLAMATION_WARNING_DAY_7 && days < RECLAMATION_RECLAIM_DAYS) {
-      const warned = await sendDay7Warning(db, customer, days, warningDate);
+    if (days >= warningDay2 && days < reclaimDays) {
+      const warned = await sendDay7Warning(
+        db,
+        customer,
+        days,
+        warningDate,
+        settings,
+      );
       if (warned) {
         result.warningsDay7Count += 1;
         result.affectedCustomerIds.push(customer.id);
@@ -343,8 +364,14 @@ export async function runReclamationCheck(
       continue;
     }
 
-    if (days >= RECLAMATION_WARNING_DAY_6 && days < RECLAMATION_WARNING_DAY_7) {
-      const warned = await sendDay6Warning(db, customer, days, warningDate);
+    if (days >= warningDay1 && days < warningDay2) {
+      const warned = await sendDay6Warning(
+        db,
+        customer,
+        days,
+        warningDate,
+        settings,
+      );
       if (warned) {
         result.warningsDay6Count += 1;
         result.affectedCustomerIds.push(customer.id);
