@@ -6,6 +6,7 @@ import { getCustomerById } from "@/lib/customers/queries";
 import {
   formatCustomerForUser,
   PermissionError,
+  canEditCustomer,
 } from "@/lib/permissions/customers";
 import { CUSTOMER_SOURCE_LABELS } from "@/lib/constants/customer-source-labels";
 import {
@@ -70,6 +71,8 @@ export default async function CustomerDetailPage({ params }: Props) {
     throw err;
   }
 
+  const showEditButton = canEditCustomer(user, customer);
+
   return (
     <div className="max-w-2xl">
       <div className="mb-6 flex items-center justify-between">
@@ -86,12 +89,22 @@ export default async function CustomerDetailPage({ params }: Props) {
             )}
           </div>
         </div>
-        <Link
-          href="/customers"
-          className="text-sm text-slate-500 hover:text-slate-800"
-        >
-          ← 返回列表
-        </Link>
+        <div className="flex items-center gap-3">
+          {showEditButton && (
+            <Link
+              href={`/customers/${id}/edit`}
+              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+            >
+              编辑客户
+            </Link>
+          )}
+          <Link
+            href="/customers"
+            className="text-sm text-slate-500 hover:text-slate-800"
+          >
+            ← 返回列表
+          </Link>
+        </div>
       </div>
 
       {view.isMasked && (

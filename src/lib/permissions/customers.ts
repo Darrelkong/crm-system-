@@ -101,7 +101,7 @@ export function assertCanEditCustomer(user: User, customer: Customer): void {
     throw new PermissionError(
       403,
       "无权编辑公共池客户",
-      "permission.denied.customer_access",
+      "permission.denied.customer_edit",
     );
   }
 
@@ -109,9 +109,15 @@ export function assertCanEditCustomer(user: User, customer: Customer): void {
     throw new PermissionError(
       403,
       "无权编辑该客户",
-      "permission.denied.customer_access",
+      "permission.denied.customer_edit",
     );
   }
+}
+
+export function canEditCustomer(user: User, customer: Customer): boolean {
+  if (user.role === "admin") return true;
+  if (isPublicPoolCustomer(customer)) return false;
+  return customer.ownerId === user.id;
 }
 
 /** Staff view with sensitive fields removed. */

@@ -1,12 +1,24 @@
 export const dynamic = "force-dynamic";
 
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
   formatCustomerForUser,
+  assertCanEditCustomer,
   PermissionError,
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
+import { writeAuditLog } from "@/lib/audit/audit-log";
+import { validateCustomerInput } from "@/lib/customers/validation";
+import { parseCustomerBody } from "@/lib/customers/parse-input";
+import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
+import {
+  buildCustomerUpdatePayload,
+  writeFieldChangeLogs,
+} from "@/lib/customers/field-change-log";
+import { getRequestMeta } from "@/lib/auth/cookies";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -35,6 +47,143 @@ export async function GET(request: Request, context: RouteContext) {
       }
       throw err;
     }
+  } catch (error) {
+    return authErrorResponse(error);
+  }
+}
+
+export async function PATCH(request: Request, context: RouteContext) {
+  try {
+    const user = await requireAuth(request);
+    const { id } = await context.params;
+    const { ipAddress, userAgent } = getRequestMeta(request);
+
+    const existing = await getCustomerById(id);
+    if (!existing) {
+      return Response.json({ error: "客户不存在" }, { status: 404 });
+    }
+
+    try {
+      assertCanEditCustomer(user, existing);
+    } catch (err) {
+      if (err instanceof PermissionError) {
+        await logPermissionDenied(request, {
+          action: err.auditAction ?? "permission.denied.customer_edit",
+          userId: user.id,
+          entityType: "customer",
+          entityId: id,
+          metadata: { ownerId: existing.ownerId, status: existing.status },
+        });
+      }
+      throw err;
+    }
+
+    const body = (await request.json()) as Record<string, unknown>;
+    const input = parseCustomerBody(body);
+
+    const fieldErrors = validateCustomerInput(input);
+    if (fieldErrors.length > 0) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.update_failed.validation",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: { fieldErrors },
+      });
+      return Response.json(
+        { error: "输入校验失败", fieldErrors },
+        { status: 400 },
+      );
+    }
+
+    const payload = buildCustomerUpdatePayload({
+      customerName: input.customerName!,
+      customerType: input.customerType!,
+      phoneCountryCode: input.phoneCountryCode!,
+      phone: input.phone ?? null,
+      wechatId: input.wechatId ?? null,
+      email: input.email ?? null,
+      source: input.source!,
+      sourceRemark: input.sourceRemark ?? null,
+      notes: input.notes ?? null,
+      salesStage: input.salesStage!,
+      status: input.status!,
+    });
+
+    const duplicates = await checkCustomerDuplicates(
+      { phone: payload.phone, wechatId: payload.wechatId, email: payload.email },
+      user,
+      id,
+    );
+
+    if (duplicates.length > 0) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.update_failed.duplicate",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: { fields: duplicates.map((d) => d.field) },
+      });
+      return Response.json(
+        {
+          error: "存在重复客户",
+          code: "duplicate_customer",
+          duplicates,
+        },
+        { status: 409 },
+      );
+    }
+
+    const changedFields = await writeFieldChangeLogs(
+      id,
+      existing,
+      payload,
+      user.id,
+    );
+
+    const now = new Date().toISOString();
+    const db = getDb();
+
+    await db
+      .update(schema.customers)
+      .set({
+        customerName: payload.customerName,
+        customerType: payload.customerType,
+        phoneCountryCode: payload.phoneCountryCode,
+        phone: payload.phone,
+        wechatId: payload.wechatId,
+        email: payload.email,
+        source: payload.source,
+        sourceRemark: payload.sourceRemark,
+        notes: payload.notes,
+        salesStage: payload.salesStage,
+        status: payload.status,
+        updatedBy: user.id,
+        updatedAt: now,
+      })
+      .where(eq(schema.customers.id, id));
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "customer.updated",
+      entityType: "customer",
+      entityId: id,
+      ipAddress,
+      userAgent,
+      metadata: {
+        changedFields,
+        customerName: payload.customerName,
+      },
+    });
+
+    const updated = await getCustomerById(id);
+    const view = updated ? formatCustomerForUser(user, updated) : null;
+
+    return Response.json({ ok: true, id, customer: view });
   } catch (error) {
     return authErrorResponse(error);
   }

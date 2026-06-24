@@ -5,5 +5,6 @@ export * from "./customer-contacts";
 export * from "./follow-ups";
 export * from "./tasks";
 export * from "./audit-logs";
+export * from "./field-change-logs";
 export * from "./login-logs";
 export * from "./system-settings";

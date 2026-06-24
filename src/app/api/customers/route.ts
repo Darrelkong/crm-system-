@@ -4,11 +4,12 @@ import { getDb, schema } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
   formatCustomerForUser,
-  getCustomerListScope,
 } from "@/lib/permissions/customers";
 import { writeAuditLog } from "@/lib/audit/audit-log";
-import { validateCreateCustomer } from "@/lib/customers/validation";
+import { validateCustomerInput } from "@/lib/customers/validation";
+import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
+import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import { listCustomersForUser } from "@/lib/customers/queries";
 import { getRequestMeta } from "@/lib/auth/cookies";
 
@@ -29,21 +30,11 @@ export async function POST(request: Request) {
     const { ipAddress, userAgent } = getRequestMeta(request);
 
     const body = (await request.json()) as Record<string, unknown>;
+    const input = parseCustomerBody(body);
+    // Create defaults status to active; strip status from validation default
+    const createInput = { ...input, status: "active" };
 
-    const input = {
-      customerName: typeof body.customerName === "string" ? body.customerName : "",
-      customerType: typeof body.customerType === "string" ? body.customerType : "individual",
-      phoneCountryCode: typeof body.phoneCountryCode === "string" ? body.phoneCountryCode : "+86",
-      phone: typeof body.phone === "string" ? body.phone : null,
-      wechatId: typeof body.wechatId === "string" ? body.wechatId : null,
-      email: typeof body.email === "string" ? body.email : null,
-      source: typeof body.source === "string" ? body.source : "",
-      sourceRemark: typeof body.sourceRemark === "string" ? body.sourceRemark : null,
-      notes: typeof body.notes === "string" ? body.notes : null,
-      salesStage: typeof body.salesStage === "string" ? body.salesStage : "new_lead",
-    };
-
-    const fieldErrors = validateCreateCustomer(input);
+    const fieldErrors = validateCustomerInput(createInput);
     if (fieldErrors.length > 0) {
       await writeAuditLog({
         userId: user.id,
@@ -65,7 +56,7 @@ export async function POST(request: Request) {
         : user.id;
 
     const duplicates = await checkCustomerDuplicates(
-      { phone: input.phone, wechatId: input.wechatId, email: input.email },
+      { phone: createInput.phone, wechatId: createInput.wechatId, email: createInput.email },
       user,
     );
 
@@ -91,19 +82,33 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
     const db = getDb();
 
+    const payload = buildCustomerUpdatePayload({
+      customerName: createInput.customerName!,
+      customerType: createInput.customerType!,
+      phoneCountryCode: createInput.phoneCountryCode!,
+      phone: createInput.phone ?? null,
+      wechatId: createInput.wechatId ?? null,
+      email: createInput.email ?? null,
+      source: createInput.source!,
+      sourceRemark: createInput.sourceRemark ?? null,
+      notes: createInput.notes ?? null,
+      salesStage: createInput.salesStage!,
+      status: "active",
+    });
+
     await db.insert(schema.customers).values({
       id,
-      customerName: input.customerName.trim(),
-      customerType: input.customerType,
-      phoneCountryCode: input.phoneCountryCode,
-      phone: input.phone?.trim() || null,
-      wechatId: input.wechatId?.trim() || null,
-      email: input.email?.trim().toLowerCase() || null,
-      source: input.source,
-      sourceRemark: input.sourceRemark?.trim() || null,
-      notes: input.notes?.trim() || null,
-      salesStage: input.salesStage,
-      status: "active",
+      customerName: payload.customerName,
+      customerType: payload.customerType,
+      phoneCountryCode: payload.phoneCountryCode,
+      phone: payload.phone,
+      wechatId: payload.wechatId,
+      email: payload.email,
+      source: payload.source,
+      sourceRemark: payload.sourceRemark,
+      notes: payload.notes,
+      salesStage: payload.salesStage,
+      status: payload.status,
       ownerId,
       createdBy: user.id,
       updatedBy: user.id,
@@ -119,8 +124,8 @@ export async function POST(request: Request) {
       ipAddress,
       userAgent,
       metadata: {
-        customerName: input.customerName,
-        source: input.source,
+        customerName: createInput.customerName,
+        source: createInput.source,
         ownerId,
       },
     });

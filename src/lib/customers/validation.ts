@@ -3,10 +3,13 @@ import {
   isCustomerSourceKey,
 } from "@/lib/constants/customer-sources";
 import { isCustomerType, isSalesStage } from "@/lib/constants/customer-fields";
+import {
+  CUSTOMER_STATUSES,
+} from "../../../drizzle/schema/customers";
 
 const CN_PHONE_RE = /^1\d{10}$/;
 
-export type CreateCustomerInput = {
+export type CustomerInput = {
   customerName?: string;
   customerType?: string;
   phoneCountryCode?: string;
@@ -17,12 +20,14 @@ export type CreateCustomerInput = {
   sourceRemark?: string | null;
   notes?: string | null;
   salesStage?: string;
+  status?: string;
 };
 
 export type ValidationFieldError = { field: string; message: string };
 
-export function validateCreateCustomer(
-  input: CreateCustomerInput,
+/** Shared validation for create and update. */
+export function validateCustomerInput(
+  input: CustomerInput,
 ): ValidationFieldError[] {
   const errors: ValidationFieldError[] = [];
 
@@ -74,5 +79,16 @@ export function validateCreateCustomer(
     errors.push({ field: "salesStage", message: "销售阶段无效" });
   }
 
+  if (
+    input.status &&
+    !(CUSTOMER_STATUSES as readonly string[]).includes(input.status)
+  ) {
+    errors.push({ field: "status", message: "客户状态无效" });
+  }
+
   return errors;
 }
+
+/** @deprecated use validateCustomerInput */
+export const validateCreateCustomer = validateCustomerInput;
+export type CreateCustomerInput = CustomerInput;
