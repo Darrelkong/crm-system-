@@ -104,6 +104,18 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (
+    pathname.startsWith("/approvals") ||
+    pathname.startsWith("/notifications") ||
+    pathname.startsWith("/announcements") ||
+    pathname.startsWith("/help")
+  ) {
+    if (!sessionUser) {
+      return redirectToLogin(request);
+    }
+    return NextResponse.next();
+  }
+
   return NextResponse.next();
 }
 
@@ -119,5 +131,13 @@ export const config = {
     "/customers/:path*",
     "/public-pool",
     "/public-pool/:path*",
+    "/approvals",
+    "/approvals/:path*",
+    "/notifications",
+    "/notifications/:path*",
+    "/announcements",
+    "/announcements/:path*",
+    "/help",
+    "/help/:path*",
   ],
 };
