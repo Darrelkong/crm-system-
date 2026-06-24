@@ -2,21 +2,16 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 8
+## 当前阶段：Phase 8.1
 
-已完成审批中心基础版，包括：
+在 Phase 8 基础上加固已归档客户与审批边界规则：
 
-- `approvals` 表：删除 / 转移 / 合并 / 成交 / 二次转化申请
-- Staff 提交：`POST /api/customers/:id/approval-requests`
-- Admin 审批：`GET /api/approvals`、`POST /api/approvals/:id/approve|reject`
-- 页面：`/approvals`、客户详情「提交审批申请」
-- 通知与审计日志完整记录
+- Staff 客户列表不显示 `archived` 客户；Admin 默认不显示，可通过 `/customers?status=archived` 查看
+- 已归档客户禁止编辑、跟进、释放公共池、提交审批（API 返回 400）
+- Staff 原 owner 可查看已归档客户基础详情；Admin 可查看完整详情
+- 自动回收仅处理 `status=active` 客户，已归档客户不参与
 
-**删除申请实现说明**：提交时不修改客户数据，仅创建 `pending` 审批；Admin 批准后 `status = archived`（soft delete）。
-
-**合并申请实现说明**：本阶段仅完成审批工作流，批准后写入 `approval.merge.approved_placeholder` 审计，**不执行真实字段合并**。
-
-**尚未实现**：复杂合并 UI、报表、导入导出、完整多语言、客户热度评分（Phase 9+）。
+**尚未实现**：报表、导入导出、备份、完整多语言（Phase 9+）。
 
 ## 技术栈
 
@@ -150,6 +145,47 @@ npx wrangler d1 execute crm-db --local --command \
 ```
 
 UI：访问 `/approvals`；在客户详情页点击「提交审批申请」。
+
+## Phase 8.1 已归档客户边界测试
+
+前置：通过 Phase 8 删除审批将 Staff A 客户（`...201`）归档，或手动将客户 `status` 设为 `archived`。
+
+```bash
+CUST_ARCHIVED=22222222-2222-2222-2222-222222222201
+
+# Staff 列表不含 archived
+curl -s -b /tmp/crm-staff-a.txt http://localhost:3000/api/customers | \
+  python3 -c "import sys,json;ids=[i['id'] for i in json.load(sys.stdin)['items']];print('archived in list', '$CUST_ARCHIVED' in ids)"
+
+# Admin 默认列表不含 archived；?status=archived 可查看
+curl -s -b /tmp/crm-admin.txt "http://localhost:3000/api/customers?status=archived"
+
+# Staff 不能编辑 archived → 400
+curl -s -b /tmp/crm-staff-a.txt -X PATCH http://localhost:3000/api/customers/$CUST_ARCHIVED \
+  -H 'Content-Type: application/json' -d '{"customerName":"test"}'
+
+# Staff 不能添加跟进 → 400
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_ARCHIVED/follow-ups \
+  -H 'Content-Type: application/json' \
+  -d '{"followUpTime":"2026-06-24T10:00:00.000Z","channel":"phone","outcome":"connected","summary":"test"}'
+
+# Staff 不能释放公共池 → 400
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_ARCHIVED/release-to-pool \
+  -H 'Content-Type: application/json' -d '{"reason":"test"}'
+
+# Staff 不能再次提交审批 → 400
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/customers/$CUST_ARCHIVED/approval-requests \
+  -H 'Content-Type: application/json' -d '{"requestType":"delete_customer","reason":"重复"}'
+
+# Admin 可查看 archived 详情 → 200
+curl -s -b /tmp/crm-admin.txt http://localhost:3000/api/customers/$CUST_ARCHIVED
+
+# 审计日志
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT action FROM audit_logs WHERE action LIKE '%_failed.archived' ORDER BY created_at DESC LIMIT 10"
+```
+
+**自动回收**：引擎查询条件为 `status = active`，`archived` / `inactive` / `public_pool` 均不参与（见 `src/lib/reclamation/engine.ts`）。
 
 ## Phase 7 自动回收测试
 

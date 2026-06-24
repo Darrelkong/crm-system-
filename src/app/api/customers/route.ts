@@ -16,7 +16,13 @@ import { getRequestMeta } from "@/lib/auth/cookies";
 export async function GET(request: Request) {
   try {
     const user = await requireAuth(request);
-    const customers = await listCustomersForUser(user);
+    const url = new URL(request.url);
+    const statusParam = url.searchParams.get("status");
+    const filter =
+      user.role === "admin" && statusParam === "archived"
+        ? { status: "archived" as const }
+        : {};
+    const customers = await listCustomersForUser(user, filter);
     const items = customers.map((c) => formatCustomerForUser(user, c));
     return Response.json({ items, total: items.length });
   } catch (error) {

@@ -1,6 +1,8 @@
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
+import { ARCHIVED_AUDIT_ACTIONS, isArchivedCustomer } from "@/lib/customers/archived";
 import {
+  assertCustomerNotArchived,
   getCustomerAccessLevel,
   isPublicPoolCustomer,
   PermissionError,
@@ -10,6 +12,8 @@ export function assertCanSubmitApprovalRequest(
   user: User,
   customer: Customer,
 ): void {
+  assertCustomerNotArchived(customer, ARCHIVED_AUDIT_ACTIONS.approvalRequest);
+
   if (user.role === "admin") {
     return;
   }
@@ -40,6 +44,7 @@ export function assertCanSubmitApprovalRequest(
 }
 
 export function canSubmitApprovalRequest(user: User, customer: Customer): boolean {
+  if (isArchivedCustomer(customer)) return false;
   try {
     assertCanSubmitApprovalRequest(user, customer);
     return true;

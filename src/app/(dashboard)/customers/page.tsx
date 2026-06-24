@@ -19,39 +19,74 @@ const STATUS_LABELS: Record<string, string> = {
   public_pool: "公共池",
 };
 
-export default async function CustomersPage() {
+type Props = {
+  searchParams: Promise<{ status?: string }>;
+};
+
+export default async function CustomersPage({ searchParams }: Props) {
   const user = await requireAuth();
-  const customers = await listCustomersForUser(user);
+  const { status } = await searchParams;
+  const showArchived = user.role === "admin" && status === "archived";
+  const customers = await listCustomersForUser(
+    user,
+    showArchived ? { status: "archived" } : {},
+  );
   const views = customers.map((c) => formatCustomerForUser(user, c));
 
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-slate-900">客户列表</h2>
+          <h2 className="text-xl font-semibold text-slate-900">
+            {showArchived ? "已归档客户" : "客户列表"}
+          </h2>
           <p className="mt-1 text-sm text-slate-500">
-            {user.role === "admin"
-              ? `共 ${views.length} 位客户（管理员可见全部）`
-              : `共 ${views.length} 位客户（含公共池脱敏客户）`}
+            {showArchived
+              ? `共 ${views.length} 位已归档客户（仅管理员）`
+              : user.role === "admin"
+                ? `共 ${views.length} 位客户（不含已归档）`
+                : `共 ${views.length} 位客户（含公共池脱敏客户，不含已归档）`}
           </p>
+          {user.role === "admin" && (
+            <div className="mt-2 flex gap-3 text-sm">
+              {showArchived ? (
+                <Link href="/customers" className="text-indigo-600 hover:underline">
+                  ← 返回活跃客户列表
+                </Link>
+              ) : (
+                <Link
+                  href="/customers?status=archived"
+                  className="text-indigo-600 hover:underline"
+                >
+                  查看已归档客户
+                </Link>
+              )}
+            </div>
+          )}
         </div>
-        <Link
-          href="/customers/new"
-          className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-        >
-          新增客户
-        </Link>
+        {!showArchived && (
+          <Link
+            href="/customers/new"
+            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
+          >
+            新增客户
+          </Link>
+        )}
       </div>
 
       {views.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
-          <p className="text-slate-500">暂无客户数据</p>
-          <Link
-            href="/customers/new"
-            className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
-          >
-            新增第一位客户
-          </Link>
+          <p className="text-slate-500">
+            {showArchived ? "暂无已归档客户" : "暂无客户数据"}
+          </p>
+          {!showArchived && (
+            <Link
+              href="/customers/new"
+              className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
+            >
+              新增第一位客户
+            </Link>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
@@ -111,7 +146,11 @@ export default async function CustomersPage() {
                     </div>
                   </td>
                   <td className="px-4 py-3">
-                    {c.isMasked ? (
+                    {c.isArchived ? (
+                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
+                        已归档
+                      </span>
+                    ) : c.isMasked ? (
                       <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                         已脱敏
                       </span>

@@ -31,7 +31,7 @@ export async function POST(request: Request, context: RouteContext) {
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {
-          action: "approval.request_failed.permission_denied",
+          action: err.auditAction ?? "approval.request_failed.permission_denied",
           userId: user.id,
           entityType: "customer",
           entityId: id,

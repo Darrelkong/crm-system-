@@ -1,7 +1,23 @@
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
+import {
+  isArchivedCustomer,
+  ARCHIVED_AUDIT_ACTIONS,
+  ARCHIVED_CUSTOMER_MESSAGE,
+} from "@/lib/customers/archived";
 
-export type CustomerAccessLevel = "full" | "masked" | "denied";
+function assertCustomerNotArchived(
+  customer: Customer,
+  auditAction: string,
+): void {
+  if (isArchivedCustomer(customer)) {
+    throw new PermissionError(400, ARCHIVED_CUSTOMER_MESSAGE, auditAction);
+  }
+}
+
+export { assertCustomerNotArchived };
+
+export type CustomerAccessLevel = "full" | "masked" | "archived_basic" | "denied";
 
 export type CustomerView = {
   id: string;
@@ -13,6 +29,7 @@ export type CustomerView = {
   ownerId: string | null;
   accessLevel: CustomerAccessLevel;
   isMasked: boolean;
+  isArchived?: boolean;
   // Sensitive — only present when accessLevel = "full"
   phoneCountryCode?: string | null;
   phone?: string | null;
@@ -50,10 +67,11 @@ export function isPublicPoolCustomer(customer: Customer): boolean {
 
 /**
  * Returns the access level for a user against a customer.
- * - Admin: always full
- * - Staff own customer: full
- * - Staff other employee customer: denied
- * - Public pool: masked for all staff (including releaser)
+ * - Admin: always full (including archived)
+ * - Archived + Staff owner: archived_basic (non-sensitive fields only)
+ * - Archived + Staff non-owner: denied
+ * - Public pool: masked for all staff
+ * - Staff own active customer: full
  */
 export function getCustomerAccessLevel(
   user: User,
@@ -61,6 +79,13 @@ export function getCustomerAccessLevel(
 ): CustomerAccessLevel {
   if (user.role === "admin") {
     return "full";
+  }
+
+  if (isArchivedCustomer(customer)) {
+    if (customer.ownerId === user.id) {
+      return "archived_basic";
+    }
+    return "denied";
   }
 
   if (isPublicPoolCustomer(customer)) {
@@ -98,6 +123,8 @@ export function assertCanViewCustomerFullDetails(
 }
 
 export function assertCanEditCustomer(user: User, customer: Customer): void {
+  assertCustomerNotArchived(customer, ARCHIVED_AUDIT_ACTIONS.update);
+
   if (user.role === "admin") {
     return;
   }
@@ -120,12 +147,15 @@ export function assertCanEditCustomer(user: User, customer: Customer): void {
 }
 
 export function canEditCustomer(user: User, customer: Customer): boolean {
+  if (isArchivedCustomer(customer)) return false;
   if (user.role === "admin") return true;
   if (isPublicPoolCustomer(customer)) return false;
   return customer.ownerId === user.id;
 }
 
 export function assertCanReleaseToPool(user: User, customer: Customer): void {
+  assertCustomerNotArchived(customer, ARCHIVED_AUDIT_ACTIONS.releaseToPool);
+
   if (isPublicPoolCustomer(customer)) {
     throw new PermissionError(
       403,
@@ -146,6 +176,7 @@ export function assertCanReleaseToPool(user: User, customer: Customer): void {
 }
 
 export function canReleaseToPool(user: User, customer: Customer): boolean {
+  if (isArchivedCustomer(customer)) return false;
   try {
     assertCanReleaseToPool(user, customer);
     return true;
@@ -156,6 +187,8 @@ export function canReleaseToPool(user: User, customer: Customer): boolean {
 
 /** Same scope as edit: admin all, staff own only, not public pool. */
 export function assertCanAddFollowUp(user: User, customer: Customer): void {
+  assertCustomerNotArchived(customer, ARCHIVED_AUDIT_ACTIONS.followUpCreate);
+
   if (user.role === "admin") return;
 
   if (isPublicPoolCustomer(customer)) {
@@ -176,6 +209,7 @@ export function assertCanAddFollowUp(user: User, customer: Customer): void {
 }
 
 export function canAddFollowUp(user: User, customer: Customer): boolean {
+  if (isArchivedCustomer(customer)) return false;
   try {
     assertCanAddFollowUp(user, customer);
     return true;
@@ -185,6 +219,15 @@ export function canAddFollowUp(user: User, customer: Customer): boolean {
 }
 
 export function assertCanViewFollowUps(user: User, customer: Customer): void {
+  if (isArchivedCustomer(customer)) {
+    if (user.role === "admin") return;
+    throw new PermissionError(
+      403,
+      "无权查看已归档客户的跟进记录",
+      "permission.denied.follow_up_access",
+    );
+  }
+
   if (getCustomerAccessLevel(user, customer) !== "full") {
     throw new PermissionError(
       403,
@@ -271,7 +314,19 @@ export function formatCustomerForUser(
   }
 
   if (level === "full") {
-    return toCustomerFullView(customer);
+    const view = toCustomerFullView(customer);
+    if (isArchivedCustomer(customer)) {
+      return { ...view, isArchived: true };
+    }
+    return view;
+  }
+
+  if (level === "archived_basic") {
+    return {
+      ...maskCustomerForStaff(customer),
+      isArchived: true,
+      accessLevel: "archived_basic",
+    };
   }
 
   return maskCustomerForStaff(customer);

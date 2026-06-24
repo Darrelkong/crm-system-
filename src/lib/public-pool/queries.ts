@@ -91,7 +91,10 @@ export function formatPublicPoolCustomer(
     salesStage: base.salesStage,
     poolEnteredAt: customer.poolEnteredAt ?? null,
     poolReason: customer.poolReason ?? null,
-    accessLevel: base.accessLevel === "denied" ? "masked" : base.accessLevel,
+    accessLevel:
+      base.accessLevel === "denied" || base.accessLevel === "archived_basic"
+        ? "masked"
+        : base.accessLevel,
     isMasked: base.isMasked,
     canClaim: claim.canClaim,
     claimBlockedReason: claim.claimBlockedReason,

@@ -108,9 +108,14 @@ export default async function CustomerDetailPage({ params }: Props) {
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
               {STATUS_LABELS[view.status] ?? view.status}
             </span>
-            {view.isMasked && (
+            {view.isMasked && !view.isArchived && (
               <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
                 公共池 · 已脱敏
+              </span>
+            )}
+            {view.isArchived && (
+              <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-700">
+                已归档
               </span>
             )}
           </div>
@@ -147,7 +152,16 @@ export default async function CustomerDetailPage({ params }: Props) {
         </div>
       </div>
 
-      {view.isMasked && (
+      {view.isArchived && (
+        <div className="mb-4 rounded-lg border border-slate-300 bg-slate-100 p-4 text-sm text-slate-800">
+          <p className="font-medium">已归档客户</p>
+          <p className="mt-1">
+            该客户已归档，不能编辑、添加跟进、释放到公共池或提交新的审批申请。
+          </p>
+        </div>
+      )}
+
+      {view.isMasked && !view.isArchived && (
         <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
           该客户处于公共池，仅显示基本信息，手机号、微信、Email 等敏感信息已隐藏。
         </div>

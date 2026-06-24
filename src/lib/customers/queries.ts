@@ -1,4 +1,4 @@
-import { asc, eq, isNull, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, ne, or, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -8,13 +8,32 @@ const followUpSort = [
   asc(schema.customers.createdAt),
 ];
 
-export async function listCustomersForUser(user: User, limit = 100) {
+export type CustomerListFilter = {
+  /** Admin only: `archived` shows archived customers; default excludes archived. */
+  status?: "archived";
+};
+
+export async function listCustomersForUser(
+  user: User,
+  filter: CustomerListFilter = {},
+  limit = 100,
+) {
   const db = getDb();
 
   if (user.role === "admin") {
+    if (filter.status === "archived") {
+      return db
+        .select()
+        .from(schema.customers)
+        .where(eq(schema.customers.status, "archived"))
+        .orderBy(...followUpSort)
+        .limit(limit);
+    }
+
     return db
       .select()
       .from(schema.customers)
+      .where(ne(schema.customers.status, "archived"))
       .orderBy(...followUpSort)
       .limit(limit);
   }
@@ -23,10 +42,13 @@ export async function listCustomersForUser(user: User, limit = 100) {
     .select()
     .from(schema.customers)
     .where(
-      or(
-        eq(schema.customers.ownerId, user.id),
-        eq(schema.customers.status, "public_pool"),
-        isNull(schema.customers.ownerId),
+      and(
+        ne(schema.customers.status, "archived"),
+        or(
+          eq(schema.customers.ownerId, user.id),
+          eq(schema.customers.status, "public_pool"),
+          isNull(schema.customers.ownerId),
+        ),
       ),
     )
     .orderBy(...followUpSort)
