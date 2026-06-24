@@ -17,6 +17,7 @@ export default async function AdminLayout({
       navLinks={[
         { href: "/admin", label: "工作台", active: true },
         { href: "/customers", label: "客户管理" },
+        { href: "/public-pool", label: "公共池" },
       ]}
     >
       {children}

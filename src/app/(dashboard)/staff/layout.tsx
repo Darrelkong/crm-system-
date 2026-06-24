@@ -17,6 +17,7 @@ export default async function StaffLayout({
       navLinks={[
         { href: "/staff", label: "工作台", active: true },
         { href: "/customers", label: "客户管理" },
+        { href: "/public-pool", label: "公共池" },
       ]}
     >
       {children}

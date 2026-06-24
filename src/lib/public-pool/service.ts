@@ -1,0 +1,124 @@
+import { eq } from "drizzle-orm";
+import { getDb, schema } from "@/lib/db";
+import { writeAuditLog } from "@/lib/audit/audit-log";
+import type { Customer } from "../../../drizzle/schema/customers";
+import type { User } from "../../../drizzle/schema/users";
+
+export async function createFirstContactTask(
+  customer: Customer,
+  assigneeId: string,
+  createdBy: string,
+  audit?: { ipAddress?: string | null; userAgent?: string | null },
+): Promise<string> {
+  const db = getDb();
+  const now = new Date();
+  const dueAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const taskId = crypto.randomUUID();
+  const isoNow = now.toISOString();
+
+  await db.insert(schema.tasks).values({
+    id: taskId,
+    customerId: customer.id,
+    assignedTo: assigneeId,
+    createdBy,
+    title: `首次联系客户：${customer.customerName}`,
+    type: "first_contact",
+    status: "open",
+    dueAt,
+    createdAt: isoNow,
+    updatedAt: isoNow,
+  });
+
+  await writeAuditLog({
+    userId: createdBy,
+    action: "task.created.first_contact",
+    entityType: "task",
+    entityId: taskId,
+    ipAddress: audit?.ipAddress,
+    userAgent: audit?.userAgent,
+    metadata: { customerId: customer.id, dueAt },
+  });
+
+  return taskId;
+}
+
+export async function claimCustomerFromPool(
+  customer: Customer,
+  user: User,
+  audit?: { ipAddress?: string | null; userAgent?: string | null },
+): Promise<{ taskId: string }> {
+  const db = getDb();
+  const now = new Date().toISOString();
+
+  await db
+    .update(schema.customers)
+    .set({
+      ownerId: user.id,
+      status: "active",
+      claimedBy: user.id,
+      claimedAt: now,
+      poolLeftAt: now,
+      updatedBy: user.id,
+      updatedAt: now,
+    })
+    .where(eq(schema.customers.id, customer.id));
+
+  const updated = { ...customer, customerName: customer.customerName };
+  const taskId = await createFirstContactTask(updated, user.id, user.id, audit);
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "customer.claimed_from_pool",
+    entityType: "customer",
+    entityId: customer.id,
+    ipAddress: audit?.ipAddress,
+    userAgent: audit?.userAgent,
+    metadata: {
+      customerName: customer.customerName,
+      taskId,
+      previousReleasedBy: customer.releasedBy ?? customer.releaserUserId,
+    },
+  });
+
+  return { taskId };
+}
+
+export async function releaseCustomerToPool(
+  customer: Customer,
+  user: User,
+  reason: string,
+  audit?: { ipAddress?: string | null; userAgent?: string | null },
+): Promise<void> {
+  const db = getDb();
+  const now = new Date().toISOString();
+  const previousOwnerId = customer.ownerId;
+
+  await db
+    .update(schema.customers)
+    .set({
+      ownerId: null,
+      status: "public_pool",
+      poolEnteredAt: now,
+      poolReason: reason.trim(),
+      releasedBy: user.id,
+      releaserUserId: user.id,
+      previousOwnerId,
+      updatedBy: user.id,
+      updatedAt: now,
+    })
+    .where(eq(schema.customers.id, customer.id));
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "customer.released_to_pool",
+    entityType: "customer",
+    entityId: customer.id,
+    ipAddress: audit?.ipAddress,
+    userAgent: audit?.userAgent,
+    metadata: {
+      customerName: customer.customerName,
+      poolReason: reason.trim(),
+      previousOwnerId,
+    },
+  });
+}

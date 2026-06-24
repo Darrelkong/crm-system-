@@ -125,6 +125,35 @@ export function canEditCustomer(user: User, customer: Customer): boolean {
   return customer.ownerId === user.id;
 }
 
+export function assertCanReleaseToPool(user: User, customer: Customer): void {
+  if (isPublicPoolCustomer(customer)) {
+    throw new PermissionError(
+      403,
+      "客户已在公共池",
+      "customer.release_to_pool_failed.permission_denied",
+    );
+  }
+
+  if (user.role === "admin") return;
+
+  if (customer.ownerId !== user.id) {
+    throw new PermissionError(
+      403,
+      "无权释放该客户",
+      "customer.release_to_pool_failed.permission_denied",
+    );
+  }
+}
+
+export function canReleaseToPool(user: User, customer: Customer): boolean {
+  try {
+    assertCanReleaseToPool(user, customer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Same scope as edit: admin all, staff own only, not public pool. */
 export function assertCanAddFollowUp(user: User, customer: Customer): void {
   if (user.role === "admin") return;

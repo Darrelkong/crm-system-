@@ -29,6 +29,13 @@ export const customers = sqliteTable(
       .notNull()
       .default("active"),
     releaserUserId: text("releaser_user_id").references(() => users.id),
+    poolEnteredAt: text("pool_entered_at"),
+    poolReason: text("pool_reason"),
+    releasedBy: text("released_by").references(() => users.id),
+    previousOwnerId: text("previous_owner_id").references(() => users.id),
+    claimedBy: text("claimed_by").references(() => users.id),
+    claimedAt: text("claimed_at"),
+    poolLeftAt: text("pool_left_at"),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id),
@@ -45,6 +52,9 @@ export const customers = sqliteTable(
     index("idx_customers_phone").on(table.phone),
     index("idx_customers_status").on(table.status),
     index("idx_customers_releaser_user_id").on(table.releaserUserId),
+    index("idx_customers_pool_entered_at").on(table.poolEnteredAt),
+    index("idx_customers_claimed_by").on(table.claimedBy),
+    index("idx_customers_claimed_at").on(table.claimedAt),
   ],
 );
 

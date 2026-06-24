@@ -5,7 +5,7 @@ import { users } from "./users";
 export const TASK_STATUSES = ["open", "completed", "cancelled"] as const;
 export type TaskStatus = (typeof TASK_STATUSES)[number];
 
-export const TASK_TYPES = ["follow_up", "other"] as const;
+export const TASK_TYPES = ["follow_up", "first_contact", "other"] as const;
 export type TaskType = (typeof TASK_TYPES)[number];
 
 export const tasks = sqliteTable(

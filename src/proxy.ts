@@ -80,6 +80,13 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/public-pool")) {
+    if (!sessionUser) {
+      return redirectToLogin(request);
+    }
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/customers")) {
     if (!sessionUser) {
       return redirectToLogin(request);
@@ -98,5 +105,7 @@ export const config = {
     "/staff/:path*",
     "/customers",
     "/customers/:path*",
+    "/public-pool",
+    "/public-pool/:path*",
   ],
 };

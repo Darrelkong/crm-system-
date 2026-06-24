@@ -1,7 +1,7 @@
 import { requireAuth } from "@/lib/permissions/auth";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
-export default async function CustomersLayout({
+export default async function PublicPoolLayout({
   children,
 }: {
   children: React.ReactNode;
@@ -11,14 +11,14 @@ export default async function CustomersLayout({
 
   return (
     <DashboardShell
-      title="客户管理"
+      title="公共池"
       roleLabel={user.role === "admin" ? "Admin" : "Staff"}
       userName={user.displayName}
       userEmail={user.email}
       navLinks={[
         { href: dashboardHref, label: "工作台" },
-        { href: "/customers", label: "客户管理", active: true },
-        { href: "/public-pool", label: "公共池" },
+        { href: "/customers", label: "客户管理" },
+        { href: "/public-pool", label: "公共池", active: true },
       ]}
     >
       {children}

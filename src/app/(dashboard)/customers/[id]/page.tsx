@@ -8,8 +8,10 @@ import {
   PermissionError,
   canEditCustomer,
   canAddFollowUp,
+  canReleaseToPool,
   assertCanViewFollowUps,
 } from "@/lib/permissions/customers";
+import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import {
   FOLLOW_UP_CHANNEL_LABELS,
@@ -83,6 +85,7 @@ export default async function CustomerDetailPage({ params }: Props) {
   }
 
   const showEditButton = canEditCustomer(user, customer);
+  const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer);
 
   let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
@@ -110,6 +113,9 @@ export default async function CustomerDetailPage({ params }: Props) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {showReleaseButton && (
+            <ReleaseToPoolButton customerId={id} />
+          )}
           {showFollowUpButton && (
             <Link
               href={`/customers/${id}/follow-ups/new`}

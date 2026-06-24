@@ -128,6 +128,9 @@ INSERT INTO users (
       ownerId: null,
       status: "public_pool",
       releaserUserId: SEED_IDS.staffA,
+      releasedBy: SEED_IDS.staffA,
+      poolEnteredAt: now,
+      poolReason: "测试种子数据：员工 A 释放",
       createdBy: SEED_IDS.staffA,
     },
   ];
@@ -136,7 +139,8 @@ INSERT INTO users (
     statements.push(`
 INSERT INTO customers (
   id, customer_name, phone, wechat_id, email, source, source_remark, notes,
-  owner_id, status, releaser_user_id, created_by, updated_by, created_at, updated_at
+  owner_id, status, releaser_user_id, released_by, pool_entered_at, pool_reason,
+  created_by, updated_by, created_at, updated_at
 ) VALUES (
   '${customer.id}',
   '${escapeSql(customer.customerName)}',
@@ -149,6 +153,9 @@ INSERT INTO customers (
   ${sqlValue(customer.ownerId)},
   '${customer.status}',
   ${sqlValue(customer.releaserUserId)},
+  ${sqlValue((customer as { releasedBy?: string | null }).releasedBy ?? customer.releaserUserId)},
+  ${sqlValue((customer as { poolEnteredAt?: string | null }).poolEnteredAt ?? null)},
+  ${sqlValue((customer as { poolReason?: string | null }).poolReason ?? null)},
   '${customer.createdBy}',
   '${customer.createdBy}',
   '${now}',
