@@ -2,15 +2,15 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 7
+## 当前阶段：Phase 7.1
 
-已完成 8 天无有效跟进自动回收、第 6/7 天预警、系统通知、审计日志与 Cron 入口，包括：
+在 Phase 7 基础上加固自动回收规则：
 
-- 自动回收：`status=active` 且 `owner_id` 非空的客户，连续 8 天无有效跟进 → 强制回收到公共池
+- 自动回收：`status=active` 且 `owner_id` 非空，连续 8 天无有效跟进 → 强制回收到公共池
+- **排除销售阶段**：`closed_won`、`closed_lost`、`invalid`、`on_hold` 不参与预警与回收
 - 提前预警：第 6 天、第 7 天向当前负责人发送通知（同日同客户不重复）
-- `notifications` 表 + `reclamation_warning_logs` 去重表
 - Admin 手动触发：`POST /api/admin/reclamation/run`
-- Cloudflare Cron Worker：`workers/reclamation-cron.ts`（每天 05:00 UTC）
+- Cloudflare Cron Worker：`workers/reclamation-cron.ts`
 
 **尚未实现**：审批中心、报表、导入导出、完整多语言、客户热度评分（Phase 8+）。
 
@@ -58,6 +58,8 @@ npm run dev
 | 7 天未跟进 | `22222222-2222-2222-2222-222222222205` | Day 7 预警 |
 | 8 天未跟进 | `22222222-2222-2222-2222-222222222206` | 自动回收 |
 | 最近已跟进 | `22222222-2222-2222-2222-222222222207` | 无动作 |
+| closed_won 10 天 | `22222222-2222-2222-2222-222222222208` | 不预警、不回收 |
+| closed_lost 10 天 | `22222222-2222-2222-2222-222222222209` | 不预警、不回收 |
 
 ## Phase 7 自动回收测试
 
@@ -68,20 +70,58 @@ npm run db:seed:reclamation:local
 npm run dev
 ```
 
-### 手动触发（Admin only）
+### 1. 登录
 
 ```bash
-# Admin → 200 + 统计结果
-curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/reclamation/run
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"admin@crm.local","password":"Admin123!"}'
+```
 
+### 2. 触发自动回收检查
+
+```bash
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/reclamation/run
+```
+
+预期结果（首次运行）：
+
+| 场景 | 客户 ID | 预期 |
+|------|---------|------|
+| 6 天未有效跟进 | `...204` | `warningsDay6Count` +1，生成 Day 6 通知与审计 |
+| 7 天未有效跟进 | `...205` | `warningsDay7Count` +1，生成 Day 7 通知与审计 |
+| 8 天未有效跟进 | `...206` | `reclaimedCount` +1，进入 `public_pool` |
+| 最近有效跟进 | `...207` | 无动作 |
+| 公共池客户 | `...203` | 不参与（无 owner） |
+| closed_won 10 天 | `...208` | 保持原 owner，不预警、不回收 |
+| closed_lost 10 天 | `...209` | 保持原 owner，不预警、不回收 |
+
+### 3. 验证 closed_won / closed_lost 未被回收
+
+```bash
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT id, sales_stage, status, owner_id FROM customers WHERE id IN ('22222222-2222-2222-2222-222222222208','22222222-2222-2222-2222-222222222209');"
+
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT action, entity_id FROM audit_logs WHERE entity_id IN ('22222222-2222-2222-2222-222222222208','22222222-2222-2222-2222-222222222209') AND action LIKE 'customer.auto_reclaim%';"
+```
+
+应看到两条客户仍为 `active` 且 `owner_id` 不变；审计查询结果为空。
+
+### 4. 权限校验
+
+```bash
 # Staff → 403
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
 curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/admin/reclamation/run
 
 # 未登录 → 401
 curl -s -X POST http://localhost:3000/api/admin/reclamation/run
 ```
 
-### 验证通知与审计
+### 5. 验证通知与审计
 
 ```bash
 npx wrangler d1 execute crm-db --local --command \
@@ -98,7 +138,14 @@ npx wrangler d1 execute crm-db --local --command \
 | 文件 | 说明 |
 |------|------|
 | `workers/reclamation-cron.ts` | 每日执行 `runReclamationCheck` |
-| `wrangler.cron.jsonc` | Cron 配置，`0 5 * * *`（每天 05:00 UTC） |
+| `wrangler.cron.jsonc` | Cron 表达式 `0 5 * * *` |
+
+**时区说明（上线前请确认）：**
+
+- Cloudflare Cron 使用 **UTC** 时间。
+- 当前配置 `0 5 * * *` = **每天 UTC 05:00**（北京时间 / 香港时间 / 台湾时间 = **13:00**）。
+- 若目标为 **中国 / 香港 / 台湾早上 05:00**，应改为 `0 21 * * *`（UTC 21:00 = 次日本地 05:00）。
+- 部署前请与业务方确认执行时区，再调整 `wrangler.cron.jsonc` 中的 cron 表达式。
 
 ```bash
 npm run cron:deploy

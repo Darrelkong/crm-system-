@@ -10,4 +10,6 @@ export const SEED_IDS = {
   customerReclaimDay7: "22222222-2222-2222-2222-222222222205",
   customerReclaimDay8: "22222222-2222-2222-2222-222222222206",
   customerReclaimRecent: "22222222-2222-2222-2222-222222222207",
+  customerReclaimClosedWon: "22222222-2222-2222-2222-222222222208",
+  customerReclaimClosedLost: "22222222-2222-2222-2222-222222222209",
 } as const;

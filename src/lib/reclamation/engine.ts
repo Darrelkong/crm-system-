@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
@@ -9,6 +9,7 @@ import {
   AUTO_RECLAIM_POOL_REASON,
   NOTIFICATION_TITLES,
   RECLAMATION_AUDIT_ACTIONS,
+  RECLAMATION_EXCLUDED_SALES_STAGES,
   RECLAMATION_RECLAIM_DAYS,
   RECLAMATION_WARNING_DAY_6,
   RECLAMATION_WARNING_DAY_7,
@@ -284,7 +285,9 @@ async function autoReclaimCustomer(
 
 /**
  * Evaluates active owned customers for day-6/day-7 warnings and 8-day auto-reclaim.
- * Only status=active with owner_id set participate. public_pool / inactive / archived are skipped.
+ * Only status=active with owner_id set participate.
+ * Skips public_pool / inactive / archived, and closed sales stages
+ * (closed_won, closed_lost, invalid, on_hold).
  */
 export async function runReclamationCheck(
   db: Database,
@@ -300,6 +303,10 @@ export async function runReclamationCheck(
       and(
         eq(schema.customers.status, "active"),
         isNotNull(schema.customers.ownerId),
+        notInArray(
+          schema.customers.salesStage,
+          [...RECLAMATION_EXCLUDED_SALES_STAGES],
+        ),
       ),
     );
 

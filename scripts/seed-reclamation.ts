@@ -28,6 +28,8 @@ function buildReclamationSeedSql(): string {
     SEED_IDS.customerReclaimDay7,
     SEED_IDS.customerReclaimDay8,
     SEED_IDS.customerReclaimRecent,
+    SEED_IDS.customerReclaimClosedWon,
+    SEED_IDS.customerReclaimClosedLost,
   ];
 
   const statements: string[] = [
@@ -60,7 +62,22 @@ function buildReclamationSeedSql(): string {
       id: SEED_IDS.customerReclaimRecent,
       customerName: "回收测试-最近已跟进",
       lastValidFollowUpAt: daysAgoIso(1),
+      salesStage: "new_lead",
       notes: "Phase 7 测试：不应预警或回收",
+    },
+    {
+      id: SEED_IDS.customerReclaimClosedWon,
+      customerName: "回收测试-closed_won-10天",
+      lastValidFollowUpAt: daysAgoIso(10),
+      salesStage: "closed_won",
+      notes: "Phase 7.1 测试：已成交，不应预警或回收",
+    },
+    {
+      id: SEED_IDS.customerReclaimClosedLost,
+      customerName: "回收测试-closed_lost-10天",
+      lastValidFollowUpAt: daysAgoIso(10),
+      salesStage: "closed_lost",
+      notes: "Phase 7.1 测试：已流失，不应预警或回收",
     },
   ];
 
@@ -69,7 +86,7 @@ function buildReclamationSeedSql(): string {
     statements.push(`
 INSERT INTO customers (
   id, customer_name, phone, wechat_id, email, source, source_remark, notes,
-  owner_id, status, created_by, updated_by, last_valid_follow_up_at,
+  sales_stage, owner_id, status, created_by, updated_by, last_valid_follow_up_at,
   created_at, updated_at
 ) VALUES (
   '${customer.id}',
@@ -80,6 +97,7 @@ INSERT INTO customers (
   'referral',
   NULL,
   '${escapeSql(customer.notes)}',
+  '${customer.salesStage ?? "new_lead"}',
   '${SEED_IDS.staffA}',
   'active',
   '${SEED_IDS.staffA}',
@@ -133,6 +151,8 @@ async function main() {
     console.log(`  Day 7 warning:  ${SEED_IDS.customerReclaimDay7}`);
     console.log(`  Day 8 reclaim:  ${SEED_IDS.customerReclaimDay8}`);
     console.log(`  Recent follow:  ${SEED_IDS.customerReclaimRecent}`);
+    console.log(`  Closed won:     ${SEED_IDS.customerReclaimClosedWon}`);
+    console.log(`  Closed lost:    ${SEED_IDS.customerReclaimClosedLost}`);
     console.log(`  Public pool:    ${SEED_IDS.customerPublicPool}`);
   } finally {
     unlinkSync(sqlFile);

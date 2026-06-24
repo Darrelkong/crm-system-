@@ -1,3 +1,20 @@
+/** Sales stages excluded from day-6/7 warnings and 8-day auto-reclaim. */
+export const RECLAMATION_EXCLUDED_SALES_STAGES = [
+  "closed_won",
+  "closed_lost",
+  "invalid",
+  "on_hold",
+] as const;
+
+export type ReclamationExcludedSalesStage =
+  (typeof RECLAMATION_EXCLUDED_SALES_STAGES)[number];
+
+export function isReclamationExcludedSalesStage(salesStage: string): boolean {
+  return (RECLAMATION_EXCLUDED_SALES_STAGES as readonly string[]).includes(
+    salesStage,
+  );
+}
+
 export const AUTO_RECLAIM_POOL_REASON = "自动回收：超过 8 天无有效跟进";
 
 export const RECLAMATION_WARNING_DAY_6 = 6;
