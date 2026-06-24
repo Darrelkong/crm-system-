@@ -1,0 +1,277 @@
+"use client";
+
+import { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Label, Textarea } from "@/components/ui/form";
+import type { ImportIssue, ImportPreviewRow } from "@/lib/import/customers/types";
+
+type PrecheckResponse = {
+  jobId: string;
+  totalRows: number;
+  validRows: number;
+  invalidRows: number;
+  duplicateRows: number;
+  errors: ImportIssue[];
+  warnings: ImportIssue[];
+  previewRows: ImportPreviewRow[];
+};
+
+type CommitResponse = {
+  jobId: string;
+  importedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  createdCustomerIds: string[];
+  errors: ImportIssue[];
+  skippedWarnings?: ImportIssue[];
+  error?: string;
+};
+
+export function ImportCustomersClient() {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [csvText, setCsvText] = useState("");
+  const [fileName, setFileName] = useState<string | null>(null);
+  const [loading, setLoading] = useState<"precheck" | "commit" | null>(null);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [precheck, setPrecheck] = useState<PrecheckResponse | null>(null);
+  const [commitResult, setCommitResult] = useState<CommitResponse | null>(null);
+
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const text = await file.text();
+    setCsvText(text);
+    setFileName(file.name);
+    setPrecheck(null);
+    setCommitResult(null);
+    setServerError(null);
+  }
+
+  async function runPrecheck() {
+    if (!csvText.trim()) {
+      setServerError("请先上传 CSV 或粘贴 CSV 文本");
+      return;
+    }
+
+    setLoading("precheck");
+    setServerError(null);
+    setPrecheck(null);
+    setCommitResult(null);
+
+    try {
+      const res = await fetch("/api/import/customers/precheck", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ csvText, fileName }),
+      });
+      const data = (await res.json()) as PrecheckResponse & { error?: string };
+      if (!res.ok) {
+        setServerError(data.error ?? "预检失败");
+        return;
+      }
+      setPrecheck(data);
+    } catch {
+      setServerError("网络错误，请稍后重试");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  async function runCommit() {
+    if (!csvText.trim() || !precheck) return;
+
+    setLoading("commit");
+    setServerError(null);
+
+    try {
+      const res = await fetch("/api/import/customers/commit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          csvText,
+          fileName,
+          jobId: precheck.jobId,
+          skipWarnings: true,
+        }),
+      });
+      const data = (await res.json()) as CommitResponse;
+      if (!res.ok) {
+        setServerError(data.error ?? "导入失败");
+        if (data.errors?.length) {
+          setPrecheck((prev) =>
+            prev
+              ? { ...prev, errors: data.errors, invalidRows: data.failedCount }
+              : prev,
+          );
+        }
+        return;
+      }
+      setCommitResult(data);
+    } catch {
+      setServerError("网络错误，请稍后重试");
+    } finally {
+      setLoading(null);
+    }
+  }
+
+  const canCommit =
+    precheck &&
+    precheck.invalidRows === 0 &&
+    precheck.errors.length === 0 &&
+    precheck.validRows > 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              window.location.href = "/api/import/customers/template";
+            }}
+          >
+            下载 CSV 模板
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => fileRef.current?.click()}
+          >
+            选择 CSV 文件
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,text/csv"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          {fileName && (
+            <span className="text-sm text-slate-500">已选：{fileName}</span>
+          )}
+        </div>
+
+        <div className="mt-4">
+          <Label htmlFor="csvText">或粘贴 CSV 文本</Label>
+          <Textarea
+            id="csvText"
+            rows={8}
+            className="mt-1 font-mono text-sm"
+            placeholder="customer_name,customer_type,..."
+            value={csvText}
+            onChange={(e) => {
+              setCsvText(e.target.value);
+              setPrecheck(null);
+              setCommitResult(null);
+              setServerError(null);
+            }}
+          />
+        </div>
+
+        <div className="mt-4 flex gap-3">
+          <Button onClick={runPrecheck} disabled={loading !== null}>
+            {loading === "precheck" ? "预检中…" : "预检"}
+          </Button>
+          {canCommit && (
+            <Button
+              variant="primary"
+              onClick={runCommit}
+              disabled={loading !== null}
+            >
+              {loading === "commit" ? "导入中…" : "确认导入"}
+            </Button>
+          )}
+        </div>
+
+        {serverError && (
+          <p className="mt-3 text-sm text-red-600">{serverError}</p>
+        )}
+      </div>
+
+      {precheck && (
+        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+          <h3 className="text-lg font-medium text-slate-900">预检结果</h3>
+          <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <Stat label="总行数" value={precheck.totalRows} />
+            <Stat label="可导入行数" value={precheck.validRows} />
+            <Stat label="错误行数" value={precheck.invalidRows} />
+            <Stat label="重复行数" value={precheck.duplicateRows} />
+          </dl>
+
+          {precheck.errors.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-medium text-slate-900">错误明细</h4>
+              <div className="mt-2 overflow-x-auto">
+                <table className="min-w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="px-3 py-2">行号</th>
+                      <th className="px-3 py-2">字段</th>
+                      <th className="px-3 py-2">代码</th>
+                      <th className="px-3 py-2">说明</th>
+                      <th className="px-3 py-2">值</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {precheck.errors.map((err, i) => (
+                      <tr key={i} className="border-b border-slate-100">
+                        <td className="px-3 py-2">{err.rowNumber}</td>
+                        <td className="px-3 py-2">{err.field}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{err.code}</td>
+                        <td className="px-3 py-2">{err.message}</td>
+                        <td className="px-3 py-2 font-mono text-xs">{err.value ?? "—"}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {precheck.warnings.length > 0 && (
+            <div className="mt-6">
+              <h4 className="text-sm font-medium text-amber-700">警告（导入时将跳过）</h4>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
+                {precheck.warnings.map((w, i) => (
+                  <li key={i}>
+                    第 {w.rowNumber} 行 · {w.message}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {commitResult && (
+        <div className="rounded-xl border border-green-200 bg-green-50 p-6">
+          <h3 className="text-lg font-medium text-green-900">导入成功</h3>
+          <p className="mt-2 text-sm text-green-800">
+            成功导入 {commitResult.importedCount} 条客户
+            {commitResult.skippedCount > 0 &&
+              `，跳过 ${commitResult.skippedCount} 条`}
+          </p>
+          {commitResult.createdCustomerIds.length > 0 && (
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-green-900">
+              {commitResult.createdCustomerIds.map((id) => (
+                <li key={id}>
+                  <a href={`/customers/${id}`} className="underline">
+                    {id}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: number }) {
+  return (
+    <div>
+      <dt className="text-xs text-slate-500">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold text-slate-900">{value}</dd>
+    </div>
+  );
+}

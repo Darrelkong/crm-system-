@@ -2,15 +2,119 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 9.1
+## 当前阶段：Phase 10A
 
-Phase 9 报表时区口径修正：
+客户 CSV 导入（Admin 专用）：
 
-- Dashboard 统计使用业务时区 **Asia/Shanghai（UTC+8）**
-- 数据库存储仍为 UTC ISO 时间
-- 查询时将 UTC+8 的 today / thisMonth 边界换算为 UTC 后比较
+- 下载导入模板、CSV 预检、正式导入
+- 重复检查与客户新增 API 规则一致（phone / wechat_id / email，排除 archived）
+- 导入记录写入 `import_jobs` 表
+- 审计：`customers.import.precheck`、`customers.import.completed`、`customers.import.failed`、`customer.imported`
 
-**尚未实现**：导出、备份、完整多语言（Phase 10+）。
+**尚未实现**：客户导出、备份恢复、完整多语言（Phase 10B+）。
+
+## Phase 10A 客户导入测试
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run dev
+```
+
+### 1. 登录
+
+```bash
+curl -s -c /tmp/crm-admin.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"admin@crm.local","password":"Admin123!"}'
+
+curl -s -c /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/auth/login \
+  -H 'Content-Type: application/json' -d '{"email":"staff-a@crm.local","password":"StaffA123!"}'
+```
+
+### 2. 权限
+
+```bash
+# Admin 下载模板 → 200
+curl -s -b /tmp/crm-admin.txt -o /tmp/template.csv \
+  http://localhost:3000/api/import/customers/template && head -2 /tmp/template.csv
+
+# Staff 下载模板 → 403
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" \
+  http://localhost:3000/api/import/customers/template
+
+# 未登录 → 401
+curl -s -w "\n%{http_code}\n" http://localhost:3000/api/import/customers/template
+```
+
+浏览器：Admin 访问 `/import/customers` 正常；Staff 访问返回 403。
+
+### 3. 预检（字段与重复）
+
+```bash
+# 合法行 + 多种错误（名称空、双联系方式空、手机号、email、source、重复等）
+cat > /tmp/import-test.csv <<'EOF'
+customer_name,customer_type,phone_country_code,phone,wechat_id,email,source,source_remark,notes,sales_stage
+导入测试客户A,individual,+86,13900001001,import_a,import-a@test.com,referral,,备注A,new_lead
+,individual,+86,13900001002,,import-b@test.com,referral,,缺名称,new_lead
+缺联系方式,individual,+86,,,no-contact@test.com,referral,,,new_lead
+坏手机号,individual,+86,12345,,bad-phone@test.com,referral,,,new_lead
+坏邮箱,individual,+86,13900001005,,not-an-email,referral,,,new_lead
+坏来源,individual,+86,13900001006,,bad-source@test.com,invalid_source,,,new_lead
+其他无备注,individual,+86,13900001007,,other@test.com,other,,,new_lead
+重复手机,individual,+86,13800000001,,dup-phone@test.com,referral,,与库内重复,new_lead
+重复微信,individual,+86,13900001009,staff_a_wechat,,referral,,与库内重复,new_lead
+CSV内重复手机,individual,+86,13900009999,,csv-dup@test.com,referral,,,new_lead
+CSV内重复手机2,individual,+86,13900009999,,csv-dup2@test.com,referral,,,new_lead
+EOF
+
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/import/customers/precheck \
+  -H 'Content-Type: application/json' \
+  --data-binary @- <<EOF
+{"csvText":"$(cat /tmp/import-test.csv | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}' | tr -d '\n')","fileName":"import-test.csv"}
+EOF
+```
+
+预检应返回：`validRows` 为 1（仅「导入测试客户A」），`invalidRows` > 0，errors 含 `missing_customer_name`、`missing_contact`、`invalid_phone`、`invalid_email`、`invalid_source`、`missing_source_remark`、`duplicate_phone_db`、`duplicate_wechat_id_db`、`duplicate_phone_csv` 等。
+
+Staff 预检 → 403：
+
+```bash
+curl -s -b /tmp/crm-staff-a.txt -w "\n%{http_code}\n" \
+  -X POST http://localhost:3000/api/import/customers/precheck \
+  -H 'Content-Type: application/json' -d '{"csvText":"customer_name,source\nX,referral"}'
+```
+
+### 4. 正式导入
+
+```bash
+cat > /tmp/import-ok.csv <<'EOF'
+customer_name,customer_type,phone_country_code,phone,wechat_id,email,source,source_remark,notes,sales_stage
+Phase10A导入客户,individual,+86,13900008888,phase10a_wx,phase10a@test.com,referral,,Phase10A测试,new_lead
+EOF
+
+PRECHECK=$(curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/import/customers/precheck \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-ok.csv),\"fileName\":\"import-ok.csv\"}")
+
+JOB_ID=$(echo "$PRECHECK" | jq -r .jobId)
+
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/import/customers/commit \
+  -H 'Content-Type: application/json' \
+  -d "{\"csvText\":$(jq -Rs . < /tmp/import-ok.csv),\"fileName\":\"import-ok.csv\",\"jobId\":\"$JOB_ID\"}"
+```
+
+验证：
+
+- 响应 `importedCount: 1`，含 `createdCustomerIds`
+- `/customers` 列表可见新客户，`owner_id` 为 Admin
+- `audit_logs` 含 `customers.import.completed`、`customer.imported`
+- `import_jobs` 有 `status=completed` 记录
+
+含错误行时 commit → 400，并写入 `customers.import.failed`。
+
+---
+
+## Phase 9.1（报表时区）
 
 ## 技术栈
 
