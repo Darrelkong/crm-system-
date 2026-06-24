@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crm-system-reclamation-cron",
+  "main": "workers/reclamation-cron.ts",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["0 5 * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crm-db",
+      "database_id": "00000000-0000-0000-0000-000000000001"
+    }
+  ]
+}

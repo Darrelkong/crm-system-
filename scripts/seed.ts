@@ -52,16 +52,35 @@ async function buildSeedSql(): Promise<string> {
   const now = new Date().toISOString();
   const statements: string[] = [
     "DELETE FROM sessions;",
-    `DELETE FROM customers WHERE id IN (
+    `DELETE FROM tasks WHERE customer_id IN (
       '${SEED_IDS.customerStaffA}',
       '${SEED_IDS.customerStaffB}',
       '${SEED_IDS.customerPublicPool}'
     );`,
-    `DELETE FROM users WHERE email IN (
-      'admin@crm.local',
-      'staff@crm.local',
-      'staff-a@crm.local',
-      'staff-b@crm.local'
+    `DELETE FROM follow_ups WHERE customer_id IN (
+      '${SEED_IDS.customerStaffA}',
+      '${SEED_IDS.customerStaffB}',
+      '${SEED_IDS.customerPublicPool}'
+    );`,
+    `DELETE FROM field_change_logs WHERE customer_id IN (
+      '${SEED_IDS.customerStaffA}',
+      '${SEED_IDS.customerStaffB}',
+      '${SEED_IDS.customerPublicPool}'
+    );`,
+    `DELETE FROM reclamation_warning_logs WHERE customer_id IN (
+      '${SEED_IDS.customerStaffA}',
+      '${SEED_IDS.customerStaffB}',
+      '${SEED_IDS.customerPublicPool}'
+    );`,
+    `DELETE FROM notifications WHERE related_entity_id IN (
+      '${SEED_IDS.customerStaffA}',
+      '${SEED_IDS.customerStaffB}',
+      '${SEED_IDS.customerPublicPool}'
+    );`,
+    `DELETE FROM customers WHERE id IN (
+      '${SEED_IDS.customerStaffA}',
+      '${SEED_IDS.customerStaffB}',
+      '${SEED_IDS.customerPublicPool}'
     );`,
   ];
 
@@ -69,7 +88,7 @@ async function buildSeedSql(): Promise<string> {
     const passwordHash = await hashPassword(user.password);
 
     statements.push(`
-INSERT INTO users (
+INSERT OR REPLACE INTO users (
   id, email, display_name, password_hash, role, is_active,
   failed_login_attempts, locked_until, created_at, updated_at
 ) VALUES (

@@ -2,17 +2,17 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 2
+## 当前阶段：Phase 7
 
-已完成权限中间件与客户访问范围控制，包括：
+已完成 8 天无有效跟进自动回收、第 6/7 天预警、系统通知、审计日志与 Cron 入口，包括：
 
-- `requireAuth` / `requireAdmin` / `requireStaff` / `getCurrentUser`
-- 客户权限：`assertCanAccessCustomer`、`assertCanEditCustomer`、`assertCanViewCustomerFullDetails`、`maskCustomerForStaff`
-- 公共池权限预留（`owner_id = null` 或 `status = public_pool`）
-- Debug API（仅开发环境）：`/api/debug/auth-check`、`/api/debug/customer-access/:id`
-- 权限拒绝写入 `audit_logs`
+- 自动回收：`status=active` 且 `owner_id` 非空的客户，连续 8 天无有效跟进 → 强制回收到公共池
+- 提前预警：第 6 天、第 7 天向当前负责人发送通知（同日同客户不重复）
+- `notifications` 表 + `reclamation_warning_logs` 去重表
+- Admin 手动触发：`POST /api/admin/reclamation/run`
+- Cloudflare Cron Worker：`workers/reclamation-cron.ts`（每天 05:00 UTC）
 
-**尚未实现**：客户新增/列表 UI、公共池释放领取、跟进、报表（Phase 3+）。
+**尚未实现**：审批中心、报表、导入导出、完整多语言、客户热度评分（Phase 8+）。
 
 ## 技术栈
 
@@ -50,7 +50,61 @@ npm run dev
 | Staff B 名下 | `22222222-2222-2222-2222-222222222202` |
 | 公共池 | `22222222-2222-2222-2222-222222222203` |
 
-## Phase 2 权限测试指南
+### 自动回收测试客户（`npm run db:seed:reclamation:local`）
+
+| 客户 | ID | 预期 |
+|------|-----|------|
+| 6 天未跟进 | `22222222-2222-2222-2222-222222222204` | Day 6 预警 |
+| 7 天未跟进 | `22222222-2222-2222-2222-222222222205` | Day 7 预警 |
+| 8 天未跟进 | `22222222-2222-2222-2222-222222222206` | 自动回收 |
+| 最近已跟进 | `22222222-2222-2222-2222-222222222207` | 无动作 |
+
+## Phase 7 自动回收测试
+
+```bash
+npm run db:migrate:local
+npm run db:seed:local
+npm run db:seed:reclamation:local
+npm run dev
+```
+
+### 手动触发（Admin only）
+
+```bash
+# Admin → 200 + 统计结果
+curl -s -b /tmp/crm-admin.txt -X POST http://localhost:3000/api/admin/reclamation/run
+
+# Staff → 403
+curl -s -b /tmp/crm-staff-a.txt -X POST http://localhost:3000/api/admin/reclamation/run
+
+# 未登录 → 401
+curl -s -X POST http://localhost:3000/api/admin/reclamation/run
+```
+
+### 验证通知与审计
+
+```bash
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT type, title, user_id FROM notifications ORDER BY created_at DESC LIMIT 10"
+
+npx wrangler d1 execute crm-db --local --command \
+  "SELECT action, entity_id, metadata FROM audit_logs WHERE action LIKE 'customer.auto_reclaim%' ORDER BY created_at DESC LIMIT 10"
+```
+
+### Cloudflare Cron（生产）
+
+主应用 Worker（OpenNext）不直接挂载 `scheduled` 处理器。已提供独立 Cron Worker：
+
+| 文件 | 说明 |
+|------|------|
+| `workers/reclamation-cron.ts` | 每日执行 `runReclamationCheck` |
+| `wrangler.cron.jsonc` | Cron 配置，`0 5 * * *`（每天 05:00 UTC） |
+
+```bash
+npm run cron:deploy
+```
+
+也可使用外部 Cron 定时调用 `POST /api/admin/reclamation/run`（需 Admin 会话或后续改为 Service Token）。
 
 ### 1. 登录并保存 Cookie
 
@@ -136,6 +190,8 @@ npx wrangler d1 execute crm-db --local --command \
 | `npm run build` | 生产构建 |
 | `npm run db:migrate:local` | 本地迁移 |
 | `npm run db:seed:local` | 初始化测试账号与客户 |
+| `npm run db:seed:reclamation:local` | 注入自动回收测试客户 |
+| `npm run cron:deploy` | 部署自动回收 Cron Worker |
 | `npm run deploy` | 部署到 Cloudflare |
 
 ## 环境变量

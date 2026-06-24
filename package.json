@@ -13,7 +13,10 @@
     "db:migrate:local": "wrangler d1 migrations apply crm-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply crm-db --remote",
     "db:seed:local": "tsx scripts/seed.ts --local",
-    "db:seed:remote": "tsx scripts/seed.ts --remote"
+    "db:seed:remote": "tsx scripts/seed.ts --remote",
+    "db:seed:reclamation:local": "tsx scripts/seed-reclamation.ts --local",
+    "db:seed:reclamation:remote": "tsx scripts/seed-reclamation.ts --remote",
+    "cron:deploy": "wrangler deploy -c wrangler.cron.jsonc"
   },
   "dependencies": {
     "@opennextjs/cloudflare": "^1.19.11",

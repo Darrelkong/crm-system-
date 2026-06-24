@@ -1,4 +1,4 @@
-import { getDb } from "@/lib/db";
+import { getDb, type Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 
 type AuditLogInput = {
@@ -11,9 +11,12 @@ type AuditLogInput = {
   metadata?: Record<string, unknown> | null;
 };
 
-export async function writeAuditLog(input: AuditLogInput): Promise<void> {
-  const db = getDb();
-  await db.insert(schema.auditLogs).values({
+export async function writeAuditLog(
+  input: AuditLogInput,
+  db?: Database,
+): Promise<void> {
+  const database = db ?? getDb();
+  await database.insert(schema.auditLogs).values({
     id: crypto.randomUUID(),
     userId: input.userId ?? null,
     action: input.action,
