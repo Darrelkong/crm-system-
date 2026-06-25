@@ -23,7 +23,7 @@ import {
 } from "@/lib/auth/lockout";
 import { writeLoginLog } from "@/lib/audit/login-log";
 import { writeAuditLog } from "@/lib/audit/audit-log";
-import { getRoleDashboardPath } from "@/lib/permissions/auth";
+import { getPostLoginRedirectPath } from "@/lib/permissions/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -167,7 +167,8 @@ export async function POST(request: Request) {
 
   return Response.json({
     ok: true,
-    redirect: getRoleDashboardPath(user.role),
+    redirect: getPostLoginRedirectPath(user),
+    mustChangePassword: user.mustChangePassword === 1,
     user: {
       id: user.id,
       email: user.email,

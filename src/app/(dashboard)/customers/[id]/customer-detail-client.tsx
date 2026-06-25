@@ -35,6 +35,7 @@ export type CustomerDetailView = {
   wechatId?: string | null;
   email?: string | null;
   sourceRemark?: string | null;
+  requestedProjectName?: string | null;
   notes?: string | null;
   ownerId?: string | null;
   lastFollowUpAt?: string | null;
@@ -163,6 +164,12 @@ export function CustomerDetailClient({
               value={salesStage(view.salesStage)}
             />
             <DetailRow label={t("customers.source")} value={source(view.source)} />
+            {!view.isMasked && (
+              <DetailRow
+                label={t("customers.requestedProjectName")}
+                value={view.requestedProjectName}
+              />
+            )}
           </dl>
         </div>
 

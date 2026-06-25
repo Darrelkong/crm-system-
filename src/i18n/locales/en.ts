@@ -72,6 +72,18 @@ const en = {
     enterVerificationCode: "Please enter the verification code",
     signedOutDueToInactivity: "Your session has timed out. Please sign in again.",
     redirectingToLogin: "Redirecting to sign in…",
+    changePasswordTitle: "Change password",
+    changePasswordSubtitle:
+      "You must set a new password before continuing (first sign-in or after a reset).",
+    currentPassword: "Current password",
+    newPassword: "New password",
+    confirmNewPassword: "Confirm new password",
+    updatePassword: "Update password",
+    updatingPassword: "Updating…",
+    passwordPolicyHint:
+      "At least 8 characters with upper and lower case letters and a digit. Must differ from your current password.",
+    passwordUpdatedRelogin:
+      "Your password has been updated. Please sign in again with your new password.",
   },
   security: {
     accessExpired:
@@ -225,6 +237,13 @@ const en = {
     selectSource: "Select source",
     sourceDetailPlaceholder: "Describe the source",
     notesOptional: "Additional notes (optional)",
+    requestedProjectName: "Requested Project / Service Name",
+    requestedProjectNamePlaceholder: "Enter the project or service the client needs",
+    stageNotes: "Stage notes",
+    stageNotesPlaceholder:
+      "Please enter notes for the client’s current stage, at least 10 characters.",
+    stageNotesRequired:
+      "Please enter notes for the client’s current stage, at least 10 characters.",
     saveClient: "Save Client",
     saving: "Saving…",
     saveChanges: "Save Changes",
@@ -881,6 +900,26 @@ const en = {
     saveFailed: "Failed to save.",
     deleteFailed: "Failed to delete client.",
     clientNameRequired: "Client name is required.",
+    invalidCustomerName:
+      "Please enter a valid client name. Chinese names must include at least 2 Chinese characters; English names must include at least 4 letters.",
+    requestedProjectNameRequired: "Requested project / service name is required.",
+    invalidRequestedProjectName:
+      "Project name must be at least 4 characters and cannot be symbols only.",
+    stageNotesRequired:
+      "Please enter notes for the client’s current stage, at least 10 characters.",
+    currentPasswordRequired: "Please enter your current password.",
+    currentPasswordInvalid: "Current password is incorrect.",
+    newPasswordRequired: "Please enter a new password.",
+    confirmPasswordRequired: "Please confirm your new password.",
+    passwordConfirmMismatch: "The new passwords do not match.",
+    passwordSameAsOld: "New password must differ from your current password.",
+    passwordTooShort: "Password must be at least 8 characters.",
+    passwordBlank: "Password cannot be blank or whitespace only.",
+    passwordMissingLetter: "Password must include at least one letter.",
+    passwordMissingUppercase: "Password must include at least one uppercase letter.",
+    passwordMissingLowercase: "Password must include at least one lowercase letter.",
+    passwordMissingDigit: "Password must include at least one digit.",
+    passwordPolicyFailed: "New password does not meet security requirements.",
     invalidEmail: "Invalid email format.",
     phoneOrWechatRequired: "Phone or WeChat ID is required.",
     invalidPhoneCn: "Mainland China phone numbers must be 11 digits starting with 1.",

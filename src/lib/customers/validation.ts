@@ -8,6 +8,31 @@ import {
 } from "../../../drizzle/schema/customers";
 
 const CN_PHONE_RE = /^1\d{10}$/;
+const CHINESE_CHAR_RE = /[\u4e00-\u9fff]/g;
+const LATIN_LETTER_RE = /[A-Za-z]/g;
+
+export function countChineseCharacters(value: string): number {
+  return value.match(CHINESE_CHAR_RE)?.length ?? 0;
+}
+
+export function countLatinLetters(value: string): number {
+  return value.match(LATIN_LETTER_RE)?.length ?? 0;
+}
+
+function hasSubstantiveContent(value: string, minLength: number): boolean {
+  const trimmed = value.trim();
+  if (trimmed.length < minLength) return false;
+  const substantive = trimmed.replace(/[^A-Za-z0-9\u4e00-\u9fff]/g, "");
+  return substantive.length >= minLength;
+}
+
+export function isValidCustomerName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  const chineseCount = countChineseCharacters(trimmed);
+  if (chineseCount >= 2) return true;
+  return countLatinLetters(trimmed) >= 4;
+}
 
 export type CustomerInput = {
   customerName?: string;
@@ -18,6 +43,7 @@ export type CustomerInput = {
   email?: string | null;
   source?: string;
   sourceRemark?: string | null;
+  requestedProjectName?: string | null;
   notes?: string | null;
   salesStage?: string;
   status?: string;
@@ -25,17 +51,73 @@ export type CustomerInput = {
 
 export type ValidationFieldError = { field: string; message: string; code: string };
 
+export type CustomerValidationContext = {
+  isUpdate?: boolean;
+  existingNotes?: string | null;
+};
+
+function validateStageNotes(
+  notes: string | null | undefined,
+  context?: CustomerValidationContext,
+): ValidationFieldError | null {
+  const trimmed = notes?.trim() ?? "";
+  const existingTrimmed = context?.existingNotes?.trim() ?? "";
+
+  if (
+    context?.isUpdate &&
+    existingTrimmed &&
+    trimmed === existingTrimmed &&
+    !hasSubstantiveContent(existingTrimmed, 10)
+  ) {
+    return null;
+  }
+
+  if (!hasSubstantiveContent(trimmed, 10)) {
+    return {
+      field: "notes",
+      message: "请填写客户当前阶段备注，至少 10 个字",
+      code: "STAGE_NOTES_REQUIRED",
+    };
+  }
+
+  return null;
+}
+
 /** Shared validation for create and update. */
 export function validateCustomerInput(
   input: CustomerInput,
+  context?: CustomerValidationContext,
 ): ValidationFieldError[] {
   const errors: ValidationFieldError[] = [];
 
-  if (!input.customerName?.trim()) {
+  const customerName = input.customerName?.trim() ?? "";
+  if (!customerName) {
     errors.push({
       field: "customerName",
       message: "客户名称必填",
       code: "CUSTOMER_NAME_REQUIRED",
+    });
+  } else if (!isValidCustomerName(customerName)) {
+    errors.push({
+      field: "customerName",
+      message:
+        "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
+      code: "INVALID_CUSTOMER_NAME",
+    });
+  }
+
+  const requestedProjectName = input.requestedProjectName?.trim() ?? "";
+  if (!requestedProjectName) {
+    errors.push({
+      field: "requestedProjectName",
+      message: "客户需要的项目名称必填",
+      code: "REQUESTED_PROJECT_NAME_REQUIRED",
+    });
+  } else if (!hasSubstantiveContent(requestedProjectName, 4)) {
+    errors.push({
+      field: "requestedProjectName",
+      message: "项目名称至少 4 个字，且不能只填符号",
+      code: "INVALID_REQUESTED_PROJECT_NAME",
     });
   }
 
@@ -87,6 +169,11 @@ export function validateCustomerInput(
       message: "来源为「其他」时，备注必填",
       code: "SOURCE_REMARK_REQUIRED",
     });
+  }
+
+  const stageNotesError = validateStageNotes(input.notes, context);
+  if (stageNotesError) {
+    errors.push(stageNotesError);
   }
 
   if (input.customerType && !isCustomerType(input.customerType)) {

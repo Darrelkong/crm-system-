@@ -35,6 +35,13 @@ export function LoginForm() {
     return t(sessionEndMessageKey(reason));
   }, [searchParams, t]);
 
+  const passwordChangedNotice = useMemo(() => {
+    if (searchParams.get("password_changed") === "1") {
+      return t("auth.passwordUpdatedRelogin");
+    }
+    return null;
+  }, [searchParams, t]);
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
@@ -122,6 +129,12 @@ export function LoginForm() {
               placeholder="••••••••"
             />
           </Field>
+
+          {passwordChangedNotice && (
+            <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
+              {passwordChangedNotice}
+            </p>
+          )}
 
           {sessionEndNotice && (
             <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">

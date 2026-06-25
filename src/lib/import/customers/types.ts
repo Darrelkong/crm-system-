@@ -27,6 +27,7 @@ export type ParsedImportRow = {
   email: string | null;
   source: string;
   sourceRemark: string | null;
+  requestedProjectName: string | null;
   notes: string | null;
   salesStage: string;
 };

@@ -22,6 +22,7 @@ export const customers = sqliteTable(
     email: text("email"),
     source: text("source").notNull(),
     sourceRemark: text("source_remark"),
+    requestedProjectName: text("requested_project_name"),
     notes: text("notes"),
     salesStage: text("sales_stage").notNull().default("new_lead"),
     ownerId: text("owner_id").references(() => users.id),

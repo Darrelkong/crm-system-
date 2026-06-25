@@ -14,6 +14,10 @@ export function parseCustomerBody(body: Record<string, unknown>): CustomerInput 
     source: typeof body.source === "string" ? body.source : "",
     sourceRemark:
       typeof body.sourceRemark === "string" ? body.sourceRemark : null,
+    requestedProjectName:
+      typeof body.requestedProjectName === "string"
+        ? body.requestedProjectName
+        : null,
     notes: typeof body.notes === "string" ? body.notes : null,
     salesStage:
       typeof body.salesStage === "string" ? body.salesStage : "new_lead",

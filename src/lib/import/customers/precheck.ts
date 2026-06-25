@@ -28,6 +28,7 @@ const CSV_FIELD_TO_INPUT: Record<string, string> = {
   email: "email",
   source: "source",
   source_remark: "sourceRemark",
+  requested_project_name: "requestedProjectName",
   notes: "notes",
   sales_stage: "salesStage",
 };
@@ -47,6 +48,7 @@ function toParsedRow(
     email: raw.email.trim() || null,
     source: raw.source.trim(),
     sourceRemark: raw.source_remark.trim() || null,
+    requestedProjectName: raw.requested_project_name.trim() || null,
     notes: raw.notes.trim() || null,
     salesStage: raw.sales_stage.trim() || IMPORT_DEFAULTS.salesStage,
   };
@@ -251,6 +253,7 @@ export async function precheckCustomerImport(
       email: row.email,
       source: row.source,
       sourceRemark: row.sourceRemark,
+      requestedProjectName: row.requestedProjectName,
       notes: row.notes,
       salesStage: row.salesStage,
     };

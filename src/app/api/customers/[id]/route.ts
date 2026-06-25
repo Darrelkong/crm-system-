@@ -83,7 +83,10 @@ export async function PATCH(request: Request, context: RouteContext) {
     const body = (await request.json()) as Record<string, unknown>;
     const input = parseCustomerBody(body);
 
-    const fieldErrors = validateCustomerInput(input);
+    const fieldErrors = validateCustomerInput(input, {
+      isUpdate: true,
+      existingNotes: existing.notes,
+    });
     if (fieldErrors.length > 0) {
       await writeAuditLog({
         userId: user.id,
@@ -109,6 +112,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       email: input.email ?? null,
       source: input.source!,
       sourceRemark: input.sourceRemark ?? null,
+      requestedProjectName: input.requestedProjectName ?? null,
       notes: input.notes ?? null,
       salesStage: input.salesStage!,
       status: input.status!,
@@ -162,6 +166,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         email: payload.email,
         source: payload.source,
         sourceRemark: payload.sourceRemark,
+        requestedProjectName: payload.requestedProjectName,
         notes: payload.notes,
         salesStage: payload.salesStage,
         status: payload.status,

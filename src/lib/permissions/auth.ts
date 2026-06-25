@@ -4,6 +4,7 @@ import {
   validateSessionToken,
 } from "@/lib/auth/session";
 import { AUTH_ERROR_CODES } from "@/lib/auth/constants";
+import { userMustChangePassword } from "@/lib/auth/change-password";
 import type { User } from "../../../drizzle/schema/users";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { PermissionError } from "@/lib/permissions/customers";
@@ -24,13 +25,27 @@ export async function getCurrentUser(): Promise<User | null> {
   return getSessionUser({ touch: true });
 }
 
-export async function requireAuth(request?: Request): Promise<User> {
+export async function requireAuth(
+  request?: Request,
+  options?: { allowMustChangePassword?: boolean },
+): Promise<User> {
   const token = await getSessionTokenFromCookies();
   if (token) {
     const validation = await validateSessionToken(token, { touch: true });
     if (validation.ok) {
       if (validation.session.user.isActive !== 1) {
         throw new AuthError(403, "账号已禁用");
+      }
+      if (
+        !options?.allowMustChangePassword &&
+        userMustChangePassword(validation.session.user)
+      ) {
+        throw new AuthError(
+          403,
+          "must change password",
+          "auth.must_change_password",
+          AUTH_ERROR_CODES.MUST_CHANGE_PASSWORD,
+        );
       }
       return validation.session.user;
     }
@@ -96,6 +111,14 @@ export async function requireAuth(request?: Request): Promise<User> {
   if (user.isActive !== 1) {
     throw new AuthError(403, "账号已禁用");
   }
+  if (!options?.allowMustChangePassword && userMustChangePassword(user)) {
+    throw new AuthError(
+      403,
+      "must change password",
+      "auth.must_change_password",
+      AUTH_ERROR_CODES.MUST_CHANGE_PASSWORD,
+    );
+  }
   return user;
 }
 
@@ -147,7 +170,11 @@ export function authErrorResponse(error: unknown): Response {
         error: error.message,
         errorCode,
         redirect:
-          sessionEndCodes.includes(errorCode) ? "/login" : undefined,
+          sessionEndCodes.includes(errorCode)
+            ? "/login"
+            : errorCode === AUTH_ERROR_CODES.MUST_CHANGE_PASSWORD
+              ? "/change-password"
+              : undefined,
       },
       { status: error.status },
     );
@@ -169,4 +196,11 @@ export function authErrorResponse(error: unknown): Response {
 
 export function getRoleDashboardPath(role: User["role"]): string {
   return role === "admin" ? "/admin" : "/staff";
+}
+
+export function getPostLoginRedirectPath(user: User): string {
+  if (userMustChangePassword(user)) {
+    return "/change-password";
+  }
+  return getRoleDashboardPath(user.role);
 }

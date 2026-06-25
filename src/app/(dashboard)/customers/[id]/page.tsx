@@ -85,6 +85,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         wechatId: view.wechatId,
         email: view.email,
         sourceRemark: view.sourceRemark,
+        requestedProjectName: view.requestedProjectName,
         notes: view.notes,
         ownerId: view.ownerId,
         lastFollowUpAt: view.lastFollowUpAt,

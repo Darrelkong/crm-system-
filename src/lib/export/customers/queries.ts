@@ -12,6 +12,7 @@ export type CustomerExportRow = {
   email: string | null;
   source: string;
   source_remark: string | null;
+  requested_project_name: string | null;
   notes: string | null;
   sales_stage: string;
   status: string;
@@ -55,6 +56,7 @@ export async function listCustomersForExport(
       email: schema.customers.email,
       source: schema.customers.source,
       source_remark: schema.customers.sourceRemark,
+      requested_project_name: schema.customers.requestedProjectName,
       notes: schema.customers.notes,
       sales_stage: schema.customers.salesStage,
       status: schema.customers.status,

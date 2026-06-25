@@ -74,6 +74,9 @@ export async function createUserAccount(
     isActive: 1,
     failedLoginAttempts: 0,
     lockedUntil: null,
+    mustChangePassword: input.role === "staff" ? 1 : 0,
+    passwordChangedAt: null,
+    passwordResetAt: null,
     createdAt: now,
     updatedAt: now,
   });
@@ -155,7 +158,12 @@ export async function resetUserPassword(
 
   await db
     .update(schema.users)
-    .set({ passwordHash, updatedAt: now })
+    .set({
+      passwordHash,
+      mustChangePassword: 1,
+      passwordResetAt: now,
+      updatedAt: now,
+    })
     .where(eq(schema.users.id, targetUserId));
 
   await clearUserSessions(db, targetUserId);

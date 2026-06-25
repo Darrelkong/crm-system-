@@ -10,6 +10,7 @@ export const IMPORT_CSV_COLUMNS = [
   "email",
   "source",
   "source_remark",
+  "requested_project_name",
   "notes",
   "sales_stage",
 ] as const;

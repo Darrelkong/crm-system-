@@ -36,6 +36,7 @@ export type CustomerView = {
   wechatId?: string | null;
   email?: string | null;
   sourceRemark?: string | null;
+  requestedProjectName?: string | null;
   notes?: string | null;
   releaserUserId?: string | null;
   createdBy: string;
@@ -269,6 +270,7 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
     updatedBy: customer.updatedBy,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
+    requestedProjectName: customer.requestedProjectName,
     ...getCustomerFollowUpMeta(customer),
   };
 }
@@ -289,6 +291,7 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     wechatId: customer.wechatId,
     email: customer.email,
     sourceRemark: customer.sourceRemark,
+    requestedProjectName: customer.requestedProjectName,
     notes: customer.notes,
     releaserUserId: customer.releaserUserId,
     createdBy: customer.createdBy,

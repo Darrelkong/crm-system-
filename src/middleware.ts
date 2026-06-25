@@ -5,6 +5,7 @@ import {
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
 import { validateSessionFromRequest } from "@/lib/auth/session";
+import { getRoleDashboardPath } from "@/lib/permissions/auth";
 
 type SessionEndReason = "idle" | "revoked" | "invalid";
 
@@ -28,6 +29,10 @@ function redirectToLogin(
     });
   }
   return response;
+}
+
+function mustChangePassword(user: { mustChangePassword: number }): boolean {
+  return user.mustChangePassword === 1;
 }
 
 export async function middleware(request: NextRequest) {
@@ -63,10 +68,28 @@ export async function middleware(request: NextRequest) {
     return redirectToLogin(request, sessionEndReason);
   }
 
+  const pendingPasswordChange =
+    sessionUser != null && mustChangePassword(sessionUser);
+
+  if (pathname === "/change-password") {
+    if (!sessionUser) {
+      return redirectToLogin(request);
+    }
+    if (!pendingPasswordChange) {
+      return NextResponse.redirect(
+        new URL(getRoleDashboardPath(sessionUser.role), request.url),
+      );
+    }
+    return NextResponse.next();
+  }
+
+  if (pendingPasswordChange) {
+    return NextResponse.redirect(new URL("/change-password", request.url));
+  }
+
   if (pathname === "/login") {
     if (sessionUser) {
-      const destination =
-        sessionUser.role === "admin" ? "/admin" : "/staff";
+      const destination = getRoleDashboardPath(sessionUser.role);
       return NextResponse.redirect(new URL(destination, request.url));
     }
     return NextResponse.next();
@@ -76,7 +99,7 @@ export async function middleware(request: NextRequest) {
     if (!sessionUser) {
       return NextResponse.redirect(new URL("/login", request.url));
     }
-    const destination = sessionUser.role === "admin" ? "/admin" : "/staff";
+    const destination = getRoleDashboardPath(sessionUser.role);
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
@@ -143,6 +166,7 @@ export const config = {
   matcher: [
     "/",
     "/login",
+    "/change-password",
     "/admin/:path*",
     "/import/:path*",
     "/export/:path*",

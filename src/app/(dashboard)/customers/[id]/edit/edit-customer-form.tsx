@@ -9,6 +9,7 @@ import { CUSTOMER_TYPES, SALES_STAGES } from "@/lib/constants/customer-fields";
 import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
 import type { ValidationFieldError } from "@/lib/customers/validation";
+import { validateCustomerInput } from "@/lib/customers/validation";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 
@@ -31,6 +32,7 @@ export type EditCustomerInitial = {
   email: string;
   source: CustomerSourceKey;
   sourceRemark: string;
+  requestedProjectName: string;
   notes: string;
   salesStage: SalesStage;
   status: string;
@@ -53,6 +55,7 @@ export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) 
     email: initial.email,
     source: initial.source,
     sourceRemark: initial.sourceRemark,
+    requestedProjectName: initial.requestedProjectName,
     notes: initial.notes,
     salesStage: initial.salesStage,
     status: initial.status,
@@ -76,6 +79,18 @@ export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) 
     setFieldErrors({});
     setServerError(null);
     setDuplicates(null);
+
+    const validationErrors = validateCustomerInput(form, {
+      isUpdate: true,
+      existingNotes: initial.notes,
+    });
+    if (validationErrors.length > 0) {
+      const errs: Record<string, string> = {};
+      for (const fe of validationErrors) errs[fe.field] = resolveFieldError(t, fe);
+      setFieldErrors(errs);
+      setSubmitting(false);
+      return;
+    }
 
     try {
       const res = await fetch(`/api/customers/${initial.id}`, {
@@ -164,6 +179,24 @@ export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) 
           />
           {fieldErrors.customerName && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.customerName}</p>
+          )}
+        </Field>
+
+        <Field>
+          <Label htmlFor="requestedProjectName">
+            {t("customers.requestedProjectName")}{" "}
+            <span className="text-red-500">*</span>
+          </Label>
+          <Input
+            id="requestedProjectName"
+            value={form.requestedProjectName}
+            onChange={(e) => set("requestedProjectName", e.target.value)}
+            placeholder={t("customers.requestedProjectNamePlaceholder")}
+          />
+          {fieldErrors.requestedProjectName && (
+            <p className="mt-1 text-xs text-red-600">
+              {fieldErrors.requestedProjectName}
+            </p>
           )}
         </Field>
 
@@ -311,13 +344,19 @@ export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) 
         </Field>
 
         <Field>
-          <Label htmlFor="notes">{t("customers.notes")}</Label>
+          <Label htmlFor="notes">
+            {t("customers.stageNotes")} <span className="text-red-500">*</span>
+          </Label>
           <Textarea
             id="notes"
             rows={3}
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
+            placeholder={t("customers.stageNotesPlaceholder")}
           />
+          {fieldErrors.notes && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.notes}</p>
+          )}
         </Field>
       </div>
 

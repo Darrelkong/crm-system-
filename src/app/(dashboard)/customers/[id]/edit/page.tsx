@@ -75,6 +75,7 @@ export default async function EditCustomerPage({ params }: Props) {
           email: customer.email ?? "",
           source: customer.source as CustomerSourceKey,
           sourceRemark: customer.sourceRemark ?? "",
+          requestedProjectName: customer.requestedProjectName ?? "",
           notes: customer.notes ?? "",
           salesStage: customer.salesStage as SalesStage,
           status: customer.status,
