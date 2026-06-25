@@ -926,6 +926,7 @@ const zhHans: Messages = {
     approvalNotFound: "申请不存在。",
     approvalAlreadyProcessed: "该申请已处理，不能重复审批。",
     publicPoolClientNotFound: "客户不在公共池。",
+    publicPoolClientAlreadyClaimed: "此客户已被其他员工领取，请刷新公共池列表。",
     clientAlreadyClaimed: "此客户已被其他员工领取。",
     importFileRequired: "请先上传 CSV 文件。",
     importInvalidFileFormat: "文件格式不正确。",

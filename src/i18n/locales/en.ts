@@ -950,6 +950,8 @@ const en = {
     approvalNotFound: "Approval request not found.",
     approvalAlreadyProcessed: "This request has already been processed.",
     publicPoolClientNotFound: "Client is not in the public pool.",
+    publicPoolClientAlreadyClaimed:
+      "This client has already been claimed by another staff member. Please refresh the public pool list.",
     clientAlreadyClaimed:
       "This client has already been claimed by another staff member.",
     importFileRequired: "Please upload a CSV file first.",

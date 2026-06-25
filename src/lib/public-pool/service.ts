@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getEffectiveSettings } from "@/lib/settings/effective";
@@ -46,15 +46,19 @@ export async function createFirstContactTask(
   return taskId;
 }
 
+export type ClaimCustomerFromPoolResult =
+  | { ok: true; taskId: string }
+  | { ok: false; reason: "already_claimed" };
+
 export async function claimCustomerFromPool(
   customer: Customer,
   user: User,
   audit?: { ipAddress?: string | null; userAgent?: string | null },
-): Promise<{ taskId: string }> {
+): Promise<ClaimCustomerFromPoolResult> {
   const db = getDb();
   const now = new Date().toISOString();
 
-  await db
+  const updatedRows = await db
     .update(schema.customers)
     .set({
       ownerId: user.id,
@@ -65,7 +69,18 @@ export async function claimCustomerFromPool(
       updatedBy: user.id,
       updatedAt: now,
     })
-    .where(eq(schema.customers.id, customer.id));
+    .where(
+      and(
+        eq(schema.customers.id, customer.id),
+        eq(schema.customers.status, "public_pool"),
+        isNull(schema.customers.ownerId),
+      ),
+    )
+    .returning({ id: schema.customers.id });
+
+  if (updatedRows.length === 0) {
+    return { ok: false, reason: "already_claimed" };
+  }
 
   const updated = { ...customer, customerName: customer.customerName };
   const taskId = await createFirstContactTask(updated, user.id, user.id, audit);
@@ -84,7 +99,7 @@ export async function claimCustomerFromPool(
     },
   });
 
-  return { taskId };
+  return { ok: true, taskId };
 }
 
 export async function releaseCustomerToPool(

@@ -94,12 +94,30 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const { taskId } = await claimCustomerFromPool(customer, user, {
+    const claimResult = await claimCustomerFromPool(customer, user, {
       ipAddress,
       userAgent,
     });
 
-    return Response.json({ ok: true, id, taskId });
+    if (!claimResult.ok) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.claim_failed.already_claimed",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+      });
+      return Response.json(
+        {
+          error: "该客户已被其他员工领取",
+          errorCode: "PUBLIC_POOL_CLIENT_ALREADY_CLAIMED",
+        },
+        { status: 409 },
+      );
+    }
+
+    return Response.json({ ok: true, id, taskId: claimResult.taskId });
   } catch (error) {
     return authErrorResponse(error);
   }
