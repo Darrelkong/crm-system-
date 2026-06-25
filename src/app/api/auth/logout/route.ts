@@ -8,7 +8,7 @@ import {
   getClearSessionCookieOptions,
   getRequestMeta,
 } from "@/lib/auth/cookies";
-import { ACCESS_LOGOUT_PATH } from "@/lib/auth/constants";
+import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 
   return Response.json({
     ok: true,
-    redirect: ACCESS_LOGOUT_PATH,
+    redirect: getPostLogoutRedirectPath(),
     reason,
   });
 }

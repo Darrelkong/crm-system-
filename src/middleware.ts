@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import {
-  ACCESS_LOGOUT_PATH,
   AUTH_ERROR_CODES,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
+import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import { validateSessionFromRequest } from "@/lib/auth/session";
 
 function redirectToLogin(request: NextRequest) {
@@ -14,7 +14,7 @@ function redirectToLogin(request: NextRequest) {
 }
 
 function redirectToAccessLogout(request: NextRequest, reason?: string) {
-  const logoutUrl = new URL(ACCESS_LOGOUT_PATH, request.url);
+  const logoutUrl = new URL(getPostLogoutRedirectPath(), request.url);
   if (reason) {
     logoutUrl.searchParams.set("crm_reason", reason);
   }

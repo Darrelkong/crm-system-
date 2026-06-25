@@ -7,7 +7,6 @@ import * as schema from "../../../drizzle/schema";
 import { getSessionExpiresAt, getRequestMeta } from "@/lib/auth/cookies";
 import {
   AUTH_ERROR_CODES,
-  ACCESS_LOGOUT_PATH,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
 import { generateSessionToken, hashSessionToken } from "@/lib/auth/token";
@@ -174,4 +173,6 @@ export async function validateSessionFromRequest(
   return validateSessionToken(token, options);
 }
 
-export { ACCESS_LOGOUT_PATH };
+import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
+
+export { getPostLogoutRedirectPath };

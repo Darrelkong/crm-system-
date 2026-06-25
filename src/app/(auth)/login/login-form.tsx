@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
-import { redirectToAccessLogout } from "@/lib/auth/client-security";
+import { redirectToAccessLogout, isLocalDevelopmentClient } from "@/lib/auth/client-security";
 
 export function LoginForm() {
   const router = useRouter();
@@ -41,7 +41,10 @@ export function LoginForm() {
     setLoading(false);
 
     if (!response.ok) {
-      if (data.errorCode === "ACCESS_VERIFICATION_EXPIRED") {
+      if (
+        data.errorCode === "ACCESS_VERIFICATION_EXPIRED" &&
+        !isLocalDevelopmentClient()
+      ) {
         setError(t("security.accessExpired"));
         redirectToAccessLogout();
         return;

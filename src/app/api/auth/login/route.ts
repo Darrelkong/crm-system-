@@ -9,9 +9,10 @@ import {
 } from "@/lib/auth/cookies";
 import {
   AUTH_ERROR_CODES,
-  ACCESS_LOGOUT_PATH,
 } from "@/lib/auth/constants";
+import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import {
+  shouldRequireCloudflareAccess,
   validateAccessLoginWindowFromRequest,
 } from "@/lib/auth/access-jwt";
 import {
@@ -32,16 +33,18 @@ type LoginBody = {
 };
 
 export async function POST(request: Request) {
-  const accessWindow = validateAccessLoginWindowFromRequest(request);
-  if (!accessWindow.ok) {
-    return Response.json(
-      {
-        error: "Access verification expired",
-        errorCode: AUTH_ERROR_CODES.ACCESS_VERIFICATION_EXPIRED,
-        redirect: ACCESS_LOGOUT_PATH,
-      },
-      { status: 401 },
-    );
+  if (shouldRequireCloudflareAccess(request.headers)) {
+    const accessWindow = validateAccessLoginWindowFromRequest(request);
+    if (!accessWindow.ok) {
+      return Response.json(
+        {
+          error: "Access verification expired",
+          errorCode: AUTH_ERROR_CODES.ACCESS_VERIFICATION_EXPIRED,
+          redirect: getPostLogoutRedirectPath(),
+        },
+        { status: 401 },
+      );
+    }
   }
 
   const body = (await request.json()) as LoginBody;

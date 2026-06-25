@@ -1,10 +1,21 @@
-export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 
 export const CRM_LAST_ACTIVITY_KEY = "crm_last_activity_at";
 
 export const CRM_SESSION_BC = "crm_session_sync";
 
 export type SecurityLogoutReason = "manual" | "idle";
+
+export function isLocalDevelopmentClient(): boolean {
+  if (process.env.NODE_ENV === "development") {
+    return true;
+  }
+  if (typeof window === "undefined") {
+    return false;
+  }
+  const host = window.location.hostname.toLowerCase();
+  return host === "localhost" || host === "127.0.0.1";
+}
 
 export async function performSecurityLogout(
   reason: SecurityLogoutReason = "manual",
@@ -16,7 +27,7 @@ export async function performSecurityLogout(
       body: JSON.stringify({ reason }),
     });
   } catch {
-    // Still clear client state and exit Access below.
+    // Still clear client state and redirect below.
   }
 
   try {
@@ -25,11 +36,11 @@ export async function performSecurityLogout(
     // ignore
   }
 
-  window.location.href = ACCESS_LOGOUT_PATH;
+  window.location.href = getPostLogoutRedirectPath();
 }
 
 export function redirectToAccessLogout(): void {
-  window.location.href = ACCESS_LOGOUT_PATH;
+  window.location.href = getPostLogoutRedirectPath();
 }
 
 export function readLastActivityMs(): number | null {

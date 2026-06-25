@@ -6,8 +6,9 @@ export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 /** After Cloudflare Access, CRM login must complete within this window */
 export const ACCESS_LOGIN_WINDOW_MS = 5 * 60 * 1000;
 
-/** Cloudflare Access logout — clears Access session cookie */
-export const ACCESS_LOGOUT_PATH = "/cdn-cgi/access/logout";
+/** Cloudflare Access logout path (production). Prefer getPostLogoutRedirectPath(). */
+export { CLOUDFLARE_ACCESS_LOGOUT_PATH as ACCESS_LOGOUT_PATH } from "@/lib/auth/logout-redirect";
+export { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 
 /** Throttle session last_activity writes (ms) */
 export const SESSION_ACTIVITY_TOUCH_INTERVAL_MS = 30 * 1000;

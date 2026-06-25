@@ -3,7 +3,8 @@ import {
   getSessionTokenFromCookies,
   validateSessionToken,
 } from "@/lib/auth/session";
-import { AUTH_ERROR_CODES, ACCESS_LOGOUT_PATH } from "@/lib/auth/constants";
+import { AUTH_ERROR_CODES } from "@/lib/auth/constants";
+import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import type { User } from "../../../drizzle/schema/users";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { PermissionError } from "@/lib/permissions/customers";
@@ -113,7 +114,7 @@ export function authErrorResponse(error: unknown): Response {
         errorCode: error.errorCode ?? error.auditAction ?? "INSUFFICIENT_PERMISSIONS",
         redirect:
           error.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED
-            ? ACCESS_LOGOUT_PATH
+            ? getPostLogoutRedirectPath()
             : undefined,
       },
       { status: error.status },

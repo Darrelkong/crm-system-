@@ -1,6 +1,4 @@
-import {
-  ACCESS_LOGIN_WINDOW_MS,
-} from "@/lib/auth/constants";
+import { ACCESS_LOGIN_WINDOW_MS } from "@/lib/auth/constants";
 
 export type AccessJwtPayload = {
   iat?: number;
@@ -26,8 +24,39 @@ function parseCookieValue(cookieHeader: string | null, name: string): string | n
   return null;
 }
 
-export function isAccessJwtCheckSkipped(): boolean {
-  return process.env.SKIP_ACCESS_JWT_CHECK === "true";
+export function isLocalDevelopmentHost(host: string): boolean {
+  const hostname = host.split(":")[0]?.trim().toLowerCase() ?? "";
+  return hostname === "localhost" || hostname === "127.0.0.1";
+}
+
+function getHostFromHeaders(headers: Headers): string {
+  return (
+    headers.get("x-forwarded-host") ??
+    headers.get("host") ??
+    ""
+  );
+}
+
+/** Skip Cloudflare Access JWT checks on local dev (no Access in front of the app). */
+export function isAccessJwtCheckSkipped(headers?: Headers): boolean {
+  if (process.env.NODE_ENV === "development") {
+    return true;
+  }
+  if (process.env.SKIP_ACCESS_JWT_CHECK === "true") {
+    return true;
+  }
+  if (headers) {
+    const host = getHostFromHeaders(headers);
+    if (host && isLocalDevelopmentHost(host)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Production custom domain — require Cloudflare Access before CRM login. */
+export function shouldRequireCloudflareAccess(headers?: Headers): boolean {
+  return !isAccessJwtCheckSkipped(headers);
 }
 
 export function getAccessJwtFromHeaders(headers: Headers): string | null {
@@ -60,7 +89,7 @@ export function decodeAccessJwtPayload(token: string): AccessJwtPayload | null {
 export function validateAccessLoginWindow(
   headers: Headers,
 ): AccessWindowResult {
-  if (isAccessJwtCheckSkipped()) {
+  if (isAccessJwtCheckSkipped(headers)) {
     return { ok: true, iat: Math.floor(Date.now() / 1000) };
   }
 
