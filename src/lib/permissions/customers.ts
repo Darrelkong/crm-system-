@@ -168,6 +168,24 @@ export function assertStaffCannotChangeCustomerStatus(
   }
 }
 
+/** Public pool status can only be set via release-to-pool API, not general PATCH. */
+export function assertPublicPoolRequiresReleaseFlow(
+  customer: Customer,
+  body: Record<string, unknown>,
+): void {
+  if (
+    typeof body.status === "string" &&
+    body.status === "public_pool" &&
+    customer.status !== "public_pool"
+  ) {
+    throw new PermissionError(
+      400,
+      "不能通过普通编辑将状态设为公共池，请使用释放到公共池流程",
+      "PUBLIC_POOL_REQUIRES_RELEASE_FLOW",
+    );
+  }
+}
+
 export function canEditCustomer(user: User, customer: Customer): boolean {
   if (isArchivedCustomer(customer)) return false;
   if (user.role === "admin") return true;

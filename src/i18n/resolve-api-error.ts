@@ -21,6 +21,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   APPROVAL_ALREADY_PROCESSED: "errors.approvalAlreadyProcessed",
   PUBLIC_POOL_CLIENT_NOT_FOUND: "errors.publicPoolClientNotFound",
   PUBLIC_POOL_CLIENT_ALREADY_CLAIMED: "errors.publicPoolClientAlreadyClaimed",
+  PUBLIC_POOL_REQUIRES_RELEASE_FLOW: "errors.publicPoolRequiresReleaseFlow",
   CLIENT_ALREADY_CLAIMED: "errors.clientAlreadyClaimed",
   IMPORT_FILE_REQUIRED: "errors.importFileRequired",
   IMPORT_INVALID_FILE_FORMAT: "errors.importInvalidFileFormat",
@@ -131,6 +132,8 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "该申请已处理，不能重复审批": "errors.approvalAlreadyProcessed",
   "客户不在公共池": "errors.publicPoolClientNotFound",
   "该客户已被其他员工领取": "errors.publicPoolClientAlreadyClaimed",
+  "不能通过普通编辑将状态设为公共池，请使用释放到公共池流程":
+    "errors.publicPoolRequiresReleaseFlow",
   "无法领取该客户": "errors.cannotClaimClient",
   "不能领取自己释放到公共池的客户": "errors.claimSelfReleased",
   "当前处于领取冷却期，请稍后再试": "errors.claimCooldown",

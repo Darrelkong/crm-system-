@@ -260,6 +260,10 @@ const en = {
       "Completeness score is visible; missing field details are only available to the owner or admins.",
     completenessGood: "Profile is mostly complete",
     releaseConfirmTitle: "Release to Public Pool",
+    useReleaseFlowForPublicPool:
+      "To release to the public pool, use the “Release to Public Pool” action on the client detail page. Status cannot be set here.",
+    publicPoolStatusReadOnly:
+      "This client is in the public pool. Status cannot be changed on this page.",
     releaseConfirmBody:
       "Are you sure you want to release this client to the public pool? This cannot be undone.",
     releaseReason: "Release reason",
@@ -941,6 +945,8 @@ const en = {
     cannotEditCustomer: "You cannot edit this client.",
     cannotChangeCustomerStatus:
       "Staff cannot change client status through edit. Use release to pool or approval workflows instead.",
+    publicPoolRequiresReleaseFlow:
+      "Client status cannot be set to public pool through edit. Use the release to public pool workflow instead.",
     cannotAddFollowUp: "You cannot add follow-ups for this client.",
     cannotViewFollowUps: "You cannot view follow-ups for this client.",
     cannotViewTimeline: "You cannot view this client's timeline.",

@@ -6,6 +6,7 @@ import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
   assertCanEditCustomer,
   assertStaffCannotChangeCustomerStatus,
+  assertPublicPoolRequiresReleaseFlow,
   PermissionError,
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
@@ -86,6 +87,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     try {
       assertStaffCannotChangeCustomerStatus(user, existing, body);
+      assertPublicPoolRequiresReleaseFlow(existing, body);
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {

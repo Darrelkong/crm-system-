@@ -254,6 +254,9 @@ const zhHans: Messages = {
     completenessRestricted: "完整度分数可见；缺失项详情仅负责人或管理员可查看。",
     completenessGood: "资料已较完整",
     releaseConfirmTitle: "释放到公共池",
+    useReleaseFlowForPublicPool:
+      "若要释放至公共池，请使用客户详情页的「释放到公共池」功能，不可在此直接修改状态。",
+    publicPoolStatusReadOnly: "此客户已在公共池，状态不可在此修改。",
     releaseConfirmBody: "确认将该客户释放至公共池吗？此操作不可撤销。",
     releaseReason: "释放原因",
     releaseReasonPlaceholder: "请填写释放原因",
@@ -917,6 +920,8 @@ const zhHans: Messages = {
     cannotEditCustomer: "无权编辑该客户。",
     cannotChangeCustomerStatus:
       "员工不能通过编辑修改客户状态。请使用释放到公共池或审批等正式流程。",
+    publicPoolRequiresReleaseFlow:
+      "不能通过普通编辑将状态设为公共池，请使用「释放到公共池」流程。",
     cannotAddFollowUp: "无权为该客户添加跟进。",
     cannotViewFollowUps: "无权查看该客户跟进记录。",
     cannotViewTimeline: "无权查看该客户时间线。",

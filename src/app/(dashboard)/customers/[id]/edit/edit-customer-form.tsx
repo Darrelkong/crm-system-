@@ -20,7 +20,7 @@ type DuplicateMatch = {
 
 const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
 
-const STATUS_KEYS = ["active", "inactive", "archived", "public_pool"] as const;
+const EDITABLE_STATUS_KEYS = ["active", "inactive", "archived"] as const;
 
 export type EditCustomerInitial = {
   id: string;
@@ -51,6 +51,9 @@ export function EditCustomerForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+
+  const isPublicPool = initial.status === "public_pool";
+  const showStatusDropdown = canEditStatus && !isPublicPool;
 
   const [form, setForm] = useState({
     customerName: initial.customerName,
@@ -100,7 +103,7 @@ export function EditCustomerForm({
 
     try {
       const { status: _status, ...fieldsWithoutStatus } = form;
-      const submitBody = canEditStatus ? form : fieldsWithoutStatus;
+      const submitBody = showStatusDropdown ? form : fieldsWithoutStatus;
 
       const res = await fetch(`/api/customers/${initial.id}`, {
         method: "PATCH",
@@ -226,13 +229,13 @@ export function EditCustomerForm({
 
         <Field>
           <Label htmlFor="status">{t("customers.status")}</Label>
-          {canEditStatus ? (
+          {showStatusDropdown ? (
             <Select
               id="status"
               value={form.status}
               onChange={(e) => set("status", e.target.value)}
             >
-              {STATUS_KEYS.map((s) => (
+              {EDITABLE_STATUS_KEYS.map((s) => (
                 <option key={s} value={s}>
                   {status(s)}
                 </option>
@@ -244,6 +247,16 @@ export function EditCustomerForm({
               className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
             >
               {status(form.status)}
+            </p>
+          )}
+          {showStatusDropdown && (
+            <p className="mt-1 text-xs text-slate-500">
+              {t("customers.useReleaseFlowForPublicPool")}
+            </p>
+          )}
+          {canEditStatus && isPublicPool && (
+            <p className="mt-1 text-xs text-slate-500">
+              {t("customers.publicPoolStatusReadOnly")}
             </p>
           )}
           {fieldErrors.status && (
