@@ -4,27 +4,29 @@ import {
   AUTH_ERROR_CODES,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
-import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import { validateSessionFromRequest } from "@/lib/auth/session";
 
-function redirectToLogin(request: NextRequest) {
-  const loginUrl = new URL("/login", request.url);
-  loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
-  return NextResponse.redirect(loginUrl);
-}
+type SessionEndReason = "idle" | "revoked" | "invalid";
 
-function redirectToAccessLogout(request: NextRequest, reason?: string) {
-  const logoutUrl = new URL(getPostLogoutRedirectPath(), request.url);
-  if (reason) {
-    logoutUrl.searchParams.set("crm_reason", reason);
+function redirectToLogin(
+  request: NextRequest,
+  sessionEnd?: SessionEndReason,
+) {
+  const loginUrl = new URL("/login", request.url);
+  if (sessionEnd) {
+    loginUrl.searchParams.set("session_end", sessionEnd);
+  } else {
+    loginUrl.searchParams.set("redirect", request.nextUrl.pathname);
   }
-  const response = NextResponse.redirect(logoutUrl);
-  response.cookies.set({
-    name: SESSION_COOKIE_NAME,
-    value: "",
-    path: "/",
-    maxAge: 0,
-  });
+  const response = NextResponse.redirect(loginUrl);
+  if (sessionEnd) {
+    response.cookies.set({
+      name: SESSION_COOKIE_NAME,
+      value: "",
+      path: "/",
+      maxAge: 0,
+    });
+  }
   return response;
 }
 
@@ -33,7 +35,7 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
 
   let sessionUser = null;
-  let sessionIdleExpired = false;
+  let sessionEndReason: SessionEndReason | null = null;
 
   if (token) {
     const validation = await validateSessionFromRequest(request, { touch: true });
@@ -43,12 +45,22 @@ export async function middleware(request: NextRequest) {
       validation.reason === "idle_expired" ||
       validation.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED
     ) {
-      sessionIdleExpired = true;
+      sessionEndReason = "idle";
+    } else if (
+      validation.reason === "revoked" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_REVOKED
+    ) {
+      sessionEndReason = "revoked";
+    } else if (
+      validation.reason === "invalid" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_INVALID
+    ) {
+      sessionEndReason = "invalid";
     }
   }
 
-  if (sessionIdleExpired && pathname !== "/login") {
-    return redirectToAccessLogout(request, "idle");
+  if (sessionEndReason && pathname !== "/login") {
+    return redirectToLogin(request, sessionEndReason);
   }
 
   if (pathname === "/login") {

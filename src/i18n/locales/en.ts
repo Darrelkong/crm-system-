@@ -70,14 +70,19 @@ const en = {
     enterEmail: "Please enter your email",
     enterPassword: "Please enter your password",
     enterVerificationCode: "Please enter the verification code",
-    signedOutDueToInactivity:
-      "You were signed out due to inactivity. Please verify through Access again to continue.",
+    signedOutDueToInactivity: "Your session has timed out. Please sign in again.",
+    redirectingToLogin: "Redirecting to sign in…",
   },
   security: {
     accessExpired:
       "Your Access verification has expired. Please verify again before signing in to CRM.",
     sessionExpired:
       "Your CRM session has expired due to inactivity. Please verify through Access again.",
+    sessionRevokedByOtherDevice:
+      "Your account was signed in on another device. This session is no longer valid. Please sign in again.",
+    sessionTimedOutReLogin: "Your session has timed out. Please sign in again.",
+    sessionInvalidReLogin: "Your session is no longer valid. Please sign in again.",
+    sessionRevokedTitle: "Session ended",
     accessDenied: "Access denied",
     singleSessionTitle: "Access Denied",
     singleSessionDescription:

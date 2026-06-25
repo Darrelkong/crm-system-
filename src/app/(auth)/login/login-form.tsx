@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/form";
@@ -8,7 +8,19 @@ import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
-import { redirectToAccessLogout, isLocalDevelopmentClient } from "@/lib/auth/client-security";
+import {
+  redirectToAccessLogout,
+  isLocalDevelopmentClient,
+  sessionEndMessageKey,
+  type SessionEndReason,
+} from "@/lib/auth/client-security";
+
+function parseSessionEndParam(value: string | null): SessionEndReason | null {
+  if (value === "idle" || value === "revoked" || value === "invalid") {
+    return value;
+  }
+  return null;
+}
 
 export function LoginForm() {
   const router = useRouter();
@@ -16,6 +28,12 @@ export function LoginForm() {
   const { t } = useTranslation();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const sessionEndNotice = useMemo(() => {
+    const reason = parseSessionEndParam(searchParams.get("session_end"));
+    if (!reason) return null;
+    return t(sessionEndMessageKey(reason));
+  }, [searchParams, t]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -104,6 +122,12 @@ export function LoginForm() {
               placeholder="••••••••"
             />
           </Field>
+
+          {sessionEndNotice && (
+            <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {sessionEndNotice}
+            </p>
+          )}
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 

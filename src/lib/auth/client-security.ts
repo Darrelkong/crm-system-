@@ -5,6 +5,57 @@ export const CRM_LAST_ACTIVITY_KEY = "crm_last_activity_at";
 export const CRM_SESSION_BC = "crm_session_sync";
 
 export type SecurityLogoutReason = "manual" | "idle";
+export type SessionEndReason = "idle" | "revoked" | "invalid";
+
+export const SESSION_END_REDIRECT_DELAY_MS = 2500;
+
+export function parseSessionEndReason(errorCode?: string): SessionEndReason | null {
+  switch (errorCode) {
+    case "SESSION_IDLE_EXPIRED":
+      return "idle";
+    case "SESSION_REVOKED":
+      return "revoked";
+    case "SESSION_INVALID":
+      return "invalid";
+    default:
+      return null;
+  }
+}
+
+export function sessionEndMessageKey(reason: SessionEndReason): string {
+  switch (reason) {
+    case "idle":
+      return "security.sessionTimedOutReLogin";
+    case "revoked":
+      return "security.sessionRevokedByOtherDevice";
+    case "invalid":
+      return "security.sessionInvalidReLogin";
+  }
+}
+
+export async function clearSessionClientState(
+  reason: SecurityLogoutReason | "expired" = "expired",
+): Promise<void> {
+  try {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ reason }),
+    });
+  } catch {
+    // Best-effort server-side session cleanup.
+  }
+
+  try {
+    localStorage.removeItem(CRM_LAST_ACTIVITY_KEY);
+  } catch {
+    // ignore
+  }
+}
+
+export function redirectToLoginWithSessionEnd(reason: SessionEndReason): void {
+  window.location.href = `/login?session_end=${reason}`;
+}
 
 export function isLocalDevelopmentClient(): boolean {
   if (process.env.NODE_ENV === "development") {
@@ -20,22 +71,7 @@ export function isLocalDevelopmentClient(): boolean {
 export async function performSecurityLogout(
   reason: SecurityLogoutReason = "manual",
 ): Promise<void> {
-  try {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ reason }),
-    });
-  } catch {
-    // Still clear client state and redirect below.
-  }
-
-  try {
-    localStorage.removeItem(CRM_LAST_ACTIVITY_KEY);
-  } catch {
-    // ignore
-  }
-
+  await clearSessionClientState(reason);
   window.location.href = getPostLogoutRedirectPath();
 }
 

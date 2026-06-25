@@ -7,14 +7,26 @@ import { useTranslation } from "@/i18n/provider";
 import {
   CRM_LAST_ACTIVITY_KEY,
   CRM_SESSION_BC,
-  performSecurityLogout,
+  SESSION_END_REDIRECT_DELAY_MS,
+  clearSessionClientState,
+  parseSessionEndReason,
   readLastActivityMs,
+  redirectToLoginWithSessionEnd,
+  sessionEndMessageKey,
+  type SessionEndReason,
   writeLastActivityMs,
 } from "@/lib/auth/client-security";
 
 type SyncMessage =
   | { type: "activity"; at: number }
-  | { type: "logout"; reason: "idle" | "manual" };
+  | { type: "logout"; reason: "idle" | "revoked" | "invalid" | "manual" };
+
+function shouldInspectSessionResponse(url: string): boolean {
+  if (!url.includes("/api/")) return false;
+  if (url.includes("/api/auth/login")) return false;
+  if (url.includes("/api/auth/logout")) return false;
+  return true;
+}
 
 export function IdleTimeoutProvider({
   idleMinutes,
@@ -24,16 +36,42 @@ export function IdleTimeoutProvider({
   children: React.ReactNode;
 }) {
   const { t } = useTranslation();
-  const [showTimeout, setShowTimeout] = useState(false);
+  const [sessionEndReason, setSessionEndReason] = useState<SessionEndReason | null>(
+    null,
+  );
   const loggingOutRef = useRef(false);
   const idleMs = idleMinutes * 60 * 1000;
 
-  const handleIdleLogout = useCallback(async () => {
+  const handleSessionEnd = useCallback(async (reason: SessionEndReason) => {
     if (loggingOutRef.current) return;
     loggingOutRef.current = true;
-    setShowTimeout(true);
-    await performSecurityLogout("idle");
+    setSessionEndReason(reason);
+
+    try {
+      const bc = new BroadcastChannel(CRM_SESSION_BC);
+      bc.postMessage({ type: "logout", reason } satisfies SyncMessage);
+      bc.close();
+    } catch {
+      // ignore
+    }
+
+    const logoutReason = reason === "idle" ? "idle" : "expired";
+    await clearSessionClientState(logoutReason);
+
+    await new Promise((resolve) =>
+      setTimeout(resolve, SESSION_END_REDIRECT_DELAY_MS),
+    );
+    redirectToLoginWithSessionEnd(reason);
   }, []);
+
+  const handleApiSessionEnd = useCallback(
+    async (errorCode?: string) => {
+      const reason = parseSessionEndReason(errorCode);
+      if (!reason) return;
+      await handleSessionEnd(reason);
+    },
+    [handleSessionEnd],
+  );
 
   const recordActivity = useCallback(() => {
     const now = Date.now();
@@ -54,7 +92,7 @@ export function IdleTimeoutProvider({
       return;
     }
     if (Date.now() - last > idleMs) {
-      await handleIdleLogout();
+      await handleSessionEnd("idle");
       return;
     }
 
@@ -62,17 +100,43 @@ export function IdleTimeoutProvider({
       const res = await fetch("/api/auth/me", { cache: "no-store" });
       if (res.status === 401) {
         const data = (await res.json()) as { errorCode?: string };
-        if (data.errorCode === "SESSION_IDLE_EXPIRED") {
-          await handleIdleLogout();
-        }
+        await handleApiSessionEnd(data.errorCode);
       }
     } catch {
       // ignore transient network errors
     }
-  }, [handleIdleLogout, idleMs]);
+  }, [handleApiSessionEnd, handleSessionEnd, idleMs]);
 
   useEffect(() => {
     writeLastActivityMs();
+
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      if (loggingOutRef.current || response.status !== 401) {
+        return response;
+      }
+
+      const requestUrl =
+        typeof args[0] === "string"
+          ? args[0]
+          : args[0] instanceof Request
+            ? args[0].url
+            : String(args[0]);
+
+      if (!shouldInspectSessionResponse(requestUrl)) {
+        return response;
+      }
+
+      try {
+        const data = (await response.clone().json()) as { errorCode?: string };
+        void handleApiSessionEnd(data.errorCode);
+      } catch {
+        // ignore non-JSON 401 responses
+      }
+
+      return response;
+    };
 
     const events: Array<keyof WindowEventMap> = [
       "click",
@@ -118,7 +182,14 @@ export function IdleTimeoutProvider({
           writeLastActivityMs(event.data.at);
         }
         if (event.data.type === "logout") {
-          void handleIdleLogout();
+          if (event.data.reason === "manual") return;
+          void handleSessionEnd(
+            event.data.reason === "revoked"
+              ? "revoked"
+              : event.data.reason === "invalid"
+                ? "invalid"
+                : "idle",
+          );
         }
       };
     } catch {
@@ -130,6 +201,7 @@ export function IdleTimeoutProvider({
     }, 30_000);
 
     return () => {
+      window.fetch = originalFetch;
       for (const eventName of events) {
         window.removeEventListener(eventName, onActivity);
       }
@@ -139,29 +211,28 @@ export function IdleTimeoutProvider({
       window.clearInterval(interval);
       bc?.close();
     };
-  }, [checkIdle, handleIdleLogout, recordActivity]);
+  }, [checkIdle, handleApiSessionEnd, handleSessionEnd, recordActivity]);
 
-  if (!showTimeout) {
+  if (!sessionEndReason) {
     return children;
   }
+
+  const titleKey =
+    sessionEndReason === "revoked"
+      ? "security.sessionRevokedTitle"
+      : "security.sessionTimeoutTitle";
 
   return (
     <>
       {children}
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
         <Card className="w-full max-w-md p-6 text-center">
-          <h2 className="text-lg font-semibold text-slate-900">
-            {t("security.sessionTimeoutTitle")}
-          </h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t(titleKey)}</h2>
           <p className="mt-3 text-sm text-slate-600">
-            {t("auth.signedOutDueToInactivity")}
+            {t(sessionEndMessageKey(sessionEndReason))}
           </p>
-          <Button
-            type="button"
-            className="mt-6 w-full"
-            disabled
-          >
-            {t("auth.signingOut")}
+          <Button type="button" className="mt-6 w-full" disabled>
+            {t("auth.redirectingToLogin")}
           </Button>
         </Card>
       </div>

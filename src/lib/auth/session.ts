@@ -90,16 +90,28 @@ export async function validateSessionToken(
 
   const row = rows[0];
   if (!row) {
-    return { ok: false, reason: "invalid" };
+    return {
+      ok: false,
+      reason: "invalid",
+      errorCode: AUTH_ERROR_CODES.SESSION_INVALID,
+    };
   }
 
   if (isSessionRevoked(row.session)) {
-    return { ok: false, reason: "revoked" };
+    return {
+      ok: false,
+      reason: "revoked",
+      errorCode: AUTH_ERROR_CODES.SESSION_REVOKED,
+    };
   }
 
   if (row.session.expiresAt <= nowIso) {
     await revokeSessionById(db, row.sessionId, nowIso);
-    return { ok: false, reason: "invalid" };
+    return {
+      ok: false,
+      reason: "invalid",
+      errorCode: AUTH_ERROR_CODES.SESSION_INVALID,
+    };
   }
 
   if (row.user.isActive !== 1) {

@@ -72,14 +72,19 @@ const zhHant: Messages = {
     enterEmail: "請輸入電郵",
     enterPassword: "請輸入密碼",
     enterVerificationCode: "請輸入驗證碼",
-    signedOutDueToInactivity:
-      "由於長時間未操作，您已被登出。請重新完成 Access 驗證後再登入 CRM。",
+    signedOutDueToInactivity: "登入已超時，請重新登入。",
+    redirectingToLogin: "正在前往登入頁…",
   },
   security: {
     accessExpired:
       "Access 驗證已逾時，請重新驗證後再登入 CRM。",
     sessionExpired:
       "CRM 工作階段因長時間未操作已逾時，請重新完成 Access 驗證。",
+    sessionRevokedByOtherDevice:
+      "您的帳號已在其他設備登入，當前會話已失效，請重新登入。",
+    sessionTimedOutReLogin: "登入已超時，請重新登入。",
+    sessionInvalidReLogin: "登入已失效，請重新登入。",
+    sessionRevokedTitle: "工作階段已失效",
     accessDenied: "訪問被拒絕",
     singleSessionTitle: "訪問被拒絕",
     singleSessionDescription:

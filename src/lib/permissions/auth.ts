@@ -4,7 +4,6 @@ import {
   validateSessionToken,
 } from "@/lib/auth/session";
 import { AUTH_ERROR_CODES } from "@/lib/auth/constants";
-import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import type { User } from "../../../drizzle/schema/users";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { PermissionError } from "@/lib/permissions/customers";
@@ -47,6 +46,34 @@ export async function requireAuth(request?: Request): Promise<User> {
         "session idle expired",
         "auth.session.idle_expired",
         AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED,
+      );
+    }
+    if (
+      validation.reason === "revoked" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_REVOKED
+    ) {
+      if (request) {
+        await logPermissionDenied(request, {
+          action: "auth.session.revoked",
+          entityType: "auth",
+        });
+      }
+      throw new AuthError(
+        401,
+        "session revoked",
+        "auth.session.revoked",
+        AUTH_ERROR_CODES.SESSION_REVOKED,
+      );
+    }
+    if (
+      validation.reason === "invalid" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_INVALID
+    ) {
+      throw new AuthError(
+        401,
+        "session invalid",
+        "auth.session.invalid",
+        AUTH_ERROR_CODES.SESSION_INVALID,
       );
     }
   }
@@ -108,14 +135,19 @@ export async function requireStaff(request?: Request): Promise<User> {
 
 export function authErrorResponse(error: unknown): Response {
   if (error instanceof AuthError) {
+    const sessionEndCodes = [
+      AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED,
+      AUTH_ERROR_CODES.SESSION_REVOKED,
+      AUTH_ERROR_CODES.SESSION_INVALID,
+    ] as string[];
+    const errorCode =
+      error.errorCode ?? error.auditAction ?? "INSUFFICIENT_PERMISSIONS";
     return Response.json(
       {
         error: error.message,
-        errorCode: error.errorCode ?? error.auditAction ?? "INSUFFICIENT_PERMISSIONS",
+        errorCode,
         redirect:
-          error.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED
-            ? getPostLogoutRedirectPath()
-            : undefined,
+          sessionEndCodes.includes(errorCode) ? "/login" : undefined,
       },
       { status: error.status },
     );
