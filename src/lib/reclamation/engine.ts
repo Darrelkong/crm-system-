@@ -7,7 +7,6 @@ import type { Customer } from "../../../drizzle/schema/customers";
 import type { ReclamationWarningType } from "../../../drizzle/schema/reclamation-warning-logs";
 import {
   AUTO_RECLAIM_POOL_REASON_PREFIX,
-  NOTIFICATION_TITLES,
   RECLAMATION_AUDIT_ACTIONS,
   RECLAMATION_EXCLUDED_SALES_STAGES,
 } from "./constants";
@@ -145,8 +144,12 @@ async function sendDay6Warning(
   await createNotification(db, {
     userId: customer.ownerId,
     type: "auto_reclaim_warning_day_6",
-    title: NOTIFICATION_TITLES.warningDay6,
-    message: `客户「${customer.customerName}」已经 ${settings.reclaimWarningDay1} 天没有有效跟进，请尽快跟进。`,
+    titleKey: "notificationTypes.auto_reclaim_warning_day_6",
+    messageKey: "notificationMessages.autoReclaimWarningDay6",
+    messageParams: {
+      customerName: customer.customerName,
+      days: String(settings.reclaimWarningDay1),
+    },
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
   });
@@ -186,8 +189,13 @@ async function sendDay7Warning(
   await createNotification(db, {
     userId: customer.ownerId,
     type: "auto_reclaim_warning_day_7",
-    title: NOTIFICATION_TITLES.warningDay7,
-    message: `客户「${customer.customerName}」已经 ${settings.reclaimWarningDay2} 天没有有效跟进，若超过 ${settings.automaticReclaimDays} 天将自动回收到公共池。`,
+    titleKey: "notificationTypes.auto_reclaim_warning_day_7",
+    messageKey: "notificationMessages.autoReclaimWarningDay7",
+    messageParams: {
+      customerName: customer.customerName,
+      days: String(settings.reclaimWarningDay2),
+      reclaimDays: String(settings.automaticReclaimDays),
+    },
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
   });
@@ -262,8 +270,12 @@ async function autoReclaimCustomer(
     await createNotification(db, {
       userId: previousOwnerId,
       type: "customer_auto_reclaimed",
-      title: NOTIFICATION_TITLES.reclaimed,
-      message: `客户「${customer.customerName}」已超过 ${settings.automaticReclaimDays} 天无有效跟进，已自动回收到公共池。`,
+      titleKey: "notificationTypes.customer_auto_reclaimed",
+      messageKey: "notificationMessages.customerAutoReclaimed",
+      messageParams: {
+        customerName: customer.customerName,
+        days: String(settings.automaticReclaimDays),
+      },
       relatedEntityType: "customer",
       relatedEntityId: customer.id,
     });

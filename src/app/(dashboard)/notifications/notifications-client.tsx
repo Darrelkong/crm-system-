@@ -3,6 +3,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n/provider";
+import { resolveApiError } from "@/i18n/resolve-api-error";
+import {
+  resolveNotificationMessage,
+  resolveNotificationTitle,
+} from "@/i18n/resolve-notification-content";
 import type { NotificationListItem } from "@/lib/notifications/queries";
 
 type Props = {
@@ -27,7 +33,24 @@ function getHref(
   }
 }
 
+function getActionLabel(
+  t: (key: string) => string,
+  item: NotificationListItem,
+  role: "admin" | "staff",
+): string | null {
+  const href = getHref(item, role);
+  if (!href) return null;
+  if (item.related_entity_type === "customer") {
+    return t("notifications.viewRelatedClient");
+  }
+  if (item.related_entity_type === "approval") {
+    return t("notifications.viewApproval");
+  }
+  return t("notifications.viewDetails");
+}
+
 export function NotificationsClient({ userRole }: Props) {
+  const { t } = useTranslation();
   const [items, setItems] = useState<NotificationListItem[]>([]);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -52,16 +75,18 @@ export function NotificationsClient({ userRole }: Props) {
     const data = (await res.json()) as {
       items?: NotificationListItem[];
       error?: string;
+      errorCode?: string;
+      code?: string;
     };
     if (!res.ok) {
-      setMessage(data.error ?? "加载失败");
+      setMessage(resolveApiError(t, data));
       setLoading(false);
       return;
     }
     setItems(data.items ?? []);
     setLoading(false);
     await loadUnreadCount();
-  }, [unreadOnly, loadUnreadCount]);
+  }, [unreadOnly, loadUnreadCount, t]);
 
   useEffect(() => {
     void load();
@@ -72,8 +97,12 @@ export function NotificationsClient({ userRole }: Props) {
       method: "PATCH",
     });
     if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setMessage(data.error ?? "标记失败");
+      const data = (await res.json()) as {
+        error?: string;
+        errorCode?: string;
+        code?: string;
+      };
+      setMessage(resolveApiError(t, data));
       return;
     }
     await load();
@@ -82,11 +111,15 @@ export function NotificationsClient({ userRole }: Props) {
   async function markAllRead() {
     const res = await fetch("/api/notifications/read-all", { method: "PATCH" });
     if (!res.ok) {
-      const data = (await res.json()) as { error?: string };
-      setMessage(data.error ?? "操作失败");
+      const data = (await res.json()) as {
+        error?: string;
+        errorCode?: string;
+        code?: string;
+      };
+      setMessage(resolveApiError(t, data));
       return;
     }
-    setMessage("已全部标记为已读");
+    setMessage(t("notifications.markAllSuccess"));
     await load();
   }
 
@@ -94,7 +127,7 @@ export function NotificationsClient({ userRole }: Props) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         <p className="text-sm text-slate-600">
-          未读通知：<span className="font-semibold text-slate-900">{unreadCount}</span>
+          {t("notifications.unreadCount", { count: String(unreadCount) })}
         </p>
         <label className="flex items-center gap-2 text-sm text-slate-700">
           <input
@@ -102,22 +135,27 @@ export function NotificationsClient({ userRole }: Props) {
             checked={unreadOnly}
             onChange={(e) => setUnreadOnly(e.target.checked)}
           />
-          只看未读
+          {t("notifications.unreadOnly")}
         </label>
         <Button type="button" variant="secondary" onClick={() => void markAllRead()}>
-          全部标记已读
+          {t("notifications.markAllAsRead")}
         </Button>
         {message && <p className="text-sm text-slate-600">{message}</p>}
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-500">加载中…</p>
+        <p className="text-sm text-slate-500">{t("notifications.loading")}</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-slate-500">暂无通知</p>
+        <p className="text-sm text-slate-500">
+          {unreadOnly
+            ? t("notifications.noUnreadNotifications")
+            : t("notifications.noNotifications")}
+        </p>
       ) : (
         <ul className="space-y-3">
           {items.map((item) => {
             const href = getHref(item, userRole);
+            const actionLabel = getActionLabel(t, item, userRole);
             const row = (
               <div
                 className={
@@ -128,16 +166,27 @@ export function NotificationsClient({ userRole }: Props) {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium text-slate-900">{item.title}</p>
-                    <p className="mt-1 text-sm text-slate-700">{item.message}</p>
+                    <p className="text-xs text-slate-500">
+                      {t("notifications.notificationType")}: {item.type}
+                    </p>
+                    <p className="mt-1 font-medium text-slate-900">
+                      {resolveNotificationTitle(t, item)}
+                    </p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      {resolveNotificationMessage(t, item)}
+                    </p>
                     <p className="mt-2 text-xs text-slate-500">
+                      {t("notifications.notificationTime")}:{" "}
                       {item.created_at.slice(0, 16).replace("T", " ")}
                       {!item.is_read && (
                         <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-700">
-                          未读
+                          {t("notifications.unread")}
                         </span>
                       )}
                     </p>
+                    {actionLabel && href && (
+                      <p className="mt-2 text-xs text-indigo-600">{actionLabel}</p>
+                    )}
                   </div>
                   {!item.is_read && (
                     <Button
@@ -149,7 +198,7 @@ export function NotificationsClient({ userRole }: Props) {
                         void markRead(item.id);
                       }}
                     >
-                      标为已读
+                      {t("notifications.markAsRead")}
                     </Button>
                   )}
                 </div>

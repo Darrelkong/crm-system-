@@ -19,9 +19,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     const result = await markNotificationRead(db, user.id, id);
     if (!result.ok) {
       if (result.reason === "not_found") {
-        return Response.json({ error: "通知不存在" }, { status: 404 });
+        return Response.json(
+          { error: "通知不存在", errorCode: "NOTIFICATION_NOT_FOUND" },
+          { status: 404 },
+        );
       }
-      return Response.json({ error: "无权操作该通知" }, { status: 403 });
+      return Response.json(
+        { error: "无权操作该通知", errorCode: "INSUFFICIENT_PERMISSIONS" },
+        { status: 403 },
+      );
     }
 
     await writeAuditLog({

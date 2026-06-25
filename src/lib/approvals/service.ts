@@ -13,8 +13,6 @@ import {
 } from "@/lib/users/queries";
 import {
   APPROVAL_AUDIT_ACTIONS,
-  APPROVAL_NOTIFICATION_TITLES,
-  APPROVAL_REQUEST_TYPE_LABELS,
 } from "./constants";
 import { findPendingApproval, getApprovalById } from "./queries";
 import type { ApprovalRequestInput } from "./validation";
@@ -42,14 +40,17 @@ async function notifyAdminsPending(
   customer: Customer,
 ): Promise<void> {
   const admins = await listActiveAdminUsers();
-  const typeLabel = APPROVAL_REQUEST_TYPE_LABELS[approval.requestType];
 
   for (const admin of admins) {
     await createNotification(db, {
       userId: admin.id,
       type: "approval.pending",
-      title: APPROVAL_NOTIFICATION_TITLES.pending,
-      message: `${customer.customerName} 有新的${typeLabel}待审批。`,
+      titleKey: "notificationTypes.approval_pending",
+      messageKey: "notificationMessages.approvalPendingAdmin",
+      messageParams: {
+        customerName: customer.customerName,
+        approvalType: approval.requestType,
+      },
       relatedEntityType: "approval",
       relatedEntityId: approval.id,
     });
@@ -59,16 +60,17 @@ async function notifyAdminsPending(
 async function notifyApplicant(
   db: Database,
   approval: Approval,
-  customer: Customer,
   type: "approval.approved" | "approval.rejected",
-  title: string,
-  message: string,
+  titleKey: string,
+  messageKey: string,
+  messageParams: Record<string, string>,
 ): Promise<void> {
   await createNotification(db, {
     userId: approval.requestedBy,
     type,
-    title,
-    message,
+    titleKey,
+    messageKey,
+    messageParams,
     relatedEntityType: "approval",
     relatedEntityId: approval.id,
   });
@@ -197,8 +199,9 @@ async function executeApprovedAction(
         await createNotification(db, {
           userId: previousOwnerId,
           type: "customer.transferred",
-          title: APPROVAL_NOTIFICATION_TITLES.transferred,
-          message: `客户「${customer.customerName}」已转移给其他同事。`,
+          titleKey: "notificationTypes.customer_transferred",
+          messageKey: "notificationMessages.customerTransferredAway",
+          messageParams: { customerName: customer.customerName },
           relatedEntityType: "customer",
           relatedEntityId: customer.id,
         });
@@ -207,8 +210,9 @@ async function executeApprovedAction(
       await createNotification(db, {
         userId: approval.targetUserId,
         type: "customer.transferred",
-        title: APPROVAL_NOTIFICATION_TITLES.transferred,
-        message: `客户「${customer.customerName}」已转移给你。`,
+        titleKey: "notificationTypes.customer_transferred",
+        messageKey: "notificationMessages.customerTransferredToYou",
+        messageParams: { customerName: customer.customerName },
         relatedEntityType: "customer",
         relatedEntityId: customer.id,
       });
@@ -270,8 +274,9 @@ async function executeApprovedAction(
       await createNotification(db, {
         userId: approval.requestedBy,
         type: "customer.closed_won.approved",
-        title: APPROVAL_NOTIFICATION_TITLES.closedWon,
-        message: `客户「${customer.customerName}」成交申请已通过。`,
+        titleKey: "notificationTypes.customer_closed_won_approved",
+        messageKey: "notificationMessages.closedWonApproved",
+        messageParams: { customerName: customer.customerName },
         relatedEntityType: "customer",
         relatedEntityId: customer.id,
       });
@@ -454,14 +459,19 @@ export async function approveApprovalRequest(
     },
   });
 
-  const typeLabel = APPROVAL_REQUEST_TYPE_LABELS[approval.requestType];
+  const comment = adminComment?.trim();
   await notifyApplicant(
     db,
     approval,
-    customer,
     "approval.approved",
-    APPROVAL_NOTIFICATION_TITLES.approved,
-    `你的${typeLabel}申请已通过。${adminComment?.trim() ? `审批意见：${adminComment.trim()}` : ""}`,
+    "notificationTypes.approval_approved",
+    comment
+      ? "notificationMessages.approvalApprovedWithComment"
+      : "notificationMessages.approvalApproved",
+    {
+      approvalType: approval.requestType,
+      adminComment: comment ?? "",
+    },
   );
 }
 
@@ -519,14 +529,19 @@ export async function rejectApprovalRequest(
     },
   });
 
-  const typeLabel = APPROVAL_REQUEST_TYPE_LABELS[approval.requestType];
+  const comment = adminComment?.trim();
   await notifyApplicant(
     db,
     approval,
-    customer,
     "approval.rejected",
-    APPROVAL_NOTIFICATION_TITLES.rejected,
-    `你的${typeLabel}申请已驳回。${adminComment?.trim() ? `审批意见：${adminComment.trim()}` : ""}`,
+    "notificationTypes.approval_rejected",
+    comment
+      ? "notificationMessages.approvalRejectedWithComment"
+      : "notificationMessages.approvalRejected",
+    {
+      approvalType: approval.requestType,
+      adminComment: comment ?? "",
+    },
   );
 }
 

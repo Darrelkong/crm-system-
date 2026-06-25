@@ -12,14 +12,13 @@ export async function notifyAdminsBackupFailed(
     .from(schema.users)
     .where(eq(schema.users.role, "admin"));
 
-  const message = `系统备份失败，请尽快检查。错误：${input.errorMessage}`;
-
   for (const admin of admins) {
     await createNotification(db, {
       userId: admin.id,
       type: "backup_failed",
-      title: "系统备份失败",
-      message,
+      titleKey: "notificationTypes.backup_failed",
+      messageKey: "notificationMessages.backupFailed",
+      messageParams: { errorMessage: input.errorMessage },
       relatedEntityType: "backup_job",
       relatedEntityId: input.backupJobId,
     });
