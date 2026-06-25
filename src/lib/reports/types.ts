@@ -44,7 +44,8 @@ export type PublicPoolClaimSummary = {
   inCooldown: boolean;
   cooldownUntil: string | null;
   canClaimNow: boolean;
-  blockedReason: string | null;
+  blockedReasonKey: string | null;
+  blockedReasonParams?: Record<string, string>;
 };
 
 export type StaffDashboardStats = {

@@ -194,7 +194,8 @@ export async function getStaffDashboardStats(
       inCooldown: claimStatus.inCooldown,
       cooldownUntil: claimStatus.cooldownUntil,
       canClaimNow: claimStatus.canClaimNow,
-      blockedReason: claimStatus.blockedReason,
+      blockedReasonKey: claimStatus.blockedReasonKey,
+      blockedReasonParams: claimStatus.blockedReasonParams,
     },
   };
 }

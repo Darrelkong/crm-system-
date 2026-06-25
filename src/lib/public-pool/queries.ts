@@ -8,6 +8,19 @@ import {
 import { getStaffClaimStatus } from "./claim-limits";
 import type { StaffClaimStatus } from "./constants";
 
+export type ClaimBlockReasonKey =
+  | "notInPool"
+  | "selfReleased"
+  | "statusUnavailable"
+  | "cooldown"
+  | "quotaExceeded";
+
+export type ClaimEligibility = {
+  canClaim: boolean;
+  claimBlockedReasonKey: ClaimBlockReasonKey | null;
+  claimBlockedReasonParams?: Record<string, string>;
+};
+
 export type PublicPoolCustomerView = {
   id: string;
   customerName: string;
@@ -19,7 +32,8 @@ export type PublicPoolCustomerView = {
   accessLevel: "full" | "masked";
   isMasked: boolean;
   canClaim: boolean;
-  claimBlockedReason: string | null;
+  claimBlockedReasonKey: ClaimBlockReasonKey | null;
+  claimBlockedReasonParams?: Record<string, string>;
   phone?: string | null;
   wechatId?: string | null;
   email?: string | null;
@@ -35,51 +49,53 @@ export function evaluateCustomerClaimEligibility(
   user: User,
   customer: Customer,
   staffStatus: StaffClaimStatus | null,
-): { canClaim: boolean; claimBlockedReason: string | null } {
+): ClaimEligibility {
   if (customer.status !== "public_pool") {
     return {
       canClaim: false,
-      claimBlockedReason: "客户不在公共池",
+      claimBlockedReasonKey: "notInPool",
     };
   }
 
   if (user.role === "admin") {
-    return { canClaim: true, claimBlockedReason: null };
+    return { canClaim: true, claimBlockedReasonKey: null };
   }
 
   const releasedBy = getReleasedById(customer);
   if (releasedBy === user.id) {
     return {
       canClaim: false,
-      claimBlockedReason: "不能领取自己释放到公共池的客户",
+      claimBlockedReasonKey: "selfReleased",
     };
   }
 
   if (!staffStatus) {
-    return { canClaim: false, claimBlockedReason: "无法获取领取状态" };
+    return { canClaim: false, claimBlockedReasonKey: "statusUnavailable" };
   }
 
   if (staffStatus.inCooldown) {
     return {
       canClaim: false,
-      claimBlockedReason: "当前处于领取冷却期，请稍后再试",
+      claimBlockedReasonKey: "cooldown",
+      claimBlockedReasonParams: staffStatus.blockedReasonParams,
     };
   }
 
   if (staffStatus.remainingQuota <= 0) {
     return {
       canClaim: false,
-      claimBlockedReason: "7 天领取名额已达上限",
+      claimBlockedReasonKey: "quotaExceeded",
+      claimBlockedReasonParams: staffStatus.blockedReasonParams,
     };
   }
 
-  return { canClaim: true, claimBlockedReason: null };
+  return { canClaim: true, claimBlockedReasonKey: null };
 }
 
 export function formatPublicPoolCustomer(
   user: User,
   customer: Customer,
-  claim: { canClaim: boolean; claimBlockedReason: string | null },
+  claim: ClaimEligibility,
 ): PublicPoolCustomerView {
   const base = formatCustomerForUser(user, customer);
 
@@ -97,7 +113,8 @@ export function formatPublicPoolCustomer(
         : base.accessLevel,
     isMasked: base.isMasked,
     canClaim: claim.canClaim,
-    claimBlockedReason: claim.claimBlockedReason,
+    claimBlockedReasonKey: claim.claimBlockedReasonKey,
+    claimBlockedReasonParams: claim.claimBlockedReasonParams,
     phone: base.phone,
     wechatId: base.wechatId,
     email: base.email,
@@ -128,4 +145,23 @@ export async function formatPublicPoolListForUser(user: User) {
     );
     return formatPublicPoolCustomer(user, customer, claim);
   });
+}
+
+export function claimBlockReasonToErrorCode(
+  key: ClaimBlockReasonKey | null,
+): string | undefined {
+  switch (key) {
+    case "notInPool":
+      return "PUBLIC_POOL_CLIENT_NOT_FOUND";
+    case "selfReleased":
+      return "CLAIM_SELF_RELEASED";
+    case "cooldown":
+      return "CLAIM_COOLDOWN";
+    case "quotaExceeded":
+      return "CLAIM_QUOTA_EXCEEDED";
+    case "statusUnavailable":
+      return "CLAIM_STATUS_UNAVAILABLE";
+    default:
+      return undefined;
+  }
 }

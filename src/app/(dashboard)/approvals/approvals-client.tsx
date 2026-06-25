@@ -2,20 +2,23 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import {
-  APPROVAL_REQUEST_TYPE_LABELS,
-  APPROVAL_STATUS_LABELS,
-} from "@/lib/approvals/constants";
 import type { ApprovalListItem } from "@/lib/approvals/queries";
 import type { ApprovalRequestType, ApprovalStatus } from "../../../../drizzle/schema/approvals";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Field } from "@/components/ui/form";
+import { useTranslation } from "@/i18n/provider";
+import { resolveApiError } from "@/i18n/resolve-api-error";
+import { useCustomerLabels } from "@/i18n/use-customer-labels";
 
 type Props = {
   isAdmin: boolean;
 };
 
+const STATUS_FILTERS = ["pending", "approved", "rejected", "all"] as const;
+
 export function ApprovalsClient({ isAdmin }: Props) {
+  const { t } = useTranslation();
+  const { approvalType, approvalStatus } = useCustomerLabels();
   const [items, setItems] = useState<ApprovalListItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">("pending");
   const [loading, setLoading] = useState(true);
@@ -26,6 +29,11 @@ export function ApprovalsClient({ isAdmin }: Props) {
 
   const selected = items.find((item) => item.id === selectedId) ?? null;
 
+  function statusLabel(status: ApprovalStatus | "all") {
+    if (status === "all") return t("approvals.all");
+    return approvalStatus(status);
+  }
+
   async function loadItems(filter: ApprovalStatus | "all") {
     setLoading(true);
     setError(null);
@@ -35,14 +43,16 @@ export function ApprovalsClient({ isAdmin }: Props) {
       const data = (await res.json()) as {
         items?: ApprovalListItem[];
         error?: string;
+        errorCode?: string;
+        code?: string;
       };
       if (!res.ok) {
-        setError(data.error ?? "加载失败");
+        setError(resolveApiError(t, data));
         return;
       }
       setItems(data.items ?? []);
     } catch {
-      setError("网络错误");
+      setError(t("common.networkError"));
     } finally {
       setLoading(false);
     }
@@ -62,16 +72,20 @@ export function ApprovalsClient({ isAdmin }: Props) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminComment }),
       });
-      const data = (await res.json()) as { error?: string };
+      const data = (await res.json()) as {
+        error?: string;
+        errorCode?: string;
+        code?: string;
+      };
       if (!res.ok) {
-        setError(data.error ?? "操作失败");
+        setError(resolveApiError(t, data));
         return;
       }
       setSelectedId(null);
       setAdminComment("");
       await loadItems(statusFilter);
     } catch {
-      setError("网络错误");
+      setError(t("common.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +94,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2">
-        {(["pending", "approved", "rejected", "all"] as const).map((status) => (
+        {STATUS_FILTERS.map((status) => (
           <button
             key={status}
             type="button"
@@ -91,7 +105,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 : "bg-slate-100 text-slate-700 hover:bg-slate-200"
             }`}
           >
-            {status === "all" ? "全部" : APPROVAL_STATUS_LABELS[status]}
+            {statusLabel(status)}
           </button>
         ))}
       </div>
@@ -101,10 +115,10 @@ export function ApprovalsClient({ isAdmin }: Props) {
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-500">加载中…</p>
+        <p className="text-sm text-slate-500">{t("common.loading")}</p>
       ) : items.length === 0 ? (
         <p className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-          暂无申请记录
+          {t("approvals.noRequests")}
         </p>
       ) : (
         <div className="space-y-3">
@@ -120,14 +134,14 @@ export function ApprovalsClient({ isAdmin }: Props) {
             >
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-medium text-slate-900">
-                  {APPROVAL_REQUEST_TYPE_LABELS[item.requestType as ApprovalRequestType]}
+                  {approvalType(item.requestType as ApprovalRequestType)}
                 </span>
                 <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
-                  {APPROVAL_STATUS_LABELS[item.status]}
+                  {approvalStatus(item.status)}
                 </span>
               </div>
               <p className="mt-1 text-sm text-slate-700">
-                客户：
+                {t("approvals.customer")}：
                 <Link
                   href={`/customers/${item.customerId}`}
                   className="text-indigo-600 hover:underline"
@@ -137,8 +151,10 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 </Link>
               </p>
               <p className="mt-1 text-xs text-slate-500">
-                申请人：{item.requestedByName} · 提交于{" "}
-                {item.createdAt.slice(0, 16).replace("T", " ")}
+                {t("approvals.submittedAt", {
+                  name: item.requestedByName,
+                  date: item.createdAt.slice(0, 16).replace("T", " "),
+                })}
               </p>
             </button>
           ))}
@@ -148,39 +164,41 @@ export function ApprovalsClient({ isAdmin }: Props) {
       {selected && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900">申请详情</h3>
+            <h3 className="text-lg font-semibold text-slate-900">
+              {t("approvals.detailTitle")}
+            </h3>
             <dl className="mt-4 space-y-2 text-sm">
               <div>
-                <dt className="text-slate-500">类型</dt>
-                <dd>{APPROVAL_REQUEST_TYPE_LABELS[selected.requestType as ApprovalRequestType]}</dd>
+                <dt className="text-slate-500">{t("approvals.type")}</dt>
+                <dd>{approvalType(selected.requestType as ApprovalRequestType)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">客户</dt>
+                <dt className="text-slate-500">{t("approvals.customer")}</dt>
                 <dd>{selected.customerName}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">申请人</dt>
+                <dt className="text-slate-500">{t("approvals.requestedBy")}</dt>
                 <dd>{selected.requestedByName}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">申请原因</dt>
+                <dt className="text-slate-500">{t("approvals.reason")}</dt>
                 <dd className="whitespace-pre-wrap">{selected.reason}</dd>
               </div>
               {selected.targetUserName && (
                 <div>
-                  <dt className="text-slate-500">转移目标</dt>
+                  <dt className="text-slate-500">{t("approvals.transferTarget")}</dt>
                   <dd>{selected.targetUserName}</dd>
                 </div>
               )}
               {selected.relatedCustomerIds && selected.relatedCustomerIds.length > 0 && (
                 <div>
-                  <dt className="text-slate-500">相关客户 ID</dt>
+                  <dt className="text-slate-500">{t("approvals.relatedCustomerIds")}</dt>
                   <dd>{selected.relatedCustomerIds.join(", ")}</dd>
                 </div>
               )}
               {selected.payload && (
                 <div>
-                  <dt className="text-slate-500">申请详情</dt>
+                  <dt className="text-slate-500">{t("approvals.payloadDetails")}</dt>
                   <dd className="whitespace-pre-wrap font-mono text-xs">
                     {JSON.stringify(selected.payload, null, 2)}
                   </dd>
@@ -188,7 +206,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
               )}
               {selected.adminComment && (
                 <div>
-                  <dt className="text-slate-500">审批意见</dt>
+                  <dt className="text-slate-500">{t("approvals.reviewComment")}</dt>
                   <dd className="whitespace-pre-wrap">{selected.adminComment}</dd>
                 </div>
               )}
@@ -197,12 +215,12 @@ export function ApprovalsClient({ isAdmin }: Props) {
             {isAdmin && selected.status === "pending" && (
               <div className="mt-4">
                 <Field>
-                  <Label htmlFor="admin-comment">审批意见</Label>
+                  <Label htmlFor="admin-comment">{t("approvals.adminCommentLabel")}</Label>
                   <Input
                     id="admin-comment"
                     value={adminComment}
                     onChange={(e) => setAdminComment(e.target.value)}
-                    placeholder="可选填写审批意见"
+                    placeholder={t("approvals.adminCommentPlaceholder")}
                   />
                 </Field>
                 <div className="mt-4 flex justify-end gap-3">
@@ -212,7 +230,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
                     disabled={submitting}
                     onClick={() => setSelectedId(null)}
                   >
-                    关闭
+                    {t("common.close")}
                   </Button>
                   <Button
                     type="button"
@@ -220,14 +238,14 @@ export function ApprovalsClient({ isAdmin }: Props) {
                     disabled={submitting}
                     onClick={() => void handleReview("reject")}
                   >
-                    驳回
+                    {t("approvals.reject")}
                   </Button>
                   <Button
                     type="button"
                     disabled={submitting}
                     onClick={() => void handleReview("approve")}
                   >
-                    批准
+                    {t("approvals.approve")}
                   </Button>
                 </div>
               </div>
@@ -236,7 +254,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
             {(!isAdmin || selected.status !== "pending") && (
               <div className="mt-4 flex justify-end">
                 <Button type="button" variant="secondary" onClick={() => setSelectedId(null)}>
-                  关闭
+                  {t("common.close")}
                 </Button>
               </div>
             )}

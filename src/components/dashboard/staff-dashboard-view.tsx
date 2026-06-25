@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import { StaffClaimStatusText } from "@/components/dashboard/staff-claim-status-text";
 import { KpiCard } from "@/components/dashboard/dashboard-widgets";
 import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
 import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
@@ -120,7 +121,11 @@ export async function StaffDashboardView({ user }: { user: User }) {
           <div>
             <dt className="text-slate-500">状态说明</dt>
             <dd className="text-slate-800">
-              {claim.blockedReason ?? "可正常领取"}
+              <StaffClaimStatusText
+                canClaimNow={claim.canClaimNow}
+                blockedReasonKey={claim.blockedReasonKey}
+                blockedReasonParams={claim.blockedReasonParams}
+              />
             </dd>
           </div>
         </dl>

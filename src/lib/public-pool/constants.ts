@@ -13,7 +13,8 @@ export type StaffClaimStatus = {
   cooldownUntil: string | null;
   inCooldown: boolean;
   canClaimNow: boolean;
-  blockedReason: string | null;
+  blockedReasonKey: string | null;
+  blockedReasonParams?: Record<string, string>;
 };
 
 export type AdminClaimStatus = {
@@ -22,5 +23,5 @@ export type AdminClaimStatus = {
   claimedInLast7Days: null;
   remainingQuota: null;
   cooldownUntil: null;
-  blockedReason: null;
+  blockedReasonKey: null;
 };

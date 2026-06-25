@@ -46,7 +46,13 @@ export async function POST(request: Request) {
       error instanceof Error &&
       (error.message.startsWith("缺少") || error.message.startsWith("请上传"))
     ) {
-      return Response.json({ error: error.message }, { status: 400 });
+      return Response.json(
+        {
+          error: error.message,
+          errorCode: "IMPORT_FILE_REQUIRED",
+        },
+        { status: 400 },
+      );
     }
     return authErrorResponse(error);
   }

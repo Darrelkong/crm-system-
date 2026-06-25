@@ -14,7 +14,7 @@ export async function GET(request: Request) {
         claimedInLast7Days: null,
         remainingQuota: null,
         cooldownUntil: null,
-        blockedReason: null,
+        blockedReasonKey: null,
       });
     }
 

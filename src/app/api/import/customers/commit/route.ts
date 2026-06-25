@@ -15,7 +15,10 @@ export async function POST(request: Request) {
     const { csvText, fileName, jobId } = await readCommitBody(request);
 
     if (!jobId) {
-      return Response.json({ error: "缺少 jobId，请先预检" }, { status: 400 });
+      return Response.json(
+        { error: "缺少 jobId，请先预检", errorCode: "MISSING_JOB_ID" },
+        { status: 400 },
+      );
     }
 
     const result = await commitCustomerImport({
@@ -31,7 +34,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof ImportJobGuardError) {
       return Response.json(
-        { error: error.message, code: error.code },
+        { error: error.message, code: error.code, errorCode: error.code },
         { status: error.status },
       );
     }
@@ -39,7 +42,13 @@ export async function POST(request: Request) {
       error instanceof Error &&
       (error.message.startsWith("缺少") || error.message.startsWith("请上传"))
     ) {
-      return Response.json({ error: error.message }, { status: 400 });
+      return Response.json(
+        {
+          error: error.message,
+          errorCode: "IMPORT_FILE_REQUIRED",
+        },
+        { status: 400 },
+      );
     }
     return authErrorResponse(error);
   }

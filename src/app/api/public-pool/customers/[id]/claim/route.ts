@@ -3,7 +3,10 @@ export const dynamic = "force-dynamic";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { getCustomerById } from "@/lib/customers/queries";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
-import { evaluateCustomerClaimEligibility } from "@/lib/public-pool/queries";
+import {
+  claimBlockReasonToErrorCode,
+  evaluateCustomerClaimEligibility,
+} from "@/lib/public-pool/queries";
 import { claimCustomerFromPool } from "@/lib/public-pool/service";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
@@ -18,7 +21,10 @@ export async function POST(request: Request, context: RouteContext) {
 
     const customer = await getCustomerById(id);
     if (!customer) {
-      return Response.json({ error: "客户不存在" }, { status: 404 });
+      return Response.json(
+        { error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" },
+        { status: 404 },
+      );
     }
 
     if (customer.status !== "public_pool") {
@@ -30,7 +36,13 @@ export async function POST(request: Request, context: RouteContext) {
         ipAddress,
         userAgent,
       });
-      return Response.json({ error: "客户不在公共池" }, { status: 400 });
+      return Response.json(
+        {
+          error: "客户不在公共池",
+          errorCode: "PUBLIC_POOL_CLIENT_NOT_FOUND",
+        },
+        { status: 400 },
+      );
     }
 
     const staffStatus =
@@ -56,6 +68,10 @@ export async function POST(request: Request, context: RouteContext) {
         status = 429;
       }
 
+      const errorCode =
+        claimBlockReasonToErrorCode(eligibility.claimBlockedReasonKey) ??
+        "CANNOT_CLAIM_CLIENT";
+
       await writeAuditLog({
         userId: user.id,
         action,
@@ -63,11 +79,17 @@ export async function POST(request: Request, context: RouteContext) {
         entityId: id,
         ipAddress,
         userAgent,
-        metadata: { reason: eligibility.claimBlockedReason },
+        metadata: {
+          reasonKey: eligibility.claimBlockedReasonKey,
+          reasonParams: eligibility.claimBlockedReasonParams,
+        },
       });
 
       return Response.json(
-        { error: eligibility.claimBlockedReason ?? "无法领取该客户" },
+        {
+          error: "无法领取该客户",
+          errorCode,
+        },
         { status },
       );
     }

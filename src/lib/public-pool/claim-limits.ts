@@ -54,15 +54,18 @@ export async function getStaffClaimStatus(
     }
   }
 
-  let blockedReason: string | null = null;
+  let blockedReasonKey: string | null = null;
+  let blockedReasonParams: Record<string, string> | undefined;
   let canClaimNow = true;
 
   if (inCooldown) {
     canClaimNow = false;
-    blockedReason = `当前处于领取冷却期（${cooldownHours} 小时），请稍后再试`;
+    blockedReasonKey = "cooldown";
+    blockedReasonParams = { hours: String(cooldownHours) };
   } else if (remainingQuota <= 0) {
     canClaimNow = false;
-    blockedReason = `7 天内领取名额已达上限（${quotaLimit} 次）`;
+    blockedReasonKey = "quotaExceeded";
+    blockedReasonParams = { limit: String(quotaLimit) };
   }
 
   return {
@@ -73,6 +76,7 @@ export async function getStaffClaimStatus(
     cooldownUntil,
     inCooldown,
     canClaimNow,
-    blockedReason,
+    blockedReasonKey,
+    blockedReasonParams,
   };
 }

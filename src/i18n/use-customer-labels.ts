@@ -30,6 +30,7 @@ export function useCustomerLabels() {
     },
     completenessField: (key: string) => label("completenessFields", key),
     approvalType: (key: string) => label("customers.approvalTypes", key),
+    approvalStatus: (key: string) => label("approvalStatuses", key),
     followUpChannel: (key: string) => label("followUpChannels", key),
     followUpOutcome: (key: string) => label("followUpOutcomes", key),
     timelineType: (key: string) => label("timelineTypes", key),

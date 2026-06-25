@@ -17,6 +17,29 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   SAVE_FAILED: "errors.saveFailed",
   DELETE_FAILED: "errors.deleteFailed",
   SERVER_ERROR: "errors.serverError",
+  APPROVAL_NOT_FOUND: "errors.approvalNotFound",
+  APPROVAL_ALREADY_PROCESSED: "errors.approvalAlreadyProcessed",
+  PUBLIC_POOL_CLIENT_NOT_FOUND: "errors.publicPoolClientNotFound",
+  CLIENT_ALREADY_CLAIMED: "errors.clientAlreadyClaimed",
+  IMPORT_FILE_REQUIRED: "errors.importFileRequired",
+  IMPORT_INVALID_FILE_FORMAT: "errors.importInvalidFileFormat",
+  IMPORT_FAILED: "errors.importFailed",
+  CLAIM_SELF_RELEASED: "errors.claimSelfReleased",
+  CLAIM_COOLDOWN: "errors.claimCooldown",
+  CLAIM_QUOTA_EXCEEDED: "errors.claimQuotaExceeded",
+  CLAIM_STATUS_UNAVAILABLE: "errors.claimStatusUnavailable",
+  CANNOT_CLAIM_CLIENT: "errors.cannotClaimClient",
+  MISSING_JOB_ID: "errors.missingJobId",
+  UNAUTHORIZED: "errors.unauthorized",
+  validation: "errors.validationFailed",
+  job_not_found: "importErrorTypes.jobNotFound",
+  job_not_owned: "importErrorTypes.jobNotOwned",
+  job_already_completed: "importErrorTypes.jobAlreadyCompleted",
+  job_already_failed: "importErrorTypes.jobAlreadyFailed",
+  job_invalid_status: "importErrorTypes.jobInvalidStatus",
+  job_has_errors: "importErrorTypes.jobHasErrors",
+  precheck_has_errors: "importErrorTypes.precheckHasErrors",
+  precheck_mismatch: "importErrorTypes.precheckMismatch",
   "permission.denied.customer_access": "errors.insufficientPermissions",
   "permission.denied.customer_edit": "errors.cannotEditCustomer",
   "permission.denied.follow_up_access": "errors.cannotAddFollowUp",
@@ -77,19 +100,34 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "跟进时间格式无效": "errors.invalidFollowUpTime",
   "下次跟进时间格式无效": "errors.invalidNextFollowUpTime",
   "释放原因必填": "errors.releaseReasonRequired",
+  "申请不存在": "errors.approvalNotFound",
+  "该申请已处理，不能重复审批": "errors.approvalAlreadyProcessed",
+  "客户不在公共池": "errors.publicPoolClientNotFound",
+  "无法领取该客户": "errors.cannotClaimClient",
+  "不能领取自己释放到公共池的客户": "errors.claimSelfReleased",
+  "当前处于领取冷却期，请稍后再试": "errors.claimCooldown",
+  "7 天领取名额已达上限": "errors.claimQuotaExceeded",
+  "无法获取领取状态": "errors.claimStatusUnavailable",
+  "缺少 jobId，请先预检": "errors.missingJobId",
+  "请先上传 CSV 或粘贴 CSV 文本": "errors.importFileRequired",
+  "预检失败": "imports.precheckFailed",
+  "导入失败": "errors.importFailed",
+  "未授权": "errors.unauthorized",
+  "权限不足": "errors.insufficientPermissions",
 };
 
 export function resolveApiError(
   t: TranslateFn,
-  input?: { error?: string; errorCode?: string } | string | null,
+  input?: { error?: string; errorCode?: string; code?: string } | string | null,
 ): string {
   if (!input) return t("errors.saveFailed");
   if (typeof input === "string") {
     const key = CHINESE_MESSAGE_TO_KEY[input] ?? ERROR_CODE_TO_KEY[input];
     return key ? t(key) : input;
   }
-  if (input.errorCode) {
-    const key = ERROR_CODE_TO_KEY[input.errorCode];
+  const code = input.errorCode ?? input.code;
+  if (code) {
+    const key = ERROR_CODE_TO_KEY[code];
     if (key) return t(key);
   }
   if (input.error) {

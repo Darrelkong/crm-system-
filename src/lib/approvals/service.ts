@@ -532,10 +532,22 @@ export async function rejectApprovalRequest(
 
 export function approvalErrorResponse(error: unknown): Response {
   if (error instanceof ApprovalError) {
+    const errorCode =
+      error.code ??
+      (error.message === "申请不存在"
+        ? "APPROVAL_NOT_FOUND"
+        : error.message === "该申请已处理，不能重复审批"
+          ? "APPROVAL_ALREADY_PROCESSED"
+          : error.message === "输入校验失败"
+            ? "VALIDATION_FAILED"
+            : undefined);
     return Response.json(
-      { error: error.message, code: error.code },
+      { error: error.message, code: error.code, errorCode },
       { status: error.status },
     );
   }
-  return Response.json({ error: "服务器错误" }, { status: 500 });
+  return Response.json(
+    { error: "服务器错误", errorCode: "SERVER_ERROR" },
+    { status: 500 },
+  );
 }

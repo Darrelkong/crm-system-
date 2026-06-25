@@ -4,6 +4,9 @@ import { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/form";
 import type { ImportIssue, ImportPreviewRow } from "@/lib/import/customers/types";
+import { useTranslation } from "@/i18n/provider";
+import { resolveApiError } from "@/i18n/resolve-api-error";
+import { resolveImportIssue } from "@/i18n/resolve-import-issue";
 
 type PrecheckResponse = {
   jobId: string;
@@ -26,9 +29,11 @@ type CommitResponse = {
   warnings?: ImportIssue[];
   error?: string;
   code?: string;
+  errorCode?: string;
 };
 
 export function ImportCustomersClient() {
+  const { t } = useTranslation();
   const fileRef = useRef<HTMLInputElement>(null);
   const [csvText, setCsvText] = useState("");
   const [fileName, setFileName] = useState<string | null>(null);
@@ -50,7 +55,7 @@ export function ImportCustomersClient() {
 
   async function runPrecheck() {
     if (!csvText.trim()) {
-      setServerError("请先上传 CSV 或粘贴 CSV 文本");
+      setServerError(t("imports.chooseFileFirst"));
       return;
     }
 
@@ -65,14 +70,18 @@ export function ImportCustomersClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ csvText, fileName }),
       });
-      const data = (await res.json()) as PrecheckResponse & { error?: string };
+      const data = (await res.json()) as PrecheckResponse & {
+        error?: string;
+        errorCode?: string;
+        code?: string;
+      };
       if (!res.ok) {
-        setServerError(data.error ?? "预检失败");
+        setServerError(resolveApiError(t, data));
         return;
       }
       setPrecheck(data);
     } catch {
-      setServerError("网络错误，请稍后重试");
+      setServerError(t("common.networkError"));
     } finally {
       setLoading(null);
     }
@@ -96,12 +105,12 @@ export function ImportCustomersClient() {
       });
       const data = (await res.json()) as CommitResponse;
       if (!res.ok) {
-        setServerError(data.error ?? "导入失败");
+        setServerError(resolveApiError(t, data));
         return;
       }
       setCommitResult(data);
     } catch {
-      setServerError("网络错误，请稍后重试");
+      setServerError(t("common.networkError"));
     } finally {
       setLoading(null);
     }
@@ -116,20 +125,19 @@ export function ImportCustomersClient() {
   return (
     <div className="space-y-6">
       <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-center gap-3">
+        <p className="text-sm text-slate-600">{t("imports.supportedFormat")}</p>
+
+        <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button
             variant="secondary"
             onClick={() => {
               window.location.href = "/api/import/customers/template";
             }}
           >
-            下载 CSV 模板
+            {t("imports.downloadTemplate")}
           </Button>
-          <Button
-            variant="secondary"
-            onClick={() => fileRef.current?.click()}
-          >
-            选择 CSV 文件
+          <Button variant="secondary" onClick={() => fileRef.current?.click()}>
+            {t("imports.chooseFile")}
           </Button>
           <input
             ref={fileRef}
@@ -139,12 +147,14 @@ export function ImportCustomersClient() {
             onChange={handleFileChange}
           />
           {fileName && (
-            <span className="text-sm text-slate-500">已选：{fileName}</span>
+            <span className="text-sm text-slate-500">
+              {t("imports.selectedFile", { name: fileName })}
+            </span>
           )}
         </div>
 
         <div className="mt-4">
-          <Label htmlFor="csvText">或粘贴 CSV 文本</Label>
+          <Label htmlFor="csvText">{t("imports.pasteCsv")}</Label>
           <Textarea
             id="csvText"
             rows={8}
@@ -162,46 +172,40 @@ export function ImportCustomersClient() {
 
         <div className="mt-4 flex gap-3">
           <Button onClick={runPrecheck} disabled={loading !== null}>
-            {loading === "precheck" ? "预检中…" : "预检"}
+            {loading === "precheck" ? t("imports.prechecking") : t("imports.precheck")}
           </Button>
           {canCommit && (
-            <Button
-              variant="primary"
-              onClick={runCommit}
-              disabled={loading !== null}
-            >
-              {loading === "commit" ? "导入中…" : "确认导入"}
+            <Button variant="primary" onClick={runCommit} disabled={loading !== null}>
+              {loading === "commit" ? t("imports.importing") : t("imports.confirmImport")}
             </Button>
           )}
         </div>
 
-        {serverError && (
-          <p className="mt-3 text-sm text-red-600">{serverError}</p>
-        )}
+        {serverError && <p className="mt-3 text-sm text-red-600">{serverError}</p>}
       </div>
 
       {precheck && (
         <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-slate-900">预检结果</h3>
+          <h3 className="text-lg font-medium text-slate-900">{t("imports.precheckResults")}</h3>
           <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Stat label="总行数" value={precheck.totalRows} />
-            <Stat label="可导入行数" value={precheck.validRows} />
-            <Stat label="错误行数" value={precheck.invalidRows} />
-            <Stat label="重复行数" value={precheck.duplicateRows} />
+            <Stat label={t("imports.totalRows")} value={precheck.totalRows} />
+            <Stat label={t("imports.validRows")} value={precheck.validRows} />
+            <Stat label={t("imports.invalidRows")} value={precheck.invalidRows} />
+            <Stat label={t("imports.duplicateRows")} value={precheck.duplicateRows} />
           </dl>
 
           {precheck.errors.length > 0 && (
             <div className="mt-6">
-              <h4 className="text-sm font-medium text-slate-900">错误明细</h4>
+              <h4 className="text-sm font-medium text-slate-900">{t("imports.errorDetails")}</h4>
               <div className="mt-2 overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead>
                     <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="px-3 py-2">行号</th>
-                      <th className="px-3 py-2">字段</th>
-                      <th className="px-3 py-2">代码</th>
-                      <th className="px-3 py-2">说明</th>
-                      <th className="px-3 py-2">值</th>
+                      <th className="px-3 py-2">{t("imports.row")}</th>
+                      <th className="px-3 py-2">{t("imports.field")}</th>
+                      <th className="px-3 py-2">{t("imports.code")}</th>
+                      <th className="px-3 py-2">{t("imports.errorReason")}</th>
+                      <th className="px-3 py-2">{t("imports.value")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -210,7 +214,7 @@ export function ImportCustomersClient() {
                         <td className="px-3 py-2">{err.rowNumber}</td>
                         <td className="px-3 py-2">{err.field}</td>
                         <td className="px-3 py-2 font-mono text-xs">{err.code}</td>
-                        <td className="px-3 py-2">{err.message}</td>
+                        <td className="px-3 py-2">{resolveImportIssue(t, err)}</td>
                         <td className="px-3 py-2 font-mono text-xs">{err.value ?? "—"}</td>
                       </tr>
                     ))}
@@ -222,24 +226,31 @@ export function ImportCustomersClient() {
 
           {precheck.warnings.length > 0 && (
             <div className="mt-6">
-              <h4 className="text-sm font-medium text-amber-700">警告（不阻止导入）</h4>
+              <h4 className="text-sm font-medium text-amber-700">{t("imports.warningsTitle")}</h4>
               <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-800">
                 {precheck.warnings.map((w, i) => (
                   <li key={i}>
-                    第 {w.rowNumber} 行 · {w.message}
+                    {t("imports.warningRow", {
+                      row: String(w.rowNumber),
+                      message: resolveImportIssue(t, w),
+                    })}
                   </li>
                 ))}
               </ul>
             </div>
+          )}
+
+          {precheck.previewRows.length === 0 && precheck.errors.length === 0 && (
+            <p className="mt-4 text-sm text-slate-500">{t("imports.noPreviewData")}</p>
           )}
         </div>
       )}
 
       {commitResult && (
         <div className="rounded-xl border border-green-200 bg-green-50 p-6">
-          <h3 className="text-lg font-medium text-green-900">导入成功</h3>
+          <h3 className="text-lg font-medium text-green-900">{t("imports.importSuccess")}</h3>
           <p className="mt-2 text-sm text-green-800">
-            成功导入 {commitResult.importedCount} 条客户
+            {t("imports.importedCount", { count: String(commitResult.importedCount) })}
           </p>
           {commitResult.createdCustomerIds.length > 0 && (
             <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-green-900">
