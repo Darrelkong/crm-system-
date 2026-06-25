@@ -2,17 +2,17 @@
 
 内部客户关系管理系统 — Next.js + TypeScript + Tailwind CSS，部署于 Cloudflare Pages / Workers，数据存储于 Cloudflare D1。
 
-## 当前阶段：Phase 15B
+## 当前阶段：生产已上线
 
-Cloudflare 远程环境准备 + 预览部署准备（**未绑定正式域名，未执行 remote 操作**）。
+正式域名：**https://crm.echfronthk.com**（Workers Custom Domain）
+
+预览地址（仍可用）：https://crm-system.danielmuzg.workers.dev
 
 | 文档 | 说明 |
 |------|------|
-| [docs/PHASE_15B_REMOTE_PREP.md](./docs/PHASE_15B_REMOTE_PREP.md) | **本阶段** — 配置清单、migration/seed/deploy 命令模板 |
 | [docs/DEPLOYMENT.md](./docs/DEPLOYMENT.md) | 完整部署指南 |
 | [docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md](./docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md) | 权限回归清单 |
-
-**阻塞项：** 需先 `npx wrangler login`；`database_id` 仍为占位符，替换前勿 deploy / remote migrate。
+| [docs/PHASE_15B_REMOTE_PREP.md](./docs/PHASE_15B_REMOTE_PREP.md) | 远程环境准备记录 |
 
 **Turnstile：** 未启用。**Debug API：** 生产默认关闭。
 

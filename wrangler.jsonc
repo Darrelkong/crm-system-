@@ -28,5 +28,11 @@
       "bucket_name": "crm-attachments",
       "preview_bucket_name": "crm-attachments-preview"
     }
+  ],
+  "routes": [
+    {
+      "pattern": "crm.echfronthk.com",
+      "custom_domain": true
+    }
   ]
 }

@@ -99,8 +99,8 @@ npm run db:seed:remote
 | R2 绑定 | `ATTACHMENTS` → `crm-attachments` |
 | 静态资源 | `ASSETS` → `.open-next/assets` |
 | 自引用 Service | `WORKER_SELF_REFERENCE` |
-
-**上线前必须将下列占位符替换为生产真实值**（见 [3.6 部署配置占位符清单](#36-部署配置占位符清单上线前必须替换)）。
+| 正式域名 | `crm.echfronthk.com`（Workers Custom Domain，`wrangler.jsonc` → `routes`） |
+| 预览地址 | `crm-system.danielmuzg.workers.dev` |
 
 ### 3.2 D1 数据库
 
@@ -174,7 +174,7 @@ npm run cron:backup:deploy
 | 位置 | 变量 / 项 | 说明 |
 |------|-----------|------|
 | Cloudflare Dashboard → Worker 变量 | `SESSION_SECRET` | **上线前必须**设为强随机值 |
-| Cloudflare Dashboard | 自定义域名 / Route | 绑定正式域名前在 Dashboard 配置（本仓库无 route 占位文件） |
+| `wrangler.jsonc` → `routes` | Custom Domain | `crm.echfronthk.com`（`custom_domain: true`） |
 | 本地 `.dev.vars` / CI | `CLOUDFLARE_ACCOUNT_ID` | 远程 CLI 操作时需要 |
 
 当前仓库**未**包含 `account_id` 字段（Wrangler 从登录账号推断）；`database_id` 三处均为明显占位 UUID，**上线前必须替换**。
@@ -392,7 +392,7 @@ npx wrangler d1 export crm-db --remote --output=backup-$(date +%Y%m%d).sql
 | Debug API | 默认开启 | 默认关闭 |
 | Turnstile | 未启用 | 未启用 |
 | Cron | 需手动触发或部署 Cron Worker | 按 UTC 调度自动执行 |
-| 域名 | localhost:3000 | 待绑定自定义域名 |
+| 域名 | localhost:3000 | `crm.echfronthk.com`（+ workers.dev 预览） |
 
 ---
 
