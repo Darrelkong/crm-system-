@@ -65,6 +65,7 @@ export default async function EditCustomerPage({ params }: Props) {
         descriptionParams={{ name: customer.customerName }}
       />
       <EditCustomerForm
+        canEditStatus={user.role === "admin"}
         initial={{
           id: customer.id,
           customerName: customer.customerName,

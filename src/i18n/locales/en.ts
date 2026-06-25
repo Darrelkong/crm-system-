@@ -939,6 +939,8 @@ const en = {
     archivedCustomer: "This client is archived and cannot be modified.",
     cannotEditPublicPool: "You cannot edit public pool clients.",
     cannotEditCustomer: "You cannot edit this client.",
+    cannotChangeCustomerStatus:
+      "Staff cannot change client status through edit. Use release to pool or approval workflows instead.",
     cannotAddFollowUp: "You cannot add follow-ups for this client.",
     cannotViewFollowUps: "You cannot view follow-ups for this client.",
     cannotViewTimeline: "You cannot view this client's timeline.",

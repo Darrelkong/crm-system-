@@ -49,6 +49,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   precheck_mismatch: "importErrorTypes.precheckMismatch",
   "permission.denied.customer_access": "errors.insufficientPermissions",
   "permission.denied.customer_edit": "errors.cannotEditCustomer",
+  "permission.denied.customer_status_change": "errors.cannotChangeCustomerStatus",
   "permission.denied.follow_up_access": "errors.cannotAddFollowUp",
   "permission.denied.customer_timeline_access": "errors.cannotViewTimeline",
   "customer.release_to_pool_failed.permission_denied": "errors.cannotReleaseCustomer",

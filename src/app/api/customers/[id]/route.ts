@@ -5,6 +5,7 @@ import { getDb, schema } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
   assertCanEditCustomer,
+  assertStaffCannotChangeCustomerStatus,
   PermissionError,
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
@@ -83,10 +84,36 @@ export async function PATCH(request: Request, context: RouteContext) {
     const body = (await request.json()) as Record<string, unknown>;
     const input = parseCustomerBody(body);
 
-    const fieldErrors = validateCustomerInput(input, {
-      isUpdate: true,
-      existingNotes: existing.notes,
-    });
+    try {
+      assertStaffCannotChangeCustomerStatus(user, existing, body);
+    } catch (err) {
+      if (err instanceof PermissionError) {
+        await logPermissionDenied(request, {
+          action: err.auditAction ?? "permission.denied.customer_status_change",
+          userId: user.id,
+          entityType: "customer",
+          entityId: id,
+          metadata: {
+            ownerId: existing.ownerId,
+            currentStatus: existing.status,
+            requestedStatus:
+              typeof body.status === "string" ? body.status : undefined,
+          },
+        });
+      }
+      throw err;
+    }
+
+    const updateStatus =
+      user.role === "admin" ? input.status! : existing.status;
+
+    const fieldErrors = validateCustomerInput(
+      { ...input, status: updateStatus },
+      {
+        isUpdate: true,
+        existingNotes: existing.notes,
+      },
+    );
     if (fieldErrors.length > 0) {
       await writeAuditLog({
         userId: user.id,
@@ -115,7 +142,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       requestedProjectName: input.requestedProjectName ?? null,
       notes: input.notes ?? null,
       salesStage: input.salesStage!,
-      status: input.status!,
+      status: updateStatus,
     });
 
     const duplicates = await checkCustomerDuplicates(

@@ -915,6 +915,8 @@ const zhHant: Messages = {
     archivedCustomer: "該客戶已歸檔，不能執行此操作。",
     cannotEditPublicPool: "無權編輯公共池客戶。",
     cannotEditCustomer: "無權編輯該客戶。",
+    cannotChangeCustomerStatus:
+      "員工不能通過編輯修改客戶狀態。請使用釋放到公共池或審批等正式流程。",
     cannotAddFollowUp: "無權為該客戶新增跟進。",
     cannotViewFollowUps: "無權查看該客戶跟進記錄。",
     cannotViewTimeline: "無權查看該客戶時間線。",

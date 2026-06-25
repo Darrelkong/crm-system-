@@ -38,7 +38,13 @@ export type EditCustomerInitial = {
   status: string;
 };
 
-export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) {
+export function EditCustomerForm({
+  initial,
+  canEditStatus = false,
+}: {
+  initial: EditCustomerInitial;
+  canEditStatus?: boolean;
+}) {
   const router = useRouter();
   const { t, source, salesStage, customerType, status, fieldLabel } = useCustomerLabels();
   const [submitting, setSubmitting] = useState(false);
@@ -93,10 +99,13 @@ export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) 
     }
 
     try {
+      const { status: _status, ...fieldsWithoutStatus } = form;
+      const submitBody = canEditStatus ? form : fieldsWithoutStatus;
+
       const res = await fetch(`/api/customers/${initial.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submitBody),
       });
 
       const data = (await res.json()) as {
@@ -217,17 +226,26 @@ export function EditCustomerForm({ initial }: { initial: EditCustomerInitial }) 
 
         <Field>
           <Label htmlFor="status">{t("customers.status")}</Label>
-          <Select
-            id="status"
-            value={form.status}
-            onChange={(e) => set("status", e.target.value)}
-          >
-            {STATUS_KEYS.map((s) => (
-              <option key={s} value={s}>
-                {status(s)}
-              </option>
-            ))}
-          </Select>
+          {canEditStatus ? (
+            <Select
+              id="status"
+              value={form.status}
+              onChange={(e) => set("status", e.target.value)}
+            >
+              {STATUS_KEYS.map((s) => (
+                <option key={s} value={s}>
+                  {status(s)}
+                </option>
+              ))}
+            </Select>
+          ) : (
+            <p
+              id="status"
+              className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+            >
+              {status(form.status)}
+            </p>
+          )}
           {fieldErrors.status && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.status}</p>
           )}

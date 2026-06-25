@@ -147,6 +147,27 @@ export function assertCanEditCustomer(user: User, customer: Customer): void {
   }
 }
 
+/** Staff cannot change customer status via the general edit PATCH. */
+export function assertStaffCannotChangeCustomerStatus(
+  user: User,
+  customer: Customer,
+  body: Record<string, unknown>,
+): void {
+  if (user.role === "admin") {
+    return;
+  }
+  if (
+    typeof body.status === "string" &&
+    body.status !== customer.status
+  ) {
+    throw new PermissionError(
+      403,
+      "员工不能通过编辑修改客户状态",
+      "permission.denied.customer_status_change",
+    );
+  }
+}
+
 export function canEditCustomer(user: User, customer: Customer): boolean {
   if (isArchivedCustomer(customer)) return false;
   if (user.role === "admin") return true;
