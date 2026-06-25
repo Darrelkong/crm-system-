@@ -71,9 +71,18 @@ export async function requireStaff(request?: Request): Promise<User> {
 
 export function authErrorResponse(error: unknown): Response {
   if (error instanceof AuthError || error instanceof PermissionError) {
-    return Response.json({ error: error.message }, { status: error.status });
+    return Response.json(
+      {
+        error: error.message,
+        errorCode: error.auditAction ?? "INSUFFICIENT_PERMISSIONS",
+      },
+      { status: error.status },
+    );
   }
-  return Response.json({ error: "服务器错误" }, { status: 500 });
+  return Response.json(
+    { error: "服务器错误", errorCode: "SERVER_ERROR" },
+    { status: 500 },
+  );
 }
 
 export function getRoleDashboardPath(role: User["role"]): string {

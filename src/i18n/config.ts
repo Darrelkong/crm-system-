@@ -1,9 +1,20 @@
-export const locales = ["zh-CN", "zh-TW", "en"] as const;
+export const LOCALE_STORAGE_KEY = "crm_locale";
 
-export type Locale = (typeof locales)[number];
+export const DEFAULT_LOCALE = "en" as const;
 
-export const defaultLocale: Locale = "zh-CN";
+export const SUPPORTED_LOCALES = [
+  { code: "en", label: "English" },
+  { code: "zh-Hant", label: "繁體中文" },
+  { code: "zh-Hans", label: "简体中文" },
+] as const;
+
+export type Locale = (typeof SUPPORTED_LOCALES)[number]["code"];
+
+export const locales = SUPPORTED_LOCALES.map((l) => l.code) as Locale[];
 
 export function isLocale(value: string): value is Locale {
-  return (locales as readonly string[]).includes(value);
+  return locales.includes(value as Locale);
 }
+
+/** @deprecated Use DEFAULT_LOCALE */
+export const defaultLocale: Locale = DEFAULT_LOCALE;

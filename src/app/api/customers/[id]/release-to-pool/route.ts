@@ -21,7 +21,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const customer = await getCustomerById(id);
     if (!customer) {
-      return Response.json({ error: "客户不存在" }, { status: 404 });
+      return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
     }
 
     try {
@@ -54,7 +54,8 @@ export async function POST(request: Request, context: RouteContext) {
       return Response.json(
         {
           error: "输入校验失败",
-          fieldErrors: [{ field: "reason", message: "释放原因必填" }],
+          errorCode: "VALIDATION_FAILED",
+          fieldErrors: [{ field: "reason", message: "释放原因必填", code: "RELEASE_REASON_REQUIRED" }],
         },
         { status: 400 },
       );

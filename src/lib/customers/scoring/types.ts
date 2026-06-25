@@ -8,10 +8,15 @@ export const HEAT_LEVELS = [
 
 export type HeatLevel = (typeof HEAT_LEVELS)[number];
 
+export type HeatReasonPart = {
+  key: string;
+  params?: Record<string, string>;
+};
+
 export type CustomerScores = {
   heatLevel: HeatLevel;
   completenessScore: number;
-  heatReason?: string;
+  heatReasonKeys?: HeatReasonPart[];
   completenessMissingFields?: string[];
 };
 

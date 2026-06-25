@@ -13,8 +13,8 @@ export default async function NotificationsLayout({
 
   return (
     <DashboardShell
-      title="通知中心"
-      roleLabel={user.role === "admin" ? "Admin" : "Staff"}
+      titleKey="notifications.title"
+      role={user.role}
       userName={user.displayName}
       userEmail={user.email}
       navLinks={getRoleNavLinks(user, "/notifications")}

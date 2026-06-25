@@ -11,8 +11,8 @@ export default async function StaffLayout({
 
   return (
     <DashboardShell
-      title="员工工作台"
-      roleLabel="Staff"
+      titleKey="layout.staffDashboard"
+      role="staff"
       userName={user.displayName}
       userEmail={user.email}
       navLinks={getStaffNavLinks()}

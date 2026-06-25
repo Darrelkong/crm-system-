@@ -12,9 +12,14 @@ function daysSince(iso: string, now: Date): number {
   );
 }
 
+export type HeatReasonPart = {
+  key: string;
+  params?: Record<string, string>;
+};
+
 export type HeatResult = {
   heatLevel: HeatLevel;
-  heatReason: string;
+  heatReasonKeys: HeatReasonPart[];
 };
 
 export function calculateCustomerHeat(
@@ -36,28 +41,35 @@ export function calculateCustomerHeat(
   );
 
   const warn1 = settings.reclaimWarningDay1;
-  const warn2 = settings.reclaimWarningDay2;
   const reclaimDays = settings.automaticReclaimDays;
 
   if (
     daysWithoutValid >= warn1 ||
-    daysWithoutValid >= warn2 ||
     nextOverdue ||
     daysWithoutValid >= Math.max(1, reclaimDays - 1)
   ) {
-    const parts: string[] = [];
+    const parts: HeatReasonPart[] = [];
     if (daysWithoutValid >= warn1) {
-      parts.push(`已 ${daysWithoutValid} 天无有效跟进（达预警阈值 ${warn1} 天）`);
+      parts.push({
+        key: "longNoValidFollowUp",
+        params: {
+          days: String(daysWithoutValid),
+          threshold: String(warn1),
+        },
+      });
     }
     if (nextOverdue) {
-      parts.push("下次跟进已超期");
+      parts.push({ key: "nextFollowUpOverdue" });
     }
     if (daysWithoutValid >= Math.max(1, reclaimDays - 1)) {
-      parts.push(`接近自动回收阈值（${reclaimDays} 天）`);
+      parts.push({
+        key: "nearReclaimThreshold",
+        params: { days: String(reclaimDays) },
+      });
     }
     return {
       heatLevel: "high_churn_risk",
-      heatReason: parts.join("；") || "流失风险较高",
+      heatReasonKeys: parts.length > 0 ? parts : [{ key: "default" }],
     };
   }
 
@@ -72,36 +84,43 @@ export function calculateCustomerHeat(
     activeStage ||
     (nextScheduled && !neverValid)
   ) {
-    const parts: string[] = [];
-    if (recentValid7) parts.push("近 7 天内有有效跟进");
-    if (activeStage) parts.push("销售阶段较活跃");
-    if (nextScheduled && !neverValid) parts.push("已安排下次跟进且未超期");
+    const parts: HeatReasonPart[] = [];
+    if (recentValid7) {
+      parts.push({ key: "recentFollowUpDays", params: { days: "7" } });
+    }
+    if (activeStage) parts.push({ key: "highIntent" });
+    if (nextScheduled && !neverValid) parts.push({ key: "nextFollowUpScheduled" });
     return {
       heatLevel: "high",
-      heatReason: parts.join("；") || "客户活跃度较高",
+      heatReasonKeys: parts.length > 0 ? parts : [{ key: "recentFollowUp" }],
     };
   }
 
   if (recentValid14 || nextScheduled) {
     return {
       heatLevel: "medium",
-      heatReason: recentValid14
-        ? "近 14 天内有有效跟进"
-        : "已设置下次跟进且未超期",
+      heatReasonKeys: recentValid14
+        ? [{ key: "recentFollowUpDays", params: { days: "14" } }]
+        : [{ key: "nextFollowUpScheduled" }],
     };
   }
 
   if (neverValid || (daysSinceLastValid !== null && daysSinceLastValid > 14)) {
     return {
       heatLevel: "silent",
-      heatReason: neverValid
-        ? "从未有效跟进"
-        : `超过 14 天无有效跟进（${daysSinceLastValid} 天）`,
+      heatReasonKeys: neverValid
+        ? [{ key: "newClient" }]
+        : [
+            {
+              key: "longNoFollowUp",
+              params: { days: String(daysSinceLastValid) },
+            },
+          ],
     };
   }
 
   return {
     heatLevel: "low",
-    heatReason: "有基本资料但近期跟进较少",
+    heatReasonKeys: [{ key: "lowActivity" }],
   };
 }

@@ -23,7 +23,7 @@ export async function POST(request: Request, context: RouteContext) {
 
     const customer = await getCustomerById(id);
     if (!customer) {
-      return Response.json({ error: "客户不存在" }, { status: 404 });
+      return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
     }
 
     try {

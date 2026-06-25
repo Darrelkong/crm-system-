@@ -11,8 +11,8 @@ export default async function AdminLayout({
 
   return (
     <DashboardShell
-      title="管理员工作台"
-      roleLabel="Admin"
+      titleKey="layout.adminDashboard"
+      role="admin"
       userName={user.displayName}
       userEmail={user.email}
       navLinks={getAdminNavLinks()}

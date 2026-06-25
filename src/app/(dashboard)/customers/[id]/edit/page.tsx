@@ -1,6 +1,5 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { requireAuth } from "@/lib/permissions/auth";
 import { getCustomerById } from "@/lib/customers/queries";
 import {
@@ -8,7 +7,8 @@ import {
   assertCanViewCustomerFullDetails,
   PermissionError,
 } from "@/lib/permissions/customers";
-import { PageHeader } from "@/components/ui/card";
+import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
+import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { EditCustomerForm } from "./edit-customer-form";
 import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
@@ -22,26 +22,22 @@ export default async function EditCustomerPage({ params }: Props) {
 
   if (!customer) {
     return (
-      <div className="rounded-lg border border-slate-200 bg-white p-8 text-center">
-        <p className="text-slate-500">客户不存在或已被删除。</p>
-        <Link href="/customers" className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
-          返回客户列表
-        </Link>
-      </div>
+      <CustomerStatePanel
+        titleKey="customers.notFound"
+        backHref="/customers"
+      />
     );
   }
 
   if (!canEditCustomer(user, customer)) {
     return (
-      <div className="rounded-lg border border-red-200 bg-red-50 p-8 text-center">
-        <p className="font-medium text-red-700">无权编辑该客户</p>
-        <p className="mt-1 text-sm text-red-600">
-          你没有权限编辑此客户的资料。
-        </p>
-        <Link href={`/customers/${id}`} className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
-          返回客户详情
-        </Link>
-      </div>
+      <CustomerStatePanel
+        titleKey="customers.noEditAccess"
+        descriptionKey="customers.noEditAccessDetail"
+        backHref={`/customers/${id}`}
+        backKey="customers.backToDetails"
+        variant="error"
+      />
     );
   }
 
@@ -50,12 +46,12 @@ export default async function EditCustomerPage({ params }: Props) {
   } catch (err) {
     if (err instanceof PermissionError) {
       return (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-8 text-center">
-          <p className="font-medium text-red-700">无权编辑该客户</p>
-          <Link href={`/customers/${id}`} className="mt-4 inline-block text-sm text-indigo-600 hover:underline">
-            返回客户详情
-          </Link>
-        </div>
+        <CustomerStatePanel
+          titleKey="customers.noEditAccess"
+          backHref={`/customers/${id}`}
+          backKey="customers.backToDetails"
+          variant="error"
+        />
       );
     }
     throw err;
@@ -63,9 +59,10 @@ export default async function EditCustomerPage({ params }: Props) {
 
   return (
     <div>
-      <PageHeader
-        title="编辑客户"
-        description={`正在编辑：${customer.customerName}`}
+      <TranslatedPageHeader
+        titleKey="customers.editClient"
+        descriptionKey="customers.editingDescription"
+        descriptionParams={{ name: customer.customerName }}
       />
       <EditCustomerForm
         initial={{

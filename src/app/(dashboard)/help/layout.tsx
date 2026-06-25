@@ -13,8 +13,8 @@ export default async function HelpLayout({
 
   return (
     <DashboardShell
-      title="帮助中心"
-      roleLabel={user.role === "admin" ? "Admin" : "Staff"}
+      titleKey="help.title"
+      role={user.role}
       userName={user.displayName}
       userEmail={user.email}
       navLinks={getRoleNavLinks(user, "/help")}

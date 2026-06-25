@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/ui/card";
+import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { requireStaff } from "@/lib/permissions/auth";
 import { StaffDashboardView } from "@/components/dashboard/staff-dashboard-view";
 
@@ -9,9 +9,10 @@ export default async function StaffDashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title={`你好，${user.displayName}`}
-        description="我的工作台数据"
+      <TranslatedPageHeader
+        titleKey="layout.greeting"
+        titleParams={{ name: user.displayName }}
+        descriptionKey="brand.dashboardSubtitle"
       />
       <StaffDashboardView user={user} />
     </div>

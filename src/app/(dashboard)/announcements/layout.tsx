@@ -13,8 +13,8 @@ export default async function AnnouncementsLayout({
 
   return (
     <DashboardShell
-      title="公告"
-      roleLabel={user.role === "admin" ? "Admin" : "Staff"}
+      titleKey="announcements.title"
+      role={user.role}
       userName={user.displayName}
       userEmail={user.email}
       navLinks={getRoleNavLinks(user, "/announcements")}

@@ -56,7 +56,7 @@ export function getCustomerScores(
   const scores: CustomerScores = {
     heatLevel: heat.heatLevel,
     completenessScore: completeness.completenessScore,
-    heatReason: heat.heatReason,
+    heatReasonKeys: heat.heatReasonKeys,
   };
 
   if (options?.includeMissingFields) {
@@ -75,7 +75,7 @@ export function attachScoresToView(
     ...view,
     heatLevel: scores.heatLevel,
     completenessScore: scores.completenessScore,
-    heatReason: includeDetails ? scores.heatReason : undefined,
+    heatReasonKeys: includeDetails ? scores.heatReasonKeys : undefined,
     completenessMissingFields: includeDetails
       ? scores.completenessMissingFields
       : undefined,

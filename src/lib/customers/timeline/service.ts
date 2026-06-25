@@ -5,32 +5,43 @@ import {
   getCustomerAccessLevel,
   PermissionError,
 } from "@/lib/permissions/customers";
-import {
-  APPROVAL_REQUEST_TYPE_LABELS,
-  APPROVAL_STATUS_LABELS,
-} from "@/lib/approvals/constants";
-import {
-  FOLLOW_UP_CHANNEL_LABELS,
-  type FollowUpChannel,
-} from "@/lib/constants/follow-up-channels";
-import {
-  FOLLOW_UP_OUTCOME_LABELS,
-  type FollowUpOutcome,
-} from "@/lib/constants/follow-up-outcomes";
 import type { Customer } from "../../../../drizzle/schema/customers";
 import type { User } from "../../../../drizzle/schema/users";
 import {
-  AUDIT_ACTION_LABELS,
   CUSTOMER_TIMELINE_AUDIT_ACTIONS,
-  FIELD_NAME_LABELS,
   SENSITIVE_FIELD_NAMES,
-  TASK_STATUS_LABELS,
   TASK_TIMELINE_AUDIT_ACTIONS,
-  TASK_TYPE_LABELS,
 } from "./constants";
 import type { TimelineItem, TimelineResponse } from "./types";
 
 type Visibility = "full" | "masked";
+
+const AUDIT_ACTION_MESSAGE_KEYS: Record<string, string> = {
+  "customer.created": "customerCreated",
+  "customer.updated": "customerUpdated",
+  "customer.imported": "customerImported",
+  "customer.released_to_pool": "customerReleasedToPool",
+  "customer.claimed_from_pool": "customerClaimedFromPool",
+  "customer.auto_reclaimed_to_pool": "customerAutoReclaimed",
+  "customer.transferred": "customerTransferred",
+  "customer.closed_won.approved": "customerClosedWonApproved",
+  "customer.deleted.soft": "customerSoftDeleted",
+  "customer.auto_reclaim_warning.day_6": "autoReclaimWarningDay6",
+  "customer.auto_reclaim_warning.day_7": "autoReclaimWarningDay7",
+  "task.created": "taskCreatedAudit",
+  "task.created.first_contact": "taskFirstContactCreated",
+  "task.updated": "taskUpdatedAudit",
+  "task.completed": "taskCompletedAudit",
+  "task.cancelled.auto_reclaim": "taskCancelledAutoReclaim",
+};
+
+const TASK_EVENT_TITLE_KEYS = {
+  created: "taskCreated",
+  completed: "taskCompleted",
+  cancelled: "taskCancelled",
+} as const;
+
+const EMPTY_MARKER = "__empty__";
 
 function isMaskedTimeline(accessLevel: ReturnType<typeof getCustomerAccessLevel>): boolean {
   return accessLevel === "masked" || accessLevel === "archived_basic";
@@ -72,9 +83,9 @@ async function loadActorNames(
 function actorFromMap(
   map: Map<string, string>,
   userId: string | null | undefined,
-): string {
-  if (!userId) return "系统";
-  return map.get(userId) ?? "未知用户";
+): { name: string; isSystem: boolean } {
+  if (!userId) return { name: "", isSystem: true };
+  return { name: map.get(userId) ?? "", isSystem: false };
 }
 
 function parseAuditMetadata(raw: string | null): Record<string, unknown> {
@@ -84,6 +95,10 @@ function parseAuditMetadata(raw: string | null): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+function displayValue(value: string | null | undefined): string {
+  return value?.trim() ? value : EMPTY_MARKER;
 }
 
 function buildAuditItem(
@@ -98,35 +113,60 @@ function buildAuditItem(
   }
 
   const metadata = parseAuditMetadata(row.metadata);
-  const title = AUDIT_ACTION_LABELS[row.action] ?? row.action;
+  const titleKey = `timelineMessages.${
+    AUDIT_ACTION_MESSAGE_KEYS[row.action] ?? "customerUpdated"
+  }`;
   const isSystem =
     !row.userId ||
     row.action.startsWith("customer.auto_reclaim") ||
     row.action === "task.cancelled.auto_reclaim";
 
-  let description = title;
+  let descriptionKey: string | undefined;
+  let descriptionParams: Record<string, string> | undefined;
+
   if (row.action === "customer.released_to_pool" && metadata.poolReason) {
-    description = `释放原因：${String(metadata.poolReason)}`;
+    descriptionKey = "timelineMessages.releasedToPoolReason";
+    descriptionParams = { reason: String(metadata.poolReason) };
   } else if (row.action === "customer.imported" && metadata.importJobId) {
-    description = `导入任务：${String(metadata.importJobId)}`;
+    descriptionKey = "timelineMessages.importedJob";
+    descriptionParams = { jobId: String(metadata.importJobId) };
   } else if (isTaskAudit) {
     const parts: string[] = [];
-    if (metadata.taskType) parts.push(TASK_TYPE_LABELS[String(metadata.taskType)] ?? String(metadata.taskType));
-    if (metadata.dueAt) parts.push(`截止：${String(metadata.dueAt).slice(0, 16).replace("T", " ")}`);
-    if (parts.length > 0) description = parts.join(" · ");
+    if (metadata.taskType) parts.push(String(metadata.taskType));
+    if (metadata.dueAt) {
+      descriptionKey = "timelineMessages.taskDue";
+      descriptionParams = {
+        dueAt: String(metadata.dueAt).slice(0, 16).replace("T", " "),
+      };
+    }
+    if (parts.length > 0 && !descriptionKey) {
+      descriptionKey = "timelineMessages.taskDescription";
+      descriptionParams = {
+        title: String(metadata.title ?? ""),
+        type: String(metadata.taskType ?? ""),
+        status: String(metadata.status ?? ""),
+      };
+    }
   }
 
   const sensitive =
     visibility === "masked" &&
-    (row.action === "customer.updated" ||
-      row.action === "customer.imported");
+    (row.action === "customer.updated" || row.action === "customer.imported");
+
+  const actor = isSystem
+    ? { name: "", isSystem: true }
+    : actorFromMap(actorMap, row.userId);
 
   return {
     id: `audit-${row.id}`,
     type: "audit",
-    title,
-    description: sensitive ? "操作详情已隐藏（脱敏）" : description,
-    actorName: isSystem ? "系统" : actorFromMap(actorMap, row.userId),
+    titleKey,
+    descriptionKey: sensitive
+      ? "timelineMessages.detailsHidden"
+      : descriptionKey,
+    descriptionParams: sensitive ? undefined : descriptionParams,
+    actorName: actor.name,
+    actorIsSystem: actor.isSystem,
     occurredAt: row.createdAt,
     metadata: {
       category: isSystem ? "system" : "customer",
@@ -142,40 +182,43 @@ function buildFieldChangeItem(
   actorMap: Map<string, string>,
   visibility: Visibility,
 ): TimelineItem {
-  const fieldLabel = FIELD_NAME_LABELS[row.fieldName] ?? row.fieldName;
   const isSensitive = SENSITIVE_FIELD_NAMES.has(row.fieldName);
+  const actor = actorFromMap(actorMap, row.changedBy);
 
   if (visibility === "masked" && isSensitive) {
     return {
       id: `field-${row.id}`,
       type: "field_change",
-      title: "字段变更",
-      description: "敏感字段已变更",
-      actorName: actorFromMap(actorMap, row.changedBy),
+      titleKey: "timelineMessages.fieldChanged",
+      titleParams: { field: row.fieldName },
+      descriptionKey: "timelineMessages.sensitiveFieldChanged",
+      actorName: actor.name,
+      actorIsSystem: actor.isSystem,
       occurredAt: row.changedAt,
       metadata: {
         category: "field_change",
         field_name: row.fieldName,
-        field_label: fieldLabel,
       },
       sensitive: true,
     };
   }
 
-  const oldVal = row.oldValue ?? "（空）";
-  const newVal = row.newValue ?? "（空）";
-
   return {
     id: `field-${row.id}`,
     type: "field_change",
-    title: `${fieldLabel}已变更`,
-    description: `${oldVal} → ${newVal}`,
-    actorName: actorFromMap(actorMap, row.changedBy),
+    titleKey: "timelineMessages.fieldChanged",
+    titleParams: { field: row.fieldName },
+    descriptionKey: "timelineMessages.fieldChangedFromTo",
+    descriptionParams: {
+      oldValue: displayValue(row.oldValue),
+      newValue: displayValue(row.newValue),
+    },
+    actorName: actor.name,
+    actorIsSystem: actor.isSystem,
     occurredAt: row.changedAt,
     metadata: {
       category: "field_change",
       field_name: row.fieldName,
-      field_label: fieldLabel,
       old_value: row.oldValue,
       new_value: row.newValue,
       changed_by: row.changedBy,
@@ -190,22 +233,25 @@ function buildFollowUpItem(
   actorMap: Map<string, string>,
   visibility: Visibility,
 ): TimelineItem {
-  const channel =
-    FOLLOW_UP_CHANNEL_LABELS[row.channel as FollowUpChannel] ?? row.channel;
-  const outcome =
-    FOLLOW_UP_OUTCOME_LABELS[row.outcome as FollowUpOutcome] ?? row.outcome;
-  const validLabel = row.isValidFollowUp === 1 ? "有效跟进" : "无效跟进";
-
   const masked = visibility === "masked";
+  const actor = actorFromMap(actorMap, row.userId);
+  const validity = row.isValidFollowUp === 1 ? "valid" : "invalid";
 
   return {
     id: `follow-up-${row.id}`,
     type: "follow_up",
-    title: `跟进记录 · ${channel}`,
-    description: masked
-      ? `${outcome} · ${validLabel}（跟进内容已隐藏）`
-      : `${outcome} · ${validLabel}${row.summary ? `：${row.summary}` : ""}`,
-    actorName: actorFromMap(actorMap, row.userId),
+    titleKey: "timelineMessages.followUpRecord",
+    titleParams: { channel: row.channel },
+    descriptionKey: masked
+      ? "timelineMessages.followUpMaskedDescription"
+      : "timelineMessages.followUpDescription",
+    descriptionParams: {
+      outcome: row.outcome,
+      validity,
+      ...(masked ? {} : { summary: row.summary ? `: ${row.summary}` : "" }),
+    },
+    actorName: actor.name,
+    actorIsSystem: actor.isSystem,
     occurredAt: row.followUpTime,
     metadata: {
       category: "follow_up",
@@ -226,21 +272,20 @@ function buildTaskItemFromRow(
   event: "created" | "completed" | "cancelled",
   occurredAt: string,
 ): TimelineItem {
-  const typeLabel = TASK_TYPE_LABELS[row.type] ?? row.type;
-  const statusLabel = TASK_STATUS_LABELS[row.status] ?? row.status;
-
-  const titles = {
-    created: "任务已创建",
-    completed: "任务已完成",
-    cancelled: "任务已取消",
-  };
+  const actor = actorFromMap(actorMap, row.createdBy);
 
   return {
     id: `task-${row.id}-${event}`,
     type: "task",
-    title: titles[event],
-    description: `${row.title}（${typeLabel} · ${statusLabel}）`,
-    actorName: actorFromMap(actorMap, row.createdBy),
+    titleKey: `timelineMessages.${TASK_EVENT_TITLE_KEYS[event]}`,
+    descriptionKey: "timelineMessages.taskDescription",
+    descriptionParams: {
+      title: row.title,
+      type: row.type,
+      status: row.status,
+    },
+    actorName: actor.name,
+    actorIsSystem: actor.isSystem,
     occurredAt,
     metadata: {
       category: "task",
@@ -260,20 +305,41 @@ function buildApprovalItem(
   actorMap: Map<string, string>,
   visibility: Visibility,
 ): TimelineItem {
-  const typeLabel =
-    APPROVAL_REQUEST_TYPE_LABELS[row.requestType] ?? row.requestType;
-  const statusLabel = APPROVAL_STATUS_LABELS[row.status] ?? row.status;
-
   const masked = visibility === "masked";
+  const actor = actorFromMap(actorMap, row.requestedBy);
+
+  let descriptionKey = "timelineMessages.approvalStatus";
+  let descriptionParams: Record<string, string> = {
+    status: row.status,
+    type: row.requestType,
+  };
+
+  if (!masked && row.reason && row.adminComment) {
+    descriptionKey = "timelineMessages.approvalWithAdminComment";
+    descriptionParams = {
+      status: row.status,
+      comment: row.adminComment,
+    };
+  } else if (!masked && row.reason) {
+    descriptionKey = "timelineMessages.approvalWithReason";
+    descriptionParams = {
+      status: row.status,
+      reason: row.reason,
+    };
+  } else if (masked) {
+    descriptionKey = "timelineMessages.approvalStatus";
+    descriptionParams = { status: row.status };
+  }
 
   return {
     id: `approval-${row.id}`,
     type: "approval",
-    title: `审批 · ${typeLabel}`,
-    description: masked
-      ? `状态：${statusLabel}（审批详情已隐藏）`
-      : `状态：${statusLabel}${row.reason ? ` · 原因：${row.reason}` : ""}${row.adminComment ? ` · 管理员备注：${row.adminComment}` : ""}`,
-    actorName: actorFromMap(actorMap, row.requestedBy),
+    titleKey: "timelineMessages.approvalTitle",
+    titleParams: { type: row.requestType },
+    descriptionKey,
+    descriptionParams,
+    actorName: actor.name,
+    actorIsSystem: actor.isSystem,
     occurredAt: row.reviewedAt ?? row.createdAt,
     metadata: {
       category: "approval",
@@ -426,12 +492,15 @@ export async function getCustomerTimeline(
   }
 
   if (!customerAudits.some((a) => a.action === "customer.created")) {
+    const actor = actorFromMap(actorMap, customer.createdBy);
     items.push({
       id: `customer-created-${customer.id}`,
       type: "audit",
-      title: "客户已创建",
-      description: `客户「${customer.customerName}」已创建`,
-      actorName: actorFromMap(actorMap, customer.createdBy),
+      titleKey: "timelineMessages.customerCreated",
+      descriptionKey: "timelineMessages.customerCreatedDescription",
+      descriptionParams: { name: customer.customerName },
+      actorName: actor.name,
+      actorIsSystem: actor.isSystem,
       occurredAt: customer.createdAt,
       metadata: { category: "customer", action: "customer.created" },
       sensitive: false,

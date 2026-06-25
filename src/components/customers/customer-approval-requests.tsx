@@ -5,19 +5,22 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Field, Select } from "@/components/ui/form";
 import type { ApprovalRequestType } from "../../../drizzle/schema/approvals";
+import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 
 type StaffUser = { id: string; displayName: string; email: string };
 
-const REQUEST_OPTIONS: { value: ApprovalRequestType; label: string }[] = [
-  { value: "delete_customer", label: "申请删除" },
-  { value: "transfer_customer", label: "申请转移" },
-  { value: "merge_customers", label: "申请合并" },
-  { value: "closed_won", label: "申请成交" },
-  { value: "second_conversion", label: "申请二次转化" },
+const REQUEST_TYPES: ApprovalRequestType[] = [
+  "delete_customer",
+  "transfer_customer",
+  "merge_customers",
+  "closed_won",
+  "second_conversion",
 ];
 
 export function CustomerApprovalRequests({ customerId }: { customerId: string }) {
   const router = useRouter();
+  const { t, approvalType } = useCustomerLabels();
   const [open, setOpen] = useState(false);
   const [requestType, setRequestType] = useState<ApprovalRequestType>("delete_customer");
   const [reason, setReason] = useState("");
@@ -85,7 +88,8 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
       });
       const data = (await res.json()) as {
         error?: string;
-        fieldErrors?: { field: string; message: string }[];
+        errorCode?: string;
+        fieldErrors?: { field: string; message: string; code?: string }[];
       };
 
       if (res.ok) {
@@ -95,13 +99,13 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
       }
 
       if (data.fieldErrors?.length) {
-        setError(data.fieldErrors.map((e) => e.message).join("；"));
+        setError(data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "));
         return;
       }
 
-      setError(data.error ?? "提交失败");
+      setError(resolveApiError(t, data));
     } catch {
-      setError("网络错误，请稍后重试");
+      setError(t("common.networkError"));
     } finally {
       setSubmitting(false);
     }
@@ -114,7 +118,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
         onClick={() => setOpen(true)}
         className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
       >
-        提交审批申请
+        {t("customers.submitApproval")}
       </button>
     );
   }
@@ -122,7 +126,9 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-slate-900">提交审批申请</h3>
+        <h3 className="text-lg font-semibold text-slate-900">
+          {t("customers.submitApprovalTitle")}
+        </h3>
 
         {error && (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
@@ -130,15 +136,15 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
 
         <div className="mt-4 space-y-4">
           <Field>
-            <Label htmlFor="request-type">申请类型</Label>
+            <Label htmlFor="request-type">{t("customers.requestType")}</Label>
             <Select
               id="request-type"
               value={requestType}
               onChange={(e) => setRequestType(e.target.value as ApprovalRequestType)}
             >
-              {REQUEST_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
+              {REQUEST_TYPES.map((typeKey) => (
+                <option key={typeKey} value={typeKey}>
+                  {approvalType(typeKey)}
                 </option>
               ))}
             </Select>
@@ -146,25 +152,25 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
 
           <Field>
             <Label htmlFor="approval-reason">
-              申请原因 <span className="text-red-500">*</span>
+              {t("customers.approvalReason")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="approval-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="请填写申请原因"
+              placeholder={t("customers.approvalReasonPlaceholder")}
             />
           </Field>
 
           {requestType === "transfer_customer" && (
             <Field>
-              <Label htmlFor="target-user">转移目标员工</Label>
+              <Label htmlFor="target-user">{t("customers.transferTarget")}</Label>
               <Select
                 id="target-user"
                 value={targetUserId}
                 onChange={(e) => setTargetUserId(e.target.value)}
               >
-                <option value="">请选择员工</option>
+                <option value="">{t("customers.selectStaff")}</option>
                 {staffUsers.map((u) => (
                   <option key={u.id} value={u.id}>
                     {u.displayName} ({u.email})
@@ -176,7 +182,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
 
           {requestType === "merge_customers" && (
             <Field>
-              <Label htmlFor="related-ids">相关客户 ID（逗号分隔）</Label>
+              <Label htmlFor="related-ids">{t("customers.relatedCustomerIds")}</Label>
               <Input
                 id="related-ids"
                 value={relatedCustomerIds}
@@ -189,7 +195,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
           {requestType === "closed_won" && (
             <>
               <Field>
-                <Label htmlFor="deal-amount">成交金额</Label>
+                <Label htmlFor="deal-amount">{t("customers.dealAmount")}</Label>
                 <Input
                   id="deal-amount"
                   value={dealAmount}
@@ -197,7 +203,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
                 />
               </Field>
               <Field>
-                <Label htmlFor="signing-date">签约日期</Label>
+                <Label htmlFor="signing-date">{t("customers.signingDate")}</Label>
                 <Input
                   id="signing-date"
                   type="date"
@@ -206,7 +212,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
                 />
               </Field>
               <Field>
-                <Label htmlFor="deal-notes">成交备注</Label>
+                <Label htmlFor="deal-notes">{t("customers.dealNotes")}</Label>
                 <Input
                   id="deal-notes"
                   value={dealNotes}
@@ -219,7 +225,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
           {requestType === "second_conversion" && (
             <>
               <Field>
-                <Label htmlFor="opportunity-desc">机会描述</Label>
+                <Label htmlFor="opportunity-desc">{t("customers.opportunityDescription")}</Label>
                 <Input
                   id="opportunity-desc"
                   value={opportunityDescription}
@@ -227,7 +233,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
                 />
               </Field>
               <Field>
-                <Label htmlFor="estimated-amount">预估金额</Label>
+                <Label htmlFor="estimated-amount">{t("customers.estimatedAmount")}</Label>
                 <Input
                   id="estimated-amount"
                   value={estimatedAmount}
@@ -235,7 +241,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
                 />
               </Field>
               <Field>
-                <Label htmlFor="next-action">下一步行动</Label>
+                <Label htmlFor="next-action">{t("customers.nextAction")}</Label>
                 <Input
                   id="next-action"
                   value={nextAction}
@@ -252,14 +258,14 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
             onClick={() => setOpen(false)}
             className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
           >
-            取消
+            {t("common.cancel")}
           </button>
           <Button
             type="button"
             disabled={!reason.trim() || submitting}
             onClick={() => void handleSubmit()}
           >
-            {submitting ? "提交中…" : "提交申请"}
+            {submitting ? t("customers.submitting") : t("customers.submitRequest")}
           </Button>
         </div>
       </div>

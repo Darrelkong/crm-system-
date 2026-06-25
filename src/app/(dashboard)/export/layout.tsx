@@ -10,17 +10,17 @@ export default async function ExportLayout({
 
   return (
     <DashboardShell
-      title="数据导出"
-      roleLabel="Admin"
+      titleKey="export.title"
+      role="admin"
       userName={user.displayName}
       userEmail={user.email}
       navLinks={[
-        { href: "/admin", label: "工作台" },
-        { href: "/customers", label: "客户管理" },
-        { href: "/import/customers", label: "客户导入" },
-        { href: "/export/customers", label: "数据导出", active: true },
-        { href: "/public-pool", label: "公共池" },
-        { href: "/approvals", label: "审批中心" },
+        { href: "/admin", labelKey: "nav.dashboard" },
+        { href: "/customers", labelKey: "nav.customers" },
+        { href: "/import/customers", labelKey: "nav.customerImport" },
+        { href: "/export/customers", labelKey: "nav.dataExport", active: true },
+        { href: "/public-pool", labelKey: "nav.publicPool" },
+        { href: "/approvals", labelKey: "nav.approvals" },
       ]}
     >
       {children}

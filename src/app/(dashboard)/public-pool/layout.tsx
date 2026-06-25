@@ -11,15 +11,15 @@ export default async function PublicPoolLayout({
 
   return (
     <DashboardShell
-      title="公共池"
-      roleLabel={user.role === "admin" ? "Admin" : "Staff"}
+      titleKey="publicPool.title"
+      role={user.role}
       userName={user.displayName}
       userEmail={user.email}
       navLinks={[
-        { href: dashboardHref, label: "工作台" },
-        { href: "/customers", label: "客户管理" },
-        { href: "/public-pool", label: "公共池", active: true },
-        { href: "/approvals", label: "审批中心" },
+        { href: dashboardHref, labelKey: "nav.dashboard" },
+        { href: "/customers", labelKey: "nav.customers" },
+        { href: "/public-pool", labelKey: "nav.publicPool", active: true },
+        { href: "/approvals", labelKey: "nav.approvals" },
       ]}
     >
       {children}

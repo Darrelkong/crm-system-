@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "@/i18n/provider";
 
 export function SignOutButton() {
   const router = useRouter();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   async function handleSignOut() {
@@ -23,7 +25,7 @@ export function SignOutButton() {
       onClick={handleSignOut}
       disabled={loading}
     >
-      {loading ? "退出中..." : "退出登录"}
+      {loading ? t("auth.signingOut") : t("auth.signOut")}
     </Button>
   );
 }

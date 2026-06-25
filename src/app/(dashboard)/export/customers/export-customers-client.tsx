@@ -3,16 +3,16 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Label, Select } from "@/components/ui/form";
+import { useTranslation } from "@/i18n/provider";
 import {
   DEFAULT_EXPORT_FIELDS,
-  EXPORT_RISK_CONFIRMATION_MESSAGE,
-  EXPORT_SCOPE_LABELS,
   EXPORT_SCOPES,
   requiresExportRiskConfirmation,
   type ExportScope,
 } from "@/lib/export/customers/constants";
 
 export function ExportCustomersClient() {
+  const { t } = useTranslation();
   const [scope, setScope] = useState<ExportScope>("all_active");
   const [includeSensitive, setIncludeSensitive] = useState(true);
   const [showRiskDialog, setShowRiskDialog] = useState(false);
@@ -50,7 +50,7 @@ export function ExportCustomersClient() {
     <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
       <div className="grid max-w-lg gap-5">
         <Field>
-          <Label htmlFor="scope">导出范围</Label>
+          <Label htmlFor="scope">{t("export.scope")}</Label>
           <Select
             id="scope"
             value={scope}
@@ -58,7 +58,7 @@ export function ExportCustomersClient() {
           >
             {EXPORT_SCOPES.map((s) => (
               <option key={s} value={s}>
-                {EXPORT_SCOPE_LABELS[s]}
+                {t(`export.scopes.${s}`)}
               </option>
             ))}
           </Select>
@@ -72,17 +72,17 @@ export function ExportCustomersClient() {
               onChange={(e) => setIncludeSensitive(e.target.checked)}
               className="rounded border-slate-300"
             />
-            包含敏感字段（phone、wechat_id、email、notes、source_remark）
+            {t("export.includeSensitive")}
           </label>
-          <p className="mt-1 text-xs text-slate-500">
-            取消勾选后，敏感字段将从 CSV 中排除，且无法通过 fields 参数绕过。
-          </p>
+          <p className="mt-1 text-xs text-slate-500">{t("export.sensitiveHint")}</p>
         </Field>
 
         <Field>
-          <Label>导出字段</Label>
+          <Label>{t("export.fieldsLabel")}</Label>
           <p className="text-sm text-slate-600">
-            使用默认字段集（{DEFAULT_EXPORT_FIELDS.length} 列，受白名单限制）
+            {t("export.defaultFieldsHint", {
+              count: String(DEFAULT_EXPORT_FIELDS.length),
+            })}
           </p>
           <p className="mt-1 font-mono text-xs text-slate-500">
             {DEFAULT_EXPORT_FIELDS.join(", ")}
@@ -90,7 +90,7 @@ export function ExportCustomersClient() {
         </Field>
 
         <div>
-          <Button onClick={handleExportClick}>导出 CSV</Button>
+          <Button onClick={handleExportClick}>{t("export.exportCsv")}</Button>
         </div>
       </div>
 
@@ -106,11 +106,9 @@ export function ExportCustomersClient() {
               id="export-risk-title"
               className="text-lg font-semibold text-slate-900"
             >
-              导出风险确认
+              {t("export.riskTitle")}
             </h3>
-            <p className="mt-3 text-sm text-slate-600">
-              {EXPORT_RISK_CONFIRMATION_MESSAGE}
-            </p>
+            <p className="mt-3 text-sm text-slate-600">{t("export.riskMessage")}</p>
             <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-slate-700">
               <input
                 type="checkbox"
@@ -118,7 +116,7 @@ export function ExportCustomersClient() {
                 onChange={(e) => setRiskConfirmed(e.target.checked)}
                 className="mt-0.5 rounded border-slate-300"
               />
-              <span>我已阅读并确认上述说明，同意继续导出。</span>
+              <span>{t("export.riskConfirm")}</span>
             </label>
             <div className="mt-6 flex justify-end gap-3">
               <Button
@@ -128,10 +126,10 @@ export function ExportCustomersClient() {
                   setRiskConfirmed(false);
                 }}
               >
-                取消
+                {t("common.cancel")}
               </Button>
               <Button disabled={!riskConfirmed} onClick={doExport}>
-                确认导出
+                {t("export.confirmExport")}
               </Button>
             </div>
           </div>

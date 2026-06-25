@@ -8,9 +8,12 @@ export type TimelineItemType =
 export type TimelineItem = {
   id: string;
   type: TimelineItemType;
-  title: string;
-  description: string;
+  titleKey: string;
+  titleParams?: Record<string, string>;
+  descriptionKey?: string;
+  descriptionParams?: Record<string, string>;
   actorName: string;
+  actorIsSystem?: boolean;
   occurredAt: string;
   metadata: Record<string, unknown>;
   sensitive: boolean;

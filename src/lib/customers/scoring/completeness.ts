@@ -1,6 +1,5 @@
 import { isPublicPoolCustomer } from "@/lib/permissions/customers";
 import type { Customer } from "../../../../drizzle/schema/customers";
-import { COMPLETENESS_FIELD_LABELS } from "./constants";
 
 function hasText(value: string | null | undefined): boolean {
   return !!value && value.trim().length > 0;
@@ -75,8 +74,6 @@ export function calculateDataCompletenessScore(
 
   return {
     completenessScore: score,
-    completenessMissingFields: missing.map(
-      (key) => COMPLETENESS_FIELD_LABELS[key] ?? key,
-    ),
+    completenessMissingFields: missing,
   };
 }

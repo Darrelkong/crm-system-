@@ -65,7 +65,7 @@ export async function POST(request: Request) {
         metadata: { fieldErrors },
       });
       return Response.json(
-        { error: "输入校验失败", fieldErrors },
+        { error: "输入校验失败", errorCode: "VALIDATION_FAILED", fieldErrors },
         { status: 400 },
       );
     }
@@ -92,6 +92,7 @@ export async function POST(request: Request) {
       return Response.json(
         {
           error: "存在重复客户",
+          errorCode: "DUPLICATE_CUSTOMER",
           code: "duplicate_customer",
           duplicates,
         },

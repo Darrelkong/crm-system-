@@ -23,7 +23,7 @@ export type CustomerInput = {
   status?: string;
 };
 
-export type ValidationFieldError = { field: string; message: string };
+export type ValidationFieldError = { field: string; message: string; code: string };
 
 /** Shared validation for create and update. */
 export function validateCustomerInput(
@@ -32,14 +32,22 @@ export function validateCustomerInput(
   const errors: ValidationFieldError[] = [];
 
   if (!input.customerName?.trim()) {
-    errors.push({ field: "customerName", message: "客户名称必填" });
+    errors.push({
+      field: "customerName",
+      message: "客户名称必填",
+      code: "CUSTOMER_NAME_REQUIRED",
+    });
   }
 
   const phone = input.phone?.trim() ?? "";
   const wechatId = input.wechatId?.trim() ?? "";
 
   if (!phone && !wechatId) {
-    errors.push({ field: "phone", message: "手机号和微信号至少填写一个" });
+    errors.push({
+      field: "phone",
+      message: "手机号和微信号至少填写一个",
+      code: "PHONE_OR_WECHAT_REQUIRED",
+    });
   }
 
   if (phone) {
@@ -48,17 +56,26 @@ export function validateCustomerInput(
       errors.push({
         field: "phone",
         message: "+86 手机号必须为 11 位数字，且以 1 开头",
+        code: "INVALID_PHONE_CN",
       });
     }
   }
 
   const email = input.email?.trim() ?? "";
   if (email && !email.includes("@")) {
-    errors.push({ field: "email", message: "Email 格式不正确，必须包含 @" });
+    errors.push({
+      field: "email",
+      message: "Email 格式不正确，必须包含 @",
+      code: "INVALID_EMAIL",
+    });
   }
 
   if (!input.source || !isCustomerSourceKey(input.source)) {
-    errors.push({ field: "source", message: "请从固定字典选择客户来源" });
+    errors.push({
+      field: "source",
+      message: "请从固定字典选择客户来源",
+      code: "SOURCE_REQUIRED",
+    });
   }
 
   if (
@@ -68,22 +85,35 @@ export function validateCustomerInput(
     errors.push({
       field: "sourceRemark",
       message: "来源为「其他」时，备注必填",
+      code: "SOURCE_REMARK_REQUIRED",
     });
   }
 
   if (input.customerType && !isCustomerType(input.customerType)) {
-    errors.push({ field: "customerType", message: "客户类型无效" });
+    errors.push({
+      field: "customerType",
+      message: "客户类型无效",
+      code: "INVALID_CUSTOMER_TYPE",
+    });
   }
 
   if (input.salesStage && !isSalesStage(input.salesStage)) {
-    errors.push({ field: "salesStage", message: "销售阶段无效" });
+    errors.push({
+      field: "salesStage",
+      message: "销售阶段无效",
+      code: "INVALID_SALES_STAGE",
+    });
   }
 
   if (
     input.status &&
     !(CUSTOMER_STATUSES as readonly string[]).includes(input.status)
   ) {
-    errors.push({ field: "status", message: "客户状态无效" });
+    errors.push({
+      field: "status",
+      message: "客户状态无效",
+      code: "INVALID_STATUS",
+    });
   }
 
   return errors;

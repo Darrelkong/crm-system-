@@ -1,4 +1,4 @@
-import { PageHeader } from "@/components/ui/card";
+import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { requireAdmin } from "@/lib/permissions/auth";
 import { AdminDashboardView } from "@/components/dashboard/admin-dashboard-view";
 
@@ -9,9 +9,10 @@ export default async function AdminDashboardPage() {
 
   return (
     <div>
-      <PageHeader
-        title={`你好，${user.displayName}`}
-        description="管理员数据看板"
+      <TranslatedPageHeader
+        titleKey="layout.greeting"
+        titleParams={{ name: user.displayName }}
+        descriptionKey="brand.dashboardSubtitle"
       />
       <AdminDashboardView user={user} />
     </div>
