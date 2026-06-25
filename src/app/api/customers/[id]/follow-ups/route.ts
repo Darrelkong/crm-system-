@@ -142,7 +142,7 @@ export async function POST(request: Request, context: RouteContext) {
     const followUpTime = input.followUpTime?.trim() || new Date().toISOString();
     const outcome = input.outcome as FollowUpOutcome;
     const isValid = isValidFollowUpOutcome(outcome) ? 1 : 0;
-    const nextFollowUpAt = input.nextFollowUpAt?.trim() || null;
+    const nextFollowUpAt = input.nextFollowUpAt!.trim();
     const now = new Date().toISOString();
     const followUpId = crypto.randomUUID();
     const db = getDb();
@@ -157,7 +157,7 @@ export async function POST(request: Request, context: RouteContext) {
       summary: input.summary.trim(),
       customerIntent: input.customerIntent?.trim() || null,
       nextFollowUpAt,
-      nextAction: input.nextAction?.trim() || null,
+      nextAction: input.nextAction!.trim(),
       isValidFollowUp: isValid,
       content: input.summary.trim(),
       createdAt: now,

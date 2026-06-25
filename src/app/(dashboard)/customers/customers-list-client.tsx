@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import {
   CompletenessBadge,
@@ -11,6 +12,7 @@ import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
 
 export type CustomerListRow = {
   id: string;
+  customerCode?: string | null;
   customerName: string;
   customerType: string;
   source: string;
@@ -26,7 +28,7 @@ export type CustomerListRow = {
 };
 
 type Props = {
-  rows: CustomerListRow[];
+  initialRows: CustomerListRow[];
   showArchived: boolean;
   isAdmin: boolean;
   filterHeat?: string;
@@ -34,8 +36,31 @@ type Props = {
   baseQuery: string;
 };
 
+type ApiCustomerItem = CustomerListRow & {
+  isArchived?: boolean;
+};
+
+function mapApiItem(item: ApiCustomerItem): CustomerListRow {
+  return {
+    id: item.id,
+    customerCode: item.customerCode,
+    customerName: item.customerName,
+    customerType: item.customerType,
+    source: item.source,
+    salesStage: item.salesStage,
+    status: item.status,
+    heatLevel: item.heatLevel,
+    completenessScore: item.completenessScore,
+    neverContacted: item.neverContacted,
+    overdueFollowUp: item.overdueFollowUp,
+    isArchived: item.isArchived ?? false,
+    isMasked: item.isMasked,
+    createdAt: item.createdAt,
+  };
+}
+
 export function CustomersListClient({
-  rows,
+  initialRows,
   showArchived,
   isAdmin,
   filterHeat,
@@ -43,12 +68,58 @@ export function CustomersListClient({
   baseQuery,
 }: Props) {
   const { t, source, salesStage, status, customerType, heatLevel } = useCustomerLabels();
+  const [searchQuery, setSearchQuery] = useState("");
+  const [rows, setRows] = useState(initialRows);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    setRows(initialRows);
+  }, [initialRows]);
+
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setRows(initialRows);
+      setSearching(false);
+      return;
+    }
+
+    const handle = window.setTimeout(async () => {
+      setSearching(true);
+      try {
+        const params = new URLSearchParams({ q });
+        if (filterHeat) params.set("heat", filterHeat);
+        if (filterCompletenessBelow) {
+          params.set("completenessBelow", filterCompletenessBelow);
+        }
+        if (showArchived) params.set("status", "archived");
+
+        const res = await fetch(`/api/customers?${params.toString()}`);
+        const data = (await res.json()) as { items?: ApiCustomerItem[] };
+        if (res.ok && data.items) {
+          setRows(data.items.map(mapApiItem));
+        }
+      } finally {
+        setSearching(false);
+      }
+    }, 300);
+
+    return () => window.clearTimeout(handle);
+  }, [
+    searchQuery,
+    initialRows,
+    filterHeat,
+    filterCompletenessBelow,
+    showArchived,
+  ]);
 
   const countKey = showArchived
     ? "customers.countArchived"
     : isAdmin
       ? "customers.countAdmin"
       : "customers.countStaff";
+
+  const isSearchActive = searchQuery.trim().length > 0;
 
   return (
     <div>
@@ -58,7 +129,9 @@ export function CustomersListClient({
             {showArchived ? t("customers.archivedList") : t("customers.title")}
           </h2>
           <p className="mt-1 text-sm text-slate-500">
-            {t(countKey, { count: String(rows.length) })}
+            {searching
+              ? t("common.loading")
+              : t(countKey, { count: String(rows.length) })}
           </p>
           {isAdmin && (
             <div className="mt-2 flex gap-3 text-sm">
@@ -85,6 +158,16 @@ export function CustomersListClient({
             {t("customers.addClient")}
           </Link>
         )}
+      </div>
+
+      <div className="mb-4">
+        <input
+          type="search"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder={t("customers.searchPlaceholder")}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
+        />
       </div>
 
       {!showArchived && (
@@ -148,9 +231,13 @@ export function CustomersListClient({
       {rows.length === 0 ? (
         <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
           <p className="text-slate-500">
-            {showArchived ? t("customers.noArchivedClients") : t("customers.noCustomers")}
+            {isSearchActive
+              ? t("customers.noSearchResults")
+              : showArchived
+                ? t("customers.noArchivedClients")
+                : t("customers.noCustomers")}
           </p>
-          {!showArchived && (
+          {!showArchived && !isSearchActive && (
             <Link
               href="/customers/new"
               className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
@@ -204,7 +291,16 @@ export function CustomersListClient({
                       href={`/customers/${c.id}`}
                       className="font-medium text-indigo-600 hover:underline"
                     >
-                      {c.customerName}
+                      {c.customerCode ? (
+                        <>
+                          <span className="mr-2 font-mono text-xs text-slate-500">
+                            {c.customerCode}
+                          </span>
+                          {c.customerName}
+                        </>
+                      ) : (
+                        c.customerName
+                      )}
                     </Link>
                   </td>
                   <td className="px-4 py-3 text-slate-600">

@@ -58,8 +58,9 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   return (
     <CustomersListClient
-      rows={views.map((c) => ({
+      initialRows={views.map((c) => ({
         id: c.id,
+        customerCode: c.customerCode,
         customerName: c.customerName,
         customerType: c.customerType,
         source: c.source,

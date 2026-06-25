@@ -8,7 +8,11 @@ import { FOLLOW_UP_CHANNELS } from "@/lib/constants/follow-up-channels";
 import { FOLLOW_UP_OUTCOMES } from "@/lib/constants/follow-up-outcomes";
 import type { FollowUpChannel } from "@/lib/constants/follow-up-channels";
 import type { FollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
-import type { ValidationFieldError } from "@/lib/follow-ups/validation";
+import {
+  validateFollowUpInput,
+  type ValidationFieldError,
+} from "@/lib/follow-ups/validation";
+import { getBeijingDatetimeLocalValue } from "@/lib/datetime/beijing";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 
@@ -30,7 +34,7 @@ export function NewFollowUpForm({
     outcome: "" as FollowUpOutcome | "",
     summary: "",
     customerIntent: "",
-    nextFollowUpAt: "",
+    nextFollowUpAt: getBeijingDatetimeLocalValue(),
     nextAction: "",
   });
 
@@ -50,6 +54,27 @@ export function NewFollowUpForm({
     setFieldErrors({});
     setServerError(null);
 
+    const validationErrors = validateFollowUpInput({
+      channel: form.channel,
+      outcome: form.outcome,
+      summary: form.summary,
+      customerIntent: form.customerIntent || null,
+      nextFollowUpAt: form.nextFollowUpAt
+        ? new Date(form.nextFollowUpAt).toISOString()
+        : null,
+      nextAction: form.nextAction || null,
+    });
+
+    if (validationErrors.length > 0) {
+      const errs: Record<string, string> = {};
+      for (const fe of validationErrors) {
+        errs[fe.field] = resolveFieldError(t, fe);
+      }
+      setFieldErrors(errs);
+      setSubmitting(false);
+      return;
+    }
+
     try {
       const res = await fetch(`/api/customers/${customerId}/follow-ups`, {
         method: "POST",
@@ -59,10 +84,8 @@ export function NewFollowUpForm({
           outcome: form.outcome,
           summary: form.summary,
           customerIntent: form.customerIntent || null,
-          nextFollowUpAt: form.nextFollowUpAt
-            ? new Date(form.nextFollowUpAt).toISOString()
-            : null,
-          nextAction: form.nextAction || null,
+          nextFollowUpAt: new Date(form.nextFollowUpAt).toISOString(),
+          nextAction: form.nextAction,
         }),
       });
 
@@ -177,7 +200,10 @@ export function NewFollowUpForm({
         </Field>
 
         <Field>
-          <Label htmlFor="nextFollowUpAt">{t("followUps.nextFollowUpDate")}</Label>
+          <Label htmlFor="nextFollowUpAt">
+            {t("followUps.nextFollowUpDate")}{" "}
+            <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="nextFollowUpAt"
             type="datetime-local"
@@ -191,13 +217,18 @@ export function NewFollowUpForm({
         </Field>
 
         <Field>
-          <Label htmlFor="nextAction">{t("followUps.nextAction")}</Label>
+          <Label htmlFor="nextAction">
+            {t("followUps.nextAction")} <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="nextAction"
             value={form.nextAction}
             onChange={(e) => set("nextAction", e.target.value)}
-            placeholder={t("followUps.optional")}
+            placeholder={t("followUps.nextActionPlaceholder")}
           />
+          {fieldErrors.nextAction && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.nextAction}</p>
+          )}
         </Field>
       </div>
 

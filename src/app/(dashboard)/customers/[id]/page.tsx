@@ -72,6 +72,7 @@ export default async function CustomerDetailPage({ params }: Props) {
     <CustomerDetailClient
       view={{
         id: view.id,
+        customerCode: view.customerCode,
         customerName: view.customerName,
         customerType: view.customerType,
         salesStage: view.salesStage,

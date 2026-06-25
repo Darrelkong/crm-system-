@@ -22,6 +22,7 @@ type FollowUpRow = {
 
 export type CustomerDetailView = {
   id: string;
+  customerCode?: string | null;
   customerName: string;
   customerType: string;
   salesStage: string;
@@ -90,6 +91,11 @@ export function CustomerDetailClient({
     <div className="max-w-3xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
+          {view.customerCode && (
+            <p className="font-mono text-sm font-semibold tracking-wide text-indigo-600">
+              {view.customerCode}
+            </p>
+          )}
           <h2 className="text-xl font-semibold text-slate-900">{view.customerName}</h2>
           <div className="mt-1 flex items-center gap-2">
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">

@@ -14,6 +14,7 @@ export const customers = sqliteTable(
   "customers",
   {
     id: text("id").primaryKey(),
+    customerCode: text("customer_code"),
     customerName: text("customer_name").notNull(),
     customerType: text("customer_type").notNull().default("individual"),
     phoneCountryCode: text("phone_country_code").notNull().default("+86"),
@@ -50,6 +51,7 @@ export const customers = sqliteTable(
   (table) => [
     index("idx_customers_owner_id").on(table.ownerId),
     index("idx_customers_created_at").on(table.createdAt),
+    index("idx_customers_customer_code").on(table.customerCode),
     index("idx_customers_phone").on(table.phone),
     index("idx_customers_status").on(table.status),
     index("idx_customers_releaser_user_id").on(table.releaserUserId),

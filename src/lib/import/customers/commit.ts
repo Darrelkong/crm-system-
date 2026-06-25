@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
+import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import {
   assertCommitableImportJob,
   ImportJobGuardError,
@@ -79,6 +80,7 @@ export async function commitCustomerImport(
   try {
     for (const row of rowsToImport) {
       const id = crypto.randomUUID();
+      const customerCode = await allocateCustomerCode(db);
       const payload = buildCustomerUpdatePayload({
         customerName: row.customerName,
         customerType: row.customerType,
@@ -96,6 +98,7 @@ export async function commitCustomerImport(
 
       await db.insert(schema.customers).values({
         id,
+        customerCode,
         customerName: payload.customerName,
         customerType: payload.customerType,
         phoneCountryCode: payload.phoneCountryCode,

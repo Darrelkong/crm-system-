@@ -21,6 +21,7 @@ export type CustomerAccessLevel = "full" | "masked" | "archived_basic" | "denied
 
 export type CustomerView = {
   id: string;
+  customerCode?: string | null;
   customerName: string;
   customerType: string;
   salesStage: string;
@@ -297,6 +298,7 @@ export function getCustomerFollowUpMeta(
 export function maskCustomerForStaff(customer: Customer): CustomerView {
   return {
     id: customer.id,
+    customerCode: customer.customerCode,
     customerName: customer.customerName,
     customerType: customer.customerType,
     salesStage: customer.salesStage,
@@ -317,6 +319,7 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
 export function toCustomerFullView(customer: Customer): CustomerView {
   return {
     id: customer.id,
+    customerCode: customer.customerCode,
     customerName: customer.customerName,
     customerType: customer.customerType,
     salesStage: customer.salesStage,

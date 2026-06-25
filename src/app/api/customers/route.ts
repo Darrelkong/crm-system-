@@ -7,7 +7,7 @@ import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
-import { listCustomersForUser } from "@/lib/customers/queries";
+import { listCustomersForUser, searchCustomersForUser } from "@/lib/customers/queries";
 import {
   filterCustomersWithScores,
   getCustomerIdsWithFollowUps,
@@ -16,12 +16,14 @@ import {
 } from "@/lib/customers/scoring/service";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { allocateCustomerCode } from "@/lib/customers/customer-code";
 
 export async function GET(request: Request) {
   try {
     const user = await requireAuth(request);
     const url = new URL(request.url);
     const statusParam = url.searchParams.get("status");
+    const searchQuery = url.searchParams.get("q")?.trim() ?? "";
     const filter =
       user.role === "admin" && statusParam === "archived"
         ? { status: "archived" as const }
@@ -29,7 +31,9 @@ export async function GET(request: Request) {
     const scoringFilter = parseScoringListFilter(url.searchParams);
 
     const db = getDb();
-    const customers = await listCustomersForUser(user, filter);
+    const customers = searchQuery
+      ? await searchCustomersForUser(user, searchQuery, filter)
+      : await listCustomersForUser(user, filter);
     const followUpSet = await getCustomerIdsWithFollowUps(
       db,
       customers.map((c) => c.id),
@@ -103,6 +107,7 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const db = getDb();
+    const customerCode = await allocateCustomerCode(db);
 
     const payload = buildCustomerUpdatePayload({
       customerName: createInput.customerName!,
@@ -121,6 +126,7 @@ export async function POST(request: Request) {
 
     await db.insert(schema.customers).values({
       id,
+      customerCode,
       customerName: payload.customerName,
       customerType: payload.customerType,
       phoneCountryCode: payload.phoneCountryCode,
@@ -149,6 +155,7 @@ export async function POST(request: Request) {
       userAgent,
       metadata: {
         customerName: createInput.customerName,
+        customerCode,
         source: createInput.source,
         ownerId,
       },
