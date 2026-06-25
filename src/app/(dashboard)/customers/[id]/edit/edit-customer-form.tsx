@@ -272,9 +272,9 @@ export function EditCustomerForm({
               {t("customers.atLeastOne")}
             </span>
           </Label>
-          <div className="flex gap-2">
+          <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3">
             <Select
-              className="w-28 shrink-0"
+              className="w-full"
               value={form.phoneCountryCode}
               onChange={(e) => set("phoneCountryCode", e.target.value)}
             >
@@ -285,6 +285,7 @@ export function EditCustomerForm({
               ))}
             </Select>
             <Input
+              className="min-w-0 w-full"
               value={form.phone}
               onChange={(e) => set("phone", e.target.value)}
               placeholder={t("customers.phonePlaceholder")}

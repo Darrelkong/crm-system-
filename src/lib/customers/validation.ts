@@ -127,7 +127,7 @@ export function validateCustomerInput(
   if (!phone && !wechatId) {
     errors.push({
       field: "phone",
-      message: "手机号和微信号至少填写一个",
+      message: "请至少填写手机号或微信号",
       code: "PHONE_OR_WECHAT_REQUIRED",
     });
   }

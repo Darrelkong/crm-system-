@@ -901,7 +901,7 @@ const zhHant: Messages = {
     passwordMissingDigit: "密碼需包含至少一個數字。",
     passwordPolicyFailed: "新密碼不符合安全要求。",
     invalidEmail: "電郵格式不正確。",
-    phoneOrWechatRequired: "手機號和微信號至少填寫一項。",
+    phoneOrWechatRequired: "請至少填寫手機號或微信號。",
     invalidPhoneCn: "+86 手機號必須為 11 位數字，且以 1 開頭。",
     sourceRequired: "請從固定字典選擇客戶來源。",
     sourceRemarkRequired: "來源為「其他」時，備註必填。",

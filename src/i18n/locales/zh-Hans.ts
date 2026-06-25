@@ -900,7 +900,7 @@ const zhHans: Messages = {
     passwordMissingDigit: "密码需包含至少一个数字。",
     passwordPolicyFailed: "新密码不符合安全要求。",
     invalidEmail: "邮箱格式不正确。",
-    phoneOrWechatRequired: "手机号和微信号至少填写一个。",
+    phoneOrWechatRequired: "请至少填写手机号或微信号。",
     invalidPhoneCn: "+86 手机号必须为 11 位数字，且以 1 开头。",
     sourceRequired: "请从固定字典选择客户来源。",
     sourceRemarkRequired: "来源为「其他」时，备注必填。",

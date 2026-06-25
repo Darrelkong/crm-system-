@@ -115,6 +115,7 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "服务器错误": "errors.serverError",
   "客户名称必填": "errors.clientNameRequired",
   "手机号和微信号至少填写一个": "errors.phoneOrWechatRequired",
+  "请至少填写手机号或微信号": "errors.phoneOrWechatRequired",
   "+86 手机号必须为 11 位数字，且以 1 开头": "errors.invalidPhoneCn",
   "Email 格式不正确，必须包含 @": "errors.invalidEmail",
   "请从固定字典选择客户来源": "errors.sourceRequired",

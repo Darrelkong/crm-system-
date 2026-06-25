@@ -925,7 +925,7 @@ const en = {
     passwordMissingDigit: "Password must include at least one digit.",
     passwordPolicyFailed: "New password does not meet security requirements.",
     invalidEmail: "Invalid email format.",
-    phoneOrWechatRequired: "Phone or WeChat ID is required.",
+    phoneOrWechatRequired: "Please provide a phone number or WeChat ID.",
     invalidPhoneCn: "Mainland China phone numbers must be 11 digits starting with 1.",
     sourceRequired: "Please select a client source.",
     sourceRemarkRequired: "Source note is required when source is Other.",
