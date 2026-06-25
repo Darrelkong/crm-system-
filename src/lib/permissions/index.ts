@@ -13,6 +13,7 @@ export {
   getCustomerAccessLevel,
   assertCanAccessCustomer,
   assertCanViewCustomerFullDetails,
+  assertCanViewCustomerAiInsight,
   assertCanEditCustomer,
   maskCustomerForStaff,
   formatCustomerForUser,

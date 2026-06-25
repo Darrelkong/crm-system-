@@ -126,6 +126,20 @@ export function assertCanViewCustomerFullDetails(
   }
 }
 
+/** AI insight requires full access — same bar as follow-up records and sensitive fields. */
+export function assertCanViewCustomerAiInsight(
+  user: User,
+  customer: Customer,
+): void {
+  if (getCustomerAccessLevel(user, customer) !== "full") {
+    throw new PermissionError(
+      403,
+      "无权查看该客户 AI 洞察",
+      "permission.denied.customer_ai_insight",
+    );
+  }
+}
+
 export function assertCanEditCustomer(user: User, customer: Customer): void {
   assertCustomerNotArchived(customer, ARCHIVED_AUDIT_ACTIONS.update);
 

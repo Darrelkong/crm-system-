@@ -6,6 +6,7 @@ import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-butt
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
 import { CustomerTimelineView } from "@/components/customers/customer-timeline-view";
+import { CustomerAiInsightPanel } from "@/components/customers/customer-ai-insight-panel";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { HeatReasonPart } from "@/lib/customers/scoring/heat";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
@@ -325,6 +326,8 @@ export function CustomerDetailClient({
         }}
         showMissingFields={view.accessLevel === "full"}
       />
+
+      <CustomerAiInsightPanel key={id} customerId={id} />
 
       <CustomerTimelineView items={timelineItems} accessLevel={timelineAccessLevel} />
     </div>
