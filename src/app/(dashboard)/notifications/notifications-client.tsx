@@ -49,6 +49,33 @@ function getActionLabel(
   return t("notifications.viewDetails");
 }
 
+function formatCreatedAt(value: string | null | undefined): string {
+  if (!value || typeof value !== "string") return "—";
+  return value.slice(0, 16).replace("T", " ");
+}
+
+function safeResolveTitle(
+  t: ReturnType<typeof useTranslation>["t"],
+  item: NotificationListItem,
+): string {
+  try {
+    return resolveNotificationTitle(t, item) || "—";
+  } catch {
+    return item.title ?? "—";
+  }
+}
+
+function safeResolveMessage(
+  t: ReturnType<typeof useTranslation>["t"],
+  item: NotificationListItem,
+): string {
+  try {
+    return resolveNotificationMessage(t, item) || "";
+  } catch {
+    return item.message ?? "";
+  }
+}
+
 export function NotificationsClient({ userRole }: Props) {
   const { t } = useTranslation();
   const [items, setItems] = useState<NotificationListItem[]>([]);
@@ -170,14 +197,14 @@ export function NotificationsClient({ userRole }: Props) {
                       {t("notifications.notificationType")}: {item.type}
                     </p>
                     <p className="mt-1 font-medium text-slate-900">
-                      {resolveNotificationTitle(t, item)}
+                      {safeResolveTitle(t, item)}
                     </p>
                     <p className="mt-1 text-sm text-slate-700">
-                      {resolveNotificationMessage(t, item)}
+                      {safeResolveMessage(t, item)}
                     </p>
                     <p className="mt-2 text-xs text-slate-500">
                       {t("notifications.notificationTime")}:{" "}
-                      {item.created_at.slice(0, 16).replace("T", " ")}
+                      {formatCreatedAt(item.created_at)}
                       {!item.is_read && (
                         <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-700">
                           {t("notifications.unread")}

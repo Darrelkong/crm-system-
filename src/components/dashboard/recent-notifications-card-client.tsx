@@ -9,17 +9,43 @@ import {
 } from "@/i18n/resolve-notification-content";
 import type { NotificationListItem } from "@/lib/notifications/queries";
 
-type Props = {
-  items: NotificationListItem[];
-  unreadCount: number;
-  getHref: (item: NotificationListItem) => string | null;
+type NotificationCardItem = NotificationListItem & {
+  href: string | null;
 };
 
-export function RecentNotificationsCardClient({
-  items,
-  unreadCount,
-  getHref,
-}: Props) {
+type Props = {
+  items: NotificationCardItem[];
+  unreadCount: number;
+};
+
+function formatCreatedAt(value: string | null | undefined): string {
+  if (!value || typeof value !== "string") return "—";
+  return value.slice(0, 16).replace("T", " ");
+}
+
+function safeResolveTitle(
+  t: ReturnType<typeof useTranslation>["t"],
+  item: NotificationListItem,
+): string {
+  try {
+    return resolveNotificationTitle(t, item) || "—";
+  } catch {
+    return item.title ?? "—";
+  }
+}
+
+function safeResolveMessage(
+  t: ReturnType<typeof useTranslation>["t"],
+  item: NotificationListItem,
+): string {
+  try {
+    return resolveNotificationMessage(t, item) || "";
+  } catch {
+    return item.message ?? "";
+  }
+}
+
+export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
   const { t } = useTranslation();
 
   return (
@@ -37,7 +63,7 @@ export function RecentNotificationsCardClient({
       ) : (
         <ul className="space-y-2">
           {items.map((item) => {
-            const href = getHref(item);
+            const href = item.href;
             const inner = (
               <div
                 className={
@@ -47,13 +73,13 @@ export function RecentNotificationsCardClient({
                 }
               >
                 <p className="text-sm font-medium text-slate-900">
-                  {resolveNotificationTitle(t, item)}
+                  {safeResolveTitle(t, item)}
                 </p>
                 <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
-                  {resolveNotificationMessage(t, item)}
+                  {safeResolveMessage(t, item)}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">
-                  {item.created_at.slice(0, 16).replace("T", " ")}
+                  {formatCreatedAt(item.created_at)}
                   {!item.is_read && (
                     <span className="ml-2 font-medium text-indigo-600">
                       {t("notifications.unread")}

@@ -14,11 +14,15 @@ export async function RecentNotificationsCard({ user }: { user: User }) {
     getUnreadNotificationCount(db, user.id),
   ]);
 
+  const itemsWithHref = items.map((item) => ({
+    ...item,
+    href: getNotificationHref(item, user.role),
+  }));
+
   return (
     <RecentNotificationsCardClient
-      items={items}
+      items={itemsWithHref}
       unreadCount={unreadCount}
-      getHref={(item) => getNotificationHref(item, user.role)}
     />
   );
 }

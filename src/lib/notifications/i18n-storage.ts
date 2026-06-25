@@ -12,27 +12,50 @@ export function storeNotificationMessage(
   return `${MESSAGE_PREFIX}${JSON.stringify({ key: messageKey, params })}`;
 }
 
-export function parseNotificationTitle(value: string): string | null {
-  if (!value.startsWith(TITLE_PREFIX)) return null;
-  return value.slice(TITLE_PREFIX.length);
+export function parseNotificationTitle(value: unknown): string | null {
+  if (typeof value !== "string" || !value.startsWith(TITLE_PREFIX)) {
+    return null;
+  }
+  const key = value.slice(TITLE_PREFIX.length).trim();
+  return key.length > 0 ? key : null;
 }
 
 export function parseNotificationMessage(
-  value: string,
+  value: unknown,
 ): { key: string; params: Record<string, string> } | null {
-  if (!value.startsWith(MESSAGE_PREFIX)) return null;
+  if (typeof value !== "string" || !value.startsWith(MESSAGE_PREFIX)) {
+    return null;
+  }
+
+  const payload = value.slice(MESSAGE_PREFIX.length).trim();
+  if (!payload) return null;
+
   try {
-    const parsed = JSON.parse(value.slice(MESSAGE_PREFIX.length)) as {
-      key?: string;
-      params?: Record<string, string>;
+    const parsed = JSON.parse(payload) as {
+      key?: unknown;
+      params?: unknown;
     };
-    if (!parsed.key) return null;
-    return { key: parsed.key, params: parsed.params ?? {} };
+    if (typeof parsed.key !== "string" || !parsed.key.trim()) {
+      return null;
+    }
+
+    const params: Record<string, string> = {};
+    if (parsed.params && typeof parsed.params === "object" && parsed.params !== null) {
+      for (const [paramKey, paramValue] of Object.entries(parsed.params)) {
+        if (paramValue == null) continue;
+        params[paramKey] = String(paramValue);
+      }
+    }
+
+    return { key: parsed.key, params };
   } catch {
     return null;
   }
 }
 
-export function notificationTypeToTitleKey(type: string): string {
+export function notificationTypeToTitleKey(type: unknown): string {
+  if (typeof type !== "string" || !type.trim()) {
+    return "notificationTypes.unknown";
+  }
   return `notificationTypes.${type.replace(/\./g, "_")}`;
 }
