@@ -153,12 +153,22 @@ async function executeApprovedAction(
       }
 
       const previousOwnerId = customer.ownerId;
+      const transferredFromPublicPool = customer.status === "public_pool";
+
       await db
         .update(schema.customers)
         .set({
           ownerId: approval.targetUserId,
           updatedBy: reviewer.id,
           updatedAt: now,
+          ...(transferredFromPublicPool
+            ? {
+                status: "active" as const,
+                poolLeftAt: now,
+                claimedBy: approval.targetUserId,
+                claimedAt: now,
+              }
+            : {}),
         })
         .where(eq(schema.customers.id, customer.id));
 
@@ -169,6 +179,16 @@ async function executeApprovedAction(
         approval.targetUserId,
         reviewer.id,
       );
+
+      if (transferredFromPublicPool) {
+        await writeFieldChangeLogEntry(
+          customer.id,
+          "status",
+          customer.status,
+          "active",
+          reviewer.id,
+        );
+      }
 
       if (previousOwnerId) {
         const reassignedCount = await reassignOpenTasks(
@@ -191,6 +211,7 @@ async function executeApprovedAction(
               previousOwnerId,
               newOwnerId: approval.targetUserId,
               reassignedTaskCount: reassignedCount,
+              transferredFromPublicPool,
             },
           },
           db,
@@ -205,6 +226,24 @@ async function executeApprovedAction(
           relatedEntityType: "customer",
           relatedEntityId: customer.id,
         });
+      } else if (transferredFromPublicPool) {
+        await writeAuditLog(
+          {
+            userId: reviewer.id,
+            action: APPROVAL_AUDIT_ACTIONS.customerTransferred,
+            entityType: "customer",
+            entityId: customer.id,
+            metadata: {
+              approvalId: approval.id,
+              customerName: customer.customerName,
+              previousOwnerId,
+              newOwnerId: approval.targetUserId,
+              reassignedTaskCount: 0,
+              transferredFromPublicPool: true,
+            },
+          },
+          db,
+        );
       }
 
       await createNotification(db, {
