@@ -36,7 +36,6 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   UNAUTHORIZED: "errors.unauthorized",
   ACCESS_VERIFICATION_EXPIRED: "security.accessExpired",
   SESSION_IDLE_EXPIRED: "security.sessionExpired",
-  SINGLE_SESSION_ACTIVE: "security.singleSessionDescription",
   validation: "errors.validationFailed",
   job_not_found: "importErrorTypes.jobNotFound",
   job_not_owned: "importErrorTypes.jobNotOwned",

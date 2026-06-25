@@ -2,21 +2,8 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../../../drizzle/schema";
 import type { Session } from "../../../drizzle/schema/sessions";
-import {
-  AUTH_ERROR_CODES,
-  SESSION_ACTIVITY_TOUCH_INTERVAL_MS,
-} from "@/lib/auth/constants";
+import { SESSION_ACTIVITY_TOUCH_INTERVAL_MS } from "@/lib/auth/constants";
 import { getEffectiveSettings } from "@/lib/settings/effective";
-
-export class SessionPolicyError extends Error {
-  constructor(
-    public readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = "SessionPolicyError";
-  }
-}
 
 export function isSessionRevoked(session: Pick<Session, "revokedAt">): boolean {
   return session.revokedAt != null;
@@ -143,21 +130,13 @@ export async function cleanupIdleSessionsForUser(
   return revoked;
 }
 
-export async function assertSingleSessionAllowed(
+/** Revoke all active sessions for a user before issuing a new login session. */
+export async function revokeExistingSessionsForLogin(
   db: Db,
   userId: string,
-  idleMinutes: number,
-  excludeSessionId?: string,
+  now = new Date().toISOString(),
 ): Promise<void> {
-  await cleanupIdleSessionsForUser(db, userId, idleMinutes);
-  const remaining = await getActiveSessionsForUser(db, userId);
-  const blocking = remaining.filter((s) => s.id !== excludeSessionId);
-  if (blocking.length > 0) {
-    throw new SessionPolicyError(
-      AUTH_ERROR_CODES.SINGLE_SESSION_ACTIVE,
-      "single session active",
-    );
-  }
+  await revokeAllSessionsForUser(db, userId, now);
 }
 
 export async function getIdleLogoutMinutes(db?: Db): Promise<number> {

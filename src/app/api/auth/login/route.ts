@@ -2,9 +2,8 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { getDb, schema } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
-import { createSession, SessionPolicyError } from "@/lib/auth/session";
+import { createSession } from "@/lib/auth/session";
 import {
-  getClearSessionCookieOptions,
   getRequestMeta,
   getSessionCookieOptions,
 } from "@/lib/auth/cookies";
@@ -138,60 +137,39 @@ export async function POST(request: Request) {
 
   await resetLoginFailures(user.id);
 
-  try {
-    const { token, expiresAt } = await createSession(user.id, request);
-    const cookieStore = await cookies();
-    cookieStore.set({
-      ...getSessionCookieOptions(expiresAt),
-      value: token,
-    });
+  const { token, expiresAt } = await createSession(user.id, request);
+  const cookieStore = await cookies();
+  cookieStore.set({
+    ...getSessionCookieOptions(expiresAt),
+    value: token,
+  });
 
-    await writeLoginLog({
-      userId: user.id,
-      emailAttempted: email,
-      success: true,
-      ipAddress,
-      userAgent,
-    });
+  await writeLoginLog({
+    userId: user.id,
+    emailAttempted: email,
+    success: true,
+    ipAddress,
+    userAgent,
+  });
 
-    await writeAuditLog({
-      userId: user.id,
-      action: "auth.login.success",
-      entityType: "session",
-      entityId: user.id,
-      ipAddress,
-      userAgent,
-      metadata: { role: user.role },
-    });
+  await writeAuditLog({
+    userId: user.id,
+    action: "auth.login.success",
+    entityType: "session",
+    entityId: user.id,
+    ipAddress,
+    userAgent,
+    metadata: { role: user.role },
+  });
 
-    return Response.json({
-      ok: true,
-      redirect: getRoleDashboardPath(user.role),
-      user: {
-        id: user.id,
-        email: user.email,
-        displayName: user.displayName,
-        role: user.role,
-      },
-    });
-  } catch (error) {
-    if (error instanceof SessionPolicyError) {
-      await writeLoginLog({
-        userId: user.id,
-        emailAttempted: email,
-        success: false,
-        failureReason: "single_session_active",
-        ipAddress,
-        userAgent,
-      });
-      return Response.json(
-        {
-          error: "single session active",
-          errorCode: AUTH_ERROR_CODES.SINGLE_SESSION_ACTIVE,
-        },
-        { status: 403 },
-      );
-    }
-    throw error;
-  }
+  return Response.json({
+    ok: true,
+    redirect: getRoleDashboardPath(user.role),
+    user: {
+      id: user.id,
+      email: user.email,
+      displayName: user.displayName,
+      role: user.role,
+    },
+  });
 }

@@ -13,13 +13,12 @@ import {
 import { generateSessionToken, hashSessionToken } from "@/lib/auth/token";
 import type { User } from "../../../drizzle/schema/users";
 import {
-  assertSingleSessionAllowed,
   getIdleLogoutMinutes,
   isSessionIdleExpired,
   isSessionRevoked,
+  revokeExistingSessionsForLogin,
   revokeSessionById,
   revokeSessionByTokenHash,
-  SessionPolicyError,
   shouldTouchSessionActivity,
   touchSessionActivity,
 } from "@/lib/auth/session-policy";
@@ -47,8 +46,7 @@ export async function createSession(
   request: Request,
 ): Promise<{ token: string; expiresAt: Date; sessionId: string }> {
   const db = getD1Db();
-  const idleMinutes = await getIdleLogoutMinutes(db);
-  await assertSingleSessionAllowed(db, userId, idleMinutes);
+  await revokeExistingSessionsForLogin(db, userId);
 
   const token = generateSessionToken();
   const tokenHash = await hashSessionToken(token);
@@ -176,4 +174,4 @@ export async function validateSessionFromRequest(
   return validateSessionToken(token, options);
 }
 
-export { SessionPolicyError, ACCESS_LOGOUT_PATH };
+export { ACCESS_LOGOUT_PATH };
