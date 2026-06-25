@@ -7,18 +7,24 @@ import { Field, Input, Label } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useTranslation } from "@/i18n/provider";
+import { resolveApiError } from "@/i18n/resolve-api-error";
+import {
+  redirectToAccessLogout,
+} from "@/lib/auth/client-security";
 
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { t } = useTranslation();
   const [error, setError] = useState("");
+  const [singleSession, setSingleSession] = useState(false);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setSingleSession(false);
 
     const form = new FormData(e.currentTarget);
     const response = await fetch("/api/auth/login", {
@@ -32,13 +38,23 @@ export function LoginForm() {
 
     const data = (await response.json()) as {
       error?: string;
+      errorCode?: string;
       redirect?: string;
     };
 
     setLoading(false);
 
     if (!response.ok) {
-      setError(data.error ?? t("auth.signInFailed"));
+      if (data.errorCode === "ACCESS_VERIFICATION_EXPIRED") {
+        setError(t("security.accessExpired"));
+        redirectToAccessLogout();
+        return;
+      }
+      if (data.errorCode === "SINGLE_SESSION_ACTIVE") {
+        setSingleSession(true);
+        return;
+      }
+      setError(resolveApiError(t, data));
       return;
     }
 
@@ -70,36 +86,47 @@ export function LoginForm() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <Field>
-            <Label htmlFor="email">{t("auth.email")}</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="name@company.com"
-            />
-          </Field>
-          <Field>
-            <Label htmlFor="password">{t("auth.password")}</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-            />
-          </Field>
+        {singleSession ? (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 text-left">
+            <h2 className="text-sm font-semibold text-amber-900">
+              {t("security.singleSessionTitle")}
+            </h2>
+            <p className="mt-2 text-sm text-amber-800">
+              {t("security.singleSessionDescription")}
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit}>
+            <Field>
+              <Label htmlFor="email">{t("auth.email")}</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="name@company.com"
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="password">{t("auth.password")}</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+              />
+            </Field>
 
-          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+            {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? t("auth.signingIn") : t("auth.signIn")}
-          </Button>
-        </form>
+            <Button type="submit" className="w-full" disabled={loading}>
+              {loading ? t("auth.signingIn") : t("auth.signIn")}
+            </Button>
+          </form>
+        )}
       </Card>
     </div>
   );

@@ -9,8 +9,10 @@ import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 
 async function clearUserSessions(db: Database, userId: string): Promise<void> {
+  const now = new Date().toISOString();
   await db
-    .delete(schema.sessions)
+    .update(schema.sessions)
+    .set({ revokedAt: now })
     .where(eq(schema.sessions.userId, userId));
 }
 

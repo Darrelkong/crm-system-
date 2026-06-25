@@ -10,6 +10,7 @@ type LoginLogInput = {
     | "user_not_found"
     | "user_disabled"
     | "account_locked"
+    | "single_session_active"
     | null;
   ipAddress?: string | null;
   userAgent?: string | null;

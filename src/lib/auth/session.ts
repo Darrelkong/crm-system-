@@ -1,17 +1,41 @@
-import { and, eq, gt } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
+import type { NextRequest } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "../../../drizzle/schema";
 import { getSessionExpiresAt, getRequestMeta } from "@/lib/auth/cookies";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/constants";
+import {
+  AUTH_ERROR_CODES,
+  ACCESS_LOGOUT_PATH,
+  SESSION_COOKIE_NAME,
+} from "@/lib/auth/constants";
 import { generateSessionToken, hashSessionToken } from "@/lib/auth/token";
 import type { User } from "../../../drizzle/schema/users";
+import {
+  assertSingleSessionAllowed,
+  getIdleLogoutMinutes,
+  isSessionIdleExpired,
+  isSessionRevoked,
+  revokeSessionById,
+  revokeSessionByTokenHash,
+  SessionPolicyError,
+  shouldTouchSessionActivity,
+  touchSessionActivity,
+} from "@/lib/auth/session-policy";
 
 export type SessionWithUser = {
   sessionId: string;
   user: User;
 };
+
+export type SessionValidationResult =
+  | { ok: true; session: SessionWithUser }
+  | {
+      ok: false;
+      reason: "missing" | "invalid" | "idle_expired" | "revoked" | "inactive_user";
+      errorCode?: string;
+    };
 
 function getD1Db() {
   const { env } = getCloudflareContext();
@@ -21,63 +45,102 @@ function getD1Db() {
 export async function createSession(
   userId: string,
   request: Request,
-): Promise<{ token: string; expiresAt: Date }> {
+): Promise<{ token: string; expiresAt: Date; sessionId: string }> {
   const db = getD1Db();
+  const idleMinutes = await getIdleLogoutMinutes(db);
+  await assertSingleSessionAllowed(db, userId, idleMinutes);
+
   const token = generateSessionToken();
   const tokenHash = await hashSessionToken(token);
   const expiresAt = getSessionExpiresAt();
   const now = new Date().toISOString();
   const { ipAddress, userAgent } = getRequestMeta(request);
+  const sessionId = crypto.randomUUID();
 
   await db.insert(schema.sessions).values({
-    id: crypto.randomUUID(),
+    id: sessionId,
     userId,
     tokenHash,
     expiresAt: expiresAt.toISOString(),
+    lastActivityAt: now,
+    revokedAt: null,
     ipAddress,
     userAgent,
     createdAt: now,
   });
 
-  return { token, expiresAt };
+  return { token, expiresAt, sessionId };
 }
 
-export async function getSessionByToken(
+export async function validateSessionToken(
   token: string,
-): Promise<SessionWithUser | null> {
+  options?: { touch?: boolean },
+): Promise<SessionValidationResult> {
   const db = getD1Db();
   const tokenHash = await hashSessionToken(token);
-  const now = new Date().toISOString();
+  const nowIso = new Date().toISOString();
 
   const rows = await db
     .select({
       sessionId: schema.sessions.id,
+      session: schema.sessions,
       user: schema.users,
     })
     .from(schema.sessions)
     .innerJoin(schema.users, eq(schema.sessions.userId, schema.users.id))
-    .where(
-      and(
-        eq(schema.sessions.tokenHash, tokenHash),
-        gt(schema.sessions.expiresAt, now),
-      ),
-    )
+    .where(eq(schema.sessions.tokenHash, tokenHash))
     .limit(1);
 
   const row = rows[0];
-  if (!row || row.user.isActive !== 1) {
-    return null;
+  if (!row) {
+    return { ok: false, reason: "invalid" };
   }
 
-  return row;
+  if (isSessionRevoked(row.session)) {
+    return { ok: false, reason: "revoked" };
+  }
+
+  if (row.session.expiresAt <= nowIso) {
+    await revokeSessionById(db, row.sessionId, nowIso);
+    return { ok: false, reason: "invalid" };
+  }
+
+  if (row.user.isActive !== 1) {
+    return { ok: false, reason: "inactive_user" };
+  }
+
+  const idleMinutes = await getIdleLogoutMinutes(db);
+  if (isSessionIdleExpired(row.session, idleMinutes)) {
+    await revokeSessionById(db, row.sessionId, nowIso);
+    return {
+      ok: false,
+      reason: "idle_expired",
+      errorCode: AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED,
+    };
+  }
+
+  if (options?.touch !== false && shouldTouchSessionActivity(row.session)) {
+    await touchSessionActivity(db, row.sessionId, nowIso);
+  }
+
+  return {
+    ok: true,
+    session: { sessionId: row.sessionId, user: row.user },
+  };
+}
+
+export async function getSessionByToken(
+  token: string,
+  options?: { touch?: boolean },
+): Promise<SessionWithUser | null> {
+  const result = await validateSessionToken(token, options);
+  return result.ok ? result.session : null;
 }
 
 export async function destroySession(token: string): Promise<void> {
   const db = getD1Db();
   const tokenHash = await hashSessionToken(token);
-  await db
-    .delete(schema.sessions)
-    .where(eq(schema.sessions.tokenHash, tokenHash));
+  await revokeSessionByTokenHash(db, tokenHash);
 }
 
 export async function getSessionTokenFromCookies(): Promise<string | null> {
@@ -85,15 +148,32 @@ export async function getSessionTokenFromCookies(): Promise<string | null> {
   return cookieStore.get(SESSION_COOKIE_NAME)?.value ?? null;
 }
 
-export async function getCurrentSession(): Promise<SessionWithUser | null> {
+export async function getCurrentSession(
+  options?: { touch?: boolean },
+): Promise<SessionWithUser | null> {
   const token = await getSessionTokenFromCookies();
   if (!token) {
     return null;
   }
-  return getSessionByToken(token);
+  return getSessionByToken(token, options);
 }
 
-export async function getCurrentUser(): Promise<User | null> {
-  const session = await getCurrentSession();
+export async function getCurrentUser(
+  options?: { touch?: boolean },
+): Promise<User | null> {
+  const session = await getCurrentSession(options);
   return session?.user ?? null;
 }
+
+export async function validateSessionFromRequest(
+  request: NextRequest,
+  options?: { touch?: boolean },
+): Promise<SessionValidationResult> {
+  const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
+  if (!token) {
+    return { ok: false, reason: "missing" };
+  }
+  return validateSessionToken(token, options);
+}
+
+export { SessionPolicyError, ACCESS_LOGOUT_PATH };

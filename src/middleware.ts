@@ -1,36 +1,11 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, eq, gt } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "../drizzle/schema";
-import { SESSION_COOKIE_NAME } from "@/lib/auth/constants";
-import { hashSessionToken } from "@/lib/auth/token";
-
-async function getSessionUser(token: string) {
-  const { env } = getCloudflareContext();
-  const db = drizzle(env.DB, { schema });
-  const tokenHash = await hashSessionToken(token);
-  const now = new Date().toISOString();
-
-  const rows = await db
-    .select({ user: schema.users })
-    .from(schema.sessions)
-    .innerJoin(schema.users, eq(schema.sessions.userId, schema.users.id))
-    .where(
-      and(
-        eq(schema.sessions.tokenHash, tokenHash),
-        gt(schema.sessions.expiresAt, now),
-      ),
-    )
-    .limit(1);
-
-  const row = rows[0];
-  if (!row || row.user.isActive !== 1) {
-    return null;
-  }
-  return row.user;
-}
+import {
+  ACCESS_LOGOUT_PATH,
+  AUTH_ERROR_CODES,
+  SESSION_COOKIE_NAME,
+} from "@/lib/auth/constants";
+import { validateSessionFromRequest } from "@/lib/auth/session";
 
 function redirectToLogin(request: NextRequest) {
   const loginUrl = new URL("/login", request.url);
@@ -38,10 +13,43 @@ function redirectToLogin(request: NextRequest) {
   return NextResponse.redirect(loginUrl);
 }
 
+function redirectToAccessLogout(request: NextRequest, reason?: string) {
+  const logoutUrl = new URL(ACCESS_LOGOUT_PATH, request.url);
+  if (reason) {
+    logoutUrl.searchParams.set("crm_reason", reason);
+  }
+  const response = NextResponse.redirect(logoutUrl);
+  response.cookies.set({
+    name: SESSION_COOKIE_NAME,
+    value: "",
+    path: "/",
+    maxAge: 0,
+  });
+  return response;
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
-  const sessionUser = token ? await getSessionUser(token) : null;
+
+  let sessionUser = null;
+  let sessionIdleExpired = false;
+
+  if (token) {
+    const validation = await validateSessionFromRequest(request, { touch: true });
+    if (validation.ok) {
+      sessionUser = validation.session.user;
+    } else if (
+      validation.reason === "idle_expired" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED
+    ) {
+      sessionIdleExpired = true;
+    }
+  }
+
+  if (sessionIdleExpired && pathname !== "/login") {
+    return redirectToAccessLogout(request, "idle");
+  }
 
   if (pathname === "/login") {
     if (sessionUser) {

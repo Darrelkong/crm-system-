@@ -1,4 +1,9 @@
-import { getCurrentUser as getSessionUser } from "@/lib/auth/session";
+import {
+  getCurrentUser as getSessionUser,
+  getSessionTokenFromCookies,
+  validateSessionToken,
+} from "@/lib/auth/session";
+import { AUTH_ERROR_CODES, ACCESS_LOGOUT_PATH } from "@/lib/auth/constants";
 import type { User } from "../../../drizzle/schema/users";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { PermissionError } from "@/lib/permissions/customers";
@@ -8,6 +13,7 @@ export class AuthError extends Error {
     public readonly status: number,
     message: string,
     public readonly auditAction?: string,
+    public readonly errorCode?: string,
   ) {
     super(message);
     this.name = "AuthError";
@@ -15,11 +21,36 @@ export class AuthError extends Error {
 }
 
 export async function getCurrentUser(): Promise<User | null> {
-  return getSessionUser();
+  return getSessionUser({ touch: true });
 }
 
 export async function requireAuth(request?: Request): Promise<User> {
-  const user = await getCurrentUser();
+  const token = await getSessionTokenFromCookies();
+  if (token) {
+    const validation = await validateSessionToken(token, { touch: true });
+    if (validation.ok) {
+      if (validation.session.user.isActive !== 1) {
+        throw new AuthError(403, "账号已禁用");
+      }
+      return validation.session.user;
+    }
+    if (validation.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED) {
+      if (request) {
+        await logPermissionDenied(request, {
+          action: "auth.session.idle_expired",
+          entityType: "auth",
+        });
+      }
+      throw new AuthError(
+        401,
+        "session idle expired",
+        "auth.session.idle_expired",
+        AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED,
+      );
+    }
+  }
+
+  const user = await getSessionUser({ touch: false });
   if (!user) {
     if (request) {
       await logPermissionDenied(request, {
@@ -27,7 +58,12 @@ export async function requireAuth(request?: Request): Promise<User> {
         entityType: "auth",
       });
     }
-    throw new AuthError(401, "未登录", "permission.denied.unauthenticated");
+    throw new AuthError(
+      401,
+      "未登录",
+      "permission.denied.unauthenticated",
+      AUTH_ERROR_CODES.UNAUTHENTICATED,
+    );
   }
   if (user.isActive !== 1) {
     throw new AuthError(403, "账号已禁用");
@@ -70,7 +106,20 @@ export async function requireStaff(request?: Request): Promise<User> {
 }
 
 export function authErrorResponse(error: unknown): Response {
-  if (error instanceof AuthError || error instanceof PermissionError) {
+  if (error instanceof AuthError) {
+    return Response.json(
+      {
+        error: error.message,
+        errorCode: error.errorCode ?? error.auditAction ?? "INSUFFICIENT_PERMISSIONS",
+        redirect:
+          error.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED
+            ? ACCESS_LOGOUT_PATH
+            : undefined,
+      },
+      { status: error.status },
+    );
+  }
+  if (error instanceof PermissionError) {
     return Response.json(
       {
         error: error.message,

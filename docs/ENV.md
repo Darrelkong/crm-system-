@@ -4,6 +4,7 @@
 
 | 变量 | 阶段 | 必填 | 说明 |
 |------|------|------|------|
+| `SKIP_ACCESS_JWT_CHECK` | Phase 17A | 本地 dev 建议 `true` | 设为 `true` 时跳过 Cloudflare Access JWT 5 分钟窗口校验（**生产勿启用**） |
 | `TURNSTILE_SITE_KEY` | Phase 2+ | 否 | Cloudflare Turnstile 站点公钥（登录页） |
 | `TURNSTILE_SECRET_KEY` | Phase 2+ | 否 | Turnstile 服务端校验密钥 |
 | `SESSION_SECRET` | Phase 1 | 生产建议填写 | Session 相关预留配置；生产环境请使用强随机字符串 |

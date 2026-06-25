@@ -1,20 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/provider";
+import { performSecurityLogout } from "@/lib/auth/client-security";
 
 export function SignOutButton() {
-  const router = useRouter();
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
 
   async function handleSignOut() {
     setLoading(true);
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
-    router.refresh();
+    await performSecurityLogout("manual");
   }
 
   return (

@@ -2,16 +2,19 @@ import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { getDb, schema } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
-import {
-  createSession,
-  destroySession,
-  getSessionTokenFromCookies,
-} from "@/lib/auth/session";
+import { createSession, SessionPolicyError } from "@/lib/auth/session";
 import {
   getClearSessionCookieOptions,
   getRequestMeta,
   getSessionCookieOptions,
 } from "@/lib/auth/cookies";
+import {
+  AUTH_ERROR_CODES,
+  ACCESS_LOGOUT_PATH,
+} from "@/lib/auth/constants";
+import {
+  validateAccessLoginWindowFromRequest,
+} from "@/lib/auth/access-jwt";
 import {
   getLockoutRemainingMinutes,
   isAccountLocked,
@@ -30,6 +33,18 @@ type LoginBody = {
 };
 
 export async function POST(request: Request) {
+  const accessWindow = validateAccessLoginWindowFromRequest(request);
+  if (!accessWindow.ok) {
+    return Response.json(
+      {
+        error: "Access verification expired",
+        errorCode: AUTH_ERROR_CODES.ACCESS_VERIFICATION_EXPIRED,
+        redirect: ACCESS_LOGOUT_PATH,
+      },
+      { status: 401 },
+    );
+  }
+
   const body = (await request.json()) as LoginBody;
   const email = body.email?.trim().toLowerCase();
   const password = body.password ?? "";
@@ -123,39 +138,60 @@ export async function POST(request: Request) {
 
   await resetLoginFailures(user.id);
 
-  const { token, expiresAt } = await createSession(user.id, request);
-  const cookieStore = await cookies();
-  cookieStore.set({
-    ...getSessionCookieOptions(expiresAt),
-    value: token,
-  });
+  try {
+    const { token, expiresAt } = await createSession(user.id, request);
+    const cookieStore = await cookies();
+    cookieStore.set({
+      ...getSessionCookieOptions(expiresAt),
+      value: token,
+    });
 
-  await writeLoginLog({
-    userId: user.id,
-    emailAttempted: email,
-    success: true,
-    ipAddress,
-    userAgent,
-  });
+    await writeLoginLog({
+      userId: user.id,
+      emailAttempted: email,
+      success: true,
+      ipAddress,
+      userAgent,
+    });
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "auth.login.success",
-    entityType: "session",
-    entityId: user.id,
-    ipAddress,
-    userAgent,
-    metadata: { role: user.role },
-  });
+    await writeAuditLog({
+      userId: user.id,
+      action: "auth.login.success",
+      entityType: "session",
+      entityId: user.id,
+      ipAddress,
+      userAgent,
+      metadata: { role: user.role },
+    });
 
-  return Response.json({
-    ok: true,
-    redirect: getRoleDashboardPath(user.role),
-    user: {
-      id: user.id,
-      email: user.email,
-      displayName: user.displayName,
-      role: user.role,
-    },
-  });
+    return Response.json({
+      ok: true,
+      redirect: getRoleDashboardPath(user.role),
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    if (error instanceof SessionPolicyError) {
+      await writeLoginLog({
+        userId: user.id,
+        emailAttempted: email,
+        success: false,
+        failureReason: "single_session_active",
+        ipAddress,
+        userAgent,
+      });
+      return Response.json(
+        {
+          error: "single session active",
+          errorCode: AUTH_ERROR_CODES.SINGLE_SESSION_ACTIVE,
+        },
+        { status: 403 },
+      );
+    }
+    throw error;
+  }
 }

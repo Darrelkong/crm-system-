@@ -70,6 +70,22 @@ const en = {
     enterEmail: "Please enter your email",
     enterPassword: "Please enter your password",
     enterVerificationCode: "Please enter the verification code",
+    signedOutDueToInactivity:
+      "You were signed out due to inactivity. Please verify through Access again to continue.",
+  },
+  security: {
+    accessExpired:
+      "Your Access verification has expired. Please verify again before signing in to CRM.",
+    sessionExpired:
+      "Your CRM session has expired due to inactivity. Please verify through Access again.",
+    accessDenied: "Access denied",
+    singleSessionTitle: "Access Denied",
+    singleSessionDescription:
+      "This account is currently signed in on another device. For security reasons, only one active session is allowed per account at a time. Please sign out from the previous device or wait for the session to expire before trying again. If you need assistance, please contact an administrator.",
+    reloginRequired:
+      "Please complete Cloudflare Access verification again before signing in to CRM.",
+    verifyAccessAgain: "Verify Access again",
+    sessionTimeoutTitle: "Session expired",
   },
   nav: {
     dashboard: "Dashboard",

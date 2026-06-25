@@ -72,6 +72,21 @@ const zhHans: Messages = {
     enterEmail: "请输入邮箱",
     enterPassword: "请输入密码",
     enterVerificationCode: "请输入验证码",
+    signedOutDueToInactivity:
+      "由于长时间未操作，您已被登出。请重新完成 Access 验证后再登录 CRM。",
+  },
+  security: {
+    accessExpired:
+      "Access 验证已超时，请重新验证后再登录 CRM。",
+    sessionExpired:
+      "CRM 会话因长时间未操作已超时，请重新完成 Access 验证。",
+    accessDenied: "访问被拒绝",
+    singleSessionTitle: "访问被拒绝",
+    singleSessionDescription:
+      "此账户当前已在另一台设备登录。基于安全策略，同一账户同一时间仅允许一个有效登录会话。请先在原设备退出登录，或等待系统自动超时后再试。如需协助，请联系管理员。",
+    reloginRequired: "请先重新完成 Cloudflare Access 验证，再登录 CRM。",
+    verifyAccessAgain: "重新验证 Access",
+    sessionTimeoutTitle: "会话已超时",
   },
   nav: {
     dashboard: "工作台",

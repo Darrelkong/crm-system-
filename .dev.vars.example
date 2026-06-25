@@ -1,3 +1,6 @@
+# Local development: skip Cloudflare Access JWT gate on /login and POST /api/auth/login
+SKIP_ACCESS_JWT_CHECK=true
+
 # Cloudflare Turnstile（Phase 2+ 登录验证，当前预留）
 # TURNSTILE_SITE_KEY=
 # TURNSTILE_SECRET_KEY=
