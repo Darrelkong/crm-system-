@@ -1,19 +1,14 @@
 export const dynamic = "force-dynamic";
 
+import { authErrorResponse } from "@/lib/permissions";
 import {
-  requireAuth,
-  authErrorResponse,
-  getCustomerAccessLevel,
-} from "@/lib/permissions";
-import {
-  assertDebugApiEnabled,
   debugDisabledResponse,
+  requireDebugApiAdmin,
 } from "@/lib/debug/guard";
 
 export async function GET(request: Request) {
   try {
-    assertDebugApiEnabled();
-    const user = await requireAuth(request);
+    const user = await requireDebugApiAdmin(request);
 
     return Response.json({
       authenticated: true,

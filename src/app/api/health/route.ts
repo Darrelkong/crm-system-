@@ -16,6 +16,8 @@ const EXPECTED_TABLES = [
   "system_settings",
 ] as const;
 
+const isProduction = process.env.NODE_ENV === "production";
+
 export async function GET() {
   try {
     const db = getDb();
@@ -35,6 +37,13 @@ export async function GET() {
       (table) => !tables.includes(table),
     );
 
+    if (isProduction) {
+      if (missingTables.length > 0) {
+        return Response.json({ status: "error" }, { status: 503 });
+      }
+      return Response.json({ status: "ok" });
+    }
+
     return Response.json({
       status: missingTables.length === 0 ? "ok" : "degraded",
       database: "d1",
@@ -42,15 +51,16 @@ export async function GET() {
       missingTables,
       phase: 0,
     });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unknown database error";
+  } catch {
+    if (isProduction) {
+      return Response.json({ status: "error" }, { status: 503 });
+    }
 
     return Response.json(
       {
         status: "error",
         database: "d1",
-        message,
+        message: "Database health check failed",
         phase: 0,
       },
       { status: 503 },

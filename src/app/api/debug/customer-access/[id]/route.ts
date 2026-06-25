@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
-  requireAuth,
   authErrorResponse,
   formatCustomerForUser,
   getCustomerAccessLevel,
@@ -11,8 +10,8 @@ import {
 } from "@/lib/permissions";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import {
-  assertDebugApiEnabled,
   debugDisabledResponse,
+  requireDebugApiAdmin,
 } from "@/lib/debug/guard";
 
 type RouteContext = {
@@ -21,8 +20,7 @@ type RouteContext = {
 
 export async function GET(request: Request, context: RouteContext) {
   try {
-    assertDebugApiEnabled();
-    const user = await requireAuth(request);
+    const user = await requireDebugApiAdmin(request);
     const { id } = await context.params;
 
     const db = getDb();
