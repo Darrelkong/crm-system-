@@ -3,11 +3,12 @@ export type AdminUserView = {
   name: string;
   email: string;
   role: string;
-  status: "active" | "disabled";
+  status: "active" | "disabled" | "deleted";
   failed_login_count: number;
   locked_until: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
   last_login_at: string | null;
   recent_login_count: number;
 };

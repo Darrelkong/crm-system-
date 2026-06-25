@@ -14,12 +14,14 @@ export const users = sqliteTable(
     mustChangePassword: integer("must_change_password").notNull().default(0),
     passwordChangedAt: text("password_changed_at"),
     passwordResetAt: text("password_reset_at"),
+    deletedAt: text("deleted_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
     index("idx_users_email").on(table.email),
     index("idx_users_role").on(table.role),
+    index("idx_users_deleted_at").on(table.deletedAt),
   ],
 );
 

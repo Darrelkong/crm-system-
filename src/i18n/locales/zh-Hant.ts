@@ -333,6 +333,13 @@ const zhHant: Messages = {
     newPassword: "新密碼",
     unlockAccount: "解鎖帳號",
     disableAccount: "停用",
+    disableStaff: "停用員工",
+    disableStaffHint: "員工將無法登入，但其名下客戶不會轉交。",
+    deleteStaff: "刪除員工",
+    deleteStaffHint: "員工將無法登入，其名下客戶會自動轉交給管理員，歷史記錄會保留。",
+    deleteStaffConfirm:
+      "刪除後，該員工將無法登入，其名下客戶會自動轉交給管理員，所有歷史記錄將保留。是否確認刪除？",
+    staffDeleted: "員工已刪除，{{count}} 位客戶已轉交給管理員",
     enableAccount: "啟用",
     staffCreated: "員工帳號已建立",
     passwordReset: "密碼已重設",
@@ -351,6 +358,7 @@ const zhHant: Messages = {
     lastLogin: "最近登入",
     statusNormal: "正常",
     statusDisabled: "已停用",
+    statusDeleted: "已刪除",
     passwordResetRelogin: "密碼已重設，該用戶需重新登入",
   },
   backup: {
@@ -810,6 +818,9 @@ const zhHant: Messages = {
     customerClaimedFromPool: "客戶已從公共池領取",
     customerAutoReclaimed: "客戶已自動回收到公共池",
     customerTransferred: "客戶已轉移",
+    customerTransferredStaffDeleted: "原負責員工已被刪除，客戶已自動轉交給管理員",
+    staffDeletedTransfer:
+      "原負責人：{{previousOwnerName}} → 新負責人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申請已通過",
     customerSoftDeleted: "客戶已軟刪除（歸檔）",
     autoReclaimWarningDay6: "自動回收預警（第 1 次）",

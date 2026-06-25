@@ -342,6 +342,15 @@ const en = {
     newPassword: "New password",
     unlockAccount: "Unlock account",
     disableAccount: "Disable account",
+    disableStaff: "Disable staff",
+    disableStaffHint:
+      "The staff member will not be able to sign in, and their clients will remain assigned to them.",
+    deleteStaff: "Delete staff",
+    deleteStaffHint:
+      "The staff member will not be able to sign in, and their clients will be transferred to you. History is preserved.",
+    deleteStaffConfirm:
+      "After deletion, this staff member cannot sign in and their clients will be transferred to you. All history will be preserved. Continue?",
+    staffDeleted: "Staff deleted. {{count}} client(s) transferred to you.",
     enableAccount: "Enable account",
     staffCreated: "Staff account created",
     passwordReset: "Password reset successfully",
@@ -360,6 +369,7 @@ const en = {
     lastLogin: "Last login",
     statusNormal: "Active",
     statusDisabled: "Disabled",
+    statusDeleted: "Deleted",
     passwordResetRelogin: "Password reset. The user must sign in again.",
   },
   backup: {
@@ -833,6 +843,10 @@ const en = {
     customerClaimedFromPool: "Claimed from public pool",
     customerAutoReclaimed: "Auto-reclaimed to public pool",
     customerTransferred: "Client transferred",
+    customerTransferredStaffDeleted:
+      "The previous owner was deleted; the client was transferred to an administrator",
+    staffDeletedTransfer:
+      "Previous owner: {{previousOwnerName}} → New owner: {{newOwnerName}}",
     customerClosedWonApproved: "Close-won approved",
     customerSoftDeleted: "Client archived (soft delete)",
     autoReclaimWarningDay6: "Auto-reclaim warning (1st)",

@@ -24,6 +24,7 @@ const AUDIT_ACTION_MESSAGE_KEYS: Record<string, string> = {
   "customer.claimed_from_pool": "customerClaimedFromPool",
   "customer.auto_reclaimed_to_pool": "customerAutoReclaimed",
   "customer.transferred": "customerTransferred",
+  "customer.transferred.staff_deleted": "customerTransferredStaffDeleted",
   "customer.closed_won.approved": "customerClosedWonApproved",
   "customer.deleted.soft": "customerSoftDeleted",
   "customer.auto_reclaim_warning.day_6": "autoReclaimWarningDay6",
@@ -130,6 +131,12 @@ function buildAuditItem(
   } else if (row.action === "customer.imported" && metadata.importJobId) {
     descriptionKey = "timelineMessages.importedJob";
     descriptionParams = { jobId: String(metadata.importJobId) };
+  } else if (row.action === "customer.transferred.staff_deleted") {
+    descriptionKey = "timelineMessages.staffDeletedTransfer";
+    descriptionParams = {
+      previousOwnerName: String(metadata.previousOwnerName ?? ""),
+      newOwnerName: String(metadata.newOwnerName ?? ""),
+    };
   } else if (isTaskAudit) {
     const parts: string[] = [];
     if (metadata.taskType) parts.push(String(metadata.taskType));

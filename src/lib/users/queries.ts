@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -23,7 +23,13 @@ export async function listActiveStaffUsers(): Promise<
       email: schema.users.email,
     })
     .from(schema.users)
-    .where(and(eq(schema.users.role, "staff"), eq(schema.users.isActive, 1)));
+    .where(
+      and(
+        eq(schema.users.role, "staff"),
+        eq(schema.users.isActive, 1),
+        isNull(schema.users.deletedAt),
+      ),
+    );
 }
 
 export async function listActiveAdminUsers(): Promise<
@@ -37,5 +43,11 @@ export async function listActiveAdminUsers(): Promise<
       email: schema.users.email,
     })
     .from(schema.users)
-    .where(and(eq(schema.users.role, "admin"), eq(schema.users.isActive, 1)));
+    .where(
+      and(
+        eq(schema.users.role, "admin"),
+        eq(schema.users.isActive, 1),
+        isNull(schema.users.deletedAt),
+      ),
+    );
 }

@@ -62,24 +62,64 @@ export function UsersClient() {
     await load();
   }
 
-  async function toggleStatus(user: AdminUserView) {
-    const next = user.status === "active" ? "disabled" : "active";
+  async function disableStaff(user: AdminUserView) {
     const res = await fetch(`/api/admin/users/${user.id}/status`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: next }),
+      body: JSON.stringify({ status: "disabled" }),
     });
     const data = (await res.json()) as { error?: string };
     if (!res.ok) {
       setMessage(data.error ?? t("employees.operationFailed"));
       return;
     }
+    setMessage(t("employees.accountDisabled"));
+    await load();
+  }
+
+  async function enableStaff(user: AdminUserView) {
+    const res = await fetch(`/api/admin/users/${user.id}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "active" }),
+    });
+    const data = (await res.json()) as { error?: string };
+    if (!res.ok) {
+      setMessage(data.error ?? t("employees.operationFailed"));
+      return;
+    }
+    setMessage(t("employees.accountEnabled"));
+    await load();
+  }
+
+  async function deleteStaff(user: AdminUserView) {
+    if (!window.confirm(t("employees.deleteStaffConfirm"))) {
+      return;
+    }
+
+    const res = await fetch(`/api/admin/users/${user.id}/delete`, {
+      method: "POST",
+    });
+    const data = (await res.json()) as {
+      error?: string;
+      transferredCustomerCount?: number;
+    };
+    if (!res.ok) {
+      setMessage(data.error ?? t("employees.operationFailed"));
+      return;
+    }
     setMessage(
-      next === "active"
-        ? t("employees.accountEnabled")
-        : t("employees.accountDisabled"),
+      t("employees.staffDeleted", {
+        count: String(data.transferredCustomerCount ?? 0),
+      }),
     );
     await load();
+  }
+
+  function statusLabel(status: AdminUserView["status"]) {
+    if (status === "active") return t("employees.statusNormal");
+    if (status === "deleted") return t("employees.statusDeleted");
+    return t("employees.statusDisabled");
   }
 
   async function unlockUser(userId: string) {
@@ -228,9 +268,7 @@ export function UsersClient() {
                         : t("employees.staffRole")}
                     </td>
                     <td className="px-3 py-2">
-                      {u.status === "active"
-                        ? t("employees.statusNormal")
-                        : t("employees.statusDisabled")}
+                      {statusLabel(u.status)}
                     </td>
                     <td className="px-3 py-2">{u.failed_login_count}</td>
                     <td className="px-3 py-2 font-mono text-xs">
@@ -241,25 +279,46 @@ export function UsersClient() {
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1">
-                        {u.role === "staff" && (
+                        {u.role === "staff" && u.status === "active" && (
                           <Button
                             size="sm"
                             variant="secondary"
-                            onClick={() => toggleStatus(u)}
+                            title={t("employees.disableStaffHint")}
+                            onClick={() => disableStaff(u)}
                           >
-                            {u.status === "active"
-                              ? t("employees.disableAccount")
-                              : t("employees.enableAccount")}
+                            {t("employees.disableStaff")}
                           </Button>
                         )}
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => setResetUserId(u.id)}
-                        >
-                          {t("employees.resetPassword")}
-                        </Button>
-                        {(u.failed_login_count > 0 || u.locked_until) && (
+                        {u.role === "staff" && u.status === "disabled" && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => enableStaff(u)}
+                          >
+                            {t("employees.enableAccount")}
+                          </Button>
+                        )}
+                        {u.role === "staff" && u.status !== "deleted" && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            title={t("employees.deleteStaffHint")}
+                            onClick={() => deleteStaff(u)}
+                          >
+                            {t("employees.deleteStaff")}
+                          </Button>
+                        )}
+                        {u.status !== "deleted" && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => setResetUserId(u.id)}
+                          >
+                            {t("employees.resetPassword")}
+                          </Button>
+                        )}
+                        {u.status !== "deleted" &&
+                          (u.failed_login_count > 0 || u.locked_until) && (
                           <Button
                             size="sm"
                             variant="secondary"

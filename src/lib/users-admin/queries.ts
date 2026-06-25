@@ -8,16 +8,23 @@ function formatUserRow(
   lastLoginAt: string | null,
   recentLoginCount: number,
 ): AdminUserView {
+  const status: AdminUserView["status"] = user.deletedAt
+    ? "deleted"
+    : user.isActive === 1
+      ? "active"
+      : "disabled";
+
   return {
     id: user.id,
     name: user.displayName,
     email: user.email,
     role: user.role,
-    status: user.isActive === 1 ? "active" : "disabled",
+    status,
     failed_login_count: user.failedLoginAttempts,
     locked_until: user.lockedUntil,
     created_at: user.createdAt,
     updated_at: user.updatedAt,
+    deleted_at: user.deletedAt,
     last_login_at: lastLoginAt,
     recent_login_count: recentLoginCount,
   };

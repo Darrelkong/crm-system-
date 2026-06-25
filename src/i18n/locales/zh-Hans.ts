@@ -332,6 +332,13 @@ const zhHans: Messages = {
     newPassword: "新密码",
     unlockAccount: "解锁账号",
     disableAccount: "禁用",
+    disableStaff: "停用员工",
+    disableStaffHint: "员工将无法登录，但其名下客户不会转交。",
+    deleteStaff: "删除员工",
+    deleteStaffHint: "员工将无法登录，其名下客户会自动转交给管理员，历史记录会保留。",
+    deleteStaffConfirm:
+      "删除后，该员工将无法登录，其名下客户会自动转交给管理员，所有历史记录将保留。是否确认删除？",
+    staffDeleted: "员工已删除，{{count}} 位客户已转交给管理员",
     enableAccount: "启用",
     staffCreated: "员工账号已创建",
     passwordReset: "密码已重置",
@@ -350,6 +357,7 @@ const zhHans: Messages = {
     lastLogin: "最近登录",
     statusNormal: "正常",
     statusDisabled: "已停用",
+    statusDeleted: "已删除",
     passwordResetRelogin: "密码已重置，该用户需重新登录",
   },
   backup: {
@@ -809,6 +817,9 @@ const zhHans: Messages = {
     customerClaimedFromPool: "客户已从公共池领取",
     customerAutoReclaimed: "客户已自动回收到公共池",
     customerTransferred: "客户已转移",
+    customerTransferredStaffDeleted: "原负责员工已被删除，客户已自动转交给管理员",
+    staffDeletedTransfer:
+      "原负责人：{{previousOwnerName}} → 新负责人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申请已通过",
     customerSoftDeleted: "客户已软删除（归档）",
     autoReclaimWarningDay6: "自动回收预警（第 1 次）",
