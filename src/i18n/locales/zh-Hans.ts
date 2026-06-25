@@ -161,6 +161,8 @@ const zhHans: Messages = {
     status: "客户状态",
     owner: "负责员工",
     assignedStaff: "负责员工",
+    createdBy: "创建人",
+    unknownStaff: "未知员工",
     notes: "备注",
     createdAt: "创建时间",
     updatedAt: "更新时间",

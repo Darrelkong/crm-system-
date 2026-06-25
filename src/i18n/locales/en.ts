@@ -163,6 +163,8 @@ const en = {
     status: "Client Status",
     owner: "Assigned Staff",
     assignedStaff: "Assigned Staff",
+    createdBy: "Created by",
+    unknownStaff: "Unknown staff",
     notes: "Notes",
     createdAt: "Created",
     updatedAt: "Updated",

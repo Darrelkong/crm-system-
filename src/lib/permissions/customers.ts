@@ -28,6 +28,7 @@ export type CustomerView = {
   source: string;
   status: string;
   ownerId: string | null;
+  ownerName?: string | null;
   accessLevel: CustomerAccessLevel;
   isMasked: boolean;
   isArchived?: boolean;
@@ -41,6 +42,7 @@ export type CustomerView = {
   notes?: string | null;
   releaserUserId?: string | null;
   createdBy: string;
+  createdByName?: string | null;
   updatedBy?: string | null;
   createdAt: string;
   updatedAt: string;

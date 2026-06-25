@@ -11,6 +11,7 @@ import {
 } from "@/lib/permissions/customers";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
+import { resolveCustomerUserLabels } from "@/lib/customers/user-labels";
 import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { getCustomerTimeline } from "@/lib/customers/timeline/service";
@@ -67,6 +68,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
   const db = getDb();
   const timeline = await getCustomerTimeline(db, user, customer);
+  const userLabels = await resolveCustomerUserLabels(db, customer);
 
   return (
     <CustomerDetailClient
@@ -89,6 +91,8 @@ export default async function CustomerDetailPage({ params }: Props) {
         requestedProjectName: view.requestedProjectName,
         notes: view.notes,
         ownerId: view.ownerId,
+        ownerName: userLabels.ownerName,
+        createdByName: userLabels.createdByName,
         lastFollowUpAt: view.lastFollowUpAt,
         lastValidFollowUpAt: view.lastValidFollowUpAt,
         neverContacted: view.neverContacted,

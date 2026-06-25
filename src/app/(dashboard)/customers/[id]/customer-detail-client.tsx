@@ -39,6 +39,8 @@ export type CustomerDetailView = {
   requestedProjectName?: string | null;
   notes?: string | null;
   ownerId?: string | null;
+  ownerName?: string | null;
+  createdByName?: string | null;
   lastFollowUpAt?: string | null;
   lastValidFollowUpAt?: string | null;
   neverContacted: boolean;
@@ -86,6 +88,16 @@ export function CustomerDetailClient({
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
   const id = view.id;
+
+  const assignedStaffLabel = !view.ownerId
+    ? t("customers.publicPoolOwner")
+    : view.ownerName?.trim()
+      ? view.ownerName
+      : t("customers.unknownStaff");
+
+  const createdByLabel = view.createdByName?.trim()
+    ? view.createdByName
+    : t("customers.unknownStaff");
 
   return (
     <div className="max-w-3xl">
@@ -218,8 +230,9 @@ export function CustomerDetailClient({
           <dl className="mt-2">
             <DetailRow
               label={t("customers.assignedStaff")}
-              value={view.ownerId ?? t("customers.publicPoolOwner")}
+              value={assignedStaffLabel}
             />
+            <DetailRow label={t("customers.createdBy")} value={createdByLabel} />
             <DetailRow
               label={t("customers.lastFollowUp")}
               value={

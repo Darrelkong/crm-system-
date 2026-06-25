@@ -161,6 +161,8 @@ const zhHant: Messages = {
     status: "客戶狀態",
     owner: "負責員工",
     assignedStaff: "負責員工",
+    createdBy: "創建人",
+    unknownStaff: "未知員工",
     notes: "備註",
     createdAt: "建立時間",
     updatedAt: "更新時間",
