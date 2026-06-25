@@ -3,6 +3,7 @@ import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
+  isLockedSettingKey,
   SETTING_DEFAULTS,
   SETTING_KEYS,
   type SettingKey,
@@ -44,6 +45,9 @@ export async function updateSystemSettings(
   }
 
   for (const [rawKey, rawValue] of Object.entries(updates)) {
+    if (isLockedSettingKey(rawKey)) {
+      continue;
+    }
     if (!isSettingKey(rawKey)) {
       throw new SettingsError(`未知配置项：${rawKey}`);
     }

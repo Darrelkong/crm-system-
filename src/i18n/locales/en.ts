@@ -719,6 +719,7 @@ const en = {
   },
   settings: {
     title: "System settings",
+    inactivityLogoutFixedHint: "This security policy is fixed at 30 minutes.",
   },
   loginLogs: {
     title: "Login history",

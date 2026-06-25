@@ -693,6 +693,7 @@ const zhHans: Messages = {
   },
   settings: {
     title: "系统设置",
+    inactivityLogoutFixedHint: "此安全策略已固定为 30 分钟。",
   },
   loginLogs: {
     title: "登录记录",

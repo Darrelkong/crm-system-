@@ -3,13 +3,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
+import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
+import { useTranslation } from "@/i18n/provider";
 import {
+  isLockedSettingKey,
   SETTING_KEYS,
   SETTING_LABELS,
   type SettingKey,
 } from "@/lib/settings/keys";
 
+function buildSavePayload(settings: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(
+    Object.entries(settings).filter(([key]) => !isLockedSettingKey(key)),
+  );
+}
+
 export function SettingsClient() {
+  const { t } = useTranslation();
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,7 +43,7 @@ export function SettingsClient() {
     const res = await fetch("/api/admin/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings }),
+      body: JSON.stringify({ settings: buildSavePayload(settings) }),
     });
     const data = (await res.json()) as {
       settings?: Record<string, string>;
@@ -71,6 +81,20 @@ export function SettingsClient() {
                 <option value="Asia/Shanghai">Asia/Shanghai</option>
                 <option value="UTC">UTC</option>
               </Select>
+            ) : key === "inactivity_logout_minutes" ? (
+              <>
+                <Input
+                  id={key}
+                  type="number"
+                  className="mt-1"
+                  value={String(INACTIVITY_LOGOUT_MINUTES)}
+                  readOnly
+                  disabled
+                />
+                <p className="mt-1 text-xs text-slate-500">
+                  {t("settings.inactivityLogoutFixedHint")}
+                </p>
+              </>
             ) : (
               <Input
                 id={key}

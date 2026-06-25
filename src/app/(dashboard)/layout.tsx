@@ -1,5 +1,5 @@
-import { getEffectiveSettings } from "@/lib/settings/effective";
 import { IdleTimeoutProvider } from "@/components/auth/idle-timeout-provider";
+import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -8,10 +8,8 @@ export default async function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const settings = await getEffectiveSettings();
-
   return (
-    <IdleTimeoutProvider idleMinutes={settings.inactivityLogoutMinutes}>
+    <IdleTimeoutProvider idleMinutes={INACTIVITY_LOGOUT_MINUTES}>
       {children}
     </IdleTimeoutProvider>
   );

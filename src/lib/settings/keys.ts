@@ -1,3 +1,13 @@
+import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
+
+export const LOCKED_SETTING_KEYS = ["inactivity_logout_minutes"] as const;
+
+export type LockedSettingKey = (typeof LOCKED_SETTING_KEYS)[number];
+
+export function isLockedSettingKey(key: string): key is LockedSettingKey {
+  return (LOCKED_SETTING_KEYS as readonly string[]).includes(key);
+}
+
 export const SETTING_KEYS = [
   "automatic_reclaim_days",
   "reclaim_warning_day_1",
@@ -18,7 +28,7 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   public_pool_claim_quota_7_days: "5",
   public_pool_claim_cooldown_hours: "12",
   first_contact_sla_hours: "24",
-  inactivity_logout_minutes: "30",
+  inactivity_logout_minutes: String(INACTIVITY_LOGOUT_MINUTES),
   business_timezone: "Asia/Shanghai",
 };
 

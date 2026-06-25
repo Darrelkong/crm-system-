@@ -2,8 +2,10 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../../../drizzle/schema";
 import type { Session } from "../../../drizzle/schema/sessions";
-import { SESSION_ACTIVITY_TOUCH_INTERVAL_MS } from "@/lib/auth/constants";
-import { getEffectiveSettings } from "@/lib/settings/effective";
+import {
+  INACTIVITY_LOGOUT_MINUTES,
+  SESSION_ACTIVITY_TOUCH_INTERVAL_MS,
+} from "@/lib/auth/constants";
 
 export function isSessionRevoked(session: Pick<Session, "revokedAt">): boolean {
   return session.revokedAt != null;
@@ -139,11 +141,6 @@ export async function revokeExistingSessionsForLogin(
   await revokeAllSessionsForUser(db, userId, now);
 }
 
-export async function getIdleLogoutMinutes(db?: Db): Promise<number> {
-  if (db) {
-    const settings = await getEffectiveSettings(db);
-    return settings.inactivityLogoutMinutes;
-  }
-  const settings = await getEffectiveSettings();
-  return settings.inactivityLogoutMinutes;
+export async function getIdleLogoutMinutes(_db?: Db): Promise<number> {
+  return INACTIVITY_LOGOUT_MINUTES;
 }

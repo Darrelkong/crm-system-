@@ -694,6 +694,7 @@ const zhHant: Messages = {
   },
   settings: {
     title: "系統設定",
+    inactivityLogoutFixedHint: "此安全策略已固定為 30 分鐘。",
   },
   loginLogs: {
     title: "登入記錄",

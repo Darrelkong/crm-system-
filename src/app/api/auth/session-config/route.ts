@@ -1,15 +1,14 @@
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
+import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
-import { getEffectiveSettings } from "@/lib/settings/effective";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
     await requireAuth();
-    const settings = await getEffectiveSettings();
     return Response.json({
-      inactivityLogoutMinutes: settings.inactivityLogoutMinutes,
+      inactivityLogoutMinutes: INACTIVITY_LOGOUT_MINUTES,
       accessLogoutPath: getPostLogoutRedirectPath(),
     });
   } catch (error) {

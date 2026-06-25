@@ -13,6 +13,11 @@ export { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 /** Throttle session last_activity writes (ms) */
 export const SESSION_ACTIVITY_TOUCH_INTERVAL_MS = 30 * 1000;
 
+/** Idle logout after this many minutes with no user activity */
+export const INACTIVITY_LOGOUT_MINUTES = 30;
+export const INACTIVITY_LOGOUT_MS = INACTIVITY_LOGOUT_MINUTES * 60 * 1000;
+export const INACTIVITY_LOGOUT_SECONDS = INACTIVITY_LOGOUT_MINUTES * 60;
+
 export const AUTH_ERROR_CODES = {
   ACCESS_VERIFICATION_EXPIRED: "ACCESS_VERIFICATION_EXPIRED",
   SESSION_IDLE_EXPIRED: "SESSION_IDLE_EXPIRED",
