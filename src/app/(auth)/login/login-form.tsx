@@ -5,10 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/form";
 import { Card } from "@/components/ui/card";
-import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
+import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { AccountLockedModal } from "@/app/(auth)/login/account-locked-modal";
+import { LOGIN_BRAND } from "@/app/(auth)/login/login-copy";
 import {
   redirectToAccessLogout,
   isLocalDevelopmentClient,
@@ -23,6 +24,7 @@ import {
   shouldForceAccessLogoutAfterTimeoutVisit,
   TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD,
 } from "@/lib/auth/timeout-login-visits";
+import "./login-page.css";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
   if (value === "idle" || value === "revoked" || value === "invalid") {
@@ -156,69 +158,80 @@ export function LoginForm() {
   }
 
   return (
-    <div className="auth-shell relative">
-      <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
+    <div className="login-page">
+      <div className="login-page__scene" aria-hidden="true">
+        <div className="login-page__blush login-page__blush--top" />
+        <div className="login-page__blush login-page__blush--bottom" />
+      </div>
+
+      <div className="login-page__locale">
         <LanguageSwitcher />
       </div>
-      <Card className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <p className="brand-kicker">{t("brand.crmName")}</p>
-          <p className="page-description mt-2">{t("brand.portalSubtitle")}</p>
-        </div>
 
-        <div className="mb-6 text-center">
-          <h1 className="page-title">{t("auth.signInTitle")}</h1>
-          <p className="page-description">{t("auth.signInSubtitle")}</p>
-        </div>
+      <div className="login-page__stack">
+        <Card className="login-page__card p-5" padding>
+          <div className="login-page__form-header">
+            <p className="login-page__card-brand">{LOGIN_BRAND.name}</p>
+            <h1 className="login-page__form-title">{t("auth.signInTitle")}</h1>
+            <p className="login-page__form-subtitle">{t("auth.signInSubtitle")}</p>
+          </div>
 
-        <form onSubmit={handleSubmit}>
-          <Field>
-            <Label htmlFor="email">{t("auth.email")}</Label>
-            <Input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="name@company.com"
-            />
-          </Field>
-          <Field>
-            <Label htmlFor="password">{t("auth.password")}</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              placeholder="••••••••"
-            />
-          </Field>
+          <form onSubmit={handleSubmit}>
+            <Field>
+              <Label htmlFor="email">{t("auth.email")}</Label>
+              <Input
+                id="email"
+                name="email"
+                type="email"
+                required
+                autoComplete="email"
+                placeholder="name@company.com"
+                className="login-page__input"
+              />
+            </Field>
+            <Field>
+              <Label htmlFor="password">{t("auth.password")}</Label>
+              <Input
+                id="password"
+                name="password"
+                type="password"
+                required
+                autoComplete="current-password"
+                placeholder="••••••••"
+                className="login-page__input"
+              />
+            </Field>
 
-          {passwordChangedNotice && (
-            <p className="alert-success mb-4 px-3 py-2 text-sm">
-              {passwordChangedNotice}
-            </p>
-          )}
+            {passwordChangedNotice && (
+              <p className="login-page__notice alert-success">
+                {passwordChangedNotice}
+              </p>
+            )}
 
-          {sessionEndNotice && (
-            <div className="alert-warning mb-4 px-3 py-2 text-sm">
-              <p>{sessionEndNotice}</p>
-              {isTimeoutVisit && (
-                <p className="mt-2 text-xs leading-relaxed text-[#6B7890]">
-                  {t("security.timeoutReverifyHint")}
-                </p>
-              )}
-            </div>
-          )}
+            {sessionEndNotice && (
+              <div className="login-page__notice alert-warning">
+                <p>{sessionEndNotice}</p>
+                {isTimeoutVisit && (
+                  <p className="login-page__notice-hint">
+                    {t("security.timeoutReverifyHint")}
+                  </p>
+                )}
+              </div>
+            )}
 
-          {error && <p className="mb-4 text-sm text-red-600">{error}</p>}
+            {error && <p className="login-page__error">{error}</p>}
 
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? t("auth.signingIn") : t("auth.signIn")}
-          </Button>
-        </form>
-      </Card>
+            <Button
+              type="submit"
+              className="login-page__submit w-full"
+              disabled={loading}
+            >
+              {loading ? t("auth.signingIn") : t("auth.signIn")}
+            </Button>
+          </form>
+        </Card>
+      </div>
+
       <AccountLockedModal
         open={accountLockedOpen}
         onClose={closeAccountLockedModal}
