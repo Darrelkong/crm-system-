@@ -1295,6 +1295,26 @@ const zhHant: Messages = {
     allChannels: "全部方式",
     allStaff: "全部員工",
   },
+  tagsStagesPage: {
+    title: "標籤與階段",
+    description: "查看 CRM 目前使用的客戶階段與來源分類配置。",
+    readOnlyNotice:
+      "目前為只讀管理。階段與來源由系統常數定義，後續若要新增或編輯，需建立專用配置儲存。",
+    customerStages: "客戶階段",
+    customerTags: "客戶標籤",
+    customerCount: "客戶數量",
+    sortOrder: "排序",
+    status: "狀態",
+    noStages: "暫無階段",
+    noTags: "暫無標籤",
+    statusActive: "啟用",
+    statusLegacy: "舊版",
+    statusCustom: "自訂資料",
+    notApplicable: "不適用",
+    stagesHint: "對應 customers.sales_stage；Reports 的客戶階段分佈使用相同值。",
+    tagsHint:
+      "系統尚未建立獨立標籤資料表；此處以客戶來源（customers.source）作為分類標籤展示。",
+  },
   heatReasons: {
     highIntent: "客戶意向較高。",
     recentFollowUp: "近期已有跟進記錄。",

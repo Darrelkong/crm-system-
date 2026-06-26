@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
-import { TagsStagesPlaceholder } from "./tags-stages-placeholder";
+import { TagsStagesView } from "@/components/tags-stages/tags-stages-view";
 
 export default function TagsStagesPage() {
-  return <TagsStagesPlaceholder />;
+  return <TagsStagesView />;
 }

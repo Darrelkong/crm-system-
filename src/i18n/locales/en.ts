@@ -1363,6 +1363,27 @@ const en = {
     allChannels: "All channels",
     allStaff: "All staff",
   },
+  tagsStagesPage: {
+    title: "Tags & Stages",
+    description: "Review configured client stages and source labels used across the CRM.",
+    readOnlyNotice:
+      "Read-only management. Stages and sources are defined in system constants today; add/edit will require a dedicated configuration store in a future release.",
+    customerStages: "Customer stages",
+    customerTags: "Customer tags",
+    customerCount: "Customers",
+    sortOrder: "Sort order",
+    status: "Status",
+    noStages: "No stage data available.",
+    noTags: "No tag data available.",
+    statusActive: "Active",
+    statusLegacy: "Legacy",
+    statusCustom: "Custom data",
+    notApplicable: "N/A",
+    stagesHint:
+      "Stages map to customers.sales_stage. Reports stage distribution uses the same values.",
+    tagsHint:
+      "There is no dedicated tags table yet. Customer sources (customers.source) are shown here as classification labels.",
+  },
   heatReasons: {
     highIntent: "High client interest detected.",
     recentFollowUp: "Recent follow-up activity.",

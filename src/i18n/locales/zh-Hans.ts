@@ -1294,6 +1294,26 @@ const zhHans: Messages = {
     allChannels: "全部方式",
     allStaff: "全部员工",
   },
+  tagsStagesPage: {
+    title: "标签与阶段",
+    description: "查看 CRM 目前使用的客户阶段与来源分类配置。",
+    readOnlyNotice:
+      "目前为只读管理。阶段与来源由系统常数定义，后续若要新增或编辑，需建立专用配置存储。",
+    customerStages: "客户阶段",
+    customerTags: "客户标签",
+    customerCount: "客户数量",
+    sortOrder: "排序",
+    status: "状态",
+    noStages: "暂无阶段",
+    noTags: "暂无标签",
+    statusActive: "启用",
+    statusLegacy: "旧版",
+    statusCustom: "自定义数据",
+    notApplicable: "不适用",
+    stagesHint: "对应 customers.sales_stage；Reports 的客户阶段分布使用相同值。",
+    tagsHint:
+      "系统尚未建立独立标签数据表；此处以客户来源（customers.source）作为分类标签展示。",
+  },
   heatReasons: {
     highIntent: "客户意向较高。",
     recentFollowUp: "近期已有跟进记录。",
