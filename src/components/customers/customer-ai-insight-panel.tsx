@@ -3,13 +3,21 @@
 import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
-import type { CustomerAiInsightView } from "@/lib/ai/customer-insights/service";
+import type {
+  CustomerAiInsightDisplayMeta,
+  CustomerAiInsightView,
+} from "@/lib/ai/customer-insights/service";
 
 const INTENT_BADGE_CLASS: Record<string, string> = {
   high: "bg-green-100 text-green-800",
   medium: "bg-amber-100 text-amber-800",
   low: "bg-slate-200 text-slate-700",
   unknown: "bg-slate-100 text-slate-600",
+};
+
+type InsightBundle = {
+  insight: CustomerAiInsightView | null;
+  display: CustomerAiInsightDisplayMeta;
 };
 
 function formatDateTime(value: string | null): string | null {
@@ -54,9 +62,31 @@ function SignalList({
   );
 }
 
+function resolveRefreshErrorMessage(
+  t: ReturnType<typeof useCustomerLabels>["t"],
+  errorCode?: string,
+): string {
+  switch (errorCode) {
+    case "AI_NOT_CONFIGURED":
+    case "AI_CONFIG_ERROR":
+      return t("customers.aiInsight.notConfigured");
+    case "AI_ANALYSIS_FAILED":
+      return t("customers.aiInsight.analysisFailed");
+    case "AI_REFRESH_DENIED":
+      return t("customers.aiInsight.refreshDenied");
+    default:
+      return t("customers.aiInsight.refreshFailed");
+  }
+}
+
 export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
   const { t } = useCustomerLabels();
   const [insight, setInsight] = useState<CustomerAiInsightView | null>(null);
+  const [display, setDisplay] = useState<CustomerAiInsightDisplayMeta>({
+    showDraftMessage: true,
+    canRefresh: true,
+    refreshDisabledReason: null,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [restricted, setRestricted] = useState(false);
@@ -73,8 +103,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
         if (!response.ok) {
           throw new Error(t("customers.aiInsight.loadFailed"));
         }
-        const data = (await response.json()) as { insight: CustomerAiInsightView | null };
-        return { restricted: false as const, insight: data.insight };
+        return response.json() as Promise<InsightBundle>;
       })
       .then((result) => {
         if (cancelled) return;
@@ -83,9 +112,9 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
           setInsight(null);
           return;
         }
-        if ("insight" in result) {
-          setInsight(result.insight);
-        }
+        const bundle = result as InsightBundle;
+        setInsight(bundle.insight);
+        setDisplay(bundle.display);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -110,11 +139,22 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
       const response = await fetch(`/api/customers/${customerId}/ai-insight/refresh`, {
         method: "POST",
       });
+      const data = (await response.json()) as InsightBundle & {
+        error?: string;
+        errorCode?: string;
+      };
       if (!response.ok) {
-        throw new Error(t("customers.aiInsight.refreshFailed"));
+        setError(resolveRefreshErrorMessage(t, data.errorCode));
+        if (data.insight) {
+          setInsight(data.insight);
+        }
+        if (data.display) {
+          setDisplay(data.display);
+        }
+        return;
       }
-      const data = (await response.json()) as { insight: CustomerAiInsightView };
       setInsight(data.insight);
+      setDisplay(data.display);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("customers.aiInsight.refreshFailed"));
     } finally {
@@ -129,6 +169,22 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
       ? intentLevelKey
       : t(`customers.aiInsight.intentLevels.${intentLevelKey}`);
 
+  const refreshDisabledHint =
+    display.refreshDisabledReason === "admin_only"
+      ? t("customers.aiInsight.refreshAdminOnly")
+      : display.refreshDisabledReason === "staff_disabled"
+        ? t("customers.aiInsight.refreshStaffDisabled")
+        : null;
+
+  const showFailedBanner = insight?.status === "failed";
+  const isFailedPlaceholder =
+    insight?.status === "failed" &&
+    insight.customerSummary === "AI 分析失败" &&
+    insight.intentScore === 0;
+  const showInsightContent =
+    insight &&
+    (insight.status === "ready" || (insight.status === "failed" && !isFailedPlaceholder));
+
   return (
     <Card className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -136,7 +192,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
           <h3 className="text-base font-semibold text-slate-900">{t("customers.aiInsight.title")}</h3>
           <p className="mt-1 text-xs text-slate-500">{t("customers.aiInsight.disclaimer")}</p>
         </div>
-        {!restricted && (
+        {!restricted && display.canRefresh && (
           <button
             type="button"
             onClick={() => void handleRefresh()}
@@ -147,6 +203,10 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
           </button>
         )}
       </div>
+
+      {!restricted && !display.canRefresh && refreshDisabledHint && (
+        <p className="mt-3 text-sm text-amber-700">{refreshDisabledHint}</p>
+      )}
 
       {loading && (
         <p className="mt-4 text-sm text-slate-500">{t("customers.aiInsight.loading")}</p>
@@ -168,7 +228,13 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
         </div>
       )}
 
-      {!loading && !restricted && !error && insight && (
+      {!loading && !restricted && showFailedBanner && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+          <p className="text-sm text-red-700">{t("customers.aiInsight.analysisFailed")}</p>
+        </div>
+      )}
+
+      {!loading && !restricted && showInsightContent && (
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <div>
@@ -242,14 +308,16 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
             </div>
           )}
 
-          <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
-              {t("customers.aiInsight.suggestedEmployeeMessage")}
-            </h4>
-            <p className="mt-2 text-sm text-slate-800 whitespace-pre-wrap">
-              {insight.suggestedEmployeeMessage}
-            </p>
-          </div>
+          {display.showDraftMessage && (
+            <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+                {t("customers.aiInsight.suggestedEmployeeMessage")}
+              </h4>
+              <p className="mt-2 text-sm text-slate-800 whitespace-pre-wrap">
+                {insight.suggestedEmployeeMessage}
+              </p>
+            </div>
+          )}
 
           <p className="text-xs text-slate-400">
             {t("customers.aiInsight.generatedAt", {

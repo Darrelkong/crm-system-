@@ -5,7 +5,7 @@ import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
 import { PermissionError, assertCanViewCustomerAiInsight } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
-import { getCustomerAiInsightForUser } from "@/lib/ai/customer-insights/service";
+import { getCustomerAiInsightBundleForUser } from "@/lib/ai/customer-insights/service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -34,8 +34,8 @@ export async function GET(request: Request, context: RouteContext) {
       throw err;
     }
 
-    const insight = await getCustomerAiInsightForUser(db, user, customer);
-    return Response.json({ insight });
+    const bundle = await getCustomerAiInsightBundleForUser(db, user, customer);
+    return Response.json(bundle);
   } catch (error) {
     return authErrorResponse(error);
   }

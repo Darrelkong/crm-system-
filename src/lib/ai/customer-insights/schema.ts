@@ -19,8 +19,6 @@ export const customerInsightOutputSchema = z.object({
 
 export type CustomerInsightOutput = z.infer<typeof customerInsightOutputSchema>;
 
-export const PROMPT_VERSION = "phase-1a-v1";
-
-export function parseCustomerInsightOutput(data: unknown): CustomerInsightOutput {
-  return customerInsightOutputSchema.parse(data);
+export function safeParseCustomerInsightOutput(data: unknown) {
+  return customerInsightOutputSchema.safeParse(data);
 }

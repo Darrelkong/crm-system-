@@ -11,6 +11,9 @@ SESSION_SECRET=change-me-to-a-long-random-string
 # Debug API（生产环境默认禁用，仅 Admin 排障时可设为 true）
 # ENABLE_DEBUG_API=false
 
+# AI provider API key（Phase 1B-1；仅 server-side Secret，勿提交到 git）
+# AI_API_KEY=
+
 # 生产 seed（仅 db:seed:remote；本地 seed 不需要）
 # SEED_ADMIN_EMAIL=ops@yourcompany.com
 # SEED_ADMIN_PASSWORD=

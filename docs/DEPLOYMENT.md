@@ -58,6 +58,7 @@ npm run db:seed:reclamation:local
 | `ENABLE_DEBUG_API` | 未设置即可 | **保持未设置或 false** | 仅当显式设为 `true` 时生产环境才开放 `/api/debug/*` |
 | `TURNSTILE_SITE_KEY` | 可选 | 可选 | **当前未启用** Turnstile 登录验证（预留） |
 | `TURNSTILE_SECRET_KEY` | 可选 | 可选 | **当前未启用** |
+| `AI_API_KEY` | 可选 | 使用真实 AI 时必填 | OpenAI-compatible API Key；仅 Secret / `.dev.vars`，勿写入 DB 或前端。详见下方「AI 客户意向分析」 |
 
 ### 部署 / 远程迁移（CLI，通常不入库）
 
@@ -82,6 +83,22 @@ SEED_ADMIN_EMAIL=ops@yourcompany.com \
 SEED_ADMIN_PASSWORD='YourStr0ngPass1' \
 npm run db:seed:remote
 ```
+
+### AI 客户意向分析（Phase 1B-1）
+
+启用真实 OpenAI-compatible provider 前请注意：
+
+1. **API Key 仅通过 Cloudflare Secret 配置**，不要写入 `system_settings`、Admin 后台或 git：
+
+   ```bash
+   wrangler secret put AI_API_KEY
+   ```
+
+2. **Admin 后台（`/admin/ai-settings`）只配置** Base URL、Model、Prompt 等非敏感项，**不配置 API Key**。页面仅显示 `apiKeyConfigured` 是否已设置。
+
+3. **默认安全行为：** `ai_enabled=false` 且 `ai_provider=mock`，不会调用外部 AI API。只有在 Admin 手动开启并选择 `openai_compatible`、且已配置 `AI_API_KEY` 后，员工点击「重新分析」才会发起外部请求。
+
+本地开发可在 `.dev.vars` 中设置 `AI_API_KEY`（该文件已在 `.gitignore` 中，勿提交）。详见 [ENV.md](./ENV.md)。
 
 ---
 

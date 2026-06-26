@@ -39,6 +39,11 @@ export function getAdminNavLinks(activeHref?: string): NavLink[] {
       active: activeHref === "/admin/settings",
     },
     {
+      href: "/admin/ai-settings",
+      labelKey: "nav.aiSettings",
+      active: activeHref === "/admin/ai-settings",
+    },
+    {
       href: "/admin/announcements",
       labelKey: "nav.announcementsAdmin",
       active: activeHref === "/admin/announcements",

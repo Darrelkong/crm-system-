@@ -17,6 +17,7 @@
 | `CLOUDFLARE_ACCOUNT_ID` | 部署/远程迁移 | 生产必填 | Cloudflare 账号 ID |
 | `CLOUDFLARE_DATABASE_ID` | 部署/远程迁移 | 生产必填 | D1 数据库 UUID（`wrangler d1 create` 返回） |
 | `CLOUDFLARE_D1_TOKEN` | 远程迁移 | 可选 | Drizzle Kit 远程操作 API Token |
+| `AI_API_KEY` | Phase 1B-1 | 生产使用 openai_compatible 时必填 | OpenAI-compatible API Key；仅 Cloudflare Secret / `.dev.vars`，**勿写入 DB 或前端** |
 
 ## Cloudflare 绑定（wrangler.jsonc）
 

@@ -5,11 +5,29 @@ import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
 import { PermissionError, assertCanViewCustomerAiInsight } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
-import { refreshCustomerAiInsight } from "@/lib/ai/customer-insights/service";
+import {
+  buildCustomerAiInsightRefreshAuditMetadata,
+  getCustomerAiInsightByCustomerId,
+  getCustomerAiInsightDisplayMeta,
+  refreshCustomerAiInsight,
+} from "@/lib/ai/customer-insights/service";
+import {
+  AiAnalysisError,
+  AiConfigError,
+  AiRefreshDeniedError,
+} from "@/lib/ai/customer-insights/errors";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+function aiErrorStatus(error: unknown): number | null {
+  if (error instanceof AiConfigError) return 503;
+  if (error instanceof AiRefreshDeniedError) return 403;
+  if (error instanceof AiAnalysisError) return 422;
+  return null;
+}
 
 export async function POST(request: Request, context: RouteContext) {
   try {
@@ -37,7 +55,54 @@ export async function POST(request: Request, context: RouteContext) {
       throw err;
     }
 
-    const insight = await refreshCustomerAiInsight(db, user, customer);
+    let refreshResult;
+    const aiSettings = await getEffectiveAiSettings(db);
+    try {
+      refreshResult = await refreshCustomerAiInsight(db, user, customer);
+    } catch (error) {
+      const status = aiErrorStatus(error);
+      if (status !== null) {
+        const code =
+          error instanceof AiConfigError
+            ? error.code
+            : error instanceof AiAnalysisError
+              ? error.code
+              : error instanceof AiRefreshDeniedError
+                ? error.code
+                : "AI_PROVIDER_ERROR";
+        await writeAuditLog(
+          {
+            userId: user.id,
+            action: "customer.ai_insight.refresh_failed",
+            entityType: "customer",
+            entityId: customer.id,
+            ipAddress: meta.ipAddress,
+            userAgent: meta.userAgent,
+            metadata: {
+              customerId: customer.id,
+              errorCode: code,
+            },
+          },
+          db,
+        );
+        const currentInsight = await getCustomerAiInsightByCustomerId(db, customer.id);
+        const body = {
+          error:
+            error instanceof AiConfigError
+              ? error.message
+              : error instanceof AiAnalysisError
+                ? error.message
+                : error instanceof AiRefreshDeniedError
+                  ? error.message
+                  : "AI 分析失败，请稍后重试",
+          errorCode: code,
+          insight: currentInsight,
+          display: getCustomerAiInsightDisplayMeta(user, aiSettings),
+        };
+        return Response.json(body, { status });
+      }
+      throw error;
+    }
 
     await writeAuditLog(
       {
@@ -47,17 +112,39 @@ export async function POST(request: Request, context: RouteContext) {
         entityId: customer.id,
         ipAddress: meta.ipAddress,
         userAgent: meta.userAgent,
-        metadata: {
-          customerId: customer.id,
-          sourceHash: insight.sourceHash,
-          model: insight.model,
-        },
+        metadata: buildCustomerAiInsightRefreshAuditMetadata(
+          refreshResult.insight,
+          refreshResult.providerKind,
+        ),
       },
       db,
     );
 
-    return Response.json({ insight });
+    const aiSettingsAfter = await getEffectiveAiSettings(db);
+    return Response.json({
+      insight: refreshResult.insight,
+      display: getCustomerAiInsightDisplayMeta(user, aiSettingsAfter),
+    });
   } catch (error) {
+    const status = aiErrorStatus(error);
+    if (status !== null) {
+      const code =
+        error instanceof AiConfigError
+          ? error.code
+          : error instanceof AiAnalysisError
+            ? error.code
+            : error instanceof AiRefreshDeniedError
+              ? error.code
+              : "AI_PROVIDER_ERROR";
+      return Response.json(
+        {
+          error:
+            error instanceof Error ? error.message : "AI 分析失败，请稍后重试",
+          errorCode: code,
+        },
+        { status },
+      );
+    }
     return authErrorResponse(error);
   }
 }

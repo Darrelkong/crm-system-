@@ -1,18 +1,16 @@
 import { addDays, formatISO } from "date-fns";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
-import type { CustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
 import type { CustomerInsightAIProvider } from "./types";
-
-const MOCK_MODEL = "mock-customer-insight-v1";
 
 function countValidFollowUps(context: CustomerInsightContext): number {
   return context.recentFollowUps.filter((row) => row.isValidFollowUp === 1).length;
 }
 
-function deriveIntent(context: CustomerInsightContext): Pick<
-  CustomerInsightOutput,
-  "intentLevel" | "intentScore" | "confidence"
-> {
+function deriveIntent(context: CustomerInsightContext): {
+  intentLevel: "high" | "medium" | "low" | "unknown";
+  intentScore: number;
+  confidence: number;
+} {
   const validCount = countValidFollowUps(context);
   const hasNextFollowUp = !!context.nextFollowUpAt;
   const stage = context.salesStage;
@@ -39,9 +37,8 @@ function buildSuggestedFollowUpAt(context: CustomerInsightContext): string | nul
 
 export const mockCustomerInsightProvider: CustomerInsightAIProvider = {
   kind: "mock",
-  model: MOCK_MODEL,
 
-  async analyzeCustomerInsight(context: CustomerInsightContext): Promise<CustomerInsightOutput> {
+  async analyzeCustomerInsight(context) {
     const intent = deriveIntent(context);
     const validCount = countValidFollowUps(context);
     const latestFollowUp = context.recentFollowUps[0] ?? null;
