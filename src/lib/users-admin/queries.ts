@@ -1,12 +1,14 @@
-import { and, asc, desc, eq, gte } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { AdminUserView, LoginLogView } from "@/lib/users-admin/types";
+import { parseUserDeletionMetadata } from "@/lib/users-admin/deletion-metadata";
 import type { User } from "../../../drizzle/schema/users";
 
 function formatUserRow(
   user: User,
   lastLoginAt: string | null,
   recentLoginCount: number,
+  deletionMeta?: ReturnType<typeof parseUserDeletionMetadata>,
 ): AdminUserView {
   const status: AdminUserView["status"] = user.deletedAt
     ? "deleted"
@@ -25,6 +27,11 @@ function formatUserRow(
     created_at: user.createdAt,
     updated_at: user.updatedAt,
     deleted_at: user.deletedAt,
+    deleted_by_name: deletionMeta?.deleted_by_name ?? null,
+    transferred_customer_count:
+      deletionMeta?.transferred_customer_count ?? null,
+    transferred_to_admin_name:
+      deletionMeta?.transferred_to_admin_name ?? null,
     last_login_at: lastLoginAt,
     recent_login_count: recentLoginCount,
   };
@@ -67,11 +74,17 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
     }
   }
 
+  const deletedUserIds = users
+    .filter((user) => user.deletedAt)
+    .map((user) => user.id);
+  const deletionMetadataByUser = await loadUserDeletionMetadata(deletedUserIds);
+
   return users.map((user) =>
     formatUserRow(
       user,
       lastLoginByUser.get(user.id) ?? null,
       recentCountByUser.get(user.id) ?? 0,
+      user.deletedAt ? deletionMetadataByUser.get(user.id) : undefined,
     ),
   );
 }
@@ -117,4 +130,35 @@ export async function listLoginLogsForAdmin(input: {
     user_agent: row.userAgent,
     created_at: row.createdAt,
   }));
+}
+
+async function loadUserDeletionMetadata(
+  deletedUserIds: string[],
+): Promise<Map<string, ReturnType<typeof parseUserDeletionMetadata>>> {
+  const map = new Map<string, ReturnType<typeof parseUserDeletionMetadata>>();
+  if (deletedUserIds.length === 0) return map;
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      entityId: schema.auditLogs.entityId,
+      metadata: schema.auditLogs.metadata,
+      createdAt: schema.auditLogs.createdAt,
+    })
+    .from(schema.auditLogs)
+    .where(
+      and(
+        eq(schema.auditLogs.action, "user.deleted"),
+        eq(schema.auditLogs.entityType, "user"),
+        inArray(schema.auditLogs.entityId, deletedUserIds),
+      ),
+    )
+    .orderBy(desc(schema.auditLogs.createdAt));
+
+  for (const row of rows) {
+    if (!row.entityId || map.has(row.entityId)) continue;
+    map.set(row.entityId, parseUserDeletionMetadata(row.metadata));
+  }
+
+  return map;
 }

@@ -5,6 +5,7 @@ import { validatePasswordPolicy } from "@/lib/auth/password-policy";
 import { resetLoginFailures } from "@/lib/auth/lockout";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getUserById } from "@/lib/users/queries";
+import { buildUserDeletionAuditMetadata } from "@/lib/users-admin/deletion-metadata";
 import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 
@@ -301,10 +302,13 @@ export async function softDeleteUserAccount(
       entityId: targetUserId,
       ipAddress: meta.ipAddress ?? null,
       userAgent: meta.userAgent ?? null,
-      metadata: JSON.stringify({
-        email: target.email,
-        transferredCustomerCount: customersToTransfer.length,
-      }),
+      metadata: JSON.stringify(
+        buildUserDeletionAuditMetadata({
+          email: target.email,
+          transferredCustomerCount: customersToTransfer.length,
+          actor,
+        }),
+      ),
       createdAt: now,
     }),
   );

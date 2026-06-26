@@ -9,6 +9,9 @@ export type AdminUserView = {
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
+  deleted_by_name: string | null;
+  transferred_customer_count: number | null;
+  transferred_to_admin_name: string | null;
   last_login_at: string | null;
   recent_login_count: number;
 };

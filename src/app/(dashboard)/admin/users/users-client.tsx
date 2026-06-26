@@ -34,16 +34,22 @@ export function UsersClient() {
         const bTime = b.deleted_at ?? "";
         return bTime.localeCompare(aTime);
       });
-    const disabledCount = current.filter((u) => u.status === "disabled").length;
+    const activeCount = current.filter((u) => u.status === "active").length;
+    const adminCount = current.filter(
+      (u) => u.role === "admin" && u.status === "active",
+    ).length;
+    const staffCount = current.filter(
+      (u) => u.role === "staff" && u.status === "active",
+    ).length;
 
     return {
       currentUsers: current,
       formerUsers: former,
       stats: {
-        current: current.length,
-        disabled: disabledCount,
-        former: former.length,
-        total: current.length + former.length,
+        active: activeCount,
+        deleted: former.length,
+        admins: adminCount,
+        staff: staffCount,
       },
     };
   }, [users]);
@@ -188,18 +194,15 @@ export function UsersClient() {
     <div className="space-y-6">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          label={t("employees.statsCurrentEmployees")}
-          value={stats.current}
-        />
-        <StatCard label={t("employees.statsDisabled")} value={stats.disabled} />
-        <StatCard
-          label={t("employees.statsFormerEmployees")}
-          value={stats.former}
+          label={t("employees.statsActiveEmployees")}
+          value={stats.active}
         />
         <StatCard
-          label={t("employees.statsTotalEmployees")}
-          value={stats.total}
+          label={t("employees.statsDeletedEmployees")}
+          value={stats.deleted}
         />
+        <StatCard label={t("employees.statsAdminCount")} value={stats.admins} />
+        <StatCard label={t("employees.statsStaffCount")} value={stats.staff} />
       </div>
 
       <div className="surface-card p-6">
@@ -402,8 +405,12 @@ export function UsersClient() {
                   <th className="px-3 py-2">{t("common.role")}</th>
                   <th className="px-3 py-2">{t("common.status")}</th>
                   <th className="px-3 py-2">{t("employees.deletedAt")}</th>
+                  <th className="px-3 py-2">{t("employees.deletedBy")}</th>
                   <th className="px-3 py-2">
-                    {t("employees.customerTransferStatus")}
+                    {t("employees.colTransferredCustomers")}
+                  </th>
+                  <th className="px-3 py-2">
+                    {t("employees.transferredToAdmin")}
                   </th>
                 </tr>
               </thead>
@@ -424,7 +431,14 @@ export function UsersClient() {
                       {formatHongKongDateTime(u.deleted_at)}
                     </td>
                     <td className="px-3 py-2">
-                      {t("employees.customerTransferredToAdmin")}
+                      {u.deleted_by_name ?? "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      {u.transferred_customer_count ?? 0}
+                    </td>
+                    <td className="px-3 py-2">
+                      {u.transferred_to_admin_name ??
+                        t("employees.customerTransferredToAdmin")}
                     </td>
                   </tr>
                 ))}
