@@ -10,21 +10,21 @@ export async function RecentAnnouncementsCard({ user }: { user: User }) {
 
   return (
     <Card>
-      <h3 className="mb-3 text-sm font-semibold text-slate-900">最新公告</h3>
+      <h3 className="mb-3 text-sm font-semibold text-[#172033]">最新公告</h3>
       {items.length === 0 ? (
-        <p className="text-sm text-slate-500">暂无公告</p>
+        <p className="text-sm text-[#6B7890]">暂无公告</p>
       ) : (
         <ul className="space-y-3">
           {items.map((item) => (
             <li
               key={item.id}
-              className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
+              className="surface-muted px-3 py-2"
             >
-              <p className="text-sm font-medium text-slate-900">{item.title}</p>
-              <p className="mt-1 line-clamp-2 text-xs text-slate-600">
+              <p className="text-sm font-medium text-[#172033]">{item.title}</p>
+              <p className="mt-1 line-clamp-2 text-xs text-[#6B7890]">
                 {item.content}
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-[#6B7890]">
                 {item.published_at.slice(0, 16).replace("T", " ")}
               </p>
             </li>
@@ -33,7 +33,7 @@ export async function RecentAnnouncementsCard({ user }: { user: User }) {
       )}
       <Link
         href="/announcements"
-        className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
+        className="mt-4 inline-block text-sm link-primary hover:underline"
       >
         查看全部公告 →
       </Link>

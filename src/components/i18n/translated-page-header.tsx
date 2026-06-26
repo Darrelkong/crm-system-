@@ -18,18 +18,14 @@ export function TranslatedPageHeader({
   const { t } = useTranslation();
 
   return (
-    <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
-          {t(titleKey, titleParams)}
-        </h1>
+    <div className="page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div className="min-w-0">
+        <h1 className="page-title">{t(titleKey, titleParams)}</h1>
         {descriptionKey && (
-          <p className="mt-1 text-sm text-slate-500">
-            {t(descriptionKey, descriptionParams)}
-          </p>
+          <p className="page-description">{t(descriptionKey, descriptionParams)}</p>
         )}
       </div>
-      {action}
+      {action && <div className="flex shrink-0 flex-wrap gap-2">{action}</div>}
     </div>
   );
 }

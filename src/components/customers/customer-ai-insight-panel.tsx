@@ -9,10 +9,10 @@ import type {
 } from "@/lib/ai/customer-insights/service";
 
 const INTENT_BADGE_CLASS: Record<string, string> = {
-  high: "bg-green-100 text-green-800",
-  medium: "bg-amber-100 text-amber-800",
-  low: "bg-slate-200 text-slate-700",
-  unknown: "bg-slate-100 text-slate-600",
+  high: "bg-emerald-50 text-emerald-800 ring-emerald-200",
+  medium: "bg-amber-50 text-amber-800 ring-amber-200",
+  low: "bg-[#EEF3F8] text-[#6B7890] ring-[#E3E8F0]",
+  unknown: "bg-[#EEF3F8] text-[#6B7890] ring-[#E3E8F0]",
 };
 
 type InsightBundle = {
@@ -41,22 +41,22 @@ function SignalList({
       ? "bg-green-500"
       : variant === "risk"
         ? "bg-amber-500"
-        : "bg-slate-400";
+        : "bg-[#6B7890]";
 
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">{title}</h4>
+      <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">{title}</h4>
       {items.length > 0 ? (
         <ul className="mt-2 space-y-1.5">
           {items.map((item) => (
-            <li key={item} className="flex gap-2 text-sm text-slate-700">
+            <li key={item} className="flex gap-2 text-sm text-[#172033]">
               <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
               <span>{item}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-slate-500">{emptyText}</p>
+        <p className="mt-2 text-sm text-[#6B7890]">{emptyText}</p>
       )}
     </div>
   );
@@ -189,15 +189,15 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
     <Card className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-900">{t("customers.aiInsight.title")}</h3>
-          <p className="mt-1 text-xs text-slate-500">{t("customers.aiInsight.disclaimer")}</p>
+          <h3 className="text-base font-semibold text-[#172033]">{t("customers.aiInsight.title")}</h3>
+          <p className="mt-1 text-xs text-[#6B7890]">{t("customers.aiInsight.disclaimer")}</p>
         </div>
         {!restricted && display.canRefresh && (
           <button
             type="button"
             onClick={() => void handleRefresh()}
             disabled={loading || refreshing}
-            className="rounded-md border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-sm font-medium text-indigo-700 hover:bg-indigo-100 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-md border border-[#C5DAF0] bg-[#E8F1FA] px-3 py-1.5 text-sm font-medium text-[#1F4E79] hover:bg-[#DCEAF7] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {refreshing ? t("customers.aiInsight.refreshing") : t("customers.aiInsight.refresh")}
           </button>
@@ -209,7 +209,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
       )}
 
       {loading && (
-        <p className="mt-4 text-sm text-slate-500">{t("customers.aiInsight.loading")}</p>
+        <p className="mt-4 text-sm text-[#6B7890]">{t("customers.aiInsight.loading")}</p>
       )}
 
       {!loading && restricted && (
@@ -223,8 +223,8 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
       )}
 
       {!loading && !restricted && !error && !insight && (
-        <div className="mt-4 rounded-lg border border-dashed border-slate-200 bg-slate-50 p-4 text-center">
-          <p className="text-sm text-slate-600">{t("customers.aiInsight.empty")}</p>
+        <div className="surface-muted mt-4 p-4 text-center">
+          <p className="text-sm text-[#6B7890]">{t("customers.aiInsight.empty")}</p>
         </div>
       )}
 
@@ -238,7 +238,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <p className="text-xs font-medium text-slate-500">{t("customers.aiInsight.intentLevel")}</p>
+              <p className="text-xs font-medium text-[#6B7890]">{t("customers.aiInsight.intentLevel")}</p>
               <span
                 className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${INTENT_BADGE_CLASS[insight.intentLevel] ?? INTENT_BADGE_CLASS.unknown}`}
               >
@@ -246,27 +246,27 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
               </span>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">{t("customers.aiInsight.intentScore")}</p>
-              <p className="mt-1 text-lg font-semibold text-slate-900">{insight.intentScore}</p>
+              <p className="text-xs font-medium text-[#6B7890]">{t("customers.aiInsight.intentScore")}</p>
+              <p className="mt-1 text-lg font-semibold text-[#172033]">{insight.intentScore}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-slate-500">{t("customers.aiInsight.confidence")}</p>
-              <p className="mt-1 text-sm text-slate-700">{Math.round(insight.confidence * 100)}%</p>
+              <p className="text-xs font-medium text-[#6B7890]">{t("customers.aiInsight.confidence")}</p>
+              <p className="mt-1 text-sm text-[#172033]">{Math.round(insight.confidence * 100)}%</p>
             </div>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
               {t("customers.aiInsight.customerSummary")}
             </h4>
-            <p className="mt-2 text-sm text-slate-800">{insight.customerSummary}</p>
+            <p className="mt-2 text-sm text-[#172033]">{insight.customerSummary}</p>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
               {t("customers.aiInsight.currentSituation")}
             </h4>
-            <p className="mt-2 text-sm text-slate-800">{insight.currentSituation}</p>
+            <p className="mt-2 text-sm text-[#172033]">{insight.currentSituation}</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -291,35 +291,35 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
               {t("customers.aiInsight.nextBestAction")}
             </h4>
-            <p className="mt-2 text-sm text-slate-800">{insight.nextBestAction}</p>
+            <p className="mt-2 text-sm text-[#172033]">{insight.nextBestAction}</p>
           </div>
 
           {insight.suggestedFollowUpAt && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
                 {t("customers.aiInsight.suggestedFollowUpAt")}
               </h4>
-              <p className="mt-2 text-sm text-slate-800">
+              <p className="mt-2 text-sm text-[#172033]">
                 {formatDateTime(insight.suggestedFollowUpAt)}
               </p>
             </div>
           )}
 
           {display.showDraftMessage && (
-            <div className="rounded-lg border border-indigo-100 bg-indigo-50/50 p-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+            <div className="rounded-lg border border-[#C5DAF0] bg-[#E8F1FA] p-3">
+              <h4 className="text-xs font-semibold uppercase tracking-wide text-[#1F4E79]">
                 {t("customers.aiInsight.suggestedEmployeeMessage")}
               </h4>
-              <p className="mt-2 text-sm text-slate-800 whitespace-pre-wrap">
+              <p className="mt-2 whitespace-pre-wrap text-sm text-[#172033]">
                 {insight.suggestedEmployeeMessage}
               </p>
             </div>
           )}
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-[#6B7890]">
             {t("customers.aiInsight.generatedAt", {
               time: formatDateTime(insight.generatedAt) ?? insight.generatedAt,
             })}

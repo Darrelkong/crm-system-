@@ -124,8 +124,8 @@ export function ImportCustomersClient() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-sm text-slate-600">{t("imports.supportedFormat")}</p>
+      <div className="surface-card p-6">
+        <p className="text-sm text-[#6B7890]">{t("imports.supportedFormat")}</p>
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button
@@ -147,7 +147,7 @@ export function ImportCustomersClient() {
             onChange={handleFileChange}
           />
           {fileName && (
-            <span className="text-sm text-slate-500">
+            <span className="text-sm text-[#6B7890]">
               {t("imports.selectedFile", { name: fileName })}
             </span>
           )}
@@ -185,8 +185,8 @@ export function ImportCustomersClient() {
       </div>
 
       {precheck && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="text-lg font-medium text-slate-900">{t("imports.precheckResults")}</h3>
+        <div className="surface-card p-6">
+          <h3 className="text-lg font-medium text-[#172033]">{t("imports.precheckResults")}</h3>
           <dl className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
             <Stat label={t("imports.totalRows")} value={precheck.totalRows} />
             <Stat label={t("imports.validRows")} value={precheck.validRows} />
@@ -196,11 +196,11 @@ export function ImportCustomersClient() {
 
           {precheck.errors.length > 0 && (
             <div className="mt-6">
-              <h4 className="text-sm font-medium text-slate-900">{t("imports.errorDetails")}</h4>
+              <h4 className="text-sm font-medium text-[#172033]">{t("imports.errorDetails")}</h4>
               <div className="mt-2 overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
+                    <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
                       <th className="px-3 py-2">{t("imports.row")}</th>
                       <th className="px-3 py-2">{t("imports.field")}</th>
                       <th className="px-3 py-2">{t("imports.code")}</th>
@@ -210,7 +210,7 @@ export function ImportCustomersClient() {
                   </thead>
                   <tbody>
                     {precheck.errors.map((err, i) => (
-                      <tr key={i} className="border-b border-slate-100">
+                      <tr key={i} className="table-row border-b border-[#EEF3F8]">
                         <td className="px-3 py-2">{err.rowNumber}</td>
                         <td className="px-3 py-2">{err.field}</td>
                         <td className="px-3 py-2 font-mono text-xs">{err.code}</td>
@@ -241,7 +241,7 @@ export function ImportCustomersClient() {
           )}
 
           {precheck.previewRows.length === 0 && precheck.errors.length === 0 && (
-            <p className="mt-4 text-sm text-slate-500">{t("imports.noPreviewData")}</p>
+            <p className="mt-4 text-sm text-[#6B7890]">{t("imports.noPreviewData")}</p>
           )}
         </div>
       )}
@@ -272,8 +272,8 @@ export function ImportCustomersClient() {
 function Stat({ label, value }: { label: string; value: number }) {
   return (
     <div>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="mt-1 text-2xl font-semibold text-slate-900">{value}</dd>
+      <dt className="text-xs text-[#6B7890]">{label}</dt>
+      <dd className="mt-1 text-2xl font-semibold text-[#172033]">{value}</dd>
     </div>
   );
 }

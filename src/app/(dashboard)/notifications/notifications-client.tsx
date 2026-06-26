@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import {
@@ -152,11 +153,11 @@ export function NotificationsClient({ userRole }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        <p className="text-sm text-slate-600">
+      <div className="surface-card flex flex-wrap items-center gap-3 p-4">
+        <p className="text-sm text-[#6B7890]">
           {t("notifications.unreadCount", { count: String(unreadCount) })}
         </p>
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label className="flex items-center gap-2 text-sm text-[#172033]">
           <input
             type="checkbox"
             checked={unreadOnly}
@@ -167,13 +168,13 @@ export function NotificationsClient({ userRole }: Props) {
         <Button type="button" variant="secondary" onClick={() => void markAllRead()}>
           {t("notifications.markAllAsRead")}
         </Button>
-        {message && <p className="text-sm text-slate-600">{message}</p>}
+        {message && <p className="text-sm text-[#6B7890]">{message}</p>}
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-500">{t("notifications.loading")}</p>
+        <p className="text-sm text-[#6B7890]">{t("notifications.loading")}</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-[#6B7890]">
           {unreadOnly
             ? t("notifications.noUnreadNotifications")
             : t("notifications.noNotifications")}
@@ -185,34 +186,33 @@ export function NotificationsClient({ userRole }: Props) {
             const actionLabel = getActionLabel(t, item, userRole);
             const row = (
               <div
-                className={
-                  item.is_read
-                    ? "rounded-xl border border-slate-200 bg-white p-4 shadow-sm"
-                    : "rounded-xl border border-indigo-200 bg-indigo-50/40 p-4 shadow-sm"
-                }
+                className={cn(
+                  "list-row p-4",
+                  !item.is_read && "border-[#C5DAF0] bg-[#E8F1FA]",
+                )}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-slate-500">
+                    <p className="text-xs text-[#6B7890]">
                       {t("notifications.notificationType")}: {item.type}
                     </p>
-                    <p className="mt-1 font-medium text-slate-900">
+                    <p className="mt-1 font-medium text-[#172033]">
                       {safeResolveTitle(t, item)}
                     </p>
-                    <p className="mt-1 text-sm text-slate-700">
+                    <p className="mt-1 text-sm text-[#172033]">
                       {safeResolveMessage(t, item)}
                     </p>
-                    <p className="mt-2 text-xs text-slate-500">
+                    <p className="mt-2 text-xs text-[#6B7890]">
                       {t("notifications.notificationTime")}:{" "}
                       {formatCreatedAt(item.created_at)}
                       {!item.is_read && (
-                        <span className="ml-2 rounded bg-indigo-100 px-1.5 py-0.5 text-indigo-700">
+                        <span className="ml-2 rounded bg-[#E8F1FA] px-1.5 py-0.5 text-[#1F4E79]">
                           {t("notifications.unread")}
                         </span>
                       )}
                     </p>
                     {actionLabel && href && (
-                      <p className="mt-2 text-xs text-indigo-600">{actionLabel}</p>
+                      <p className="mt-2 text-xs link-primary">{actionLabel}</p>
                     )}
                   </div>
                   {!item.is_read && (

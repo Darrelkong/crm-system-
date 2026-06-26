@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Link from "next/link";
 
 type AnnouncementItem = {
   id: string;
@@ -37,7 +36,7 @@ export function AnnouncementsClient() {
   }, [load]);
 
   if (loading) {
-    return <p className="text-sm text-slate-500">加载中…</p>;
+    return <p className="text-sm text-[#6B7890]">加载中…</p>;
   }
 
   if (error) {
@@ -45,21 +44,18 @@ export function AnnouncementsClient() {
   }
 
   if (items.length === 0) {
-    return <p className="text-sm text-slate-500">暂无已发布公告</p>;
+    return <p className="text-sm text-[#6B7890]">暂无已发布公告</p>;
   }
 
   return (
     <ul className="space-y-4">
       {items.map((item) => (
-        <li
-          key={item.id}
-          className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm"
-        >
-          <h3 className="text-lg font-semibold text-slate-900">{item.title}</h3>
-          <p className="mt-1 text-xs text-slate-500">
+        <li key={item.id} className="surface-card p-6">
+          <h3 className="text-lg font-semibold text-[#172033]">{item.title}</h3>
+          <p className="mt-1 text-xs text-[#6B7890]">
             发布于 {item.published_at.slice(0, 16).replace("T", " ")}
           </p>
-          <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
+          <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#172033]">
             {item.content}
           </div>
         </li>

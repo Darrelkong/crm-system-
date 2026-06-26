@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { Input, Label, Field } from "@/components/ui/form";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
@@ -70,9 +71,16 @@ export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-slate-900">
+    <ModalOverlay
+      onClose={() => {
+        setOpen(false);
+        setReason("");
+        setConfirmed(false);
+        setError(null);
+      }}
+    >
+      <ModalPanel>
+        <h3 className="text-lg font-semibold text-[#172033]">
           {t("customers.releaseConfirmTitle")}
         </h3>
         <p className="mt-2 text-sm text-amber-700">{t("customers.releaseConfirmBody")}</p>
@@ -94,7 +102,7 @@ export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
             />
           </Field>
 
-          <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+          <label className="mt-3 flex items-start gap-2 text-sm text-[#172033]">
             <input
               type="checkbox"
               checked={confirmed}
@@ -106,18 +114,18 @@ export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button
+          <Button
             type="button"
+            variant="secondary"
             onClick={() => {
               setOpen(false);
               setReason("");
               setConfirmed(false);
               setError(null);
             }}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
           >
             {t("common.cancel")}
-          </button>
+          </Button>
           <Button
             type="button"
             variant="danger"
@@ -127,7 +135,7 @@ export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
             {submitting ? t("customers.releasing") : t("customers.confirmRelease")}
           </Button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   );
 }

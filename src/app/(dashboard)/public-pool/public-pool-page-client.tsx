@@ -1,5 +1,6 @@
 "use client";
 
+import { PageIntro } from "@/components/ui/page-intro";
 import { useTranslation } from "@/i18n/provider";
 import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
 import type { AdminClaimStatus, StaffClaimStatus } from "@/lib/public-pool/constants";
@@ -17,30 +18,26 @@ export function PublicPoolPageClient({ items, isAdmin, claimStatus }: Props) {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-900">
-          {t("publicPool.pageTitle")}
-        </h2>
-        <p className="mt-1 text-sm text-slate-500">
-          {t(isAdmin ? "publicPool.subtitleAdmin" : "publicPool.subtitleStaff")}
-        </p>
-      </div>
+      <PageIntro
+        title={t("publicPool.pageTitle")}
+        description={t(isAdmin ? "publicPool.subtitleAdmin" : "publicPool.subtitleStaff")}
+      />
 
       {!isAdmin && "quotaLimit" in claimStatus && (
         <div className="mb-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">{t("publicPool.claimedLast7Days")}</p>
+          <div className="surface-card p-4">
+            <p className="text-xs text-[#6B7890]">{t("publicPool.claimedLast7Days")}</p>
             <p className="mt-1 text-xl font-semibold">
               {claimStatus.claimedInLast7Days} / {claimStatus.quotaLimit}
             </p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">{t("publicPool.remainingQuota")}</p>
+          <div className="surface-card p-4">
+            <p className="text-xs text-[#6B7890]">{t("publicPool.remainingQuota")}</p>
             <p className="mt-1 text-xl font-semibold">{claimStatus.remainingQuota}</p>
           </div>
-          <div className="rounded-lg border border-slate-200 bg-white p-4">
-            <p className="text-xs text-slate-500">{t("publicPool.claimStatus")}</p>
-            <p className="mt-1 text-sm font-medium text-slate-900">
+          <div className="surface-card p-4">
+            <p className="text-xs text-[#6B7890]">{t("publicPool.claimStatus")}</p>
+            <p className="mt-1 text-sm font-medium text-[#172033]">
               {claimStatus.canClaimNow
                 ? t("publicPool.canClaim")
                 : resolveClaimBlockReason(
@@ -50,7 +47,7 @@ export function PublicPoolPageClient({ items, isAdmin, claimStatus }: Props) {
                   )}
             </p>
             {claimStatus.cooldownUntil && (
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[#6B7890]">
                 {t("publicPool.cooldownUntil", {
                   date: claimStatus.cooldownUntil.slice(0, 16).replace("T", " "),
                 })}

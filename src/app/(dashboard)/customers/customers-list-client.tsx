@@ -7,6 +7,20 @@ import {
   CompletenessBadge,
   HeatBadge,
 } from "@/components/customers/customer-scores-cards";
+import { Button } from "@/components/ui/button";
+import { Badge, EmptyState } from "@/components/ui/card";
+import { PageIntro } from "@/components/ui/page-intro";
+import { Input, Label, Select } from "@/components/ui/form";
+import { LoadingSpinner } from "@/components/ui/loading";
+import {
+  DataTable,
+  TableBody,
+  TableHead,
+  TableShell,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui/table";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
 
@@ -69,18 +83,14 @@ export function CustomersListClient({
 }: Props) {
   const { t, source, salesStage, status, customerType, heatLevel } = useCustomerLabels();
   const [searchQuery, setSearchQuery] = useState("");
-  const [rows, setRows] = useState(initialRows);
+  const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(null);
   const [searching, setSearching] = useState(false);
 
-  useEffect(() => {
-    setRows(initialRows);
-  }, [initialRows]);
+  const rows = searchQuery.trim() ? (searchResults ?? initialRows) : initialRows;
 
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
-      setRows(initialRows);
-      setSearching(false);
       return;
     }
 
@@ -97,7 +107,7 @@ export function CustomersListClient({
         const res = await fetch(`/api/customers?${params.toString()}`);
         const data = (await res.json()) as { items?: ApiCustomerItem[] };
         if (res.ok && data.items) {
-          setRows(data.items.map(mapApiItem));
+          setSearchResults(data.items.map(mapApiItem));
         }
       } finally {
         setSearching(false);
@@ -107,7 +117,6 @@ export function CustomersListClient({
     return () => window.clearTimeout(handle);
   }, [
     searchQuery,
-    initialRows,
     filterHeat,
     filterCompletenessBelow,
     showArchived,
@@ -121,86 +130,99 @@ export function CustomersListClient({
 
   const isSearchActive = searchQuery.trim().length > 0;
 
+  function CustomerMobileCard({ c }: { c: CustomerListRow }) {
+    return (
+      <Link
+        href={`/customers/${c.id}`}
+        className="interactive-card block p-4 active:scale-[0.99]"
+      >
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            {c.customerCode && (
+              <p className="font-mono text-xs text-[#6B7890]">{c.customerCode}</p>
+            )}
+            <p className="truncate font-semibold text-[#172033]">{c.customerName}</p>
+            <p className="mt-1 text-xs text-[#6B7890]">
+              {customerType(c.customerType)} · {salesStage(c.salesStage)}
+            </p>
+          </div>
+          <HeatBadge level={c.heatLevel} />
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <Badge>{status(c.status)}</Badge>
+          <CompletenessBadge score={c.completenessScore} />
+          {c.neverContacted && <Badge variant="warning">{t("customers.neverContacted")}</Badge>}
+          {c.overdueFollowUp && <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>}
+        </div>
+      </Link>
+    );
+  }
+
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold text-slate-900">
-            {showArchived ? t("customers.archivedList") : t("customers.title")}
-          </h2>
-          <p className="mt-1 text-sm text-slate-500">
-            {searching
-              ? t("common.loading")
-              : t(countKey, { count: String(rows.length) })}
-          </p>
-          {isAdmin && (
-            <div className="mt-2 flex gap-3 text-sm">
-              {showArchived ? (
-                <Link href="/customers" className="text-indigo-600 hover:underline">
-                  ← {t("customers.backToActiveList")}
-                </Link>
-              ) : (
-                <Link
-                  href="/customers?status=archived"
-                  className="text-indigo-600 hover:underline"
-                >
-                  {t("customers.viewArchived")}
-                </Link>
-              )}
-            </div>
+      <PageIntro
+        title={showArchived ? t("customers.archivedList") : t("customers.title")}
+        description={
+          searching ? t("common.loading") : t(countKey, { count: String(rows.length) })
+        }
+        action={
+          !showArchived ? (
+            <Link href="/customers/new">
+              <Button size="lg" className="w-full sm:w-auto">
+                {t("customers.addClient")}
+              </Button>
+            </Link>
+          ) : undefined
+        }
+      />
+      {isAdmin && (
+        <div className="mb-4 flex gap-3 text-sm">
+          {showArchived ? (
+            <Link href="/customers" className="link-primary">
+              ← {t("customers.backToActiveList")}
+            </Link>
+          ) : (
+            <Link href="/customers?status=archived" className="link-primary">
+              {t("customers.viewArchived")}
+            </Link>
           )}
         </div>
-        {!showArchived && (
-          <Link
-            href="/customers/new"
-            className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700"
-          >
-            {t("customers.addClient")}
-          </Link>
-        )}
-      </div>
+      )}
+      {searching && (
+        <p className="mb-4 flex items-center gap-2 text-sm text-[#6B7890]">
+          <LoadingSpinner size="sm" />
+          {t("common.loading")}
+        </p>
+      )}
 
       <div className="mb-4">
-        <input
+        <Input
           type="search"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t("customers.searchPlaceholder")}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100"
         />
       </div>
 
       {!showArchived && (
         <form
           method="get"
-          className="mb-4 flex flex-wrap items-end gap-3 rounded-lg border border-slate-200 bg-white p-4"
+          className="surface-card mb-4 flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-end"
         >
-          <div>
-            <label htmlFor="heat" className="block text-xs font-medium text-slate-600">
-              {t("customers.heatLevel")}
-            </label>
-            <select
-              id="heat"
-              name="heat"
-              defaultValue={filterHeat ?? ""}
-              className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
-            >
+          <div className="min-w-[140px] flex-1">
+            <Label htmlFor="heat">{t("customers.heatLevel")}</Label>
+            <Select id="heat" name="heat" defaultValue={filterHeat ?? ""}>
               <option value="">{t("common.all")}</option>
               {HEAT_LEVELS.map((level) => (
                 <option key={level} value={level}>
                   {heatLevel(level)}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
-          <div>
-            <label
-              htmlFor="completenessBelow"
-              className="block text-xs font-medium text-slate-600"
-            >
-              {t("customers.completenessBelow")}
-            </label>
-            <input
+          <div className="w-full sm:w-32">
+            <Label htmlFor="completenessBelow">{t("customers.completenessBelow")}</Label>
+            <Input
               id="completenessBelow"
               name="completenessBelow"
               type="number"
@@ -208,19 +230,15 @@ export function CustomersListClient({
               max={100}
               placeholder="60"
               defaultValue={filterCompletenessBelow ?? ""}
-              className="mt-1 w-24 rounded-md border border-slate-300 px-2 py-1.5 text-sm"
             />
           </div>
-          <button
-            type="submit"
-            className="rounded-lg bg-slate-800 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-900"
-          >
+          <Button type="submit" variant="secondary">
             {t("common.filter")}
-          </button>
+          </Button>
           {(filterHeat || filterCompletenessBelow) && (
             <Link
               href={`/customers${baseQuery}`}
-              className="text-sm text-slate-500 hover:underline"
+              className="text-sm text-[#6B7890] hover:underline sm:mb-2"
             >
               {t("customers.clearFilters")}
             </Link>
@@ -229,134 +247,107 @@ export function CustomersListClient({
       )}
 
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
-          <p className="text-slate-500">
-            {isSearchActive
+        <EmptyState
+          message={
+            isSearchActive
               ? t("customers.noSearchResults")
               : showArchived
                 ? t("customers.noArchivedClients")
-                : t("customers.noCustomers")}
-          </p>
-          {!showArchived && !isSearchActive && (
-            <Link
-              href="/customers/new"
-              className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
-            >
-              {t("customers.addFirstClient")}
-            </Link>
-          )}
-        </div>
+                : t("customers.noCustomers")
+          }
+          action={
+            !showArchived && !isSearchActive ? (
+              <Link href="/customers/new">
+                <Button variant="secondary">{t("customers.addFirstClient")}</Button>
+              </Link>
+            ) : undefined
+          }
+        />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-          <table className="w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.clientName")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.type")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.source")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.salesStage")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.status")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.heatLevel")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.completeness")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.followUpStatus")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.dataAccess")}
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("customers.createdAt")}
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {rows.map((c) => (
-                <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
-                    <Link
-                      href={`/customers/${c.id}`}
-                      className="font-medium text-indigo-600 hover:underline"
-                    >
-                      {c.customerCode ? (
-                        <>
-                          <span className="mr-2 font-mono text-xs text-slate-500">
-                            {c.customerCode}
-                          </span>
-                          {c.customerName}
-                        </>
-                      ) : (
-                        c.customerName
-                      )}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">
-                    {customerType(c.customerType)}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{source(c.source)}</td>
-                  <td className="px-4 py-3 text-slate-600">{salesStage(c.salesStage)}</td>
-                  <td className="px-4 py-3">
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-700">
-                      {status(c.status)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3">
-                    <HeatBadge level={c.heatLevel} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <CompletenessBadge score={c.completenessScore} />
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {c.neverContacted && (
-                        <span className="rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-                          {t("customers.neverContacted")}
-                        </span>
-                      )}
-                      {c.overdueFollowUp && (
-                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-medium text-red-700">
-                          {t("customers.overdueFollowUp")}
-                        </span>
-                      )}
-                      {!c.neverContacted && !c.overdueFollowUp && (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    {c.isArchived ? (
-                      <span className="rounded-full bg-slate-200 px-2 py-0.5 text-xs font-medium text-slate-600">
-                        {t("customers.archivedBadge")}
-                      </span>
-                    ) : c.isMasked ? (
-                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                        {t("customers.masked")}
-                      </span>
-                    ) : (
-                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                        {t("customers.fullData")}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-500">{c.createdAt.slice(0, 10)}</td>
+        <>
+          <div className="space-y-3 md:hidden">
+            {rows.map((c) => (
+              <CustomerMobileCard key={c.id} c={c} />
+            ))}
+          </div>
+
+          <TableShell className="hidden md:block">
+            <DataTable>
+              <TableHead>
+                <tr>
+                  <Th>{t("customers.clientName")}</Th>
+                  <Th>{t("customers.type")}</Th>
+                  <Th>{t("customers.source")}</Th>
+                  <Th>{t("customers.salesStage")}</Th>
+                  <Th>{t("customers.status")}</Th>
+                  <Th>{t("customers.heatLevel")}</Th>
+                  <Th>{t("customers.completeness")}</Th>
+                  <Th>{t("customers.followUpStatus")}</Th>
+                  <Th>{t("customers.dataAccess")}</Th>
+                  <Th>{t("customers.createdAt")}</Th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </TableHead>
+              <TableBody>
+                {rows.map((c) => (
+                  <Tr key={c.id}>
+                    <Td>
+                      <Link
+                        href={`/customers/${c.id}`}
+                        className="font-medium text-[#2F6FB3] hover:underline"
+                      >
+                        {c.customerCode ? (
+                          <>
+                            <span className="mr-2 font-mono text-xs text-[#6B7890]">
+                              {c.customerCode}
+                            </span>
+                            {c.customerName}
+                          </>
+                        ) : (
+                          c.customerName
+                        )}
+                      </Link>
+                    </Td>
+                    <Td>{customerType(c.customerType)}</Td>
+                    <Td>{source(c.source)}</Td>
+                    <Td>{salesStage(c.salesStage)}</Td>
+                    <Td>
+                      <Badge>{status(c.status)}</Badge>
+                    </Td>
+                    <Td>
+                      <HeatBadge level={c.heatLevel} />
+                    </Td>
+                    <Td>
+                      <CompletenessBadge score={c.completenessScore} />
+                    </Td>
+                    <Td>
+                      <div className="flex flex-wrap gap-1">
+                        {c.neverContacted && (
+                          <Badge variant="warning">{t("customers.neverContacted")}</Badge>
+                        )}
+                        {c.overdueFollowUp && (
+                          <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>
+                        )}
+                        {!c.neverContacted && !c.overdueFollowUp && (
+                          <span className="text-xs text-[#6B7890]">—</span>
+                        )}
+                      </div>
+                    </Td>
+                    <Td>
+                      {c.isArchived ? (
+                        <Badge>{t("customers.archivedBadge")}</Badge>
+                      ) : c.isMasked ? (
+                        <Badge variant="warning">{t("customers.masked")}</Badge>
+                      ) : (
+                        <Badge variant="success">{t("customers.fullData")}</Badge>
+                      )}
+                    </Td>
+                    <Td className="text-[#6B7890]">{c.createdAt.slice(0, 10)}</Td>
+                  </Tr>
+                ))}
+              </TableBody>
+            </DataTable>
+          </TableShell>
+        </>
       )}
     </div>
   );

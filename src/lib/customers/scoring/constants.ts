@@ -11,8 +11,8 @@ export const HEAT_LEVEL_LABELS: Record<HeatLevel, string> = {
 export const HEAT_LEVEL_BADGE_CLASS: Record<HeatLevel, string> = {
   high: "bg-green-100 text-green-800",
   medium: "bg-blue-100 text-blue-800",
-  low: "bg-slate-100 text-slate-700",
-  silent: "bg-slate-200 text-slate-600",
+  low: "bg-[#F7F9FC] text-[#172033]",
+  silent: "bg-[#EEF3F8] text-[#6B7890]",
   high_churn_risk: "bg-red-100 text-red-800",
 };
 

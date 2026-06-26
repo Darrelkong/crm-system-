@@ -51,15 +51,15 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-900">
+        <h3 className="text-sm font-semibold text-[#172033]">
           {t("notifications.recentTitle")}
         </h3>
-        <span className="text-xs text-slate-500">
+        <span className="text-xs text-[#6B7890]">
           {t("notifications.unreadCount", { count: String(unreadCount) })}
         </span>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("notifications.noNotifications")}</p>
+        <p className="text-sm text-[#6B7890]">{t("notifications.noNotifications")}</p>
       ) : (
         <ul className="space-y-2">
           {items.map((item) => {
@@ -68,20 +68,20 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
               <div
                 className={
                   item.is_read
-                    ? "rounded-lg border border-slate-100 bg-slate-50 px-3 py-2"
-                    : "rounded-lg border border-indigo-100 bg-indigo-50/50 px-3 py-2"
+                    ? "rounded-xl border border-[#E3E8F0] bg-[#F7F9FC] px-3 py-2.5 transition-colors duration-200 hover:bg-[#E8F1FA]"
+                    : "rounded-xl border border-[#C5DAF0] bg-[#E8F1FA] px-3 py-2.5 transition-colors duration-200 hover:bg-[#DCEAF7]"
                 }
               >
-                <p className="text-sm font-medium text-slate-900">
+                <p className="text-sm font-medium text-[#172033]">
                   {safeResolveTitle(t, item)}
                 </p>
-                <p className="mt-0.5 line-clamp-2 text-xs text-slate-600">
+                <p className="mt-0.5 line-clamp-2 text-xs text-[#6B7890]">
                   {safeResolveMessage(t, item)}
                 </p>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-[#6B7890]">
                   {formatCreatedAt(item.created_at)}
                   {!item.is_read && (
-                    <span className="ml-2 font-medium text-indigo-600">
+                    <span className="ml-2 font-medium text-[#2F6FB3]">
                       {t("notifications.unread")}
                     </span>
                   )}
@@ -104,7 +104,7 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
       )}
       <Link
         href="/notifications"
-        className="mt-4 inline-block text-sm text-indigo-600 hover:underline"
+        className="mt-4 inline-block text-sm text-[#2F6FB3] hover:text-[#1F4E79] hover:underline"
       >
         {t("notifications.enterCenter")}
       </Link>

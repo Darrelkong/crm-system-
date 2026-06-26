@@ -27,7 +27,7 @@ export function LoginLogsClient() {
   }, [load]);
 
   return (
-    <div className="space-y-4 rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="surface-card space-y-4 p-6">
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <Label htmlFor="filter-email">邮箱筛选</Label>
@@ -57,12 +57,12 @@ export function LoginLogsClient() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-slate-500">加载中…</p>
+        <p className="text-sm text-[#6B7890]">加载中…</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-200 text-slate-500">
+              <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
                 <th className="px-3 py-2">邮箱</th>
                 <th className="px-3 py-2">结果</th>
                 <th className="px-3 py-2">失败原因</th>
@@ -73,7 +73,7 @@ export function LoginLogsClient() {
             </thead>
             <tbody>
               {items.map((row) => (
-                <tr key={row.id} className="border-b border-slate-100">
+                <tr key={row.id} className="table-row border-b border-[#EEF3F8]">
                   <td className="px-3 py-2">{row.email}</td>
                   <td className="px-3 py-2">
                     {row.success ? (

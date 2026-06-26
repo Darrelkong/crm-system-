@@ -131,7 +131,7 @@ export function AdminAnnouncementsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="surface-card p-6">
         <Button
           onClick={() => {
             resetForm();
@@ -140,12 +140,12 @@ export function AdminAnnouncementsClient() {
         >
           新建公告
         </Button>
-        {message && <p className="mt-3 text-sm text-slate-700">{message}</p>}
+        {message && <p className="mt-3 text-sm text-[#172033]">{message}</p>}
       </div>
 
       {(showCreate || editingId) && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="font-medium text-slate-900">
+        <div className="surface-card p-6">
+          <h3 className="font-medium text-[#172033]">
             {editingId ? "编辑公告" : "新建公告"}
           </h3>
           <div className="mt-4 grid max-w-xl gap-3">
@@ -164,7 +164,7 @@ export function AdminAnnouncementsClient() {
               <Label htmlFor="ann-content">内容</Label>
               <textarea
                 id="ann-content"
-                className="mt-1 w-full rounded-md border border-slate-300 px-3 py-2 text-sm"
+                className="surface-input mt-1 min-h-40 w-full px-3 py-2 text-sm"
                 rows={6}
                 value={form.content}
                 onChange={(e) =>
@@ -203,11 +203,11 @@ export function AdminAnnouncementsClient() {
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-500">加载中…</p>
+        <p className="text-sm text-[#6B7890]">加载中…</p>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="surface-card overflow-x-auto p-0">
           <table className="min-w-full text-sm">
-            <thead className="border-b border-slate-200 bg-slate-50 text-left text-slate-600">
+            <thead className="table-head text-left text-[#6B7890]">
               <tr>
                 <th className="px-4 py-3 font-medium">标题</th>
                 <th className="px-4 py-3 font-medium">状态</th>
@@ -218,8 +218,8 @@ export function AdminAnnouncementsClient() {
             </thead>
             <tbody>
               {items.map((item) => (
-                <tr key={item.id} className="border-b border-slate-100">
-                  <td className="px-4 py-3 font-medium text-slate-900">
+                <tr key={item.id} className="table-row border-b border-[#EEF3F8]">
+                  <td className="px-4 py-3 font-medium text-[#172033]">
                     {item.title}
                   </td>
                   <td className="px-4 py-3">
@@ -228,7 +228,7 @@ export function AdminAnnouncementsClient() {
                   <td className="px-4 py-3">
                     {ANNOUNCEMENT_AUDIENCE_LABELS[item.audience]}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-[#6B7890]">
                     {item.published_at
                       ? item.published_at.slice(0, 16).replace("T", " ")
                       : "—"}

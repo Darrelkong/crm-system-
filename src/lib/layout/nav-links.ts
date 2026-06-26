@@ -1,114 +1,187 @@
-import type { NavLink } from "@/components/layout/dashboard-shell";
+import type { NavIconId } from "@/lib/layout/nav-icons";
 
-export function getAdminNavLinks(activeHref?: string): NavLink[] {
-  return [
-    { href: "/admin", labelKey: "nav.dashboard", active: activeHref === "/admin" },
-    {
-      href: "/customers",
-      labelKey: "nav.customers",
-      active: activeHref === "/customers",
-    },
-    {
-      href: "/import/customers",
-      labelKey: "nav.customerImport",
-      active: activeHref === "/import/customers",
-    },
-    {
-      href: "/export/customers",
-      labelKey: "nav.dataExport",
-      active: activeHref === "/export/customers",
-    },
-    {
-      href: "/admin/backups",
-      labelKey: "nav.dataBackup",
-      active: activeHref === "/admin/backups",
-    },
-    {
-      href: "/admin/users",
-      labelKey: "nav.users",
-      active: activeHref === "/admin/users",
-    },
-    {
-      href: "/admin/login-logs",
-      labelKey: "nav.loginLogs",
-      active: activeHref === "/admin/login-logs",
-    },
-    {
-      href: "/admin/settings",
-      labelKey: "nav.settings",
-      active: activeHref === "/admin/settings",
-    },
-    {
-      href: "/admin/ai-settings",
-      labelKey: "nav.aiSettings",
-      active: activeHref === "/admin/ai-settings",
-    },
-    {
-      href: "/admin/announcements",
-      labelKey: "nav.announcementsAdmin",
-      active: activeHref === "/admin/announcements",
-    },
-    {
-      href: "/public-pool",
-      labelKey: "nav.publicPool",
-      active: activeHref === "/public-pool",
-    },
-    {
-      href: "/approvals",
-      labelKey: "nav.approvals",
-      active: activeHref === "/approvals",
-    },
-    {
-      href: "/notifications",
-      labelKey: "nav.notifications",
-      active: activeHref === "/notifications",
-    },
-    {
-      href: "/announcements",
-      labelKey: "nav.announcements",
-      active: activeHref === "/announcements",
-    },
-    { href: "/help", labelKey: "nav.help", active: activeHref === "/help" },
-  ];
+export type NavLink = {
+  href: string;
+  labelKey: string;
+  icon: NavIconId;
+  active?: boolean;
+  mobilePrimary?: boolean;
+  children?: NavLink[];
+};
+
+export type NavGroup = {
+  id: string;
+  labelKey: string;
+  links: NavLink[];
+};
+
+export type MobileNavItem = {
+  href: string;
+  labelKey: string;
+  icon: "dashboard" | "customers" | "notifications" | "publicPool" | "more";
+};
+
+function markActive(links: NavLink[], activeHref: string): NavLink[] {
+  return links.map((link) => {
+    const children = link.children
+      ? markActive(link.children, activeHref)
+      : undefined;
+    const childActive = children?.some((c) => c.active) ?? false;
+    const selfActive = isNavActive(link.href, activeHref);
+    return {
+      ...link,
+      active: selfActive || childActive,
+      children,
+    };
+  });
 }
 
-export function getStaffNavLinks(activeHref?: string): NavLink[] {
-  return [
-    { href: "/staff", labelKey: "nav.dashboard", active: activeHref === "/staff" },
-    {
-      href: "/customers",
-      labelKey: "nav.customers",
-      active: activeHref === "/customers",
-    },
-    {
-      href: "/public-pool",
-      labelKey: "nav.publicPool",
-      active: activeHref === "/public-pool",
-    },
-    {
-      href: "/approvals",
-      labelKey: "nav.approvals",
-      active: activeHref === "/approvals",
-    },
-    {
-      href: "/notifications",
-      labelKey: "nav.notifications",
-      active: activeHref === "/notifications",
-    },
-    {
-      href: "/announcements",
-      labelKey: "nav.announcements",
-      active: activeHref === "/announcements",
-    },
-    { href: "/help", labelKey: "nav.help", active: activeHref === "/help" },
-  ];
+export function isNavActive(href: string, pathname: string): boolean {
+  if (href === "/admin" || href === "/staff") {
+    return pathname === href;
+  }
+  return pathname === href || pathname.startsWith(`${href}/`);
 }
 
-export function getRoleNavLinks(
+function dashboardHref(role: "admin" | "staff"): string {
+  return role === "admin" ? "/admin" : "/staff";
+}
+
+const adminSystemSettingsChildren: NavLink[] = [
+  {
+    href: "/admin/login-logs",
+    labelKey: "nav.loginLogs",
+    icon: "loginLogs",
+  },
+  {
+    href: "/admin/backups",
+    labelKey: "nav.backups",
+    icon: "backups",
+  },
+  {
+    href: "/import/customers",
+    labelKey: "nav.customerImport",
+    icon: "customerImport",
+  },
+  {
+    href: "/export/customers",
+    labelKey: "nav.dataExport",
+    icon: "dataExport",
+  },
+];
+
+export function getAdminNavGroups(activeHref?: string): NavGroup[] {
+  const dash = dashboardHref("admin");
+  const path = activeHref ?? "";
+
+  const groups: NavGroup[] = [
+    {
+      id: "main",
+      labelKey: "nav.group.main",
+      links: [
+        { href: dash, labelKey: "nav.dashboard", icon: "dashboard", mobilePrimary: true },
+        { href: "/customers", labelKey: "nav.customers", icon: "customers", mobilePrimary: true },
+        { href: "/customers/new", labelKey: "nav.addCustomer", icon: "addCustomer" },
+        { href: "/follow-ups", labelKey: "nav.followUps", icon: "followUps" },
+        { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
+      ],
+    },
+    {
+      id: "workflow",
+      labelKey: "nav.group.workflow",
+      links: [
+        { href: "/approvals", labelKey: "nav.approvals", icon: "approvals", mobilePrimary: true },
+        { href: "/reports", labelKey: "nav.reports", icon: "reports" },
+        { href: "/notifications", labelKey: "nav.notifications", icon: "notifications" },
+        {
+          href: "/admin/announcements",
+          labelKey: "nav.announcementManagement",
+          icon: "announcementManagement",
+        },
+        { href: "/admin/ai-settings", labelKey: "nav.aiSettings", icon: "aiSettings" },
+      ],
+    },
+    {
+      id: "systemManagement",
+      labelKey: "nav.group.systemManagement",
+      links: [
+        { href: "/admin/users", labelKey: "nav.userManagement", icon: "userManagement" },
+        { href: "/admin/tags-stages", labelKey: "nav.tagsStages", icon: "tagsStages" },
+        { href: "/admin/recycle-bin", labelKey: "nav.recycleBin", icon: "recycleBin" },
+        {
+          href: "/admin/settings",
+          labelKey: "nav.systemSettings",
+          icon: "systemSettings",
+          children: adminSystemSettingsChildren,
+        },
+        { href: "/help", labelKey: "nav.help", icon: "help" },
+      ],
+    },
+  ];
+
+  return groups.map((g) => ({
+    ...g,
+    links: markActive(g.links, path),
+  }));
+}
+
+export function getStaffNavGroups(activeHref?: string): NavGroup[] {
+  const dash = dashboardHref("staff");
+  const path = activeHref ?? "";
+
+  const groups: NavGroup[] = [
+    {
+      id: "main",
+      labelKey: "nav.group.main",
+      links: [
+        { href: dash, labelKey: "nav.dashboard", icon: "dashboard", mobilePrimary: true },
+        { href: "/customers", labelKey: "nav.customers", icon: "customers", mobilePrimary: true },
+        { href: "/customers/new", labelKey: "nav.addCustomer", icon: "addCustomer" },
+        { href: "/follow-ups", labelKey: "nav.followUps", icon: "followUps" },
+        { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
+      ],
+    },
+    {
+      id: "workflow",
+      labelKey: "nav.group.workflow",
+      links: [
+        { href: "/approvals", labelKey: "nav.approvals", icon: "approvals", mobilePrimary: true },
+        { href: "/reports", labelKey: "nav.reports", icon: "reports" },
+        { href: "/notifications", labelKey: "nav.notifications", icon: "notifications" },
+        { href: "/announcements", labelKey: "nav.announcements", icon: "announcements" },
+        { href: "/help", labelKey: "nav.help", icon: "help" },
+      ],
+    },
+  ];
+
+  return groups.map((g) => ({
+    ...g,
+    links: markActive(g.links, path),
+  }));
+}
+
+export function getRoleNavGroups(
   user: { role: "admin" | "staff" },
   activeHref?: string,
-): NavLink[] {
+): NavGroup[] {
   return user.role === "admin"
-    ? getAdminNavLinks(activeHref)
-    : getStaffNavLinks(activeHref);
+    ? getAdminNavGroups(activeHref)
+    : getStaffNavGroups(activeHref);
+}
+
+export function getMobileBottomNav(role: "admin" | "staff"): MobileNavItem[] {
+  const dash = dashboardHref(role);
+  return [
+    { href: dash, labelKey: "nav.dashboard", icon: "dashboard" },
+    { href: "/customers", labelKey: "nav.customers", icon: "customers" },
+    { href: "/notifications", labelKey: "nav.notifications", icon: "notifications" },
+    { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
+    { href: "#more", labelKey: "nav.more", icon: "more" },
+  ];
+}
+
+export function getUserInitial(displayName: string): string {
+  const trimmed = displayName.trim();
+  if (!trimmed) return "?";
+  return trimmed.charAt(0).toUpperCase();
 }

@@ -225,10 +225,10 @@ export function IdleTimeoutProvider({
   return (
     <>
       {children}
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+      <div className="modal-overlay">
         <Card className="w-full max-w-md p-6 text-center">
-          <h2 className="text-lg font-semibold text-slate-900">{t(titleKey)}</h2>
-          <p className="mt-3 text-sm text-slate-600">
+          <h2 className="text-lg font-semibold text-[#172033]">{t(titleKey)}</h2>
+          <p className="mt-3 text-sm text-[#6B7890]">
             {t(sessionEndMessageKey(sessionEndReason))}
           </p>
           <Button type="button" className="mt-6 w-full" disabled>

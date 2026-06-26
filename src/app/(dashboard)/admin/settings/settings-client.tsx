@@ -60,11 +60,11 @@ export function SettingsClient() {
   }
 
   if (loading) {
-    return <p className="text-sm text-slate-500">加载中…</p>;
+    return <p className="text-sm text-[#6B7890]">加载中…</p>;
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="surface-card p-6">
       <div className="grid max-w-lg gap-4">
         {SETTING_KEYS.map((key) => (
           <div key={key}>
@@ -91,7 +91,7 @@ export function SettingsClient() {
                   readOnly
                   disabled
                 />
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-[#6B7890]">
                   {t("settings.inactivityLogoutFixedHint")}
                 </p>
               </>
@@ -107,7 +107,7 @@ export function SettingsClient() {
                 }
               />
             )}
-            <p className="mt-0.5 font-mono text-xs text-slate-400">{key}</p>
+            <p className="mt-0.5 font-mono text-xs text-[#6B7890]">{key}</p>
           </div>
         ))}
       </div>
@@ -115,7 +115,7 @@ export function SettingsClient() {
         <Button onClick={save} disabled={saving}>
           {saving ? "保存中…" : "保存设置"}
         </Button>
-        {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+        {message && <p className="mt-2 text-sm text-[#6B7890]">{message}</p>}
       </div>
     </div>
   );

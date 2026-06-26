@@ -99,7 +99,7 @@ export function BackupsClient() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="surface-card p-6">
         <Button onClick={runBackup} disabled={running}>
           {running ? t("backup.runningBackup") : t("backup.runNow")}
         </Button>
@@ -114,19 +114,19 @@ export function BackupsClient() {
         )}
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-medium text-slate-900">
+      <div className="surface-card p-6">
+        <h3 className="text-lg font-medium text-[#172033]">
           {t("backup.recentJobs")}
         </h3>
         {loading ? (
-          <p className="mt-4 text-sm text-slate-500">{t("common.loading")}</p>
+          <p className="mt-4 text-sm text-[#6B7890]">{t("common.loading")}</p>
         ) : items.length === 0 ? (
-          <p className="mt-4 text-sm text-slate-500">{t("backup.noJobs")}</p>
+          <p className="mt-4 text-sm text-[#6B7890]">{t("backup.noJobs")}</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
+                <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
                   <th className="px-3 py-2">{t("common.status")}</th>
                   <th className="px-3 py-2">{t("backup.backupType")}</th>
                   <th className="px-3 py-2">{t("backup.backupFile")}</th>
@@ -138,7 +138,7 @@ export function BackupsClient() {
               </thead>
               <tbody>
                 {items.map((job) => (
-                  <tr key={job.id} className="border-b border-slate-100">
+                  <tr key={job.id} className="table-row border-b border-[#EEF3F8]">
                     <td className="px-3 py-2">
                       <StatusBadge status={job.status} />
                       {job.status === "failed" && job.errorMessage && (
@@ -186,7 +186,7 @@ function StatusBadge({ status }: { status: string }) {
   return (
     <span
       className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-        colors[status] ?? "bg-slate-100 text-slate-700"
+        colors[status] ?? "bg-[#F7F9FC] text-[#172033]"
       }`}
     >
       {labels[status] ?? status}

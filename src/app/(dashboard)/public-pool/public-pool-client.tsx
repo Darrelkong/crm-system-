@@ -3,6 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  DataTable,
+  TableBody,
+  TableHead,
+  TableShell,
+  Td,
+  Th,
+  Tr,
+} from "@/components/ui/table";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
@@ -58,51 +69,29 @@ export function PublicPoolClient({
   }
 
   if (items.length === 0) {
-    return (
-      <div className="rounded-lg border border-dashed border-slate-300 bg-white p-12 text-center">
-        <p className="text-slate-500">{t("publicPool.noClients")}</p>
-      </div>
-    );
+    return <EmptyState message={t("publicPool.noClients")} />;
   }
 
   return (
     <div>
       {error && (
-        <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error}
-        </div>
+        <div className="alert-error mb-4 px-4 py-3 text-sm">{error}</div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-slate-200 bg-white">
-        <table className="w-full text-sm">
-          <thead className="border-b border-slate-200 bg-slate-50">
+      <TableShell>
+        <DataTable>
+          <TableHead>
             <tr>
-              <th className="px-4 py-3 text-left font-medium text-slate-600">
-                {t("publicPool.clientName")}
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-slate-600">
-                {t("publicPool.clientSource")}
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-slate-600">
-                {t("publicPool.salesStage")}
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-slate-600">
-                {t("publicPool.poolEnteredAt")}
-              </th>
-              <th className="px-4 py-3 text-left font-medium text-slate-600">
-                {t("publicPool.poolReason")}
-              </th>
-              {isAdmin && (
-                <th className="px-4 py-3 text-left font-medium text-slate-600">
-                  {t("publicPool.contact")}
-                </th>
-              )}
-              <th className="px-4 py-3 text-left font-medium text-slate-600">
-                {t("publicPool.actions")}
-              </th>
+              <Th>{t("publicPool.clientName")}</Th>
+              <Th>{t("publicPool.clientSource")}</Th>
+              <Th>{t("publicPool.salesStage")}</Th>
+              <Th>{t("publicPool.poolEnteredAt")}</Th>
+              <Th>{t("publicPool.poolReason")}</Th>
+              {isAdmin && <Th>{t("publicPool.contact")}</Th>}
+              <Th>{t("publicPool.actions")}</Th>
             </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
+          </TableHead>
+          <TableBody>
             {items.map((c) => {
               const blockReason = resolveClaimBlockReason(
                 t,
@@ -111,11 +100,11 @@ export function PublicPoolClient({
               );
 
               return (
-                <tr key={c.id} className="hover:bg-slate-50">
-                  <td className="px-4 py-3">
+                <Tr key={c.id}>
+                  <Td>
                     <Link
                       href={`/customers/${c.id}`}
-                      className="font-medium text-indigo-600 hover:underline"
+                      className="link-primary font-medium hover:underline"
                     >
                       {c.customerName}
                     </Link>
@@ -124,45 +113,45 @@ export function PublicPoolClient({
                         {t("publicPool.masked")}
                       </span>
                     )}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{source(c.source)}</td>
-                  <td className="px-4 py-3 text-slate-600">{salesStage(c.salesStage)}</td>
-                  <td className="px-4 py-3 text-slate-500">
+                  </Td>
+                  <Td className="text-[#6B7890]">{source(c.source)}</Td>
+                  <Td className="text-[#6B7890]">{salesStage(c.salesStage)}</Td>
+                  <Td className="text-[#6B7890]">
                     {c.poolEnteredAt?.slice(0, 16).replace("T", " ") ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-slate-600">{c.poolReason ?? "—"}</td>
+                  </Td>
+                  <Td className="text-[#6B7890]">{c.poolReason ?? "—"}</Td>
                   {isAdmin && (
-                    <td className="px-4 py-3 text-slate-600">
+                    <Td className="text-[#6B7890]">
                       {c.phone ?? "—"}
                       {c.wechatId && (
-                        <span className="block text-xs text-slate-500">
+                        <span className="block text-xs text-[#6B7890]">
                           {t("publicPool.wechat")}：{c.wechatId}
                         </span>
                       )}
-                    </td>
+                    </Td>
                   )}
-                  <td className="px-4 py-3">
-                    <button
+                  <Td>
+                    <Button
                       type="button"
+                      size="sm"
                       disabled={!c.canClaim || claimingId === c.id}
                       onClick={() => handleClaim(c.id)}
                       title={blockReason ?? undefined}
-                      className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {claimingId === c.id
                         ? t("publicPool.claiming")
                         : t("publicPool.claim")}
-                    </button>
+                    </Button>
                     {!c.canClaim && blockReason && (
                       <p className="mt-1 max-w-[140px] text-xs text-red-600">{blockReason}</p>
                     )}
-                  </td>
-                </tr>
+                  </Td>
+                </Tr>
               );
             })}
-          </tbody>
-        </table>
-      </div>
+          </TableBody>
+        </DataTable>
+      </TableShell>
     </div>
   );
 }

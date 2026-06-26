@@ -59,11 +59,11 @@ export function AiSettingsClient({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-      <div className="mb-6 rounded-lg border border-indigo-100 bg-indigo-50 p-4 text-sm text-indigo-900">
+    <div className="surface-card p-6">
+      <div className="mb-6 rounded-lg border border-[#C5DAF0] bg-[#E8F1FA] p-4 text-sm text-[#172033]">
         <p className="font-medium">{t("aiSettings.apiKeyHintTitle")}</p>
         <p className="mt-1">{t("aiSettings.apiKeyHintBody")}</p>
-        <p className="mt-2 font-mono text-xs text-indigo-800">
+        <p className="mt-2 font-mono text-xs text-[#1F4E79]">
           wrangler secret put AI_API_KEY
         </p>
         <p className="mt-2">
@@ -184,11 +184,11 @@ export function AiSettingsClient({
           <Label htmlFor="ai_prompt_template">{t("aiSettings.promptTemplate")}</Label>
           <textarea
             id="ai_prompt_template"
-            className="mt-1 min-h-40 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            className="surface-input mt-1 min-h-40 w-full px-3 py-2 text-sm"
             value={settings.ai_prompt_template ?? ""}
             onChange={(e) => update("ai_prompt_template", e.target.value)}
           />
-          <p className="mt-1 text-xs text-slate-500">{t("aiSettings.promptTemplateHint")}</p>
+          <p className="mt-1 text-xs text-[#6B7890]">{t("aiSettings.promptTemplateHint")}</p>
         </div>
 
         <div>
@@ -245,7 +245,7 @@ export function AiSettingsClient({
         </div>
 
         {AI_SETTING_KEYS.map((key) => (
-          <p key={key} className="hidden font-mono text-xs text-slate-400">
+          <p key={key} className="hidden font-mono text-xs text-[#6B7890]">
             {key}
           </p>
         ))}
@@ -255,7 +255,7 @@ export function AiSettingsClient({
         <Button onClick={() => void save()} disabled={saving}>
           {saving ? t("aiSettings.saving") : t("aiSettings.save")}
         </Button>
-        {message && <p className="mt-2 text-sm text-slate-600">{message}</p>}
+        {message && <p className="mt-2 text-sm text-[#6B7890]">{message}</p>}
       </div>
     </div>
   );

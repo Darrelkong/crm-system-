@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ApprovalListItem } from "@/lib/approvals/queries";
 import type { ApprovalRequestType, ApprovalStatus } from "../../../../drizzle/schema/approvals";
+import { EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
+import { cn } from "@/lib/cn";
 import { Input, Label, Field } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
@@ -99,11 +102,10 @@ export function ApprovalsClient({ isAdmin }: Props) {
             key={status}
             type="button"
             onClick={() => setStatusFilter(status)}
-            className={`rounded-full px-3 py-1 text-sm ${
-              statusFilter === status
-                ? "bg-indigo-600 text-white"
-                : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-            }`}
+            className={cn(
+              "tab-pill",
+              statusFilter === status && "tab-pill-active",
+            )}
           >
             {statusLabel(status)}
           </button>
@@ -115,11 +117,9 @@ export function ApprovalsClient({ isAdmin }: Props) {
       )}
 
       {loading ? (
-        <p className="text-sm text-slate-500">{t("common.loading")}</p>
+        <p className="text-sm text-[#6B7890]">{t("common.loading")}</p>
       ) : items.length === 0 ? (
-        <p className="rounded-lg border border-slate-200 bg-white p-8 text-center text-sm text-slate-500">
-          {t("approvals.noRequests")}
-        </p>
+        <EmptyState message={t("approvals.noRequests")} />
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
@@ -130,27 +130,27 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 setSelectedId(item.id);
                 setAdminComment(item.adminComment ?? "");
               }}
-              className="w-full rounded-lg border border-slate-200 bg-white p-4 text-left hover:border-indigo-300"
+              className="list-row w-full p-4 text-left"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium text-slate-900">
+                <span className="font-medium text-[#172033]">
                   {approvalType(item.requestType as ApprovalRequestType)}
                 </span>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600">
+                <span className="status-badge">
                   {approvalStatus(item.status)}
                 </span>
               </div>
-              <p className="mt-1 text-sm text-slate-700">
+              <p className="mt-1 text-sm text-[#172033]">
                 {t("approvals.customer")}：
                 <Link
                   href={`/customers/${item.customerId}`}
-                  className="text-indigo-600 hover:underline"
+                  className="text-[#2F6FB3] hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {item.customerName}
                 </Link>
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-[#6B7890]">
                 {t("approvals.submittedAt", {
                   name: item.requestedByName,
                   date: item.createdAt.slice(0, 16).replace("T", " "),
@@ -162,43 +162,43 @@ export function ApprovalsClient({ isAdmin }: Props) {
       )}
 
       {selected && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-            <h3 className="text-lg font-semibold text-slate-900">
+        <ModalOverlay onClose={() => setSelectedId(null)}>
+          <ModalPanel>
+            <h3 className="text-lg font-semibold text-[#172033]">
               {t("approvals.detailTitle")}
             </h3>
             <dl className="mt-4 space-y-2 text-sm">
               <div>
-                <dt className="text-slate-500">{t("approvals.type")}</dt>
+                <dt className="text-[#6B7890]">{t("approvals.type")}</dt>
                 <dd>{approvalType(selected.requestType as ApprovalRequestType)}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t("approvals.customer")}</dt>
+                <dt className="text-[#6B7890]">{t("approvals.customer")}</dt>
                 <dd>{selected.customerName}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t("approvals.requestedBy")}</dt>
+                <dt className="text-[#6B7890]">{t("approvals.requestedBy")}</dt>
                 <dd>{selected.requestedByName}</dd>
               </div>
               <div>
-                <dt className="text-slate-500">{t("approvals.reason")}</dt>
+                <dt className="text-[#6B7890]">{t("approvals.reason")}</dt>
                 <dd className="whitespace-pre-wrap">{selected.reason}</dd>
               </div>
               {selected.targetUserName && (
                 <div>
-                  <dt className="text-slate-500">{t("approvals.transferTarget")}</dt>
+                  <dt className="text-[#6B7890]">{t("approvals.transferTarget")}</dt>
                   <dd>{selected.targetUserName}</dd>
                 </div>
               )}
               {selected.relatedCustomerIds && selected.relatedCustomerIds.length > 0 && (
                 <div>
-                  <dt className="text-slate-500">{t("approvals.relatedCustomerIds")}</dt>
+                  <dt className="text-[#6B7890]">{t("approvals.relatedCustomerIds")}</dt>
                   <dd>{selected.relatedCustomerIds.join(", ")}</dd>
                 </div>
               )}
               {selected.payload && (
                 <div>
-                  <dt className="text-slate-500">{t("approvals.payloadDetails")}</dt>
+                  <dt className="text-[#6B7890]">{t("approvals.payloadDetails")}</dt>
                   <dd className="whitespace-pre-wrap font-mono text-xs">
                     {JSON.stringify(selected.payload, null, 2)}
                   </dd>
@@ -206,7 +206,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
               )}
               {selected.adminComment && (
                 <div>
-                  <dt className="text-slate-500">{t("approvals.reviewComment")}</dt>
+                  <dt className="text-[#6B7890]">{t("approvals.reviewComment")}</dt>
                   <dd className="whitespace-pre-wrap">{selected.adminComment}</dd>
                 </div>
               )}
@@ -258,8 +258,8 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 </Button>
               </div>
             )}
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   );

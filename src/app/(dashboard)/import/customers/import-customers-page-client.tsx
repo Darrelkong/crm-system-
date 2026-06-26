@@ -1,5 +1,6 @@
 "use client";
 
+import { PageIntro } from "@/components/ui/page-intro";
 import { useTranslation } from "@/i18n/provider";
 import { ImportCustomersClient } from "./import-customers-client";
 
@@ -8,10 +9,10 @@ export function ImportCustomersPageClient() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-900">{t("imports.customersTitle")}</h2>
-        <p className="mt-1 text-sm text-slate-500">{t("imports.subtitle")}</p>
-      </div>
+      <PageIntro
+        title={t("imports.customersTitle")}
+        description={t("imports.subtitle")}
+      />
       <ImportCustomersClient />
     </div>
   );

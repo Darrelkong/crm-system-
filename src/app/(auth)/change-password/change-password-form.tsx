@@ -77,18 +77,14 @@ export function ChangePasswordForm() {
   }
 
   return (
-    <div className="relative flex min-h-full items-center justify-center bg-slate-100 px-4 py-10">
+    <div className="auth-shell relative">
       <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
         <LanguageSwitcher />
       </div>
       <Card className="w-full max-w-md p-6">
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">
-            {t("auth.changePasswordTitle")}
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            {t("auth.changePasswordSubtitle")}
-          </p>
+          <h1 className="page-title">{t("auth.changePasswordTitle")}</h1>
+          <p className="page-description">{t("auth.changePasswordSubtitle")}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -141,10 +137,10 @@ export function ChangePasswordForm() {
             )}
           </Field>
 
-          <p className="mb-4 text-xs text-slate-500">{t("auth.passwordPolicyHint")}</p>
+          <p className="mb-4 text-xs text-[#6B7890]">{t("auth.passwordPolicyHint")}</p>
 
           {serverError && (
-            <p className="mb-4 text-sm text-red-600">{serverError}</p>
+            <p className="alert-error mb-4 px-3 py-2 text-sm">{serverError}</p>
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>

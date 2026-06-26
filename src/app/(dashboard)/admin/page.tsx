@@ -1,4 +1,5 @@
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
+import { DashboardHeaderActions } from "@/components/dashboard/dashboard-header-actions";
 import { requireAdmin } from "@/lib/permissions/auth";
 import { AdminDashboardView } from "@/components/dashboard/admin-dashboard-view";
 
@@ -12,7 +13,8 @@ export default async function AdminDashboardPage() {
       <TranslatedPageHeader
         titleKey="layout.greeting"
         titleParams={{ name: user.displayName }}
-        descriptionKey="brand.dashboardSubtitle"
+        descriptionKey="layout.adminControlCenter"
+        action={<DashboardHeaderActions />}
       />
       <AdminDashboardView user={user} />
     </div>

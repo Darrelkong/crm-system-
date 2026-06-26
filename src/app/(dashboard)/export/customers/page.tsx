@@ -1,16 +1,15 @@
 export const dynamic = "force-dynamic";
 
+import { PageIntro } from "@/components/ui/page-intro";
 import { ExportCustomersClient } from "./export-customers-client";
 
 export default function ExportCustomersPage() {
   return (
     <div>
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold text-slate-900">客户数据导出</h2>
-        <p className="mt-1 text-sm text-slate-500">
-          导出客户 CSV 文件。仅管理员可访问，导出行为将记录审计日志。
-        </p>
-      </div>
+      <PageIntro
+        title="客户数据导出"
+        description="按范围导出客户数据。敏感字段导出需二次确认。"
+      />
       <ExportCustomersClient />
     </div>
   );

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { Label, Select } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import {
@@ -47,7 +48,7 @@ export function ExportCustomersClient() {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="surface-card p-6">
       <div className="grid max-w-lg gap-5">
         <Field>
           <Label htmlFor="scope">{t("export.scope")}</Label>
@@ -65,26 +66,26 @@ export function ExportCustomersClient() {
         </Field>
 
         <Field>
-          <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-700">
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-[#172033]">
             <input
               type="checkbox"
               checked={includeSensitive}
               onChange={(e) => setIncludeSensitive(e.target.checked)}
-              className="rounded border-slate-300"
+              className="rounded border-[#E3E8F0]"
             />
             {t("export.includeSensitive")}
           </label>
-          <p className="mt-1 text-xs text-slate-500">{t("export.sensitiveHint")}</p>
+          <p className="mt-1 text-xs text-[#6B7890]">{t("export.sensitiveHint")}</p>
         </Field>
 
         <Field>
           <Label>{t("export.fieldsLabel")}</Label>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-[#6B7890]">
             {t("export.defaultFieldsHint", {
               count: String(DEFAULT_EXPORT_FIELDS.length),
             })}
           </p>
-          <p className="mt-1 font-mono text-xs text-slate-500">
+          <p className="mt-1 font-mono text-xs text-[#6B7890]">
             {DEFAULT_EXPORT_FIELDS.join(", ")}
           </p>
         </Field>
@@ -95,26 +96,26 @@ export function ExportCustomersClient() {
       </div>
 
       {showRiskDialog && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="export-risk-title"
+        <ModalOverlay
+          onClose={() => {
+            setShowRiskDialog(false);
+            setRiskConfirmed(false);
+          }}
         >
-          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+          <ModalPanel>
             <h3
               id="export-risk-title"
-              className="text-lg font-semibold text-slate-900"
+              className="text-lg font-semibold text-[#172033]"
             >
               {t("export.riskTitle")}
             </h3>
-            <p className="mt-3 text-sm text-slate-600">{t("export.riskMessage")}</p>
-            <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-slate-700">
+            <p className="mt-3 text-sm text-[#6B7890]">{t("export.riskMessage")}</p>
+            <label className="mt-4 flex cursor-pointer items-start gap-2 text-sm text-[#172033]">
               <input
                 type="checkbox"
                 checked={riskConfirmed}
                 onChange={(e) => setRiskConfirmed(e.target.checked)}
-                className="mt-0.5 rounded border-slate-300"
+                className="mt-0.5 rounded border-[#E3E8F0]"
               />
               <span>{t("export.riskConfirm")}</span>
             </label>
@@ -132,8 +133,8 @@ export function ExportCustomersClient() {
                 {t("export.confirmExport")}
               </Button>
             </div>
-          </div>
-        </div>
+          </ModalPanel>
+        </ModalOverlay>
       )}
     </div>
   );

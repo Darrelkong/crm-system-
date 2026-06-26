@@ -14,14 +14,6 @@ export default async function ImportLayout({
       role="admin"
       userName={user.displayName}
       userEmail={user.email}
-      navLinks={[
-        { href: "/admin", labelKey: "nav.dashboard" },
-        { href: "/customers", labelKey: "nav.customers" },
-        { href: "/import/customers", labelKey: "nav.customerImport", active: true },
-        { href: "/export/customers", labelKey: "nav.dataExport" },
-        { href: "/public-pool", labelKey: "nav.publicPool" },
-        { href: "/approvals", labelKey: "nav.approvals" },
-      ]}
     >
       {children}
     </DashboardShell>

@@ -6,12 +6,12 @@ export async function DashboardTaskStats({ user }: { user: User }) {
 
   return (
     <div className="mb-6 grid gap-4 sm:grid-cols-2">
-      <div className="rounded-lg border border-slate-200 bg-white p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+      <div className="surface-card p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-[#6B7890]">
           待办任务
         </p>
-        <p className="mt-1 text-2xl font-semibold text-slate-900">{stats.open}</p>
-        <p className="mt-1 text-xs text-slate-500">
+        <p className="mt-1 text-2xl font-semibold text-[#172033]">{stats.open}</p>
+        <p className="mt-1 text-xs text-[#6B7890]">
           {user.role === "admin" ? "全部未完成跟进任务" : "我的未完成跟进任务"}
         </p>
       </div>

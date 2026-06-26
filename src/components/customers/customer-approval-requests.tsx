@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { Input, Label, Field, Select } from "@/components/ui/form";
 import type { ApprovalRequestType } from "../../../drizzle/schema/approvals";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
@@ -113,20 +114,16 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-      >
+      <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
         {t("customers.submitApproval")}
-      </button>
+      </Button>
     );
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-xl border border-slate-200 bg-white p-6 shadow-lg">
-        <h3 className="text-lg font-semibold text-slate-900">
+    <ModalOverlay onClose={() => setOpen(false)}>
+      <ModalPanel>
+        <h3 className="text-lg font-semibold text-[#172033]">
           {t("customers.submitApprovalTitle")}
         </h3>
 
@@ -253,13 +250,9 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
         </div>
 
         <div className="mt-6 flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="rounded-lg border border-slate-300 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-          >
+          <Button type="button" variant="secondary" onClick={() => setOpen(false)}>
             {t("common.cancel")}
-          </button>
+          </Button>
           <Button
             type="button"
             disabled={!reason.trim() || submitting}
@@ -268,7 +261,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
             {submitting ? t("customers.submitting") : t("customers.submitRequest")}
           </Button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   );
 }

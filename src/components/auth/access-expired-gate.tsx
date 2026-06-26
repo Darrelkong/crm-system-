@@ -18,16 +18,16 @@ export function AccessExpiredGate() {
   }, []);
 
   return (
-    <div className="relative flex min-h-full items-center justify-center bg-slate-100 px-4 py-10">
+    <div className="auth-shell relative">
       <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
         <LanguageSwitcher />
       </div>
       <Card className="w-full max-w-md p-6 text-center">
-        <h1 className="text-lg font-semibold text-slate-900">
+        <h1 className="text-lg font-semibold text-[#172033]">
           {t("security.sessionTimeoutTitle")}
         </h1>
-        <p className="mt-3 text-sm text-slate-600">{t("security.accessExpired")}</p>
-        <p className="mt-2 text-sm text-slate-500">{t("security.reloginRequired")}</p>
+        <p className="mt-3 text-sm text-[#6B7890]">{t("security.accessExpired")}</p>
+        <p className="mt-2 text-sm text-[#6B7890]">{t("security.reloginRequired")}</p>
         <Button
           type="button"
           className="mt-6 w-full"

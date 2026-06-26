@@ -8,7 +8,7 @@ const EMPTY_MARKER = "__empty__";
 
 function badgeClass(item: TimelineItem): string {
   if (item.metadata.category === "system") {
-    return "bg-slate-200 text-slate-700";
+    return "bg-[#EEF3F8] text-[#6B7890]";
   }
   switch (item.type) {
     case "field_change":
@@ -20,7 +20,7 @@ function badgeClass(item: TimelineItem): string {
     case "approval":
       return "bg-purple-100 text-purple-800";
     default:
-      return "bg-indigo-100 text-indigo-800";
+      return "bg-[#E8F1FA] text-[#1F4E79]";
   }
 }
 
@@ -110,7 +110,7 @@ export function CustomerTimelineView({
   return (
     <Card className="mt-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-slate-900">{t("customers.timeline")}</h3>
+        <h3 className="text-base font-semibold text-[#172033]">{t("customers.timeline")}</h3>
         {accessLevel !== "full" && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
             {accessLevel === "archived_basic"
@@ -121,7 +121,7 @@ export function CustomerTimelineView({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-slate-500">{t("customers.timelineNoRecords")}</p>
+        <p className="text-sm text-[#6B7890]">{t("customers.timelineNoRecords")}</p>
       ) : (
         <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
           {items.map((item) => (
@@ -129,12 +129,12 @@ export function CustomerTimelineView({
               key={item.id}
               className={
                 item.sensitive
-                  ? "rounded-lg border border-amber-100 bg-amber-50/40 p-4"
-                  : "rounded-lg border border-slate-200 bg-slate-50/50 p-4"
+                  ? "rounded-lg border border-amber-100 bg-amber-50 p-4"
+                  : "surface-muted p-4"
               }
             >
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-medium text-slate-600">
+                <span className="font-medium text-[#6B7890]">
                   {item.occurredAt.slice(0, 16).replace("T", " ")}
                 </span>
                 <span
@@ -148,7 +148,7 @@ export function CustomerTimelineView({
                   </span>
                 )}
               </div>
-              <p className="mt-2 text-sm font-medium text-slate-900">
+              <p className="mt-2 text-sm font-medium text-[#172033]">
                 {renderMessage(
                   item.titleKey,
                   item.titleKey === "timelineMessages.approvalTitle" && item.titleParams?.type
@@ -159,7 +159,7 @@ export function CustomerTimelineView({
                 )}
               </p>
               {item.descriptionKey && (
-                <p className="mt-1 text-sm text-slate-700">
+                <p className="mt-1 text-sm text-[#172033]">
                   {renderMessage(
                     item.descriptionKey,
                     item.descriptionParams,
@@ -167,7 +167,7 @@ export function CustomerTimelineView({
                   )}
                 </p>
               )}
-              <p className="mt-2 text-xs text-slate-500">
+              <p className="mt-2 text-xs text-[#6B7890]">
                 {t("customers.timelineActor", { name: actorLabel(item) })}
               </p>
             </div>

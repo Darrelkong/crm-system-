@@ -1,6 +1,5 @@
 import { requireStaff } from "@/lib/permissions/auth";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { getStaffNavLinks } from "@/lib/layout/nav-links";
 
 export default async function StaffLayout({
   children,
@@ -15,7 +14,6 @@ export default async function StaffLayout({
       role="staff"
       userName={user.displayName}
       userEmail={user.email}
-      navLinks={getStaffNavLinks()}
     >
       {children}
     </DashboardShell>

@@ -1,18 +1,13 @@
 import { cn } from "@/lib/cn";
 
+const inputClass =
+  "surface-input w-full px-3.5 py-2.5 text-sm text-[#172033] placeholder:text-[#6B7890]";
+
 export function Input({
   className,
   ...props
 }: React.InputHTMLAttributes<HTMLInputElement>) {
-  return (
-    <input
-      className={cn(
-        "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <input className={cn(inputClass, className)} {...props} />;
 }
 
 export function Textarea({
@@ -21,10 +16,7 @@ export function Textarea({
 }: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
-      className={cn(
-        "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-        className,
-      )}
+      className={cn(inputClass, "min-h-[100px] resize-y", className)}
       {...props}
     />
   );
@@ -36,13 +28,7 @@ export function Select({
   ...props
 }: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
-    <select
-      className={cn(
-        "w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100",
-        className,
-      )}
-      {...props}
-    >
+    <select className={cn(inputClass, className)} {...props}>
       {children}
     </select>
   );
@@ -55,7 +41,7 @@ export function Label({
 }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn("mb-1 block text-sm font-medium text-slate-700", className)}
+      className={cn("mb-1.5 block text-sm font-medium text-[#172033]", className)}
       {...props}
     >
       {children}
@@ -64,5 +50,5 @@ export function Label({
 }
 
 export function Field({ children }: { children: React.ReactNode }) {
-  return <div className="mb-4">{children}</div>;
+  return <div className="mb-5">{children}</div>;
 }

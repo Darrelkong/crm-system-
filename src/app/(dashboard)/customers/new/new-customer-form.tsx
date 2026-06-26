@@ -142,8 +142,8 @@ export function NewCustomerForm() {
         </div>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
-        <h3 className="mb-4 text-base font-semibold text-slate-900">
+      <div className="surface-card p-6">
+        <h3 className="mb-4 text-base font-semibold text-[#172033]">
           {t("customers.basicSection")}
         </h3>
 
@@ -199,7 +199,7 @@ export function NewCustomerForm() {
           <Label>
             {t("customers.phoneWechatRequired")}{" "}
             <span className="text-red-500">*</span>
-            <span className="ml-1 text-xs font-normal text-slate-500">
+            <span className="ml-1 text-xs font-normal text-[#6B7890]">
               {t("customers.atLeastOne")}
             </span>
           </Label>
@@ -250,8 +250,8 @@ export function NewCustomerForm() {
         </Field>
       </div>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-6">
-        <h3 className="mb-4 text-base font-semibold text-slate-900">
+      <div className="surface-card mt-4 p-6">
+        <h3 className="mb-4 text-base font-semibold text-[#172033]">
           {t("customers.sourceAndStage")}
         </h3>
 
@@ -329,12 +329,9 @@ export function NewCustomerForm() {
         <Button type="submit" disabled={submitting}>
           {submitting ? t("customers.saving") : t("customers.saveClient")}
         </Button>
-        <a
-          href="/customers"
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
-        >
+        <Button type="button" variant="secondary" onClick={() => router.push("/customers")}>
           {t("common.cancel")}
-        </a>
+        </Button>
       </div>
     </form>
   );

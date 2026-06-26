@@ -85,25 +85,19 @@ export function LoginForm() {
   }
 
   return (
-    <div className="relative flex min-h-full items-center justify-center bg-slate-100 px-4 py-10">
+    <div className="auth-shell relative">
       <div className="absolute right-4 top-4 sm:right-6 sm:top-6">
         <LanguageSwitcher />
       </div>
       <Card className="w-full max-w-md">
         <div className="mb-8 text-center">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-600">
-            {t("brand.crmName")}
-          </p>
-          <p className="mt-2 text-sm text-slate-500">{t("brand.portalSubtitle")}</p>
+          <p className="brand-kicker">{t("brand.crmName")}</p>
+          <p className="page-description mt-2">{t("brand.portalSubtitle")}</p>
         </div>
 
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-semibold text-slate-900">
-            {t("auth.signInTitle")}
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            {t("auth.signInSubtitle")}
-          </p>
+          <h1 className="page-title">{t("auth.signInTitle")}</h1>
+          <p className="page-description">{t("auth.signInSubtitle")}</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -131,15 +125,11 @@ export function LoginForm() {
           </Field>
 
           {passwordChangedNotice && (
-            <p className="mb-4 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-900">
-              {passwordChangedNotice}
-            </p>
+            <p className="alert-success mb-4 px-3 py-2 text-sm">{passwordChangedNotice}</p>
           )}
 
           {sessionEndNotice && (
-            <p className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-              {sessionEndNotice}
-            </p>
+            <p className="alert-warning mb-4 px-3 py-2 text-sm">{sessionEndNotice}</p>
           )}
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}

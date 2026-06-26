@@ -2,7 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { requireAuth } from "@/lib/permissions/auth";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { getRoleNavLinks } from "@/lib/layout/nav-links";
 
 export default async function NotificationsLayout({
   children,
@@ -17,7 +16,6 @@ export default async function NotificationsLayout({
       role={user.role}
       userName={user.displayName}
       userEmail={user.email}
-      navLinks={getRoleNavLinks(user, "/notifications")}
     >
       {children}
     </DashboardShell>

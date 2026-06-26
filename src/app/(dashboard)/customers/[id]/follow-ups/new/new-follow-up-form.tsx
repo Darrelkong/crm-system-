@@ -120,7 +120,7 @@ export function NewFollowUpForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
-      <p className="mb-4 text-sm text-slate-600">
+      <p className="mb-4 text-sm text-[#6B7890]">
         {t("followUps.addFollowUpFor", { name: customerName })}
       </p>
 
@@ -130,7 +130,7 @@ export function NewFollowUpForm({
         </div>
       )}
 
-      <div className="rounded-lg border border-slate-200 bg-white p-6">
+      <div className="surface-card p-6">
         <Field>
           <Label htmlFor="channel">
             {t("followUps.channel")} <span className="text-red-500">*</span>
@@ -213,7 +213,7 @@ export function NewFollowUpForm({
           {fieldErrors.nextFollowUpAt && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.nextFollowUpAt}</p>
           )}
-          <p className="mt-1 text-xs text-slate-500">{t("followUps.autoCreateTask")}</p>
+          <p className="mt-1 text-xs text-[#6B7890]">{t("followUps.autoCreateTask")}</p>
         </Field>
 
         <Field>
@@ -236,12 +236,13 @@ export function NewFollowUpForm({
         <Button type="submit" disabled={submitting}>
           {submitting ? t("customers.saving") : t("followUps.saveFollowUp")}
         </Button>
-        <a
-          href={`/customers/${customerId}`}
-          className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => router.push(`/customers/${customerId}`)}
         >
           {t("common.cancel")}
-        </a>
+        </Button>
       </div>
     </form>
   );

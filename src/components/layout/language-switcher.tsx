@@ -8,13 +8,13 @@ export function LanguageSwitcher({ className }: { className?: string }) {
 
   return (
     <label
-      className={`inline-flex items-center gap-2 text-sm text-slate-600 ${className ?? ""}`}
+      className={`inline-flex items-center gap-2 text-sm text-[#6B7890] ${className ?? ""}`}
     >
       <span className="sr-only">{t("common.language")}</span>
       <select
         value={locale}
         onChange={(e) => setLocale(e.target.value as typeof locale)}
-        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-700 shadow-sm transition hover:border-slate-300 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+        className="surface-input px-2.5 py-1.5 text-sm shadow-sm"
         aria-label={t("common.language")}
       >
         {SUPPORTED_LOCALES.map((item) => (

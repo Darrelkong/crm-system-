@@ -151,7 +151,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/approvals") ||
     pathname.startsWith("/notifications") ||
     pathname.startsWith("/announcements") ||
-    pathname.startsWith("/help")
+    pathname.startsWith("/help") ||
+    pathname.startsWith("/follow-ups") ||
+    pathname.startsWith("/reports") ||
+    pathname.startsWith("/account")
   ) {
     if (!sessionUser) {
       return redirectToLogin(request);
@@ -183,5 +186,11 @@ export const config = {
     "/announcements/:path*",
     "/help",
     "/help/:path*",
+    "/follow-ups",
+    "/follow-ups/:path*",
+    "/reports",
+    "/reports/:path*",
+    "/account",
+    "/account/:path*",
   ],
 };
