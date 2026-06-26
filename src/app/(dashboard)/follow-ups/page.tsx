@@ -1,7 +1,15 @@
 export const dynamic = "force-dynamic";
 
-import { FollowUpsPlaceholder } from "./follow-ups-placeholder";
+import { requireAuth } from "@/lib/permissions/auth";
+import { AdminFollowUpsView } from "@/components/follow-ups/admin-follow-ups-view";
+import { StaffFollowUpsView } from "@/components/follow-ups/staff-follow-ups-view";
 
-export default function FollowUpsPage() {
-  return <FollowUpsPlaceholder />;
+export default async function FollowUpsPage() {
+  const user = await requireAuth();
+
+  if (user.role === "admin") {
+    return <AdminFollowUpsView />;
+  }
+
+  return <StaffFollowUpsView user={user} />;
 }
