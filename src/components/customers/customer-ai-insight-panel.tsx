@@ -7,6 +7,7 @@ import type {
   CustomerAiInsightDisplayMeta,
   CustomerAiInsightView,
 } from "@/lib/ai/customer-insights/service";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 const INTENT_BADGE_CLASS: Record<string, string> = {
   high: "bg-emerald-50 text-emerald-800 ring-emerald-200",
@@ -22,7 +23,7 @@ type InsightBundle = {
 
 function formatDateTime(value: string | null): string | null {
   if (!value) return null;
-  return value.slice(0, 16).replace("T", " ");
+  return formatHongKongDateTime(value, "");
 }
 
 function SignalList({

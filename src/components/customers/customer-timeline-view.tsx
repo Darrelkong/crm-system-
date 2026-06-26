@@ -3,6 +3,7 @@
 import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 const EMPTY_MARKER = "__empty__";
 
@@ -135,7 +136,7 @@ export function CustomerTimelineView({
             >
               <div className="flex flex-wrap items-center gap-2 text-xs">
                 <span className="font-medium text-[#6B7890]">
-                  {item.occurredAt.slice(0, 16).replace("T", " ")}
+                  {formatHongKongDateTime(item.occurredAt)}
                 </span>
                 <span
                   className={`rounded-full px-2 py-0.5 font-medium ${badgeClass(item)}`}

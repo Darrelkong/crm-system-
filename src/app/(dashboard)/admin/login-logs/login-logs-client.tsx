@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
 import type { LoginLogView } from "@/lib/users-admin/types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 export function LoginLogsClient() {
   const [items, setItems] = useState<LoginLogView[]>([]);
@@ -90,7 +91,7 @@ export function LoginLogsClient() {
                     {row.user_agent ?? "—"}
                   </td>
                   <td className="px-3 py-2 font-mono text-xs">
-                    {row.created_at.slice(0, 19).replace("T", " ")}
+                    {formatHongKongDateTime(row.created_at)}
                   </td>
                 </tr>
               ))}

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/provider";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type BackupJobItem = {
   id: string;
@@ -24,8 +25,7 @@ function formatBytes(bytes: number): string {
 }
 
 function formatDate(iso: string | null): string {
-  if (!iso) return "—";
-  return iso.replace("T", " ").slice(0, 19);
+  return formatHongKongDateTime(iso);
 }
 
 export function BackupsClient() {

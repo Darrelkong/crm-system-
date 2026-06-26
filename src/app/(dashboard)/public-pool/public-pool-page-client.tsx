@@ -6,6 +6,7 @@ import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
 import type { AdminClaimStatus, StaffClaimStatus } from "@/lib/public-pool/constants";
 import type { PublicPoolCustomerView } from "@/lib/public-pool/queries";
 import { PublicPoolClient } from "./public-pool-client";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
   items: PublicPoolCustomerView[];
@@ -49,7 +50,7 @@ export function PublicPoolPageClient({ items, isAdmin, claimStatus }: Props) {
             {claimStatus.cooldownUntil && (
               <p className="mt-1 text-xs text-[#6B7890]">
                 {t("publicPool.cooldownUntil", {
-                  date: claimStatus.cooldownUntil.slice(0, 16).replace("T", " "),
+                  date: formatHongKongDateTime(claimStatus.cooldownUntil),
                 })}
               </p>
             )}

@@ -1,10 +1,7 @@
+import { formatHongKongDate } from "@/lib/timezone";
+
 export function formatDate(date: Date | string | null | undefined) {
-  if (!date) return "—";
-  return new Date(date).toLocaleDateString("zh-CN", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  return formatHongKongDate(date);
 }
 
 export const taskStatusLabels: Record<string, string> = {

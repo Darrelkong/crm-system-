@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { getDb } from "@/lib/db";
 import { listPublishedAnnouncementsForUser } from "@/lib/announcements/service";
+import { formatHongKongDateTime } from "@/lib/timezone";
 import type { User } from "../../../drizzle/schema/users";
 
 export async function RecentAnnouncementsCard({ user }: { user: User }) {
@@ -25,7 +26,7 @@ export async function RecentAnnouncementsCard({ user }: { user: User }) {
                 {item.content}
               </p>
               <p className="mt-1 text-xs text-[#6B7890]">
-                {item.published_at.slice(0, 16).replace("T", " ")}
+                {formatHongKongDateTime(item.published_at)}
               </p>
             </li>
           ))}

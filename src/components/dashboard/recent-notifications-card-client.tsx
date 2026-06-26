@@ -8,6 +8,7 @@ import {
   resolveNotificationTitle,
 } from "@/i18n/resolve-notification-content";
 import type { NotificationListItem } from "@/lib/notifications/queries";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type NotificationCardItem = NotificationListItem & {
   href: string | null;
@@ -19,8 +20,7 @@ type Props = {
 };
 
 function formatCreatedAt(value: string | null | undefined): string {
-  if (!value || typeof value !== "string") return "—";
-  return value.slice(0, 16).replace("T", " ");
+  return formatHongKongDateTime(value);
 }
 
 function safeResolveTitle(

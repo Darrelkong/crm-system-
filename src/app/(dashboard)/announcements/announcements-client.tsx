@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type AnnouncementItem = {
   id: string;
@@ -53,7 +54,7 @@ export function AnnouncementsClient() {
         <li key={item.id} className="surface-card p-6">
           <h3 className="text-lg font-semibold text-[#172033]">{item.title}</h3>
           <p className="mt-1 text-xs text-[#6B7890]">
-            发布于 {item.published_at.slice(0, 16).replace("T", " ")}
+            发布于 {formatHongKongDateTime(item.published_at)}
           </p>
           <div className="mt-4 whitespace-pre-wrap text-sm leading-relaxed text-[#172033]">
             {item.content}

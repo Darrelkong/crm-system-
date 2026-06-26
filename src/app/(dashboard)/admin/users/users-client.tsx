@@ -5,14 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import type { AdminUserView } from "@/lib/users-admin/types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 function isDeletedUser(user: AdminUserView): boolean {
   return user.status === "deleted" || user.deleted_at !== null;
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return "—";
-  return value.slice(0, 16).replace("T", " ");
 }
 
 export function UsersClient() {
@@ -323,10 +319,10 @@ export function UsersClient() {
                     <td className="px-3 py-2">{statusLabel(u.status)}</td>
                     <td className="px-3 py-2">{u.failed_login_count}</td>
                     <td className="px-3 py-2 font-mono text-xs">
-                      {formatDateTime(u.locked_until)}
+                      {formatHongKongDateTime(u.locked_until)}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">
-                      {formatDateTime(u.last_login_at)}
+                      {formatHongKongDateTime(u.last_login_at)}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1">
@@ -425,7 +421,7 @@ export function UsersClient() {
                       {t("employees.statusDeleted")}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">
-                      {formatDateTime(u.deleted_at)}
+                      {formatHongKongDateTime(u.deleted_at)}
                     </td>
                     <td className="px-3 py-2">
                       {t("employees.customerTransferredToAdmin")}

@@ -13,6 +13,7 @@ import {
   TASK_TIMELINE_AUDIT_ACTIONS,
 } from "./constants";
 import type { TimelineItem, TimelineResponse } from "./types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Visibility = "full" | "masked";
 
@@ -143,7 +144,7 @@ function buildAuditItem(
     if (metadata.dueAt) {
       descriptionKey = "timelineMessages.taskDue";
       descriptionParams = {
-        dueAt: String(metadata.dueAt).slice(0, 16).replace("T", " "),
+        dueAt: formatHongKongDateTime(String(metadata.dueAt)),
       };
     }
     if (parts.length > 0 && !descriptionKey) {

@@ -6,15 +6,11 @@ import { EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import { useTranslation } from "@/i18n/provider";
 import type { RecycleBinCustomerView } from "@/lib/recycle-bin/types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 function formatContact(row: RecycleBinCustomerView): string {
   const parts = [row.phone, row.email].filter(Boolean);
   return parts.length > 0 ? parts.join(" / ") : "—";
-}
-
-function formatDateTime(value: string | null): string {
-  if (!value) return "—";
-  return value.slice(0, 16).replace("T", " ");
 }
 
 function formatRemainingDays(
@@ -161,7 +157,7 @@ export function RecycleBinClient() {
                         {row.owner_name ?? t("recycleBin.noOwner")}
                       </td>
                       <td className="px-3 py-2 font-mono text-xs">
-                        {formatDateTime(row.deleted_at)}
+                        {formatHongKongDateTime(row.deleted_at)}
                       </td>
                       <td className="px-3 py-2">
                         {row.deleted_by_name ?? "—"}

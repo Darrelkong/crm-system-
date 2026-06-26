@@ -12,6 +12,7 @@ import { Badge, EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import { Input, Label, Select } from "@/components/ui/form";
 import { LoadingSpinner } from "@/components/ui/loading";
+import { formatHongKongDate } from "@/lib/timezone";
 import {
   DataTable,
   TableBody,
@@ -341,7 +342,7 @@ export function CustomersListClient({
                         <Badge variant="success">{t("customers.fullData")}</Badge>
                       )}
                     </Td>
-                    <Td className="text-[#6B7890]">{c.createdAt.slice(0, 10)}</Td>
+                    <Td className="text-[#6B7890]">{formatHongKongDate(c.createdAt)}</Td>
                   </Tr>
                 ))}
               </TableBody>

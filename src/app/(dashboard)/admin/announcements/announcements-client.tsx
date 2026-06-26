@@ -7,6 +7,7 @@ import {
   ANNOUNCEMENT_AUDIENCE_LABELS,
   ANNOUNCEMENT_STATUS_LABELS,
 } from "@/lib/announcements/constants";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type AnnouncementItem = {
   id: string;
@@ -230,7 +231,7 @@ export function AdminAnnouncementsClient() {
                   </td>
                   <td className="px-4 py-3 text-[#6B7890]">
                     {item.published_at
-                      ? item.published_at.slice(0, 16).replace("T", " ")
+                      ? formatHongKongDateTime(item.published_at)
                       : "—"}
                   </td>
                   <td className="px-4 py-3">

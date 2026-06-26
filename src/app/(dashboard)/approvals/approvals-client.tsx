@@ -12,6 +12,7 @@ import { Input, Label, Field } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
   isAdmin: boolean;
@@ -153,7 +154,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
               <p className="mt-1 text-xs text-[#6B7890]">
                 {t("approvals.submittedAt", {
                   name: item.requestedByName,
-                  date: item.createdAt.slice(0, 16).replace("T", " "),
+                  date: formatHongKongDateTime(item.createdAt),
                 })}
               </p>
             </button>

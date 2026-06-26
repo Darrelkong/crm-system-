@@ -19,6 +19,7 @@ import { resolveApiError } from "@/i18n/resolve-api-error";
 import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { PublicPoolCustomerView } from "@/lib/public-pool/queries";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 export function PublicPoolClient({
   initialItems,
@@ -117,7 +118,7 @@ export function PublicPoolClient({
                   <Td className="text-[#6B7890]">{source(c.source)}</Td>
                   <Td className="text-[#6B7890]">{salesStage(c.salesStage)}</Td>
                   <Td className="text-[#6B7890]">
-                    {c.poolEnteredAt?.slice(0, 16).replace("T", " ") ?? "—"}
+                    {formatHongKongDateTime(c.poolEnteredAt)}
                   </Td>
                   <Td className="text-[#6B7890]">{c.poolReason ?? "—"}</Td>
                   {isAdmin && (

@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/card";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { HeatReasonPart } from "@/lib/customers/scoring/heat";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 type FollowUpRow = {
   id: string;
@@ -235,7 +236,7 @@ export function CustomerDetailClient({
                   <div key={fu.id} className="surface-card p-4">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
                       <span className="font-medium text-[#172033]">
-                        {fu.followUpTime.slice(0, 16).replace("T", " ")}
+                        {formatHongKongDateTime(fu.followUpTime)}
                       </span>
                       <Badge>{followUpChannel(fu.channel)}</Badge>
                       <Badge variant="accent">{followUpOutcome(fu.outcome)}</Badge>
@@ -249,7 +250,7 @@ export function CustomerDetailClient({
                     {fu.nextFollowUpAt && (
                       <p className="mt-1 text-xs text-[#6B7890]">
                         {t("customers.nextFollowUpLabel")}
-                        {fu.nextFollowUpAt.slice(0, 16).replace("T", " ")}
+                        {formatHongKongDateTime(fu.nextFollowUpAt)}
                       </p>
                     )}
                   </div>
@@ -270,7 +271,7 @@ export function CustomerDetailClient({
                 label={t("customers.lastFollowUp")}
                 value={
                   view.lastFollowUpAt
-                    ? view.lastFollowUpAt.slice(0, 16).replace("T", " ")
+                    ? formatHongKongDateTime(view.lastFollowUpAt)
                     : undefined
                 }
               />
@@ -278,7 +279,7 @@ export function CustomerDetailClient({
                 label={t("customers.lastValidFollowUp")}
                 value={
                   view.lastValidFollowUpAt
-                    ? view.lastValidFollowUpAt.slice(0, 16).replace("T", " ")
+                    ? formatHongKongDateTime(view.lastValidFollowUpAt)
                     : view.neverContacted
                       ? t("customers.neverValidFollowUp")
                       : undefined
@@ -288,17 +289,17 @@ export function CustomerDetailClient({
                 label={t("customers.nextFollowUp")}
                 value={
                   view.nextFollowUpAt
-                    ? `${view.nextFollowUpAt.slice(0, 16).replace("T", " ")}${view.overdueFollowUp ? t("customers.overdueSuffix") : ""}`
+                    ? `${formatHongKongDateTime(view.nextFollowUpAt)}${view.overdueFollowUp ? t("customers.overdueSuffix") : ""}`
                     : undefined
                 }
               />
               <DetailRow
                 label={t("customers.createdAt")}
-                value={view.createdAt.slice(0, 16).replace("T", " ")}
+                value={formatHongKongDateTime(view.createdAt)}
               />
               <DetailRow
                 label={t("customers.updatedAt")}
-                value={view.updatedAt.slice(0, 16).replace("T", " ")}
+                value={formatHongKongDateTime(view.updatedAt)}
               />
             </dl>
           </SectionCard>

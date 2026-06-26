@@ -1,6 +1,7 @@
 import { addDays, formatISO } from "date-fns";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import type { CustomerInsightAIProvider } from "./types";
+import { formatHongKongDateTime } from "@/lib/timezone";
 
 function countValidFollowUps(context: CustomerInsightContext): number {
   return context.recentFollowUps.filter((row) => row.isValidFollowUp === 1).length;
@@ -93,7 +94,7 @@ export const mockCustomerInsightProvider: CustomerInsightAIProvider = {
     const customerSummary = `${context.customerName}（${context.customerType === "company" ? "企業" : "個人"}客戶），目前處於 ${context.salesStage} 階段，來源為 ${context.source}。`;
 
     const currentSituation = latestFollowUp
-      ? `最近一次跟進為 ${latestFollowUp.followUpTime.slice(0, 16).replace("T", " ")}，渠道 ${latestFollowUp.channel}，結果 ${latestFollowUp.outcome}。`
+      ? `最近一次跟進為 ${formatHongKongDateTime(latestFollowUp.followUpTime)}，渠道 ${latestFollowUp.channel}，結果 ${latestFollowUp.outcome}。`
       : "目前尚無跟進記錄，建議儘快建立首次有效聯繫。";
 
     const suggestedEmployeeMessage = latestFollowUp
