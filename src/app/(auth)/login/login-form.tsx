@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/form";
@@ -15,6 +15,14 @@ import {
   sessionEndMessageKey,
   type SessionEndReason,
 } from "@/lib/auth/client-security";
+import {
+  clearTimeoutLoginVisits,
+  isTimeoutLoginReason,
+  recordTimeoutLoginVisit,
+  redirectToCloudflareAccessLogout,
+  shouldForceAccessLogoutAfterTimeoutVisit,
+  TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD,
+} from "@/lib/auth/timeout-login-visits";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
   if (value === "idle" || value === "revoked" || value === "invalid") {
@@ -30,16 +38,55 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [accountLockedOpen, setAccountLockedOpen] = useState(false);
+  const processedTimeoutVisitRef = useRef<string | null>(null);
+
+  const reasonParam = searchParams.get("reason");
+  const sessionEndParam = searchParams.get("session_end");
+  const isTimeoutVisit = isTimeoutLoginReason(reasonParam, sessionEndParam);
 
   const closeAccountLockedModal = useCallback(() => {
     setAccountLockedOpen(false);
   }, []);
 
+  useEffect(() => {
+    if (!isTimeoutVisit) {
+      processedTimeoutVisitRef.current = null;
+      return;
+    }
+
+    const visitMarker = `${reasonParam ?? ""}|${sessionEndParam ?? ""}|${searchParams.toString()}`;
+    if (processedTimeoutVisitRef.current === visitMarker) {
+      return;
+    }
+    processedTimeoutVisitRef.current = visitMarker;
+
+    const visitCount = recordTimeoutLoginVisit();
+    const isLocalDev = isLocalDevelopmentClient();
+
+    if (shouldForceAccessLogoutAfterTimeoutVisit(visitCount, isLocalDev)) {
+      redirectToCloudflareAccessLogout();
+      return;
+    }
+
+    if (
+      isLocalDev &&
+      visitCount >= TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD
+    ) {
+      clearTimeoutLoginVisits();
+    }
+  }, [isTimeoutVisit, reasonParam, searchParams, sessionEndParam]);
+
   const sessionEndNotice = useMemo(() => {
-    const reason = parseSessionEndParam(searchParams.get("session_end"));
-    if (!reason) return null;
+    if (isTimeoutVisit) {
+      return t("security.sessionTimedOutReLogin");
+    }
+
+    const reason = parseSessionEndParam(sessionEndParam);
+    if (!reason) {
+      return null;
+    }
     return t(sessionEndMessageKey(reason));
-  }, [searchParams, t]);
+  }, [isTimeoutVisit, sessionEndParam, t]);
 
   const passwordChangedNotice = useMemo(() => {
     if (searchParams.get("password_changed") === "1") {
@@ -53,46 +100,59 @@ export function LoginForm() {
     setLoading(true);
     setError("");
 
-    const form = new FormData(e.currentTarget);
-    const response = await fetch("/api/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: form.get("email"),
-        password: form.get("password"),
-      }),
-    });
+    try {
+      const form = new FormData(e.currentTarget);
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.get("email"),
+          password: form.get("password"),
+        }),
+      });
 
-    const data = (await response.json()) as {
-      error?: string;
-      errorCode?: string;
-      redirect?: string;
-    };
+      let data: {
+        error?: string;
+        errorCode?: string;
+        redirect?: string;
+      } = {};
 
-    setLoading(false);
-
-    if (!response.ok) {
-      if (
-        data.errorCode === "ACCESS_VERIFICATION_EXPIRED" &&
-        !isLocalDevelopmentClient()
-      ) {
-        setError(t("security.accessExpired"));
-        redirectToAccessLogout();
+      try {
+        data = (await response.json()) as typeof data;
+      } catch {
+        setError(t("common.networkError"));
         return;
       }
-      if (data.errorCode === "ACCOUNT_LOCKED") {
-        setError("");
-        setAccountLockedOpen(true);
+
+      if (!response.ok) {
+        if (
+          data.errorCode === "ACCESS_VERIFICATION_EXPIRED" &&
+          !isLocalDevelopmentClient()
+        ) {
+          setError(t("security.accessExpired"));
+          redirectToAccessLogout();
+          return;
+        }
+        if (data.errorCode === "ACCOUNT_LOCKED") {
+          setError("");
+          setAccountLockedOpen(true);
+          return;
+        }
+        setError(resolveApiError(t, data));
         return;
       }
-      setError(resolveApiError(t, data));
-      return;
+
+      clearTimeoutLoginVisits();
+
+      const redirect =
+        data.redirect ?? searchParams.get("redirect") ?? "/";
+      router.push(redirect);
+      router.refresh();
+    } catch {
+      setError(t("common.networkError"));
+    } finally {
+      setLoading(false);
     }
-
-    const redirect =
-      data.redirect ?? searchParams.get("redirect") ?? "/";
-    router.push(redirect);
-    router.refresh();
   }
 
   return (
@@ -136,11 +196,20 @@ export function LoginForm() {
           </Field>
 
           {passwordChangedNotice && (
-            <p className="alert-success mb-4 px-3 py-2 text-sm">{passwordChangedNotice}</p>
+            <p className="alert-success mb-4 px-3 py-2 text-sm">
+              {passwordChangedNotice}
+            </p>
           )}
 
           {sessionEndNotice && (
-            <p className="alert-warning mb-4 px-3 py-2 text-sm">{sessionEndNotice}</p>
+            <div className="alert-warning mb-4 px-3 py-2 text-sm">
+              <p>{sessionEndNotice}</p>
+              {isTimeoutVisit && (
+                <p className="mt-2 text-xs leading-relaxed text-[#6B7890]">
+                  {t("security.timeoutReverifyHint")}
+                </p>
+              )}
+            </div>
           )}
 
           {error && <p className="mb-4 text-sm text-red-600">{error}</p>}

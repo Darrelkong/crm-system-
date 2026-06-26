@@ -54,6 +54,10 @@ export async function clearSessionClientState(
 }
 
 export function redirectToLoginWithSessionEnd(reason: SessionEndReason): void {
+  if (reason === "idle") {
+    window.location.href = "/login?reason=timeout";
+    return;
+  }
   window.location.href = `/login?session_end=${reason}`;
 }
 

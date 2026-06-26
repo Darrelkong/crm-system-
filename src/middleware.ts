@@ -14,7 +14,9 @@ function redirectToLogin(
   sessionEnd?: SessionEndReason,
 ) {
   const loginUrl = new URL("/login", request.url);
-  if (sessionEnd) {
+  if (sessionEnd === "idle") {
+    loginUrl.searchParams.set("reason", "timeout");
+  } else if (sessionEnd) {
     loginUrl.searchParams.set("session_end", sessionEnd);
   } else {
     loginUrl.searchParams.set("redirect", request.nextUrl.pathname);

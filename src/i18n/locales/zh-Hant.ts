@@ -107,6 +107,8 @@ const zhHant: Messages = {
     reloginRequired: "請先重新完成 Cloudflare Access 驗證，再登入 CRM。",
     verifyAccessAgain: "重新驗證 Access",
     sessionTimeoutTitle: "工作階段已逾時",
+    timeoutReverifyHint:
+      "如果多次未重新登入，系統將重新進行安全驗證。",
   },
   nav: {
     dashboard: "儀表盤",

@@ -109,6 +109,8 @@ const en = {
       "Please complete Cloudflare Access verification again before signing in to CRM.",
     verifyAccessAgain: "Verify Access again",
     sessionTimeoutTitle: "Session expired",
+    timeoutReverifyHint:
+      "If you do not sign in again after multiple attempts, security verification will restart.",
   },
   nav: {
     dashboard: "Dashboard",
