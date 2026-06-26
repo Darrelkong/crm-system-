@@ -821,7 +821,154 @@ const en = {
     title: "Announcements",
   },
   help: {
-    title: "Help center",
+    title: "Help Center",
+    description:
+      "Read-only guides for common CRM workflows, permissions, and security rules.",
+    adminOnlyBadge: "Admin only",
+    readOnlyNotice:
+      "This page is for reference only. It does not change any system settings.",
+    sections: {
+      adminGuide: {
+        title: "Administrator guide",
+        description: "Key tasks available to administrators in this CRM.",
+        items: {
+          dashboard:
+            "Open the admin dashboard to review KPIs, workload, and recent activity.",
+          manageCustomers:
+            "Browse and manage all clients from Client Management, including active, public pool, and archived records.",
+          addCustomer:
+            "Use Add Client to create a new client record and assign an owner when needed.",
+          manageEmployees:
+            "Go to User Management to add staff, reset passwords, unlock accounts, or soft-delete former employees.",
+          loginLogs:
+            "Review sign-in attempts under System Settings → Login Logs.",
+          notificationsAnnouncements:
+            "Manage announcements and monitor system notifications from the admin menu.",
+          securityPolicies:
+            "View enforced security rules under System Settings → Security Policies.",
+        },
+      },
+      staffGuide: {
+        title: "Staff guide",
+        description: "Everyday tasks for staff members.",
+        items: {
+          viewCustomers:
+            "Open Client Management to see clients you own and masked public-pool clients.",
+          addCustomer:
+            "Use Add Client to register a new client you will follow up with.",
+          updateCustomer:
+            "Edit client details from the client detail page when you are the owner.",
+          addFollowUp:
+            "Record each contact from the client detail page to keep follow-up history accurate.",
+          notifications:
+            "Check Notifications for approvals, reminders, and system messages.",
+          announcements:
+            "Read company announcements from the announcements page.",
+        },
+      },
+      customerFlow: {
+        title: "Client management flow",
+        description: "How client records move through the CRM.",
+        items: {
+          addCustomer:
+            "Create a client with required contact and source information.",
+          assignOwner:
+            "Each active client has an owner responsible for follow-ups. Admins can reassign owners; staff usually own clients they create or claim.",
+          updateStatusStage:
+            "Update client status and sales stage as the opportunity progresses. Some changes may require approval.",
+          addFollowUp:
+            "Log calls, messages, and meetings after each contact. Valid follow-ups affect reclaim timers and reporting.",
+          timeline:
+            "The client timeline shows ownership changes, follow-ups, approvals, and other audit events.",
+          aiInsight:
+            "When enabled, AI insight summarizes client context and suggests next steps on the client detail page.",
+        },
+      },
+      recycleBin: {
+        title: "Recycle bin",
+        description: "What happens when a client is deleted.",
+        items: {
+          softDelete:
+            "Deleted clients are moved to the recycle bin instead of being removed immediately.",
+          retention:
+            "Deleted clients remain in the recycle bin for {{days}} days.",
+          adminRestore:
+            "Administrators can restore clients within the {{days}}-day retention period.",
+          autoPurge:
+            "Clients still in the recycle bin after {{days}} days may be permanently removed by the system cleanup job.",
+          staffNoAccess:
+            "Staff cannot open the recycle bin. Contact an administrator if a client must be restored.",
+        },
+      },
+      employeeMgmt: {
+        title: "Employee management",
+        description: "How staff accounts are managed and retired.",
+        items: {
+          adminManage:
+            "Administrators add staff accounts, disable access, reset passwords, and unlock locked accounts.",
+          softDeleteEmployee:
+            "Deleting an employee is a soft delete. Historical records are preserved.",
+          deletedRecordsKept:
+            "Deleted employees remain visible in admin user lists for audit purposes.",
+          deletedCannotLogin:
+            "Deleted employees cannot sign in again, even if their account is unlocked.",
+          customerTransfer:
+            "When an employee is deleted, their clients are transferred to the administrator performing the deletion.",
+        },
+      },
+      loginSecurity: {
+        title: "Sign-in security",
+        description: "Rules that protect CRM accounts and sessions.",
+        items: {
+          staffLockout:
+            "Staff accounts lock automatically after {{count}} consecutive failed password attempts.",
+          lockedCannotLogin:
+            "Locked accounts cannot sign in until an administrator unlocks them or resets the password.",
+          adminExempt:
+            "Administrator accounts are not automatically locked by failed password attempts.",
+          adminUnlock:
+            "Only administrators can unlock a locked staff account from User Management.",
+          inactivityLogout:
+            "Sessions expire after {{minutes}} minutes of inactivity.",
+          timeoutReverify:
+            "If you stay on the timeout sign-in page without signing in again, security verification may restart after multiple visits.",
+        },
+      },
+    },
+    faq: {
+      title: "Frequently asked questions",
+      description: "Quick answers to common questions.",
+      autoLogout: {
+        question: "Why was I signed out automatically?",
+        answer:
+          "The CRM signs you out after {{minutes}} minutes of inactivity, or when your session is replaced by a new sign-in on another device.",
+      },
+      accountLocked: {
+        question: "Why is my account locked?",
+        answer:
+          "Staff accounts lock after {{count}} failed password attempts. Ask an administrator to unlock your account or reset your password.",
+      },
+      deletedCustomer: {
+        question: "Where did a deleted client go?",
+        answer:
+          "Deleted clients go to the recycle bin for {{days}} days. Administrators can restore them during that period.",
+      },
+      deletedEmployeeCustomers: {
+        question: "Where did a deleted employee's clients go?",
+        answer:
+          "They are transferred to the administrator who deleted the employee account.",
+      },
+      missingFeatures: {
+        question: "Why can't I see some menu items?",
+        answer:
+          "Your role controls available features. Staff cannot access admin-only areas such as user management, recycle bin, backups, or security policies.",
+      },
+      roleDifference: {
+        question: "What is the difference between Admin and Staff?",
+        answer:
+          "Administrators manage users, system settings, imports, exports, backups, approvals, and all clients. Staff manage their own clients, follow-ups, notifications, and public-pool claims within assigned limits.",
+      },
+    },
   },
   publicPool: {
     title: "Public Pool",

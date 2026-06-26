@@ -1,13 +1,10 @@
 export const dynamic = "force-dynamic";
 
-import { PageIntro } from "@/components/ui/page-intro";
+import { requireAuth } from "@/lib/permissions/auth";
 import { HelpClient } from "./help-client";
 
-export default function HelpPage() {
-  return (
-    <div>
-      <PageIntro title="帮助中心" description="系统使用说明与业务规则参考。" />
-      <HelpClient />
-    </div>
-  );
+export default async function HelpPage() {
+  const user = await requireAuth();
+
+  return <HelpClient role={user.role} />;
 }

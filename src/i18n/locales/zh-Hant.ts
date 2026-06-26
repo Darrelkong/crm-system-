@@ -801,6 +801,127 @@ const zhHant: Messages = {
   },
   help: {
     title: "幫助中心",
+    description: "CRM 常用操作、權限與安全規則說明，僅供查閱。",
+    adminOnlyBadge: "僅 Admin 可用",
+    readOnlyNotice: "此頁面僅供參考，不會修改任何系統設定。",
+    sections: {
+      adminGuide: {
+        title: "Admin 使用指南",
+        description: "管理員在 CRM 中的主要操作入口。",
+        items: {
+          dashboard: "在管理員儀表盤查看 KPI、工作量與近期動態。",
+          manageCustomers:
+            "在「客戶管理」瀏覽與管理所有客戶，包括進行中、公共池與已歸檔記錄。",
+          addCustomer: "使用「新增客戶」建立客戶並按需指定負責人。",
+          manageEmployees:
+            "在「員工管理」新增 Staff、重設密碼、解鎖賬戶或軟刪除離職員工。",
+          loginLogs: "在「系統設定 → 登入日誌」查看登入嘗試記錄。",
+          notificationsAnnouncements:
+            "在管理選單中管理公告並查看系統通知。",
+          securityPolicies: "在「系統設定 → 安全策略」查看目前強制執行的安全規則。",
+        },
+      },
+      staffGuide: {
+        title: "Staff 使用指南",
+        description: "一般員工的日常操作。",
+        items: {
+          viewCustomers:
+            "在「客戶管理」查看自己負責的客戶，以及脫敏後的公共池客戶。",
+          addCustomer: "使用「新增客戶」登記你將跟進的新客戶。",
+          updateCustomer: "在客戶詳情頁編輯資料（需為該客戶負責人）。",
+          addFollowUp: "在客戶詳情頁新增跟進紀錄，保持溝通歷史完整。",
+          notifications: "在「通知」查看審批、提醒與系統訊息。",
+          announcements: "在公告頁閱讀公司公告。",
+        },
+      },
+      customerFlow: {
+        title: "客戶管理流程",
+        description: "客戶資料在 CRM 中的典型流轉方式。",
+        items: {
+          addCustomer: "建立客戶時填寫必要的聯絡方式與來源資訊。",
+          assignOwner:
+            "進行中的客戶有負責人跟進。Admin 可重新分配；Staff 通常負責自己建立或領取的客戶。",
+          updateStatusStage:
+            "隨商機推進更新客戶狀態與銷售階段，部分變更可能需要審批。",
+          addFollowUp:
+            "每次聯絡後記錄跟進內容，有效跟進會影響自動回收計時與報表。",
+          timeline: "客戶時間軸展示負責人變更、跟進、審批等稽核事件。",
+          aiInsight:
+            "若已啟用，可在客戶詳情頁查看 AI 分析摘要與下一步建議。",
+        },
+      },
+      recycleBin: {
+        title: "回收站說明",
+        description: "客戶被刪除後的處理方式。",
+        items: {
+          softDelete: "刪除客戶會進入回收站，不會立即永久刪除。",
+          retention: "已刪除客戶在回收站保留 {{days}} 天。",
+          adminRestore: "Admin 可在 {{days}} 天保留期內從回收站恢復客戶。",
+          autoPurge:
+            "超過 {{days}} 天仍留在回收站的客戶，可能由系統清理任務永久刪除。",
+          staffNoAccess: "Staff 無法查看回收站；如需恢復客戶請聯繫 Admin。",
+        },
+      },
+      employeeMgmt: {
+        title: "員工管理說明",
+        description: "員工賬戶的建立、停用與離職處理。",
+        items: {
+          adminManage:
+            "Admin 可新增 Staff、停用賬戶、重設密碼與解鎖被鎖定賬戶。",
+          softDeleteEmployee: "刪除員工為軟刪除，歷史紀錄會保留。",
+          deletedRecordsKept: "已刪除員工仍可在管理員員工列表中查閱。",
+          deletedCannotLogin: "已刪除員工無法再次登入，即使賬戶被解鎖亦然。",
+          customerTransfer:
+            "刪除員工時，其名下的客戶會轉移至執行刪除操作的 Admin。",
+        },
+      },
+      loginSecurity: {
+        title: "登入安全說明",
+        description: "保護 CRM 賬戶與 Session 的規則。",
+        items: {
+          staffLockout: "Staff 密碼連續錯誤 {{count}} 次會自動鎖定賬戶。",
+          lockedCannotLogin:
+            "被鎖定賬戶不能登入，需由 Admin 解鎖或重設密碼。",
+          adminExempt: "Admin 賬戶不受自動鎖定限制。",
+          adminUnlock: "只有 Admin 可以在員工管理頁解鎖 Staff 賬戶。",
+          inactivityLogout: "連續 {{minutes}} 分鐘無操作會自動退出。",
+          timeoutReverify:
+            "若多次停留在超時登入頁仍未重新登入，系統將重新進行安全驗證。",
+        },
+      },
+    },
+    faq: {
+      title: "常見問題",
+      description: "快速解答常見疑問。",
+      autoLogout: {
+        question: "為什麼我被自動退出？",
+        answer:
+          "CRM 會在 {{minutes}} 分鐘無操作後自動退出，或在其他裝置登入後使舊 Session 失效。",
+      },
+      accountLocked: {
+        question: "為什麼賬戶被鎖定？",
+        answer:
+          "Staff 密碼連續錯誤 {{count}} 次會鎖定賬戶，請聯繫 Admin 解鎖或重設密碼。",
+      },
+      deletedCustomer: {
+        question: "客戶刪除後去哪裡了？",
+        answer: "已刪除客戶會進入回收站，保留 {{days}} 天，Admin 可在此期間恢復。",
+      },
+      deletedEmployeeCustomers: {
+        question: "已刪除員工的客戶去哪裡了？",
+        answer: "會轉移至執行刪除操作的管理員賬戶。",
+      },
+      missingFeatures: {
+        question: "為什麼我看不到某些功能？",
+        answer:
+          "功能由角色決定。Staff 無法使用員工管理、回收站、備份、安全策略等 Admin 專用功能。",
+      },
+      roleDifference: {
+        question: "Staff 和 Admin 權限有什麼不同？",
+        answer:
+          "Admin 可管理用戶、系統設定、匯入匯出、備份、審批及全部客戶；Staff 在配額內管理自己的客戶、跟進、通知與公共池領取。",
+      },
+    },
   },
   publicPool: {
     title: "公共池",
