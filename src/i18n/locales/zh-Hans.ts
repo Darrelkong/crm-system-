@@ -86,6 +86,9 @@ const zhHans: Messages = {
     passwordPolicyHint:
       "密码至少 8 位，需包含大小写字母与数字，且不能与当前密码相同。",
     passwordUpdatedRelogin: "密码已更新，请使用新密码重新登录。",
+    accountLocked: "此账户已被锁定，请联系管理员处理。",
+    accountLockedTitle: "账户已锁定",
+    accountLockedAutoClose: "提示将自动关闭",
   },
   security: {
     accessExpired:
@@ -493,6 +496,14 @@ const zhHans: Messages = {
     confirmReset: "确认重置",
     failedAttempts: "失败次数",
     lockedUntil: "锁定至",
+    lockStatus: "锁定状态",
+    lockStatusLocked: "已锁定",
+    lockStatusActive: "正常",
+    lockoutExempt: "不受自动锁定限制",
+    lastFailedLogin: "最后错误登录",
+    lockedAt: "锁定时间",
+    lockReason: "锁定原因",
+    lockReasonTooManyAttempts: "连续登录失败次数过多",
     lastLogin: "最近登录",
     statusNormal: "正常",
     statusDisabled: "已停用",

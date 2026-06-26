@@ -2,12 +2,24 @@ import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { AdminUserView, LoginLogView } from "@/lib/users-admin/types";
 import { parseUserDeletionMetadata } from "@/lib/users-admin/deletion-metadata";
+import {
+  isAccountLocked,
+  isLoginLockoutExempt,
+} from "@/lib/auth/lockout";
+import {
+  LOCKOUT_PERSISTENT_UNTIL,
+  LOCKOUT_REASON_TOO_MANY_ATTEMPTS,
+} from "@/lib/auth/constants";
 import type { User } from "../../../drizzle/schema/users";
 
 function formatUserRow(
   user: User,
   lastLoginAt: string | null,
   recentLoginCount: number,
+  failedLoginMeta: {
+    lastFailedLoginAt: string | null;
+    lockedAtFromLog: string | null;
+  },
   deletionMeta?: ReturnType<typeof parseUserDeletionMetadata>,
 ): AdminUserView {
   const status: AdminUserView["status"] = user.deletedAt
@@ -15,6 +27,15 @@ function formatUserRow(
     : user.isActive === 1
       ? "active"
       : "disabled";
+
+  const lockoutExempt = isLoginLockoutExempt(user);
+  const locked = isAccountLocked(user);
+  const lockedAt =
+    locked && user.lockedUntil
+      ? user.lockedUntil === LOCKOUT_PERSISTENT_UNTIL
+        ? failedLoginMeta.lockedAtFromLog
+        : user.lockedUntil
+      : null;
 
   return {
     id: user.id,
@@ -24,6 +45,11 @@ function formatUserRow(
     status,
     failed_login_count: user.failedLoginAttempts,
     locked_until: user.lockedUntil,
+    is_locked: locked,
+    lockout_exempt: lockoutExempt,
+    last_failed_login_at: failedLoginMeta.lastFailedLoginAt,
+    locked_at: lockedAt,
+    lock_reason: locked ? LOCKOUT_REASON_TOO_MANY_ATTEMPTS : null,
     created_at: user.createdAt,
     updated_at: user.updatedAt,
     deleted_at: user.deletedAt,
@@ -58,8 +84,20 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
     .where(eq(schema.loginLogs.success, 1))
     .orderBy(desc(schema.loginLogs.createdAt));
 
+  const failedLoginRows = await db
+    .select({
+      userId: schema.loginLogs.userId,
+      createdAt: schema.loginLogs.createdAt,
+      failureReason: schema.loginLogs.failureReason,
+    })
+    .from(schema.loginLogs)
+    .where(eq(schema.loginLogs.success, 0))
+    .orderBy(desc(schema.loginLogs.createdAt));
+
   const lastLoginByUser = new Map<string, string>();
   const recentCountByUser = new Map<string, number>();
+  const lastFailedLoginByUser = new Map<string, string>();
+  const lockedAtFromLogByUser = new Map<string, string>();
 
   for (const row of loginRows) {
     if (!row.userId) continue;
@@ -74,6 +112,19 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
     }
   }
 
+  for (const row of failedLoginRows) {
+    if (!row.userId) continue;
+    if (!lastFailedLoginByUser.has(row.userId)) {
+      lastFailedLoginByUser.set(row.userId, row.createdAt);
+    }
+    if (
+      row.failureReason === "account_locked" &&
+      !lockedAtFromLogByUser.has(row.userId)
+    ) {
+      lockedAtFromLogByUser.set(row.userId, row.createdAt);
+    }
+  }
+
   const deletedUserIds = users
     .filter((user) => user.deletedAt)
     .map((user) => user.id);
@@ -84,6 +135,10 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
       user,
       lastLoginByUser.get(user.id) ?? null,
       recentCountByUser.get(user.id) ?? 0,
+      {
+        lastFailedLoginAt: lastFailedLoginByUser.get(user.id) ?? null,
+        lockedAtFromLog: lockedAtFromLogByUser.get(user.id) ?? null,
+      },
       user.deletedAt ? deletionMetadataByUser.get(user.id) : undefined,
     ),
   );

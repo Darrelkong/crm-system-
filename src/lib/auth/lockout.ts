@@ -5,27 +5,22 @@ import {
   LOCKOUT_PERSISTENT_UNTIL,
   LOCKOUT_THRESHOLD,
 } from "@/lib/auth/constants";
+import { revokeAllSessionsForUser } from "@/lib/auth/session-policy";
 import type { User } from "../../../drizzle/schema/users";
 
 export function isLoginLockoutExempt(user: User): boolean {
   return user.role === "admin";
 }
 
-export function isAccountLocked(user: User, now = Date.now()): boolean {
+export function isAccountLocked(user: User): boolean {
   if (isLoginLockoutExempt(user)) {
     return false;
   }
-  if (!user.lockedUntil) {
-    return false;
-  }
-  return new Date(user.lockedUntil).getTime() > now;
+  return user.lockedUntil != null;
 }
 
-export function getLockoutRemainingMinutes(
-  user: User,
-  now = Date.now(),
-): number {
-  if (!user.lockedUntil) {
+export function getLockoutRemainingMinutes(user: User, now = Date.now()): number {
+  if (!user.lockedUntil || user.lockedUntil === LOCKOUT_PERSISTENT_UNTIL) {
     return 0;
   }
   const remainingMs = new Date(user.lockedUntil).getTime() - now;
@@ -56,7 +51,7 @@ export async function recordFailedLogin(user: User): Promise<{
   let locked = false;
 
   if (attempts >= LOCKOUT_THRESHOLD) {
-    lockedUntil = LOCKOUT_PERSISTENT_UNTIL;
+    lockedUntil = nowIso;
     locked = true;
   }
 
@@ -68,6 +63,10 @@ export async function recordFailedLogin(user: User): Promise<{
       updatedAt: nowIso,
     })
     .where(eq(schema.users.id, user.id));
+
+  if (locked) {
+    await revokeAllSessionsForUser(db, user.id, nowIso);
+  }
 
   return { locked, attempts, lockedUntil };
 }

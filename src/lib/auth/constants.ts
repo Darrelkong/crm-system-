@@ -24,6 +24,7 @@ export const AUTH_ERROR_CODES = {
   SESSION_REVOKED: "SESSION_REVOKED",
   SESSION_INVALID: "SESSION_INVALID",
   MUST_CHANGE_PASSWORD: "MUST_CHANGE_PASSWORD",
+  ACCOUNT_LOCKED: "ACCOUNT_LOCKED",
   UNAUTHENTICATED: "UNAUTHENTICATED",
 } as const;
 
@@ -32,8 +33,11 @@ export type AuthErrorCode =
 
 export const LOCKOUT_THRESHOLD = 3;
 
-/** Cleared only by admin unlock or password reset — not by time expiry */
+/** Legacy sentinel for rows locked before lock timestamps were stored */
 export const LOCKOUT_PERSISTENT_UNTIL = "9999-12-31T23:59:59.000Z";
+
+export const LOCKOUT_REASON_TOO_MANY_ATTEMPTS =
+  "Too many failed login attempts";
 
 export const USER_ROLES = ["admin", "staff"] as const;
 export type UserRole = (typeof USER_ROLES)[number];

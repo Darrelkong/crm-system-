@@ -304,7 +304,10 @@ export function UsersClient() {
                   <th className="px-3 py-2">{t("common.role")}</th>
                   <th className="px-3 py-2">{t("common.status")}</th>
                   <th className="px-3 py-2">{t("employees.failedAttempts")}</th>
-                  <th className="px-3 py-2">{t("employees.lockedUntil")}</th>
+                  <th className="px-3 py-2">{t("employees.lockStatus")}</th>
+                  <th className="px-3 py-2">{t("employees.lastFailedLogin")}</th>
+                  <th className="px-3 py-2">{t("employees.lockedAt")}</th>
+                  <th className="px-3 py-2">{t("employees.lockReason")}</th>
                   <th className="px-3 py-2">{t("employees.lastLogin")}</th>
                   <th className="px-3 py-2">{t("common.actions")}</th>
                 </tr>
@@ -321,8 +324,23 @@ export function UsersClient() {
                     </td>
                     <td className="px-3 py-2">{statusLabel(u.status)}</td>
                     <td className="px-3 py-2">{u.failed_login_count}</td>
+                    <td className="px-3 py-2">
+                      {u.lockout_exempt
+                        ? t("employees.lockoutExempt")
+                        : u.is_locked
+                          ? t("employees.lockStatusLocked")
+                          : t("employees.lockStatusActive")}
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">
-                      {formatHongKongDateTime(u.locked_until)}
+                      {formatHongKongDateTime(u.last_failed_login_at)}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {formatHongKongDateTime(u.locked_at)}
+                    </td>
+                    <td className="px-3 py-2 text-xs">
+                      {u.lock_reason
+                        ? t("employees.lockReasonTooManyAttempts")
+                        : "—"}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">
                       {formatHongKongDateTime(u.last_login_at)}
@@ -365,7 +383,8 @@ export function UsersClient() {
                         >
                           {t("employees.resetPassword")}
                         </Button>
-                        {(u.failed_login_count > 0 || u.locked_until) && (
+                        {(u.is_locked ||
+                          (!u.lockout_exempt && u.failed_login_count > 0)) && (
                           <Button
                             size="sm"
                             variant="secondary"

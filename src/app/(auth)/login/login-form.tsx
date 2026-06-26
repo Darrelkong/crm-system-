@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/form";
@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
+import { AccountLockedModal } from "@/app/(auth)/login/account-locked-modal";
 import {
   redirectToAccessLogout,
   isLocalDevelopmentClient,
@@ -28,6 +29,11 @@ export function LoginForm() {
   const { t } = useTranslation();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [accountLockedOpen, setAccountLockedOpen] = useState(false);
+
+  const closeAccountLockedModal = useCallback(() => {
+    setAccountLockedOpen(false);
+  }, []);
 
   const sessionEndNotice = useMemo(() => {
     const reason = parseSessionEndParam(searchParams.get("session_end"));
@@ -72,6 +78,11 @@ export function LoginForm() {
       ) {
         setError(t("security.accessExpired"));
         redirectToAccessLogout();
+        return;
+      }
+      if (data.errorCode === "ACCOUNT_LOCKED") {
+        setError("");
+        setAccountLockedOpen(true);
         return;
       }
       setError(resolveApiError(t, data));
@@ -139,6 +150,10 @@ export function LoginForm() {
           </Button>
         </form>
       </Card>
+      <AccountLockedModal
+        open={accountLockedOpen}
+        onClose={closeAccountLockedModal}
+      />
     </div>
   );
 }

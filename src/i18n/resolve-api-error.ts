@@ -37,6 +37,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   MISSING_JOB_ID: "errors.missingJobId",
   UNAUTHORIZED: "errors.unauthorized",
   ACCESS_VERIFICATION_EXPIRED: "security.accessExpired",
+  ACCOUNT_LOCKED: "auth.accountLocked",
   SESSION_IDLE_EXPIRED: "security.sessionTimedOutReLogin",
   SESSION_REVOKED: "security.sessionRevokedByOtherDevice",
   SESSION_INVALID: "security.sessionInvalidReLogin",
@@ -156,6 +157,8 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "导入失败": "errors.importFailed",
   "未授权": "errors.unauthorized",
   "权限不足": "errors.insufficientPermissions",
+  "此账户已被锁定，请联系管理员处理。": "auth.accountLocked",
+  "账户已被锁定，请联系管理员处理。": "auth.accountLocked",
 };
 
 export function resolveApiError(

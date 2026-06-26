@@ -86,6 +86,10 @@ const en = {
       "At least 8 characters with upper and lower case letters and a digit. Must differ from your current password.",
     passwordUpdatedRelogin:
       "Your password has been updated. Please sign in again with your new password.",
+    accountLocked:
+      "This account has been locked. Please contact an administrator.",
+    accountLockedTitle: "Account locked",
+    accountLockedAutoClose: "This message will close automatically",
   },
   security: {
     accessExpired:
@@ -505,6 +509,14 @@ const en = {
     confirmReset: "Confirm reset",
     failedAttempts: "Failed attempts",
     lockedUntil: "Locked until",
+    lockStatus: "Lock status",
+    lockStatusLocked: "Locked",
+    lockStatusActive: "Active",
+    lockoutExempt: "Not subject to auto-lock",
+    lastFailedLogin: "Last failed login",
+    lockedAt: "Locked at",
+    lockReason: "Lock reason",
+    lockReasonTooManyAttempts: "Too many failed login attempts",
     lastLogin: "Last login",
     statusNormal: "Active",
     statusDisabled: "Disabled",

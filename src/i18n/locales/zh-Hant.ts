@@ -86,6 +86,9 @@ const zhHant: Messages = {
     passwordPolicyHint:
       "密碼至少 8 位，需包含大小寫英文字母與數字，且不能與目前密碼相同。",
     passwordUpdatedRelogin: "密碼已更新，請使用新密碼重新登入。",
+    accountLocked: "此賬戶已被鎖定，請聯繫管理員處理。",
+    accountLockedTitle: "賬戶已鎖定",
+    accountLockedAutoClose: "提示將自動關閉",
   },
   security: {
     accessExpired:
@@ -494,6 +497,14 @@ const zhHant: Messages = {
     confirmReset: "確認重設",
     failedAttempts: "失敗次數",
     lockedUntil: "鎖定至",
+    lockStatus: "鎖定狀態",
+    lockStatusLocked: "已鎖定",
+    lockStatusActive: "正常",
+    lockoutExempt: "不受自動鎖定限制",
+    lastFailedLogin: "最後錯誤登入",
+    lockedAt: "鎖定時間",
+    lockReason: "鎖定原因",
+    lockReasonTooManyAttempts: "連續登入失敗次數過多",
     lastLogin: "最近登入",
     statusNormal: "正常",
     statusDisabled: "已停用",

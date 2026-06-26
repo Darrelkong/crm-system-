@@ -6,6 +6,11 @@ export type AdminUserView = {
   status: "active" | "disabled" | "deleted";
   failed_login_count: number;
   locked_until: string | null;
+  is_locked: boolean;
+  lockout_exempt: boolean;
+  last_failed_login_at: string | null;
+  locked_at: string | null;
+  lock_reason: string | null;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

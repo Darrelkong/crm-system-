@@ -32,8 +32,7 @@ type LoginBody = {
 };
 
 const LOGIN_INVALID_CREDENTIALS = "邮箱或密码错误";
-const LOGIN_ACCOUNT_LOCKED =
-  "账户已被锁定，请联系管理员处理。";
+const LOGIN_ACCOUNT_LOCKED = "此账户已被锁定，请联系管理员处理。";
 
 export async function POST(request: Request) {
   if (shouldRequireCloudflareAccess(request.headers)) {
@@ -99,7 +98,13 @@ export async function POST(request: Request) {
       ipAddress,
       userAgent,
     });
-    return Response.json({ error: LOGIN_ACCOUNT_LOCKED }, { status: 423 });
+    return Response.json(
+      {
+        error: LOGIN_ACCOUNT_LOCKED,
+        errorCode: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
+      },
+      { status: 423 },
+    );
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
@@ -127,7 +132,13 @@ export async function POST(request: Request) {
           lockedUntil: lockout.lockedUntil,
         },
       });
-      return Response.json({ error: LOGIN_ACCOUNT_LOCKED }, { status: 423 });
+      return Response.json(
+        {
+          error: LOGIN_ACCOUNT_LOCKED,
+          errorCode: AUTH_ERROR_CODES.ACCOUNT_LOCKED,
+        },
+        { status: 423 },
+      );
     }
 
     return Response.json({ error: LOGIN_INVALID_CREDENTIALS }, { status: 401 });
