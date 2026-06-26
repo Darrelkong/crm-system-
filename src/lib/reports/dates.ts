@@ -1,17 +1,20 @@
 import type { BusinessTimezone } from "@/lib/settings/effective";
+import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 
-/** UTC+8 offset for Asia/Shanghai (no DST). */
+/** UTC+8 offset for Asia/Hong_Kong (no DST). */
 export const BUSINESS_UTC_OFFSET_MS = 8 * 60 * 60 * 1000;
 
-export const BUSINESS_TIMEZONE = "Asia/Shanghai" as const;
+export type ReportsTimezone = BusinessTimezone | typeof HONG_KONG_TIMEZONE;
 
-export function getTimezoneOffsetMs(timezone: BusinessTimezone): number {
+export const BUSINESS_TIMEZONE = HONG_KONG_TIMEZONE;
+
+export function getTimezoneOffsetMs(timezone: ReportsTimezone): number {
   return timezone === "UTC" ? 0 : BUSINESS_UTC_OFFSET_MS;
 }
 
 function getDatePartsForTimezone(
   now: Date,
-  timezone: BusinessTimezone,
+  timezone: ReportsTimezone,
 ): { year: number; month: number; day: number } {
   const offset = getTimezoneOffsetMs(timezone);
   const shifted = new Date(now.getTime() + offset);
@@ -26,7 +29,7 @@ function localWallClockToUtcIso(
   year: number,
   month: number,
   day: number,
-  timezone: BusinessTimezone,
+  timezone: ReportsTimezone,
   hour = 0,
   minute = 0,
   second = 0,
@@ -41,7 +44,7 @@ function localWallClockToUtcIso(
 /** Calendar day 00:00:00 – 23:59:59.999 in the configured timezone, as UTC ISO bounds. */
 export function getBusinessTodayRange(
   now: Date = new Date(),
-  timezone: BusinessTimezone = "Asia/Shanghai",
+  timezone: ReportsTimezone = HONG_KONG_TIMEZONE,
 ): { start: string; end: string } {
   const { year, month, day } = getDatePartsForTimezone(now, timezone);
   return {
@@ -53,7 +56,7 @@ export function getBusinessTodayRange(
 /** Calendar month in the configured timezone: month start inclusive, next month start exclusive. */
 export function getBusinessMonthRange(
   now: Date = new Date(),
-  timezone: BusinessTimezone = "Asia/Shanghai",
+  timezone: ReportsTimezone = HONG_KONG_TIMEZONE,
 ): { start: string; endExclusive: string } {
   const { year, month } = getDatePartsForTimezone(now, timezone);
   const start = localWallClockToUtcIso(year, month, 1, timezone, 0, 0, 0, 0);
@@ -75,10 +78,38 @@ export function getBusinessMonthRange(
 /** Calendar date YYYY-MM-DD in the configured timezone. */
 export function getBusinessDateYmd(
   now: Date = new Date(),
-  timezone: BusinessTimezone = "Asia/Shanghai",
+  timezone: ReportsTimezone = HONG_KONG_TIMEZONE,
 ): string {
   const { year, month, day } = getDatePartsForTimezone(now, timezone);
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+/** Calendar week (Monday–Sunday) in the configured timezone: Monday 00:00 inclusive, next Monday exclusive. */
+export function getBusinessWeekRange(
+  now: Date = new Date(),
+  timezone: ReportsTimezone = HONG_KONG_TIMEZONE,
+): { start: string; endExclusive: string } {
+  const { year, month, day } = getDatePartsForTimezone(now, timezone);
+  const todayStartIso = localWallClockToUtcIso(
+    year,
+    month,
+    day,
+    timezone,
+    0,
+    0,
+    0,
+    0,
+  );
+  const todayStartMs = new Date(todayStartIso).getTime();
+  const offset = getTimezoneOffsetMs(timezone);
+  const noonUtcMs = Date.UTC(year, month - 1, day, 12, 0, 0, 0) - offset;
+  const jsDay = new Date(noonUtcMs).getUTCDay();
+  const daysFromMonday = jsDay === 0 ? 6 : jsDay - 1;
+  const weekStartMs = todayStartMs - daysFromMonday * 24 * 60 * 60 * 1000;
+  return {
+    start: new Date(weekStartMs).toISOString(),
+    endExclusive: new Date(weekStartMs + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
 }
 
 /** Rolling 7×24h window ending at `now` (not a calendar week). */

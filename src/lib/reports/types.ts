@@ -15,6 +15,45 @@ export type StaffFollowUpCount = {
   count: number;
 };
 
+export type RecentFollowUpRow = {
+  id: string;
+  customerId: string;
+  customerName: string;
+  userId: string;
+  userName: string;
+  followUpTime: string;
+  channel: string;
+  outcome: string;
+  summary: string;
+  isValidFollowUp: boolean;
+};
+
+export type AdminReportsStats = {
+  totalCustomers: number;
+  newCustomersToday: number;
+  newCustomersThisWeek: number;
+  newCustomersThisMonth: number;
+  followUpsToday: number;
+  followUpsThisWeek: number;
+  followUpsThisMonth: number;
+  pendingApprovals: number;
+  customersBySalesStage: CountByLabel[];
+  customersByOwner: OwnerCount[];
+  recentFollowUps: RecentFollowUpRow[];
+};
+
+export type StaffReportsStats = {
+  myCustomers: number;
+  myNewCustomersToday: number;
+  myNewCustomersThisWeek: number;
+  myNewCustomersThisMonth: number;
+  myFollowUpsToday: number;
+  myFollowUpsThisWeek: number;
+  myFollowUpsThisMonth: number;
+  myCustomersBySalesStage: CountByLabel[];
+  recentFollowUps: RecentFollowUpRow[];
+};
+
 export type AdminDashboardStats = {
   totalCustomers: number;
   activeCustomers: number;
