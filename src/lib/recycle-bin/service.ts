@@ -5,7 +5,7 @@ import { writeFieldChangeLogEntry } from "@/lib/customers/field-change-log";
 import { getCustomerById } from "@/lib/customers/queries";
 import {
   RECYCLE_BIN_PURGE_BATCH_SIZE,
-  RECYCLE_BIN_RETENTION_DAYS,
+  getRecycleBinRetentionCutoffIso,
 } from "@/lib/recycle-bin/constants";
 import type { Customer, CustomerStatus } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -241,9 +241,7 @@ export async function purgeExpiredRecycleBinCustomers(
 ): Promise<RecycleBinPurgeResult> {
   const batchSize = options?.batchSize ?? RECYCLE_BIN_PURGE_BATCH_SIZE;
   const now = options?.now ?? new Date();
-  const cutoff = new Date(
-    now.getTime() - RECYCLE_BIN_RETENTION_DAYS * 24 * 60 * 60 * 1000,
-  ).toISOString();
+  const cutoff = getRecycleBinRetentionCutoffIso(now);
 
   const candidates = await db
     .select()
