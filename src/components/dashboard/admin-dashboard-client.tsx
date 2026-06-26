@@ -18,7 +18,7 @@ const linkClass = "text-[#2F6FB3] hover:text-[#1F4E79] hover:underline";
 
 export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) {
   const { t } = useTranslation();
-  const { source, salesStage } = useCustomerLabels();
+  const { salesStage } = useCustomerLabels();
 
   const maxSource = Math.max(...stats.customersBySource.map((s) => s.count), 1);
   const maxStage = Math.max(
@@ -175,7 +175,7 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
             {stats.customersBySource.map((item) => (
               <SimpleBarRow
                 key={item.label}
-                label={source(item.label)}
+                label={item.label}
                 count={item.count}
                 max={maxSource}
               />

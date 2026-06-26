@@ -17,3 +17,4 @@ export * from "./export-jobs";
 export * from "./backup-jobs";
 export * from "./announcements";
 export * from "./customer-ai-insights";
+export * from "./customer-tags";

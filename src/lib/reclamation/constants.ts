@@ -1,9 +1,8 @@
-/** Sales stages excluded from day-6/7 warnings and 8-day auto-reclaim. */
+/** Sales stages excluded from day-6/7 warnings and auto-reclaim (closed-won only). */
 export const RECLAMATION_EXCLUDED_SALES_STAGES = [
   "closed_won",
-  "closed_lost",
-  "invalid",
-  "on_hold",
+  /** Legacy alias still stored on some customers */
+  "converted",
 ] as const;
 
 export type ReclamationExcludedSalesStage =

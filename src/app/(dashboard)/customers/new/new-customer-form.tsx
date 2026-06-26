@@ -4,10 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { CUSTOMER_SOURCE_KEYS } from "@/lib/constants/customer-sources";
 import { CUSTOMER_TYPES, SALES_STAGES } from "@/lib/constants/customer-fields";
-import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
+import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
@@ -20,9 +19,9 @@ type DuplicateMatch = {
 
 const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
 
-export function NewCustomerForm() {
+export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
   const router = useRouter();
-  const { t, source, salesStage, customerType, fieldLabel } = useCustomerLabels();
+  const { t, salesStage, customerType, fieldLabel } = useCustomerLabels();
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -35,11 +34,11 @@ export function NewCustomerForm() {
     phone: "",
     wechatId: "",
     email: "",
-    source: "" as CustomerSourceKey | "",
+    source: "",
     sourceRemark: "",
     requestedProjectName: "",
     notes: "",
-    salesStage: "new_lead" as SalesStage,
+    salesStage: "" as SalesStage | "",
   });
 
   function set(field: string, value: string) {
@@ -61,7 +60,10 @@ export function NewCustomerForm() {
     setServerError(null);
     setDuplicates(null);
 
-    const validationErrors = validateCustomerInput(form);
+    const validationErrors = validateCustomerInput(form, {
+      requireSalesStage: true,
+      allowedSourceKeys: tags.map((tag) => tag.tagKey),
+    });
     if (validationErrors.length > 0) {
       const errs: Record<string, string> = {};
       for (const fe of validationErrors) errs[fe.field] = resolveFieldError(t, fe);
@@ -265,9 +267,9 @@ export function NewCustomerForm() {
             onChange={(e) => set("source", e.target.value)}
           >
             <option value="">{t("customers.selectSource")}</option>
-            {CUSTOMER_SOURCE_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {source(k)}
+            {tags.map((tag) => (
+              <option key={tag.tagKey} value={tag.tagKey}>
+                {tag.label}
               </option>
             ))}
           </Select>
@@ -294,18 +296,24 @@ export function NewCustomerForm() {
         )}
 
         <Field>
-          <Label htmlFor="salesStage">{t("customers.salesStage")}</Label>
+          <Label htmlFor="salesStage">
+            {t("customers.salesStage")} <span className="text-red-500">*</span>
+          </Label>
           <Select
             id="salesStage"
             value={form.salesStage}
             onChange={(e) => set("salesStage", e.target.value)}
           >
+            <option value="">{t("customers.selectSalesStage")}</option>
             {SALES_STAGES.map((s) => (
               <option key={s} value={s}>
                 {salesStage(s)}
               </option>
             ))}
           </Select>
+          {fieldErrors.salesStage && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.salesStage}</p>
+          )}
         </Field>
 
         <Field>

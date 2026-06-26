@@ -1,6 +1,6 @@
 import {
+  CUSTOMER_SOURCE_KEYS,
   CUSTOMER_SOURCE_OTHER_KEY,
-  isCustomerSourceKey,
 } from "@/lib/constants/customer-sources";
 import { isCustomerType, isSalesStage } from "@/lib/constants/customer-fields";
 import {
@@ -54,6 +54,10 @@ export type ValidationFieldError = { field: string; message: string; code: strin
 export type CustomerValidationContext = {
   isUpdate?: boolean;
   existingNotes?: string | null;
+  /** Active customer tag keys from customer_tags (falls back to constants). */
+  allowedSourceKeys?: readonly string[];
+  /** Require salesStage on create (not on update). */
+  requireSalesStage?: boolean;
 };
 
 function validateStageNotes(
@@ -152,7 +156,10 @@ export function validateCustomerInput(
     });
   }
 
-  if (!input.source || !isCustomerSourceKey(input.source)) {
+  if (
+    !input.source ||
+    !(context?.allowedSourceKeys ?? CUSTOMER_SOURCE_KEYS).includes(input.source)
+  ) {
     errors.push({
       field: "source",
       message: "请从固定字典选择客户来源",
@@ -184,7 +191,15 @@ export function validateCustomerInput(
     });
   }
 
-  if (input.salesStage && !isSalesStage(input.salesStage)) {
+  if (context?.requireSalesStage && !input.salesStage?.trim()) {
+    errors.push({
+      field: "salesStage",
+      message: "请选择销售阶段",
+      code: "SALES_STAGE_REQUIRED",
+    });
+  }
+
+  if (input.salesStage?.trim() && !isSalesStage(input.salesStage)) {
     errors.push({
       field: "salesStage",
       message: "销售阶段无效",

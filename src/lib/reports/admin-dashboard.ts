@@ -12,6 +12,10 @@ import {
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { RECLAMATION_AUDIT_ACTIONS } from "@/lib/reclamation/constants";
+import {
+  getCustomerTagLabelMap,
+  resolveCustomerTagLabel,
+} from "@/lib/customer-tags/queries";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { computeScoringSummaryForAdmin } from "@/lib/customers/scoring/service";
 import {
@@ -152,6 +156,8 @@ export async function getAdminDashboardStats(
     .groupBy(schema.customers.source)
     .orderBy(desc(count()));
 
+  const tagLabelMap = await getCustomerTagLabelMap(db);
+
   const stageRows = await db
     .select({
       label: schema.customers.salesStage,
@@ -214,7 +220,7 @@ export async function getAdminDashboardStats(
     highChurnRiskCustomers: scoringSummary.highChurnRiskCustomers,
     lowCompletenessCustomers: scoringSummary.lowCompletenessCustomers,
     customersBySource: sourceRows.map((r) => ({
-      label: r.label,
+      label: resolveCustomerTagLabel(r.label, tagLabelMap),
       count: r.count,
     })),
     customersBySalesStage: stageRows.map((r) => ({

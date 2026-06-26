@@ -3,6 +3,7 @@
 import { Card, EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import { SimpleBarRow } from "@/components/dashboard/dashboard-widgets";
+import { CustomerTagsAdmin } from "@/components/tags-stages/customer-tags-admin";
 import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { TagsStagesOverview } from "@/lib/tags-stages/types";
@@ -31,7 +32,7 @@ function StatusBadge({
 
 export function TagsStagesClient({ data }: { data: TagsStagesOverview }) {
   const { t } = useTranslation();
-  const { salesStage, source } = useCustomerLabels();
+  const { salesStage } = useCustomerLabels();
 
   const maxStageCount = Math.max(...data.stages.map((s) => s.customerCount), 1);
   const maxTagCount = Math.max(...data.tags.map((s) => s.customerCount), 1);
@@ -48,11 +49,6 @@ export function TagsStagesClient({ data }: { data: TagsStagesOverview }) {
     return "accent" as const;
   };
 
-  const tagStatusLabel = (status: string) =>
-    status === "active"
-      ? t("tagsStagesPage.statusActive")
-      : t("tagsStagesPage.statusCustom");
-
   return (
     <div className="space-y-6">
       <PageIntro
@@ -62,7 +58,7 @@ export function TagsStagesClient({ data }: { data: TagsStagesOverview }) {
 
       <Card className="border-[#E8F1FA] bg-[#F8FBFF] p-4 sm:p-5">
         <p className="text-sm leading-relaxed text-[#3D4A5C]">
-          {t("tagsStagesPage.readOnlyNotice")}
+          {t("tagsStagesPage.stagesReadOnlyNotice")}
         </p>
       </Card>
 
@@ -179,72 +175,13 @@ export function TagsStagesClient({ data }: { data: TagsStagesOverview }) {
           </div>
         ) : (
           <>
-            <div className="mt-4 space-y-3 md:hidden">
-              {data.tags.map((item) => (
-                <div
-                  key={item.key}
-                  className="rounded-xl border border-[#E3E8F0] bg-white p-4"
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="font-medium text-[#172033]">
-                      {source(item.key)}
-                    </span>
-                    <StatusBadge
-                      label={tagStatusLabel(item.status)}
-                      variant={item.status === "active" ? "default" : "accent"}
-                    />
-                  </div>
-                  <p className="mt-2 text-sm text-[#172033]">
-                    {t("tagsStagesPage.customerCount")}: {item.customerCount}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 hidden overflow-x-auto md:block">
-              <table className="w-full min-w-[560px] text-sm">
-                <thead>
-                  <tr className="border-b border-[#E3E8F0] text-left text-[#6B7890]">
-                    <th className="pb-2.5 pr-3 text-xs font-semibold uppercase tracking-wide">
-                      {t("tagsStagesPage.customerTags")}
-                    </th>
-                    <th className="pb-2.5 pr-3 text-xs font-semibold uppercase tracking-wide">
-                      {t("tagsStagesPage.status")}
-                    </th>
-                    <th className="pb-2.5 text-xs font-semibold uppercase tracking-wide">
-                      {t("tagsStagesPage.customerCount")}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#EEF3F8]">
-                  {data.tags.map((item) => (
-                    <tr key={item.key} className="hover:bg-[#E8F1FA]">
-                      <td className="py-3 pr-3 font-medium text-[#172033]">
-                        {source(item.key)}
-                        <span className="ml-2 font-mono text-xs text-[#6B7890]">
-                          {item.key}
-                        </span>
-                      </td>
-                      <td className="py-3 pr-3">
-                        <StatusBadge
-                          label={tagStatusLabel(item.status)}
-                          variant={item.status === "active" ? "default" : "accent"}
-                        />
-                      </td>
-                      <td className="py-3 font-semibold text-[#172033]">
-                        {item.customerCount}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <CustomerTagsAdmin tags={data.tags} />
 
             <div className="mt-6 space-y-3">
               {data.tags.map((item) => (
                 <SimpleBarRow
                   key={`tag-bar-${item.key}`}
-                  label={source(item.key)}
+                  label={item.label}
                   count={item.customerCount}
                   max={maxTagCount}
                 />

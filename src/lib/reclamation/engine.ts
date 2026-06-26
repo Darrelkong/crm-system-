@@ -302,8 +302,8 @@ async function autoReclaimCustomer(
 /**
  * Evaluates active owned customers for configured warning thresholds and auto-reclaim.
  * Only status=active with owner_id set participate.
- * Skips public_pool / inactive / archived, and closed sales stages
- * (closed_won, closed_lost, invalid, on_hold).
+ * Skips public_pool / inactive / archived, and closed-won sales stages
+ * (closed_won, converted).
  */
 export async function runReclamationCheck(
   db: Database,

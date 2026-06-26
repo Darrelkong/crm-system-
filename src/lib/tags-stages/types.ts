@@ -1,6 +1,6 @@
 export type StageCatalogStatus = "active" | "legacy" | "custom";
 
-export type TagCatalogStatus = "active" | "custom";
+export type TagCatalogStatus = "active" | "custom" | "inactive";
 
 export type StageCatalogItem = {
   key: string;
@@ -10,13 +10,15 @@ export type StageCatalogItem = {
 };
 
 export type TagCatalogItem = {
+  id?: string;
   key: string;
+  label: string;
   customerCount: number;
   status: TagCatalogStatus;
+  isSystem: boolean;
 };
 
 export type TagsStagesOverview = {
   stages: StageCatalogItem[];
-  /** Customer sources used as classification labels (no dedicated tags table). */
   tags: TagCatalogItem[];
 };

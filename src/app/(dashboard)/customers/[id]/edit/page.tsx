@@ -2,6 +2,8 @@ export const dynamic = "force-dynamic";
 
 import { requireAuth } from "@/lib/permissions/auth";
 import { getCustomerById } from "@/lib/customers/queries";
+import { getDb } from "@/lib/db";
+import { listActiveCustomerTags } from "@/lib/customer-tags/queries";
 import {
   canEditCustomer,
   assertCanViewCustomerFullDetails,
@@ -10,8 +12,8 @@ import {
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { EditCustomerForm } from "./edit-customer-form";
-import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
+import type { CustomerTagOption } from "@/lib/customer-tags/types";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -57,6 +59,21 @@ export default async function EditCustomerPage({ params }: Props) {
     throw err;
   }
 
+  const db = getDb();
+  const activeTags = await listActiveCustomerTags(db);
+  const tagOptions: CustomerTagOption[] = activeTags.map((tag) => ({
+    tagKey: tag.tagKey,
+    label: tag.label,
+    isSystem: tag.isSystem,
+  }));
+  if (!tagOptions.some((tag) => tag.tagKey === customer.source)) {
+    tagOptions.push({
+      tagKey: customer.source,
+      label: customer.source,
+      isSystem: false,
+    });
+  }
+
   return (
     <div>
       <TranslatedPageHeader
@@ -66,6 +83,7 @@ export default async function EditCustomerPage({ params }: Props) {
       />
       <EditCustomerForm
         canEditStatus={user.role === "admin"}
+        tags={tagOptions}
         initial={{
           id: customer.id,
           customerName: customer.customerName,
@@ -74,7 +92,7 @@ export default async function EditCustomerPage({ params }: Props) {
           phone: customer.phone ?? "",
           wechatId: customer.wechatId ?? "",
           email: customer.email ?? "",
-          source: customer.source as CustomerSourceKey,
+          source: customer.source,
           sourceRemark: customer.sourceRemark ?? "",
           requestedProjectName: customer.requestedProjectName ?? "",
           notes: customer.notes ?? "",

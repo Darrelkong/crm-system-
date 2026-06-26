@@ -4,10 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { CUSTOMER_SOURCE_KEYS } from "@/lib/constants/customer-sources";
-import { CUSTOMER_TYPES, SALES_STAGES } from "@/lib/constants/customer-fields";
-import type { CustomerSourceKey } from "@/lib/constants/customer-sources";
-import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
+import { CUSTOMER_TYPES, LEGACY_SALES_STAGES, SALES_STAGES } from "@/lib/constants/customer-fields";
+import type { CustomerType } from "@/lib/constants/customer-fields";
+import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
@@ -30,23 +29,25 @@ export type EditCustomerInitial = {
   phone: string;
   wechatId: string;
   email: string;
-  source: CustomerSourceKey;
+  source: string;
   sourceRemark: string;
   requestedProjectName: string;
   notes: string;
-  salesStage: SalesStage;
+  salesStage: string;
   status: string;
 };
 
 export function EditCustomerForm({
   initial,
+  tags,
   canEditStatus = false,
 }: {
   initial: EditCustomerInitial;
+  tags: CustomerTagOption[];
   canEditStatus?: boolean;
 }) {
   const router = useRouter();
-  const { t, source, salesStage, customerType, status, fieldLabel } = useCustomerLabels();
+  const { t, salesStage, customerType, status, fieldLabel } = useCustomerLabels();
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -54,6 +55,15 @@ export function EditCustomerForm({
 
   const isPublicPool = initial.status === "public_pool";
   const showStatusDropdown = canEditStatus && !isPublicPool;
+
+  const salesStageOptions: string[] = [...SALES_STAGES];
+  if (
+    initial.salesStage &&
+    !salesStageOptions.includes(initial.salesStage) &&
+    (LEGACY_SALES_STAGES as readonly string[]).includes(initial.salesStage)
+  ) {
+    salesStageOptions.push(initial.salesStage);
+  }
 
   const [form, setForm] = useState({
     customerName: initial.customerName,
@@ -92,6 +102,7 @@ export function EditCustomerForm({
     const validationErrors = validateCustomerInput(form, {
       isUpdate: true,
       existingNotes: initial.notes,
+      allowedSourceKeys: tags.map((tag) => tag.tagKey),
     });
     if (validationErrors.length > 0) {
       const errs: Record<string, string> = {};
@@ -333,9 +344,9 @@ export function EditCustomerForm({
             value={form.source}
             onChange={(e) => set("source", e.target.value)}
           >
-            {CUSTOMER_SOURCE_KEYS.map((k) => (
-              <option key={k} value={k}>
-                {source(k)}
+            {tags.map((tag) => (
+              <option key={tag.tagKey} value={tag.tagKey}>
+                {tag.label}
               </option>
             ))}
           </Select>
@@ -367,7 +378,7 @@ export function EditCustomerForm({
             value={form.salesStage}
             onChange={(e) => set("salesStage", e.target.value)}
           >
-            {SALES_STAGES.map((s) => (
+            {salesStageOptions.map((s) => (
               <option key={s} value={s}>
                 {salesStage(s)}
               </option>

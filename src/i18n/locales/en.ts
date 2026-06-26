@@ -360,6 +360,7 @@ const en = {
     wechatOptional: "WeChat ID (optional)",
     emailOptional: "Email (optional)",
     selectSource: "Select source",
+    selectSalesStage: "Select sales stage",
     sourceDetailPlaceholder: "Describe the source",
     notesOptional: "Additional notes (optional)",
     requestedProjectName: "Requested Project / Service Name",
@@ -1365,9 +1366,11 @@ const en = {
   },
   tagsStagesPage: {
     title: "Tags & Stages",
-    description: "Review configured client stages and source labels used across the CRM.",
+    description: "Manage client tags and review configured sales stages used across the CRM.",
     readOnlyNotice:
       "Read-only management. Stages and sources are defined in system constants today; add/edit will require a dedicated configuration store in a future release.",
+    stagesReadOnlyNotice:
+      "Customer stages are read-only. They map to customers.sales_stage and are used in Reports.",
     customerStages: "Customer stages",
     customerTags: "Customer tags",
     customerCount: "Customers",
@@ -1376,13 +1379,26 @@ const en = {
     noStages: "No stage data available.",
     noTags: "No tag data available.",
     statusActive: "Active",
+    statusInactive: "Inactive",
     statusLegacy: "Legacy",
     statusCustom: "Custom data",
     notApplicable: "N/A",
     stagesHint:
       "Stages map to customers.sales_stage. Reports stage distribution uses the same values.",
     tagsHint:
-      "There is no dedicated tags table yet. Customer sources (customers.source) are shown here as classification labels.",
+      "Tags are stored in customer_tags and saved on customers.source. Admin can add, rename, or delete tags.",
+    addTag: "Add tag",
+    editTag: "Edit tag",
+    deleteTag: "Delete tag",
+    tagName: "Tag name",
+    tagNamePlaceholder: "Enter tag display name",
+    systemTag: "System tag",
+    otherTag: "Other",
+    deleteTagConfirm: "Delete this tag? This cannot be undone.",
+    deleteTagReassignWarning:
+      "Clients using this tag will be reassigned to “Other”. Continue?",
+    closedWonPoolExemption:
+      "Closed-won clients are never auto-released to the public pool.",
   },
   heatReasons: {
     highIntent: "High client interest detected.",
@@ -1528,6 +1544,7 @@ const en = {
     phoneOrWechatRequired: "Please provide a phone number or WeChat ID.",
     invalidPhoneCn: "Mainland China phone numbers must be 11 digits starting with 1.",
     sourceRequired: "Please select a client source.",
+    salesStageRequired: "Please select a sales stage.",
     sourceRemarkRequired: "Source note is required when source is Other.",
     invalidCustomerType: "Invalid client type.",
     invalidSalesStage: "Invalid sales stage.",

@@ -17,6 +17,7 @@ import {
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
+import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 
 export async function GET(request: Request) {
   try {
@@ -55,11 +56,17 @@ export async function POST(request: Request) {
     const { ipAddress, userAgent } = getRequestMeta(request);
 
     const body = (await request.json()) as Record<string, unknown>;
-    const input = parseCustomerBody(body);
+    const input = parseCustomerBody(body, { forCreate: true });
     // Create defaults status to active; strip status from validation default
     const createInput = { ...input, status: "active" };
 
-    const fieldErrors = validateCustomerInput(createInput);
+    const db = getDb();
+    const allowedSourceKeys = await getActiveCustomerTagKeys(db);
+
+    const fieldErrors = validateCustomerInput(createInput, {
+      requireSalesStage: true,
+      allowedSourceKeys,
+    });
     if (fieldErrors.length > 0) {
       await writeAuditLog({
         userId: user.id,
@@ -106,7 +113,6 @@ export async function POST(request: Request) {
 
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
-    const db = getDb();
     const customerCode = await allocateCustomerCode(db);
 
     const payload = buildCustomerUpdatePayload({

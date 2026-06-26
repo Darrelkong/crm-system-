@@ -21,6 +21,7 @@ import {
   writeFieldChangeLogs,
 } from "@/lib/customers/field-change-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -84,6 +85,7 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const body = (await request.json()) as Record<string, unknown>;
     const input = parseCustomerBody(body);
+    const db = getDb();
 
     try {
       assertStaffCannotChangeCustomerStatus(user, existing, body);
@@ -109,11 +111,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const updateStatus =
       user.role === "admin" ? input.status! : existing.status;
 
+    const allowedSourceKeys = await getActiveCustomerTagKeys(db);
+
     const fieldErrors = validateCustomerInput(
       { ...input, status: updateStatus },
       {
         isUpdate: true,
         existingNotes: existing.notes,
+        allowedSourceKeys,
       },
     );
     if (fieldErrors.length > 0) {
@@ -182,7 +187,6 @@ export async function PATCH(request: Request, context: RouteContext) {
     );
 
     const now = new Date().toISOString();
-    const db = getDb();
 
     await db
       .update(schema.customers)
