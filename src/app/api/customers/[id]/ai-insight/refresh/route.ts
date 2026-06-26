@@ -16,6 +16,7 @@ import {
   AiConfigError,
   AiRefreshDeniedError,
 } from "@/lib/ai/customer-insights/errors";
+import { buildAiInsightRefreshFailedAuditMetadata } from "@/lib/ai/customer-insights/diagnostics";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
@@ -78,10 +79,11 @@ export async function POST(request: Request, context: RouteContext) {
             entityId: customer.id,
             ipAddress: meta.ipAddress,
             userAgent: meta.userAgent,
-            metadata: {
-              customerId: customer.id,
-              errorCode: code,
-            },
+            metadata: buildAiInsightRefreshFailedAuditMetadata(
+              customer.id,
+              code,
+              error,
+            ),
           },
           db,
         );

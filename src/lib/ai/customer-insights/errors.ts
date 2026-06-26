@@ -1,3 +1,5 @@
+import type { AiProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
+
 export type AiErrorCode =
   | "AI_NOT_CONFIGURED"
   | "AI_CONFIG_ERROR"
@@ -17,10 +19,12 @@ export class AiConfigError extends Error {
 
 export class AiAnalysisError extends Error {
   readonly code: AiErrorCode = "AI_ANALYSIS_FAILED";
+  readonly diagnostics?: AiProviderDiagnostics;
 
-  constructor(message = "AI 分析失败，请稍后重试") {
+  constructor(message = "AI 分析失败，请稍后重试", diagnostics?: AiProviderDiagnostics) {
     super(message);
     this.name = "AiAnalysisError";
+    this.diagnostics = diagnostics;
   }
 }
 
@@ -35,9 +39,11 @@ export class AiRefreshDeniedError extends Error {
 
 export class AiProviderError extends Error {
   readonly code: AiErrorCode = "AI_PROVIDER_ERROR";
+  readonly diagnostics?: AiProviderDiagnostics;
 
-  constructor(message = "AI 分析失败，请稍后重试") {
+  constructor(diagnostics?: AiProviderDiagnostics, message = "AI 分析失败，请稍后重试") {
     super(message);
     this.name = "AiProviderError";
+    this.diagnostics = diagnostics;
   }
 }

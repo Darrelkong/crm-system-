@@ -9,8 +9,10 @@ import { buildCustomerInsightContext } from "@/lib/ai/customer-insights/context-
 import {
   AiAnalysisError,
   AiConfigError,
+  AiProviderError,
   AiRefreshDeniedError,
 } from "@/lib/ai/customer-insights/errors";
+import { buildResolvedProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { computeCustomerInsightSourceHash } from "@/lib/ai/customer-insights/hash";
 import {
   safeParseCustomerInsightOutput,
@@ -316,12 +318,14 @@ export async function refreshCustomerAiInsight(
     if (error instanceof AiConfigError) {
       throw error;
     }
+    const diagnostics =
+      error instanceof AiProviderError ? error.diagnostics : undefined;
     await persistFailedInsight(db, customer.id, {
       model: resolved.model,
       promptVersion: aiSettings.aiPromptVersion,
       sourceHash,
     });
-    throw new AiAnalysisError();
+    throw new AiAnalysisError(undefined, diagnostics);
   }
 
   const parsed = safeParseCustomerInsightOutput(rawOutput);
@@ -331,7 +335,10 @@ export async function refreshCustomerAiInsight(
       promptVersion: aiSettings.aiPromptVersion,
       sourceHash,
     });
-    throw new AiAnalysisError();
+    throw new AiAnalysisError(
+      undefined,
+      buildResolvedProviderDiagnostics(resolved, "schema_validation_failed"),
+    );
   }
 
   return {

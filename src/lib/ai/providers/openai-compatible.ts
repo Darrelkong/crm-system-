@@ -1,4 +1,5 @@
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
+import { buildProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
 import {
   buildSystemPrompt,
@@ -19,10 +20,17 @@ type ChatCompletionResponse = {
   };
 };
 
-function extractMessageContent(data: ChatCompletionResponse): string {
+const PROVIDER_KIND = "openai_compatible" as const;
+
+function extractMessageContent(
+  data: ChatCompletionResponse,
+  config: ProviderRuntimeConfig,
+): string {
   const content = data.choices?.[0]?.message?.content;
   if (!content || !content.trim()) {
-    throw new AiProviderError();
+    throw new AiProviderError(
+      buildProviderDiagnostics(config, PROVIDER_KIND, "provider_empty_content"),
+    );
   }
   return content.trim();
 }
@@ -69,27 +77,38 @@ async function postChatCompletion(
 
     const data = (await response.json()) as ChatCompletionResponse;
     if (!response.ok) {
-      throw new AiProviderError();
+      throw new AiProviderError(
+        buildProviderDiagnostics(
+          config,
+          PROVIDER_KIND,
+          "provider_http_error",
+          response.status,
+        ),
+      );
     }
-    return extractMessageContent(data);
+    return extractMessageContent(data, config);
   } catch (error) {
     if (error instanceof AiProviderError) {
       throw error;
     }
-    throw new AiProviderError();
+    throw new AiProviderError(
+      buildProviderDiagnostics(config, PROVIDER_KIND, "provider_request_failed"),
+    );
   } finally {
     clearTimeout(timeout);
   }
 }
 
-function parseJsonContent(content: string): unknown {
+function parseJsonContent(content: string, config: ProviderRuntimeConfig): unknown {
   const trimmed = content.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   const jsonText = fenced?.[1]?.trim() ?? trimmed;
   try {
     return JSON.parse(jsonText) as unknown;
   } catch {
-    throw new AiProviderError();
+    throw new AiProviderError(
+      buildProviderDiagnostics(config, PROVIDER_KIND, "provider_json_parse_failed"),
+    );
   }
 }
 
@@ -118,10 +137,20 @@ async function requestStructuredJson(
       ...baseBody,
       response_format: { type: "json_object" },
     });
-    return parseJsonContent(withFormat);
-  } catch {
-    const withoutFormat = await postChatCompletion(config, baseBody);
-    return parseJsonContent(withoutFormat);
+    return parseJsonContent(withFormat, config);
+  } catch (firstError) {
+    try {
+      const withoutFormat = await postChatCompletion(config, baseBody);
+      return parseJsonContent(withoutFormat, config);
+    } catch (secondError) {
+      if (secondError instanceof AiProviderError && secondError.diagnostics) {
+        throw secondError;
+      }
+      if (firstError instanceof AiProviderError && firstError.diagnostics) {
+        throw firstError;
+      }
+      throw secondError;
+    }
   }
 }
 
