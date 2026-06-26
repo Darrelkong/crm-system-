@@ -27,6 +27,24 @@ function extractMessageContent(data: ChatCompletionResponse): string {
   return content.trim();
 }
 
+export function buildChatCompletionsUrl(apiBaseUrl: string): string {
+  const normalized = apiBaseUrl.trim().replace(/\/+$/, "");
+
+  try {
+    const url = new URL(normalized);
+    if (
+      url.hostname.includes("generativelanguage.googleapis.com") &&
+      url.pathname.includes("/openai")
+    ) {
+      return `${normalized}/chat/completions`;
+    }
+  } catch {
+    // Fall through to OpenAI-style path for non-URL inputs.
+  }
+
+  return `${normalized}/v1/chat/completions`;
+}
+
 async function postChatCompletion(
   config: ProviderRuntimeConfig,
   body: Record<string, unknown>,
@@ -39,7 +57,7 @@ async function postChatCompletion(
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
 
   try {
-    const response = await fetch(`${config.apiBaseUrl}/v1/chat/completions`, {
+    const response = await fetch(buildChatCompletionsUrl(config.apiBaseUrl), {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.apiKey}`,
