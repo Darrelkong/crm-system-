@@ -1,10 +1,20 @@
 import { eq } from "drizzle-orm";
 import * as schema from "../../../drizzle/schema";
 import { getDb } from "@/lib/db";
-import { LOCKOUT_DURATION_MS, LOCKOUT_THRESHOLD } from "@/lib/auth/constants";
+import {
+  LOCKOUT_PERSISTENT_UNTIL,
+  LOCKOUT_THRESHOLD,
+} from "@/lib/auth/constants";
 import type { User } from "../../../drizzle/schema/users";
 
+export function isLoginLockoutExempt(user: User): boolean {
+  return user.role === "admin";
+}
+
 export function isAccountLocked(user: User, now = Date.now()): boolean {
+  if (isLoginLockoutExempt(user)) {
+    return false;
+  }
   if (!user.lockedUntil) {
     return false;
   }
@@ -30,22 +40,23 @@ export async function recordFailedLogin(user: User): Promise<{
   attempts: number;
   lockedUntil: string | null;
 }> {
+  if (isLoginLockoutExempt(user)) {
+    return {
+      locked: false,
+      attempts: user.failedLoginAttempts,
+      lockedUntil: user.lockedUntil,
+    };
+  }
+
   const db = getDb();
   const nowIso = new Date().toISOString();
 
-  let attempts = user.failedLoginAttempts;
+  const attempts = user.failedLoginAttempts + 1;
   let lockedUntil: string | null = user.lockedUntil;
-
-  if (lockedUntil && !isAccountLocked(user)) {
-    attempts = 0;
-    lockedUntil = null;
-  }
-
-  attempts += 1;
-
   let locked = false;
+
   if (attempts >= LOCKOUT_THRESHOLD) {
-    lockedUntil = new Date(Date.now() + LOCKOUT_DURATION_MS).toISOString();
+    lockedUntil = LOCKOUT_PERSISTENT_UNTIL;
     locked = true;
   }
 

@@ -350,6 +350,8 @@ export async function resetUserPassword(
 
   await clearUserSessions(db, targetUserId);
 
+  await resetLoginFailures(targetUserId);
+
   await writeAuditLog({
     userId: actor.id,
     action: "user.password_reset",

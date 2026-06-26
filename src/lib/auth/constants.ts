@@ -30,10 +30,10 @@ export const AUTH_ERROR_CODES = {
 export type AuthErrorCode =
   (typeof AUTH_ERROR_CODES)[keyof typeof AUTH_ERROR_CODES];
 
-export const LOCKOUT_THRESHOLD = 5;
+export const LOCKOUT_THRESHOLD = 3;
 
-/** 30 minutes */
-export const LOCKOUT_DURATION_MS = 30 * 60 * 1000;
+/** Cleared only by admin unlock or password reset — not by time expiry */
+export const LOCKOUT_PERSISTENT_UNTIL = "9999-12-31T23:59:59.000Z";
 
 export const USER_ROLES = ["admin", "staff"] as const;
 export type UserRole = (typeof USER_ROLES)[number];

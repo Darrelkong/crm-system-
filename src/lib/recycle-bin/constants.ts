@@ -1,0 +1,2 @@
+export const RECYCLE_BIN_RETENTION_DAYS = 90;
+export const RECYCLE_BIN_PURGE_BATCH_SIZE = 50;

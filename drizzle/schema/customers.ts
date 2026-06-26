@@ -45,6 +45,9 @@ export const customers = sqliteTable(
     lastFollowUpAt: text("last_follow_up_at"),
     lastValidFollowUpAt: text("last_valid_follow_up_at"),
     nextFollowUpAt: text("next_follow_up_at"),
+    deletedAt: text("deleted_at"),
+    deletedBy: text("deleted_by").references(() => users.id),
+    deletedReason: text("deleted_reason"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -58,6 +61,7 @@ export const customers = sqliteTable(
     index("idx_customers_pool_entered_at").on(table.poolEnteredAt),
     index("idx_customers_claimed_by").on(table.claimedBy),
     index("idx_customers_claimed_at").on(table.claimedAt),
+    index("idx_customers_deleted_at").on(table.deletedAt),
   ],
 );
 

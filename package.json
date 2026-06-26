@@ -18,6 +18,7 @@
     "db:seed:reclamation:remote": "tsx scripts/seed-reclamation.ts --remote",
     "cron:deploy": "wrangler deploy -c wrangler.cron.jsonc",
     "cron:backup:deploy": "wrangler deploy -c wrangler.backup-cron.jsonc",
+    "cron:recycle:deploy": "wrangler deploy -c wrangler.recycle-cron.jsonc",
     "auto:backup": "node scripts/auto-backup-github.mjs"
   },
   "dependencies": {

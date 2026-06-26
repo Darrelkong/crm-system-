@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crm-system-recycle-cron",
+  "main": "workers/recycle-bin-cron.ts",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "triggers": {
+    "crons": ["30 21 * * *"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crm-db",
+      "database_id": "03633dd2-c058-42de-9355-f5450eab7202"
+    }
+  ]
+}

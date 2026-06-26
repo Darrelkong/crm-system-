@@ -16,7 +16,6 @@ import {
   validateAccessLoginWindowFromRequest,
 } from "@/lib/auth/access-jwt";
 import {
-  getLockoutRemainingMinutes,
   isAccountLocked,
   recordFailedLogin,
   resetLoginFailures,
@@ -31,6 +30,10 @@ type LoginBody = {
   email?: string;
   password?: string;
 };
+
+const LOGIN_INVALID_CREDENTIALS = "邮箱或密码错误";
+const LOGIN_ACCOUNT_LOCKED =
+  "账户已被锁定，请联系管理员处理。";
 
 export async function POST(request: Request) {
   if (shouldRequireCloudflareAccess(request.headers)) {
@@ -72,7 +75,7 @@ export async function POST(request: Request) {
       ipAddress,
       userAgent,
     });
-    return Response.json({ error: "邮箱或密码错误" }, { status: 401 });
+    return Response.json({ error: LOGIN_INVALID_CREDENTIALS }, { status: 401 });
   }
 
   if (user.isActive !== 1) {
@@ -96,12 +99,7 @@ export async function POST(request: Request) {
       ipAddress,
       userAgent,
     });
-    return Response.json(
-      {
-        error: `账号已锁定，请 ${getLockoutRemainingMinutes(user)} 分钟后再试`,
-      },
-      { status: 423 },
-    );
+    return Response.json({ error: LOGIN_ACCOUNT_LOCKED }, { status: 423 });
   }
 
   const valid = await verifyPassword(password, user.passwordHash);
@@ -129,13 +127,10 @@ export async function POST(request: Request) {
           lockedUntil: lockout.lockedUntil,
         },
       });
-      return Response.json(
-        { error: "连续登录失败次数过多，账号已锁定 30 分钟" },
-        { status: 423 },
-      );
+      return Response.json({ error: LOGIN_ACCOUNT_LOCKED }, { status: 423 });
     }
 
-    return Response.json({ error: "邮箱或密码错误" }, { status: 401 });
+    return Response.json({ error: LOGIN_INVALID_CREDENTIALS }, { status: 401 });
   }
 
   await resetLoginFailures(user.id);

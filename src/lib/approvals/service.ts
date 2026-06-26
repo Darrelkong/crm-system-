@@ -118,6 +118,9 @@ async function executeApprovedAction(
         .update(schema.customers)
         .set({
           status: "archived",
+          deletedAt: now,
+          deletedBy: reviewer.id,
+          deletedReason: approval.reason ?? null,
           updatedBy: reviewer.id,
           updatedAt: now,
         })
@@ -140,6 +143,8 @@ async function executeApprovedAction(
           metadata: {
             approvalId: approval.id,
             customerName: customer.customerName,
+            deletedAt: now,
+            deletedReason: approval.reason ?? null,
           },
         },
         db,

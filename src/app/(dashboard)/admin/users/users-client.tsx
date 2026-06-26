@@ -1,10 +1,19 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import type { AdminUserView } from "@/lib/users-admin/types";
+
+function isDeletedUser(user: AdminUserView): boolean {
+  return user.status === "deleted" || user.deleted_at !== null;
+}
+
+function formatDateTime(value: string | null): string {
+  if (!value) return "—";
+  return value.slice(0, 16).replace("T", " ");
+}
 
 export function UsersClient() {
   const { t } = useTranslation();
@@ -19,6 +28,29 @@ export function UsersClient() {
     temporaryPassword: "",
   });
   const [newPassword, setNewPassword] = useState("");
+
+  const { currentUsers, formerUsers, stats } = useMemo(() => {
+    const current = users.filter((u) => !isDeletedUser(u));
+    const former = users
+      .filter((u) => isDeletedUser(u))
+      .sort((a, b) => {
+        const aTime = a.deleted_at ?? "";
+        const bTime = b.deleted_at ?? "";
+        return bTime.localeCompare(aTime);
+      });
+    const disabledCount = current.filter((u) => u.status === "disabled").length;
+
+    return {
+      currentUsers: current,
+      formerUsers: former,
+      stats: {
+        current: current.length,
+        disabled: disabledCount,
+        former: former.length,
+        total: current.length + former.length,
+      },
+    };
+  }, [users]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -41,6 +73,7 @@ export function UsersClient() {
   }, [t]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial user list fetch on mount
     void load();
   }, [load]);
 
@@ -108,10 +141,12 @@ export function UsersClient() {
       setMessage(data.error ?? t("employees.operationFailed"));
       return;
     }
+
+    const count = data.transferredCustomerCount ?? 0;
     setMessage(
-      t("employees.staffDeleted", {
-        count: String(data.transferredCustomerCount ?? 0),
-      }),
+      count > 0
+        ? t("employees.staffDeletedWithCount", { count: String(count) })
+        : t("employees.staffDeletedNoCount"),
     );
     await load();
   }
@@ -155,16 +190,32 @@ export function UsersClient() {
 
   return (
     <div className="space-y-6">
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard
+          label={t("employees.statsCurrentEmployees")}
+          value={stats.current}
+        />
+        <StatCard label={t("employees.statsDisabled")} value={stats.disabled} />
+        <StatCard
+          label={t("employees.statsFormerEmployees")}
+          value={stats.former}
+        />
+        <StatCard
+          label={t("employees.statsTotalEmployees")}
+          value={stats.total}
+        />
+      </div>
+
+      <div className="surface-card p-6">
         <Button onClick={() => setShowCreate(true)}>
           {t("employees.createStaff")}
         </Button>
-        {message && <p className="mt-3 text-sm text-slate-700">{message}</p>}
+        {message && <p className="mt-3 text-sm text-[#172033]">{message}</p>}
       </div>
 
       {showCreate && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="font-medium text-slate-900">
+        <div className="surface-card p-6">
+          <h3 className="font-medium text-[#172033]">
             {t("employees.newStaffAccountTitle")}
           </h3>
           <div className="mt-4 grid max-w-md gap-3">
@@ -211,8 +262,8 @@ export function UsersClient() {
       )}
 
       {resetUserId && (
-        <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-          <h3 className="font-medium text-slate-900">
+        <div className="surface-card p-6">
+          <h3 className="font-medium text-[#172033]">
             {t("employees.resetPassword")}
           </h3>
           <div className="mt-4 max-w-md">
@@ -236,17 +287,19 @@ export function UsersClient() {
         </div>
       )}
 
-      <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h3 className="text-lg font-medium text-slate-900">
+      <div className="surface-card p-6">
+        <h3 className="text-lg font-medium text-[#172033]">
           {t("employees.listTitle")}
         </h3>
         {loading ? (
-          <p className="mt-4 text-sm text-slate-500">{t("common.loading")}</p>
+          <p className="mt-4 text-sm text-[#6B7890]">{t("common.loading")}</p>
+        ) : currentUsers.length === 0 ? (
+          <p className="mt-4 text-sm text-[#6B7890]">{t("common.noData")}</p>
         ) : (
           <div className="mt-4 overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead>
-                <tr className="border-b border-slate-200 text-slate-500">
+                <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
                   <th className="px-3 py-2">{t("common.name")}</th>
                   <th className="px-3 py-2">{t("common.email")}</th>
                   <th className="px-3 py-2">{t("common.role")}</th>
@@ -258,8 +311,8 @@ export function UsersClient() {
                 </tr>
               </thead>
               <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-b border-slate-100">
+                {currentUsers.map((u) => (
+                  <tr key={u.id} className="table-row border-b border-[#EEF3F8]">
                     <td className="px-3 py-2">{u.name}</td>
                     <td className="px-3 py-2">{u.email}</td>
                     <td className="px-3 py-2">
@@ -267,15 +320,13 @@ export function UsersClient() {
                         ? t("employees.adminRole")
                         : t("employees.staffRole")}
                     </td>
-                    <td className="px-3 py-2">
-                      {statusLabel(u.status)}
-                    </td>
+                    <td className="px-3 py-2">{statusLabel(u.status)}</td>
                     <td className="px-3 py-2">{u.failed_login_count}</td>
                     <td className="px-3 py-2 font-mono text-xs">
-                      {u.locked_until?.slice(0, 16).replace("T", " ") ?? "—"}
+                      {formatDateTime(u.locked_until)}
                     </td>
                     <td className="px-3 py-2 font-mono text-xs">
-                      {u.last_login_at?.slice(0, 16).replace("T", " ") ?? "—"}
+                      {formatDateTime(u.last_login_at)}
                     </td>
                     <td className="px-3 py-2">
                       <div className="flex flex-wrap gap-1">
@@ -298,7 +349,7 @@ export function UsersClient() {
                             {t("employees.enableAccount")}
                           </Button>
                         )}
-                        {u.role === "staff" && u.status !== "deleted" && (
+                        {u.role === "staff" && (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -308,17 +359,14 @@ export function UsersClient() {
                             {t("employees.deleteStaff")}
                           </Button>
                         )}
-                        {u.status !== "deleted" && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => setResetUserId(u.id)}
-                          >
-                            {t("employees.resetPassword")}
-                          </Button>
-                        )}
-                        {u.status !== "deleted" &&
-                          (u.failed_login_count > 0 || u.locked_until) && (
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => setResetUserId(u.id)}
+                        >
+                          {t("employees.resetPassword")}
+                        </Button>
+                        {(u.failed_login_count > 0 || u.locked_until) && (
                           <Button
                             size="sm"
                             variant="secondary"
@@ -336,6 +384,68 @@ export function UsersClient() {
           </div>
         )}
       </div>
+
+      <div className="surface-card p-6">
+        <h3 className="text-lg font-medium text-[#172033]">
+          {t("employees.formerEmployeesTitle")}
+        </h3>
+        <p className="mt-2 text-sm text-[#6B7890]">
+          {t("employees.formerEmployeesDescription")}
+        </p>
+        {loading ? (
+          <p className="mt-4 text-sm text-[#6B7890]">{t("common.loading")}</p>
+        ) : formerUsers.length === 0 ? (
+          <p className="mt-4 text-sm text-[#6B7890]">{t("common.noData")}</p>
+        ) : (
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead>
+                <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
+                  <th className="px-3 py-2">{t("common.name")}</th>
+                  <th className="px-3 py-2">{t("common.email")}</th>
+                  <th className="px-3 py-2">{t("common.role")}</th>
+                  <th className="px-3 py-2">{t("common.status")}</th>
+                  <th className="px-3 py-2">{t("employees.deletedAt")}</th>
+                  <th className="px-3 py-2">
+                    {t("employees.customerTransferStatus")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {formerUsers.map((u) => (
+                  <tr key={u.id} className="table-row border-b border-[#EEF3F8]">
+                    <td className="px-3 py-2">{u.name}</td>
+                    <td className="px-3 py-2">{u.email}</td>
+                    <td className="px-3 py-2">
+                      {u.role === "admin"
+                        ? t("employees.adminRole")
+                        : t("employees.staffRole")}
+                    </td>
+                    <td className="px-3 py-2">
+                      {t("employees.statusDeleted")}
+                    </td>
+                    <td className="px-3 py-2 font-mono text-xs">
+                      {formatDateTime(u.deleted_at)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {t("employees.customerTransferredToAdmin")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="surface-muted px-4 py-3">
+      <p className="text-xs font-medium text-[#6B7890]">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-[#172033]">{value}</p>
     </div>
   );
 }
