@@ -134,6 +134,7 @@ const en = {
     reports: "Reports",
     tagsStages: "Tags & Stages",
     backups: "Backups",
+    securityPolicies: "Security Policies",
     accountCenter: "Account center",
     language: "Language",
     signOut: "Sign out",
@@ -876,6 +877,107 @@ const en = {
   settings: {
     title: "System settings",
     inactivityLogoutFixedHint: "This security policy is fixed at 30 minutes.",
+  },
+  securityPolicies: {
+    title: "Security Policies",
+    description:
+      "Read-only overview of security rules currently enforced by this CRM.",
+    statusEnabled: "Enabled",
+    readOnlyNotice:
+      "These policies are enforced by the system and cannot be changed on this page.",
+    sections: {
+      login: { title: "Login security" },
+      session: { title: "Session security" },
+      user: { title: "User security" },
+      customer: { title: "Customer data security" },
+    },
+    policies: {
+      loginLockout: {
+        title: "Failed login lockout",
+        description:
+          "Staff accounts are locked automatically after {{count}} consecutive failed password attempts.",
+      },
+      loginLockedBlocked: {
+        title: "Locked accounts cannot sign in",
+        description:
+          "Once locked, the account cannot sign in until an administrator unlocks it or resets the password.",
+      },
+      loginAdminExempt: {
+        title: "Administrators are exempt from auto-lockout",
+        description:
+          "Administrator accounts are not automatically locked after failed login attempts.",
+      },
+      loginAdminUnlock: {
+        title: "Administrator unlock required",
+        description:
+          "Only administrators can unlock a locked staff account from User Management.",
+      },
+      loginPasswordReset: {
+        title: "Password reset restores access",
+        description:
+          "When an administrator resets a locked user's password, the lock state is cleared and the user can sign in again.",
+      },
+      sessionInactivity: {
+        title: "Inactivity timeout",
+        description:
+          "Sessions expire automatically after {{minutes}} minutes of inactivity.",
+      },
+      sessionSingleLogin: {
+        title: "Single active session",
+        description:
+          "Signing in on a new device revokes the previous session for the same account.",
+      },
+      sessionDeletedRevoked: {
+        title: "Deleted staff sessions revoked",
+        description:
+          "When a staff account is deleted, all of its active sessions are revoked immediately.",
+      },
+      sessionLockedRevoked: {
+        title: "Locked staff sessions revoked",
+        description:
+          "When a staff account is locked, all of its active sessions are revoked immediately.",
+      },
+      userAdminSelfDelete: {
+        title: "Administrators cannot delete themselves",
+        description:
+          "An administrator cannot delete their own account through User Management.",
+      },
+      userLastAdmin: {
+        title: "Last administrator protected",
+        description:
+          "The system prevents deletion of the last remaining administrator account.",
+      },
+      userDeletedLogin: {
+        title: "Deleted staff cannot sign in",
+        description:
+          "Deleted staff accounts remain disabled and cannot sign in again.",
+      },
+      userCustomerTransfer: {
+        title: "Customer transfer on staff deletion",
+        description:
+          "When a staff member is deleted, their assigned customers are transferred to the administrator performing the deletion.",
+      },
+      customerRecycleBin: {
+        title: "Soft delete to recycle bin",
+        description:
+          "Deleted customers are moved to the recycle bin instead of being permanently removed immediately.",
+      },
+      customerRetention: {
+        title: "90-day retention",
+        description:
+          "Deleted customers remain in the recycle bin for {{days}} days before they become eligible for system cleanup.",
+      },
+      customerRestore: {
+        title: "Restore within retention period",
+        description:
+          "Administrators can restore deleted customers from the recycle bin within the {{days}}-day retention period.",
+      },
+      customerPurge: {
+        title: "Automatic cleanup after retention",
+        description:
+          "Customers that remain in the recycle bin beyond {{days}} days may be permanently removed by the system cleanup job.",
+      },
+    },
   },
   aiSettings: {
     title: "AI settings",

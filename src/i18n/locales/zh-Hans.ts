@@ -132,6 +132,7 @@ const zhHans: Messages = {
     reports: "报告",
     tagsStages: "标签与阶段",
     backups: "备份管理",
+    securityPolicies: "安全策略",
     accountCenter: "账户中心",
     language: "语言切换",
     signOut: "退出登录",
@@ -849,6 +850,93 @@ const zhHans: Messages = {
   settings: {
     title: "系统设置",
     inactivityLogoutFixedHint: "此安全策略已固定为 30 分钟。",
+  },
+  securityPolicies: {
+    title: "安全策略",
+    description: "以下为 CRM 目前强制执行的安全规则，仅供查阅。",
+    statusEnabled: "已启用",
+    readOnlyNotice: "此页面仅展示安全策略，不提供修改或开关设置。",
+    sections: {
+      login: { title: "登录安全" },
+      session: { title: "Session 安全" },
+      user: { title: "用户安全" },
+      customer: { title: "客户资料安全" },
+    },
+    policies: {
+      loginLockout: {
+        title: "登录失败自动锁定",
+        description:
+          "Staff / 一般员工密码连续错误 {{count}} 次后，系统会自动锁定该账户。",
+      },
+      loginLockedBlocked: {
+        title: "被锁定账户无法登录",
+        description:
+          "账户被锁定后无法登录，需由管理员解锁或重置密码后才可恢复。",
+      },
+      loginAdminExempt: {
+        title: "Admin 不受自动锁定限制",
+        description: "Admin 账户不会因连续登录失败而自动锁定。",
+      },
+      loginAdminUnlock: {
+        title: "需由 Admin 解锁",
+        description: "只有 Admin 可以在员工管理页解锁被锁定的 Staff 账户。",
+      },
+      loginPasswordReset: {
+        title: "重置密码可恢复登录",
+        description:
+          "Admin 重置被锁定员工密码后，会同时清除锁定状态，员工可重新登录。",
+      },
+      sessionInactivity: {
+        title: "闲置自动退出",
+        description: "连续 {{minutes}} 分钟无操作，Session 会自动失效并要求重新登录。",
+      },
+      sessionSingleLogin: {
+        title: "新登录踢出旧 Session",
+        description: "同一账号在新设备或新浏览器登录时，会撤销先前的 Session。",
+      },
+      sessionDeletedRevoked: {
+        title: "已删除员工 Session 失效",
+        description: "员工账户被删除后，其所有有效 Session 会立即失效。",
+      },
+      sessionLockedRevoked: {
+        title: "被锁定员工 Session 失效",
+        description: "员工账户被锁定后，其所有有效 Session 会立即失效。",
+      },
+      userAdminSelfDelete: {
+        title: "Admin 不可删除自己",
+        description: "管理员不能通过员工管理删除自己的账户。",
+      },
+      userLastAdmin: {
+        title: "不可删除最后一个 Admin",
+        description: "系统会阻止删除最后一个 Admin 账户，以避免无管理员可用。",
+      },
+      userDeletedLogin: {
+        title: "已删除员工不可登录",
+        description: "已删除的员工账户维持停用状态，无法再次登录。",
+      },
+      userCustomerTransfer: {
+        title: "删除员工时转移客户",
+        description:
+          "删除员工时，其名下的客户会转移至执行删除操作的 Admin 账户。",
+      },
+      customerRecycleBin: {
+        title: "删除客户进入回收站",
+        description: "客户删除采用软删除，数据会进入回收站而非立即永久删除。",
+      },
+      customerRetention: {
+        title: "回收站保留 {{days}} 天",
+        description: "已删除客户会在回收站保留 {{days}} 天，之后才符合系统清理条件。",
+      },
+      customerRestore: {
+        title: "保留期内可恢复",
+        description: "Admin 可在 {{days}} 天保留期内，从回收站恢复已删除客户。",
+      },
+      customerPurge: {
+        title: "超过保留期可清理",
+        description:
+          "超过 {{days}} 天仍留在回收站的客户，可能由系统清理任务永久删除。",
+      },
+    },
   },
   aiSettings: {
     title: "AI 设置",

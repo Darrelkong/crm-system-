@@ -132,6 +132,7 @@ const zhHant: Messages = {
     reports: "報告",
     tagsStages: "標籤與階段",
     backups: "備份管理",
+    securityPolicies: "安全策略",
     accountCenter: "帳戶中心",
     language: "語言切換",
     signOut: "退出登入",
@@ -850,6 +851,93 @@ const zhHant: Messages = {
   settings: {
     title: "系統設定",
     inactivityLogoutFixedHint: "此安全策略已固定為 30 分鐘。",
+  },
+  securityPolicies: {
+    title: "安全策略",
+    description: "以下為 CRM 目前強制執行的安全規則，僅供查閱。",
+    statusEnabled: "已啟用",
+    readOnlyNotice: "此頁面僅展示安全策略，不提供修改或開關設定。",
+    sections: {
+      login: { title: "登入安全" },
+      session: { title: "Session 安全" },
+      user: { title: "用戶安全" },
+      customer: { title: "客戶資料安全" },
+    },
+    policies: {
+      loginLockout: {
+        title: "登入失敗自動鎖定",
+        description:
+          "Staff / 一般員工密碼連續錯誤 {{count}} 次後，系統會自動鎖定該賬戶。",
+      },
+      loginLockedBlocked: {
+        title: "被鎖定賬戶無法登入",
+        description:
+          "賬戶被鎖定後無法登入，需由管理員解鎖或重設密碼後才可恢復。",
+      },
+      loginAdminExempt: {
+        title: "Admin 不受自動鎖定限制",
+        description: "Admin 賬戶不會因連續登入失敗而自動鎖定。",
+      },
+      loginAdminUnlock: {
+        title: "需由 Admin 解鎖",
+        description: "只有 Admin 可以在員工管理頁解鎖被鎖定的 Staff 賬戶。",
+      },
+      loginPasswordReset: {
+        title: "重設密碼可恢復登入",
+        description:
+          "Admin 重設被鎖定員工密碼後，會同時清除鎖定狀態，員工可重新登入。",
+      },
+      sessionInactivity: {
+        title: "閒置自動退出",
+        description: "連續 {{minutes}} 分鐘無操作，Session 會自動失效並要求重新登入。",
+      },
+      sessionSingleLogin: {
+        title: "新登入踢出舊 Session",
+        description: "同一賬號在新裝置或新瀏覽器登入時，會撤銷先前的 Session。",
+      },
+      sessionDeletedRevoked: {
+        title: "已刪除員工 Session 失效",
+        description: "員工賬戶被刪除後，其所有有效 Session 會立即失效。",
+      },
+      sessionLockedRevoked: {
+        title: "被鎖定員工 Session 失效",
+        description: "員工賬戶被鎖定後，其所有有效 Session 會立即失效。",
+      },
+      userAdminSelfDelete: {
+        title: "Admin 不可刪除自己",
+        description: "管理員不能透過員工管理刪除自己的賬戶。",
+      },
+      userLastAdmin: {
+        title: "不可刪除最後一個 Admin",
+        description: "系統會阻止刪除最後一個 Admin 賬戶，以避免無管理員可用。",
+      },
+      userDeletedLogin: {
+        title: "已刪除員工不可登入",
+        description: "已刪除的員工賬戶維持停用狀態，無法再次登入。",
+      },
+      userCustomerTransfer: {
+        title: "刪除員工時轉移客戶",
+        description:
+          "刪除員工時，其名下的客戶會轉移至執行刪除操作的 Admin 賬戶。",
+      },
+      customerRecycleBin: {
+        title: "刪除客戶進入回收站",
+        description: "客戶刪除採軟刪除，資料會進入回收站而非立即永久刪除。",
+      },
+      customerRetention: {
+        title: "回收站保留 {{days}} 天",
+        description: "已刪除客戶會在回收站保留 {{days}} 天，之後才符合系統清理條件。",
+      },
+      customerRestore: {
+        title: "保留期內可恢復",
+        description: "Admin 可在 {{days}} 天保留期內，從回收站恢復已刪除客戶。",
+      },
+      customerPurge: {
+        title: "超過保留期可清理",
+        description:
+          "超過 {{days}} 天仍留在回收站的客戶，可能由系統清理任務永久刪除。",
+      },
+    },
   },
   aiSettings: {
     title: "AI 設定",

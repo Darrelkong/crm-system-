@@ -11,6 +11,7 @@ import {
   Megaphone,
   ScrollText,
   Settings,
+  Shield,
   Sparkles,
   Tags,
   Trash2,
@@ -38,6 +39,7 @@ export type NavIconId =
   | "recycleBin"
   | "systemSettings"
   | "loginLogs"
+  | "securityPolicies"
   | "backups"
   | "customerImport"
   | "dataExport"
@@ -60,6 +62,7 @@ export const navIcons: Record<NavIconId, LucideIcon> = {
   recycleBin: Trash2,
   systemSettings: Settings,
   loginLogs: ScrollText,
+  securityPolicies: Shield,
   backups: Database,
   customerImport: Upload,
   dataExport: Download,
