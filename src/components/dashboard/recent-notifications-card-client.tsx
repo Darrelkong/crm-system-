@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { useMemo } from "react";
+import { Card, Badge } from "@/components/ui/card";
 import { useTranslation } from "@/i18n/provider";
 import {
   resolveNotificationMessage,
   resolveNotificationTitle,
 } from "@/i18n/resolve-notification-content";
+import {
+  getNotificationCategory,
+  getNotificationTypeLabelKey,
+} from "@/lib/notifications/category";
 import type { NotificationListItem } from "@/lib/notifications/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -48,6 +53,19 @@ function safeResolveMessage(
 export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
   const { t } = useTranslation();
 
+  const sortedItems = useMemo(
+    () =>
+      [...items].sort((a, b) => {
+        if (a.is_read !== b.is_read) {
+          return a.is_read ? 1 : -1;
+        }
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }),
+    [items],
+  );
+
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
@@ -58,20 +76,30 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
           {t("notifications.unreadCount", { count: String(unreadCount) })}
         </span>
       </div>
-      {items.length === 0 ? (
+      {sortedItems.length === 0 ? (
         <p className="text-sm text-[#6B7890]">{t("notifications.noNotifications")}</p>
       ) : (
         <ul className="space-y-2">
-          {items.map((item) => {
+          {sortedItems.map((item) => {
             const href = item.href;
+            const category = getNotificationCategory(item.type);
+            const typeKey = getNotificationTypeLabelKey(item.type);
+            const typeLabel =
+              t(typeKey) === typeKey ? item.type : t(typeKey);
             const inner = (
               <div
                 className={
                   item.is_read
-                    ? "rounded-xl border border-[#E3E8F0] bg-[#F7F9FC] px-3 py-2.5 transition-colors duration-200 hover:bg-[#E8F1FA]"
+                    ? "rounded-xl border border-[#E3E8F0] bg-[#F7F9FC] px-3 py-2.5 transition-colors duration-200 hover:bg-[#EEF3F8]"
                     : "rounded-xl border border-[#C5DAF0] bg-[#E8F1FA] px-3 py-2.5 transition-colors duration-200 hover:bg-[#DCEAF7]"
                 }
               >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="accent">
+                    {t(`notificationCategories.${category}`)}
+                  </Badge>
+                  <span className="text-xs text-[#6B7890]">{typeLabel}</span>
+                </div>
                 <p className="text-sm font-medium text-[#172033]">
                   {safeResolveTitle(t, item)}
                 </p>

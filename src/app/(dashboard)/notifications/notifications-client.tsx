@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/card";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
@@ -10,6 +11,10 @@ import {
   resolveNotificationMessage,
   resolveNotificationTitle,
 } from "@/i18n/resolve-notification-content";
+import {
+  getNotificationCategory,
+  getNotificationTypeLabelKey,
+} from "@/lib/notifications/category";
 import type { NotificationListItem } from "@/lib/notifications/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -117,8 +122,22 @@ export function NotificationsClient({ userRole }: Props) {
   }, [unreadOnly, loadUnreadCount, t]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     void load();
   }, [load]);
+
+  const sortedItems = useMemo(
+    () =>
+      [...items].sort((a, b) => {
+        if (a.is_read !== b.is_read) {
+          return a.is_read ? 1 : -1;
+        }
+        return (
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
+      }),
+    [items],
+  );
 
   async function markRead(id: string) {
     const res = await fetch(`/api/notifications/${id}/read`, {
@@ -181,35 +200,41 @@ export function NotificationsClient({ userRole }: Props) {
         </p>
       ) : (
         <ul className="space-y-3">
-          {items.map((item) => {
+          {sortedItems.map((item) => {
             const href = getHref(item, userRole);
             const actionLabel = getActionLabel(t, item, userRole);
+            const category = getNotificationCategory(item.type);
+            const typeKey = getNotificationTypeLabelKey(item.type);
+            const typeLabel =
+              t(typeKey) === typeKey ? item.type : t(typeKey);
             const row = (
               <div
                 className={cn(
-                  "list-row p-4",
-                  !item.is_read && "border-[#C5DAF0] bg-[#E8F1FA]",
+                  "surface-card p-4 sm:p-5",
+                  !item.is_read
+                    ? "border-[#C5DAF0] bg-[#F7FAFD]"
+                    : "border-[#EEF3F8] bg-[#FAFBFD] opacity-90",
                 )}
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs text-[#6B7890]">
-                      {t("notifications.notificationType")}: {item.type}
-                    </p>
-                    <p className="mt-1 font-medium text-[#172033]">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Badge variant="accent">
+                        {t(`notificationCategories.${category}`)}
+                      </Badge>
+                      <span className="text-xs text-[#6B7890]">{typeLabel}</span>
+                      {!item.is_read && (
+                        <Badge variant="accent">{t("notifications.unread")}</Badge>
+                      )}
+                    </div>
+                    <p className="mt-2 font-medium text-[#172033]">
                       {safeResolveTitle(t, item)}
                     </p>
-                    <p className="mt-1 text-sm text-[#172033]">
+                    <p className="mt-1 text-sm leading-relaxed text-[#3D4A5C]">
                       {safeResolveMessage(t, item)}
                     </p>
                     <p className="mt-2 text-xs text-[#6B7890]">
-                      {t("notifications.notificationTime")}:{" "}
                       {formatCreatedAt(item.created_at)}
-                      {!item.is_read && (
-                        <span className="ml-2 rounded bg-[#E8F1FA] px-1.5 py-0.5 text-[#1F4E79]">
-                          {t("notifications.unread")}
-                        </span>
-                      )}
                     </p>
                     {actionLabel && href && (
                       <p className="mt-2 text-xs link-primary">{actionLabel}</p>
