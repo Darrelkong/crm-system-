@@ -93,7 +93,7 @@ const zhHant: Messages = {
     loginPendingMessage: "系統正在為您安全登入，請稍候。",
     unauthorizedEmailTitle: "無法驗證登入權限",
     unauthorizedEmailMessage:
-      "目前輸入的電郵無法登入本系統。請確認電郵是否正確，或聯繫管理員確認帳戶權限。",
+      "您當前無法登入本系統，請確認電郵是否正確，或聯絡管理員。",
     retryLogin: "重新嘗試",
     ipEmailRestrictedTitle: "登入已被臨時限制",
     ipEmailRestrictedMessage:

@@ -95,7 +95,7 @@ const en = {
       "The system is verifying your sign-in details. Please wait.",
     unauthorizedEmailTitle: "Unable to verify sign-in permission",
     unauthorizedEmailMessage:
-      "The email entered cannot be used to sign in to this system. Please check the email address or contact an administrator to confirm account access.",
+      "You are currently unable to access this system. Please confirm that your email address is correct, or contact an administrator.",
     retryLogin: "Try again",
     ipEmailRestrictedTitle: "Sign-in temporarily restricted",
     ipEmailRestrictedMessage:
