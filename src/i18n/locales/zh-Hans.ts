@@ -169,6 +169,7 @@ const zhHans: Messages = {
   },
   systemStatus: {
     online: "SYSTEM ONLINE",
+    checking: "正在检查",
     degraded: "SYSTEM DEGRADED",
     offline: "SYSTEM OFFLINE",
   },

@@ -1,24 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/i18n/provider";
 import { cn } from "@/lib/cn";
 
-type SystemStatus = "online" | "degraded" | "offline";
+type SystemStatus = "online" | "checking" | "degraded" | "offline";
 
 const POLL_INTERVAL_MS = 45_000;
+const FETCH_TIMEOUT_MS = 7_000;
+/** Two consecutive poll failures (~45s apart) before showing offline. */
+const OFFLINE_AFTER_CONSECUTIVE_FAILURES = 2;
 
-async function fetchSystemStatus(): Promise<SystemStatus> {
+type FetchResult =
+  | { ok: true; status: "online" | "degraded" }
+  | { ok: false };
+
+async function fetchSystemStatus(): Promise<FetchResult> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
   try {
-    const res = await fetch("/api/health", { cache: "no-store" });
-    if (!res.ok) return "offline";
+    const res = await fetch("/api/health", {
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!res.ok) return { ok: false };
 
     const data = (await res.json()) as { status?: string };
-    if (data.status === "ok") return "online";
-    if (data.status === "degraded") return "degraded";
-    return "offline";
+    if (data.status === "ok") return { ok: true, status: "online" };
+    if (data.status === "degraded") return { ok: true, status: "degraded" };
+    return { ok: false };
   } catch {
-    return "offline";
+    return { ok: false };
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
 
@@ -27,6 +42,7 @@ const statusConfig: Record<
   { dot: string; labelKey: string }
 > = {
   online: { dot: "bg-emerald-500", labelKey: "systemStatus.online" },
+  checking: { dot: "bg-slate-400", labelKey: "systemStatus.checking" },
   degraded: { dot: "bg-amber-500", labelKey: "systemStatus.degraded" },
   offline: { dot: "bg-red-500", labelKey: "systemStatus.offline" },
 };
@@ -34,21 +50,52 @@ const statusConfig: Record<
 export function SystemStatusBadge({ className }: { className?: string }) {
   const { t } = useTranslation();
   const [status, setStatus] = useState<SystemStatus>("online");
+  const failureCountRef = useRef(0);
+  const pollInFlightRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function poll() {
-      const next = await fetchSystemStatus();
-      if (!cancelled) setStatus(next);
+      if (pollInFlightRef.current) return;
+      pollInFlightRef.current = true;
+
+      try {
+        const result = await fetchSystemStatus();
+        if (cancelled) return;
+
+        if (result.ok) {
+          failureCountRef.current = 0;
+          setStatus(result.status);
+          return;
+        }
+
+        failureCountRef.current += 1;
+        if (failureCountRef.current >= OFFLINE_AFTER_CONSECUTIVE_FAILURES) {
+          setStatus("offline");
+        } else {
+          setStatus("checking");
+        }
+      } finally {
+        pollInFlightRef.current = false;
+      }
     }
 
     const initial = window.setTimeout(() => void poll(), 0);
-    const id = window.setInterval(() => void poll(), POLL_INTERVAL_MS);
+    const intervalId = window.setInterval(() => void poll(), POLL_INTERVAL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") {
+        void poll();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
     return () => {
       cancelled = true;
       window.clearTimeout(initial);
-      window.clearInterval(id);
+      window.clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

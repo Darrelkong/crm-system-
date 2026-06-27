@@ -169,6 +169,7 @@ const zhHant: Messages = {
   },
   systemStatus: {
     online: "SYSTEM ONLINE",
+    checking: "正在檢查",
     degraded: "SYSTEM DEGRADED",
     offline: "SYSTEM OFFLINE",
   },

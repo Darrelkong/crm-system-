@@ -172,6 +172,7 @@ const en = {
   },
   systemStatus: {
     online: "SYSTEM ONLINE",
+    checking: "CHECKING",
     degraded: "SYSTEM DEGRADED",
     offline: "SYSTEM OFFLINE",
   },
