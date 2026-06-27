@@ -1,4 +1,5 @@
 import { IdleTimeoutProvider } from "@/components/auth/idle-timeout-provider";
+import { NavigationPendingProvider } from "@/components/layout/navigation-pending";
 import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export default async function DashboardGroupLayout({
 }) {
   return (
     <IdleTimeoutProvider idleMinutes={INACTIVITY_LOGOUT_MINUTES}>
-      {children}
+      <NavigationPendingProvider>{children}</NavigationPendingProvider>
     </IdleTimeoutProvider>
   );
 }

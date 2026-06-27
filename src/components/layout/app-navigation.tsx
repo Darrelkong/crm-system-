@@ -12,11 +12,17 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import type { NavGroup, NavLink } from "@/lib/layout/nav-links";
 import { navIcons } from "@/lib/layout/nav-icons";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { AccountMenu } from "@/components/layout/account-menu";
+import {
+  beginNavigationPending,
+  isSameNavTarget,
+  useNavigationPending,
+} from "@/components/layout/navigation-pending";
 
 function NavLinkRow({
   link,
@@ -30,14 +36,24 @@ function NavLinkRow({
   depth?: number;
 }) {
   const { t } = useTranslation();
+  const pathname = usePathname() ?? "";
+  const navigationPending = useNavigationPending();
   const hasChildren = (link.children?.length ?? 0) > 0;
   const childActive = link.children?.some((c) => c.active) ?? false;
   const shouldBeOpen = link.active || childActive;
   const [subOpenOverride, setSubOpenOverride] = useState<boolean | null>(null);
   const subOpen = subOpenOverride ?? shouldBeOpen;
+  const isPending =
+    navigationPending?.pendingHref === link.href &&
+    !isSameNavTarget(link.href, pathname);
 
   const Icon = navIcons[link.icon];
   const label = t(link.labelKey);
+
+  function handleNavigate() {
+    beginNavigationPending(navigationPending, link.href, pathname);
+    onNavigate?.();
+  }
 
   if (hasChildren && !collapsed) {
     return (
@@ -50,10 +66,11 @@ function NavLinkRow({
         >
           <Link
             href={link.href}
-            onClick={onNavigate}
+            onClick={handleNavigate}
             className={cn(
               "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
               link.active ? "nav-active" : "nav-item text-[#6B7890]",
+              isPending && !link.active && "nav-item-pending",
             )}
           >
             <Icon className="h-4 w-4 shrink-0" aria-hidden />
@@ -97,12 +114,13 @@ function NavLinkRow({
     <li>
       <Link
         href={link.href}
-        onClick={onNavigate}
+        onClick={handleNavigate}
         title={collapsed ? label : undefined}
         className={cn(
           "flex items-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-all duration-200",
           collapsed ? "justify-center px-2" : "px-3",
           depth > 0 && !collapsed && "text-sm",
+          isPending && !link.active && "nav-item-pending",
           link.active && !childActive
             ? "nav-active"
             : link.active
@@ -224,6 +242,7 @@ export function MobileBottomNav({
   onMoreClick: () => void;
 }) {
   const { t } = useTranslation();
+  const navigationPending = useNavigationPending();
 
   const icons: Record<string, ComponentType<{ className?: string }>> = {
     dashboard: LayoutDashboard,
@@ -242,6 +261,9 @@ export function MobileBottomNav({
           const isActive =
             !isMore &&
             (activePath === item.href || activePath.startsWith(`${item.href}/`));
+          const isPending =
+            navigationPending?.pendingHref === item.href &&
+            !isSameNavTarget(item.href, activePath);
 
           if (isMore) {
             return (
@@ -262,11 +284,15 @@ export function MobileBottomNav({
             <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
+                onClick={() =>
+                  beginNavigationPending(navigationPending, item.href, activePath)
+                }
                 className={cn(
                   "flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors duration-200",
                   isActive
                     ? "bg-[#2F6FB3] text-white shadow-[0_2px_8px_rgba(47,111,179,0.28)]"
                     : "text-[#6B7890] active:bg-[#E8F1FA]",
+                  isPending && !isActive && "nav-item-pending",
                 )}
               >
                 <Icon className="h-5 w-5" />
