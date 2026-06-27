@@ -58,6 +58,8 @@ const zhHant: Messages = {
     serviceType: "服務類型",
     assignedStaff: "負責員工",
     permission: "權限",
+    prevPage: "上一頁",
+    nextPage: "下一頁",
   },
   auth: {
     signInTitle: "登入",

@@ -58,6 +58,8 @@ const zhHans: Messages = {
     serviceType: "服务类型",
     assignedStaff: "负责员工",
     permission: "权限",
+    prevPage: "上一页",
+    nextPage: "下一页",
   },
   auth: {
     signInTitle: "登录",

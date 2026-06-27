@@ -56,6 +56,8 @@ const en = {
     serviceType: "Service type",
     assignedStaff: "Assigned staff",
     permission: "Permission",
+    prevPage: "Previous",
+    nextPage: "Next",
   },
   auth: {
     signInTitle: "Sign in",

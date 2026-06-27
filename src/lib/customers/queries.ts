@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull, like, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
 const followUpSort = [
@@ -20,6 +21,59 @@ export type CustomerCreatorOption = {
   displayName: string;
   role: string;
 };
+
+export const CUSTOMER_LIST_PAGE_SIZE = 10;
+
+export type CustomerListPaginationMeta = {
+  page: number;
+  pageSize: number;
+  total: number;
+  pageCount: number;
+};
+
+export type PaginatedCustomerListResult = {
+  items: Customer[];
+  pagination: CustomerListPaginationMeta;
+};
+
+export function parseCustomerListPageParams(params: {
+  page?: string | number | null;
+}): { page: number; pageSize: number; offset: number } {
+  const pageSize = CUSTOMER_LIST_PAGE_SIZE;
+  let page = 1;
+
+  if (params.page != null) {
+    const parsed =
+      typeof params.page === "number"
+        ? params.page
+        : Number.parseInt(String(params.page), 10);
+    if (Number.isFinite(parsed) && parsed >= 1) {
+      page = parsed;
+    }
+  }
+
+  return {
+    page,
+    pageSize,
+    offset: (page - 1) * pageSize,
+  };
+}
+
+export function buildCustomerListPagination(
+  total: number,
+  page: number,
+  pageSize: number = CUSTOMER_LIST_PAGE_SIZE,
+): CustomerListPaginationMeta {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const normalizedPage = Math.min(Math.max(page, 1), pageCount);
+
+  return {
+    page: normalizedPage,
+    pageSize,
+    total,
+    pageCount,
+  };
+}
 
 type PermissionScope = "list" | "search";
 
@@ -126,6 +180,15 @@ export async function listCustomerCreatorsForAdmin(
   }));
 }
 
+async function countCustomersWhere(whereClause: SQL | undefined): Promise<number> {
+  const db = getDb();
+  const rows = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.customers)
+    .where(whereClause);
+  return Number(rows[0]?.count ?? 0);
+}
+
 export async function listCustomersForUser(
   user: User,
   filter: CustomerListFilter = {},
@@ -140,6 +203,31 @@ export async function listCustomersForUser(
     .where(whereClause)
     .orderBy(...followUpSort)
     .limit(limit);
+}
+
+export async function listCustomersForUserPaginated(
+  user: User,
+  filter: CustomerListFilter = {},
+  page = 1,
+): Promise<PaginatedCustomerListResult> {
+  const db = getDb();
+  const whereClause = buildListWhere(user, filter);
+  const total = await countCustomersWhere(whereClause);
+  const pagination = buildCustomerListPagination(total, page);
+  const offset = (pagination.page - 1) * pagination.pageSize;
+
+  const items =
+    total === 0
+      ? []
+      : await db
+          .select()
+          .from(schema.customers)
+          .where(whereClause)
+          .orderBy(...followUpSort)
+          .limit(pagination.pageSize)
+          .offset(offset);
+
+  return { items, pagination };
 }
 
 export async function searchCustomersForUser(
@@ -165,6 +253,40 @@ export async function searchCustomersForUser(
     .where(whereClause)
     .orderBy(...followUpSort)
     .limit(limit);
+}
+
+export async function searchCustomersForUserPaginated(
+  user: User,
+  query: string,
+  filter: CustomerListFilter = {},
+  page = 1,
+): Promise<PaginatedCustomerListResult> {
+  const term = query.trim();
+  if (!term) {
+    return listCustomersForUserPaginated(user, filter, page);
+  }
+
+  const db = getDb();
+  const whereClause = combineWhere(
+    buildListWhere(user, filter, "search"),
+    buildSearchWhere(term),
+  );
+  const total = await countCustomersWhere(whereClause);
+  const pagination = buildCustomerListPagination(total, page);
+  const offset = (pagination.page - 1) * pagination.pageSize;
+
+  const items =
+    total === 0
+      ? []
+      : await db
+          .select()
+          .from(schema.customers)
+          .where(whereClause)
+          .orderBy(...followUpSort)
+          .limit(pagination.pageSize)
+          .offset(offset);
+
+  return { items, pagination };
 }
 
 export async function getCustomerById(id: string) {
@@ -198,6 +320,7 @@ export function parseCustomerListFilter(
 export function buildCustomersListQuery(params: {
   status?: "archived";
   createdBy?: string;
+  page?: number;
 }): string {
   const search = new URLSearchParams();
   if (params.status === "archived") {
@@ -205,6 +328,9 @@ export function buildCustomersListQuery(params: {
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);
+  }
+  if (params.page && params.page > 1) {
+    search.set("page", String(params.page));
   }
   const query = search.toString();
   return query ? `?${query}` : "";

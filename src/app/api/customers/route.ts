@@ -7,7 +7,15 @@ import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
-import { listCustomersForUser, searchCustomersForUser, parseCustomerListFilter } from "@/lib/customers/queries";
+import {
+  listCustomersForUser,
+  listCustomersForUserPaginated,
+  searchCustomersForUser,
+  searchCustomersForUserPaginated,
+  parseCustomerListFilter,
+  parseCustomerListPageParams,
+  buildCustomerListPagination,
+} from "@/lib/customers/queries";
 import {
   filterCustomersWithScores,
   getCustomerIdsWithFollowUps,
@@ -31,22 +39,68 @@ export async function GET(request: Request) {
       createdBy: url.searchParams.get("createdBy") ?? undefined,
     });
     const scoringFilter = parseScoringListFilter(url.searchParams);
+    const { page } = parseCustomerListPageParams({
+      page: url.searchParams.get("page"),
+    });
+    const hasScoringFilter =
+      scoringFilter.heat != null || scoringFilter.completenessBelow != null;
 
     const db = getDb();
-    const customers = searchQuery
-      ? await searchCustomersForUser(user, searchQuery, listFilter)
-      : await listCustomersForUser(user, listFilter);
+    const settings = await getEffectiveSettings(db);
+
+    if (hasScoringFilter) {
+      const customers = searchQuery
+        ? await searchCustomersForUser(user, searchQuery, listFilter)
+        : await listCustomersForUser(user, listFilter);
+      const followUpSet = await getCustomerIdsWithFollowUps(
+        db,
+        customers.map((c) => c.id),
+      );
+      const items = filterCustomersWithScores(
+        getCustomersWithScores(user, customers, followUpSet, settings),
+        scoringFilter,
+      );
+      const pagination = buildCustomerListPagination(items.length, page);
+      const offset = (pagination.page - 1) * pagination.pageSize;
+      const pageItems = items.slice(offset, offset + pagination.pageSize);
+      const rows = await buildCustomerListRows(db, pageItems);
+
+      return Response.json({
+        items: rows,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        total: pagination.total,
+        pageCount: pagination.pageCount,
+      });
+    }
+
+    const result = searchQuery
+      ? await searchCustomersForUserPaginated(
+          user,
+          searchQuery,
+          listFilter,
+          page,
+        )
+      : await listCustomersForUserPaginated(user, listFilter, page);
     const followUpSet = await getCustomerIdsWithFollowUps(
       db,
-      customers.map((c) => c.id),
+      result.items.map((c) => c.id),
     );
-    const settings = await getEffectiveSettings(db);
-    const items = filterCustomersWithScores(
-      getCustomersWithScores(user, customers, followUpSet, settings),
-      scoringFilter,
+    const items = getCustomersWithScores(
+      user,
+      result.items,
+      followUpSet,
+      settings,
     );
     const rows = await buildCustomerListRows(db, items);
-    return Response.json({ items: rows, total: rows.length });
+
+    return Response.json({
+      items: rows,
+      page: result.pagination.page,
+      pageSize: result.pagination.pageSize,
+      total: result.pagination.total,
+      pageCount: result.pagination.pageCount,
+    });
   } catch (error) {
     return authErrorResponse(error);
   }

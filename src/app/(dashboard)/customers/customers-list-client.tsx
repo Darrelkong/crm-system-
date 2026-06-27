@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { useTranslation } from "@/i18n/provider";
 import {
   CompletenessBadge,
   HeatBadge,
@@ -12,6 +13,11 @@ import { Badge, EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import { Input, Label, Select } from "@/components/ui/form";
 import { LoadingSpinner } from "@/components/ui/loading";
+import {
+  Pagination,
+  buildCustomerListHref,
+  type PaginationMeta,
+} from "@/components/ui/pagination";
 import { formatHongKongDate } from "@/lib/timezone";
 import {
   DataTable,
@@ -24,20 +30,34 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
-import type { CustomerCreatorOption } from "@/lib/customers/queries";
+import {
+  CUSTOMER_LIST_PAGE_SIZE,
+  type CustomerCreatorOption,
+} from "@/lib/customers/queries";
 
 export type CustomerListRow = CustomerListRowData;
 
 type Props = {
   initialRows: CustomerListRow[];
+  pagination: PaginationMeta;
   showArchived: boolean;
   isAdmin: boolean;
   filterCreatedBy?: string;
   creatorOptions: CustomerCreatorOption[];
+  heatFilter?: string;
+  completenessBelowFilter?: string;
 };
 
 type ApiCustomerItem = CustomerListRow & {
   isArchived?: boolean;
+};
+
+type ApiCustomersResponse = {
+  items?: ApiCustomerItem[];
+  page?: number;
+  pageSize?: number;
+  total?: number;
+  pageCount?: number;
 };
 
 function mapApiItem(item: ApiCustomerItem): CustomerListRow {
@@ -62,35 +82,69 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
 
 export function CustomersListClient({
   initialRows,
+  pagination,
   showArchived,
   isAdmin,
   filterCreatedBy,
   creatorOptions,
+  heatFilter,
+  completenessBelowFilter,
 }: Props) {
   const { t, salesStage, status } = useCustomerLabels();
+  const { t: tCommon } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(null);
+  const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(
+    null,
+  );
+  const [searchPagination, setSearchPagination] = useState<PaginationMeta | null>(
+    null,
+  );
+  const [searchPage, setSearchPage] = useState(1);
   const [searching, setSearching] = useState(false);
 
-  const rows = searchQuery.trim() ? (searchResults ?? initialRows) : initialRows;
+  const isSearchActive = searchQuery.trim().length > 0;
+  const rows = isSearchActive ? (searchResults ?? []) : initialRows;
+  const activePagination = isSearchActive
+    ? (searchPagination ?? pagination)
+    : pagination;
+
+  useEffect(() => {
+    setSearchPage(1);
+  }, [searchQuery, filterCreatedBy, showArchived]);
 
   useEffect(() => {
     const q = searchQuery.trim();
     if (!q) {
+      setSearchResults(null);
+      setSearchPagination(null);
       return;
     }
 
     const handle = window.setTimeout(async () => {
       setSearching(true);
       try {
-        const params = new URLSearchParams({ q });
+        const params = new URLSearchParams({
+          q,
+          page: String(searchPage),
+          pageSize: String(CUSTOMER_LIST_PAGE_SIZE),
+        });
         if (filterCreatedBy) params.set("createdBy", filterCreatedBy);
         if (showArchived) params.set("status", "archived");
+        if (heatFilter) params.set("heat", heatFilter);
+        if (completenessBelowFilter) {
+          params.set("completenessBelow", completenessBelowFilter);
+        }
 
         const res = await fetch(`/api/customers?${params.toString()}`);
-        const data = (await res.json()) as { items?: ApiCustomerItem[] };
+        const data = (await res.json()) as ApiCustomersResponse;
         if (res.ok && data.items) {
           setSearchResults(data.items.map(mapApiItem));
+          setSearchPagination({
+            page: data.page ?? searchPage,
+            pageSize: data.pageSize ?? pagination.pageSize,
+            total: data.total ?? data.items.length,
+            pageCount: data.pageCount ?? 1,
+          });
         }
       } finally {
         setSearching(false);
@@ -100,8 +154,12 @@ export function CustomersListClient({
     return () => window.clearTimeout(handle);
   }, [
     searchQuery,
+    searchPage,
     filterCreatedBy,
     showArchived,
+    heatFilter,
+    completenessBelowFilter,
+    pagination.pageSize,
   ]);
 
   const countKey = showArchived
@@ -112,7 +170,15 @@ export function CustomersListClient({
 
   const clearFiltersHref = showArchived ? "/customers?status=archived" : "/customers";
 
-  const isSearchActive = searchQuery.trim().length > 0;
+  function buildListPageHref(page: number): string {
+    return buildCustomerListHref({
+      page,
+      createdBy: filterCreatedBy,
+      status: showArchived ? "archived" : undefined,
+      heat: heatFilter,
+      completenessBelow: completenessBelowFilter,
+    });
+  }
 
   function ownerLabel(c: CustomerListRow): string {
     if (!c.ownerId || c.status === "public_pool") {
@@ -184,7 +250,9 @@ export function CustomersListClient({
       <PageIntro
         title={showArchived ? t("customers.archivedList") : t("customers.title")}
         description={
-          searching ? t("common.loading") : t(countKey, { count: String(rows.length) })
+          searching
+            ? t("common.loading")
+            : t(countKey, { count: String(activePagination.total) })
         }
         action={
           !showArchived ? (
@@ -262,7 +330,7 @@ export function CustomersListClient({
         </form>
       )}
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && !(isSearchActive && searching) ? (
         <EmptyState
           message={
             isSearchActive
@@ -351,6 +419,15 @@ export function CustomersListClient({
               </TableBody>
             </DataTable>
           </TableShell>
+
+          <Pagination
+            page={activePagination.page}
+            pageCount={activePagination.pageCount}
+            buildHref={isSearchActive ? undefined : buildListPageHref}
+            onPageChange={isSearchActive ? setSearchPage : undefined}
+            prevLabel={tCommon("common.prevPage")}
+            nextLabel={tCommon("common.nextPage")}
+          />
         </>
       )}
     </div>
