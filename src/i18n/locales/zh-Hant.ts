@@ -89,6 +89,16 @@ const zhHant: Messages = {
     accountLocked: "此賬戶已被鎖定，請聯繫管理員處理。",
     accountLockedTitle: "賬戶已鎖定",
     accountLockedAutoClose: "提示將自動關閉",
+    loginPendingTitle: "正在登入，請等待",
+    loginPendingMessage: "系統正在驗證您的登入資訊，請稍候。",
+    unauthorizedEmailTitle: "無法驗證登入權限",
+    unauthorizedEmailMessage:
+      "目前輸入的電郵無法登入本系統。請確認電郵是否正確，或聯繫管理員確認帳戶權限。",
+    retryLogin: "重新嘗試",
+    ipEmailRestrictedTitle: "登入已被臨時限制",
+    ipEmailRestrictedMessage:
+      "您已多次嘗試輸入無法登入本系統的電郵。為保護系統安全，請等待倒計時結束後再重新嘗試。",
+    ipEmailRestrictedCountdownSuffix: "秒後可重新嘗試",
   },
   security: {
     accessExpired:

@@ -9,6 +9,9 @@ import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { AccountLockedModal } from "@/app/(auth)/login/account-locked-modal";
+import { LoginPendingModal } from "@/app/(auth)/login/login-pending-modal";
+import { UnauthorizedEmailModal } from "@/app/(auth)/login/unauthorized-email-modal";
+import { IpEmailRestrictedModal } from "@/app/(auth)/login/ip-email-restricted-modal";
 import { LOGIN_BRAND } from "@/app/(auth)/login/login-copy";
 import {
   redirectToAccessLogout,
@@ -24,6 +27,7 @@ import {
   shouldForceAccessLogoutAfterTimeoutVisit,
   TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD,
 } from "@/lib/auth/timeout-login-visits";
+import { fetchIpEmailRestrictionStatus } from "@/lib/auth/login-ip-restriction-client";
 import "./login-page.css";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
@@ -40,14 +44,43 @@ export function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [accountLockedOpen, setAccountLockedOpen] = useState(false);
+  const [unauthorizedEmailOpen, setUnauthorizedEmailOpen] = useState(false);
+  const [ipRestrictedUntil, setIpRestrictedUntil] = useState<string | null>(
+    null,
+  );
   const processedTimeoutVisitRef = useRef<string | null>(null);
 
   const reasonParam = searchParams.get("reason");
   const sessionEndParam = searchParams.get("session_end");
   const isTimeoutVisit = isTimeoutLoginReason(reasonParam, sessionEndParam);
+  const formDisabled = loading || ipRestrictedUntil != null;
 
   const closeAccountLockedModal = useCallback(() => {
     setAccountLockedOpen(false);
+  }, []);
+
+  const closeUnauthorizedEmailModal = useCallback(() => {
+    setUnauthorizedEmailOpen(false);
+  }, []);
+
+  const clearIpRestriction = useCallback(() => {
+    setIpRestrictedUntil(null);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void (async () => {
+      const status = await fetchIpEmailRestrictionStatus();
+      if (cancelled || !status?.restricted || !status.restrictedUntil) {
+        return;
+      }
+      setIpRestrictedUntil(status.restrictedUntil);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -99,6 +132,10 @@ export function LoginForm() {
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (formDisabled) {
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -117,6 +154,8 @@ export function LoginForm() {
         error?: string;
         errorCode?: string;
         redirect?: string;
+        restrictedUntil?: string;
+        remainingSeconds?: number;
       } = {};
 
       try {
@@ -133,6 +172,16 @@ export function LoginForm() {
         ) {
           setError(t("security.accessExpired"));
           redirectToAccessLogout();
+          return;
+        }
+        if (data.errorCode === "IP_EMAIL_RESTRICTED" && data.restrictedUntil) {
+          setError("");
+          setIpRestrictedUntil(data.restrictedUntil);
+          return;
+        }
+        if (data.errorCode === "UNAUTHORIZED_EMAIL") {
+          setError("");
+          setUnauthorizedEmailOpen(true);
           return;
         }
         if (data.errorCode === "ACCOUNT_LOCKED") {
@@ -177,61 +226,75 @@ export function LoginForm() {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <Field>
-              <Label htmlFor="email">{t("auth.email")}</Label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                required
-                autoComplete="email"
-                placeholder="name@company.com"
-                className="login-page__input"
-              />
-            </Field>
-            <Field>
-              <Label htmlFor="password">{t("auth.password")}</Label>
-              <Input
-                id="password"
-                name="password"
-                type="password"
-                required
-                autoComplete="current-password"
-                placeholder="••••••••"
-                className="login-page__input"
-              />
-            </Field>
+            <fieldset disabled={formDisabled} className="min-w-0 border-0 p-0">
+              <Field>
+                <Label htmlFor="email">{t("auth.email")}</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  required
+                  autoComplete="email"
+                  placeholder="name@company.com"
+                  className="login-page__input"
+                />
+              </Field>
+              <Field>
+                <Label htmlFor="password">{t("auth.password")}</Label>
+                <Input
+                  id="password"
+                  name="password"
+                  type="password"
+                  required
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  className="login-page__input"
+                />
+              </Field>
 
-            {passwordChangedNotice && (
-              <p className="login-page__notice alert-success">
-                {passwordChangedNotice}
-              </p>
-            )}
+              {passwordChangedNotice && (
+                <p className="login-page__notice alert-success">
+                  {passwordChangedNotice}
+                </p>
+              )}
 
-            {sessionEndNotice && (
-              <div className="login-page__notice alert-warning">
-                <p>{sessionEndNotice}</p>
-                {isTimeoutVisit && (
-                  <p className="login-page__notice-hint">
-                    {t("security.timeoutReverifyHint")}
-                  </p>
-                )}
-              </div>
-            )}
+              {sessionEndNotice && (
+                <div className="login-page__notice alert-warning">
+                  <p>{sessionEndNotice}</p>
+                  {isTimeoutVisit && (
+                    <p className="login-page__notice-hint">
+                      {t("security.timeoutReverifyHint")}
+                    </p>
+                  )}
+                </div>
+              )}
 
-            {error && <p className="login-page__error">{error}</p>}
+              {error && <p className="login-page__error">{error}</p>}
 
-            <Button
-              type="submit"
-              className="login-page__submit w-full"
-              disabled={loading}
-            >
-              {loading ? t("auth.signingIn") : t("auth.signIn")}
-            </Button>
+              <Button
+                type="submit"
+                className="login-page__submit w-full"
+                disabled={formDisabled}
+              >
+                {loading ? t("auth.signingIn") : t("auth.signIn")}
+              </Button>
+            </fieldset>
           </form>
         </Card>
       </div>
 
+      <LoginPendingModal open={loading} />
+      <UnauthorizedEmailModal
+        open={unauthorizedEmailOpen}
+        onClose={closeUnauthorizedEmailModal}
+      />
+      {ipRestrictedUntil && (
+        <IpEmailRestrictedModal
+          open
+          restrictedUntil={ipRestrictedUntil}
+          onExpired={clearIpRestriction}
+        />
+      )}
       <AccountLockedModal
         open={accountLockedOpen}
         onClose={closeAccountLockedModal}

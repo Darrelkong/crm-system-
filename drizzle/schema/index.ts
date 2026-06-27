@@ -8,6 +8,7 @@ export * from "./tasks";
 export * from "./audit-logs";
 export * from "./field-change-logs";
 export * from "./login-logs";
+export * from "./login-ip-email-restrictions";
 export * from "./system-settings";
 export * from "./notifications";
 export * from "./reclamation-warning-logs";

@@ -89,6 +89,16 @@ const zhHans: Messages = {
     accountLocked: "此账户已被锁定，请联系管理员处理。",
     accountLockedTitle: "账户已锁定",
     accountLockedAutoClose: "提示将自动关闭",
+    loginPendingTitle: "正在登录，请等待",
+    loginPendingMessage: "系统正在验证您的登录信息，请稍候。",
+    unauthorizedEmailTitle: "无法验证登录权限",
+    unauthorizedEmailMessage:
+      "目前输入的邮箱无法登录本系统。请确认邮箱是否正确，或联系管理员确认账户权限。",
+    retryLogin: "重新尝试",
+    ipEmailRestrictedTitle: "登录已被临时限制",
+    ipEmailRestrictedMessage:
+      "您已多次尝试输入无法登录本系统的邮箱。为保护系统安全，请等待倒计时结束后再重新尝试。",
+    ipEmailRestrictedCountdownSuffix: "秒后可重新尝试",
   },
   security: {
     accessExpired:

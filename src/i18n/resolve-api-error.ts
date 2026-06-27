@@ -38,6 +38,8 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   UNAUTHORIZED: "errors.unauthorized",
   ACCESS_VERIFICATION_EXPIRED: "security.accessExpired",
   ACCOUNT_LOCKED: "auth.accountLocked",
+  UNAUTHORIZED_EMAIL: "auth.unauthorizedEmailMessage",
+  IP_EMAIL_RESTRICTED: "auth.ipEmailRestrictedMessage",
   SESSION_IDLE_EXPIRED: "security.sessionTimedOutReLogin",
   SESSION_REVOKED: "security.sessionRevokedByOtherDevice",
   SESSION_INVALID: "security.sessionInvalidReLogin",

@@ -90,6 +90,17 @@ const en = {
       "This account has been locked. Please contact an administrator.",
     accountLockedTitle: "Account locked",
     accountLockedAutoClose: "This message will close automatically",
+    loginPendingTitle: "Signing in, please wait",
+    loginPendingMessage:
+      "The system is verifying your sign-in details. Please wait.",
+    unauthorizedEmailTitle: "Unable to verify sign-in permission",
+    unauthorizedEmailMessage:
+      "The email entered cannot be used to sign in to this system. Please check the email address or contact an administrator to confirm account access.",
+    retryLogin: "Try again",
+    ipEmailRestrictedTitle: "Sign-in temporarily restricted",
+    ipEmailRestrictedMessage:
+      "Too many attempts were made with emails that cannot sign in to this system. For security, please wait until the countdown ends before trying again.",
+    ipEmailRestrictedCountdownSuffix: "seconds until you can try again",
   },
   security: {
     accessExpired:
