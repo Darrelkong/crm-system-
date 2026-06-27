@@ -1,13 +1,51 @@
 import { and, asc, eq, isNull, like, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import { getBusinessTodayRange } from "@/lib/reports/dates";
+import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
-const followUpSort = [
-  sql`CASE WHEN ${schema.customers.lastValidFollowUpAt} IS NULL THEN 0 ELSE 1 END`,
-  asc(schema.customers.lastValidFollowUpAt),
-  asc(schema.customers.createdAt),
-];
+const DEPRIORITIZED_SALES_STAGES = sql`'closed_won', 'closed_lost', 'on_hold'`;
+const NEVER_FOLLOWED_UP_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+/**
+ * SQL sort buckets (ASC — lower = earlier in list):
+ * 0 overdue | 1 today | 2 long since valid follow-up | 3 never valid, established 3+ days
+ * 4 normal | 5 new without valid follow-up | 6 inactive / closed / on_hold
+ */
+export function buildFollowUpSort(now: Date = new Date()) {
+  const nowIso = now.toISOString();
+  const establishedBeforeIso = new Date(
+    now.getTime() - NEVER_FOLLOWED_UP_AGE_MS,
+  ).toISOString();
+  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
+    now,
+    HONG_KONG_TIMEZONE,
+  );
+  const c = schema.customers;
+
+  return [
+    sql`CASE
+      WHEN ${c.status} = 'inactive'
+        OR ${c.salesStage} IN (${DEPRIORITIZED_SALES_STAGES})
+      THEN 6
+      WHEN ${c.nextFollowUpAt} IS NOT NULL AND ${c.nextFollowUpAt} < ${nowIso} THEN 0
+      WHEN ${c.nextFollowUpAt} IS NOT NULL
+        AND ${c.nextFollowUpAt} >= ${todayStart}
+        AND ${c.nextFollowUpAt} <= ${todayEnd} THEN 1
+      WHEN ${c.lastValidFollowUpAt} IS NOT NULL
+        AND ${c.lastValidFollowUpAt} <= ${establishedBeforeIso} THEN 2
+      WHEN ${c.lastValidFollowUpAt} IS NULL
+        AND ${c.createdAt} <= ${establishedBeforeIso} THEN 3
+      WHEN ${c.lastValidFollowUpAt} IS NULL
+        AND ${c.createdAt} > ${establishedBeforeIso} THEN 5
+      ELSE 4
+    END`,
+    asc(c.nextFollowUpAt),
+    asc(c.lastValidFollowUpAt),
+    asc(c.createdAt),
+  ];
+}
 
 export type CustomerListFilter = {
   /** Admin only: `archived` shows archived customers; default excludes archived. */
@@ -196,12 +234,13 @@ export async function listCustomersForUser(
 ) {
   const db = getDb();
   const whereClause = buildListWhere(user, filter);
+  const orderBy = buildFollowUpSort();
 
   return db
     .select()
     .from(schema.customers)
     .where(whereClause)
-    .orderBy(...followUpSort)
+    .orderBy(...orderBy)
     .limit(limit);
 }
 
@@ -215,6 +254,7 @@ export async function listCustomersForUserPaginated(
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
+  const orderBy = buildFollowUpSort();
 
   const items =
     total === 0
@@ -223,7 +263,7 @@ export async function listCustomersForUserPaginated(
           .select()
           .from(schema.customers)
           .where(whereClause)
-          .orderBy(...followUpSort)
+          .orderBy(...orderBy)
           .limit(pagination.pageSize)
           .offset(offset);
 
@@ -246,12 +286,13 @@ export async function searchCustomersForUser(
     buildListWhere(user, filter, "search"),
     buildSearchWhere(term),
   );
+  const orderBy = buildFollowUpSort();
 
   return db
     .select()
     .from(schema.customers)
     .where(whereClause)
-    .orderBy(...followUpSort)
+    .orderBy(...orderBy)
     .limit(limit);
 }
 
@@ -274,6 +315,7 @@ export async function searchCustomersForUserPaginated(
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
+  const orderBy = buildFollowUpSort();
 
   const items =
     total === 0
@@ -282,7 +324,7 @@ export async function searchCustomersForUserPaginated(
           .select()
           .from(schema.customers)
           .where(whereClause)
-          .orderBy(...followUpSort)
+          .orderBy(...orderBy)
           .limit(pagination.pageSize)
           .offset(offset);
 
