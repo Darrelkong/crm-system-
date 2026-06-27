@@ -139,6 +139,8 @@ export function LoginForm() {
     setLoading(true);
     setError("");
 
+    let keepPendingModal = false;
+
     try {
       const form = new FormData(e.currentTarget);
       const response = await fetch("/api/auth/login", {
@@ -171,6 +173,7 @@ export function LoginForm() {
           !isLocalDevelopmentClient()
         ) {
           setError(t("security.accessExpired"));
+          keepPendingModal = true;
           redirectToAccessLogout();
           return;
         }
@@ -197,12 +200,15 @@ export function LoginForm() {
 
       const redirect =
         data.redirect ?? searchParams.get("redirect") ?? "/";
+      keepPendingModal = true;
       router.push(redirect);
       router.refresh();
     } catch {
       setError(t("common.networkError"));
     } finally {
-      setLoading(false);
+      if (!keepPendingModal) {
+        setLoading(false);
+      }
     }
   }
 

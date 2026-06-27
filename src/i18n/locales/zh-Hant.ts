@@ -90,7 +90,7 @@ const zhHant: Messages = {
     accountLockedTitle: "賬戶已鎖定",
     accountLockedAutoClose: "提示將自動關閉",
     loginPendingTitle: "正在登入，請等待",
-    loginPendingMessage: "系統正在驗證您的登入資訊，請稍候。",
+    loginPendingMessage: "系統正在為您安全登入，請稍候。",
     unauthorizedEmailTitle: "無法驗證登入權限",
     unauthorizedEmailMessage:
       "目前輸入的電郵無法登入本系統。請確認電郵是否正確，或聯繫管理員確認帳戶權限。",
