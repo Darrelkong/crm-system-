@@ -282,6 +282,8 @@ const en = {
     clientName: "Client Name",
     uniqueIdentifier: "Unique identifier",
     projectName: "Project Name",
+    filterCreatedBy: "Created by",
+    allCreators: "All creators",
     englishName: "English Name",
     clientType: "Client Type",
     phone: "Phone",

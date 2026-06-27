@@ -1,7 +1,11 @@
 export const dynamic = "force-dynamic";
 
 import { requireAuth } from "@/lib/permissions/auth";
-import { listCustomersForUser } from "@/lib/customers/queries";
+import {
+  listCustomerCreatorsForAdmin,
+  listCustomersForUser,
+  parseCustomerListFilter,
+} from "@/lib/customers/queries";
 import {
   filterCustomersWithScores,
   getCustomerIdsWithFollowUps,
@@ -19,19 +23,18 @@ type Props = {
     status?: string;
     heat?: string;
     completenessBelow?: string;
+    createdBy?: string;
   }>;
 };
 
 export default async function CustomersPage({ searchParams }: Props) {
   const user = await requireAuth();
   const params = await searchParams;
-  const showArchived = user.role === "admin" && params.status === "archived";
+  const listFilter = parseCustomerListFilter(user, params);
+  const showArchived = listFilter.status === "archived";
 
   const db = getDb();
-  const customers = await listCustomersForUser(
-    user,
-    showArchived ? { status: "archived" } : {},
-  );
+  const customers = await listCustomersForUser(user, listFilter);
   const followUpSet = await getCustomerIdsWithFollowUps(
     db,
     customers.map((c) => c.id),
@@ -55,18 +58,21 @@ export default async function CustomersPage({ searchParams }: Props) {
     scoringFilter,
   );
 
-  const baseQuery = showArchived ? "?status=archived" : "";
-
   const initialRows = await buildCustomerListRows(db, views);
+  const creatorOptions =
+    user.role === "admin"
+      ? await listCustomerCreatorsForAdmin(
+          showArchived ? { status: "archived" } : {},
+        )
+      : [];
 
   return (
     <CustomersListClient
       initialRows={initialRows}
       showArchived={showArchived}
       isAdmin={user.role === "admin"}
-      filterHeat={params.heat}
-      filterCompletenessBelow={params.completenessBelow}
-      baseQuery={baseQuery}
+      filterCreatedBy={listFilter.createdBy}
+      creatorOptions={creatorOptions}
     />
   );
 }

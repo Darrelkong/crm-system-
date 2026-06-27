@@ -277,6 +277,8 @@ const zhHans: Messages = {
     clientName: "客户姓名",
     uniqueIdentifier: "唯一识别代码",
     projectName: "项目名称",
+    filterCreatedBy: "创建员工",
+    allCreators: "全部创建员工",
     englishName: "英文姓名",
     clientType: "客户类型",
     phone: "电话",

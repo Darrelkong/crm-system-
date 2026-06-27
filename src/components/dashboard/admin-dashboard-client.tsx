@@ -158,7 +158,7 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
           value={stats.lowCompletenessCustomers}
           variant="warning"
           hint={
-            <Link href="/customers?completenessBelow=60" className={linkClass}>
+            <Link href="/customers" className={linkClass}>
               {t("dashboard.completenessBelow60")}
             </Link>
           }

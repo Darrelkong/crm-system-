@@ -277,6 +277,8 @@ const zhHant: Messages = {
     clientName: "客戶姓名",
     uniqueIdentifier: "唯一識別代碼",
     projectName: "項目名稱",
+    filterCreatedBy: "創建員工",
+    allCreators: "全部創建員工",
     englishName: "英文姓名",
     clientType: "客戶類型",
     phone: "電話",

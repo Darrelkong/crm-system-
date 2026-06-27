@@ -107,7 +107,7 @@ export function StaffDashboardClient({ stats }: { stats: StaffDashboardStats }) 
           value={stats.myLowCompletenessCustomers}
           variant="warning"
           hint={
-            <Link href="/customers?completenessBelow=60" className={linkClass}>
+            <Link href="/customers" className={linkClass}>
               {t("dashboard.completenessBelow60")}
             </Link>
           }

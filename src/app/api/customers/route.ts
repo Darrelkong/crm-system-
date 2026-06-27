@@ -7,7 +7,7 @@ import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
-import { listCustomersForUser, searchCustomersForUser } from "@/lib/customers/queries";
+import { listCustomersForUser, searchCustomersForUser, parseCustomerListFilter } from "@/lib/customers/queries";
 import {
   filterCustomersWithScores,
   getCustomerIdsWithFollowUps,
@@ -26,16 +26,16 @@ export async function GET(request: Request) {
     const url = new URL(request.url);
     const statusParam = url.searchParams.get("status");
     const searchQuery = url.searchParams.get("q")?.trim() ?? "";
-    const filter =
-      user.role === "admin" && statusParam === "archived"
-        ? { status: "archived" as const }
-        : {};
+    const listFilter = parseCustomerListFilter(user, {
+      status: statusParam ?? undefined,
+      createdBy: url.searchParams.get("createdBy") ?? undefined,
+    });
     const scoringFilter = parseScoringListFilter(url.searchParams);
 
     const db = getDb();
     const customers = searchQuery
-      ? await searchCustomersForUser(user, searchQuery, filter)
-      : await listCustomersForUser(user, filter);
+      ? await searchCustomersForUser(user, searchQuery, listFilter)
+      : await listCustomersForUser(user, listFilter);
     const followUpSet = await getCustomerIdsWithFollowUps(
       db,
       customers.map((c) => c.id),

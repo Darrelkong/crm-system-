@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
-import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
+import type { CustomerCreatorOption } from "@/lib/customers/queries";
 
 export type CustomerListRow = CustomerListRowData;
 
@@ -32,9 +32,8 @@ type Props = {
   initialRows: CustomerListRow[];
   showArchived: boolean;
   isAdmin: boolean;
-  filterHeat?: string;
-  filterCompletenessBelow?: string;
-  baseQuery: string;
+  filterCreatedBy?: string;
+  creatorOptions: CustomerCreatorOption[];
 };
 
 type ApiCustomerItem = CustomerListRow & {
@@ -65,11 +64,10 @@ export function CustomersListClient({
   initialRows,
   showArchived,
   isAdmin,
-  filterHeat,
-  filterCompletenessBelow,
-  baseQuery,
+  filterCreatedBy,
+  creatorOptions,
 }: Props) {
-  const { t, salesStage, status, heatLevel } = useCustomerLabels();
+  const { t, salesStage, status } = useCustomerLabels();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -86,10 +84,7 @@ export function CustomersListClient({
       setSearching(true);
       try {
         const params = new URLSearchParams({ q });
-        if (filterHeat) params.set("heat", filterHeat);
-        if (filterCompletenessBelow) {
-          params.set("completenessBelow", filterCompletenessBelow);
-        }
+        if (filterCreatedBy) params.set("createdBy", filterCreatedBy);
         if (showArchived) params.set("status", "archived");
 
         const res = await fetch(`/api/customers?${params.toString()}`);
@@ -105,8 +100,7 @@ export function CustomersListClient({
     return () => window.clearTimeout(handle);
   }, [
     searchQuery,
-    filterHeat,
-    filterCompletenessBelow,
+    filterCreatedBy,
     showArchived,
   ]);
 
@@ -115,6 +109,8 @@ export function CustomersListClient({
     : isAdmin
       ? "customers.countAdmin"
       : "customers.countStaff";
+
+  const clearFiltersHref = showArchived ? "/customers?status=archived" : "/customers";
 
   const isSearchActive = searchQuery.trim().length > 0;
 
@@ -229,40 +225,35 @@ export function CustomersListClient({
         />
       </div>
 
-      {!showArchived && (
+      {isAdmin && (
         <form
           method="get"
           className="surface-card mb-4 flex flex-col gap-4 p-4 sm:flex-row sm:flex-wrap sm:items-end"
         >
-          <div className="min-w-[140px] flex-1">
-            <Label htmlFor="heat">{t("customers.heatLevel")}</Label>
-            <Select id="heat" name="heat" defaultValue={filterHeat ?? ""}>
-              <option value="">{t("common.all")}</option>
-              {HEAT_LEVELS.map((level) => (
-                <option key={level} value={level}>
-                  {heatLevel(level)}
+          {showArchived && (
+            <input type="hidden" name="status" value="archived" />
+          )}
+          <div className="min-w-[180px] flex-1">
+            <Label htmlFor="createdBy">{t("customers.filterCreatedBy")}</Label>
+            <Select
+              id="createdBy"
+              name="createdBy"
+              defaultValue={filterCreatedBy ?? ""}
+            >
+              <option value="">{t("customers.allCreators")}</option>
+              {creatorOptions.map((creator) => (
+                <option key={creator.id} value={creator.id}>
+                  {creator.displayName}
                 </option>
               ))}
             </Select>
           </div>
-          <div className="w-full sm:w-32">
-            <Label htmlFor="completenessBelow">{t("customers.completenessBelow")}</Label>
-            <Input
-              id="completenessBelow"
-              name="completenessBelow"
-              type="number"
-              min={0}
-              max={100}
-              placeholder="60"
-              defaultValue={filterCompletenessBelow ?? ""}
-            />
-          </div>
           <Button type="submit" variant="secondary">
             {t("common.filter")}
           </Button>
-          {(filterHeat || filterCompletenessBelow) && (
+          {filterCreatedBy && (
             <Link
-              href={`/customers${baseQuery}`}
+              href={clearFiltersHref}
               className="text-sm text-[#6B7890] hover:underline sm:mb-2"
             >
               {t("customers.clearFilters")}
