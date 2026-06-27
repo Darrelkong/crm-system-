@@ -280,6 +280,8 @@ const en = {
     addClient: "Add Client",
     editClient: "Edit Client",
     clientName: "Client Name",
+    uniqueIdentifier: "Unique identifier",
+    projectName: "Project Name",
     englishName: "English Name",
     clientType: "Client Type",
     phone: "Phone",

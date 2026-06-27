@@ -275,6 +275,8 @@ const zhHans: Messages = {
     addClient: "新增客户",
     editClient: "编辑客户",
     clientName: "客户姓名",
+    uniqueIdentifier: "唯一识别代码",
+    projectName: "项目名称",
     englishName: "英文姓名",
     clientType: "客户类型",
     phone: "电话",

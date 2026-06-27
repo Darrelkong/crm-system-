@@ -60,6 +60,7 @@ export type CustomerDetailView = {
 
 type Props = {
   view: CustomerDetailView;
+  isAdmin: boolean;
   followUps: FollowUpRow[];
   timelineItems: TimelineItem[];
   timelineAccessLevel: "full" | "masked" | "archived_basic";
@@ -98,6 +99,7 @@ function SectionCard({
 
 export function CustomerDetailClient({
   view,
+  isAdmin,
   followUps,
   timelineItems,
   timelineAccessLevel,
@@ -124,11 +126,6 @@ export function CustomerDetailClient({
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          {view.customerCode && (
-            <p className="font-mono text-sm font-semibold tracking-wide text-[#2F6FB3]">
-              {view.customerCode}
-            </p>
-          )}
           <h2 className="page-title text-2xl sm:text-3xl">{view.customerName}</h2>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge>{status(view.status)}</Badge>
@@ -182,6 +179,12 @@ export function CustomerDetailClient({
           <SectionCard title={t("customers.basicInfo")}>
             <dl>
               <DetailRow label={t("customers.clientName")} value={view.customerName} />
+              {isAdmin && view.customerCode && (
+                <DetailRow
+                  label={t("customers.uniqueIdentifier")}
+                  value={view.customerCode}
+                />
+              )}
               <DetailRow
                 label={t("customers.clientType")}
                 value={customerType(view.customerType)}

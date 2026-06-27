@@ -22,25 +22,11 @@ import {
   Th,
   Tr,
 } from "@/components/ui/table";
-import type { HeatLevel } from "@/lib/customers/scoring/types";
+import type { CustomerListRowData } from "@/lib/customers/list-rows";
+import { formatProjectNameForList } from "@/lib/customers/list-rows";
 import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
 
-export type CustomerListRow = {
-  id: string;
-  customerCode?: string | null;
-  customerName: string;
-  customerType: string;
-  source: string;
-  salesStage: string;
-  status: string;
-  heatLevel: HeatLevel;
-  completenessScore: number;
-  neverContacted: boolean;
-  overdueFollowUp: boolean;
-  isArchived: boolean;
-  isMasked: boolean;
-  createdAt: string;
-};
+export type CustomerListRow = CustomerListRowData;
 
 type Props = {
   initialRows: CustomerListRow[];
@@ -60,8 +46,9 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     id: item.id,
     customerCode: item.customerCode,
     customerName: item.customerName,
-    customerType: item.customerType,
-    source: item.source,
+    ownerId: item.ownerId ?? null,
+    ownerName: item.ownerName ?? null,
+    requestedProjectName: item.requestedProjectName,
     salesStage: item.salesStage,
     status: item.status,
     heatLevel: item.heatLevel,
@@ -82,7 +69,7 @@ export function CustomersListClient({
   filterCompletenessBelow,
   baseQuery,
 }: Props) {
-  const { t, source, salesStage, status, customerType, heatLevel } = useCustomerLabels();
+  const { t, salesStage, status, heatLevel } = useCustomerLabels();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(null);
   const [searching, setSearching] = useState(false);
@@ -131,20 +118,57 @@ export function CustomersListClient({
 
   const isSearchActive = searchQuery.trim().length > 0;
 
+  function ownerLabel(c: CustomerListRow): string {
+    if (!c.ownerId || c.status === "public_pool") {
+      return t("customers.statusPublicPool");
+    }
+    if (c.ownerName?.trim()) {
+      return c.ownerName;
+    }
+    return t("customers.unknownStaff");
+  }
+
+  function CustomerNameLink({ c }: { c: CustomerListRow }) {
+    const title =
+      isAdmin && c.customerCode ? c.customerCode : undefined;
+
+    return (
+      <Link
+        href={`/customers/${c.id}`}
+        className="font-medium text-[#2F6FB3] hover:underline"
+        title={title}
+      >
+        {c.customerName}
+      </Link>
+    );
+  }
+
+  function ProjectNameCell({ name }: { name?: string | null }) {
+    const { display, title } = formatProjectNameForList(name);
+    return (
+      <span className="text-[#172033]" title={title}>
+        {display}
+      </span>
+    );
+  }
+
   function CustomerMobileCard({ c }: { c: CustomerListRow }) {
+    const project = formatProjectNameForList(c.requestedProjectName);
+
     return (
       <Link
         href={`/customers/${c.id}`}
         className="interactive-card block p-4 active:scale-[0.99]"
+        title={isAdmin && c.customerCode ? c.customerCode : undefined}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            {c.customerCode && (
-              <p className="font-mono text-xs text-[#6B7890]">{c.customerCode}</p>
-            )}
             <p className="truncate font-semibold text-[#172033]">{c.customerName}</p>
             <p className="mt-1 text-xs text-[#6B7890]">
-              {customerType(c.customerType)} · {salesStage(c.salesStage)}
+              {ownerLabel(c)} · {salesStage(c.salesStage)}
+            </p>
+            <p className="mt-0.5 text-xs text-[#6B7890]" title={project.title}>
+              {project.display}
             </p>
           </div>
           <HeatBadge level={c.heatLevel} />
@@ -277,8 +301,8 @@ export function CustomersListClient({
               <TableHead>
                 <tr>
                   <Th>{t("customers.clientName")}</Th>
-                  <Th>{t("customers.type")}</Th>
-                  <Th>{t("customers.source")}</Th>
+                  <Th>{t("customers.assignedStaff")}</Th>
+                  <Th>{t("customers.projectName")}</Th>
                   <Th>{t("customers.salesStage")}</Th>
                   <Th>{t("customers.status")}</Th>
                   <Th>{t("customers.heatLevel")}</Th>
@@ -292,24 +316,12 @@ export function CustomersListClient({
                 {rows.map((c) => (
                   <Tr key={c.id}>
                     <Td>
-                      <Link
-                        href={`/customers/${c.id}`}
-                        className="font-medium text-[#2F6FB3] hover:underline"
-                      >
-                        {c.customerCode ? (
-                          <>
-                            <span className="mr-2 font-mono text-xs text-[#6B7890]">
-                              {c.customerCode}
-                            </span>
-                            {c.customerName}
-                          </>
-                        ) : (
-                          c.customerName
-                        )}
-                      </Link>
+                      <CustomerNameLink c={c} />
                     </Td>
-                    <Td>{customerType(c.customerType)}</Td>
-                    <Td>{source(c.source)}</Td>
+                    <Td className="text-[#172033]">{ownerLabel(c)}</Td>
+                    <Td>
+                      <ProjectNameCell name={c.requestedProjectName} />
+                    </Td>
                     <Td>{salesStage(c.salesStage)}</Td>
                     <Td>
                       <Badge>{status(c.status)}</Badge>

@@ -12,6 +12,7 @@ import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getDb } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
+import { buildCustomerListRows } from "@/lib/customers/list-rows";
 
 type Props = {
   searchParams: Promise<{
@@ -56,24 +57,11 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   const baseQuery = showArchived ? "?status=archived" : "";
 
+  const initialRows = await buildCustomerListRows(db, views);
+
   return (
     <CustomersListClient
-      initialRows={views.map((c) => ({
-        id: c.id,
-        customerCode: c.customerCode,
-        customerName: c.customerName,
-        customerType: c.customerType,
-        source: c.source,
-        salesStage: c.salesStage,
-        status: c.status,
-        heatLevel: c.heatLevel,
-        completenessScore: c.completenessScore,
-        neverContacted: c.neverContacted,
-        overdueFollowUp: c.overdueFollowUp,
-        isArchived: !!c.isArchived,
-        isMasked: !!c.isMasked,
-        createdAt: c.createdAt,
-      }))}
+      initialRows={initialRows}
       showArchived={showArchived}
       isAdmin={user.role === "admin"}
       filterHeat={params.heat}

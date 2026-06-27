@@ -275,6 +275,8 @@ const zhHant: Messages = {
     addClient: "新增客戶",
     editClient: "編輯客戶",
     clientName: "客戶姓名",
+    uniqueIdentifier: "唯一識別代碼",
+    projectName: "項目名稱",
     englishName: "英文姓名",
     clientType: "客戶類型",
     phone: "電話",

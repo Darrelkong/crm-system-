@@ -18,6 +18,7 @@ import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
+import { buildCustomerListRows } from "@/lib/customers/list-rows";
 
 export async function GET(request: Request) {
   try {
@@ -44,7 +45,8 @@ export async function GET(request: Request) {
       getCustomersWithScores(user, customers, followUpSet, settings),
       scoringFilter,
     );
-    return Response.json({ items, total: items.length });
+    const rows = await buildCustomerListRows(db, items);
+    return Response.json({ items: rows, total: rows.length });
   } catch (error) {
     return authErrorResponse(error);
   }

@@ -86,7 +86,6 @@ export function getAdminNavGroups(activeHref?: string): NavGroup[] {
       links: [
         { href: dash, labelKey: "nav.dashboard", icon: "dashboard", mobilePrimary: true },
         { href: "/customers", labelKey: "nav.customers", icon: "customers", mobilePrimary: true },
-        { href: "/customers/new", labelKey: "nav.addCustomer", icon: "addCustomer" },
         { href: "/follow-ups", labelKey: "nav.followUps", icon: "followUps" },
         { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
       ],
@@ -141,7 +140,6 @@ export function getStaffNavGroups(activeHref?: string): NavGroup[] {
       links: [
         { href: dash, labelKey: "nav.dashboard", icon: "dashboard", mobilePrimary: true },
         { href: "/customers", labelKey: "nav.customers", icon: "customers", mobilePrimary: true },
-        { href: "/customers/new", labelKey: "nav.addCustomer", icon: "addCustomer" },
         { href: "/follow-ups", labelKey: "nav.followUps", icon: "followUps" },
         { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
       ],

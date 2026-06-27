@@ -72,9 +72,10 @@ export default async function CustomerDetailPage({ params }: Props) {
 
   return (
     <CustomerDetailClient
+      isAdmin={user.role === "admin"}
       view={{
         id: view.id,
-        customerCode: view.customerCode,
+        customerCode: user.role === "admin" ? view.customerCode : undefined,
         customerName: view.customerName,
         customerType: view.customerType,
         salesStage: view.salesStage,

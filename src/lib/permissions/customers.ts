@@ -314,7 +314,6 @@ export function getCustomerFollowUpMeta(
 export function maskCustomerForStaff(customer: Customer): CustomerView {
   return {
     id: customer.id,
-    customerCode: customer.customerCode,
     customerName: customer.customerName,
     customerType: customer.customerType,
     salesStage: customer.salesStage,
@@ -377,20 +376,29 @@ export function formatCustomerForUser(
   if (level === "full") {
     const view = toCustomerFullView(customer);
     if (isArchivedCustomer(customer)) {
-      return { ...view, isArchived: true };
+      return withCustomerCodeVisibility(user, { ...view, isArchived: true });
     }
-    return view;
+    return withCustomerCodeVisibility(user, view);
   }
 
   if (level === "archived_basic") {
-    return {
+    return withCustomerCodeVisibility(user, {
       ...maskCustomerForStaff(customer),
       isArchived: true,
       accessLevel: "archived_basic",
-    };
+    });
   }
 
-  return maskCustomerForStaff(customer);
+  return withCustomerCodeVisibility(user, maskCustomerForStaff(customer));
+}
+
+function withCustomerCodeVisibility(user: User, view: CustomerView): CustomerView {
+  if (user.role === "admin") {
+    return view;
+  }
+  const { customerCode, ...rest } = view;
+  void customerCode;
+  return rest;
 }
 
 /**
