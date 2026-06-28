@@ -17,6 +17,12 @@ import {
 import { findPendingApproval, getApprovalById } from "./queries";
 import type { ApprovalRequestInput } from "./validation";
 import { validateApprovalRequestInput } from "./validation";
+import {
+  buildOnHoldCreateApprovedAuditMetadata,
+  buildOnHoldCreateApprovedCustomerUpdate,
+  buildOnHoldCreateRejectedAuditMetadata,
+  resolveOnHoldReasonFromApproval,
+} from "@/lib/customers/pending-on-hold-access";
 
 type AuditMeta = {
   ipAddress?: string | null;
@@ -344,7 +350,101 @@ async function executeApprovedAction(
       );
       break;
     }
+
+    case "create_on_hold_customer": {
+      const onHoldReason = resolveOnHoldReasonFromApproval(approval);
+      const requester = await getUserById(approval.requestedBy);
+      const approvedUpdate = buildOnHoldCreateApprovedCustomerUpdate(now);
+
+      await db
+        .update(schema.customers)
+        .set({
+          ...approvedUpdate,
+          updatedBy: reviewer.id,
+        })
+        .where(eq(schema.customers.id, customer.id));
+
+      await writeFieldChangeLogEntry(
+        customer.id,
+        "sales_stage",
+        customer.salesStage,
+        "on_hold",
+        reviewer.id,
+      );
+
+      await writeAuditLog(
+        {
+          userId: reviewer.id,
+          action: APPROVAL_AUDIT_ACTIONS.customerOnHoldCreateApproved,
+          entityType: "customer",
+          entityId: customer.id,
+          metadata: buildOnHoldCreateApprovedAuditMetadata({
+            approvalId: approval.id,
+            customerName: customer.customerName,
+            requestedBy: approval.requestedBy,
+            requestedByName: requester?.displayName ?? approval.requestedBy,
+            onHoldReason,
+          }),
+        },
+        db,
+      );
+      break;
+    }
   }
+}
+
+async function executeRejectedAction(
+  db: Database,
+  approval: Approval,
+  customer: Customer,
+  reviewer: User,
+  adminComment?: string,
+): Promise<void> {
+  if (approval.requestType !== "create_on_hold_customer") {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  const rejectReason =
+    adminComment?.trim() ||
+    approval.reason?.trim() ||
+    "create_on_hold_customer rejected";
+
+  await db
+    .update(schema.customers)
+    .set({
+      status: "archived",
+      deletedAt: now,
+      deletedBy: reviewer.id,
+      deletedReason: rejectReason,
+      updatedBy: reviewer.id,
+      updatedAt: now,
+    })
+    .where(eq(schema.customers.id, customer.id));
+
+  await writeFieldChangeLogEntry(
+    customer.id,
+    "status",
+    customer.status,
+    "archived",
+    reviewer.id,
+  );
+
+  await writeAuditLog(
+    {
+      userId: reviewer.id,
+      action: APPROVAL_AUDIT_ACTIONS.customerOnHoldCreateRejected,
+      entityType: "customer",
+      entityId: customer.id,
+      metadata: buildOnHoldCreateRejectedAuditMetadata({
+        approvalId: approval.id,
+        customerName: customer.customerName,
+        requestedBy: approval.requestedBy,
+        adminComment,
+      }),
+    },
+    db,
+  );
 }
 
 export async function createApprovalRequest(
@@ -558,6 +658,8 @@ export async function rejectApprovalRequest(
       updatedAt: now,
     })
     .where(eq(schema.approvals.id, approvalId));
+
+  await executeRejectedAction(db, approval, customer, reviewer, adminComment);
 
   await writeAuditLog({
     userId: reviewer.id,

@@ -7,6 +7,8 @@ import {
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
+import { getDb } from "@/lib/db";
+import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { releaseCustomerToPool } from "@/lib/public-pool/service";
 import { getRequestMeta } from "@/lib/auth/cookies";
@@ -22,6 +24,12 @@ export async function POST(request: Request, context: RouteContext) {
     const customer = await getCustomerById(id);
     if (!customer) {
       return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const pendingBlock = await blockPendingOnHoldCreateCustomer(db, id);
+    if (pendingBlock) {
+      return pendingBlock;
     }
 
     try {

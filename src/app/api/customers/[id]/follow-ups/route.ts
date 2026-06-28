@@ -10,6 +10,7 @@ import {
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
+import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { validateFollowUpInput } from "@/lib/follow-ups/validation";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
@@ -58,6 +59,12 @@ export async function GET(request: Request, context: RouteContext) {
       return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
     }
 
+    const db = getDb();
+    const pendingBlock = await blockPendingOnHoldCreateCustomer(db, id);
+    if (pendingBlock) {
+      return pendingBlock;
+    }
+
     try {
       assertCanViewFollowUps(user, customer);
     } catch (err) {
@@ -91,6 +98,12 @@ export async function POST(request: Request, context: RouteContext) {
     const customer = await getCustomerById(id);
     if (!customer) {
       return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
+    }
+
+    const db = getDb();
+    const pendingBlock = await blockPendingOnHoldCreateCustomer(db, id);
+    if (pendingBlock) {
+      return pendingBlock;
     }
 
     try {
@@ -145,7 +158,6 @@ export async function POST(request: Request, context: RouteContext) {
     const nextFollowUpAt = input.nextFollowUpAt!.trim();
     const now = new Date().toISOString();
     const followUpId = crypto.randomUUID();
-    const db = getDb();
 
     await db.insert(schema.followUps).values({
       id: followUpId,

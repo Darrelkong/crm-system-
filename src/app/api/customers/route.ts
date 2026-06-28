@@ -27,6 +27,18 @@ import { getRequestMeta } from "@/lib/auth/cookies";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
+import {
+  buildOnHoldCreateApprovalPayload,
+  isStaffOnHoldCreatePending,
+  resolvePersistedSalesStageForCreate,
+  validateOnHoldReason,
+} from "@/lib/customers/on-hold-create-pending";
+import {
+  createApprovalRequest,
+  approvalErrorResponse,
+  ApprovalError,
+} from "@/lib/approvals/service";
+import { getCustomerById } from "@/lib/customers/queries";
 
 export async function GET(request: Request) {
   try {
@@ -171,6 +183,51 @@ export async function POST(request: Request) {
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const customerCode = await allocateCustomerCode(db);
+    const requestedSalesStage = createInput.salesStage!;
+    const pendingOnHoldApproval = isStaffOnHoldCreatePending(
+      user.role,
+      requestedSalesStage,
+    );
+
+    let validatedOnHoldReason: string | undefined;
+    if (pendingOnHoldApproval) {
+      const reasonValidation = validateOnHoldReason(body.onHoldReason);
+      if (!reasonValidation.ok) {
+        await writeAuditLog({
+          userId: user.id,
+          action: "customer.create_failed.validation",
+          ipAddress,
+          userAgent,
+          metadata: {
+            errorCode: reasonValidation.errorCode,
+            field: "onHoldReason",
+          },
+        });
+        return Response.json(
+          {
+            error: "输入校验失败",
+            errorCode: reasonValidation.errorCode,
+            fieldErrors: [
+              {
+                field: "onHoldReason",
+                code: reasonValidation.errorCode,
+                message:
+                  reasonValidation.errorCode === "ON_HOLD_REASON_REQUIRED"
+                    ? "请填写搁置申请理由"
+                    : "搁置申请理由至少需要 8 个字",
+              },
+            ],
+          },
+          { status: 400 },
+        );
+      }
+      validatedOnHoldReason = reasonValidation.value;
+    }
+
+    const persistedSalesStage = resolvePersistedSalesStageForCreate(
+      user.role,
+      requestedSalesStage,
+    );
 
     const payload = buildCustomerUpdatePayload({
       customerName: createInput.customerName!,
@@ -183,7 +240,7 @@ export async function POST(request: Request) {
       sourceRemark: createInput.sourceRemark ?? null,
       requestedProjectName: createInput.requestedProjectName ?? null,
       notes: createInput.notes ?? null,
-      salesStage: createInput.salesStage!,
+      salesStage: persistedSalesStage,
       status: "active",
     });
 
@@ -209,6 +266,65 @@ export async function POST(request: Request) {
       updatedAt: now,
     });
 
+    if (pendingOnHoldApproval) {
+      const customer = await getCustomerById(id);
+      if (!customer) {
+        return Response.json(
+          { error: "服务器错误", errorCode: "SERVER_ERROR" },
+          { status: 500 },
+        );
+      }
+
+      const { id: approvalId } = await createApprovalRequest(
+        customer,
+        user,
+        {
+          requestType: "create_on_hold_customer",
+          reason: validatedOnHoldReason!,
+          payload: buildOnHoldCreateApprovalPayload({
+            requestedSalesStage,
+            onHoldReason: validatedOnHoldReason!,
+            customerName: createInput.customerName!,
+            customerType: createInput.customerType!,
+            phoneCountryCode: createInput.phoneCountryCode!,
+            phone: createInput.phone,
+            wechatId: createInput.wechatId,
+            email: createInput.email,
+            source: createInput.source!,
+            sourceRemark: createInput.sourceRemark,
+            requestedProjectName: createInput.requestedProjectName,
+            notes: createInput.notes,
+          }),
+        },
+        { ipAddress, userAgent },
+      );
+
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.create_on_hold.pending",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: {
+          customerName: createInput.customerName,
+          customerCode,
+          approvalId,
+          requestedSalesStage,
+        },
+      });
+
+      return Response.json(
+        {
+          ok: true,
+          pendingApproval: true,
+          approvalId,
+          message: "ON_HOLD_APPROVAL_REQUIRED",
+        },
+        { status: 201 },
+      );
+    }
+
     await writeAuditLog({
       userId: user.id,
       action: "customer.created",
@@ -226,6 +342,9 @@ export async function POST(request: Request) {
 
     return Response.json({ ok: true, id }, { status: 201 });
   } catch (error) {
+    if (error instanceof ApprovalError) {
+      return approvalErrorResponse(error);
+    }
     return authErrorResponse(error);
   }
 }

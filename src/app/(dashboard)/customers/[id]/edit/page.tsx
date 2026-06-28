@@ -9,6 +9,7 @@ import {
   assertCanViewCustomerFullDetails,
   PermissionError,
 } from "@/lib/permissions/customers";
+import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { EditCustomerForm } from "./edit-customer-form";
@@ -26,6 +27,21 @@ export default async function EditCustomerPage({ params }: Props) {
     return (
       <CustomerStatePanel
         titleKey="customers.notFound"
+        backHref="/customers"
+      />
+    );
+  }
+
+  const db = getDb();
+  const pendingOnHoldApproval = await getPendingOnHoldCreateApprovalForCustomer(
+    db,
+    id,
+  );
+  if (pendingOnHoldApproval) {
+    return (
+      <CustomerStatePanel
+        titleKey="customers.onHoldCreatePendingTitle"
+        descriptionKey="customers.onHoldCreatePendingDescription"
         backHref="/customers"
       />
     );
@@ -59,7 +75,6 @@ export default async function EditCustomerPage({ params }: Props) {
     throw err;
   }
 
-  const db = getDb();
   const activeTags = await listActiveCustomerTags(db);
   const tagOptions: CustomerTagOption[] = activeTags.map((tag) => ({
     tagKey: tag.tagKey,

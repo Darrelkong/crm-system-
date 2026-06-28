@@ -26,6 +26,8 @@ export const APPROVAL_AUDIT_ACTIONS = {
   customerDeletedSoft: "customer.deleted.soft",
   mergeApprovedPlaceholder: "approval.merge.approved_placeholder",
   secondConversionApproved: "approval.second_conversion.approved",
+  customerOnHoldCreateApproved: "customer.on_hold_create.approved",
+  customerOnHoldCreateRejected: "customer.on_hold_create.rejected",
 } as const;
 
 export const APPROVAL_NOTIFICATION_TITLES = {

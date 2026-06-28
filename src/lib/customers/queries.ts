@@ -2,6 +2,7 @@ import { and, asc, eq, isNull, like, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getBusinessTodayRange } from "@/lib/reports/dates";
 import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
+import { ON_HOLD_CREATE_APPROVAL_TYPE } from "@/lib/customers/on-hold-create-pending";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -180,6 +181,16 @@ function combineWhere(...clauses: Array<SQL | undefined>): SQL | undefined {
   return and(...parts);
 }
 
+/** Hide customers awaiting admin approval for staff on_hold create (D-1b-2). */
+export function excludePendingOnHoldCreateApprovalWhere(): SQL {
+  return sql`NOT EXISTS (
+    SELECT 1 FROM approvals
+    WHERE approvals.customer_id = ${schema.customers.id}
+      AND approvals.request_type = ${ON_HOLD_CREATE_APPROVAL_TYPE}
+      AND approvals.status = 'pending'
+  )`;
+}
+
 function buildListWhere(
   user: User,
   filter: CustomerListFilter = {},
@@ -188,6 +199,7 @@ function buildListWhere(
   return combineWhere(
     buildPermissionWhere(user, filter, scope),
     buildCreatedByWhere(user, filter),
+    excludePendingOnHoldCreateApprovalWhere(),
   );
 }
 

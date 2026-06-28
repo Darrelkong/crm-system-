@@ -347,6 +347,26 @@ const en = {
     fullData: "Full",
     archivedBadge: "Archived",
     pinnedBadge: "Pinned",
+    onHoldApprovalPendingTitle: "On-Hold Customer Requires Approval",
+    onHoldApprovalPendingMessage:
+      "The selected customer status is On Hold. This customer must be reviewed and approved before it can be created. Please wait for approval.",
+    onHoldApprovalPendingConfirm: "OK",
+    onHoldReasonModalTitle: "On-Hold Customer Requires Approval",
+    onHoldReasonModalDescription:
+      "The selected sales stage is On Hold. Please provide a reason and submit for admin review.",
+    onHoldReasonLabel: "On-hold request reason",
+    onHoldReasonPlaceholder:
+      "Explain why this customer should be placed on hold, e.g. long post-payment process or waiting for follow-up arrangements.",
+    onHoldReasonTooShort: "On-hold request reason must be at least 8 characters.",
+    onHoldReasonCancel: "Cancel",
+    onHoldReasonSubmit: "Submit for review",
+    onHoldApprovalSubmittedTitle: "On-Hold Request Submitted",
+    onHoldApprovalSubmittedMessage:
+      "Your on-hold request has been submitted. Please wait for review.",
+    onHoldApprovalSubmittedConfirm: "Got it",
+    onHoldCreatePendingTitle: "Under Review",
+    onHoldCreatePendingDescription:
+      "This customer is awaiting on-hold approval. Please wait for an admin to review the request.",
     basicInfo: "Basic Information",
     contactInfo: "Contact Details",
     systemInfo: "System Information",
@@ -721,6 +741,8 @@ const en = {
     payloadDetails: "Request payload",
     submittedAt: "Submitted by {{name}} · {{date}}",
     reviewComment: "Review comment",
+    onHoldCreateReason: "Request reason",
+    onHoldCreateTargetStage: "Target stage",
   },
   notifications: {
     title: "Notifications",
@@ -1468,6 +1490,11 @@ const en = {
     staffDeletedTransfer:
       "Previous owner: {{previousOwnerName}} → New owner: {{newOwnerName}}",
     customerClosedWonApproved: "Close-won approved",
+    customerOnHoldCreateApproved: "On-hold request approved",
+    onHoldCreateApproved:
+      "Requested by: {{requestedByName}} · On-hold reason: {{onHoldReason}}",
+    customerOnHoldCreateRejected: "On-hold request rejected",
+    onHoldCreateRejected: "Admin comment: {{adminComment}}",
     customerSoftDeleted: "Client archived (soft delete)",
     autoReclaimWarningDay6: "Auto-reclaim warning (1st)",
     autoReclaimWarningDay7: "Auto-reclaim warning (2nd)",
@@ -1572,6 +1599,8 @@ const en = {
     invalidSalesStage: "Invalid sales stage.",
     salesStageDirectTerminalBlocked:
       "Closed won and closed lost cannot be set directly. Use the approval flow.",
+    onHoldReasonRequired: "Please provide an on-hold request reason.",
+    onHoldReasonTooShort: "On-hold request reason must be at least 8 characters.",
     invalidStatus: "Invalid client status.",
     validationFailed: "Validation failed.",
     duplicateCustomer: "Duplicate client detected.",

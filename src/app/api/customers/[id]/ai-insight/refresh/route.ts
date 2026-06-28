@@ -5,6 +5,7 @@ import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
 import { PermissionError, assertCanViewCustomerAiInsight } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
+import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 import {
   buildCustomerAiInsightRefreshAuditMetadata,
   getCustomerAiInsightByCustomerId,
@@ -40,6 +41,11 @@ export async function POST(request: Request, context: RouteContext) {
     const customer = await getCustomerById(id);
     if (!customer) {
       return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
+    }
+
+    const pendingBlock = await blockPendingOnHoldCreateCustomer(db, id);
+    if (pendingBlock) {
+      return pendingBlock;
     }
 
     try {

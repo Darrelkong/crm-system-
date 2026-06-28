@@ -6,6 +6,7 @@ import { getCustomerById } from "@/lib/customers/queries";
 import { getCustomerTimeline } from "@/lib/customers/timeline/service";
 import { PermissionError } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
+import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -18,6 +19,11 @@ export async function GET(request: Request, context: RouteContext) {
     const customer = await getCustomerById(id);
     if (!customer) {
       return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
+    }
+
+    const pendingBlock = await blockPendingOnHoldCreateCustomer(db, id);
+    if (pendingBlock) {
+      return pendingBlock;
     }
 
     try {

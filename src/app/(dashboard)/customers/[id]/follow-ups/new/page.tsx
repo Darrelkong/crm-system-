@@ -7,6 +7,8 @@ import {
   assertCanViewCustomerFullDetails,
   PermissionError,
 } from "@/lib/permissions/customers";
+import { getDb } from "@/lib/db";
+import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { NewFollowUpForm } from "./new-follow-up-form";
@@ -24,6 +26,21 @@ export default async function NewFollowUpPage({ params }: Props) {
         titleKey="errors.customerNotFound"
         backHref="/customers"
         backKey="customers.backToList"
+      />
+    );
+  }
+
+  const db = getDb();
+  const pendingOnHoldApproval = await getPendingOnHoldCreateApprovalForCustomer(
+    db,
+    id,
+  );
+  if (pendingOnHoldApproval) {
+    return (
+      <CustomerStatePanel
+        titleKey="customers.onHoldCreatePendingTitle"
+        descriptionKey="customers.onHoldCreatePendingDescription"
+        backHref="/customers"
       />
     );
   }

@@ -12,6 +12,7 @@ import { Input, Label, Field } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { CreateOnHoldCustomerApprovalDetail } from "@/components/approvals/create-on-hold-customer-detail";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
@@ -143,13 +144,17 @@ export function ApprovalsClient({ isAdmin }: Props) {
               </div>
               <p className="mt-1 text-sm text-[#172033]">
                 {t("approvals.customer")}：
-                <Link
-                  href={`/customers/${item.customerId}`}
-                  className="text-[#2F6FB3] hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {item.customerName}
-                </Link>
+                {item.requestType === "create_on_hold_customer" ? (
+                  <span className="font-medium">{item.customerName}</span>
+                ) : (
+                  <Link
+                    href={`/customers/${item.customerId}`}
+                    className="text-[#2F6FB3] hover:underline"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {item.customerName}
+                  </Link>
+                )}
               </p>
               <p className="mt-1 text-xs text-[#6B7890]">
                 {t("approvals.submittedAt", {
@@ -169,10 +174,12 @@ export function ApprovalsClient({ isAdmin }: Props) {
               {t("approvals.detailTitle")}
             </h3>
             <dl className="mt-4 space-y-2 text-sm">
-              <div>
-                <dt className="text-[#6B7890]">{t("approvals.type")}</dt>
-                <dd>{approvalType(selected.requestType as ApprovalRequestType)}</dd>
-              </div>
+              {selected.requestType !== "create_on_hold_customer" && (
+                <div>
+                  <dt className="text-[#6B7890]">{t("approvals.type")}</dt>
+                  <dd>{approvalType(selected.requestType as ApprovalRequestType)}</dd>
+                </div>
+              )}
               <div>
                 <dt className="text-[#6B7890]">{t("approvals.customer")}</dt>
                 <dd>{selected.customerName}</dd>
@@ -181,10 +188,12 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 <dt className="text-[#6B7890]">{t("approvals.requestedBy")}</dt>
                 <dd>{selected.requestedByName}</dd>
               </div>
-              <div>
-                <dt className="text-[#6B7890]">{t("approvals.reason")}</dt>
-                <dd className="whitespace-pre-wrap">{selected.reason}</dd>
-              </div>
+              {selected.requestType !== "create_on_hold_customer" && (
+                <div>
+                  <dt className="text-[#6B7890]">{t("approvals.reason")}</dt>
+                  <dd className="whitespace-pre-wrap">{selected.reason}</dd>
+                </div>
+              )}
               {selected.targetUserName && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.transferTarget")}</dt>
@@ -197,13 +206,20 @@ export function ApprovalsClient({ isAdmin }: Props) {
                   <dd>{selected.relatedCustomerIds.join(", ")}</dd>
                 </div>
               )}
-              {selected.payload && (
-                <div>
-                  <dt className="text-[#6B7890]">{t("approvals.payloadDetails")}</dt>
-                  <dd className="whitespace-pre-wrap font-mono text-xs">
-                    {JSON.stringify(selected.payload, null, 2)}
-                  </dd>
-                </div>
+              {selected.requestType === "create_on_hold_customer" ? (
+                <CreateOnHoldCustomerApprovalDetail
+                  reason={selected.reason}
+                  payload={selected.payload}
+                />
+              ) : (
+                selected.payload && (
+                  <div>
+                    <dt className="text-[#6B7890]">{t("approvals.payloadDetails")}</dt>
+                    <dd className="whitespace-pre-wrap font-mono text-xs">
+                      {JSON.stringify(selected.payload, null, 2)}
+                    </dd>
+                  </div>
+                )
               )}
               {selected.adminComment && (
                 <div>

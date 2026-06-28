@@ -341,6 +341,25 @@ const zhHant: Messages = {
     fullData: "完整",
     archivedBadge: "已歸檔",
     pinnedBadge: "置頂",
+    onHoldApprovalPendingTitle: "擱置客戶需要審核",
+    onHoldApprovalPendingMessage:
+      "您當前選擇的客戶狀態為擱置，需要通過審核後才可以新增客戶，請等待審核。",
+    onHoldApprovalPendingConfirm: "我知道了",
+    onHoldReasonModalTitle: "擱置客戶需要審核",
+    onHoldReasonModalDescription:
+      "您當前選擇的客戶狀態為擱置，需要填寫擱置原因並提交管理員審核。",
+    onHoldReasonLabel: "擱置申請理由",
+    onHoldReasonPlaceholder:
+      "請說明為什麼該客戶需要暫時擱置，例如付款後業務流程時間較長、需等待後續安排等。",
+    onHoldReasonTooShort: "擱置申請理由至少需要 8 個字。",
+    onHoldReasonCancel: "取消",
+    onHoldReasonSubmit: "提交審核",
+    onHoldApprovalSubmittedTitle: "擱置申請已送出",
+    onHoldApprovalSubmittedMessage: "擱置申請已送出，請等待審核。",
+    onHoldApprovalSubmittedConfirm: "我知道了",
+    onHoldCreatePendingTitle: "正在審核中",
+    onHoldCreatePendingDescription:
+      "該客戶正在等待擱置審核，請等待管理員審批。",
     basicInfo: "基本資料",
     contactInfo: "聯絡方式",
     systemInfo: "系統資訊",
@@ -706,6 +725,8 @@ const zhHant: Messages = {
     payloadDetails: "申請詳情",
     submittedAt: "申請人：{{name}} · 提交於 {{date}}",
     reviewComment: "審批意見",
+    onHoldCreateReason: "申請理由",
+    onHoldCreateTargetStage: "申請目標狀態",
   },
   notifications: {
     title: "通知",
@@ -1396,6 +1417,11 @@ const zhHant: Messages = {
     staffDeletedTransfer:
       "原負責人：{{previousOwnerName}} → 新負責人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申請已通過",
+    customerOnHoldCreateApproved: "管理員批准擱置申請",
+    onHoldCreateApproved:
+      "申請人：{{requestedByName}} · 擱置理由：{{onHoldReason}}",
+    customerOnHoldCreateRejected: "擱置申請已拒絕",
+    onHoldCreateRejected: "管理員備註：{{adminComment}}",
     customerSoftDeleted: "客戶已軟刪除（歸檔）",
     autoReclaimWarningDay6: "自動回收預警（第 1 次）",
     autoReclaimWarningDay7: "自動回收預警（第 2 次）",
@@ -1498,6 +1524,8 @@ const zhHant: Messages = {
     invalidSalesStage: "銷售階段無效。",
     salesStageDirectTerminalBlocked:
       "不能直接設為已成交或已流失，請使用審批流程。",
+    onHoldReasonRequired: "請填寫擱置申請理由。",
+    onHoldReasonTooShort: "擱置申請理由至少需要 8 個字。",
     invalidStatus: "客戶狀態無效。",
     validationFailed: "輸入校驗失敗。",
     duplicateCustomer: "存在重複客戶。",

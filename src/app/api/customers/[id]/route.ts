@@ -2,6 +2,10 @@ export const dynamic = "force-dynamic";
 
 import { eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import {
+  assertCustomerNotPendingOnHoldCreate,
+  PENDING_ON_HOLD_CREATE_AUDIT_ACTION,
+} from "@/lib/customers/pending-on-hold-access";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
   assertCanEditCustomer,
@@ -36,6 +40,20 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const db = getDb();
+    try {
+      await assertCustomerNotPendingOnHoldCreate(db, id);
+    } catch (err) {
+      if (err instanceof PermissionError) {
+        return Response.json(
+          {
+            error: err.message,
+            errorCode: "PENDING_ON_HOLD_CREATE",
+          },
+          { status: 403 },
+        );
+      }
+      throw err;
+    }
 
     try {
       const customerView = await enrichCustomerResponse(db, user, customer);
@@ -68,6 +86,28 @@ export async function PATCH(request: Request, context: RouteContext) {
       return Response.json({ error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" }, { status: 404 });
     }
 
+    const db = getDb();
+    try {
+      await assertCustomerNotPendingOnHoldCreate(db, id);
+    } catch (err) {
+      if (err instanceof PermissionError) {
+        await logPermissionDenied(request, {
+          action: err.auditAction ?? PENDING_ON_HOLD_CREATE_AUDIT_ACTION,
+          userId: user.id,
+          entityType: "customer",
+          entityId: id,
+        });
+        return Response.json(
+          {
+            error: err.message,
+            errorCode: "PENDING_ON_HOLD_CREATE",
+          },
+          { status: 403 },
+        );
+      }
+      throw err;
+    }
+
     try {
       assertCanEditCustomer(user, existing);
     } catch (err) {
@@ -85,7 +125,6 @@ export async function PATCH(request: Request, context: RouteContext) {
 
     const body = (await request.json()) as Record<string, unknown>;
     const input = parseCustomerBody(body);
-    const db = getDb();
 
     try {
       assertStaffCannotChangeCustomerStatus(user, existing, body);

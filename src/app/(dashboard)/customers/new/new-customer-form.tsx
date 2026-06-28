@@ -11,6 +11,7 @@ import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
+import { OnHoldApprovalSubmittedModal, OnHoldReasonModal } from "./on-hold-approval-pending-modal";
 
 type DuplicateMatch = {
   field: string;
@@ -26,6 +27,8 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+  const [showOnHoldReasonModal, setShowOnHoldReasonModal] = useState(false);
+  const [showOnHoldSubmittedModal, setShowOnHoldSubmittedModal] = useState(false);
 
   const [form, setForm] = useState({
     customerName: "",
@@ -53,9 +56,80 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
     setDuplicates(null);
   }
 
+  async function submitCreate(onHoldReason?: string) {
+    setSubmitting(true);
+    setFieldErrors({});
+    setServerError(null);
+    setDuplicates(null);
+
+    try {
+      const res = await fetch("/api/customers", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(
+          onHoldReason ? { ...form, onHoldReason } : form,
+        ),
+      });
+
+      const data = (await res.json()) as {
+        ok?: boolean;
+        id?: string;
+        pendingApproval?: boolean;
+        approvalId?: string;
+        message?: string;
+        error?: string;
+        errorCode?: string;
+        fieldErrors?: ValidationFieldError[];
+        code?: string;
+        duplicates?: DuplicateMatch[];
+      };
+
+      if (res.ok && data.pendingApproval) {
+        setShowOnHoldReasonModal(false);
+        setShowOnHoldSubmittedModal(true);
+        return;
+      }
+
+      if (res.ok && data.id) {
+        router.push(`/customers/${data.id}`);
+        return;
+      }
+
+      if (res.status === 400 && data.fieldErrors) {
+        const errs: Record<string, string> = {};
+        for (const fe of data.fieldErrors) errs[fe.field] = resolveFieldError(t, fe);
+        setFieldErrors(errs);
+        if (onHoldReason) {
+          setShowOnHoldReasonModal(true);
+        }
+        return;
+      }
+
+      if (res.status === 409 && data.code === "duplicate_customer") {
+        setDuplicates(data.duplicates ?? []);
+        setServerError(t("customers.duplicateFound"));
+        if (onHoldReason) {
+          setShowOnHoldReasonModal(false);
+        }
+        return;
+      }
+
+      setServerError(resolveApiError(t, data));
+      if (onHoldReason) {
+        setShowOnHoldReasonModal(true);
+      }
+    } catch {
+      setServerError(t("common.networkError"));
+      if (onHoldReason) {
+        setShowOnHoldReasonModal(true);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setFieldErrors({});
     setServerError(null);
     setDuplicates(null);
@@ -68,55 +142,35 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
       const errs: Record<string, string> = {};
       for (const fe of validationErrors) errs[fe.field] = resolveFieldError(t, fe);
       setFieldErrors(errs);
-      setSubmitting(false);
       return;
     }
 
-    try {
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
-      });
-
-      const data = (await res.json()) as {
-        ok?: boolean;
-        id?: string;
-        error?: string;
-        errorCode?: string;
-        fieldErrors?: ValidationFieldError[];
-        code?: string;
-        duplicates?: DuplicateMatch[];
-      };
-
-      if (res.ok && data.id) {
-        router.push(`/customers/${data.id}`);
-        return;
-      }
-
-      if (res.status === 400 && data.fieldErrors) {
-        const errs: Record<string, string> = {};
-        for (const fe of data.fieldErrors) errs[fe.field] = resolveFieldError(t, fe);
-        setFieldErrors(errs);
-        return;
-      }
-
-      if (res.status === 409 && data.code === "duplicate_customer") {
-        setDuplicates(data.duplicates ?? []);
-        setServerError(t("customers.duplicateFound"));
-        return;
-      }
-
-      setServerError(resolveApiError(t, data));
-    } catch {
-      setServerError(t("common.networkError"));
-    } finally {
-      setSubmitting(false);
+    if (form.salesStage === "on_hold") {
+      setShowOnHoldReasonModal(true);
+      return;
     }
+
+    await submitCreate();
   }
 
   return (
-    <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
+    <>
+      <OnHoldReasonModal
+        open={showOnHoldReasonModal}
+        submitting={submitting}
+        onCancel={() => setShowOnHoldReasonModal(false)}
+        onSubmit={(onHoldReason) => {
+          void submitCreate(onHoldReason);
+        }}
+      />
+      <OnHoldApprovalSubmittedModal
+        open={showOnHoldSubmittedModal}
+        onClose={() => {
+          setShowOnHoldSubmittedModal(false);
+          router.push("/customers");
+        }}
+      />
+      <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
       {serverError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-700">{serverError}</p>
@@ -342,5 +396,6 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
         </Button>
       </div>
     </form>
+    </>
   );
 }

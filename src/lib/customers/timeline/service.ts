@@ -27,6 +27,8 @@ const AUDIT_ACTION_MESSAGE_KEYS: Record<string, string> = {
   "customer.transferred": "customerTransferred",
   "customer.transferred.staff_deleted": "customerTransferredStaffDeleted",
   "customer.closed_won.approved": "customerClosedWonApproved",
+  "customer.on_hold_create.approved": "customerOnHoldCreateApproved",
+  "customer.on_hold_create.rejected": "customerOnHoldCreateRejected",
   "customer.deleted.soft": "customerSoftDeleted",
   "customer.auto_reclaim_warning.day_6": "autoReclaimWarningDay6",
   "customer.auto_reclaim_warning.day_7": "autoReclaimWarningDay7",
@@ -137,6 +139,17 @@ function buildAuditItem(
     descriptionParams = {
       previousOwnerName: String(metadata.previousOwnerName ?? ""),
       newOwnerName: String(metadata.newOwnerName ?? ""),
+    };
+  } else if (row.action === "customer.on_hold_create.approved") {
+    descriptionKey = "timelineMessages.onHoldCreateApproved";
+    descriptionParams = {
+      requestedByName: String(metadata.requestedByName ?? ""),
+      onHoldReason: String(metadata.onHoldReason ?? ""),
+    };
+  } else if (row.action === "customer.on_hold_create.rejected") {
+    descriptionKey = "timelineMessages.onHoldCreateRejected";
+    descriptionParams = {
+      adminComment: String(metadata.adminComment ?? ""),
     };
   } else if (isTaskAudit) {
     const parts: string[] = [];

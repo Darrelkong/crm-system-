@@ -341,6 +341,25 @@ const zhHans: Messages = {
     fullData: "完整",
     archivedBadge: "已归档",
     pinnedBadge: "置顶",
+    onHoldApprovalPendingTitle: "搁置客户需要审核",
+    onHoldApprovalPendingMessage:
+      "您当前选择的客户状态为搁置，需要通过审核后才可以新增客户，请等待审核。",
+    onHoldApprovalPendingConfirm: "我知道了",
+    onHoldReasonModalTitle: "搁置客户需要审核",
+    onHoldReasonModalDescription:
+      "您当前选择的客户状态为搁置，需要填写搁置原因并提交管理员审核。",
+    onHoldReasonLabel: "搁置申请理由",
+    onHoldReasonPlaceholder:
+      "请说明为什么该客户需要暂时搁置，例如付款后业务流程时间较长、需等待后续安排等。",
+    onHoldReasonTooShort: "搁置申请理由至少需要 8 个字。",
+    onHoldReasonCancel: "取消",
+    onHoldReasonSubmit: "提交审核",
+    onHoldApprovalSubmittedTitle: "搁置申请已送出",
+    onHoldApprovalSubmittedMessage: "搁置申请已送出，请等待审核。",
+    onHoldApprovalSubmittedConfirm: "我知道了",
+    onHoldCreatePendingTitle: "正在审核中",
+    onHoldCreatePendingDescription:
+      "该客户正在等待搁置审核，请等待管理员审批。",
     basicInfo: "基本信息",
     contactInfo: "联系方式",
     systemInfo: "系统信息",
@@ -705,6 +724,8 @@ const zhHans: Messages = {
     payloadDetails: "申请详情",
     submittedAt: "申请人：{{name}} · 提交于 {{date}}",
     reviewComment: "审批意见",
+    onHoldCreateReason: "申请理由",
+    onHoldCreateTargetStage: "申请目标状态",
   },
   notifications: {
     title: "通知",
@@ -1395,6 +1416,11 @@ const zhHans: Messages = {
     staffDeletedTransfer:
       "原负责人：{{previousOwnerName}} → 新负责人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申请已通过",
+    customerOnHoldCreateApproved: "管理员批准搁置申请",
+    onHoldCreateApproved:
+      "申请人：{{requestedByName}} · 搁置理由：{{onHoldReason}}",
+    customerOnHoldCreateRejected: "搁置申请已拒绝",
+    onHoldCreateRejected: "管理员备注：{{adminComment}}",
     customerSoftDeleted: "客户已软删除（归档）",
     autoReclaimWarningDay6: "自动回收预警（第 1 次）",
     autoReclaimWarningDay7: "自动回收预警（第 2 次）",
@@ -1497,6 +1523,8 @@ const zhHans: Messages = {
     invalidSalesStage: "销售阶段无效。",
     salesStageDirectTerminalBlocked:
       "不能直接设为已成交或已流失，请使用审批流程。",
+    onHoldReasonRequired: "请填写搁置申请理由。",
+    onHoldReasonTooShort: "搁置申请理由至少需要 8 个字。",
     invalidStatus: "客户状态无效。",
     validationFailed: "输入校验失败。",
     duplicateCustomer: "存在重复客户。",

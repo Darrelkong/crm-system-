@@ -17,6 +17,7 @@ import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { getCustomerTimeline } from "@/lib/customers/timeline/service";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { CustomerDetailClient } from "./customer-detail-client";
+import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -34,9 +35,23 @@ export default async function CustomerDetailPage({ params }: Props) {
     );
   }
 
+  const db = getDb();
+  const pendingOnHoldApproval = await getPendingOnHoldCreateApprovalForCustomer(
+    db,
+    id,
+  );
+  if (pendingOnHoldApproval) {
+    return (
+      <CustomerStatePanel
+        titleKey="customers.onHoldCreatePendingTitle"
+        descriptionKey="customers.onHoldCreatePendingDescription"
+        backHref="/customers"
+      />
+    );
+  }
+
   let scoresView;
   try {
-    const db = getDb();
     scoresView = await enrichCustomerResponse(db, user, customer);
   } catch (err) {
     if (err instanceof PermissionError) {
@@ -66,7 +81,6 @@ export default async function CustomerDetailPage({ params }: Props) {
     // masked or denied — no follow-up list
   }
 
-  const db = getDb();
   const timeline = await getCustomerTimeline(db, user, customer);
   const userLabels = await resolveCustomerUserLabels(db, customer);
 
