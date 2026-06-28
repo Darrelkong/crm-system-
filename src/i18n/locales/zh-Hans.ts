@@ -500,6 +500,7 @@ const zhHans: Messages = {
       closed_won: "申请成交",
       second_conversion: "申请二次转化",
       create_on_hold_customer: "申请新增搁置客户",
+      update_customer_assignees: "调整负责员工",
     },
   },
   customerStatuses: {

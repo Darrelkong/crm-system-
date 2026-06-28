@@ -23,3 +23,22 @@ describe("approval validation create_on_hold_customer", () => {
     }
   });
 });
+
+describe("approval validation update_customer_assignees", () => {
+  it("accepts update_customer_assignees as a valid request type", () => {
+    assert.equal(isApprovalRequestType("update_customer_assignees"), true);
+  });
+
+  it("validates update_customer_assignees with reason only", () => {
+    const result = validateApprovalRequestInput({
+      requestType: "update_customer_assignees",
+      reason: "后续由 B 和 C 共同跟进",
+    });
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.value.requestType, "update_customer_assignees");
+      assert.equal(result.value.reason, "后续由 B 和 C 共同跟进");
+    }
+  });
+});

@@ -501,6 +501,7 @@ const zhHant: Messages = {
       closed_won: "申請成交",
       second_conversion: "申請二次轉化",
       create_on_hold_customer: "申請新增擱置客戶",
+      update_customer_assignees: "調整負責員工",
     },
   },
   customerStatuses: {

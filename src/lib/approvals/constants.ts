@@ -7,6 +7,7 @@ export const APPROVAL_REQUEST_TYPE_LABELS: Record<ApprovalRequestType, string> =
   closed_won: "成交申请",
   second_conversion: "二次转化",
   create_on_hold_customer: "申请新增搁置客户",
+  update_customer_assignees: "调整负责员工",
 };
 
 export const APPROVAL_STATUS_LABELS = {

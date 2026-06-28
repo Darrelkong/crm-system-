@@ -514,6 +514,7 @@ const en = {
       closed_won: "Request close-won",
       second_conversion: "Request second conversion",
       create_on_hold_customer: "Request On-Hold Customer",
+      update_customer_assignees: "Update Responsible Staff",
     },
   },
   customerStatuses: {
