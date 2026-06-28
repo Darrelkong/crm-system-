@@ -4,6 +4,7 @@ import {
   AUTH_ERROR_CODES,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
+import { incrementIdleReloginOnResponse } from "@/lib/auth/idle-relogin-cookie";
 import { validateSessionFromRequest } from "@/lib/auth/session";
 import { getRoleDashboardPath } from "@/lib/permissions/auth";
 
@@ -29,6 +30,9 @@ function redirectToLogin(
       path: "/",
       maxAge: 0,
     });
+  }
+  if (sessionEnd === "idle") {
+    incrementIdleReloginOnResponse(request, response);
   }
   return response;
 }
