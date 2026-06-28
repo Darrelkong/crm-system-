@@ -340,6 +340,7 @@ const zhHant: Messages = {
     masked: "已脫敏",
     fullData: "完整",
     archivedBadge: "已歸檔",
+    pinnedBadge: "置頂",
     basicInfo: "基本資料",
     contactInfo: "聯絡方式",
     systemInfo: "系統資訊",
@@ -480,6 +481,7 @@ const zhHant: Messages = {
       merge_customers: "申請合併",
       closed_won: "申請成交",
       second_conversion: "申請二次轉化",
+      create_on_hold_customer: "申請新增擱置客戶",
     },
   },
   customerStatuses: {

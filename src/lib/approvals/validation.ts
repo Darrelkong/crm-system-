@@ -1,4 +1,7 @@
-import type { ApprovalRequestType } from "../../../drizzle/schema/approvals";
+import {
+  APPROVAL_REQUEST_TYPES,
+  type ApprovalRequestType,
+} from "../../../drizzle/schema/approvals";
 
 export type FieldError = { field: string; message: string };
 
@@ -18,13 +21,7 @@ export type ApprovalRequestInput = {
   payload?: Record<string, unknown>;
 };
 
-const REQUEST_TYPES: ApprovalRequestType[] = [
-  "delete_customer",
-  "transfer_customer",
-  "merge_customers",
-  "closed_won",
-  "second_conversion",
-];
+const REQUEST_TYPES: ApprovalRequestType[] = [...APPROVAL_REQUEST_TYPES];
 
 export function isApprovalRequestType(v: string): v is ApprovalRequestType {
   return (REQUEST_TYPES as readonly string[]).includes(v);

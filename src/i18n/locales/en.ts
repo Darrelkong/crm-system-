@@ -346,6 +346,7 @@ const en = {
     masked: "Masked",
     fullData: "Full",
     archivedBadge: "Archived",
+    pinnedBadge: "Pinned",
     basicInfo: "Basic Information",
     contactInfo: "Contact Details",
     systemInfo: "System Information",
@@ -492,6 +493,7 @@ const en = {
       merge_customers: "Request merge",
       closed_won: "Request close-won",
       second_conversion: "Request second conversion",
+      create_on_hold_customer: "Request On-Hold Customer",
     },
   },
   customerStatuses: {

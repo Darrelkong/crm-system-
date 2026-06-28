@@ -340,6 +340,7 @@ const zhHans: Messages = {
     masked: "已脱敏",
     fullData: "完整",
     archivedBadge: "已归档",
+    pinnedBadge: "置顶",
     basicInfo: "基本信息",
     contactInfo: "联系方式",
     systemInfo: "系统信息",
@@ -479,6 +480,7 @@ const zhHans: Messages = {
       merge_customers: "申请合并",
       closed_won: "申请成交",
       second_conversion: "申请二次转化",
+      create_on_hold_customer: "申请新增搁置客户",
     },
   },
   customerStatuses: {

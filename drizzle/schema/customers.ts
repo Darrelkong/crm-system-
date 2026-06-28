@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
 export const CUSTOMER_STATUSES = [
@@ -48,6 +48,8 @@ export const customers = sqliteTable(
     deletedAt: text("deleted_at"),
     deletedBy: text("deleted_by").references(() => users.id),
     deletedReason: text("deleted_reason"),
+    isPinned: integer("is_pinned").notNull().default(0),
+    pinnedAt: text("pinned_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -62,6 +64,7 @@ export const customers = sqliteTable(
     index("idx_customers_claimed_by").on(table.claimedBy),
     index("idx_customers_claimed_at").on(table.claimedAt),
     index("idx_customers_deleted_at").on(table.deletedAt),
+    index("idx_customers_is_pinned_pinned_at").on(table.isPinned, table.pinnedAt),
   ],
 );
 
