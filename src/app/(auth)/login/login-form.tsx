@@ -37,6 +37,19 @@ function parseSessionEndParam(value: string | null): SessionEndReason | null {
   return null;
 }
 
+type LoginResponseData = {
+  error?: string;
+  errorCode?: string;
+  redirect?: string;
+  restrictedUntil?: string;
+  remainingSeconds?: number;
+};
+
+function isJsonContentType(response: Response): boolean {
+  const contentType = response.headers.get("content-type") ?? "";
+  return contentType.includes("application/json");
+}
+
 export function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -66,6 +79,11 @@ export function LoginForm() {
   const clearIpRestriction = useCallback(() => {
     setIpRestrictedUntil(null);
   }, []);
+
+  const redirectForAccessVerification = useCallback(() => {
+    setError(t("security.accessExpired"));
+    redirectToAccessLogout();
+  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,18 +170,19 @@ export function LoginForm() {
         }),
       });
 
-      let data: {
-        error?: string;
-        errorCode?: string;
-        redirect?: string;
-        restrictedUntil?: string;
-        remainingSeconds?: number;
-      } = {};
+      let data: LoginResponseData = {};
+
+      if (!isJsonContentType(response)) {
+        keepPendingModal = true;
+        redirectForAccessVerification();
+        return;
+      }
 
       try {
-        data = (await response.json()) as typeof data;
+        data = (await response.json()) as LoginResponseData;
       } catch {
-        setError(t("common.networkError"));
+        keepPendingModal = true;
+        redirectForAccessVerification();
         return;
       }
 
@@ -172,9 +191,8 @@ export function LoginForm() {
           data.errorCode === "ACCESS_VERIFICATION_EXPIRED" &&
           !isLocalDevelopmentClient()
         ) {
-          setError(t("security.accessExpired"));
           keepPendingModal = true;
-          redirectToAccessLogout();
+          redirectForAccessVerification();
           return;
         }
         if (data.errorCode === "IP_EMAIL_RESTRICTED" && data.restrictedUntil) {
