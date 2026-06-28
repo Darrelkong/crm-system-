@@ -87,6 +87,7 @@ const FIELD_CODE_TO_KEY: Record<string, string> = {
   SOURCE_REMARK_REQUIRED: "errors.sourceRemarkRequired",
   INVALID_CUSTOMER_TYPE: "errors.invalidCustomerType",
   INVALID_SALES_STAGE: "errors.invalidSalesStage",
+  SALES_STAGE_DIRECT_TERMINAL_BLOCKED: "errors.salesStageDirectTerminalBlocked",
   SALES_STAGE_REQUIRED: "errors.salesStageRequired",
   INVALID_STATUS: "errors.invalidStatus",
   FOLLOW_UP_CHANNEL_REQUIRED: "errors.followUpChannelRequired",

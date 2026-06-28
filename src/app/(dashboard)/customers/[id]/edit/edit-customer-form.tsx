@@ -4,7 +4,13 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { CUSTOMER_TYPES, LEGACY_SALES_STAGES, SALES_STAGES } from "@/lib/constants/customer-fields";
+import {
+  CREATABLE_SALES_STAGES,
+  CUSTOMER_TYPES,
+  isDirectCreateBlockedSalesStage,
+  LEGACY_SALES_STAGES,
+  SALES_STAGES,
+} from "@/lib/constants/customer-fields";
 import type { CustomerType } from "@/lib/constants/customer-fields";
 import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
@@ -41,10 +47,12 @@ export function EditCustomerForm({
   initial,
   tags,
   canEditStatus = false,
+  isStaff = false,
 }: {
   initial: EditCustomerInitial;
   tags: CustomerTagOption[];
   canEditStatus?: boolean;
+  isStaff?: boolean;
 }) {
   const router = useRouter();
   const { t, salesStage, customerType, status, fieldLabel } = useCustomerLabels();
@@ -56,11 +64,14 @@ export function EditCustomerForm({
   const isPublicPool = initial.status === "public_pool";
   const showStatusDropdown = canEditStatus && !isPublicPool;
 
-  const salesStageOptions: string[] = [...SALES_STAGES];
+  const salesStageOptions: string[] = isStaff
+    ? [...CREATABLE_SALES_STAGES]
+    : [...SALES_STAGES];
   if (
     initial.salesStage &&
     !salesStageOptions.includes(initial.salesStage) &&
-    (LEGACY_SALES_STAGES as readonly string[]).includes(initial.salesStage)
+    ((LEGACY_SALES_STAGES as readonly string[]).includes(initial.salesStage) ||
+      isDirectCreateBlockedSalesStage(initial.salesStage))
   ) {
     salesStageOptions.push(initial.salesStage);
   }
@@ -379,7 +390,15 @@ export function EditCustomerForm({
             onChange={(e) => set("salesStage", e.target.value)}
           >
             {salesStageOptions.map((s) => (
-              <option key={s} value={s}>
+              <option
+                key={s}
+                value={s}
+                disabled={
+                  isStaff &&
+                  isDirectCreateBlockedSalesStage(s) &&
+                  s !== form.salesStage
+                }
+              >
                 {salesStage(s)}
               </option>
             ))}

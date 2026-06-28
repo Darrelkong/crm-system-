@@ -2,7 +2,11 @@ import {
   CUSTOMER_SOURCE_KEYS,
   CUSTOMER_SOURCE_OTHER_KEY,
 } from "@/lib/constants/customer-sources";
-import { isCustomerType, isSalesStage } from "@/lib/constants/customer-fields";
+import {
+  isCustomerType,
+  isDirectCreateBlockedSalesStage,
+  isSalesStage,
+} from "@/lib/constants/customer-fields";
 import {
   CUSTOMER_STATUSES,
 } from "../../../drizzle/schema/customers";
@@ -54,11 +58,59 @@ export type ValidationFieldError = { field: string; message: string; code: strin
 export type CustomerValidationContext = {
   isUpdate?: boolean;
   existingNotes?: string | null;
+  existingSalesStage?: string | null;
   /** Active customer tag keys from customer_tags (falls back to constants). */
   allowedSourceKeys?: readonly string[];
   /** Require salesStage on create (not on update). */
   requireSalesStage?: boolean;
+  userRole?: "admin" | "staff";
+  /** Import and other flows that block closed_won / closed_lost for all roles. */
+  disallowDirectTerminalSalesStages?: boolean;
 };
+
+const DIRECT_TERMINAL_SALES_STAGE_MESSAGE =
+  "不能直接设置为已成交或已流失，请使用审批流程";
+
+function validateDirectTerminalSalesStage(
+  salesStage: string | undefined,
+  context?: CustomerValidationContext,
+): ValidationFieldError | null {
+  const stage = salesStage?.trim();
+  if (!stage || !isDirectCreateBlockedSalesStage(stage)) {
+    return null;
+  }
+
+  if (context?.disallowDirectTerminalSalesStages) {
+    return {
+      field: "salesStage",
+      message: DIRECT_TERMINAL_SALES_STAGE_MESSAGE,
+      code: "SALES_STAGE_DIRECT_TERMINAL_BLOCKED",
+    };
+  }
+
+  if (!context?.isUpdate) {
+    return {
+      field: "salesStage",
+      message: DIRECT_TERMINAL_SALES_STAGE_MESSAGE,
+      code: "SALES_STAGE_DIRECT_TERMINAL_BLOCKED",
+    };
+  }
+
+  if (context.userRole !== "staff") {
+    return null;
+  }
+
+  const existing = context.existingSalesStage?.trim() ?? "";
+  if (stage === existing) {
+    return null;
+  }
+
+  return {
+    field: "salesStage",
+    message: DIRECT_TERMINAL_SALES_STAGE_MESSAGE,
+    code: "SALES_STAGE_DIRECT_TERMINAL_BLOCKED",
+  };
+}
 
 function validateStageNotes(
   notes: string | null | undefined,
@@ -79,7 +131,7 @@ function validateStageNotes(
   if (!hasSubstantiveContent(trimmed, 10)) {
     return {
       field: "notes",
-      message: "请填写客户当前阶段备注，至少 10 个字",
+      message: "请填写客户首次沟通备注，至少 10 个字",
       code: "STAGE_NOTES_REQUIRED",
     };
   }
@@ -205,6 +257,14 @@ export function validateCustomerInput(
       message: "销售阶段无效",
       code: "INVALID_SALES_STAGE",
     });
+  }
+
+  const directTerminalError = validateDirectTerminalSalesStage(
+    input.salesStage,
+    context,
+  );
+  if (directTerminalError) {
+    errors.push(directTerminalError);
   }
 
   if (

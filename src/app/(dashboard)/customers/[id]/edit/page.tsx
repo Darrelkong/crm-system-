@@ -83,6 +83,7 @@ export default async function EditCustomerPage({ params }: Props) {
       />
       <EditCustomerForm
         canEditStatus={user.role === "admin"}
+        isStaff={user.role !== "admin"}
         tags={tagOptions}
         initial={{
           id: customer.id,

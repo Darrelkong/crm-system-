@@ -18,6 +18,29 @@ export const SALES_STAGES = [
 ] as const;
 export type SalesStage = (typeof SALES_STAGES)[number];
 
+/** Stages selectable on create/edit forms (excludes terminal stages). */
+export const CREATABLE_SALES_STAGES = [
+  "new_lead",
+  "contacted",
+  "interested",
+  "proposal",
+  "negotiation",
+  "on_hold",
+] as const;
+export type CreatableSalesStage = (typeof CREATABLE_SALES_STAGES)[number];
+
+/** Cannot be set directly on create/import; closed_won uses approval flow. */
+export const DIRECT_CREATE_BLOCKED_SALES_STAGES = [
+  "closed_won",
+  "closed_lost",
+] as const;
+
+export function isDirectCreateBlockedSalesStage(stage: string): boolean {
+  return (DIRECT_CREATE_BLOCKED_SALES_STAGES as readonly string[]).includes(
+    stage,
+  );
+}
+
 /** Legacy values still accepted in DB records and validation */
 export const LEGACY_SALES_STAGES = ["negotiating", "converted", "lost"] as const;
 export type LegacySalesStage = (typeof LEGACY_SALES_STAGES)[number];

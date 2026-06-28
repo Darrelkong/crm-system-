@@ -224,7 +224,7 @@ export function CustomerDetailClient({
             <SectionCard title={t("customers.notes")}>
               <dl>
                 <DetailRow label={t("customers.sourceRemark")} value={view.sourceRemark} />
-                <DetailRow label={t("customers.otherNotes")} value={view.notes} />
+                <DetailRow label={t("customers.stageNotes")} value={view.notes} />
               </dl>
             </SectionCard>
           )}

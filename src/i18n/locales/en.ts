@@ -383,11 +383,11 @@ const en = {
     notesOptional: "Additional notes (optional)",
     requestedProjectName: "Requested Project / Service Name",
     requestedProjectNamePlaceholder: "Enter the project or service the client needs",
-    stageNotes: "Stage notes",
+    stageNotes: "Initial communication notes",
     stageNotesPlaceholder:
-      "Please enter notes for the client’s current stage, at least 10 characters.",
+      "Please enter initial communication notes, at least 10 characters.",
     stageNotesRequired:
-      "Please enter notes for the client’s current stage, at least 10 characters.",
+      "Please enter initial communication notes, at least 10 characters.",
     saveClient: "Save Client",
     saving: "Saving…",
     saveChanges: "Save Changes",
@@ -1517,6 +1517,8 @@ const en = {
     missingSourceRemark: "Source note is required when source is Other",
     invalidCustomerType: "Invalid client type",
     invalidSalesStage: "Invalid sales stage",
+    directTerminalSalesStageBlocked:
+      "Closed won and closed lost cannot be set directly. Use the approval flow.",
     duplicatePhoneCsv: "Duplicate phone in CSV: {{value}}",
     duplicateWechatCsv: "Duplicate WeChat ID in CSV: {{value}}",
     duplicateEmailCsv: "Duplicate email in CSV: {{value}}",
@@ -1544,7 +1546,7 @@ const en = {
     invalidRequestedProjectName:
       "Project name must be at least 4 characters and cannot be symbols only.",
     stageNotesRequired:
-      "Please enter notes for the client’s current stage, at least 10 characters.",
+      "Please enter initial communication notes, at least 10 characters.",
     currentPasswordRequired: "Please enter your current password.",
     currentPasswordInvalid: "Current password is incorrect.",
     newPasswordRequired: "Please enter a new password.",
@@ -1566,6 +1568,8 @@ const en = {
     sourceRemarkRequired: "Source note is required when source is Other.",
     invalidCustomerType: "Invalid client type.",
     invalidSalesStage: "Invalid sales stage.",
+    salesStageDirectTerminalBlocked:
+      "Closed won and closed lost cannot be set directly. Use the approval flow.",
     invalidStatus: "Invalid client status.",
     validationFailed: "Validation failed.",
     duplicateCustomer: "Duplicate client detected.",

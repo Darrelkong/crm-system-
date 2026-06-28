@@ -258,12 +258,17 @@ export async function precheckCustomerImport(
       salesStage: row.salesStage,
     };
 
-    const fieldErrors = validateCustomerInput(input);
+    const fieldErrors = validateCustomerInput(input, {
+      disallowDirectTerminalSalesStages: true,
+    });
     for (const fe of fieldErrors) {
       const csvField =
         Object.entries(CSV_FIELD_TO_INPUT).find(([, v]) => v === fe.field)?.[0] ??
         fe.field;
       let code = validationCode(fe.field);
+      if (fe.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED") {
+        code = "direct_terminal_sales_stage_blocked";
+      }
       if (fe.field === "phone" && fe.message.includes("11 位")) {
         code = "invalid_phone";
       }

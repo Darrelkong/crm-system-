@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
-import { CUSTOMER_TYPES, SALES_STAGES } from "@/lib/constants/customer-fields";
+import { CUSTOMER_TYPES, CREATABLE_SALES_STAGES } from "@/lib/constants/customer-fields";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
 import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
@@ -305,7 +305,7 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
             onChange={(e) => set("salesStage", e.target.value)}
           >
             <option value="">{t("customers.selectSalesStage")}</option>
-            {SALES_STAGES.map((s) => (
+            {CREATABLE_SALES_STAGES.map((s) => (
               <option key={s} value={s}>
                 {salesStage(s)}
               </option>

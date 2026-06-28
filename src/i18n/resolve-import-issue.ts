@@ -21,6 +21,8 @@ const ISSUE_CODE_TO_KEY: Record<string, string> = {
   missing_source_remark: "importErrorTypes.missingSourceRemark",
   invalid_customer_type: "importErrorTypes.invalidCustomerType",
   invalid_sales_stage: "importErrorTypes.invalidSalesStage",
+  direct_terminal_sales_stage_blocked:
+    "importErrorTypes.directTerminalSalesStageBlocked",
   duplicate_phone_csv: "importErrorTypes.duplicatePhoneCsv",
   duplicate_wechatId_csv: "importErrorTypes.duplicateWechatCsv",
   duplicate_email_csv: "importErrorTypes.duplicateEmailCsv",

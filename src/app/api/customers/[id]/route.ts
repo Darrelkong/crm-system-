@@ -118,7 +118,9 @@ export async function PATCH(request: Request, context: RouteContext) {
       {
         isUpdate: true,
         existingNotes: existing.notes,
+        existingSalesStage: existing.salesStage,
         allowedSourceKeys,
+        userRole: user.role === "admin" ? "admin" : "staff",
       },
     );
     if (fieldErrors.length > 0) {

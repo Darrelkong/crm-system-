@@ -122,6 +122,7 @@ export async function POST(request: Request) {
     const fieldErrors = validateCustomerInput(createInput, {
       requireSalesStage: true,
       allowedSourceKeys,
+      userRole: user.role === "admin" ? "admin" : "staff",
     });
     if (fieldErrors.length > 0) {
       await writeAuditLog({

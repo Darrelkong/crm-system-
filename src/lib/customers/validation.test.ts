@@ -18,10 +18,12 @@ const BASE_INPUT = {
 };
 
 describe("validateCustomerInput sales stage", () => {
+  const sourceKeys = ["referral", "other"];
+
   it("fails create when sales stage is missing", () => {
     const errors = validateCustomerInput(
       { ...BASE_INPUT, salesStage: "" },
-      { requireSalesStage: true, allowedSourceKeys: ["referral", "other"] },
+      { requireSalesStage: true, allowedSourceKeys: sourceKeys },
     );
     assert.ok(errors.some((e) => e.code === "SALES_STAGE_REQUIRED"));
   });
@@ -29,7 +31,7 @@ describe("validateCustomerInput sales stage", () => {
   it("passes create when sales stage is selected", () => {
     const errors = validateCustomerInput(BASE_INPUT, {
       requireSalesStage: true,
-      allowedSourceKeys: ["referral", "other"],
+      allowedSourceKeys: sourceKeys,
     });
     assert.equal(errors.some((e) => e.code === "SALES_STAGE_REQUIRED"), false);
   });
@@ -40,10 +42,114 @@ describe("validateCustomerInput sales stage", () => {
       {
         isUpdate: true,
         existingNotes: BASE_INPUT.notes,
-        allowedSourceKeys: ["referral", "other"],
+        allowedSourceKeys: sourceKeys,
       },
     );
     assert.equal(errors.some((e) => e.code === "SALES_STAGE_REQUIRED"), false);
+  });
+
+  it("blocks staff create with closed_won", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_won" },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: sourceKeys,
+        userRole: "staff",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("blocks staff create with closed_lost", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_lost" },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: sourceKeys,
+        userRole: "staff",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("blocks admin create with closed_won", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_won" },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: sourceKeys,
+        userRole: "admin",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("blocks admin create with closed_lost", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_lost" },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: sourceKeys,
+        userRole: "admin",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("allows admin update transitioning to closed_won", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_won" },
+      {
+        isUpdate: true,
+        existingNotes: BASE_INPUT.notes,
+        existingSalesStage: "negotiation",
+        allowedSourceKeys: sourceKeys,
+        userRole: "admin",
+      },
+    );
+    assert.equal(
+      errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"),
+      false,
+    );
+  });
+
+  it("blocks staff update transitioning to closed_won", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_won" },
+      {
+        isUpdate: true,
+        existingNotes: BASE_INPUT.notes,
+        existingSalesStage: "negotiation",
+        allowedSourceKeys: sourceKeys,
+        userRole: "staff",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("allows staff update when closed_won is unchanged", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_won" },
+      {
+        isUpdate: true,
+        existingNotes: BASE_INPUT.notes,
+        existingSalesStage: "closed_won",
+        allowedSourceKeys: sourceKeys,
+        userRole: "staff",
+      },
+    );
+    assert.equal(
+      errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"),
+      false,
+    );
+  });
+
+  it("blocks import rows with direct terminal sales stages", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "closed_lost" },
+      { disallowDirectTerminalSalesStages: true },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
   });
 });
 
