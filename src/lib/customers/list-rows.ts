@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { CustomerWithScores } from "@/lib/customers/scoring/service";
+import { listCustomerAssigneesByCustomerIds } from "@/lib/customers/assignees";
 import { resolveUserDisplayNames } from "@/lib/customers/user-labels";
 
 export type CustomerListRowData = {
@@ -9,6 +10,7 @@ export type CustomerListRowData = {
   customerName: string;
   ownerId: string | null;
   ownerName: string | null;
+  assigneeNames: string[];
   requestedProjectName?: string | null;
   salesStage: string;
   status: string;
@@ -26,6 +28,7 @@ export type CustomerListRowData = {
 export function toCustomerListRow(
   customer: CustomerWithScores,
   ownerName: string | null,
+  assigneeNames: string[] = [],
 ): CustomerListRowData {
   return {
     id: customer.id,
@@ -33,6 +36,7 @@ export function toCustomerListRow(
     customerName: customer.customerName,
     ownerId: customer.ownerId ?? null,
     ownerName,
+    assigneeNames,
     requestedProjectName: customer.requestedProjectName,
     salesStage: customer.salesStage,
     status: customer.status,
@@ -52,17 +56,35 @@ export async function buildCustomerListRows(
   db: Database,
   items: CustomerWithScores[],
 ): Promise<CustomerListRowData[]> {
-  const nameMap = await resolveUserDisplayNames(
+  const customerIds = items.map((item) => item.id);
+  const assigneesByCustomerId = await listCustomerAssigneesByCustomerIds(
     db,
-    items.map((item) => item.ownerId),
+    customerIds,
   );
 
-  return items.map((item) =>
-    toCustomerListRow(
+  const userIds = new Set<string>();
+  for (const item of items) {
+    if (item.ownerId) {
+      userIds.add(item.ownerId);
+    }
+    for (const assignee of assigneesByCustomerId.get(item.id) ?? []) {
+      userIds.add(assignee.userId);
+    }
+  }
+
+  const nameMap = await resolveUserDisplayNames(db, [...userIds]);
+
+  return items.map((item) => {
+    const assigneeNames = (assigneesByCustomerId.get(item.id) ?? [])
+      .map((assignee) => nameMap.get(assignee.userId))
+      .filter((name): name is string => !!name?.trim());
+
+    return toCustomerListRow(
       item,
       item.ownerId ? (nameMap.get(item.ownerId) ?? null) : null,
-    ),
-  );
+      assigneeNames,
+    );
+  });
 }
 
 export function formatProjectNameForList(

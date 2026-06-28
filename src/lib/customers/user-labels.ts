@@ -1,4 +1,5 @@
 import { inArray } from "drizzle-orm";
+import { listCustomerAssignees } from "@/lib/customers/assignees";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 
@@ -37,4 +38,19 @@ export async function resolveCustomerUserLabels(
       ? (nameMap.get(customer.createdBy) ?? null)
       : null,
   };
+}
+
+export async function resolveCustomerAssigneeNames(
+  db: Database,
+  customerId: string,
+): Promise<string[]> {
+  const assignees = await listCustomerAssignees(db, customerId);
+  const nameMap = await resolveUserDisplayNames(
+    db,
+    assignees.map((assignee) => assignee.userId),
+  );
+
+  return assignees
+    .map((assignee) => nameMap.get(assignee.userId))
+    .filter((name): name is string => !!name?.trim());
 }

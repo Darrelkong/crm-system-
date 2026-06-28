@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
+import type { Locale } from "@/i18n/config";
 import {
   CompletenessBadge,
   HeatBadge,
@@ -31,6 +32,10 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
+import {
+  resolveAssigneeStaffForList,
+  type AssigneeDisplayLocale,
+} from "@/lib/customers/assignee-display";
 import {
   CUSTOMER_LIST_PAGE_SIZE,
   type CustomerCreatorOption,
@@ -68,6 +73,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     customerName: item.customerName,
     ownerId: item.ownerId ?? null,
     ownerName: item.ownerName ?? null,
+    assigneeNames: item.assigneeNames ?? [],
     requestedProjectName: item.requestedProjectName,
     salesStage: item.salesStage,
     status: item.status,
@@ -94,7 +100,7 @@ export function CustomersListClient({
   completenessBelowFilter,
 }: Props) {
   const { t, salesStage, status } = useCustomerLabels();
-  const { t: tCommon } = useTranslation();
+  const { t: tCommon, locale } = useTranslation();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(
     null,
@@ -183,14 +189,33 @@ export function CustomersListClient({
     });
   }
 
-  function ownerLabel(c: CustomerListRow): string {
-    if (!c.ownerId || c.status === "public_pool") {
-      return t("customers.statusPublicPool");
-    }
-    if (c.ownerName?.trim()) {
-      return c.ownerName;
-    }
-    return t("customers.unknownStaff");
+  function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
+    return currentLocale === "en" ? "en" : "zh";
+  }
+
+  function assignedStaffDisplay(c: CustomerListRow) {
+    return resolveAssigneeStaffForList(
+      {
+        status: c.status,
+        ownerId: c.ownerId,
+        ownerName: c.ownerName,
+        assigneeNames: c.assigneeNames,
+      },
+      {
+        publicPool: t("customers.statusPublicPool"),
+        unknownStaff: t("customers.unknownStaff"),
+      },
+      assigneeDisplayLocale(locale),
+    );
+  }
+
+  function AssignedStaffCell({ c }: { c: CustomerListRow }) {
+    const { display, title } = assignedStaffDisplay(c);
+    return (
+      <span className="text-[#172033]" title={title}>
+        {display}
+      </span>
+    );
   }
 
   function CustomerNameLink({ c }: { c: CustomerListRow }) {
@@ -222,6 +247,7 @@ export function CustomersListClient({
 
   function CustomerMobileCard({ c }: { c: CustomerListRow }) {
     const project = formatProjectNameForList(c.requestedProjectName);
+    const staff = assignedStaffDisplay(c);
 
     return (
       <Link
@@ -236,7 +262,8 @@ export function CustomersListClient({
               {c.isPinned && <PinnedBadge />}
             </div>
             <p className="mt-1 text-xs text-[#6B7890]">
-              {ownerLabel(c)} · {salesStage(c.salesStage)}
+              <span title={staff.title}>{staff.display}</span> ·{" "}
+              {salesStage(c.salesStage)}
             </p>
             <p className="mt-0.5 text-xs text-[#6B7890]" title={project.title}>
               {project.display}
@@ -386,7 +413,9 @@ export function CustomersListClient({
                     <Td>
                       <CustomerNameLink c={c} />
                     </Td>
-                    <Td className="text-[#172033]">{ownerLabel(c)}</Td>
+                    <Td>
+                      <AssignedStaffCell c={c} />
+                    </Td>
                     <Td>
                       <ProjectNameCell name={c.requestedProjectName} />
                     </Td>

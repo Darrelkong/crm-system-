@@ -2,6 +2,12 @@
 
 import Link from "next/link";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { useTranslation } from "@/i18n/provider";
+import type { Locale } from "@/i18n/config";
+import {
+  resolveAssigneeStaffForDetail,
+  type AssigneeDisplayLocale,
+} from "@/lib/customers/assignee-display";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
@@ -46,6 +52,7 @@ export type CustomerDetailView = {
   notes?: string | null;
   ownerId?: string | null;
   ownerName?: string | null;
+  assigneeNames?: string[];
   createdByName?: string | null;
   lastFollowUpAt?: string | null;
   lastValidFollowUpAt?: string | null;
@@ -112,13 +119,26 @@ export function CustomerDetailClient({
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
+  const { locale } = useTranslation();
   const id = view.id;
 
-  const assignedStaffLabel = !view.ownerId
-    ? t("customers.publicPoolOwner")
-    : view.ownerName?.trim()
-      ? view.ownerName
-      : t("customers.unknownStaff");
+  function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
+    return currentLocale === "en" ? "en" : "zh";
+  }
+
+  const assignedStaffLabel = resolveAssigneeStaffForDetail(
+    {
+      status: view.status,
+      ownerId: view.ownerId ?? null,
+      ownerName: view.ownerName ?? null,
+      assigneeNames: view.assigneeNames ?? [],
+    },
+    {
+      publicPool: t("customers.publicPoolOwner"),
+      unknownStaff: t("customers.unknownStaff"),
+    },
+    assigneeDisplayLocale(locale),
+  );
 
   const createdByLabel = view.createdByName?.trim()
     ? view.createdByName

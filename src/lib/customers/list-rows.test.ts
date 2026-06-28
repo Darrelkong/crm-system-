@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { CustomerWithScores } from "@/lib/customers/scoring/service";
 import { formatCustomerForUser } from "@/lib/permissions/customers";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
+import {
+  formatAssigneeNamesForList,
+  joinAssigneeNames,
+  resolveAssigneeStaffForList,
+} from "./assignee-display";
 import { toCustomerListRow } from "./list-rows";
 
 function makeCustomer(
@@ -51,6 +57,11 @@ const adminUser = {
   role: "admin",
 } as User;
 
+const listLabels = {
+  publicPool: "公共池",
+  unknownStaff: "未知員工",
+};
+
 function makeScoredView(
   user: User,
   customer: Customer,
@@ -63,6 +74,85 @@ function makeScoredView(
   };
 }
 
+describe("formatAssigneeNamesForList", () => {
+  it("shows one assignee name", () => {
+    const result = formatAssigneeNamesForList(["員工 A"]);
+    assert.equal(result.display, "員工 A");
+    assert.equal(result.title, undefined);
+  });
+
+  it("shows two assignee names joined with 、", () => {
+    const result = formatAssigneeNamesForList(["員工 A", "員工 B"]);
+    assert.equal(result.display, "員工 A、員工 B");
+    assert.equal(result.title, undefined);
+  });
+
+  it("shows first two names plus overflow for three or more assignees", () => {
+    const result = formatAssigneeNamesForList(["員工 A", "員工 B", "員工 C"]);
+    assert.equal(result.display, "員工 A、員工 B +1");
+    assert.equal(result.title, "員工 A、員工 B、員工 C");
+  });
+
+  it("uses comma separator for English locale", () => {
+    const result = formatAssigneeNamesForList(
+      ["Staff A", "Staff B", "Staff C"],
+      "en",
+    );
+    assert.equal(result.display, "Staff A, Staff B +1");
+    assert.equal(result.title, "Staff A, Staff B, Staff C");
+  });
+});
+
+describe("resolveAssigneeStaffForList", () => {
+  it("falls back to ownerName when assignees are empty", () => {
+    const result = resolveAssigneeStaffForList(
+      {
+        status: "active",
+        ownerId: "owner-1",
+        ownerName: "原負責人",
+        assigneeNames: [],
+      },
+      listLabels,
+    );
+    assert.equal(result.display, "原負責人");
+  });
+
+  it("prefers assignee names over ownerName", () => {
+    const result = resolveAssigneeStaffForList(
+      {
+        status: "active",
+        ownerId: "owner-1",
+        ownerName: "原負責人",
+        assigneeNames: ["員工 A", "員工 B"],
+      },
+      listLabels,
+    );
+    assert.equal(result.display, "員工 A、員工 B");
+  });
+
+  it("shows public pool label for public pool customers", () => {
+    const result = resolveAssigneeStaffForList(
+      {
+        status: "public_pool",
+        ownerId: null,
+        ownerName: null,
+        assigneeNames: [],
+      },
+      listLabels,
+    );
+    assert.equal(result.display, "公共池");
+  });
+});
+
+describe("joinAssigneeNames", () => {
+  it("joins all assignee names for detail display", () => {
+    assert.equal(
+      joinAssigneeNames(["員工 A", "員工 B", "員工 C"]),
+      "員工 A、員工 B、員工 C",
+    );
+  });
+});
+
 describe("toCustomerListRow pin fields", () => {
   it("includes isPinned and pinnedAt for pinned customers", () => {
     const customer = makeCustomer({
@@ -72,10 +162,11 @@ describe("toCustomerListRow pin fields", () => {
       pinnedAt: "2026-06-28T09:00:00.000Z",
     });
     const view = makeScoredView(adminUser, customer);
-    const row = toCustomerListRow(view, "Staff A");
+    const row = toCustomerListRow(view, "Staff A", ["Staff A"]);
 
     assert.equal(row.isPinned, true);
     assert.equal(row.pinnedAt, "2026-06-28T09:00:00.000Z");
+    assert.deepEqual(row.assigneeNames, ["Staff A"]);
   });
 
   it("includes isPinned for staff without exposing customerCode", () => {
@@ -91,5 +182,12 @@ describe("toCustomerListRow pin fields", () => {
     assert.equal(row.isPinned, true);
     assert.equal(row.customerCode, undefined);
     assert.equal("customerCode" in view, false);
+  });
+});
+
+describe("D-2b list filtering unchanged", () => {
+  it("list queries still exclude pending on_hold create approvals", () => {
+    const src = readFileSync("src/lib/customers/queries.ts", "utf8");
+    assert.match(src, /excludePendingOnHoldCreateApprovalWhere/);
   });
 });
