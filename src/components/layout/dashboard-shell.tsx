@@ -9,6 +9,7 @@ import {
   MobileNavDrawer,
   SidebarNav,
 } from "@/components/layout/app-navigation";
+import { NotificationUnreadProvider } from "@/components/layout/notification-unread-context";
 import { SystemStatusBadge } from "@/components/layout/system-status-badge";
 import {
   getMobileBottomNav,
@@ -45,6 +46,7 @@ export function DashboardShell({
     : "md:pl-64 lg:pl-72";
 
   return (
+    <NotificationUnreadProvider>
     <div className="crm-app-bg min-h-dvh">
       <div className="flex min-h-dvh">
         <aside
@@ -144,5 +146,6 @@ export function DashboardShell({
         role={role}
       />
     </div>
+    </NotificationUnreadProvider>
   );
 }

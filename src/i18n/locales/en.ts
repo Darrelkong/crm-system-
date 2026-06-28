@@ -751,6 +751,7 @@ const en = {
     subtitle:
       "View system-generated business notifications. Click to open related clients or approvals.",
     unreadCount: "Unread: {{count}}",
+    unreadBadgeLabel: "Unread notifications: {{count}}",
     unreadOnly: "Unread only",
     markAsRead: "Mark as Read",
     markAllAsRead: "Mark All as Read",

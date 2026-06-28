@@ -15,6 +15,7 @@ import {
   getNotificationCategory,
   getNotificationTypeLabelKey,
 } from "@/lib/notifications/category";
+import { dispatchNotificationUnreadChanged } from "@/lib/notifications/badge-count";
 import type { NotificationListItem } from "@/lib/notifications/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -153,6 +154,7 @@ export function NotificationsClient({ userRole }: Props) {
       return;
     }
     await load();
+    dispatchNotificationUnreadChanged();
   }
 
   async function markAllRead() {
@@ -168,6 +170,7 @@ export function NotificationsClient({ userRole }: Props) {
     }
     setMessage(t("notifications.markAllSuccess"));
     await load();
+    dispatchNotificationUnreadChanged();
   }
 
   return (

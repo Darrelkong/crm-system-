@@ -733,6 +733,7 @@ const zhHans: Messages = {
     center: "通知中心",
     subtitle: "查看系统自动推送的业务通知，点击可跳转相关客户或审批。",
     unreadCount: "未读通知：{{count}}",
+    unreadBadgeLabel: "未读通知 {{count}} 条",
     unreadOnly: "只看未读",
     markAsRead: "标记为已读",
     markAllAsRead: "全部标记为已读",

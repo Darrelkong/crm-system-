@@ -18,11 +18,15 @@ import { navIcons } from "@/lib/layout/nav-icons";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { AccountMenu } from "@/components/layout/account-menu";
+import { useNotificationUnreadCount } from "@/components/layout/notification-unread-context";
 import {
   beginNavigationPending,
   isSameNavTarget,
   useNavigationPending,
 } from "@/components/layout/navigation-pending";
+import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
+
+const NOTIFICATIONS_HREF = "/notifications";
 
 function NavLinkRow({
   link,
@@ -49,6 +53,8 @@ function NavLinkRow({
 
   const Icon = navIcons[link.icon];
   const label = t(link.labelKey);
+  const unreadCount = useNotificationUnreadCount();
+  const showNotificationBadge = link.href === NOTIFICATIONS_HREF;
 
   function handleNavigate() {
     beginNavigationPending(navigationPending, link.href, pathname);
@@ -73,8 +79,22 @@ function NavLinkRow({
               isPending && !link.active && "nav-item-pending",
             )}
           >
-            <Icon className="h-4 w-4 shrink-0" aria-hidden />
+            <span className="relative shrink-0">
+              <Icon className="h-4 w-4" aria-hidden />
+              {showNotificationBadge && (
+                <NotificationCountBadge
+                  count={unreadCount}
+                  variant="overlay"
+                />
+              )}
+            </span>
             <span className="truncate">{label}</span>
+            {showNotificationBadge && (
+              <NotificationCountBadge
+                count={unreadCount}
+                className="ml-auto"
+              />
+            )}
           </Link>
           <button
             type="button"
@@ -118,7 +138,7 @@ function NavLinkRow({
         title={collapsed ? label : undefined}
         className={cn(
           "flex items-center gap-2 rounded-xl py-2.5 text-sm font-medium transition-all duration-200",
-          collapsed ? "justify-center px-2" : "px-3",
+          collapsed ? "justify-center px-2" : "w-full px-3",
           depth > 0 && !collapsed && "text-sm",
           isPending && !link.active && "nav-item-pending",
           link.active && !childActive
@@ -128,8 +148,20 @@ function NavLinkRow({
               : "nav-item text-[#6B7890]",
         )}
       >
-        <Icon className="h-4 w-4 shrink-0" aria-hidden />
-        {!collapsed && <span className="truncate">{label}</span>}
+        <span className="relative shrink-0">
+          <Icon className="h-4 w-4" aria-hidden />
+          {collapsed && showNotificationBadge && (
+            <NotificationCountBadge count={unreadCount} variant="overlay" />
+          )}
+        </span>
+        {!collapsed && (
+          <>
+            <span className="min-w-0 flex-1 truncate">{label}</span>
+            {showNotificationBadge && (
+              <NotificationCountBadge count={unreadCount} className="ml-auto" />
+            )}
+          </>
+        )}
       </Link>
     </li>
   );
@@ -243,6 +275,7 @@ export function MobileBottomNav({
 }) {
   const { t } = useTranslation();
   const navigationPending = useNavigationPending();
+  const unreadCount = useNotificationUnreadCount();
 
   const icons: Record<string, ComponentType<{ className?: string }>> = {
     dashboard: LayoutDashboard,
@@ -295,7 +328,15 @@ export function MobileBottomNav({
                   isPending && !isActive && "nav-item-pending",
                 )}
               >
-                <Icon className="h-5 w-5" />
+                <span className="relative">
+                  <Icon className="h-5 w-5" />
+                  {item.href === NOTIFICATIONS_HREF && (
+                    <NotificationCountBadge
+                      count={unreadCount}
+                      variant="overlay"
+                    />
+                  )}
+                </span>
                 <span className="max-w-full truncate">{t(item.labelKey)}</span>
               </Link>
             </li>
