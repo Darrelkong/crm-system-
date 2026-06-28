@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/form";
@@ -19,43 +19,22 @@ import {
   sessionEndMessageKey,
   type SessionEndReason,
 } from "@/lib/auth/client-security";
-import { isTimeoutLoginReason } from "@/lib/auth/timeout-login-visits";
+import {
+  clearTimeoutLoginVisits,
+  isTimeoutLoginReason,
+  recordTimeoutLoginVisit,
+  redirectToCloudflareAccessLogout,
+  shouldForceAccessLogoutAfterTimeoutVisit,
+  TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD,
+} from "@/lib/auth/timeout-login-visits";
 import { fetchIpEmailRestrictionStatus } from "@/lib/auth/login-ip-restriction-client";
 import "./login-page.css";
-
-type LoginResponseData = {
-  error?: string;
-  errorCode?: string;
-  redirect?: string;
-  restrictedUntil?: string;
-  remainingSeconds?: number;
-};
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
   if (value === "idle" || value === "revoked" || value === "invalid") {
     return value;
   }
   return null;
-}
-
-function isJsonContentType(response: Response): boolean {
-  const contentType = response.headers.get("content-type") ?? "";
-  return contentType.includes("application/json");
-}
-
-async function fetchAccessWindowStatus(): Promise<{
-  ok: boolean;
-  errorCode?: string;
-}> {
-  const res = await fetch("/api/auth/access-window", { cache: "no-store" });
-  if (!isJsonContentType(res)) {
-    return { ok: false, errorCode: "ACCESS_VERIFICATION_EXPIRED" };
-  }
-  try {
-    return (await res.json()) as { ok: boolean; errorCode?: string };
-  } catch {
-    return { ok: false, errorCode: "ACCESS_VERIFICATION_EXPIRED" };
-  }
 }
 
 export function LoginForm() {
@@ -69,16 +48,12 @@ export function LoginForm() {
   const [ipRestrictedUntil, setIpRestrictedUntil] = useState<string | null>(
     null,
   );
+  const processedTimeoutVisitRef = useRef<string | null>(null);
 
   const reasonParam = searchParams.get("reason");
   const sessionEndParam = searchParams.get("session_end");
   const isTimeoutVisit = isTimeoutLoginReason(reasonParam, sessionEndParam);
   const formDisabled = loading || ipRestrictedUntil != null;
-
-  const redirectForAccessVerification = useCallback(() => {
-    setError(t("security.accessExpired"));
-    redirectToAccessLogout();
-  }, [t]);
 
   const closeAccountLockedModal = useCallback(() => {
     setAccountLockedOpen(false);
@@ -109,38 +84,32 @@ export function LoginForm() {
   }, []);
 
   useEffect(() => {
-    if (isLocalDevelopmentClient()) {
+    if (!isTimeoutVisit) {
+      processedTimeoutVisitRef.current = null;
       return;
     }
 
-    let cancelled = false;
+    const visitMarker = `${reasonParam ?? ""}|${sessionEndParam ?? ""}|${searchParams.toString()}`;
+    if (processedTimeoutVisitRef.current === visitMarker) {
+      return;
+    }
+    processedTimeoutVisitRef.current = visitMarker;
 
-    async function checkAccessWindow() {
-      try {
-        const status = await fetchAccessWindowStatus();
-        if (cancelled || status.ok) {
-          return;
-        }
-        redirectForAccessVerification();
-      } catch {
-        // Ignore transient pre-check failures; submit handler still validates.
-      }
+    const visitCount = recordTimeoutLoginVisit();
+    const isLocalDev = isLocalDevelopmentClient();
+
+    if (shouldForceAccessLogoutAfterTimeoutVisit(visitCount, isLocalDev)) {
+      redirectToCloudflareAccessLogout();
+      return;
     }
 
-    void checkAccessWindow();
-
-    const onVisibility = () => {
-      if (document.visibilityState === "visible") {
-        void checkAccessWindow();
-      }
-    };
-    document.addEventListener("visibilitychange", onVisibility);
-
-    return () => {
-      cancelled = true;
-      document.removeEventListener("visibilitychange", onVisibility);
-    };
-  }, [redirectForAccessVerification]);
+    if (
+      isLocalDev &&
+      visitCount >= TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD
+    ) {
+      clearTimeoutLoginVisits();
+    }
+  }, [isTimeoutVisit, reasonParam, searchParams, sessionEndParam]);
 
   const sessionEndNotice = useMemo(() => {
     if (isTimeoutVisit) {
@@ -173,19 +142,6 @@ export function LoginForm() {
     let keepPendingModal = false;
 
     try {
-      if (!isLocalDevelopmentClient()) {
-        try {
-          const accessStatus = await fetchAccessWindowStatus();
-          if (!accessStatus.ok) {
-            keepPendingModal = true;
-            redirectForAccessVerification();
-            return;
-          }
-        } catch {
-          // Continue to login attempt; response handler covers non-JSON Access pages.
-        }
-      }
-
       const form = new FormData(e.currentTarget);
       const response = await fetch("/api/auth/login", {
         method: "POST",
@@ -196,19 +152,18 @@ export function LoginForm() {
         }),
       });
 
-      let data: LoginResponseData = {};
-
-      if (!isJsonContentType(response)) {
-        keepPendingModal = true;
-        redirectForAccessVerification();
-        return;
-      }
+      let data: {
+        error?: string;
+        errorCode?: string;
+        redirect?: string;
+        restrictedUntil?: string;
+        remainingSeconds?: number;
+      } = {};
 
       try {
-        data = (await response.json()) as LoginResponseData;
+        data = (await response.json()) as typeof data;
       } catch {
-        keepPendingModal = true;
-        redirectForAccessVerification();
+        setError(t("common.networkError"));
         return;
       }
 
@@ -217,8 +172,9 @@ export function LoginForm() {
           data.errorCode === "ACCESS_VERIFICATION_EXPIRED" &&
           !isLocalDevelopmentClient()
         ) {
+          setError(t("security.accessExpired"));
           keepPendingModal = true;
-          redirectForAccessVerification();
+          redirectToAccessLogout();
           return;
         }
         if (data.errorCode === "IP_EMAIL_RESTRICTED" && data.restrictedUntil) {
@@ -239,6 +195,8 @@ export function LoginForm() {
         setError(resolveApiError(t, data));
         return;
       }
+
+      clearTimeoutLoginVisits();
 
       const redirect =
         data.redirect ?? searchParams.get("redirect") ?? "/";
