@@ -8,6 +8,10 @@ import {
   getClearSessionCookieOptions,
   getRequestMeta,
 } from "@/lib/auth/cookies";
+import {
+  applyIdleReloginCookieUpdateToStore,
+  incrementIdleReloginForRequest,
+} from "@/lib/auth/idle-relogin-cookie";
 import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 
@@ -42,6 +46,13 @@ export async function POST(request: Request) {
     ...getClearSessionCookieOptions(),
     value: "",
   });
+
+  if (reason === "idle") {
+    applyIdleReloginCookieUpdateToStore(
+      cookieStore,
+      incrementIdleReloginForRequest(request),
+    );
+  }
 
   if (userId) {
     await writeAuditLog({

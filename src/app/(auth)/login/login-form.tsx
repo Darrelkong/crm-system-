@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/form";
@@ -19,14 +19,7 @@ import {
   sessionEndMessageKey,
   type SessionEndReason,
 } from "@/lib/auth/client-security";
-import {
-  clearTimeoutLoginVisits,
-  isTimeoutLoginReason,
-  recordTimeoutLoginVisit,
-  redirectToCloudflareAccessLogout,
-  shouldForceAccessLogoutAfterTimeoutVisit,
-  TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD,
-} from "@/lib/auth/timeout-login-visits";
+import { isTimeoutLoginReason } from "@/lib/auth/timeout-login-visits";
 import { fetchIpEmailRestrictionStatus } from "@/lib/auth/login-ip-restriction-client";
 import "./login-page.css";
 
@@ -61,7 +54,6 @@ export function LoginForm() {
   const [ipRestrictedUntil, setIpRestrictedUntil] = useState<string | null>(
     null,
   );
-  const processedTimeoutVisitRef = useRef<string | null>(null);
 
   const reasonParam = searchParams.get("reason");
   const sessionEndParam = searchParams.get("session_end");
@@ -100,34 +92,6 @@ export function LoginForm() {
       cancelled = true;
     };
   }, []);
-
-  useEffect(() => {
-    if (!isTimeoutVisit) {
-      processedTimeoutVisitRef.current = null;
-      return;
-    }
-
-    const visitMarker = `${reasonParam ?? ""}|${sessionEndParam ?? ""}|${searchParams.toString()}`;
-    if (processedTimeoutVisitRef.current === visitMarker) {
-      return;
-    }
-    processedTimeoutVisitRef.current = visitMarker;
-
-    const visitCount = recordTimeoutLoginVisit();
-    const isLocalDev = isLocalDevelopmentClient();
-
-    if (shouldForceAccessLogoutAfterTimeoutVisit(visitCount, isLocalDev)) {
-      redirectToCloudflareAccessLogout();
-      return;
-    }
-
-    if (
-      isLocalDev &&
-      visitCount >= TIMEOUT_ACCESS_LOGOUT_VISIT_THRESHOLD
-    ) {
-      clearTimeoutLoginVisits();
-    }
-  }, [isTimeoutVisit, reasonParam, searchParams, sessionEndParam]);
 
   const sessionEndNotice = useMemo(() => {
     if (isTimeoutVisit) {
@@ -213,8 +177,6 @@ export function LoginForm() {
         setError(resolveApiError(t, data));
         return;
       }
-
-      clearTimeoutLoginVisits();
 
       const redirect =
         data.redirect ?? searchParams.get("redirect") ?? "/";

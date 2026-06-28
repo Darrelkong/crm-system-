@@ -12,6 +12,10 @@ import {
 } from "@/lib/auth/constants";
 import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import {
+  applyIdleReloginCookieUpdateToStore,
+  resolveIdleReloginStateFromRequest,
+} from "@/lib/auth/idle-relogin-cookie";
+import {
   shouldRequireCloudflareAccess,
   validateAccessLoginWindowFromRequest,
 } from "@/lib/auth/access-jwt";
@@ -60,6 +64,8 @@ function ipRestrictionResponse(
 }
 
 export async function POST(request: Request) {
+  const cookieStore = await cookies();
+
   if (shouldRequireCloudflareAccess(request.headers)) {
     const accessWindow = validateAccessLoginWindowFromRequest(request);
     if (!accessWindow.ok) {
@@ -70,6 +76,24 @@ export async function POST(request: Request) {
           redirect: getPostLogoutRedirectPath(),
         },
         { status: 401 },
+      );
+    }
+
+    const idleState = resolveIdleReloginStateFromRequest(request);
+    if (idleState.cookieUpdate) {
+      applyIdleReloginCookieUpdateToStore(
+        cookieStore,
+        idleState.cookieUpdate,
+      );
+    }
+    if (idleState.requiresAccessReverify) {
+      return Response.json(
+        {
+          error: "Access reverify required after repeated idle logout",
+          errorCode: AUTH_ERROR_CODES.ACCESS_VERIFICATION_EXPIRED,
+          redirect: getPostLogoutRedirectPath(),
+        },
+        { status: 403 },
       );
     }
   }
@@ -198,7 +222,6 @@ export async function POST(request: Request) {
   await clearIpEmailRestriction(ipAddress);
 
   const { token, expiresAt } = await createSession(user.id, request);
-  const cookieStore = await cookies();
   cookieStore.set({
     ...getSessionCookieOptions(expiresAt),
     value: token,

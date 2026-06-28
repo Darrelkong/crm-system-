@@ -4,6 +4,10 @@ import {
   AUTH_ERROR_CODES,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
+import {
+  incrementIdleReloginOnResponse,
+  syncIdleReloginCookiesOnLoginVisit,
+} from "@/lib/auth/idle-relogin-cookie";
 import { validateSessionFromRequest } from "@/lib/auth/session";
 import { getRoleDashboardPath } from "@/lib/permissions/auth";
 
@@ -29,6 +33,9 @@ function redirectToLogin(
       path: "/",
       maxAge: 0,
     });
+  }
+  if (sessionEnd === "idle") {
+    incrementIdleReloginOnResponse(request, response);
   }
   return response;
 }
@@ -94,7 +101,9 @@ export async function middleware(request: NextRequest) {
       const destination = getRoleDashboardPath(sessionUser.role);
       return NextResponse.redirect(new URL(destination, request.url));
     }
-    return NextResponse.next();
+    const response = NextResponse.next();
+    syncIdleReloginCookiesOnLoginVisit(request, response);
+    return response;
   }
 
   if (pathname === "/") {
