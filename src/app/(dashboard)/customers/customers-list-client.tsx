@@ -8,6 +8,7 @@ import {
   CompletenessBadge,
   HeatBadge,
 } from "@/components/customers/customer-scores-cards";
+import { PinnedBadge } from "@/components/customers/pinned-badge";
 import { Button } from "@/components/ui/button";
 import { Badge, EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
@@ -76,6 +77,8 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     overdueFollowUp: item.overdueFollowUp,
     isArchived: item.isArchived ?? false,
     isMasked: item.isMasked,
+    isPinned: item.isPinned ?? false,
+    pinnedAt: item.pinnedAt ?? null,
     createdAt: item.createdAt,
   };
 }
@@ -195,13 +198,16 @@ export function CustomersListClient({
       isAdmin && c.customerCode ? c.customerCode : undefined;
 
     return (
-      <Link
-        href={`/customers/${c.id}`}
-        className="font-medium text-[#2F6FB3] hover:underline"
-        title={title}
-      >
-        {c.customerName}
-      </Link>
+      <span className="inline-flex items-center gap-2">
+        <Link
+          href={`/customers/${c.id}`}
+          className="font-medium text-[#2F6FB3] hover:underline"
+          title={title}
+        >
+          {c.customerName}
+        </Link>
+        {c.isPinned && <PinnedBadge />}
+      </span>
     );
   }
 
@@ -225,7 +231,10 @@ export function CustomersListClient({
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate font-semibold text-[#172033]">{c.customerName}</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="truncate font-semibold text-[#172033]">{c.customerName}</p>
+              {c.isPinned && <PinnedBadge />}
+            </div>
             <p className="mt-1 text-xs text-[#6B7890]">
               {ownerLabel(c)} · {salesStage(c.salesStage)}
             </p>

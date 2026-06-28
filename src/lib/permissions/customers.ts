@@ -32,6 +32,8 @@ export type CustomerView = {
   accessLevel: CustomerAccessLevel;
   isMasked: boolean;
   isArchived?: boolean;
+  isPinned: boolean;
+  pinnedAt?: string | null;
   // Sensitive — only present when accessLevel = "full"
   phoneCountryCode?: string | null;
   phone?: string | null;
@@ -322,6 +324,8 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
     ownerId: customer.ownerId,
     accessLevel: "masked",
     isMasked: true,
+    isPinned: customer.isPinned === 1,
+    pinnedAt: customer.pinnedAt ?? null,
     createdBy: customer.createdBy,
     updatedBy: customer.updatedBy,
     createdAt: customer.createdAt,
@@ -343,6 +347,8 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     ownerId: customer.ownerId,
     accessLevel: "full",
     isMasked: false,
+    isPinned: customer.isPinned === 1,
+    pinnedAt: customer.pinnedAt ?? null,
     phoneCountryCode: customer.phoneCountryCode,
     phone: customer.phone,
     wechatId: customer.wechatId,

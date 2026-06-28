@@ -18,6 +18,8 @@ export type CustomerListRowData = {
   overdueFollowUp: boolean;
   isArchived: boolean;
   isMasked: boolean;
+  isPinned: boolean;
+  pinnedAt?: string | null;
   createdAt: string;
 };
 
@@ -40,6 +42,8 @@ export function toCustomerListRow(
     overdueFollowUp: customer.overdueFollowUp,
     isArchived: !!customer.isArchived,
     isMasked: !!customer.isMasked,
+    isPinned: customer.isPinned,
+    pinnedAt: customer.pinnedAt ?? null,
     createdAt: customer.createdAt,
   };
 }

@@ -97,6 +97,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         status: view.status,
         isMasked: !!view.isMasked,
         isArchived: !!view.isArchived,
+        isPinned: view.isPinned,
         accessLevel: view.accessLevel,
         phone: view.phone,
         phoneCountryCode: view.phoneCountryCode,

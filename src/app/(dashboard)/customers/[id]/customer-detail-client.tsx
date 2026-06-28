@@ -9,6 +9,7 @@ import { CustomerTimelineView } from "@/components/customers/customer-timeline-v
 import { CustomerAiInsightPanel } from "@/components/customers/customer-ai-insight-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
+import { PinnedBadge } from "@/components/customers/pinned-badge";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { HeatReasonPart } from "@/lib/customers/scoring/heat";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
@@ -34,6 +35,7 @@ export type CustomerDetailView = {
   status: string;
   isMasked: boolean;
   isArchived: boolean;
+  isPinned: boolean;
   accessLevel: string;
   phone?: string | null;
   phoneCountryCode?: string | null;
@@ -126,7 +128,10 @@ export function CustomerDetailClient({
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <h2 className="page-title text-2xl sm:text-3xl">{view.customerName}</h2>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="page-title text-2xl sm:text-3xl">{view.customerName}</h2>
+            {view.isPinned && <PinnedBadge className="mt-1" />}
+          </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge>{status(view.status)}</Badge>
             {view.isMasked && !view.isArchived && (
