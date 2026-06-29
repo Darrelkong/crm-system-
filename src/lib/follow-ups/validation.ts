@@ -13,8 +13,16 @@ export type FollowUpInput = {
 
 export type ValidationFieldError = { field: string; message: string; code: string };
 
+export type ValidateFollowUpOptions = {
+  now?: Date;
+};
+
 const MIN_SUMMARY_LENGTH = 5;
 export const MIN_NEXT_ACTION_LENGTH = 10;
+export const MIN_NEXT_FOLLOW_UP_LEAD_MINUTES = 45;
+
+/** Unified server message; user-facing text comes from i18n by error code. */
+export const NEXT_FOLLOW_UP_USER_MESSAGE = "请你填写正确下次跟进时间！";
 
 function isValidIsoDate(value: string): boolean {
   const d = new Date(value);
@@ -29,10 +37,34 @@ export function normalizeNextFollowUpAt(
   return trimmed ? trimmed : null;
 }
 
+export function formatDatetimeLocalValue(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+  const minute = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hour}:${minute}`;
+}
+
+export function getMinNextFollowUpDatetimeLocal(
+  now = new Date(),
+): string {
+  return formatDatetimeLocalValue(
+    new Date(now.getTime() + MIN_NEXT_FOLLOW_UP_LEAD_MINUTES * 60 * 1000),
+  );
+}
+
+export function getMinNextFollowUpTimestamp(now = new Date()): number {
+  return now.getTime() + MIN_NEXT_FOLLOW_UP_LEAD_MINUTES * 60 * 1000;
+}
+
 export function validateFollowUpInput(
   input: FollowUpInput,
+  options: ValidateFollowUpOptions = {},
 ): ValidationFieldError[] {
   const errors: ValidationFieldError[] = [];
+  const now = options.now ?? new Date();
+  const minNextFollowUpMs = getMinNextFollowUpTimestamp(now);
 
   if (!input.channel || !isFollowUpChannel(input.channel)) {
     errors.push({
@@ -65,6 +97,15 @@ export function validateFollowUpInput(
     });
   }
 
+  const customerIntent = input.customerIntent?.trim() ?? "";
+  if (!customerIntent) {
+    errors.push({
+      field: "customerIntent",
+      message: "请填写客户意向",
+      code: "CUSTOMER_INTENT_REQUIRED",
+    });
+  }
+
   if (input.followUpTime && !isValidIsoDate(input.followUpTime)) {
     errors.push({
       field: "followUpTime",
@@ -74,11 +115,23 @@ export function validateFollowUpInput(
   }
 
   const nextAt = normalizeNextFollowUpAt(input.nextFollowUpAt);
-  if (nextAt && !isValidIsoDate(nextAt)) {
+  if (!nextAt) {
     errors.push({
       field: "nextFollowUpAt",
-      message: "下次跟进时间格式不正确",
+      message: NEXT_FOLLOW_UP_USER_MESSAGE,
+      code: "NEXT_FOLLOW_UP_REQUIRED",
+    });
+  } else if (!isValidIsoDate(nextAt)) {
+    errors.push({
+      field: "nextFollowUpAt",
+      message: NEXT_FOLLOW_UP_USER_MESSAGE,
       code: "NEXT_FOLLOW_UP_INVALID",
+    });
+  } else if (new Date(nextAt).getTime() < minNextFollowUpMs) {
+    errors.push({
+      field: "nextFollowUpAt",
+      message: NEXT_FOLLOW_UP_USER_MESSAGE,
+      code: "NEXT_FOLLOW_UP_TOO_SOON",
     });
   }
 

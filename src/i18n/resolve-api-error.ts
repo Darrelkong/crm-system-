@@ -99,11 +99,13 @@ const FIELD_CODE_TO_KEY: Record<string, string> = {
   FOLLOW_UP_SUMMARY_REQUIRED: "errors.followUpSummaryRequired",
   FOLLOW_UP_SUMMARY_TOO_SHORT: "errors.followUpSummaryTooShort",
   NEXT_FOLLOW_UP_REQUIRED: "errors.nextFollowUpRequired",
+  NEXT_FOLLOW_UP_INVALID: "errors.nextFollowUpInvalid",
+  NEXT_FOLLOW_UP_TOO_SOON: "errors.nextFollowUpTooSoon",
+  CUSTOMER_INTENT_REQUIRED: "errors.customerIntentRequired",
   NEXT_ACTION_REQUIRED: "errors.nextActionRequired",
   NEXT_ACTION_TOO_SHORT: "errors.nextActionTooShort",
   INVALID_FOLLOW_UP_TIME: "errors.invalidFollowUpTime",
   INVALID_NEXT_FOLLOW_UP_TIME: "errors.invalidNextFollowUpTime",
-  NEXT_FOLLOW_UP_INVALID: "errors.nextFollowUpInvalid",
   RELEASE_REASON_REQUIRED: "errors.releaseReasonRequired",
 };
 
@@ -142,6 +144,8 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "跟进内容摘要必填": "errors.followUpSummaryRequired",
   "跟进内容至少需要 5 个字": "errors.followUpSummaryTooShort",
   "请选择下次跟进时间": "errors.nextFollowUpRequired",
+  "请你填写正确下次跟进时间！": "errors.nextFollowUpRequired",
+  "请填写客户意向": "errors.customerIntentRequired",
   "下一步行动必填": "errors.nextActionRequired",
   "下一步行动至少需要 5 个字": "errors.nextActionTooShort",
   "下一步行动至少需要 10 个字": "errors.nextActionTooShort",

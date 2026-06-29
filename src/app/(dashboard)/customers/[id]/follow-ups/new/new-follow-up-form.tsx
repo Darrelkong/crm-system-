@@ -9,6 +9,7 @@ import { FOLLOW_UP_OUTCOMES } from "@/lib/constants/follow-up-outcomes";
 import type { FollowUpChannel } from "@/lib/constants/follow-up-channels";
 import type { FollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 import {
+  getMinNextFollowUpDatetimeLocal,
   validateFollowUpInput,
   type ValidationFieldError,
 } from "@/lib/follow-ups/validation";
@@ -27,6 +28,8 @@ export function NewFollowUpForm({
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+
+  const minNextFollowUpAt = getMinNextFollowUpDatetimeLocal();
 
   const [form, setForm] = useState({
     channel: "" as FollowUpChannel | "",
@@ -57,7 +60,7 @@ export function NewFollowUpForm({
       channel: form.channel,
       outcome: form.outcome,
       summary: form.summary,
-      customerIntent: form.customerIntent || null,
+      customerIntent: form.customerIntent,
       nextFollowUpAt: form.nextFollowUpAt
         ? new Date(form.nextFollowUpAt).toISOString()
         : null,
@@ -74,9 +77,7 @@ export function NewFollowUpForm({
       return;
     }
 
-    const nextFollowUpAtIso = form.nextFollowUpAt
-      ? new Date(form.nextFollowUpAt).toISOString()
-      : null;
+    const nextFollowUpAtIso = new Date(form.nextFollowUpAt).toISOString();
 
     try {
       const res = await fetch(`/api/customers/${customerId}/follow-ups`, {
@@ -86,7 +87,7 @@ export function NewFollowUpForm({
           channel: form.channel,
           outcome: form.outcome,
           summary: form.summary,
-          customerIntent: form.customerIntent || null,
+          customerIntent: form.customerIntent.trim(),
           nextFollowUpAt: nextFollowUpAtIso,
           nextAction: form.nextAction,
         }),
@@ -193,23 +194,31 @@ export function NewFollowUpForm({
         </Field>
 
         <Field>
-          <Label htmlFor="customerIntent">{t("followUps.customerIntent")}</Label>
+          <Label htmlFor="customerIntent">
+            {t("followUps.customerIntent")}{" "}
+            <span className="text-red-500">*</span>
+          </Label>
           <Input
             id="customerIntent"
             value={form.customerIntent}
             onChange={(e) => set("customerIntent", e.target.value)}
-            placeholder={t("followUps.optional")}
+            placeholder={t("followUps.customerIntentPlaceholder")}
           />
+          {fieldErrors.customerIntent && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.customerIntent}</p>
+          )}
         </Field>
 
         <Field>
           <Label htmlFor="nextFollowUpAt">
-            {t("followUps.nextFollowUpDate")}
+            {t("followUps.nextFollowUpDate")}{" "}
+            <span className="text-red-500">*</span>
           </Label>
           <Input
             id="nextFollowUpAt"
             type="datetime-local"
             value={form.nextFollowUpAt}
+            min={minNextFollowUpAt}
             onChange={(e) => set("nextFollowUpAt", e.target.value)}
           />
           {fieldErrors.nextFollowUpAt && (
@@ -222,8 +231,9 @@ export function NewFollowUpForm({
           <Label htmlFor="nextAction">
             {t("followUps.nextAction")} <span className="text-red-500">*</span>
           </Label>
-          <Input
+          <Textarea
             id="nextAction"
+            rows={4}
             value={form.nextAction}
             onChange={(e) => set("nextAction", e.target.value)}
             placeholder={t("followUps.nextActionPlaceholder")}
