@@ -12,7 +12,6 @@ import {
   validateFollowUpInput,
   type ValidationFieldError,
 } from "@/lib/follow-ups/validation";
-import { getBeijingDatetimeLocalValue } from "@/lib/datetime/beijing";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 
@@ -34,7 +33,7 @@ export function NewFollowUpForm({
     outcome: "" as FollowUpOutcome | "",
     summary: "",
     customerIntent: "",
-    nextFollowUpAt: getBeijingDatetimeLocalValue(),
+    nextFollowUpAt: "",
     nextAction: "",
   });
 
@@ -75,6 +74,10 @@ export function NewFollowUpForm({
       return;
     }
 
+    const nextFollowUpAtIso = form.nextFollowUpAt
+      ? new Date(form.nextFollowUpAt).toISOString()
+      : null;
+
     try {
       const res = await fetch(`/api/customers/${customerId}/follow-ups`, {
         method: "POST",
@@ -84,7 +87,7 @@ export function NewFollowUpForm({
           outcome: form.outcome,
           summary: form.summary,
           customerIntent: form.customerIntent || null,
-          nextFollowUpAt: new Date(form.nextFollowUpAt).toISOString(),
+          nextFollowUpAt: nextFollowUpAtIso,
           nextAction: form.nextAction,
         }),
       });
@@ -201,8 +204,7 @@ export function NewFollowUpForm({
 
         <Field>
           <Label htmlFor="nextFollowUpAt">
-            {t("followUps.nextFollowUpDate")}{" "}
-            <span className="text-red-500">*</span>
+            {t("followUps.nextFollowUpDate")}
           </Label>
           <Input
             id="nextFollowUpAt"

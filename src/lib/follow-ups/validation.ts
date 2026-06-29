@@ -13,11 +13,20 @@ export type FollowUpInput = {
 
 export type ValidationFieldError = { field: string; message: string; code: string };
 
-const MIN_TEXT_LENGTH = 5;
+const MIN_SUMMARY_LENGTH = 5;
+export const MIN_NEXT_ACTION_LENGTH = 10;
 
 function isValidIsoDate(value: string): boolean {
   const d = new Date(value);
   return !Number.isNaN(d.getTime());
+}
+
+/** Empty / whitespace → null; otherwise trimmed ISO-ready string. */
+export function normalizeNextFollowUpAt(
+  value: string | null | undefined,
+): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
 }
 
 export function validateFollowUpInput(
@@ -48,7 +57,7 @@ export function validateFollowUpInput(
       message: "跟进内容摘要必填",
       code: "FOLLOW_UP_SUMMARY_REQUIRED",
     });
-  } else if (summary.length < MIN_TEXT_LENGTH) {
+  } else if (summary.length < MIN_SUMMARY_LENGTH) {
     errors.push({
       field: "summary",
       message: "跟进内容至少需要 5 个字",
@@ -64,18 +73,12 @@ export function validateFollowUpInput(
     });
   }
 
-  const nextAt = input.nextFollowUpAt?.trim();
-  if (!nextAt) {
+  const nextAt = normalizeNextFollowUpAt(input.nextFollowUpAt);
+  if (nextAt && !isValidIsoDate(nextAt)) {
     errors.push({
       field: "nextFollowUpAt",
-      message: "请选择下次跟进时间",
-      code: "NEXT_FOLLOW_UP_REQUIRED",
-    });
-  } else if (!isValidIsoDate(nextAt)) {
-    errors.push({
-      field: "nextFollowUpAt",
-      message: "下次跟进时间格式无效",
-      code: "INVALID_NEXT_FOLLOW_UP_TIME",
+      message: "下次跟进时间格式不正确",
+      code: "NEXT_FOLLOW_UP_INVALID",
     });
   }
 
@@ -86,10 +89,10 @@ export function validateFollowUpInput(
       message: "下一步行动必填",
       code: "NEXT_ACTION_REQUIRED",
     });
-  } else if (nextAction.length < MIN_TEXT_LENGTH) {
+  } else if (nextAction.length < MIN_NEXT_ACTION_LENGTH) {
     errors.push({
       field: "nextAction",
-      message: "下一步行动至少需要 5 个字",
+      message: "下一步行动至少需要 10 个字",
       code: "NEXT_ACTION_TOO_SHORT",
     });
   }

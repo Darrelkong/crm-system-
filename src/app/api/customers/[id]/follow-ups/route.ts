@@ -12,7 +12,10 @@ import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
 import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 import { writeAuditLog } from "@/lib/audit/audit-log";
-import { validateFollowUpInput } from "@/lib/follow-ups/validation";
+import {
+  normalizeNextFollowUpAt,
+  validateFollowUpInput,
+} from "@/lib/follow-ups/validation";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { isValidFollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 import type { FollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
@@ -155,7 +158,7 @@ export async function POST(request: Request, context: RouteContext) {
     const followUpTime = input.followUpTime?.trim() || new Date().toISOString();
     const outcome = input.outcome as FollowUpOutcome;
     const isValid = isValidFollowUpOutcome(outcome) ? 1 : 0;
-    const nextFollowUpAt = input.nextFollowUpAt!.trim();
+    const nextFollowUpAt = normalizeNextFollowUpAt(input.nextFollowUpAt);
     const now = new Date().toISOString();
     const followUpId = crypto.randomUUID();
 

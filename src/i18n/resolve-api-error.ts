@@ -103,6 +103,7 @@ const FIELD_CODE_TO_KEY: Record<string, string> = {
   NEXT_ACTION_TOO_SHORT: "errors.nextActionTooShort",
   INVALID_FOLLOW_UP_TIME: "errors.invalidFollowUpTime",
   INVALID_NEXT_FOLLOW_UP_TIME: "errors.invalidNextFollowUpTime",
+  NEXT_FOLLOW_UP_INVALID: "errors.nextFollowUpInvalid",
   RELEASE_REASON_REQUIRED: "errors.releaseReasonRequired",
 };
 
@@ -143,8 +144,10 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "请选择下次跟进时间": "errors.nextFollowUpRequired",
   "下一步行动必填": "errors.nextActionRequired",
   "下一步行动至少需要 5 个字": "errors.nextActionTooShort",
+  "下一步行动至少需要 10 个字": "errors.nextActionTooShort",
   "跟进时间格式无效": "errors.invalidFollowUpTime",
   "下次跟进时间格式无效": "errors.invalidNextFollowUpTime",
+  "下次跟进时间格式不正确": "errors.nextFollowUpInvalid",
   "释放原因必填": "errors.releaseReasonRequired",
   "申请不存在": "errors.approvalNotFound",
   "该申请已处理，不能重复审批": "errors.approvalAlreadyProcessed",
