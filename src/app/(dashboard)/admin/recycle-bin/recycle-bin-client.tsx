@@ -134,6 +134,7 @@ export function RecycleBinClient() {
             <table className="min-w-full text-left text-sm">
               <thead>
                 <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
+                  <th className="px-3 py-2">{t("recycleBin.colCustomerCode")}</th>
                   <th className="px-3 py-2">{t("recycleBin.colCustomerName")}</th>
                   <th className="px-3 py-2">{t("recycleBin.colContact")}</th>
                   <th className="px-3 py-2">{t("recycleBin.colOwner")}</th>
@@ -149,6 +150,9 @@ export function RecycleBinClient() {
                   const rowBusy = restoringId === row.id || deletingId === row.id;
                   return (
                     <tr key={row.id} className="table-row border-b border-[#EEF3F8]">
+                      <td className="px-3 py-2 font-mono text-xs text-[#6B7890]">
+                        {row.customer_code ?? "—"}
+                      </td>
                       <td className="px-3 py-2 font-medium text-[#172033]">
                         {row.customer_name}
                       </td>

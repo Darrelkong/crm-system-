@@ -243,6 +243,7 @@ const zhHans: Messages = {
       "永久删除后，该客户资料将无法恢复。请确认是否继续？",
     permanentDeleteSuccess: "客户已永久删除。",
     permanentDeleteFailed: "永久删除失败，请稍后再试。",
+    colCustomerCode: "客户编号",
     colCustomerName: "客户名称",
     colContact: "联系方式",
     colOwner: "原负责人",

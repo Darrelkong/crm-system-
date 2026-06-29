@@ -243,6 +243,7 @@ const zhHant: Messages = {
       "永久刪除後，該客戶資料將無法恢復。請確認是否繼續？",
     permanentDeleteSuccess: "客戶已永久刪除。",
     permanentDeleteFailed: "永久刪除失敗，請稍後再試。",
+    colCustomerCode: "客戶編號",
     colCustomerName: "客戶名稱",
     colContact: "聯絡方式",
     colOwner: "原負責人",

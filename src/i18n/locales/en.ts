@@ -247,6 +247,7 @@ const en = {
       "This client cannot be recovered after permanent deletion. Continue?",
     permanentDeleteSuccess: "Client permanently deleted.",
     permanentDeleteFailed: "Permanent deletion failed. Please try again later.",
+    colCustomerCode: "Client code",
     colCustomerName: "Client name",
     colContact: "Contact",
     colOwner: "Previous owner",

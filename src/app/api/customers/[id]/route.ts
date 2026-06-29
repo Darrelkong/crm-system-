@@ -24,6 +24,7 @@ import {
   buildCustomerUpdatePayload,
   writeFieldChangeLogs,
 } from "@/lib/customers/field-change-log";
+import { archiveCustomerToRecycleBin } from "@/lib/recycle-bin/archive-customer";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 
@@ -220,14 +221,88 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const now = new Date().toISOString();
+    const isArchiving =
+      updateStatus === "archived" && existing.status !== "archived";
+
+    if (isArchiving) {
+      await archiveCustomerToRecycleBin(db, {
+        customer: existing,
+        actor: user,
+        source: "admin_patch",
+        ipAddress,
+        userAgent,
+        now,
+      });
+
+      const archivedCustomer = await getCustomerById(id);
+      if (!archivedCustomer) {
+        return Response.json(
+          { error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" },
+          { status: 404 },
+        );
+      }
+
+      const otherChangedFields = await writeFieldChangeLogs(
+        id,
+        archivedCustomer,
+        payload,
+        user.id,
+      );
+
+      await db
+        .update(schema.customers)
+        .set({
+          customerName: payload.customerName,
+          customerType: payload.customerType,
+          phoneCountryCode: payload.phoneCountryCode,
+          phone: payload.phone,
+          wechatId: payload.wechatId,
+          email: payload.email,
+          source: payload.source,
+          sourceRemark: payload.sourceRemark,
+          requestedProjectName: payload.requestedProjectName,
+          notes: payload.notes,
+          salesStage: payload.salesStage,
+          status: payload.status,
+          updatedBy: user.id,
+          updatedAt: now,
+        })
+        .where(eq(schema.customers.id, id));
+
+      const changedFields = [
+        "status",
+        ...otherChangedFields.filter((field) => field !== "status"),
+      ];
+
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.updated",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: {
+          changedFields,
+          customerName: payload.customerName,
+          archivedToRecycleBin: true,
+        },
+      });
+
+      const updated = await getCustomerById(id);
+      const view = updated
+        ? await enrichCustomerResponse(db, user, updated)
+        : null;
+
+      return Response.json({ ok: true, id, customer: view });
+    }
+
     const changedFields = await writeFieldChangeLogs(
       id,
       existing,
       payload,
       user.id,
     );
-
-    const now = new Date().toISOString();
 
     await db
       .update(schema.customers)

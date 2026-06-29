@@ -43,6 +43,7 @@ export async function listRecycleBinCustomers(): Promise<RecycleBinCustomerView[
 
   return rows.map((row) => ({
     id: row.id,
+    customer_code: row.customerCode,
     customer_name: row.customerName,
     phone: row.phone,
     email: row.email,
