@@ -47,15 +47,29 @@ export const RECLAMATION_WARNING_DAY_7 = 7;
 export const RECLAMATION_RECLAIM_DAYS = 8;
 
 export const RECLAMATION_AUDIT_ACTIONS = {
+  /**
+   * Single pre-reclaim warning (E-4b).
+   * NOTE: We keep the legacy "day_6" action string to avoid an audit-log
+   * data migration; semantics are now "pre-reclaim warning".
+   */
+  warning: "customer.auto_reclaim_warning.day_6",
+  /** @deprecated Legacy two-stage warning kept for historical audit rows. */
   warningDay6: "customer.auto_reclaim_warning.day_6",
+  /** @deprecated Legacy two-stage warning kept for historical audit rows. */
   warningDay7: "customer.auto_reclaim_warning.day_7",
   reclaimed: "customer.auto_reclaimed_to_pool",
   failed: "customer.auto_reclaim_failed",
   taskCancelled: "task.cancelled.auto_reclaim",
 } as const;
 
+/**
+ * App-level warning type written to reclamation_warning_logs.warning_type.
+ * DB CHECK constraint only allows "day_6" / "day_7"; we reuse "day_6" for the
+ * single E-4b warning to avoid a schema migration.
+ */
+export const RECLAIM_WARNING_LOG_TYPE = "day_6" as const;
+
 export const NOTIFICATION_TITLES = {
-  warningDay6: "跟进预警（第 6 天）",
-  warningDay7: "跟进预警（第 7 天）",
+  warning: "客户即将进入公共池",
   reclaimed: "客户已自动回收",
 } as const;

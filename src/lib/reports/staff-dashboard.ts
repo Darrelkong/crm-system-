@@ -168,7 +168,7 @@ export async function getStaffDashboardStats(
     }
     const days = getDaysWithoutValidFollowUp(customer, now);
     return (
-      days >= settings.reclaimWarningDay1 &&
+      days >= settings.reclaimWarningThresholdDays &&
       days < settings.automaticReclaimDays
     );
   }).length;

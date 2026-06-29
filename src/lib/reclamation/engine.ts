@@ -1,12 +1,12 @@
-import { and, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, notInArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { createNotification } from "@/lib/notifications/service";
 import type { Customer } from "../../../drizzle/schema/customers";
-import type { ReclamationWarningType } from "../../../drizzle/schema/reclamation-warning-logs";
 import {
   AUTO_RECLAIM_POOL_REASON_PREFIX,
+  RECLAIM_WARNING_LOG_TYPE,
   RECLAMATION_AUDIT_ACTIONS,
   RECLAMATION_EXCLUDED_SALES_STAGES,
 } from "./constants";
@@ -21,11 +21,15 @@ import {
 } from "@/lib/settings/effective";
 
 export type ReclamationRunResult = {
-  warningsDay6Count: number;
-  warningsDay7Count: number;
+  /** Pre-reclaim warnings sent this run (single-warning model, E-4b). */
+  warningsCount: number;
   reclaimedCount: number;
   skippedCount: number;
   affectedCustomerIds: string[];
+  /** @deprecated Kept for backward-compatible callers/tests; equals warningsCount. */
+  warningsDay6Count: number;
+  /** @deprecated Two-stage warning removed in E-4b; always 0. */
+  warningsDay7Count: number;
 };
 
 type ReclamationAuditMetadata = {
@@ -95,35 +99,37 @@ async function cancelOwnerOpenTasks(
   return openTasks.length;
 }
 
-async function tryRecordWarning(
+/**
+ * Per-cycle dedup for the single pre-reclaim warning (E-4b).
+ *
+ * A "cycle" starts at the customer's reclamation anchor
+ * (lastValidFollowUpAt ?? createdAt). We only send one warning per cycle:
+ * if any warning log exists with created_at >= anchorIso we skip. A new
+ * valid follow-up advances the anchor and starts a fresh cycle.
+ *
+ * Includes legacy warning_type values so customers already warned under
+ * the old two-stage model are not double-notified.
+ */
+async function hasWarningInCurrentCycle(
   db: Database,
-  customer: Customer,
-  warningType: ReclamationWarningType,
-  warningDate: string,
+  customerId: string,
+  anchorIso: string,
 ): Promise<boolean> {
-  if (!customer.ownerId) {
-    return false;
-  }
-
-  const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  try {
-    await db.insert(schema.reclamationWarningLogs).values({
-      id,
-      customerId: customer.id,
-      warningType,
-      warningDate,
-      ownerId: customer.ownerId,
-      createdAt: now,
-    });
-    return true;
-  } catch {
-    return false;
-  }
+  const rows = await db
+    .select({ id: schema.reclamationWarningLogs.id })
+    .from(schema.reclamationWarningLogs)
+    .where(
+      and(
+        eq(schema.reclamationWarningLogs.customerId, customerId),
+        gte(schema.reclamationWarningLogs.createdAt, anchorIso),
+        inArray(schema.reclamationWarningLogs.warningType, ["day_6", "day_7"]),
+      ),
+    )
+    .limit(1);
+  return rows.length > 0;
 }
 
-async function sendDay6Warning(
+async function sendReclaimWarning(
   db: Database,
   customer: Customer,
   days: number,
@@ -134,8 +140,23 @@ async function sendDay6Warning(
     return false;
   }
 
-  const recorded = await tryRecordWarning(db, customer, "day_6", warningDate);
-  if (!recorded) {
+  const anchorIso = getReclamationAnchorAt(customer);
+  if (await hasWarningInCurrentCycle(db, customer.id, anchorIso)) {
+    return false;
+  }
+
+  // DB UNIQUE(customer_id, warning_type, warning_date) also guards against
+  // same-day duplicates if two cron runs race.
+  try {
+    await db.insert(schema.reclamationWarningLogs).values({
+      id: crypto.randomUUID(),
+      customerId: customer.id,
+      warningType: RECLAIM_WARNING_LOG_TYPE,
+      warningDate,
+      ownerId: customer.ownerId,
+      createdAt: new Date().toISOString(),
+    });
+  } catch {
     return false;
   }
 
@@ -145,56 +166,12 @@ async function sendDay6Warning(
     userId: customer.ownerId,
     type: "auto_reclaim_warning_day_6",
     titleKey: "notificationTypes.auto_reclaim_warning_day_6",
-    messageKey: "notificationMessages.autoReclaimWarningDay6",
+    messageKey: "notificationMessages.autoReclaimWarning",
     messageParams: {
       customerName: customer.customerName,
-      days: String(settings.reclaimWarningDay1),
-    },
-    relatedEntityType: "customer",
-    relatedEntityId: customer.id,
-  });
-
-  await writeAuditLog(
-    {
-      userId: null,
-      action: RECLAMATION_AUDIT_ACTIONS.warningDay6,
-      entityType: "customer",
-      entityId: customer.id,
-      metadata,
-    },
-    db,
-  );
-
-  return true;
-}
-
-async function sendDay7Warning(
-  db: Database,
-  customer: Customer,
-  days: number,
-  warningDate: string,
-  settings: EffectiveSettings,
-): Promise<boolean> {
-  if (!customer.ownerId) {
-    return false;
-  }
-
-  const recorded = await tryRecordWarning(db, customer, "day_7", warningDate);
-  if (!recorded) {
-    return false;
-  }
-
-  const metadata = buildAuditMetadata(customer, days);
-
-  await createNotification(db, {
-    userId: customer.ownerId,
-    type: "auto_reclaim_warning_day_7",
-    titleKey: "notificationTypes.auto_reclaim_warning_day_7",
-    messageKey: "notificationMessages.autoReclaimWarningDay7",
-    messageParams: {
-      customerName: customer.customerName,
-      days: String(settings.reclaimWarningDay2),
+      days: String(days),
       reclaimDays: String(settings.automaticReclaimDays),
+      daysBefore: String(settings.reclaimWarningDaysBefore),
     },
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
@@ -203,7 +180,7 @@ async function sendDay7Warning(
   await writeAuditLog(
     {
       userId: null,
-      action: RECLAMATION_AUDIT_ACTIONS.warningDay7,
+      action: RECLAMATION_AUDIT_ACTIONS.warning,
       entityType: "customer",
       entityId: customer.id,
       metadata,
@@ -300,10 +277,19 @@ async function autoReclaimCustomer(
 }
 
 /**
- * Evaluates active owned customers for configured warning thresholds and auto-reclaim.
- * Only status=active with owner_id set participate.
- * Skips public_pool / inactive / archived, excluded sales stages
+ * Evaluates active owned customers for the configured pre-reclaim warning
+ * and auto-reclaim thresholds (single-warning model, E-4b).
+ *
+ *   reclaimDays      = automaticReclaimDays
+ *   warningThreshold = reclaimDays - reclaimWarningDaysBefore
+ *
+ * Only status=active with owner_id set participate. Excludes
+ * public_pool / inactive / archived, excluded sales stages
  * (closed_won, converted, on_hold), and pinned customers (is_pinned = 1).
+ *
+ * Sends at most one pre-reclaim warning per cycle (anchor = last valid
+ * follow-up or createdAt). If the day-N cron run is missed, the next run
+ * in the warning band still issues exactly one warning.
  */
 export async function runReclamationCheck(
   db: Database,
@@ -314,8 +300,7 @@ export async function runReclamationCheck(
   const isoNow = now.toISOString();
 
   const reclaimDays = settings.automaticReclaimDays;
-  const warningDay1 = settings.reclaimWarningDay1;
-  const warningDay2 = settings.reclaimWarningDay2;
+  const warningThreshold = settings.reclaimWarningThresholdDays;
 
   const eligibleCustomers = await db
     .select()
@@ -333,6 +318,7 @@ export async function runReclamationCheck(
     );
 
   const result: ReclamationRunResult = {
+    warningsCount: 0,
     warningsDay6Count: 0,
     warningsDay7Count: 0,
     reclaimedCount: 0,
@@ -360,8 +346,8 @@ export async function runReclamationCheck(
       continue;
     }
 
-    if (days >= warningDay2 && days < reclaimDays) {
-      const warned = await sendDay7Warning(
+    if (days >= warningThreshold) {
+      const warned = await sendReclaimWarning(
         db,
         customer,
         days,
@@ -369,23 +355,7 @@ export async function runReclamationCheck(
         settings,
       );
       if (warned) {
-        result.warningsDay7Count += 1;
-        result.affectedCustomerIds.push(customer.id);
-      } else {
-        result.skippedCount += 1;
-      }
-      continue;
-    }
-
-    if (days >= warningDay1 && days < warningDay2) {
-      const warned = await sendDay6Warning(
-        db,
-        customer,
-        days,
-        warningDate,
-        settings,
-      );
-      if (warned) {
+        result.warningsCount += 1;
         result.warningsDay6Count += 1;
         result.affectedCustomerIds.push(customer.id);
       } else {

@@ -6,11 +6,16 @@ import { Input, Label, Select } from "@/components/ui/form";
 import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 import { useTranslation } from "@/i18n/provider";
 import {
+  isHiddenSettingKey,
   isLockedSettingKey,
   SETTING_KEYS,
   SETTING_LABELS,
   type SettingKey,
 } from "@/lib/settings/keys";
+
+const VISIBLE_SETTING_KEYS: readonly SettingKey[] = SETTING_KEYS.filter(
+  (key) => !isHiddenSettingKey(key),
+);
 
 function buildSavePayload(settings: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
@@ -66,7 +71,10 @@ export function SettingsClient() {
   return (
     <div className="surface-card p-6">
       <div className="grid max-w-lg gap-4">
-        {SETTING_KEYS.map((key) => (
+        <p className="text-xs text-[#6B7890]">
+          {t("settings.reclaimHelperText")}
+        </p>
+        {VISIBLE_SETTING_KEYS.map((key) => (
           <div key={key}>
             <Label htmlFor={key}>{SETTING_LABELS[key as SettingKey]}</Label>
             {key === "business_timezone" ? (

@@ -763,8 +763,8 @@ const zhHans: Messages = {
     security: "安全",
   },
   notificationTypes: {
-    auto_reclaim_warning_day_6: "跟进预警（第 6 天）",
-    auto_reclaim_warning_day_7: "跟进预警（第 7 天）",
+    auto_reclaim_warning_day_6: "客户即将进入公共池",
+    auto_reclaim_warning_day_7: "客户即将进入公共池",
     customer_auto_reclaimed: "客户已自动回收",
     approval_pending: "待审批申请",
     approval_approved: "申请已通过",
@@ -782,10 +782,12 @@ const zhHans: Messages = {
     customerTransferredAway: "客户「{{customerName}}」已转移给其他同事。",
     customerTransferredToYou: "客户「{{customerName}}」已转移给你。",
     closedWonApproved: "客户「{{customerName}}」成交申请已通过。",
+    autoReclaimWarning:
+      "客户「{{customerName}}」已多日未有效跟进，请尽快安排跟进，否则将被自动回收到公共池。",
     autoReclaimWarningDay6:
-      "客户「{{customerName}}」已经 {{days}} 天没有有效跟进，请尽快跟进。",
+      "客户「{{customerName}}」已多日未有效跟进，请尽快安排跟进，否则将被自动回收到公共池。",
     autoReclaimWarningDay7:
-      "客户「{{customerName}}」已经 {{days}} 天没有有效跟进，若超过 {{reclaimDays}} 天将自动回收到公共池。",
+      "客户「{{customerName}}」已多日未有效跟进，请尽快安排跟进，否则将被自动回收到公共池。",
     customerAutoReclaimed:
       "客户「{{customerName}}」已超过 {{days}} 天无有效跟进，已自动回收到公共池。",
     backupFailed: "系统备份失败，请尽快检查。错误：{{errorMessage}}",
@@ -1110,6 +1112,8 @@ const zhHans: Messages = {
   settings: {
     title: "系统设置",
     inactivityLogoutFixedHint: "此安全策略已固定为 30 分钟。",
+    reclaimHelperText:
+      "客户连续多日未有效跟进后，系统会自动回收到公共池。系统会在回收前指定天数提醒负责员工。",
   },
   securityPolicies: {
     title: "安全策略",

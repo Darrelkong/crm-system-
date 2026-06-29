@@ -40,21 +40,21 @@ export function calculateCustomerHeat(
     customer.nextFollowUpAt && customer.nextFollowUpAt >= nowIso
   );
 
-  const warn1 = settings.reclaimWarningDay1;
+  const warningThreshold = settings.reclaimWarningThresholdDays;
   const reclaimDays = settings.automaticReclaimDays;
 
   if (
-    daysWithoutValid >= warn1 ||
+    daysWithoutValid >= warningThreshold ||
     nextOverdue ||
     daysWithoutValid >= Math.max(1, reclaimDays - 1)
   ) {
     const parts: HeatReasonPart[] = [];
-    if (daysWithoutValid >= warn1) {
+    if (daysWithoutValid >= warningThreshold) {
       parts.push({
         key: "longNoValidFollowUp",
         params: {
           days: String(daysWithoutValid),
-          threshold: String(warn1),
+          threshold: String(warningThreshold),
         },
       });
     }

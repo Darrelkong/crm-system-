@@ -764,8 +764,8 @@ const zhHant: Messages = {
     security: "安全",
   },
   notificationTypes: {
-    auto_reclaim_warning_day_6: "跟進預警（第 6 天）",
-    auto_reclaim_warning_day_7: "跟進預警（第 7 天）",
+    auto_reclaim_warning_day_6: "客戶即將進入公共池",
+    auto_reclaim_warning_day_7: "客戶即將進入公共池",
     customer_auto_reclaimed: "客戶已自動回收",
     approval_pending: "待審批申請",
     approval_approved: "申請已通過",
@@ -783,10 +783,12 @@ const zhHant: Messages = {
     customerTransferredAway: "客戶「{{customerName}}」已轉移給其他同事。",
     customerTransferredToYou: "客戶「{{customerName}}」已轉移給你。",
     closedWonApproved: "客戶「{{customerName}}」成交申請已通過。",
+    autoReclaimWarning:
+      "客戶「{{customerName}}」已多日未有效跟進，請盡快安排跟進，否則將被自動回收到公共池。",
     autoReclaimWarningDay6:
-      "客戶「{{customerName}}」已經 {{days}} 天沒有有效跟進，請盡快跟進。",
+      "客戶「{{customerName}}」已多日未有效跟進，請盡快安排跟進，否則將被自動回收到公共池。",
     autoReclaimWarningDay7:
-      "客戶「{{customerName}}」已經 {{days}} 天沒有有效跟進，若超過 {{reclaimDays}} 天將自動回收到公共池。",
+      "客戶「{{customerName}}」已多日未有效跟進，請盡快安排跟進，否則將被自動回收到公共池。",
     customerAutoReclaimed:
       "客戶「{{customerName}}」已超過 {{days}} 天無有效跟進，已自動回收到公共池。",
     backupFailed: "系統備份失敗，請盡快檢查。錯誤：{{errorMessage}}",
@@ -1111,6 +1113,8 @@ const zhHant: Messages = {
   settings: {
     title: "系統設定",
     inactivityLogoutFixedHint: "此安全策略已固定為 30 分鐘。",
+    reclaimHelperText:
+      "客戶連續多日未有效跟進後，系統會自動回收到公共池。系統會在回收前指定天數提醒負責員工。",
   },
   securityPolicies: {
     title: "安全策略",

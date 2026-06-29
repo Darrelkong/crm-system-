@@ -10,7 +10,13 @@ export type BusinessTimezone = (typeof ALLOWED_TIMEZONES)[number];
 
 export type EffectiveSettings = {
   automaticReclaimDays: number;
+  /** Single-warning model (E-4b): days before reclaim to send a pre-reclaim warning. */
+  reclaimWarningDaysBefore: number;
+  /** Derived: automaticReclaimDays - reclaimWarningDaysBefore. Days idle that triggers the warning. */
+  reclaimWarningThresholdDays: number;
+  /** @deprecated Kept for backward compatibility; no longer drives the engine. */
   reclaimWarningDay1: number;
+  /** @deprecated Kept for backward compatibility; no longer drives the engine. */
   reclaimWarningDay2: number;
   publicPoolClaimQuota7Days: number;
   publicPoolClaimCooldownHours: number;
@@ -50,39 +56,55 @@ function parseTimezone(raw: string): BusinessTimezone {
 
 /** Parse settings map into typed values; invalid stored values fall back to defaults. */
 export function parseEffectiveSettings(raw: SettingsMap): EffectiveSettings {
-  let reclaimWarningDay1 = parsePositiveInt(
+  const defaultReclaim = Number(SETTING_DEFAULTS.automatic_reclaim_days);
+  const defaultDaysBefore = Number(
+    SETTING_DEFAULTS.reclaim_warning_days_before,
+  );
+
+  let automaticReclaimDays = parsePositiveInt(
+    raw.automatic_reclaim_days,
+    defaultReclaim,
+    "automatic_reclaim_days",
+  );
+
+  let reclaimWarningDaysBefore = parsePositiveInt(
+    raw.reclaim_warning_days_before,
+    defaultDaysBefore,
+    "reclaim_warning_days_before",
+  );
+
+  if (
+    reclaimWarningDaysBefore < 1 ||
+    reclaimWarningDaysBefore >= automaticReclaimDays
+  ) {
+    console.warn(
+      `[settings] reclaim_warning_days_before=${reclaimWarningDaysBefore} ` +
+        `must be >=1 and < automatic_reclaim_days=${automaticReclaimDays}; ` +
+        `using defaults ${defaultReclaim}/${defaultDaysBefore}`,
+    );
+    automaticReclaimDays = defaultReclaim;
+    reclaimWarningDaysBefore = defaultDaysBefore;
+  }
+
+  const reclaimWarningThresholdDays =
+    automaticReclaimDays - reclaimWarningDaysBefore;
+
+  // Legacy day_1 / day_2 are parsed only to expose them; they no longer drive the engine.
+  const reclaimWarningDay1 = parsePositiveInt(
     raw.reclaim_warning_day_1,
     Number(SETTING_DEFAULTS.reclaim_warning_day_1),
     "reclaim_warning_day_1",
   );
-  let reclaimWarningDay2 = parsePositiveInt(
+  const reclaimWarningDay2 = parsePositiveInt(
     raw.reclaim_warning_day_2,
     Number(SETTING_DEFAULTS.reclaim_warning_day_2),
     "reclaim_warning_day_2",
   );
-  let automaticReclaimDays = parsePositiveInt(
-    raw.automatic_reclaim_days,
-    Number(SETTING_DEFAULTS.automatic_reclaim_days),
-    "automatic_reclaim_days",
-  );
-
-  if (reclaimWarningDay1 < 1) {
-    reclaimWarningDay1 = Number(SETTING_DEFAULTS.reclaim_warning_day_1);
-  }
-  if (
-    reclaimWarningDay2 <= reclaimWarningDay1 ||
-    automaticReclaimDays <= reclaimWarningDay2
-  ) {
-    console.warn(
-      "[settings] Invalid reclaim day ordering in stored settings, using defaults 6/7/8",
-    );
-    reclaimWarningDay1 = Number(SETTING_DEFAULTS.reclaim_warning_day_1);
-    reclaimWarningDay2 = Number(SETTING_DEFAULTS.reclaim_warning_day_2);
-    automaticReclaimDays = Number(SETTING_DEFAULTS.automatic_reclaim_days);
-  }
 
   return {
     automaticReclaimDays,
+    reclaimWarningDaysBefore,
+    reclaimWarningThresholdDays,
     reclaimWarningDay1,
     reclaimWarningDay2,
     publicPoolClaimQuota7Days: parsePositiveInt(

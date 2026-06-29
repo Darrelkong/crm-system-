@@ -781,8 +781,8 @@ const en = {
     security: "Security",
   },
   notificationTypes: {
-    auto_reclaim_warning_day_6: "Follow-up Warning (Day 6)",
-    auto_reclaim_warning_day_7: "Follow-up Warning (Day 7)",
+    auto_reclaim_warning_day_6: "Customer will soon enter the public pool",
+    auto_reclaim_warning_day_7: "Customer will soon enter the public pool",
     customer_auto_reclaimed: "Client Auto-Reclaimed",
     approval_pending: "Pending Approval",
     approval_approved: "Request Approved",
@@ -806,10 +806,12 @@ const en = {
       "Client \"{{customerName}}\" has been transferred to you.",
     closedWonApproved:
       "Close-won request for \"{{customerName}}\" has been approved.",
+    autoReclaimWarning:
+      "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
     autoReclaimWarningDay6:
-      "Client \"{{customerName}}\" has had no valid follow-up for {{days}} days. Please follow up soon.",
+      "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
     autoReclaimWarningDay7:
-      "Client \"{{customerName}}\" has had no valid follow-up for {{days}} days. If it exceeds {{reclaimDays}} days, the client will be auto-reclaimed to the public pool.",
+      "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
     customerAutoReclaimed:
       "Client \"{{customerName}}\" exceeded {{days}} days without valid follow-up and was auto-reclaimed to the public pool.",
     backupFailed:
@@ -1166,6 +1168,8 @@ const en = {
   settings: {
     title: "System settings",
     inactivityLogoutFixedHint: "This security policy is fixed at 30 minutes.",
+    reclaimHelperText:
+      "Customers without valid follow-up for the configured number of days will be reclaimed to the public pool. The system will remind the responsible staff the configured number of days before reclamation.",
   },
   securityPolicies: {
     title: "Security Policies",

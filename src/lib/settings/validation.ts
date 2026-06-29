@@ -25,7 +25,7 @@ export function validateSettingValue(
     return "必须为正整数";
   }
 
-  if (key === "reclaim_warning_day_1" && num < 1) {
+  if (key === "reclaim_warning_days_before" && num < 1) {
     return "必须大于等于 1";
   }
 
@@ -36,18 +36,17 @@ export function validateSettingValue(
 export function validateSettingsConsistency(
   settings: SettingsMap,
 ): string | null {
-  const day1 = Number(settings.reclaim_warning_day_1);
-  const day2 = Number(settings.reclaim_warning_day_2);
+  const daysBefore = Number(settings.reclaim_warning_days_before);
   const reclaim = Number(settings.automatic_reclaim_days);
 
-  if (!Number.isFinite(day1) || day1 < 1) {
-    return "reclaim_warning_day_1 必须大于等于 1";
+  if (!Number.isFinite(reclaim) || reclaim < 1) {
+    return "automatic_reclaim_days 必须大于等于 1";
   }
-  if (!Number.isFinite(day2) || day2 <= day1) {
-    return "reclaim_warning_day_2 必须大于 reclaim_warning_day_1";
+  if (!Number.isFinite(daysBefore) || daysBefore < 1) {
+    return "reclaim_warning_days_before 必须大于等于 1";
   }
-  if (!Number.isFinite(reclaim) || reclaim <= day2) {
-    return "automatic_reclaim_days 必须大于 reclaim_warning_day_2";
+  if (daysBefore >= reclaim) {
+    return "reclaim_warning_days_before 必须小于 automatic_reclaim_days";
   }
 
   const quota = Number(settings.public_pool_claim_quota_7_days);
