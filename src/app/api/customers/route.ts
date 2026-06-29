@@ -27,6 +27,7 @@ import { getRequestMeta } from "@/lib/auth/cookies";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
+import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
 import {
   buildOnHoldCreateApprovalPayload,
   isStaffOnHoldCreatePending,
@@ -68,8 +69,20 @@ export async function GET(request: Request) {
         db,
         customers.map((c) => c.id),
       );
+      const assigneeIds = await getAssigneeCustomerIdsForUser(
+        db,
+        user.id,
+        customers.map((customer) => customer.id),
+      );
       const items = filterCustomersWithScores(
-        getCustomersWithScores(user, customers, followUpSet, settings),
+        getCustomersWithScores(
+          user,
+          customers,
+          followUpSet,
+          settings,
+          new Date(),
+          assigneeIds,
+        ),
         scoringFilter,
       );
       const pagination = buildCustomerListPagination(items.length, page);
@@ -98,11 +111,18 @@ export async function GET(request: Request) {
       db,
       result.items.map((c) => c.id),
     );
+    const assigneeIds = await getAssigneeCustomerIdsForUser(
+      db,
+      user.id,
+      result.items.map((customer) => customer.id),
+    );
     const items = getCustomersWithScores(
       user,
       result.items,
       followUpSet,
       settings,
+      new Date(),
+      assigneeIds,
     );
     const rows = await buildCustomerListRows(db, items);
 

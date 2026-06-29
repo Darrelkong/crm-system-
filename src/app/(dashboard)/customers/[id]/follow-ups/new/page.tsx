@@ -6,6 +6,7 @@ import {
   canAddFollowUp,
   assertCanViewCustomerFullDetails,
   PermissionError,
+  resolveCustomerAccessOptions,
 } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
@@ -45,7 +46,9 @@ export default async function NewFollowUpPage({ params }: Props) {
     );
   }
 
-  if (!canAddFollowUp(user, customer)) {
+  const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+
+  if (!canAddFollowUp(user, customer, accessOptions)) {
     return (
       <CustomerStatePanel
         titleKey="followUps.noAddPermission"
@@ -57,7 +60,7 @@ export default async function NewFollowUpPage({ params }: Props) {
   }
 
   try {
-    assertCanViewCustomerFullDetails(user, customer);
+    assertCanViewCustomerFullDetails(user, customer, accessOptions);
   } catch (err) {
     if (err instanceof PermissionError) {
       return (

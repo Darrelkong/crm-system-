@@ -23,6 +23,8 @@ import type { User } from "../../../../drizzle/schema/users";
 import {
   assertCanViewCustomerAiInsight,
   getCustomerAccessLevel,
+  resolveCustomerAccessOptions,
+  type CustomerAccessOptions,
 } from "@/lib/permissions/customers";
 import type { CustomerAiInsight } from "../../../../drizzle/schema/customer-ai-insights";
 import type { AiProviderKind } from "@/lib/settings/ai-keys";
@@ -288,13 +290,20 @@ export async function refreshCustomerAiInsight(
   db: Database,
   user: User,
   customer: Customer,
+  accessOptions?: CustomerAccessOptions,
 ): Promise<CustomerAiInsightRefreshResult> {
-  assertCanViewCustomerAiInsight(user, customer);
+  const resolvedOptions =
+    accessOptions ??
+    (user.role === "staff"
+      ? await resolveCustomerAccessOptions(db, user, customer.id)
+      : {});
+
+  assertCanViewCustomerAiInsight(user, customer, resolvedOptions);
 
   const aiSettings = await getEffectiveAiSettings(db);
   assertCanRefreshCustomerAiInsight(user, aiSettings);
 
-  const accessLevel = getCustomerAccessLevel(user, customer);
+  const accessLevel = getCustomerAccessLevel(user, customer, resolvedOptions);
   const context = await buildCustomerInsightContext(db, customer.id, {
     accessLevel,
   });
@@ -355,8 +364,14 @@ export async function getCustomerAiInsightForUser(
   db: Database,
   user: User,
   customer: Customer,
+  accessOptions?: CustomerAccessOptions,
 ): Promise<CustomerAiInsightView | null> {
-  assertCanViewCustomerAiInsight(user, customer);
+  const resolvedOptions =
+    accessOptions ??
+    (user.role === "staff"
+      ? await resolveCustomerAccessOptions(db, user, customer.id)
+      : {});
+  assertCanViewCustomerAiInsight(user, customer, resolvedOptions);
   return getCustomerAiInsightByCustomerId(db, customer.id);
 }
 
@@ -364,12 +379,18 @@ export async function getCustomerAiInsightBundleForUser(
   db: Database,
   user: User,
   customer: Customer,
+  accessOptions?: CustomerAccessOptions,
 ): Promise<{
   insight: CustomerAiInsightView | null;
   display: CustomerAiInsightDisplayMeta;
 }> {
   const aiSettings = await getEffectiveAiSettings(db);
-  const insight = await getCustomerAiInsightForUser(db, user, customer);
+  const insight = await getCustomerAiInsightForUser(
+    db,
+    user,
+    customer,
+    accessOptions,
+  );
   return {
     insight,
     display: getCustomerAiInsightDisplayMeta(user, aiSettings),

@@ -4,7 +4,7 @@ import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
 import { getCustomerTimeline } from "@/lib/customers/timeline/service";
-import { PermissionError } from "@/lib/permissions/customers";
+import { PermissionError, resolveCustomerAccessOptions } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
 import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 
@@ -26,8 +26,10 @@ export async function GET(request: Request, context: RouteContext) {
       return pendingBlock;
     }
 
+    const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+
     try {
-      const timeline = await getCustomerTimeline(db, user, customer);
+      const timeline = await getCustomerTimeline(db, user, customer, accessOptions);
       return Response.json(timeline);
     } catch (err) {
       if (err instanceof PermissionError) {

@@ -4,6 +4,7 @@ import { schema } from "@/lib/db";
 import {
   getCustomerAccessLevel,
   PermissionError,
+  type CustomerAccessOptions,
 } from "@/lib/permissions/customers";
 import type { Customer } from "../../../../drizzle/schema/customers";
 import type { User } from "../../../../drizzle/schema/users";
@@ -54,8 +55,9 @@ function isMaskedTimeline(accessLevel: ReturnType<typeof getCustomerAccessLevel>
 export function assertCanViewCustomerTimeline(
   user: User,
   customer: Customer,
+  options?: CustomerAccessOptions,
 ): ReturnType<typeof getCustomerAccessLevel> {
-  const level = getCustomerAccessLevel(user, customer);
+  const level = getCustomerAccessLevel(user, customer, options);
   if (level === "denied") {
     throw new PermissionError(
       403,
@@ -385,8 +387,9 @@ export async function getCustomerTimeline(
   db: Database,
   user: User,
   customer: Customer,
+  options?: CustomerAccessOptions,
 ): Promise<TimelineResponse> {
-  const accessLevel = assertCanViewCustomerTimeline(user, customer);
+  const accessLevel = assertCanViewCustomerTimeline(user, customer, options);
   const visibility: Visibility = isMaskedTimeline(accessLevel) ? "masked" : "full";
 
   const customerId = customer.id;
