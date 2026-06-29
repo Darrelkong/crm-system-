@@ -12,6 +12,7 @@ import {
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
+import { isReclamationEligibleCustomer } from "@/lib/reclamation/constants";
 import {
   getDaysWithoutValidFollowUp,
 } from "@/lib/reclamation/days";
@@ -162,6 +163,9 @@ export async function getStaffDashboardStats(
     .where(ownedActiveFilter);
 
   const myReclaimRiskCustomers = ownedActiveCustomers.filter((customer) => {
+    if (!isReclamationEligibleCustomer(customer)) {
+      return false;
+    }
     const days = getDaysWithoutValidFollowUp(customer, now);
     return (
       days >= settings.reclaimWarningDay1 &&

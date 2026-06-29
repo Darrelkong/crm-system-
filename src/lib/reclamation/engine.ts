@@ -302,8 +302,8 @@ async function autoReclaimCustomer(
 /**
  * Evaluates active owned customers for configured warning thresholds and auto-reclaim.
  * Only status=active with owner_id set participate.
- * Skips public_pool / inactive / archived, and closed-won sales stages
- * (closed_won, converted).
+ * Skips public_pool / inactive / archived, excluded sales stages
+ * (closed_won, converted, on_hold), and pinned customers (is_pinned = 1).
  */
 export async function runReclamationCheck(
   db: Database,
@@ -324,6 +324,7 @@ export async function runReclamationCheck(
       and(
         eq(schema.customers.status, "active"),
         isNotNull(schema.customers.ownerId),
+        eq(schema.customers.isPinned, 0),
         notInArray(
           schema.customers.salesStage,
           [...RECLAMATION_EXCLUDED_SALES_STAGES],
