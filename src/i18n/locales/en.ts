@@ -573,6 +573,22 @@ const en = {
       "The staff member will not be able to sign in, and their clients will be transferred to you. History is preserved.",
     deleteStaffConfirm:
       "After deletion, this staff member cannot sign in and their clients will be transferred to you. All history will be preserved. Continue?",
+    deleteStaffModalTitle: "Confirm staff deletion",
+    deleteStaffModalIntro: "You are about to delete this staff member",
+    deleteStaffModalAfterDeleteTitle: "After deletion",
+    deleteStaffModalCannotLogin: "This staff member will no longer be able to sign in",
+    deleteStaffModalTransferTo: "Owned clients will be transferred to",
+    deleteStaffModalRemoveCollaborators: "Collaborator relationships will be removed",
+    deleteStaffModalHistoryPreserved:
+      "Historical creator, audit, and timeline records will be preserved",
+    deleteStaffModalImpactTitle: "Impact summary",
+    deleteStaffModalOwnedCustomers: "Owned clients",
+    deleteStaffModalCollaboratorCustomers: "Collaborator clients",
+    deleteStaffModalOpenTasks: "Open tasks",
+    deleteStaffModalPendingApprovals: "Pending approvals",
+    deleteStaffModalIrreversible: "This action cannot be directly undone.",
+    deleteStaffModalConfirm: "Confirm deletion",
+    deleteStaffModalPreviewFailed: "Unable to load deletion impact preview",
     staffDeleted: "Staff deleted. {{count}} client(s) transferred to you.",
     staffDeletedNoCount:
       "Staff deleted. Their clients have been transferred to the Admin account.",

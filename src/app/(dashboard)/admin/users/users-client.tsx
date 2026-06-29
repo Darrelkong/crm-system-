@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import type { AdminUserView } from "@/lib/users-admin/types";
+import { DeleteStaffModal } from "@/components/users/delete-staff-modal";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 function isDeletedUser(user: AdminUserView): boolean {
@@ -24,6 +25,7 @@ export function UsersClient() {
     temporaryPassword: "",
   });
   const [newPassword, setNewPassword] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<AdminUserView | null>(null);
 
   const { currentUsers, formerUsers, stats } = useMemo(() => {
     const current = users.filter((u) => !isDeletedUser(u));
@@ -127,30 +129,24 @@ export function UsersClient() {
     await load();
   }
 
-  async function deleteStaff(user: AdminUserView) {
-    if (!window.confirm(t("employees.deleteStaffConfirm"))) {
-      return;
-    }
+  function openDeleteStaffModal(user: AdminUserView) {
+    setMessage(null);
+    setDeleteTarget(user);
+  }
 
-    const res = await fetch(`/api/admin/users/${user.id}/delete`, {
-      method: "POST",
-    });
-    const data = (await res.json()) as {
-      error?: string;
-      transferredCustomerCount?: number;
-    };
-    if (!res.ok) {
-      setMessage(data.error ?? t("employees.operationFailed"));
-      return;
-    }
-
-    const count = data.transferredCustomerCount ?? 0;
+  function handleStaffDeleted(transferredCustomerCount: number) {
     setMessage(
-      count > 0
-        ? t("employees.staffDeletedWithCount", { count: String(count) })
+      transferredCustomerCount > 0
+        ? t("employees.staffDeletedWithCount", {
+            count: String(transferredCustomerCount),
+          })
         : t("employees.staffDeletedNoCount"),
     );
-    await load();
+    void load();
+  }
+
+  function deleteStaff(user: AdminUserView) {
+    openDeleteStaffModal(user);
   }
 
   function statusLabel(status: AdminUserView["status"]) {
@@ -402,6 +398,14 @@ export function UsersClient() {
           </div>
         )}
       </div>
+
+      {deleteTarget && (
+        <DeleteStaffModal
+          user={deleteTarget}
+          onClose={() => setDeleteTarget(null)}
+          onDeleted={handleStaffDeleted}
+        />
+      )}
 
       <div className="surface-card p-6">
         <h3 className="text-lg font-medium text-[#172033]">
