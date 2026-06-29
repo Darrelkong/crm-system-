@@ -7,6 +7,7 @@ import { PageIntro } from "@/components/ui/page-intro";
 import { useTranslation } from "@/i18n/provider";
 import type { RecycleBinCustomerView } from "@/lib/recycle-bin/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { RestoreCustomerModal } from "./restore-customer-modal";
 
 function formatContact(row: RecycleBinCustomerView): string {
   const parts = [row.phone, row.email].filter(Boolean);
@@ -30,8 +31,9 @@ export function RecycleBinClient() {
   const [items, setItems] = useState<RecycleBinCustomerView[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
-  const [restoringId, setRestoringId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [restoreTarget, setRestoreTarget] =
+    useState<RecycleBinCustomerView | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -60,29 +62,13 @@ export function RecycleBinClient() {
     void load();
   }, [load]);
 
-  async function restoreCustomer(row: RecycleBinCustomerView) {
-    if (!window.confirm(t("recycleBin.restoreConfirm"))) {
-      return;
-    }
+  function openRestoreModal(row: RecycleBinCustomerView) {
+    setRestoreTarget(row);
+  }
 
-    setRestoringId(row.id);
-    setMessage(null);
-    try {
-      const res = await fetch(`/api/admin/recycle-bin/${row.id}/restore`, {
-        method: "POST",
-      });
-      const data = (await res.json()) as { error?: string };
-      if (!res.ok) {
-        setMessage(data.error ?? t("recycleBin.restoreFailed"));
-        return;
-      }
-      setMessage(t("recycleBin.restoreSuccess"));
-      await load();
-    } catch {
-      setMessage(t("common.networkError"));
-    } finally {
-      setRestoringId(null);
-    }
+  function handleRestored() {
+    setMessage(t("recycleBin.restoreSuccess"));
+    void load();
   }
 
   async function permanentlyDeleteCustomer(row: RecycleBinCustomerView) {
@@ -147,7 +133,7 @@ export function RecycleBinClient() {
               </thead>
               <tbody>
                 {items.map((row) => {
-                  const rowBusy = restoringId === row.id || deletingId === row.id;
+                  const rowBusy = deletingId === row.id;
                   return (
                     <tr key={row.id} className="table-row border-b border-[#EEF3F8]">
                       <td className="px-3 py-2 font-mono text-xs text-[#6B7890]">
@@ -178,11 +164,9 @@ export function RecycleBinClient() {
                             size="sm"
                             variant="secondary"
                             disabled={rowBusy}
-                            onClick={() => restoreCustomer(row)}
+                            onClick={() => openRestoreModal(row)}
                           >
-                            {restoringId === row.id
-                              ? t("common.loading")
-                              : t("recycleBin.restore")}
+                            {t("recycleBin.restore")}
                           </Button>
                           <Button
                             size="sm"
@@ -204,6 +188,14 @@ export function RecycleBinClient() {
           </div>
         )}
       </div>
+
+      {restoreTarget && (
+        <RestoreCustomerModal
+          customer={restoreTarget}
+          onClose={() => setRestoreTarget(null)}
+          onRestored={handleRestored}
+        />
+      )}
     </div>
   );
 }

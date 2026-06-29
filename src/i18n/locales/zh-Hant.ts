@@ -238,6 +238,13 @@ const zhHant: Messages = {
     restoreConfirm: "確定要從回收站恢復此客戶嗎？",
     restoreSuccess: "客戶已恢復。",
     restoreFailed: "恢復客戶失敗",
+    restoreModalTitle: "恢復客戶確認",
+    restoreModalIntro: "你即將恢復此客戶",
+    restoreModalAfterTitle: "恢復後：",
+    restoreModalReturnToList: "客戶會回到普通客戶列表",
+    restoreModalKeepAssignees: "原負責員工與共同負責員工會保留",
+    restoreModalKeepTimeline: "歷史跟進與 timeline 會保留",
+    restoreModalConfirm: "確認恢復",
     permanentDelete: "永久刪除",
     permanentDeleteConfirm:
       "永久刪除後，該客戶資料將無法恢復。請確認是否繼續？",

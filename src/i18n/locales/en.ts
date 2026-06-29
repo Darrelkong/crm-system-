@@ -242,6 +242,15 @@ const en = {
     restoreConfirm: "Restore this client from the recycle bin?",
     restoreSuccess: "Client restored.",
     restoreFailed: "Failed to restore client",
+    restoreModalTitle: "Confirm Customer Restore",
+    restoreModalIntro: "You are about to restore this customer",
+    restoreModalAfterTitle: "After restore:",
+    restoreModalReturnToList:
+      "After restore, the customer will return to the regular customer list",
+    restoreModalKeepAssignees:
+      "The original owner and collaborators will be kept",
+    restoreModalKeepTimeline: "Follow-up history and timeline will be kept",
+    restoreModalConfirm: "Confirm Restore",
     permanentDelete: "Delete permanently",
     permanentDeleteConfirm:
       "This client cannot be recovered after permanent deletion. Continue?",

@@ -238,6 +238,13 @@ const zhHans: Messages = {
     restoreConfirm: "确定要从回收站恢复此客户吗？",
     restoreSuccess: "客户已恢复。",
     restoreFailed: "恢复客户失败",
+    restoreModalTitle: "恢复客户确认",
+    restoreModalIntro: "你即将恢复此客户",
+    restoreModalAfterTitle: "恢复后：",
+    restoreModalReturnToList: "恢复后客户会回到普通客户列表",
+    restoreModalKeepAssignees: "原负责员工与共同负责员工会保留",
+    restoreModalKeepTimeline: "历史跟进与 timeline 会保留",
+    restoreModalConfirm: "确认恢复",
     permanentDelete: "永久删除",
     permanentDeleteConfirm:
       "永久删除后，该客户资料将无法恢复。请确认是否继续？",
