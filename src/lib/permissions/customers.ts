@@ -495,6 +495,53 @@ export function canManageCustomerAssignees(
   }
 }
 
+/** Owner staff may request collaborator changes via approval (D-2d-3). */
+export function assertCanRequestCustomerAssigneeUpdate(
+  user: User,
+  customer: Customer,
+): void {
+  assertCustomerNotArchived(
+    customer,
+    "customer.assignees.request_failed.archived",
+  );
+
+  if (isPublicPoolCustomer(customer)) {
+    throw new PermissionError(
+      403,
+      "无权为该客户提交共同负责员工调整申请",
+      "permission.denied.customer_assignees_request",
+    );
+  }
+
+  if (user.role === "admin") {
+    throw new PermissionError(
+      403,
+      "管理员请使用直接管理功能",
+      "permission.denied.customer_assignees_request_admin",
+    );
+  }
+
+  if (user.role !== "staff" || customer.ownerId !== user.id) {
+    throw new PermissionError(
+      403,
+      "只能为自己负责的客户提交共同负责员工调整申请",
+      "permission.denied.customer_assignees_request",
+    );
+  }
+}
+
+export function canRequestCustomerAssigneeUpdate(
+  user: User,
+  customer: Customer,
+): boolean {
+  try {
+    assertCanRequestCustomerAssigneeUpdate(user, customer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * SQL list scope for staff: own customers + public pool entries.
  * Admin returns null (no filter).

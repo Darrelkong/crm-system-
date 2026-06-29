@@ -13,6 +13,7 @@ import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { CreateOnHoldCustomerApprovalDetail } from "@/components/approvals/create-on-hold-customer-detail";
+import { UpdateCustomerAssigneesApprovalDetail } from "@/components/approvals/update-customer-assignees-detail";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
@@ -174,7 +175,8 @@ export function ApprovalsClient({ isAdmin }: Props) {
               {t("approvals.detailTitle")}
             </h3>
             <dl className="mt-4 space-y-2 text-sm">
-              {selected.requestType !== "create_on_hold_customer" && (
+              {selected.requestType !== "create_on_hold_customer" &&
+                selected.requestType !== "update_customer_assignees" && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.type")}</dt>
                   <dd>{approvalType(selected.requestType as ApprovalRequestType)}</dd>
@@ -188,7 +190,8 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 <dt className="text-[#6B7890]">{t("approvals.requestedBy")}</dt>
                 <dd>{selected.requestedByName}</dd>
               </div>
-              {selected.requestType !== "create_on_hold_customer" && (
+              {selected.requestType !== "create_on_hold_customer" &&
+                selected.requestType !== "update_customer_assignees" && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.reason")}</dt>
                   <dd className="whitespace-pre-wrap">{selected.reason}</dd>
@@ -208,6 +211,11 @@ export function ApprovalsClient({ isAdmin }: Props) {
               )}
               {selected.requestType === "create_on_hold_customer" ? (
                 <CreateOnHoldCustomerApprovalDetail
+                  reason={selected.reason}
+                  payload={selected.payload}
+                />
+              ) : selected.requestType === "update_customer_assignees" ? (
+                <UpdateCustomerAssigneesApprovalDetail
                   reason={selected.reason}
                   payload={selected.payload}
                 />

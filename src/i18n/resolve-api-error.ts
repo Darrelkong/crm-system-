@@ -70,6 +70,13 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   "permission.denied.customer_assignees_manage": "errors.customerAssigneesForbidden",
   "permission.denied.pending_on_hold_create": "errors.pendingOnHoldCreate",
   "customer.assignees.manage_failed.archived": "errors.customerAssigneesForbidden",
+  ASSIGNEE_REASON_REQUIRED: "errors.assigneeReasonRequired",
+  ASSIGNEE_REASON_TOO_SHORT: "errors.assigneeReasonTooShort",
+  ASSIGNEE_APPROVAL_ALREADY_PENDING: "errors.assigneeApprovalAlreadyPending",
+  ASSIGNEE_APPROVAL_INVALID_PAYLOAD: "errors.assigneeApprovalInvalidPayload",
+  ASSIGNEE_APPROVAL_FORBIDDEN: "errors.assigneeApprovalForbidden",
+  "permission.denied.customer_assignees_request": "errors.assigneeApprovalForbidden",
+  "permission.denied.customer_assignees_request_admin": "errors.assigneeApprovalForbidden",
 };
 
 const FIELD_CODE_TO_KEY: Record<string, string> = {
@@ -102,6 +109,8 @@ const FIELD_CODE_TO_KEY: Record<string, string> = {
   SALES_STAGE_DIRECT_TERMINAL_BLOCKED: "errors.salesStageDirectTerminalBlocked",
   ON_HOLD_REASON_REQUIRED: "errors.onHoldReasonRequired",
   ON_HOLD_REASON_TOO_SHORT: "errors.onHoldReasonTooShort",
+  ASSIGNEE_REASON_REQUIRED: "errors.assigneeReasonRequired",
+  ASSIGNEE_REASON_TOO_SHORT: "errors.assigneeReasonTooShort",
   SALES_STAGE_REQUIRED: "errors.salesStageRequired",
   INVALID_STATUS: "errors.invalidStatus",
   FOLLOW_UP_CHANNEL_REQUIRED: "errors.followUpChannelRequired",

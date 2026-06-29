@@ -10,6 +10,7 @@ import {
   updateCustomerCollaborators,
   type AssigneesApiError,
 } from "@/lib/customers/assignees-api";
+import { getCustomerAssigneesPreviewPayload } from "@/lib/customers/assignees-approval";
 import { PermissionError } from "@/lib/permissions/customers";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -62,7 +63,11 @@ export async function GET(request: Request, context: RouteContext) {
 
     const db = getDb();
     try {
-      const payload = await getCustomerAssigneesAdminPayload(db, user, customer);
+      const payload = await getCustomerAssigneesPreviewPayload(
+        db,
+        user,
+        customer,
+      );
       return Response.json({
         ok: true,
         owner: payload.owner,

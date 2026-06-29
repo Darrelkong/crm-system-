@@ -10,6 +10,7 @@ import {
   assertCanViewFollowUps,
   resolveCustomerAccessOptions,
   canManageCustomerAssignees,
+  canRequestCustomerAssigneeUpdate,
 } from "@/lib/permissions/customers";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
@@ -82,6 +83,10 @@ export default async function CustomerDetailPage({ params }: Props) {
   const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
   const showManageAssigneesButton = canManageCustomerAssignees(user, customer);
+  const showRequestAssigneesButton = canRequestCustomerAssigneeUpdate(
+    user,
+    customer,
+  );
 
   let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
   try {
@@ -149,6 +154,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       showFollowUpButton={showFollowUpButton}
       showApprovalButton={showApprovalButton}
       showManageAssigneesButton={showManageAssigneesButton}
+      showRequestAssigneesButton={showRequestAssigneesButton}
     />
   );
 }

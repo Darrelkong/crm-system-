@@ -5,6 +5,15 @@ export type AssigneeValidationFieldError = {
 };
 
 export const ASSIGNEE_UPDATE_ACTION = "set_collaborators" as const;
+export const ASSIGNEE_REASON_MIN_LENGTH = 8;
+
+export type AssigneeUpdateApprovalPayload = AssigneeUpdatePayload & {
+  reason?: string;
+  currentCollaborators?: Array<{ id: string; name: string }>;
+  requestedCollaborators?: Array<{ id: string; name: string }>;
+  addedCollaborators?: Array<{ id: string; name: string }>;
+  removedCollaborators?: Array<{ id: string; name: string }>;
+};
 
 export type AssigneeUpdatePayload = {
   action: typeof ASSIGNEE_UPDATE_ACTION;
@@ -168,5 +177,120 @@ export function validateAssigneeUpdatePayload(
       ...(added.value !== undefined ? { addedUserIds: added.value } : {}),
       ...(removed.value !== undefined ? { removedUserIds: removed.value } : {}),
     },
+  };
+}
+
+export function validateAssigneeApprovalReason(
+  input: unknown,
+):
+  | { ok: true; value: string }
+  | { ok: false; errors: AssigneeValidationFieldError[] } {
+  if (typeof input !== "string") {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: "reason",
+          message: "请填写调整理由",
+          code: "ASSIGNEE_REASON_REQUIRED",
+        },
+      ],
+    };
+  }
+
+  const trimmed = input.trim();
+  if (!trimmed) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: "reason",
+          message: "请填写调整理由",
+          code: "ASSIGNEE_REASON_REQUIRED",
+        },
+      ],
+    };
+  }
+
+  if (trimmed.length < ASSIGNEE_REASON_MIN_LENGTH) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: "reason",
+          message: `调整理由至少需要 ${ASSIGNEE_REASON_MIN_LENGTH} 个字`,
+          code: "ASSIGNEE_REASON_TOO_SHORT",
+        },
+      ],
+    };
+  }
+
+  return { ok: true, value: trimmed };
+}
+
+export function diffCollaboratorUserIds(
+  currentCollaboratorIds: string[],
+  requestedCollaboratorIds: string[],
+): { addedUserIds: string[]; removedUserIds: string[] } {
+  const current = new Set(currentCollaboratorIds);
+  const requested = new Set(requestedCollaboratorIds);
+
+  return {
+    addedUserIds: requestedCollaboratorIds.filter((id) => !current.has(id)),
+    removedUserIds: currentCollaboratorIds.filter((id) => !requested.has(id)),
+  };
+}
+
+export function parseAssigneeUpdateApprovalPayload(
+  payload: unknown,
+): AssigneeUpdateApprovalPayload | null {
+  if (!payload || typeof payload !== "object") {
+    return null;
+  }
+
+  const validation = validateAssigneeUpdatePayload(payload);
+  if (!validation.ok) {
+    return null;
+  }
+
+  const record = payload as Record<string, unknown>;
+  const reason =
+    typeof record.reason === "string" ? record.reason.trim() : undefined;
+
+  return {
+    ...validation.value,
+    ...(reason ? { reason } : {}),
+    ...(Array.isArray(record.currentCollaborators)
+      ? {
+          currentCollaborators: record.currentCollaborators as Array<{
+            id: string;
+            name: string;
+          }>,
+        }
+      : {}),
+    ...(Array.isArray(record.requestedCollaborators)
+      ? {
+          requestedCollaborators: record.requestedCollaborators as Array<{
+            id: string;
+            name: string;
+          }>,
+        }
+      : {}),
+    ...(Array.isArray(record.addedCollaborators)
+      ? {
+          addedCollaborators: record.addedCollaborators as Array<{
+            id: string;
+            name: string;
+          }>,
+        }
+      : {}),
+    ...(Array.isArray(record.removedCollaborators)
+      ? {
+          removedCollaborators: record.removedCollaborators as Array<{
+            id: string;
+            name: string;
+          }>,
+        }
+      : {}),
   };
 }

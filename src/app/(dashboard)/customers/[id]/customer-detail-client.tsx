@@ -10,6 +10,7 @@ import {
 } from "@/lib/customers/assignee-display";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
 import { ManageAssigneesButton } from "@/components/customers/manage-assignees-modal";
+import { RequestAssigneesButton } from "@/components/customers/request-assignees-modal";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
 import { CustomerTimelineView } from "@/components/customers/customer-timeline-view";
@@ -79,6 +80,7 @@ type Props = {
   showFollowUpButton: boolean;
   showApprovalButton: boolean;
   showManageAssigneesButton: boolean;
+  showRequestAssigneesButton: boolean;
 };
 
 function DetailRow({
@@ -130,6 +132,7 @@ export function CustomerDetailClient({
   showFollowUpButton,
   showApprovalButton,
   showManageAssigneesButton,
+  showRequestAssigneesButton,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
@@ -313,6 +316,8 @@ export function CustomerDetailClient({
                 action={
                   showManageAssigneesButton ? (
                     <ManageAssigneesButton customerId={id} />
+                  ) : showRequestAssigneesButton ? (
+                    <RequestAssigneesButton customerId={id} />
                   ) : undefined
                 }
               />

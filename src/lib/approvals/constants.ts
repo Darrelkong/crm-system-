@@ -29,6 +29,7 @@ export const APPROVAL_AUDIT_ACTIONS = {
   secondConversionApproved: "approval.second_conversion.approved",
   customerOnHoldCreateApproved: "customer.on_hold_create.approved",
   customerOnHoldCreateRejected: "customer.on_hold_create.rejected",
+  customerAssigneesUpdatedViaApproval: "customer.assignees.updated_via_approval",
 } as const;
 
 export const APPROVAL_NOTIFICATION_TITLES = {

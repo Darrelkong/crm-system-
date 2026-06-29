@@ -23,6 +23,13 @@ import {
   buildOnHoldCreateRejectedAuditMetadata,
   resolveOnHoldReasonFromApproval,
 } from "@/lib/customers/pending-on-hold-access";
+import {
+  executeApprovedAssigneeUpdate,
+} from "@/lib/customers/assignees-approval";
+import {
+  AssigneeMutationError,
+} from "@/lib/customers/assignees-mutations";
+import { mapAssigneeMutationErrorToApiCode } from "@/lib/customers/assignees-api";
 
 type AuditMeta = {
   ipAddress?: string | null;
@@ -388,6 +395,44 @@ async function executeApprovedAction(
         },
         db,
       );
+      break;
+    }
+
+    case "update_customer_assignees": {
+      try {
+        await executeApprovedAssigneeUpdate(
+          db,
+          {
+            id: approval.id,
+            payload: approval.payload,
+            requestedBy: approval.requestedBy,
+          },
+          customer,
+          reviewer,
+        );
+      } catch (error) {
+        if (error instanceof AssigneeMutationError) {
+          throw new ApprovalError(
+            400,
+            error.message,
+            mapAssigneeMutationErrorToApiCode(error.code),
+          );
+        }
+        if (
+          error &&
+          typeof error === "object" &&
+          "errorCode" in error &&
+          (error as { errorCode: string }).errorCode ===
+            "ASSIGNEE_APPROVAL_INVALID_PAYLOAD"
+        ) {
+          throw new ApprovalError(
+            400,
+            "共同负责员工调整申请数据无效",
+            "ASSIGNEE_APPROVAL_INVALID_PAYLOAD",
+          );
+        }
+        throw error;
+      }
       break;
     }
   }

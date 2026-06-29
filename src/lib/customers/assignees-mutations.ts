@@ -48,28 +48,18 @@ export async function assertCustomerCollaboratorsMutable(
   await assertCustomerNotPendingOnHoldCreate(db, customerId);
 }
 
-export async function applyCollaboratorAssignees(
+export async function assertValidCollaboratorAssignees(
   db: Database,
-  input: ApplyCollaboratorAssigneesInput,
-): Promise<ApplyCollaboratorAssigneesResult> {
-  const idsValidation = validateCollaboratorUserIds(input.collaboratorUserIds);
-  if (!idsValidation.ok) {
-    throw new AssigneeMutationError(
-      "INVALID_COLLABORATOR_IDS",
-      idsValidation.errors[0]?.message ?? "无效的共同负责员工列表",
-    );
-  }
-
-  const collaboratorUserIds = idsValidation.value;
-  const now = input.now ?? new Date().toISOString();
-
+  customerId: string,
+  collaboratorUserIds: string[],
+): Promise<void> {
   const customerRows = await db
     .select({
       id: schema.customers.id,
       ownerId: schema.customers.ownerId,
     })
     .from(schema.customers)
-    .where(eq(schema.customers.id, input.customerId))
+    .where(eq(schema.customers.id, customerId))
     .limit(1);
 
   const customer = customerRows[0];
@@ -88,57 +78,81 @@ export async function applyCollaboratorAssignees(
     }
   }
 
-  if (collaboratorUserIds.length > 0) {
-    const users = await db
-      .select({
-        id: schema.users.id,
-        role: schema.users.role,
-        isActive: schema.users.isActive,
-        deletedAt: schema.users.deletedAt,
-      })
-      .from(schema.users)
-      .where(inArray(schema.users.id, collaboratorUserIds));
+  if (collaboratorUserIds.length === 0) {
+    return;
+  }
 
-    const userById = new Map(users.map((user) => [user.id, user]));
+  const users = await db
+    .select({
+      id: schema.users.id,
+      role: schema.users.role,
+      isActive: schema.users.isActive,
+      deletedAt: schema.users.deletedAt,
+    })
+    .from(schema.users)
+    .where(inArray(schema.users.id, collaboratorUserIds));
 
-    for (const userId of collaboratorUserIds) {
-      const user = userById.get(userId);
-      if (!user) {
-        throw new AssigneeMutationError(
-          "COLLABORATOR_USER_NOT_FOUND",
-          "用户不存在",
-        );
-      }
+  const userById = new Map(users.map((user) => [user.id, user]));
 
-      if (user.role === "admin") {
-        throw new AssigneeMutationError(
-          "COLLABORATOR_INCLUDES_ADMIN",
-          "不能将管理员加入共同负责",
-        );
-      }
+  for (const userId of collaboratorUserIds) {
+    const user = userById.get(userId);
+    if (!user) {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_USER_NOT_FOUND",
+        "用户不存在",
+      );
+    }
 
-      if (user.role !== "staff") {
-        throw new AssigneeMutationError(
-          "COLLABORATOR_USER_NOT_STAFF",
-          "只能添加员工为共同负责",
-        );
-      }
+    if (user.role === "admin") {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_INCLUDES_ADMIN",
+        "不能将管理员加入共同负责",
+      );
+    }
 
-      if (user.isActive !== 1) {
-        throw new AssigneeMutationError(
-          "COLLABORATOR_USER_INACTIVE",
-          "不能添加已停用的员工",
-        );
-      }
+    if (user.role !== "staff") {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_USER_NOT_STAFF",
+        "只能添加员工为共同负责",
+      );
+    }
 
-      if (user.deletedAt) {
-        throw new AssigneeMutationError(
-          "COLLABORATOR_USER_DELETED",
-          "不能添加已删除的员工",
-        );
-      }
+    if (user.isActive !== 1) {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_USER_INACTIVE",
+        "不能添加已停用的员工",
+      );
+    }
+
+    if (user.deletedAt) {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_USER_DELETED",
+        "不能添加已删除的员工",
+      );
     }
   }
+}
+
+export async function applyCollaboratorAssignees(
+  db: Database,
+  input: ApplyCollaboratorAssigneesInput,
+): Promise<ApplyCollaboratorAssigneesResult> {
+  const idsValidation = validateCollaboratorUserIds(input.collaboratorUserIds);
+  if (!idsValidation.ok) {
+    throw new AssigneeMutationError(
+      "INVALID_COLLABORATOR_IDS",
+      idsValidation.errors[0]?.message ?? "无效的共同负责员工列表",
+    );
+  }
+
+  const collaboratorUserIds = idsValidation.value;
+  const now = input.now ?? new Date().toISOString();
+
+  await assertValidCollaboratorAssignees(
+    db,
+    input.customerId,
+    collaboratorUserIds,
+  );
 
   const deleteStmt = db
     .delete(schema.customerAssignees)

@@ -190,6 +190,17 @@ export function toAssigneesPermissionError(error: unknown): AssigneesApiError | 
     };
   }
 
+  if (
+    error.auditAction === "permission.denied.customer_assignees_request" ||
+    error.auditAction === "permission.denied.customer_assignees_request_admin"
+  ) {
+    return {
+      status: 403,
+      message: error.message,
+      errorCode: "ASSIGNEE_APPROVAL_FORBIDDEN",
+    };
+  }
+
   if (error.auditAction === "customer.assignees.manage_failed.archived") {
     return {
       status: error.status,
