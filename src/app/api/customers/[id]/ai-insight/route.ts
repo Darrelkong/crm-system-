@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
-import { PermissionError, assertCanViewCustomerAiInsight } from "@/lib/permissions/customers";
+import { PermissionError, assertCanViewCustomerAiInsight, resolveCustomerAccessOptions } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
 import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 import { getCustomerAiInsightBundleForUser } from "@/lib/ai/customer-insights/service";
@@ -26,8 +26,10 @@ export async function GET(request: Request, context: RouteContext) {
       return pendingBlock;
     }
 
+    const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+
     try {
-      assertCanViewCustomerAiInsight(user, customer);
+      assertCanViewCustomerAiInsight(user, customer, accessOptions);
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {
@@ -40,7 +42,12 @@ export async function GET(request: Request, context: RouteContext) {
       throw err;
     }
 
-    const bundle = await getCustomerAiInsightBundleForUser(db, user, customer);
+    const bundle = await getCustomerAiInsightBundleForUser(
+      db,
+      user,
+      customer,
+      accessOptions,
+    );
     return Response.json(bundle);
   } catch (error) {
     return authErrorResponse(error);

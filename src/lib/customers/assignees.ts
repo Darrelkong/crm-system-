@@ -111,3 +111,25 @@ export async function isCustomerAssignee(
 
   return rows.length > 0;
 }
+
+export async function getAssigneeCustomerIdsForUser(
+  db: Database,
+  userId: string,
+  customerIds: string[],
+): Promise<Set<string>> {
+  if (customerIds.length === 0) {
+    return new Set();
+  }
+
+  const rows = await db
+    .select({ customerId: schema.customerAssignees.customerId })
+    .from(schema.customerAssignees)
+    .where(
+      and(
+        eq(schema.customerAssignees.userId, userId),
+        inArray(schema.customerAssignees.customerId, customerIds),
+      ),
+    );
+
+  return new Set(rows.map((row) => row.customerId));
+}

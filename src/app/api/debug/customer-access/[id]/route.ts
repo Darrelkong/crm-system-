@@ -6,6 +6,7 @@ import {
   authErrorResponse,
   formatCustomerForUser,
   getCustomerAccessLevel,
+  resolveCustomerAccessOptions,
   PermissionError,
 } from "@/lib/permissions";
 import { logPermissionDenied } from "@/lib/permissions/audit";
@@ -35,7 +36,9 @@ export async function GET(request: Request, context: RouteContext) {
       return Response.json({ error: "客户不存在" }, { status: 404 });
     }
 
-    const accessLevel = getCustomerAccessLevel(user, customer);
+    const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+    const accessLevel = getCustomerAccessLevel(user, customer, accessOptions);
+    const isAssignee = !!accessOptions.isAssignee;
 
     if (accessLevel === "denied") {
       await logPermissionDenied(request, {
@@ -55,10 +58,11 @@ export async function GET(request: Request, context: RouteContext) {
       );
     }
 
-    const customerView = formatCustomerForUser(user, customer);
+    const customerView = formatCustomerForUser(user, customer, accessOptions);
 
     return Response.json({
       accessLevel,
+      isAssignee,
       isMasked: customerView.isMasked,
       customer: customerView,
     });

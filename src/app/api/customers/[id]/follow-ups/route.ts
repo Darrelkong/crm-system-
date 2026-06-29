@@ -7,6 +7,7 @@ import {
   assertCanAddFollowUp,
   assertCanViewFollowUps,
   PermissionError,
+  resolveCustomerAccessOptions,
 } from "@/lib/permissions/customers";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
@@ -68,8 +69,10 @@ export async function GET(request: Request, context: RouteContext) {
       return pendingBlock;
     }
 
+    const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+
     try {
-      assertCanViewFollowUps(user, customer);
+      assertCanViewFollowUps(user, customer, accessOptions);
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {
@@ -109,8 +112,10 @@ export async function POST(request: Request, context: RouteContext) {
       return pendingBlock;
     }
 
+    const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+
     try {
-      assertCanAddFollowUp(user, customer);
+      assertCanAddFollowUp(user, customer, accessOptions);
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {

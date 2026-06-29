@@ -20,6 +20,7 @@ import { getDb } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
+import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
 
 type Props = {
   searchParams: Promise<{
@@ -65,8 +66,20 @@ export default async function CustomersPage({ searchParams }: Props) {
       db,
       customers.map((c) => c.id),
     );
+    const assigneeIds = await getAssigneeCustomerIdsForUser(
+      db,
+      user.id,
+      customers.map((customer) => customer.id),
+    );
     const views = filterCustomersWithScores(
-      getCustomersWithScores(user, customers, followUpSet, settings),
+      getCustomersWithScores(
+        user,
+        customers,
+        followUpSet,
+        settings,
+        new Date(),
+        assigneeIds,
+      ),
       scoringFilter,
     );
     pagination = buildCustomerListPagination(views.length, page);
@@ -79,11 +92,18 @@ export default async function CustomersPage({ searchParams }: Props) {
       db,
       result.items.map((c) => c.id),
     );
+    const assigneeIds = await getAssigneeCustomerIdsForUser(
+      db,
+      user.id,
+      result.items.map((customer) => customer.id),
+    );
     const views = getCustomersWithScores(
       user,
       result.items,
       followUpSet,
       settings,
+      new Date(),
+      assigneeIds,
     );
     initialRows = await buildCustomerListRows(db, views);
     pagination = result.pagination;

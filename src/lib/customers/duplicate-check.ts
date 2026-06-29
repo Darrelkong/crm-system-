@@ -1,6 +1,7 @@
 import { or, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getCustomerAccessLevel } from "@/lib/permissions/customers";
+import { isCustomerAssignee } from "@/lib/customers/assignees";
 import type { User } from "../../../drizzle/schema/users";
 
 export type DuplicateField = "phone" | "wechatId" | "email";
@@ -58,7 +59,13 @@ export async function checkCustomerDuplicates(
     else if (email && customer.email === email) field = "email";
     if (!field) continue;
 
-    const level = getCustomerAccessLevel(currentUser, customer);
+    const isAssignee =
+      currentUser.role === "staff"
+        ? await isCustomerAssignee(db, customer.id, currentUser.id)
+        : false;
+    const level = getCustomerAccessLevel(currentUser, customer, {
+      isAssignee,
+    });
     const isMasked = level !== "full";
 
     matches.push({

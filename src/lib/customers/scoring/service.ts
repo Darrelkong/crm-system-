@@ -4,6 +4,8 @@ import { schema } from "@/lib/db";
 import {
   formatCustomerForUser,
   getCustomerAccessLevel,
+  resolveCustomerAccessOptions,
+  type CustomerAccessOptions,
   type CustomerView,
 } from "@/lib/permissions/customers";
 import { isArchivedCustomer } from "@/lib/customers/archived";
@@ -88,9 +90,15 @@ export function getCustomersWithScores(
   followUpSet: Set<string>,
   settings: EffectiveSettings,
   now: Date = new Date(),
+  assigneeCustomerIds: Set<string> = new Set(),
 ): CustomerWithScores[] {
   return customers.map((customer) => {
-    const view = formatCustomerForUser(user, customer);
+    const accessOptions: CustomerAccessOptions = assigneeCustomerIds.has(
+      customer.id,
+    )
+      ? { isAssignee: true }
+      : {};
+    const view = formatCustomerForUser(user, customer, accessOptions);
     const includeMissing = view.accessLevel === "full";
     const scores = getCustomerScores(
       customer,
@@ -233,11 +241,18 @@ export async function enrichCustomerResponse(
   user: User,
   customer: Customer,
   now: Date = new Date(),
+  accessOptions?: CustomerAccessOptions,
 ): Promise<CustomerWithScores> {
   const settings = await getEffectiveSettings(db);
   const followUpSet = await getCustomerIdsWithFollowUps(db, [customer.id]);
-  const view = formatCustomerForUser(user, customer);
-  const includeMissing = getCustomerAccessLevel(user, customer) === "full";
+  const resolvedOptions =
+    accessOptions ??
+    (user.role === "staff"
+      ? await resolveCustomerAccessOptions(db, user, customer.id)
+      : {});
+  const view = formatCustomerForUser(user, customer, resolvedOptions);
+  const includeMissing =
+    getCustomerAccessLevel(user, customer, resolvedOptions) === "full";
   const scores = getCustomerScores(
     customer,
     { hasFollowUp: followUpSet.has(customer.id) },

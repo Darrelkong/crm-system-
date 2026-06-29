@@ -75,6 +75,14 @@ export function buildCustomerListPagination(
 
 type PermissionScope = "list" | "search";
 
+export function staffAssigneeExistsWhere(userId: string): SQL {
+  return sql`EXISTS (
+    SELECT 1 FROM customer_assignees ca
+    WHERE ca.customer_id = ${schema.customers.id}
+      AND ca.user_id = ${userId}
+  )`;
+}
+
 function buildPermissionWhere(
   user: User,
   filter: CustomerListFilter = {},
@@ -90,7 +98,10 @@ function buildPermissionWhere(
   if (scope === "search") {
     return and(
       ne(schema.customers.status, "archived"),
-      eq(schema.customers.ownerId, user.id),
+      or(
+        eq(schema.customers.ownerId, user.id),
+        staffAssigneeExistsWhere(user.id),
+      ),
     );
   }
 
@@ -98,6 +109,7 @@ function buildPermissionWhere(
     ne(schema.customers.status, "archived"),
     or(
       eq(schema.customers.ownerId, user.id),
+      staffAssigneeExistsWhere(user.id),
       eq(schema.customers.status, "public_pool"),
       isNull(schema.customers.ownerId),
     ),

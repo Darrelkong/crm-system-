@@ -8,6 +8,7 @@ import {
   canAddFollowUp,
   canReleaseToPool,
   assertCanViewFollowUps,
+  resolveCustomerAccessOptions,
 } from "@/lib/permissions/customers";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
@@ -51,8 +52,15 @@ export default async function CustomerDetailPage({ params }: Props) {
   }
 
   let scoresView;
+  const accessOptions = await resolveCustomerAccessOptions(db, user, id);
   try {
-    scoresView = await enrichCustomerResponse(db, user, customer);
+    scoresView = await enrichCustomerResponse(
+      db,
+      user,
+      customer,
+      new Date(),
+      accessOptions,
+    );
   } catch (err) {
     if (err instanceof PermissionError) {
       return (
@@ -70,18 +78,18 @@ export default async function CustomerDetailPage({ params }: Props) {
   const view = scoresView;
   const showEditButton = canEditCustomer(user, customer);
   const showReleaseButton = canReleaseToPool(user, customer);
-  const showFollowUpButton = canAddFollowUp(user, customer);
+  const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
 
   let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
   try {
-    assertCanViewFollowUps(user, customer);
+    assertCanViewFollowUps(user, customer, accessOptions);
     followUps = await listFollowUpsByCustomerId(id);
   } catch {
     // masked or denied — no follow-up list
   }
 
-  const timeline = await getCustomerTimeline(db, user, customer);
+  const timeline = await getCustomerTimeline(db, user, customer, accessOptions);
   const userLabels = await resolveCustomerUserLabels(db, customer);
   const assigneeNames = await resolveCustomerAssigneeNames(db, id);
 

@@ -19,6 +19,8 @@ export {
   formatCustomerForUser,
   toCustomerFullView,
   getCustomerListScope,
+  resolveCustomerAccessOptions,
+  type CustomerAccessOptions,
   PermissionError,
   type CustomerAccessLevel,
   type CustomerView,

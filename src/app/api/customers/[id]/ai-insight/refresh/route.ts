@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { logPermissionDenied } from "@/lib/permissions/audit";
 import { getCustomerById } from "@/lib/customers/queries";
-import { PermissionError, assertCanViewCustomerAiInsight } from "@/lib/permissions/customers";
+import { PermissionError, assertCanViewCustomerAiInsight, resolveCustomerAccessOptions } from "@/lib/permissions/customers";
 import { getDb } from "@/lib/db";
 import { blockPendingOnHoldCreateCustomer } from "@/lib/customers/pending-on-hold-api";
 import {
@@ -48,8 +48,10 @@ export async function POST(request: Request, context: RouteContext) {
       return pendingBlock;
     }
 
+    const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+
     try {
-      assertCanViewCustomerAiInsight(user, customer);
+      assertCanViewCustomerAiInsight(user, customer, accessOptions);
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {
@@ -65,7 +67,12 @@ export async function POST(request: Request, context: RouteContext) {
     let refreshResult;
     const aiSettings = await getEffectiveAiSettings(db);
     try {
-      refreshResult = await refreshCustomerAiInsight(db, user, customer);
+      refreshResult = await refreshCustomerAiInsight(
+        db,
+        user,
+        customer,
+        accessOptions,
+      );
     } catch (error) {
       const status = aiErrorStatus(error);
       if (status !== null) {
