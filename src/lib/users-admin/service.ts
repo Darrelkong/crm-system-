@@ -6,6 +6,7 @@ import { resetLoginFailures } from "@/lib/auth/lockout";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getUserById } from "@/lib/users/queries";
 import { buildUserDeletionAuditMetadata } from "@/lib/users-admin/deletion-metadata";
+import { appendStaffDeleteAssigneeStatements } from "@/lib/users-admin/staff-delete-assignees";
 import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 
@@ -212,6 +213,10 @@ export async function softDeleteUserAccount(
     throw new UserAdminError("already_deleted", "用户已删除");
   }
 
+  if (target.role === "admin") {
+    throw new UserAdminError("cannot_delete_admin", "不能删除管理员账号");
+  }
+
   const db = getDb();
   await assertCanDisableOrDeleteAdmin(db, target);
 
@@ -275,6 +280,17 @@ export async function softDeleteUserAccount(
     );
   }
 
+  const assigneeSync = await appendStaffDeleteAssigneeStatements(
+    db,
+    batchStatements,
+    {
+      targetUserId,
+      transferAdminId: actor.id,
+      transferredCustomerIds: customersToTransfer.map((row) => row.id),
+      now,
+    },
+  );
+
   batchStatements.push(
     db
       .update(schema.users)
@@ -302,13 +318,17 @@ export async function softDeleteUserAccount(
       entityId: targetUserId,
       ipAddress: meta.ipAddress ?? null,
       userAgent: meta.userAgent ?? null,
-      metadata: JSON.stringify(
-        buildUserDeletionAuditMetadata({
+      metadata: JSON.stringify({
+        ...buildUserDeletionAuditMetadata({
           email: target.email,
           transferredCustomerCount: customersToTransfer.length,
           actor,
         }),
-      ),
+        primaryAssigneesTransferredCount:
+          assigneeSync.primaryAssigneesTransferredCount,
+        collaboratorAssigneesRemovedCount:
+          assigneeSync.collaboratorAssigneesRemovedCount,
+      }),
       createdAt: now,
     }),
   );
