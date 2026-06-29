@@ -7,9 +7,13 @@ import { useTranslation } from "@/i18n/provider";
 import type { AdminUserView } from "@/lib/users-admin/types";
 import { DeleteStaffModal } from "@/components/users/delete-staff-modal";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import {
+  computeAdminUserStats,
+  isDeletedAdminUser,
+} from "@/lib/users-admin/admin-user-stats";
 
-function isDeletedUser(user: AdminUserView): boolean {
-  return user.status === "deleted" || user.deleted_at !== null;
+function formatOptionalCount(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : String(value);
 }
 
 export function UsersClient() {
@@ -28,31 +32,19 @@ export function UsersClient() {
   const [deleteTarget, setDeleteTarget] = useState<AdminUserView | null>(null);
 
   const { currentUsers, formerUsers, stats } = useMemo(() => {
-    const current = users.filter((u) => !isDeletedUser(u));
+    const current = users.filter((u) => !isDeletedAdminUser(u));
     const former = users
-      .filter((u) => isDeletedUser(u))
+      .filter((u) => isDeletedAdminUser(u))
       .sort((a, b) => {
         const aTime = a.deleted_at ?? "";
         const bTime = b.deleted_at ?? "";
         return bTime.localeCompare(aTime);
       });
-    const activeCount = current.filter((u) => u.status === "active").length;
-    const adminCount = current.filter(
-      (u) => u.role === "admin" && u.status === "active",
-    ).length;
-    const staffCount = current.filter(
-      (u) => u.role === "staff" && u.status === "active",
-    ).length;
 
     return {
       currentUsers: current,
       formerUsers: former,
-      stats: {
-        active: activeCount,
-        deleted: former.length,
-        admins: adminCount,
-        staff: staffCount,
-      },
+      stats: computeAdminUserStats(users),
     };
   }, [users]);
 
@@ -188,7 +180,12 @@ export function UsersClient() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+        <StatCard label={t("employees.statsTotalEmployees")} value={stats.total} />
+        <StatCard
+          label={t("employees.statsCurrentEmployees")}
+          value={stats.current}
+        />
         <StatCard
           label={t("employees.statsActiveEmployees")}
           value={stats.active}
@@ -433,6 +430,12 @@ export function UsersClient() {
                     {t("employees.colTransferredCustomers")}
                   </th>
                   <th className="px-3 py-2">
+                    {t("employees.colPrimaryAssigneesSynced")}
+                  </th>
+                  <th className="px-3 py-2">
+                    {t("employees.colCollaboratorsRemoved")}
+                  </th>
+                  <th className="px-3 py-2">
                     {t("employees.transferredToAdmin")}
                   </th>
                 </tr>
@@ -457,7 +460,17 @@ export function UsersClient() {
                       {u.deleted_by_name ?? "—"}
                     </td>
                     <td className="px-3 py-2">
-                      {u.transferred_customer_count ?? 0}
+                      {formatOptionalCount(u.transferred_customer_count)}
+                    </td>
+                    <td className="px-3 py-2">
+                      {formatOptionalCount(
+                        u.primary_assignees_transferred_count,
+                      )}
+                    </td>
+                    <td className="px-3 py-2">
+                      {formatOptionalCount(
+                        u.collaborator_assignees_removed_count,
+                      )}
                     </td>
                     <td className="px-3 py-2">
                       {u.transferred_to_admin_name ??

@@ -58,6 +58,10 @@ function formatUserRow(
       deletionMeta?.transferred_customer_count ?? null,
     transferred_to_admin_name:
       deletionMeta?.transferred_to_admin_name ?? null,
+    primary_assignees_transferred_count:
+      deletionMeta?.primary_assignees_transferred_count ?? null,
+    collaborator_assignees_removed_count:
+      deletionMeta?.collaborator_assignees_removed_count ?? null,
     last_login_at: lastLoginAt,
     recent_login_count: recentLoginCount,
   };

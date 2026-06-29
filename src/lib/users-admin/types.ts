@@ -17,6 +17,8 @@ export type AdminUserView = {
   deleted_by_name: string | null;
   transferred_customer_count: number | null;
   transferred_to_admin_name: string | null;
+  primary_assignees_transferred_count: number | null;
+  collaborator_assignees_removed_count: number | null;
   last_login_at: string | null;
   recent_login_count: number;
 };
