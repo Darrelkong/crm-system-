@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, lt } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lt, sql } from "drizzle-orm";
 import { getDb, schema, type Database } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { writeFieldChangeLogEntry } from "@/lib/customers/field-change-log";
@@ -7,6 +7,9 @@ import {
   RECYCLE_BIN_PURGE_BATCH_SIZE,
   getRecycleBinRetentionCutoffIso,
 } from "@/lib/recycle-bin/constants";
+import { computeRemainingRetentionDays } from "@/lib/recycle-bin/queries";
+import type { ExpiredRecycleBinPreviewResult } from "@/lib/recycle-bin/types";
+import { getUserById } from "@/lib/users/queries";
 import type { Customer, CustomerStatus } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -233,6 +236,60 @@ export async function permanentlyDeleteCustomerFromRecycleBin(
     ipAddress: meta.ipAddress,
     userAgent: meta.userAgent,
   });
+}
+
+export async function previewExpiredRecycleBinCustomers(
+  db: Database,
+  options?: { batchSize?: number; now?: Date },
+): Promise<ExpiredRecycleBinPreviewResult> {
+  const batchSize = options?.batchSize ?? RECYCLE_BIN_PURGE_BATCH_SIZE;
+  const now = options?.now ?? new Date();
+  const cutoff = getRecycleBinRetentionCutoffIso(now);
+
+  const whereClause = and(
+    eq(schema.customers.status, "archived"),
+    isNotNull(schema.customers.deletedAt),
+    lt(schema.customers.deletedAt, cutoff),
+  );
+
+  const [countRow] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.customers)
+    .where(whereClause);
+
+  const rows = await db
+    .select()
+    .from(schema.customers)
+    .where(whereClause)
+    .orderBy(asc(schema.customers.deletedAt))
+    .limit(batchSize);
+
+  const deletedByIds = new Set<string>();
+  for (const row of rows) {
+    if (row.deletedBy) deletedByIds.add(row.deletedBy);
+  }
+
+  const nameById = new Map<string, string>();
+  for (const id of deletedByIds) {
+    const user = await getUserById(id);
+    if (user) nameById.set(id, user.displayName);
+  }
+
+  return {
+    cutoff,
+    expiredCount: countRow?.count ?? 0,
+    customers: rows.map((row) => ({
+      id: row.id,
+      customerName: row.customerName,
+      customerCode: row.customerCode,
+      deletedAt: row.deletedAt!,
+      deletedByName: row.deletedBy
+        ? (nameById.get(row.deletedBy) ?? null)
+        : null,
+      deletedReason: row.deletedReason,
+      remainingRetentionDays: computeRemainingRetentionDays(row.deletedAt!, now),
+    })),
+  };
 }
 
 export async function purgeExpiredRecycleBinCustomers(

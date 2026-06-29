@@ -15,3 +15,19 @@ export type RecycleBinCustomerView = {
   updated_at: string;
   remaining_retention_days: number;
 };
+
+export type ExpiredRecycleBinCustomerPreview = {
+  id: string;
+  customerName: string;
+  customerCode?: string | null;
+  deletedAt: string;
+  deletedByName?: string | null;
+  deletedReason?: string | null;
+  remainingRetentionDays: number;
+};
+
+export type ExpiredRecycleBinPreviewResult = {
+  cutoff: string;
+  expiredCount: number;
+  customers: ExpiredRecycleBinCustomerPreview[];
+};
