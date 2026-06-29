@@ -454,6 +454,47 @@ function withCustomerCodeVisibility(user: User, view: CustomerView): CustomerVie
   return rest;
 }
 
+/** Admin may directly manage collaborator assignees; owner staff uses approval (D-2d). */
+export function assertCanManageCustomerAssignees(
+  user: User,
+  customer: Customer,
+): void {
+  assertCustomerNotArchived(
+    customer,
+    "customer.assignees.manage_failed.archived",
+  );
+
+  if (isPublicPoolCustomer(customer)) {
+    throw new PermissionError(
+      403,
+      "无权管理公共池客户的负责员工",
+      "permission.denied.customer_assignees_manage",
+    );
+  }
+
+  if (user.role === "admin") {
+    return;
+  }
+
+  throw new PermissionError(
+    403,
+    "无权管理该客户的负责员工",
+    "permission.denied.customer_assignees_manage",
+  );
+}
+
+export function canManageCustomerAssignees(
+  user: User,
+  customer: Customer,
+): boolean {
+  try {
+    assertCanManageCustomerAssignees(user, customer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * SQL list scope for staff: own customers + public pool entries.
  * Admin returns null (no filter).

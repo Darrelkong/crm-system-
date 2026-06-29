@@ -60,6 +60,16 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   "permission.denied.follow_up_access": "errors.cannotAddFollowUp",
   "permission.denied.customer_timeline_access": "errors.cannotViewTimeline",
   "customer.release_to_pool_failed.permission_denied": "errors.cannotReleaseCustomer",
+  ASSIGNEE_INVALID_PAYLOAD: "errors.assigneeInvalidPayload",
+  ASSIGNEE_OWNER_NOT_ALLOWED: "errors.assigneeOwnerNotAllowed",
+  ASSIGNEE_ADMIN_NOT_ALLOWED: "errors.assigneeAdminNotAllowed",
+  ASSIGNEE_INACTIVE_USER: "errors.assigneeInactiveUser",
+  ASSIGNEE_USER_NOT_FOUND: "errors.assigneeUserNotFound",
+  CUSTOMER_ASSIGNEES_FORBIDDEN: "errors.customerAssigneesForbidden",
+  PENDING_ON_HOLD_CREATE: "errors.pendingOnHoldCreate",
+  "permission.denied.customer_assignees_manage": "errors.customerAssigneesForbidden",
+  "permission.denied.pending_on_hold_create": "errors.pendingOnHoldCreate",
+  "customer.assignees.manage_failed.archived": "errors.customerAssigneesForbidden",
 };
 
 const FIELD_CODE_TO_KEY: Record<string, string> = {

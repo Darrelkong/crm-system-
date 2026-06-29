@@ -9,6 +9,7 @@ import {
   type AssigneeDisplayLocale,
 } from "@/lib/customers/assignee-display";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
+import { ManageAssigneesButton } from "@/components/customers/manage-assignees-modal";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
 import { CustomerTimelineView } from "@/components/customers/customer-timeline-view";
@@ -77,14 +78,26 @@ type Props = {
   showReleaseButton: boolean;
   showFollowUpButton: boolean;
   showApprovalButton: boolean;
+  showManageAssigneesButton: boolean;
 };
 
-function DetailRow({ label, value }: { label: string; value?: string | null }) {
-  if (!value) return null;
+function DetailRow({
+  label,
+  value,
+  action,
+}: {
+  label: string;
+  value?: string | null;
+  action?: React.ReactNode;
+}) {
+  if (!value && !action) return null;
   return (
     <div className="flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4">
       <dt className="shrink-0 text-[#6B7890] sm:w-36">{label}</dt>
-      <dd className="text-[#172033]">{value}</dd>
+      <dd className="flex flex-wrap items-center gap-2 text-[#172033]">
+        {value ? <span>{value}</span> : null}
+        {action}
+      </dd>
     </div>
   );
 }
@@ -116,6 +129,7 @@ export function CustomerDetailClient({
   showReleaseButton,
   showFollowUpButton,
   showApprovalButton,
+  showManageAssigneesButton,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
@@ -293,7 +307,15 @@ export function CustomerDetailClient({
         <div className="space-y-4 lg:space-y-6">
           <SectionCard title={t("customers.systemInfo")}>
             <dl>
-              <DetailRow label={t("customers.assignedStaff")} value={assignedStaffLabel} />
+              <DetailRow
+                label={t("customers.assignedStaff")}
+                value={assignedStaffLabel}
+                action={
+                  showManageAssigneesButton ? (
+                    <ManageAssigneesButton customerId={id} />
+                  ) : undefined
+                }
+              />
               <DetailRow label={t("customers.createdBy")} value={createdByLabel} />
               <DetailRow
                 label={t("customers.lastFollowUp")}
