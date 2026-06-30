@@ -13,6 +13,7 @@ import {
   getNotificationTypeLabelKey,
 } from "@/lib/notifications/category";
 import type { NotificationListItem } from "@/lib/notifications/queries";
+import { isRelatedCustomerMissing } from "@/lib/notifications/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type NotificationCardItem = NotificationListItem & {
@@ -114,6 +115,11 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
                     </span>
                   )}
                 </p>
+                {isRelatedCustomerMissing(item) && (
+                  <p className="mt-1 text-xs text-[#6B7890]">
+                    {t("notifications.relatedCustomerMissing")}
+                  </p>
+                )}
               </div>
             );
             return (

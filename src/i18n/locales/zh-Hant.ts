@@ -809,6 +809,7 @@ const zhHant: Messages = {
     unread: "未讀",
     loading: "載入中…",
     viewRelatedClient: "查看相關客戶",
+    relatedCustomerMissing: "相關客戶已永久刪除",
     viewApproval: "查看審批",
     viewDetails: "查看詳情",
     notificationTime: "通知時間",

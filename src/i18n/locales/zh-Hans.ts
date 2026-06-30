@@ -808,6 +808,7 @@ const zhHans: Messages = {
     unread: "未读",
     loading: "加载中…",
     viewRelatedClient: "查看相关客户",
+    relatedCustomerMissing: "相关客户已永久删除",
     viewApproval: "查看审批",
     viewDetails: "查看详情",
     notificationTime: "通知时间",

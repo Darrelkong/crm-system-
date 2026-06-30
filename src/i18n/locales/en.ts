@@ -830,6 +830,7 @@ const en = {
     unread: "Unread",
     loading: "Loading…",
     viewRelatedClient: "View Related Client",
+    relatedCustomerMissing: "Related client has been permanently deleted",
     viewApproval: "View Approval",
     viewDetails: "View Details",
     notificationTime: "Notification Time",

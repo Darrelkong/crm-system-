@@ -16,37 +16,23 @@ import {
   getNotificationTypeLabelKey,
 } from "@/lib/notifications/category";
 import { dispatchNotificationUnreadChanged } from "@/lib/notifications/badge-count";
-import type { NotificationListItem } from "@/lib/notifications/queries";
+import {
+  getNotificationHref,
+  isRelatedCustomerMissing,
+  type NotificationListItem,
+} from "@/lib/notifications/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
   userRole: "admin" | "staff";
 };
 
-function getHref(
-  item: NotificationListItem,
-  role: "admin" | "staff",
-): string | null {
-  if (!item.related_entity_type || !item.related_entity_id) return null;
-  switch (item.related_entity_type) {
-    case "customer":
-      return `/customers/${item.related_entity_id}`;
-    case "approval":
-      return "/approvals";
-    case "backup_job":
-    case "backup":
-      return role === "admin" ? "/admin/backups" : null;
-    default:
-      return null;
-  }
-}
-
 function getActionLabel(
   t: (key: string) => string,
   item: NotificationListItem,
   role: "admin" | "staff",
 ): string | null {
-  const href = getHref(item, role);
+  const href = getNotificationHref(item, role);
   if (!href) return null;
   if (item.related_entity_type === "customer") {
     return t("notifications.viewRelatedClient");
@@ -204,8 +190,9 @@ export function NotificationsClient({ userRole }: Props) {
       ) : (
         <ul className="space-y-3">
           {sortedItems.map((item) => {
-            const href = getHref(item, userRole);
+            const href = getNotificationHref(item, userRole);
             const actionLabel = getActionLabel(t, item, userRole);
+            const relatedCustomerMissing = isRelatedCustomerMissing(item);
             const category = getNotificationCategory(item.type);
             const typeKey = getNotificationTypeLabelKey(item.type);
             const typeLabel =
@@ -239,6 +226,11 @@ export function NotificationsClient({ userRole }: Props) {
                     <p className="mt-2 text-xs text-[#6B7890]">
                       {formatCreatedAt(item.created_at)}
                     </p>
+                    {relatedCustomerMissing && (
+                      <p className="mt-2 text-xs text-[#6B7890]">
+                        {t("notifications.relatedCustomerMissing")}
+                      </p>
+                    )}
                     {actionLabel && href && (
                       <p className="mt-2 text-xs link-primary">{actionLabel}</p>
                     )}

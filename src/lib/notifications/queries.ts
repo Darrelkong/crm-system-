@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
@@ -10,6 +10,8 @@ export type NotificationListItem = {
   message: string;
   related_entity_type: string | null;
   related_entity_id: string | null;
+  /** True when related_entity_type is customer and the row no longer exists. */
+  related_entity_missing?: boolean;
   is_read: boolean;
   created_at: string;
 };
@@ -25,6 +27,46 @@ function toListItem(row: typeof schema.notifications.$inferSelect): Notification
     is_read: row.isRead === 1,
     created_at: row.createdAt,
   };
+}
+
+async function attachRelatedEntityMissingFlags(
+  db: Database,
+  items: NotificationListItem[],
+): Promise<NotificationListItem[]> {
+  const customerIds = [
+    ...new Set(
+      items
+        .filter(
+          (item) =>
+            item.related_entity_type === "customer" &&
+            item.related_entity_id != null,
+        )
+        .map((item) => item.related_entity_id as string),
+    ),
+  ];
+
+  if (customerIds.length === 0) {
+    return items;
+  }
+
+  const existingRows = await db
+    .select({ id: schema.customers.id })
+    .from(schema.customers)
+    .where(inArray(schema.customers.id, customerIds));
+
+  const existingIds = new Set(existingRows.map((row) => row.id));
+
+  return items.map((item) => {
+    if (item.related_entity_type !== "customer" || !item.related_entity_id) {
+      return item;
+    }
+
+    if (existingIds.has(item.related_entity_id)) {
+      return item;
+    }
+
+    return { ...item, related_entity_missing: true };
+  });
 }
 
 export async function listNotificationsForUser(
@@ -46,7 +88,7 @@ export async function listNotificationsForUser(
     .orderBy(desc(schema.notifications.createdAt))
     .limit(limit);
 
-  return rows.map(toListItem);
+  return attachRelatedEntityMissingFlags(db, rows.map(toListItem));
 }
 
 export async function getUnreadNotificationCount(
@@ -142,11 +184,30 @@ export async function markAllNotificationsRead(
   return unread.length;
 }
 
+export function isRelatedCustomerMissing(
+  item: Pick<
+    NotificationListItem,
+    "related_entity_type" | "related_entity_missing"
+  >,
+): boolean {
+  return (
+    item.related_entity_type === "customer" &&
+    item.related_entity_missing === true
+  );
+}
+
 export function getNotificationHref(
-  item: Pick<NotificationListItem, "related_entity_type" | "related_entity_id">,
+  item: Pick<
+    NotificationListItem,
+    "related_entity_type" | "related_entity_id" | "related_entity_missing"
+  >,
   role: User["role"],
 ): string | null {
   if (!item.related_entity_type || !item.related_entity_id) {
+    return null;
+  }
+
+  if (item.related_entity_missing) {
     return null;
   }
 
