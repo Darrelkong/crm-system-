@@ -2,6 +2,7 @@ import type { AiProviderDiagnostics } from "@/lib/ai/customer-insights/diagnosti
 import {
   AiAnalysisError,
   AiConfigError,
+  AiRefreshCooldownError,
   AiRefreshDeniedError,
   type AiErrorCode,
 } from "@/lib/ai/customer-insights/errors";
@@ -49,6 +50,9 @@ export function resolveAiRefreshErrorCode(error: unknown): AiErrorCode {
   if (error instanceof AiRefreshDeniedError) {
     return error.code;
   }
+  if (error instanceof AiRefreshCooldownError) {
+    return error.code;
+  }
   if (error instanceof AiAnalysisError) {
     return error.code;
   }
@@ -71,6 +75,8 @@ export function getSafeAiRefreshErrorMessage(errorCode: AiErrorCode): string {
       return "AI 回應格式異常，請稍後再試或聯絡管理員。";
     case "AI_REFRESH_DENIED":
       return "目前設定不允許您手動刷新 AI 分析。";
+    case "AI_REFRESH_COOLDOWN":
+      return "AI 分析剛剛已刷新，請稍後再試。";
     case "AI_ANALYSIS_FAILED":
     case "AI_PROVIDER_ERROR":
     default:

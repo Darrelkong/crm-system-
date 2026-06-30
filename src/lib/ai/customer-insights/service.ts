@@ -7,10 +7,12 @@ import {
 } from "@/lib/ai/providers/factory";
 import { buildCustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { mapAiAnalysisErrorCode } from "@/lib/ai/customer-insights/error-mapping";
+import { isAiRefreshOnCooldown } from "@/lib/ai/customer-insights/cooldown";
 import {
   AiAnalysisError,
   AiConfigError,
   AiProviderError,
+  AiRefreshCooldownError,
   AiRefreshDeniedError,
 } from "@/lib/ai/customer-insights/errors";
 import { buildResolvedProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
@@ -303,6 +305,11 @@ export async function refreshCustomerAiInsight(
 
   const aiSettings = await getEffectiveAiSettings(db);
   assertCanRefreshCustomerAiInsight(user, aiSettings);
+
+  const existingInsight = await getCustomerAiInsightByCustomerId(db, customer.id);
+  if (isAiRefreshOnCooldown(existingInsight)) {
+    throw new AiRefreshCooldownError();
+  }
 
   const accessLevel = getCustomerAccessLevel(user, customer, resolvedOptions);
   const context = await buildCustomerInsightContext(db, customer.id, {

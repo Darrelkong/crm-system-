@@ -15,6 +15,7 @@ import {
 import {
   AiAnalysisError,
   AiConfigError,
+  AiRefreshCooldownError,
   AiRefreshDeniedError,
 } from "@/lib/ai/customer-insights/errors";
 import {
@@ -31,6 +32,7 @@ type RouteContext = { params: Promise<{ id: string }> };
 function aiErrorStatus(error: unknown): number | null {
   if (error instanceof AiConfigError) return 503;
   if (error instanceof AiRefreshDeniedError) return 403;
+  if (error instanceof AiRefreshCooldownError) return 429;
   if (error instanceof AiAnalysisError) return 422;
   return null;
 }
@@ -81,22 +83,24 @@ export async function POST(request: Request, context: RouteContext) {
       const status = aiErrorStatus(error);
       if (status !== null) {
         const code = resolveAiRefreshErrorCode(error);
-        await writeAuditLog(
-          {
-            userId: user.id,
-            action: "customer.ai_insight.refresh_failed",
-            entityType: "customer",
-            entityId: customer.id,
-            ipAddress: meta.ipAddress,
-            userAgent: meta.userAgent,
-            metadata: buildAiInsightRefreshFailedAuditMetadata(
-              customer.id,
-              code,
-              error,
-            ),
-          },
-          db,
-        );
+        if (!(error instanceof AiRefreshCooldownError)) {
+          await writeAuditLog(
+            {
+              userId: user.id,
+              action: "customer.ai_insight.refresh_failed",
+              entityType: "customer",
+              entityId: customer.id,
+              ipAddress: meta.ipAddress,
+              userAgent: meta.userAgent,
+              metadata: buildAiInsightRefreshFailedAuditMetadata(
+                customer.id,
+                code,
+                error,
+              ),
+            },
+            db,
+          );
+        }
         const currentInsight = await getCustomerAiInsightByCustomerId(db, customer.id);
         const body = {
           error: getSafeAiRefreshErrorMessage(code),

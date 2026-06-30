@@ -514,6 +514,7 @@ const zhHans: Messages = {
       providerResponseInvalid: "AI 回应格式异常，请稍后再试或联系管理员。",
       analysisFailed: "AI 分析失败，请稍后重试",
       refreshDenied: "当前设置不允许您手动刷新 AI 分析",
+      refreshCooldown: "AI 分析刚刚已刷新，请稍后再试。",
       refreshAdminOnly: "仅管理员可重新分析",
       refreshStaffDisabled: "管理员已关闭 Staff 手动刷新",
       refresh: "重新分析",

@@ -533,6 +533,7 @@ const en = {
         "The AI response format was invalid. Please try again later or contact an administrator.",
       analysisFailed: "AI analysis failed. Please try again later.",
       refreshDenied: "Manual AI refresh is not allowed for your role.",
+      refreshCooldown: "AI analysis was refreshed recently. Please try again later.",
       refreshAdminOnly: "Only administrators can refresh AI insights.",
       refreshStaffDisabled: "Staff manual refresh is disabled by admin settings.",
       refresh: "Re-analyze",

@@ -6,7 +6,7 @@ import {
   mapAiAnalysisErrorCode,
   resolveAiRefreshErrorCode,
 } from "./error-mapping";
-import { AiAnalysisError, AiConfigError, AiRefreshDeniedError } from "./errors";
+import { AiAnalysisError, AiConfigError, AiRefreshCooldownError, AiRefreshDeniedError } from "./errors";
 
 const providerConfig = {
   apiBaseUrl: "https://generativelanguage.googleapis.com/v1beta/openai/",
@@ -142,6 +142,10 @@ describe("resolveAiRefreshErrorCode", () => {
   it("preserves refresh denied code", () => {
     assert.equal(resolveAiRefreshErrorCode(new AiRefreshDeniedError()), "AI_REFRESH_DENIED");
   });
+
+  it("preserves refresh cooldown code", () => {
+    assert.equal(resolveAiRefreshErrorCode(new AiRefreshCooldownError()), "AI_REFRESH_COOLDOWN");
+  });
 });
 
 describe("getSafeAiRefreshErrorMessage", () => {
@@ -163,6 +167,7 @@ describe("getSafeAiRefreshErrorMessage", () => {
       "AI_PROVIDER_RESPONSE_INVALID",
       "AI_ANALYSIS_FAILED",
       "AI_REFRESH_DENIED",
+      "AI_REFRESH_COOLDOWN",
     ] as const;
 
     for (const code of codes) {

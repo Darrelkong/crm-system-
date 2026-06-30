@@ -515,6 +515,7 @@ const zhHant: Messages = {
       providerResponseInvalid: "AI 回應格式異常，請稍後再試或聯絡管理員。",
       analysisFailed: "AI 分析失敗，請稍後重試",
       refreshDenied: "目前設定不允許您手動刷新 AI 分析",
+      refreshCooldown: "AI 分析剛剛已刷新，請稍後再試。",
       refreshAdminOnly: "僅管理員可重新分析",
       refreshStaffDisabled: "管理員已關閉 Staff 手動刷新",
       refresh: "重新分析",

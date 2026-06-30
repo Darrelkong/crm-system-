@@ -9,6 +9,7 @@ export type AiErrorCode =
   | "AI_PROVIDER_TIMEOUT"
   | "AI_PROVIDER_RESPONSE_INVALID"
   | "AI_REFRESH_DENIED"
+  | "AI_REFRESH_COOLDOWN"
   | "AI_PROVIDER_ERROR";
 
 export class AiConfigError extends Error {
@@ -43,6 +44,15 @@ export class AiRefreshDeniedError extends Error {
   constructor(message = "当前设置不允许手动刷新 AI 分析") {
     super(message);
     this.name = "AiRefreshDeniedError";
+  }
+}
+
+export class AiRefreshCooldownError extends Error {
+  readonly code: AiErrorCode = "AI_REFRESH_COOLDOWN";
+
+  constructor(message = "AI 分析刚刚已刷新，请稍后再试") {
+    super(message);
+    this.name = "AiRefreshCooldownError";
   }
 }
 

@@ -83,6 +83,8 @@ function resolveRefreshErrorMessage(
       return t("customers.aiInsight.analysisFailed");
     case "AI_REFRESH_DENIED":
       return t("customers.aiInsight.refreshDenied");
+    case "AI_REFRESH_COOLDOWN":
+      return t("customers.aiInsight.refreshCooldown");
     default:
       return t("customers.aiInsight.refreshFailed");
   }
