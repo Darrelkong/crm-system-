@@ -64,7 +64,7 @@ npm run db:seed:local
 | 改登入 / lockout / session | `npm run test:auth` |
 | 改 users-admin 刪除流程 | `npm run test:users-admin` |
 | 改 notifications 連結 / orphan fallback | `npm run test:unit`（含 `notification-href.test.ts`）+ `npm run test:db`（含 `notifications/queries.test.ts`） |
-| 改 AI provider / insight 錯誤處理 / refresh cooldown | `npm run test:unit`（含 `error-mapping.test.ts`、`cooldown.test.ts` 等）+ `npm run test:db`（含 `service-cooldown.test.ts`） |
+| 改 AI provider / insight 錯誤處理 / refresh cooldown / context sanitize | `npm run test:unit`（含 `error-mapping.test.ts`、`cooldown.test.ts`、`context-sanitize.test.ts` 等）+ `npm run test:db`（含 `service-cooldown.test.ts`） |
 | **Deploy 前（完整）** | `npm run test:regression:full` |
 
 ---
@@ -102,7 +102,7 @@ CRM_ALLOW_TEST_DB_BIND=1 node --import tsx --test --test-concurrency=1 src/lib/r
 
 | 類型 | 數量 | 目錄範例 |
 |------|------|----------|
-| 純單元 | 31 | `help/`, `permissions/`, `auth/`, `reclamation/`, `ai/`（provider、diagnostics、error-mapping、cooldown、prompt-builder）、`notifications/notification-href` |
+| 純單元 | 32 | `help/`, `permissions/`, `auth/`, `reclamation/`, `ai/`（provider、diagnostics、error-mapping、cooldown、prompt-builder、context-sanitize）、`notifications/notification-href` |
 | Local D1 | 15 | `public-pool/claim-limits`, `customers/assignees*`, `recycle-bin/*`, `users-admin/delete-*`, `notifications/queries`, `ai/customer-insights/service-cooldown` |
 
 完整清單見 `package.json` 中 `test:unit` / `test:db` script 參數。
