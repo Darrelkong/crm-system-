@@ -46,6 +46,21 @@ const context = {
   recentFollowUps: [],
 } satisfies CustomerInsightContext;
 
+const validInsightPayload = {
+  intentLevel: "medium",
+  intentScore: 55,
+  customerSummary: "summary",
+  currentSituation: "situation",
+  keySignals: ["signal"],
+  riskFlags: [],
+  missingInformation: [],
+  nextBestAction: "action",
+  suggestedFollowUpAt: null,
+  suggestedEmployeeMessage: "message",
+  confidence: 0.6,
+  reasoning: "reason",
+};
+
 function assertNoSecrets(serialized: string): void {
   assert.equal(serialized.includes(SECRET_API_KEY), false);
   assert.equal(serialized.includes("Bearer"), false);
@@ -53,6 +68,37 @@ function assertNoSecrets(serialized: string): void {
   assert.equal(serialized.includes(SENSITIVE_CUSTOMER_NAME), false);
   assert.equal(serialized.includes("13800138000"), false);
   assert.equal(serialized.includes("sensitive@example.com"), false);
+}
+
+function parseRequestBody(init: RequestInit | undefined): Record<string, unknown> {
+  assert.equal(typeof init?.body, "string");
+  return JSON.parse(init!.body as string) as Record<string, unknown>;
+}
+
+async function expectProviderError(
+  fetchImpl: typeof fetch,
+  assertDiagnostics: (error: AiProviderError) => void,
+): Promise<void> {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fetchImpl;
+
+  try {
+    await assert.rejects(
+      () =>
+        openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
+          context,
+          settings,
+          runtimeConfig,
+        ),
+      (error: unknown) => {
+        assert.equal(error instanceof AiProviderError, true);
+        assertDiagnostics(error as AiProviderError);
+        return true;
+      },
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 }
 
 describe("buildChatCompletionsUrl", () => {
@@ -90,67 +136,98 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
     const fetchMock = mock.fn(async () =>
       Response.json({ error: { message: "invalid api key" } }, { status: 401 }),
     );
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = fetchMock as typeof fetch;
 
-    try {
-      await assert.rejects(
-        () =>
-          openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
-            context,
-            settings,
-            runtimeConfig,
-          ),
-        (error: unknown) => {
-          assert.equal(error instanceof AiProviderError, true);
-          const diagnostics = (error as AiProviderError).diagnostics;
-          assert.equal(diagnostics?.providerErrorType, "provider_http_error");
-          assert.equal(diagnostics?.httpStatus, 401);
-          assert.equal(diagnostics?.requestUrlPath, "/v1beta/openai/chat/completions");
-          assertNoSecrets(JSON.stringify(diagnostics));
-          return true;
-        },
-      );
-      assert.equal(fetchMock.mock.calls.length >= 1, true);
-      const callArgs = fetchMock.mock.calls[0]?.arguments as unknown as
-        | [RequestInfo | URL, RequestInit?]
-        | undefined;
-      const requestInit = callArgs?.[1];
-      assert.equal(typeof requestInit?.headers, "object");
-      const headers = requestInit?.headers as Record<string, string>;
-      assert.equal(headers.Authorization, `Bearer ${SECRET_API_KEY}`);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(diagnostics?.httpStatus, 401);
+      assert.equal(diagnostics?.requestUrlPath, "/v1beta/openai/chat/completions");
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length >= 1, true);
+    const callArgs = fetchMock.mock.calls[0]?.arguments as unknown as
+      | [RequestInfo | URL, RequestInit?]
+      | undefined;
+    const requestInit = callArgs?.[1];
+    assert.equal(typeof requestInit?.headers, "object");
+    const headers = requestInit?.headers as Record<string, string>;
+    assert.equal(headers.Authorization, `Bearer ${SECRET_API_KEY}`);
   });
 
-  it("records provider_empty_content without leaking prompt or API key", async () => {
+  it("records provider_http_error with httpStatus 503 without leaking secrets", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "service unavailable" } }, { status: 503 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(diagnostics?.httpStatus, 503);
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
+  });
+
+  it("records provider_http_error with httpStatus 429 without leaking secrets", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "rate limit exceeded" } }, { status: 429 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(diagnostics?.httpStatus, 429);
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
+  });
+
+  it("records provider_request_failed when fetch rejects", async () => {
+    const fetchMock = mock.fn(async () => {
+      throw new Error("network failure");
+    });
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_request_failed");
+      assert.equal(diagnostics?.httpStatus, undefined);
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
+  });
+
+  it("records provider_request_failed when fetch throws AbortError", async () => {
+    const fetchMock = mock.fn(async () => {
+      throw new DOMException("The operation was aborted", "AbortError");
+    });
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_request_failed");
+      assert.equal(diagnostics?.httpStatus, undefined);
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
+  });
+
+  it("records provider_empty_content when content is whitespace only", async () => {
     const fetchMock = mock.fn(async () =>
       Response.json({ choices: [{ message: { content: "   " } }] }, { status: 200 }),
     );
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = fetchMock as typeof fetch;
 
-    try {
-      await assert.rejects(
-        () =>
-          openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
-            context,
-            settings,
-            runtimeConfig,
-          ),
-        (error: unknown) => {
-          assert.equal(error instanceof AiProviderError, true);
-          const diagnostics = (error as AiProviderError).diagnostics;
-          assert.equal(diagnostics?.providerErrorType, "provider_empty_content");
-          assert.equal(diagnostics?.httpStatus, undefined);
-          assertNoSecrets(JSON.stringify(diagnostics));
-          return true;
-        },
-      );
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_empty_content");
+      assert.equal(diagnostics?.httpStatus, undefined);
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
+  });
+
+  it("records provider_empty_content when choices array is empty", async () => {
+    const fetchMock = mock.fn(async () => Response.json({ choices: [] }, { status: 200 }));
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_empty_content");
+      assertNoSecrets(JSON.stringify(diagnostics));
+    });
   });
 
   it("records provider_json_parse_failed without leaking response body", async () => {
@@ -160,29 +237,69 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
         { status: 200 },
       ),
     );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_json_parse_failed");
+      const serialized = JSON.stringify(diagnostics);
+      assert.equal(serialized.includes("not valid json"), false);
+      assertNoSecrets(serialized);
+    });
+  });
+
+  it("retries without response_format when first request fails and second succeeds", async () => {
+    let callIndex = 0;
+    const fetchMock = mock.fn(async (_url, init) => {
+      callIndex += 1;
+      const body = parseRequestBody(init);
+
+      if (callIndex === 1) {
+        assert.deepEqual(body.response_format, { type: "json_object" });
+        return Response.json({ error: { message: "unsupported response_format" } }, { status: 400 });
+      }
+
+      assert.equal("response_format" in body, false);
+      return Response.json(
+        {
+          choices: [{ message: { content: JSON.stringify(validInsightPayload) } }],
+        },
+        { status: 200 },
+      );
+    });
+
     const originalFetch = globalThis.fetch;
     globalThis.fetch = fetchMock as typeof fetch;
 
     try {
-      await assert.rejects(
-        () =>
-          openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
-            context,
-            settings,
-            runtimeConfig,
-          ),
-        (error: unknown) => {
-          assert.equal(error instanceof AiProviderError, true);
-          const diagnostics = (error as AiProviderError).diagnostics;
-          assert.equal(diagnostics?.providerErrorType, "provider_json_parse_failed");
-          const serialized = JSON.stringify(diagnostics);
-          assert.equal(serialized.includes("not valid json"), false);
-          assertNoSecrets(serialized);
-          return true;
-        },
+      const result = await openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
       );
+      assert.deepEqual(result, validInsightPayload);
+      assert.equal(fetchMock.mock.calls.length, 2);
     } finally {
       globalThis.fetch = originalFetch;
     }
+  });
+
+  it("returns safe error when response_format fallback second attempt also fails", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "service unavailable" } }, { status: 503 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(diagnostics?.httpStatus, 503);
+      assertNoSecrets(JSON.stringify(diagnostics));
+      assertNoSecrets(JSON.stringify(error));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 2);
+    const firstBody = parseRequestBody(fetchMock.mock.calls[0]?.arguments[1] as RequestInit);
+    const secondBody = parseRequestBody(fetchMock.mock.calls[1]?.arguments[1] as RequestInit);
+    assert.deepEqual(firstBody.response_format, { type: "json_object" });
+    assert.equal("response_format" in secondBody, false);
   });
 });
