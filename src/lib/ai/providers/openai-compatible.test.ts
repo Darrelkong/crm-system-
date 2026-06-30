@@ -297,8 +297,14 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
     });
 
     assert.equal(fetchMock.mock.calls.length, 2);
-    const firstBody = parseRequestBody(fetchMock.mock.calls[0]?.arguments[1] as RequestInit);
-    const secondBody = parseRequestBody(fetchMock.mock.calls[1]?.arguments[1] as RequestInit);
+    const firstCallArgs = fetchMock.mock.calls[0]?.arguments as unknown as
+      | [RequestInfo | URL, RequestInit?]
+      | undefined;
+    const secondCallArgs = fetchMock.mock.calls[1]?.arguments as unknown as
+      | [RequestInfo | URL, RequestInit?]
+      | undefined;
+    const firstBody = parseRequestBody(firstCallArgs?.[1]);
+    const secondBody = parseRequestBody(secondCallArgs?.[1]);
     assert.deepEqual(firstBody.response_format, { type: "json_object" });
     assert.equal("response_format" in secondBody, false);
   });

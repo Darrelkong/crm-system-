@@ -17,6 +17,11 @@ const TEST_NOTIFICATION_MISSING =
   "n9999999-9999-9999-9999-999999999902";
 const DELETED_CUSTOMER_ID = "99999999-9999-9999-9999-999999999901";
 
+/** Ensure inserted rows sort ahead of seed / prior test notifications. */
+function newestCreatedAt(): string {
+  return new Date(Date.now() + 60_000).toISOString();
+}
+
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let disposeProxy: (() => Promise<void>) | undefined;
 
@@ -52,7 +57,7 @@ describe("listNotificationsForUser related entity missing flags", () => {
   it("marks missing customer notifications and keeps existing customer links", async () => {
     await deleteTestNotifications();
 
-    const ts = "2026-06-30T12:00:00.000Z";
+    const ts = newestCreatedAt();
 
     await db.insert(schema.notifications).values([
       {
@@ -80,7 +85,7 @@ describe("listNotificationsForUser related entity missing flags", () => {
     ]);
 
     const items = await listNotificationsForUser(db, SEED_IDS.staffA, {
-      limit: 10,
+      limit: 50,
     });
 
     const existing = items.find((item) => item.id === TEST_NOTIFICATION_EXISTING);
