@@ -456,6 +456,8 @@ const en = {
     releaseConfirmTitle: "Release to Public Pool",
     useReleaseFlowForPublicPool:
       "To release to the public pool, use the “Release to Public Pool” action on the client detail page. Status cannot be set here.",
+    sensitiveFieldsLockedHint:
+      "Sensitive customer information is locked. Please contact an admin to make changes.",
     publicPoolStatusReadOnly:
       "This client is in the public pool. Status cannot be changed on this page.",
     releaseConfirmBody:

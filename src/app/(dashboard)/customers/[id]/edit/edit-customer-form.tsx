@@ -27,6 +27,21 @@ const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
 
 const EDITABLE_STATUS_KEYS = ["active", "inactive", "archived"] as const;
 
+const STAFF_LOCKED_SENSITIVE_FIELDS = new Set([
+  "customerName",
+  "customerType",
+  "source",
+  "requestedProjectName",
+  "phoneCountryCode",
+  "phone",
+  "wechatId",
+  "email",
+  "notes",
+]);
+
+const lockedFieldClassName =
+  "cursor-not-allowed bg-[#F7FAFD] text-[#6B7890] opacity-90";
+
 export type EditCustomerInitial = {
   id: string;
   customerName: string;
@@ -63,6 +78,7 @@ export function EditCustomerForm({
 
   const isPublicPool = initial.status === "public_pool";
   const showStatusDropdown = canEditStatus && !isPublicPool;
+  const lockSensitiveFields = isStaff;
 
   const salesStageOptions: string[] = isStaff
     ? [...CREATABLE_SALES_STAGES]
@@ -92,6 +108,9 @@ export function EditCustomerForm({
   });
 
   function set(field: string, value: string) {
+    if (lockSensitiveFields && STAFF_LOCKED_SENSITIVE_FIELDS.has(field)) {
+      return;
+    }
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => {
       const next = { ...prev };
@@ -197,6 +216,15 @@ export function EditCustomerForm({
         </div>
       )}
 
+      {lockSensitiveFields && (
+        <div
+          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
+          role="note"
+        >
+          {t("customers.sensitiveFieldsLockedHint")}
+        </div>
+      )}
+
       <div className="surface-card p-6">
         <h3 className="mb-4 text-base font-semibold text-[#172033]">
           {t("customers.basicSection")}
@@ -210,6 +238,8 @@ export function EditCustomerForm({
             id="customerName"
             value={form.customerName}
             onChange={(e) => set("customerName", e.target.value)}
+            disabled={lockSensitiveFields}
+            className={lockSensitiveFields ? lockedFieldClassName : undefined}
           />
           {fieldErrors.customerName && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.customerName}</p>
@@ -226,6 +256,8 @@ export function EditCustomerForm({
             value={form.requestedProjectName}
             onChange={(e) => set("requestedProjectName", e.target.value)}
             placeholder={t("customers.requestedProjectNamePlaceholder")}
+            disabled={lockSensitiveFields}
+            className={lockSensitiveFields ? lockedFieldClassName : undefined}
           />
           {fieldErrors.requestedProjectName && (
             <p className="mt-1 text-xs text-red-600">
@@ -240,6 +272,8 @@ export function EditCustomerForm({
             id="customerType"
             value={form.customerType}
             onChange={(e) => set("customerType", e.target.value)}
+            disabled={lockSensitiveFields}
+            className={lockSensitiveFields ? lockedFieldClassName : undefined}
           >
             {CUSTOMER_TYPES.map((typeKey) => (
               <option key={typeKey} value={typeKey}>
@@ -296,9 +330,10 @@ export function EditCustomerForm({
           </Label>
           <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3">
             <Select
-              className="w-full"
+              className={`w-full${lockSensitiveFields ? ` ${lockedFieldClassName}` : ""}`}
               value={form.phoneCountryCode}
               onChange={(e) => set("phoneCountryCode", e.target.value)}
+              disabled={lockSensitiveFields}
             >
               {COUNTRY_CODES.map((cc) => (
                 <option key={cc} value={cc}>
@@ -307,11 +342,12 @@ export function EditCustomerForm({
               ))}
             </Select>
             <Input
-              className="min-w-0 w-full"
+              className={`min-w-0 w-full${lockSensitiveFields ? ` ${lockedFieldClassName}` : ""}`}
               value={form.phone}
               onChange={(e) => set("phone", e.target.value)}
               placeholder={t("customers.phonePlaceholder")}
               type="tel"
+              disabled={lockSensitiveFields}
             />
           </div>
           {fieldErrors.phone && (
@@ -322,6 +358,8 @@ export function EditCustomerForm({
               value={form.wechatId}
               onChange={(e) => set("wechatId", e.target.value)}
               placeholder={t("customers.wechatOptional")}
+              disabled={lockSensitiveFields}
+              className={lockSensitiveFields ? lockedFieldClassName : undefined}
             />
           </div>
         </div>
@@ -334,6 +372,8 @@ export function EditCustomerForm({
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
             placeholder={t("customers.emailOptional")}
+            disabled={lockSensitiveFields}
+            className={lockSensitiveFields ? lockedFieldClassName : undefined}
           />
           {fieldErrors.email && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.email}</p>
@@ -354,6 +394,8 @@ export function EditCustomerForm({
             id="source"
             value={form.source}
             onChange={(e) => set("source", e.target.value)}
+            disabled={lockSensitiveFields}
+            className={lockSensitiveFields ? lockedFieldClassName : undefined}
           >
             {tags.map((tag) => (
               <option key={tag.tagKey} value={tag.tagKey}>
@@ -415,6 +457,8 @@ export function EditCustomerForm({
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
             placeholder={t("customers.stageNotesPlaceholder")}
+            disabled={lockSensitiveFields}
+            className={lockSensitiveFields ? lockedFieldClassName : undefined}
           />
           {fieldErrors.notes && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.notes}</p>

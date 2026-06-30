@@ -442,6 +442,8 @@ const zhHans: Messages = {
     releaseConfirmTitle: "释放到公共池",
     useReleaseFlowForPublicPool:
       "若要释放至公共池，请使用客户详情页的「释放到公共池」功能，不可在此直接修改状态。",
+    sensitiveFieldsLockedHint:
+      "敏感资料已锁定，如需修改请联系管理员。",
     publicPoolStatusReadOnly: "此客户已在公共池，状态不可在此修改。",
     releaseConfirmBody: "确认将该客户释放至公共池吗？此操作不可撤销。",
     releaseReason: "释放原因",
