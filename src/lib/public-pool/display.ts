@@ -1,7 +1,7 @@
 /** Staff public pool list: 張三三 → 張**, Daniel Smith → D** */
-export function maskPublicPoolCustomerName(name: string): string {
-  const trimmed = name.trim();
-  if (!trimmed) return trimmed;
+export function maskPublicPoolCustomerName(value?: string | null): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return "";
 
   const chars = [...trimmed];
   const first = chars[0];
