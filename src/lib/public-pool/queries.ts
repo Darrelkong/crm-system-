@@ -5,6 +5,8 @@ import type { User } from "../../../drizzle/schema/users";
 import {
   formatCustomerForUser,
 } from "@/lib/permissions/customers";
+import { calculateDataCompletenessScore } from "@/lib/customers/scoring/completeness";
+import { getCustomerIdsWithFollowUps } from "@/lib/customers/scoring/service";
 import { getStaffClaimStatus } from "./claim-limits";
 import type { StaffClaimStatus } from "./constants";
 
@@ -27,6 +29,7 @@ export type PublicPoolCustomerView = {
   customerType: string;
   source: string;
   salesStage: string;
+  completenessScore: number;
   poolEnteredAt: string | null;
   poolReason: string | null;
   accessLevel: "full" | "masked";
@@ -96,8 +99,13 @@ export function formatPublicPoolCustomer(
   user: User,
   customer: Customer,
   claim: ClaimEligibility,
+  hasFollowUp: boolean,
 ): PublicPoolCustomerView {
   const base = formatCustomerForUser(user, customer);
+  const { completenessScore } = calculateDataCompletenessScore(
+    customer,
+    hasFollowUp,
+  );
 
   return {
     id: base.id,
@@ -105,6 +113,7 @@ export function formatPublicPoolCustomer(
     customerType: base.customerType,
     source: base.source,
     salesStage: base.salesStage,
+    completenessScore,
     poolEnteredAt: customer.poolEnteredAt ?? null,
     poolReason: customer.poolReason ?? null,
     accessLevel:
@@ -137,13 +146,23 @@ export async function formatPublicPoolListForUser(user: User) {
   const staffStatus =
     user.role === "staff" ? await getStaffClaimStatus(user.id) : null;
 
+  const followUpSet = await getCustomerIdsWithFollowUps(
+    getDb(),
+    customers.map((customer) => customer.id),
+  );
+
   return customers.map((customer) => {
     const claim = evaluateCustomerClaimEligibility(
       user,
       customer,
       staffStatus,
     );
-    return formatPublicPoolCustomer(user, customer, claim);
+    return formatPublicPoolCustomer(
+      user,
+      customer,
+      claim,
+      followUpSet.has(customer.id),
+    );
   });
 }
 
