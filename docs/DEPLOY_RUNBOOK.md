@@ -43,17 +43,23 @@
 git status                    # 確認乾淨、在正確分支
 git pull origin main          # 與 remote 同步
 
-npx tsc --noEmit              # 型別檢查
-npm run build                 # 生產構建驗證
+npm run test:regression:full  # 建議：全量測試 + tsc + build
 ```
 
-可選（有改動的模組）：
+**測試分級（依變更範圍縮小）：**
 
-```bash
-node --import tsx --test src/lib/permissions/customer-sensitive-fields.test.ts
-node --import tsx --test src/lib/recycle-bin/recycle-bin.test.ts
-# 見 src/**/*.test.ts
-```
+| 變更 | 最低建議 |
+|------|----------|
+| UI / i18n 小改 | `npx tsc --noEmit && npm run build` |
+| Help Center | `npm run test:help` + tsc |
+| Public pool | `npm run test:public-pool` |
+| Assignees | `npm run test:assignees` |
+| Recycle bin | `npm run test:recycle-bin` |
+| 權限 / 敏感欄位 | `npm run test:permissions` |
+
+詳見 [TESTING.md](./TESTING.md)。
+
+> **注意：** 測試通過不代表 production smoke 已完成。正式站仍須 Admin / Staff 各一輪人工驗證（需通過 Cloudflare Access），見 [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md)。
 
 ### 2.3 部署
 
