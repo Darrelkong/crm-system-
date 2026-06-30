@@ -1032,7 +1032,12 @@ const en = {
     title: "Help Center",
     description:
       "Read-only guides for common CRM workflows, permissions, and security rules.",
+    descriptionAdmin:
+      "Administrator-only workflows, system settings, and approval guides (read-only).",
+    descriptionStaff:
+      "Staff daily workflows, sensitive data rules, and public pool guides (read-only).",
     adminOnlyBadge: "Admin only",
+    staffOnlyBadge: "Staff only",
     readOnlyNotice:
       "This page is for reference only. It does not change any system settings.",
     sections: {
@@ -1041,7 +1046,7 @@ const en = {
         description: "Key tasks available to administrators in this CRM.",
         items: {
           dashboard:
-            "Open the admin dashboard to review KPIs, workload, and recent activity.",
+            "Open the admin dashboard to review KPIs, workload, team performance, and recent activity.",
           manageCustomers:
             "Browse and manage all clients from Client Management, including active, public pool, and archived records.",
           addCustomer:
@@ -1054,6 +1059,38 @@ const en = {
             "Manage announcements and monitor system notifications from the admin menu.",
           securityPolicies:
             "View enforced security rules under System Settings → Security Policies.",
+          systemSettings:
+            "Adjust automatic reclaim, public pool claim limits, and other parameters under System Settings (actual values apply).",
+        },
+      },
+      adminWorkspace: {
+        title: "Admin dashboard & notifications",
+        description: "Administrator workspace and message center.",
+        items: {
+          dashboardKpi:
+            "The dashboard shows KPIs such as total clients, public pool, pending approvals, tasks, and team follow-ups.",
+          workflowPriorities:
+            "The Workflow panel highlights pending approvals, overdue tasks, and today's tasks.",
+          notifications:
+            "Notification Center shows approvals, reclaim warnings, and more; unread counts appear as badges.",
+          announcements:
+            "Publish or archive company announcements from Announcement Management.",
+          systemOnline:
+            "System Online in the UI indicates the CRM service is available; for status reference only.",
+        },
+      },
+      adminSensitiveAssignees: {
+        title: "Sensitive data & co-owners (Admin)",
+        description: "Administrator permissions for sensitive client fields and co-owners.",
+        items: {
+          editSensitive:
+            "Admins can edit sensitive fields (name, contact, source, notes) on the edit page; staff cannot change them after creation.",
+          manageAssignees:
+            "Admins can add or remove co-owners directly from Manage Co-owners on the client detail page.",
+          approveAssigneeRequests:
+            "Owner staff requests to adjust co-owners are reviewed in the Approvals center.",
+          collaboratorLimits:
+            "Co-owners can view clients and add follow-ups but cannot edit clients or release them to the public pool.",
         },
       },
       staffGuide: {
@@ -1061,17 +1098,100 @@ const en = {
         description: "Everyday tasks for staff members.",
         items: {
           viewCustomers:
-            "Open Client Management to see clients you own and masked public-pool clients.",
+            "Open Client Management to see clients you own and clients where you are a co-owner.",
           addCustomer:
-            "Use Add Client to register a new client you will follow up with.",
+            "Use Add Client to register a new client; a confirmation modal is required before creation.",
           updateCustomer:
-            "Edit client details from the client detail page when you are the owner.",
+            "Owners can edit non-sensitive fields (e.g. sales stage); sensitive data is locked after creation—see below.",
           addFollowUp:
             "Record each contact from the client detail page to keep follow-up history accurate.",
           notifications:
-            "Check Notifications for approvals, reminders, and system messages.",
-          announcements:
-            "Read company announcements from the announcements page.",
+            "Check Notification Center for approval results and follow-up reminders; unread counts appear as badges.",
+          announcements: "Read company announcements from the Announcements page.",
+        },
+      },
+      staffDashboard: {
+        title: "Staff dashboard",
+        description: "Key metrics on the staff workspace.",
+        items: {
+          myClients:
+            "My Clients shows active clients you currently own (excluding public pool and archived).",
+          tasks: "Today's Tasks and Overdue Tasks come from system-assigned follow-up tasks.",
+          approvals:
+            "Pending Approvals shows the status of requests you submitted; jump to the approvals list.",
+          riskAndCompleteness:
+            "High Churn Risk and Low Completeness help you prioritize clients needing follow-up.",
+          recentCards:
+            "Recent notifications and announcement summaries appear below the dashboard.",
+        },
+      },
+      sensitiveDataStaff: {
+        title: "Sensitive data protection (Staff)",
+        description: "Privacy and display rules after a client is created.",
+        items: {
+          createConfirm:
+            "When adding a client, Save Client opens a confirmation modal. Wait {{seconds}} seconds and verify name, project, phone, WeChat, and email before creating.",
+          lockedFields:
+            "After creation, staff cannot edit name, type, source, project name, phone, WeChat, email, or first-contact notes. Contact an admin for changes.",
+          contactMasking:
+            "Phone, WeChat, and email on the client detail page default to ********. Click the eye icon to reveal temporarily; refresh hides them again.",
+          noCustomerCode:
+            "Staff cannot see the client EF unique ID; administrators can.",
+        },
+      },
+      publicPoolStaff: {
+        title: "Public pool (Staff)",
+        description: "View and claim rules for staff in the public pool.",
+        items: {
+          nameMasking:
+            "In the pool list, Chinese names show first character + **; English names show first letter + **.",
+          listColumns:
+            "The list shows Client Type and Data Completeness score instead of full source/stage details.",
+          poolReasonPreview:
+            "Pool reason shows only the first three characters + ⋯; the full reason is not displayed.",
+          claimSuccess:
+            "After a successful claim, Claim Success and View Now let you jump to the client detail page.",
+          quotaCooldown:
+            "Default limits apply: {{quota}} claims per 7 days and {{hours}}-hour cooldown (as shown on the page). You cannot claim clients you released.",
+        },
+      },
+      publicPoolAdmin: {
+        title: "Public pool (Admin)",
+        description: "Full administrator view of the public pool.",
+        items: {
+          fullName:
+            "Admins see full client names without staff masking rules.",
+          contactColumn:
+            "The list includes a contact summary column (phone, WeChat).",
+          claimSuccess:
+            "After a successful claim, View Now jumps to the client detail page.",
+          poolSettings:
+            "Claim quota (default {{quota}} per 7 days) and cooldown (default {{hours}} hours) can be adjusted in System Settings.",
+        },
+      },
+      collaboratorsStaff: {
+        title: "Co-owners (Staff)",
+        description: "How owners request co-owner changes.",
+        items: {
+          ownerRequest:
+            "The client owner can click Request Co-owner Change, provide a reason, and submit for approval.",
+          collaboratorRole:
+            "If you are already a co-owner, you can view the client and add follow-ups but cannot submit this request.",
+          adminOnlyManage:
+            "Only administrators can manage co-owners directly without approval.",
+        },
+      },
+      followUpRules: {
+        title: "Follow-up entry rules",
+        description: "Required fields and format when logging follow-ups.",
+        items: {
+          nextFollowUpRequired:
+            "Next follow-up time is required and must be a valid future datetime.",
+          customerIntentRequired: "Customer intent is required.",
+          nextActionMinLength:
+            "Next action must be at least 10 characters (excluding leading/trailing spaces).",
+          validFollowUpImpact:
+            "Valid follow-ups affect client heat, completeness, and automatic reclaim timing.",
         },
       },
       customerFlow: {
@@ -1083,7 +1203,7 @@ const en = {
           assignOwner:
             "Each active client has an owner responsible for follow-ups. Admins can reassign owners; staff usually own clients they create or claim.",
           updateStatusStage:
-            "Update client status and sales stage as the opportunity progresses. Some changes may require approval.",
+            "Update sales stage as the opportunity progresses. On hold (on_hold) and similar changes may require admin approval.",
           addFollowUp:
             "Log calls, messages, and meetings after each contact. Valid follow-ups affect reclaim timers and reporting.",
           timeline:
@@ -1100,12 +1220,20 @@ const en = {
             "Deleted clients are moved to the recycle bin instead of being removed immediately.",
           retention:
             "Deleted clients remain in the recycle bin for {{days}} days.",
-          adminRestore:
-            "Administrators can restore clients within the {{days}}-day retention period.",
-          autoPurge:
-            "Clients still in the recycle bin after {{days}} days may be permanently removed by the system cleanup job.",
           staffNoAccess:
             "Staff cannot open the recycle bin. Contact an administrator if a client must be restored.",
+        },
+      },
+      recycleBinAdmin: {
+        title: "Recycle bin management (Admin)",
+        description: "Restore or permanently delete clients.",
+        items: {
+          adminRestore:
+            "Administrators can restore clients within the {{days}}-day retention period.",
+          permanentDelete:
+            "Permanent delete removes client data with no recovery. Confirm carefully before proceeding.",
+          autoPurge:
+            "Clients still in the recycle bin after {{days}} days may be permanently removed by the system cleanup job.",
         },
       },
       employeeMgmt: {
@@ -1114,14 +1242,31 @@ const en = {
         items: {
           adminManage:
             "Administrators add staff accounts, disable access, reset passwords, and unlock locked accounts.",
+          deletePreview:
+            "Before deletion, a preview shows owned client count, co-owner removals, and more; confirm to proceed.",
           softDeleteEmployee:
             "Deleting an employee is a soft delete. Historical records are preserved.",
           deletedRecordsKept:
-            "Deleted employees remain visible in admin user lists for audit purposes.",
+            "Deleted employees remain visible in user lists; totals show all employees vs. active employees.",
           deletedCannotLogin:
             "Deleted employees cannot sign in again, even if their account is unlocked.",
           customerTransfer:
             "When an employee is deleted, their clients are transferred to the administrator performing the deletion.",
+        },
+      },
+      autoReclaimSettings: {
+        title: "Automatic reclaim & system settings",
+        description:
+          "Rules for clients returning to the public pool (defaults below; actual settings apply).",
+        items: {
+          reclaimDays:
+            "By default, clients with no valid follow-up for {{days}} consecutive days are reclaimed to the public pool.",
+          warningDays:
+            "By default, a warning is sent {{days}} days before reclaim (starting from day {{reclaimDays}} without valid follow-up).",
+          onHoldPinned:
+            "Clients on hold (on_hold) or pinned are not automatically reclaimed.",
+          settingsPath:
+            "Adjust automatic_reclaim_days, reclaim_warning_days_before, and related parameters in System Settings.",
         },
       },
       loginSecurity: {
@@ -1175,6 +1320,46 @@ const en = {
         question: "What is the difference between Admin and Staff?",
         answer:
           "Administrators manage users, system settings, imports, exports, backups, approvals, and all clients. Staff manage their own clients, follow-ups, notifications, and public-pool claims within assigned limits.",
+      },
+      followUpRequired: {
+        question: "Why can't I submit the follow-up form?",
+        answer:
+          "Ensure next follow-up time and customer intent are filled in, and next action is at least 10 characters.",
+      },
+      createConfirmWait: {
+        question: "Why do I have to wait before confirming a new client?",
+        answer:
+          "To prevent accidental sensitive data entry, the system requires a {{seconds}}-second wait and review of the confirmation modal before creating the client.",
+      },
+      sensitiveLocked: {
+        question: "Why can't I edit a client's phone or name?",
+        answer:
+          "After creation, staff cannot edit sensitive fields. Contact an administrator for corrections.",
+      },
+      publicPoolNameMask: {
+        question: "Why can't I see full names in the public pool?",
+        answer:
+          "Staff pool lists mask names for privacy. After claiming, you can view full details on the client page.",
+      },
+      cannotClaimPool: {
+        question: "Why can't I claim a public pool client?",
+        answer:
+          "Possible reasons: 7-day claim quota reached (default {{quota}}), still in cooldown (default {{hours}} hours), or you released that client yourself.",
+      },
+      permanentDelete: {
+        question: "What's the difference between restore and permanent delete?",
+        answer:
+          "Restore brings back a client within the retention period. Permanent delete cannot be undone—proceed with care.",
+      },
+      autoReclaim: {
+        question: "When are clients automatically reclaimed?",
+        answer:
+          "By default, {{reclaimDays}} days without valid follow-up triggers reclaim; a warning is sent {{warningDays}} days earlier. On-hold and pinned clients are excluded.",
+      },
+      assigneeApproval: {
+        question: "How do I approve co-owner changes?",
+        answer:
+          "After an owner submits a request, administrators review the reason in Approvals and approve or reject it.",
       },
     },
   },

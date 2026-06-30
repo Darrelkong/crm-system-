@@ -6,23 +6,48 @@ import {
   INACTIVITY_LOGOUT_MINUTES,
   LOCKOUT_THRESHOLD,
 } from "@/lib/auth/constants";
-import { RECYCLE_BIN_RETENTION_DAYS } from "@/lib/recycle-bin/constants";
 import {
+  getHelpFaqForRole,
   getHelpSectionsForRole,
-  HELP_FAQ_ITEMS,
   type HelpSectionConfig,
 } from "@/lib/help/sections";
+import { RECYCLE_BIN_RETENTION_DAYS } from "@/lib/recycle-bin/constants";
+import { SETTING_DEFAULTS } from "@/lib/settings/keys";
 import { useTranslation } from "@/i18n/provider";
+
+const RECLAIM_DAYS = SETTING_DEFAULTS.automatic_reclaim_days;
+const RECLAIM_WARNING_DAYS = SETTING_DEFAULTS.reclaim_warning_days_before;
+const POOL_QUOTA = SETTING_DEFAULTS.public_pool_claim_quota_7_days;
+const POOL_COOLDOWN_HOURS = SETTING_DEFAULTS.public_pool_claim_cooldown_hours;
+const CREATE_CONFIRM_SECONDS = "5";
 
 const HELP_I18N_PARAMS: Record<string, Record<string, string>> = {
   "help.sections.recycleBin.items.retention": {
     days: String(RECYCLE_BIN_RETENTION_DAYS),
   },
-  "help.sections.recycleBin.items.adminRestore": {
+  "help.sections.recycleBinAdmin.items.adminRestore": {
     days: String(RECYCLE_BIN_RETENTION_DAYS),
   },
-  "help.sections.recycleBin.items.autoPurge": {
+  "help.sections.recycleBinAdmin.items.autoPurge": {
     days: String(RECYCLE_BIN_RETENTION_DAYS),
+  },
+  "help.sections.sensitiveDataStaff.items.createConfirm": {
+    seconds: CREATE_CONFIRM_SECONDS,
+  },
+  "help.sections.autoReclaimSettings.items.reclaimDays": {
+    days: RECLAIM_DAYS,
+  },
+  "help.sections.autoReclaimSettings.items.warningDays": {
+    days: RECLAIM_WARNING_DAYS,
+    reclaimDays: RECLAIM_DAYS,
+  },
+  "help.sections.publicPoolStaff.items.quotaCooldown": {
+    quota: POOL_QUOTA,
+    hours: POOL_COOLDOWN_HOURS,
+  },
+  "help.sections.publicPoolAdmin.items.poolSettings": {
+    quota: POOL_QUOTA,
+    hours: POOL_COOLDOWN_HOURS,
   },
   "help.sections.loginSecurity.items.staffLockout": {
     count: String(LOCKOUT_THRESHOLD),
@@ -38,6 +63,17 @@ const HELP_I18N_PARAMS: Record<string, Record<string, string>> = {
   },
   "help.faq.deletedCustomer.answer": {
     days: String(RECYCLE_BIN_RETENTION_DAYS),
+  },
+  "help.faq.createConfirmWait.answer": {
+    seconds: CREATE_CONFIRM_SECONDS,
+  },
+  "help.faq.cannotClaimPool.answer": {
+    quota: POOL_QUOTA,
+    hours: POOL_COOLDOWN_HOURS,
+  },
+  "help.faq.autoReclaim.answer": {
+    reclaimDays: RECLAIM_DAYS,
+    warningDays: RECLAIM_WARNING_DAYS,
   },
 };
 
@@ -58,6 +94,9 @@ function HelpSectionCard({
         </h3>
         {section.audience === "admin" && role === "admin" && (
           <Badge variant="accent">{t("help.adminOnlyBadge")}</Badge>
+        )}
+        {section.audience === "staff" && role === "staff" && (
+          <Badge variant="accent">{t("help.staffOnlyBadge")}</Badge>
         )}
       </div>
       <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
@@ -80,12 +119,15 @@ function HelpSectionCard({
 export function HelpClient({ role }: { role: "admin" | "staff" }) {
   const { t } = useTranslation();
   const sections = getHelpSectionsForRole(role);
+  const faqItems = getHelpFaqForRole(role);
 
   return (
     <div>
       <PageIntro
         title={t("help.title")}
-        description={t("help.description")}
+        description={t(
+          role === "admin" ? "help.descriptionAdmin" : "help.descriptionStaff",
+        )}
       />
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
@@ -105,7 +147,7 @@ export function HelpClient({ role }: { role: "admin" | "staff" }) {
         </h3>
         <p className="mt-2 text-sm text-[#6B7890]">{t("help.faq.description")}</p>
         <div className="mt-4 space-y-3">
-          {HELP_FAQ_ITEMS.map((item) => (
+          {faqItems.map((item) => (
             <details
               key={item.id}
               className="group rounded-xl border border-[#EEF3F8] bg-[#FAFBFD] px-4 py-3"

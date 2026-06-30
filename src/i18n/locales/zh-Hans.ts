@@ -1002,14 +1002,17 @@ const zhHans: Messages = {
   help: {
     title: "帮助中心",
     description: "CRM 常用操作、权限与安全规则说明，仅供查阅。",
+    descriptionAdmin: "管理员专用操作、系统设置与审批说明，仅供查阅。",
+    descriptionStaff: "员工日常操作、敏感资料与公共池规则说明，仅供查阅。",
     adminOnlyBadge: "仅 Admin 可用",
+    staffOnlyBadge: "仅 Staff 适用",
     readOnlyNotice: "此页面仅供参考，不会修改任何系统设置。",
     sections: {
       adminGuide: {
         title: "Admin 使用指南",
         description: "管理员在 CRM 中的主要操作入口。",
         items: {
-          dashboard: "在管理员仪表盘查看 KPI、工作量与近期动态。",
+          dashboard: "在管理员仪表盘查看 KPI、工作量、团队绩效与近期动态。",
           manageCustomers:
             "在「客户管理」浏览与管理所有客户，包括进行中、公共池与已归档记录。",
           addCustomer: "使用「新增客户」建立客户并按需指定负责人。",
@@ -1019,6 +1022,37 @@ const zhHans: Messages = {
           notificationsAnnouncements:
             "在管理菜单中管理公告并查看系统通知。",
           securityPolicies: "在「系统设置 → 安全策略」查看目前强制执行的安全规则。",
+          systemSettings:
+            "在「系统设置」调整自动回收、公共池领取配额等参数（以系统目前设置为准）。",
+        },
+      },
+      adminWorkspace: {
+        title: "Admin 仪表盘与通知",
+        description: "管理员工作台与消息中心。",
+        items: {
+          dashboardKpi:
+            "仪表盘展示客户总数、公共池、待审批、任务与团队跟进等 KPI。",
+          workflowPriorities:
+            "「工作流程」面板集中显示待审批、逾期任务与今日任务。",
+          notifications:
+            "「通知中心」显示审批、自动回收预警等消息；未读数会显示 badge。",
+          announcements: "在「公告管理」发布或归档公司公告。",
+          systemOnline:
+            "界面显示的 System Online 表示 CRM 服务可用，仅供状态参考。",
+        },
+      },
+      adminSensitiveAssignees: {
+        title: "敏感资料与共同负责（Admin）",
+        description: "管理员对客户敏感字段与共同负责员工的权限。",
+        items: {
+          editSensitive:
+            "Admin 可在编辑页修改客户姓名、联系方式、来源、备注等敏感字段；Staff 建立后不可自行修改。",
+          manageAssignees:
+            "Admin 可在客户详情页「管理共同负责员工」直接增删协作负责人。",
+          approveAssigneeRequests:
+            "Owner Staff 提交的「调整共同负责员工」申请需在「批准」中心审批。",
+          collaboratorLimits:
+            "共同负责员工可查看客户并新增跟进，但不可编辑客户或释放到公共池。",
         },
       },
       staffGuide: {
@@ -1026,12 +1060,89 @@ const zhHans: Messages = {
         description: "一般员工的日常操作。",
         items: {
           viewCustomers:
-            "在「客户管理」查看自己负责的客户，以及脱敏后的公共池客户。",
-          addCustomer: "使用「新增客户」登记你将跟进的新客户。",
-          updateCustomer: "在客户详情页编辑资料（需为该客户负责人）。",
+            "在「客户管理」查看自己负责的客户，以及作为共同负责人的客户。",
+          addCustomer:
+            "使用「新增客户」登记新客户；保存后需经确认 modal 才会建立。",
+          updateCustomer:
+            "负责人可编辑非敏感字段（如销售阶段）；敏感资料建立后已锁定，详见下方说明。",
           addFollowUp: "在客户详情页新增跟进记录，保持沟通历史完整。",
-          notifications: "在「通知」查看审批、提醒与系统消息。",
-          announcements: "在公告页阅读公司公告。",
+          notifications:
+            "在「通知中心」查看审批结果、跟进提醒等；未读数会显示 badge。",
+          announcements: "在「公告」页阅读公司公告。",
+        },
+      },
+      staffDashboard: {
+        title: "Staff 仪表盘",
+        description: "员工工作台重点指标。",
+        items: {
+          myClients: "「我的客户」显示目前由你负责的 active 客户数（不含公共池/归档）。",
+          tasks: "「今日任务」与「逾期任务」来自系统派发的跟进任务。",
+          approvals: "「待审批」显示你提交的申请状态，可跳转至批准列表。",
+          riskAndCompleteness:
+            "「高流失风险」与「低完整度」协助你优先处理需跟进的客户。",
+          recentCards: "仪表盘下方展示近期通知与公告摘要。",
+        },
+      },
+      sensitiveDataStaff: {
+        title: "敏感资料保护（Staff）",
+        description: "客户建立后的资料隐私与显示规则。",
+        items: {
+          createConfirm:
+            "新增客户时，点「保存客户」后会弹出确认 modal，需等待 {{seconds}} 秒并核对姓名、项目、电话、微信、电邮后才可建立。",
+          lockedFields:
+            "建立后，Staff 不可修改客户姓名、类型、来源、项目名称、电话、微信、电邮、首次沟通备注；如需修改请联系 Admin。",
+          contactMasking:
+            "客户详情页的电话、微信、电邮默认显示 ********，点小眼睛可暂时查看；刷新页面后重新隐藏。",
+          noCustomerCode: "Staff 看不到客户 EF 唯一识别码；Admin 可查看。",
+        },
+      },
+      publicPoolStaff: {
+        title: "公共池（Staff）",
+        description: "员工在公共池的查看与领取规则。",
+        items: {
+          nameMasking:
+            "公共池列表中，中文姓名仅显示首字 + **，英文姓名仅显示首字母 + **。",
+          listColumns:
+            "列表显示「客户类型」与「资料完整度」分数，而非完整来源/阶段细节。",
+          poolReasonPreview: "「入池原因」仅显示前三个字 + ⋯，完整原因不展示。",
+          claimSuccess:
+            "领取成功后会显示「领取成功」与「立即查看」，可跳转至刚领取的客户详情。",
+          quotaCooldown:
+            "默认 {{quota}} 天内领取名额与 {{hours}} 小时冷却期等限制以页面显示为准；不可领取自己释放的客户。",
+        },
+      },
+      publicPoolAdmin: {
+        title: "公共池（Admin）",
+        description: "管理员在公共池的完整视图。",
+        items: {
+          fullName: "Admin 可看到完整客户姓名，不受 Staff 脱敏规则影响。",
+          contactColumn: "列表可查看联系方式摘要栏（电话、微信）。",
+          claimSuccess: "领取成功后同样可「立即查看」跳转客户详情。",
+          poolSettings:
+            "公共池领取配额（默认 {{quota}} 次/7 天）与冷却（默认 {{hours}} 小时）可在系统设置调整。",
+        },
+      },
+      collaboratorsStaff: {
+        title: "共同负责员工（Staff）",
+        description: "Owner 申请调整共同负责人的流程。",
+        items: {
+          ownerRequest:
+            "客户 Owner 可点「申请调整共同负责员工」，填写理由后提交审批。",
+          collaboratorRole:
+            "若你已是共同负责人，可查看客户并新增跟进，但不可提交此申请。",
+          adminOnlyManage: "只有 Admin 可直接管理共同负责员工，无需审批。",
+        },
+      },
+      followUpRules: {
+        title: "新增跟进规则",
+        description: "填写跟进记录时的必填与格式要求。",
+        items: {
+          nextFollowUpRequired:
+            "「下次跟进时间」必填，且须为未来的有效时间。",
+          customerIntentRequired: "「客户意向」必填。",
+          nextActionMinLength: "「下一步行动」至少 10 个字（不含首尾空白）。",
+          validFollowUpImpact:
+            "有效跟进会影响客户热度、完整度及自动回收计时。",
         },
       },
       customerFlow: {
@@ -1042,7 +1153,7 @@ const zhHans: Messages = {
           assignOwner:
             "进行中的客户有负责人跟进。Admin 可重新分配；Staff 通常负责自己建立或领取的客户。",
           updateStatusStage:
-            "随商机推进更新客户状态与销售阶段，部分变更可能需要审批。",
+            "随商机推进更新销售阶段；搁置（on_hold）等变更可能需要 Admin 审批。",
           addFollowUp:
             "每次联络后记录跟进内容，有效跟进会影响自动回收计时与报表。",
           timeline: "客户时间轴展示负责人变更、跟进、审批等审计事件。",
@@ -1056,10 +1167,18 @@ const zhHans: Messages = {
         items: {
           softDelete: "删除客户会进入回收站，不会立即永久删除。",
           retention: "已删除客户在回收站保留 {{days}} 天。",
+          staffNoAccess: "Staff 无法查看回收站；如需恢复客户请联系 Admin。",
+        },
+      },
+      recycleBinAdmin: {
+        title: "回收站管理（Admin）",
+        description: "管理员恢复或永久删除客户。",
+        items: {
           adminRestore: "Admin 可在 {{days}} 天保留期内从回收站恢复客户。",
+          permanentDelete:
+            "「永久删除」会清除客户资料且无法恢复，操作前请再次确认。",
           autoPurge:
             "超过 {{days}} 天仍留在回收站的客户，可能由系统清理任务永久删除。",
-          staffNoAccess: "Staff 无法查看回收站；如需恢复客户请联系 Admin。",
         },
       },
       employeeMgmt: {
@@ -1068,11 +1187,28 @@ const zhHans: Messages = {
         items: {
           adminManage:
             "Admin 可新增 Staff、停用账户、重置密码与解锁被锁定账户。",
+          deletePreview:
+            "删除前会显示预览：名下客户数、共同负责移除数等，确认后才执行。",
           softDeleteEmployee: "删除员工为软删除，历史记录会保留。",
-          deletedRecordsKept: "已删除员工仍可在管理员员工列表中查阅。",
+          deletedRecordsKept:
+            "已删除员工仍可在员工列表查阅；列表显示员工总数与现有员工数。",
           deletedCannotLogin: "已删除员工无法再次登录，即使账户被解锁亦然。",
           customerTransfer:
             "删除员工时，其名下的客户会转移至执行删除操作的 Admin。",
+        },
+      },
+      autoReclaimSettings: {
+        title: "自动回收与系统设置",
+        description: "客户自动回收到公共池的规则（默认值如下，以系统设置为准）。",
+        items: {
+          reclaimDays:
+            "默认连续 {{days}} 天无有效跟进后，客户会自动回收到公共池。",
+          warningDays:
+            "默认在回收前 {{days}} 天（即第 {{reclaimDays}} 天起算）向负责员工发送预警通知。",
+          onHoldPinned:
+            "销售阶段为「搁置（on_hold）」或已置顶（pinned）的客户不会被自动回收。",
+          settingsPath:
+            "可在「系统设置」调整 automatic_reclaim_days、reclaim_warning_days_before 等参数。",
         },
       },
       loginSecurity: {
@@ -1120,6 +1256,46 @@ const zhHans: Messages = {
         question: "Staff 和 Admin 权限有什么不同？",
         answer:
           "Admin 可管理用户、系统设置、导入导出、备份、审批及全部客户；Staff 在配额内管理自己的客户、跟进、通知与公共池领取。",
+      },
+      followUpRequired: {
+        question: "为什么跟进表单无法提交？",
+        answer:
+          "请确认已填写下次跟进时间、客户意向，且下一步行动至少 10 个字。",
+      },
+      createConfirmWait: {
+        question: "为什么新增客户要等几秒才能确认？",
+        answer:
+          "为避免误填敏感资料，系统要求等待 {{seconds}} 秒并核对 modal 中的资料后才可建立客户。",
+      },
+      sensitiveLocked: {
+        question: "为什么我不能修改客户电话或姓名？",
+        answer:
+          "客户建立后，Staff 不可修改敏感字段；请联系 Admin 协助更正。",
+      },
+      publicPoolNameMask: {
+        question: "公共池为什么看不到完整姓名？",
+        answer:
+          "Staff 公共池列表会脱敏姓名以保护隐私；领取后可在详情页查看完整资料。",
+      },
+      cannotClaimPool: {
+        question: "为什么不能领取公共池客户？",
+        answer:
+          "可能原因：7 天领取名额已满（默认 {{quota}} 次）、仍在冷却期（默认 {{hours}} 小时）、或该客户由你本人释放。",
+      },
+      permanentDelete: {
+        question: "永久删除和恢复有什么区别？",
+        answer:
+          "恢复可在保留期内还原客户；永久删除后资料无法找回，请谨慎操作。",
+      },
+      autoReclaim: {
+        question: "客户什么时候会被自动回收？",
+        answer:
+          "默认 {{reclaimDays}} 天无有效跟进会回收；提前 {{warningDays}} 天会收到预警。搁置或置顶客户不回收。",
+      },
+      assigneeApproval: {
+        question: "如何审批共同负责员工调整？",
+        answer:
+          "Staff Owner 提交申请后，Admin 在「批准」中心查看理由并通过或拒绝。",
       },
     },
   },
