@@ -1168,6 +1168,40 @@ const zhHant: Messages = {
             "若已啟用，可在客戶詳情頁查看 AI 分析摘要與下一步建議。",
         },
       },
+      aiInsightDataScope: {
+        title: "AI 洞察資料範圍",
+        description: "AI 意向分析會使用哪些資料、哪些不會送給外部 AI。",
+        items: {
+          purpose:
+            "AI 洞察用於輔助分析客戶意向與下一步建議，不代替人工判斷。",
+          dataIncluded:
+            "AI 主要參考：客戶類型、需要的項目名稱、銷售階段、客戶狀態、來源與來源備註、首次溝通備註（notes）、最近跟進內容、客戶意向，以及下次跟進時間。",
+          contactNotSent:
+            "為降低敏感資料外傳風險，系統預設不會把結構化聯絡方式（電話、微信、電郵）送給 AI provider。",
+          notesManualContact:
+            "若 notes 或跟進摘要中手動輸入了電話、微信或電郵，AI 仍可能看到這些文字；請避免在備註中重複填寫不必要的聯絡方式。",
+          humanJudgment:
+            "AI 分析僅作內部輔助，最終跟進與承諾仍以員工與管理員確認為準。",
+          refreshCooldown:
+            "手動刷新 AI 分析有 5 分鐘冷卻，避免短時間重複請求。",
+        },
+      },
+      aiInsightDataScopeAdmin: {
+        title: "AI 洞察（Admin）",
+        description: "管理員相關設定。",
+        items: {
+          adminSettings:
+            "Admin 可在「AI 設定」中管理 AI provider、是否啟用，以及 Staff 是否可手動刷新。",
+        },
+      },
+      aiInsightDataScopeStaff: {
+        title: "AI 洞察（Staff）",
+        description: "員工刷新權限提示。",
+        items: {
+          staffRefresh:
+            "若無法刷新 AI 分析，可能是管理員已關閉 Staff 手動刷新，或剛完成刷新仍在 5 分鐘冷卻中。",
+        },
+      },
       recycleBin: {
         title: "回收站說明",
         description: "客戶被刪除後的處理方式。",
@@ -1303,6 +1337,16 @@ const zhHant: Messages = {
         question: "如何審批共同負責員工調整？",
         answer:
           "Staff Owner 提交申請後，Admin 在「批准」中心查看理由並通過或拒絕。",
+      },
+      aiInsightDataUsage: {
+        question: "AI 會讀取客戶電話或微信嗎？",
+        answer:
+          "系統預設不會把結構化電話、微信、電郵送給 AI；但若備註或跟進摘要中手動寫了聯絡方式，AI 仍可能看到。詳見 Help「AI 洞察資料範圍」。",
+      },
+      aiInsightRefreshStaff: {
+        question: "為什麼我不能刷新 AI 分析？",
+        answer:
+          "可能是管理員已關閉 Staff 手動刷新，或剛完成刷新仍在 5 分鐘冷卻中；如需調整權限請聯絡 Admin。",
       },
     },
   },

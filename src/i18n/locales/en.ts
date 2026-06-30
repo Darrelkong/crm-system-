@@ -1220,6 +1220,41 @@ const en = {
             "When enabled, AI insight summarizes client context and suggests next steps on the client detail page.",
         },
       },
+      aiInsightDataScope: {
+        title: "AI insight data scope",
+        description:
+          "What data AI insight uses and what is not sent to external AI providers.",
+        items: {
+          purpose:
+            "AI insight helps analyze client intent and suggest next steps; it does not replace human judgment.",
+          dataIncluded:
+            "AI mainly uses: client type, requested project name, sales stage, status, source and source remark, notes, recent follow-ups (summary and intent), and next follow-up time.",
+          contactNotSent:
+            "To reduce sensitive data exposure, structured contact fields (phone, WeChat ID, email) are not sent to the AI provider by default.",
+          notesManualContact:
+            "If phone, WeChat, or email is typed into notes or follow-up summaries, AI may still see that text. Avoid repeating contact details in notes when not needed.",
+          humanJudgment:
+            "AI output is for internal reference only; final follow-up decisions remain with staff and administrators.",
+          refreshCooldown:
+            "Manual AI refresh has a 5-minute cooldown to prevent repeated requests in a short time.",
+        },
+      },
+      aiInsightDataScopeAdmin: {
+        title: "AI insight (Admin)",
+        description: "Administrator settings.",
+        items: {
+          adminSettings:
+            "Admins can manage the AI provider, enablement, and whether staff may manually refresh in AI Settings.",
+        },
+      },
+      aiInsightDataScopeStaff: {
+        title: "AI insight (Staff)",
+        description: "Staff refresh permissions.",
+        items: {
+          staffRefresh:
+            "If you cannot refresh AI insight, staff manual refresh may be disabled by an admin, or a refresh may still be in the 5-minute cooldown.",
+        },
+      },
       recycleBin: {
         title: "Recycle bin",
         description: "What happens when a client is deleted.",
@@ -1368,6 +1403,16 @@ const en = {
         question: "How do I approve co-owner changes?",
         answer:
           "After an owner submits a request, administrators review the reason in Approvals and approve or reject it.",
+      },
+      aiInsightDataUsage: {
+        question: "Does AI read client phone numbers or WeChat IDs?",
+        answer:
+          "Structured phone, WeChat, and email fields are not sent to AI by default. If contact details are typed into notes or follow-up summaries, AI may still see that text. See Help → AI insight data scope.",
+      },
+      aiInsightRefreshStaff: {
+        question: "Why can't I refresh AI insight?",
+        answer:
+          "Staff manual refresh may be disabled by an administrator, or a refresh may still be in the 5-minute cooldown. Contact an admin if you need permission changes.",
       },
     },
   },

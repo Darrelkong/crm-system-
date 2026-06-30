@@ -168,6 +168,34 @@ export const HELP_CONTENT_SECTIONS: HelpSectionConfig[] = [
     ],
   },
   {
+    id: "aiInsightDataScope",
+    titleKey: "help.sections.aiInsightDataScope.title",
+    descriptionKey: "help.sections.aiInsightDataScope.description",
+    audience: "all",
+    itemKeys: [
+      "help.sections.aiInsightDataScope.items.purpose",
+      "help.sections.aiInsightDataScope.items.dataIncluded",
+      "help.sections.aiInsightDataScope.items.contactNotSent",
+      "help.sections.aiInsightDataScope.items.notesManualContact",
+      "help.sections.aiInsightDataScope.items.humanJudgment",
+      "help.sections.aiInsightDataScope.items.refreshCooldown",
+    ],
+  },
+  {
+    id: "aiInsightDataScopeAdmin",
+    titleKey: "help.sections.aiInsightDataScopeAdmin.title",
+    descriptionKey: "help.sections.aiInsightDataScopeAdmin.description",
+    audience: "admin",
+    itemKeys: ["help.sections.aiInsightDataScopeAdmin.items.adminSettings"],
+  },
+  {
+    id: "aiInsightDataScopeStaff",
+    titleKey: "help.sections.aiInsightDataScopeStaff.title",
+    descriptionKey: "help.sections.aiInsightDataScopeStaff.description",
+    audience: "staff",
+    itemKeys: ["help.sections.aiInsightDataScopeStaff.items.staffRefresh"],
+  },
+  {
     id: "recycleBin",
     titleKey: "help.sections.recycleBin.title",
     descriptionKey: "help.sections.recycleBin.description",
@@ -315,6 +343,18 @@ export const HELP_FAQ_ITEMS: HelpFaqItem[] = [
     questionKey: "help.faq.assigneeApproval.question",
     answerKey: "help.faq.assigneeApproval.answer",
     audience: "admin",
+  },
+  {
+    id: "aiInsightDataUsage",
+    questionKey: "help.faq.aiInsightDataUsage.question",
+    answerKey: "help.faq.aiInsightDataUsage.answer",
+    audience: "all",
+  },
+  {
+    id: "aiInsightRefreshStaff",
+    questionKey: "help.faq.aiInsightRefreshStaff.question",
+    answerKey: "help.faq.aiInsightRefreshStaff.answer",
+    audience: "staff",
   },
 ];
 

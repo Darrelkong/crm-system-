@@ -56,7 +56,13 @@ describe("getHelpSectionsForRole staff", () => {
       "collaboratorsStaff",
       "followUpRules",
       "loginSecurity",
+      "aiInsightDataScope",
+      "aiInsightDataScopeStaff",
     ]);
+  });
+
+  it("excludes admin-only AI insight section", () => {
+    assertExcludes(staffSectionIds, ["aiInsightDataScopeAdmin"]);
   });
 });
 
@@ -70,7 +76,12 @@ describe("getHelpSectionsForRole admin", () => {
       "autoReclaimSettings",
       "adminSensitiveAssignees",
       "recycleBinAdmin",
+      "aiInsightDataScopeAdmin",
     ]);
+  });
+
+  it("excludes staff-only AI insight section", () => {
+    assertExcludes(adminSectionIds, ["aiInsightDataScopeStaff"]);
   });
 
   it("excludes staff-only deep sections", () => {
@@ -84,7 +95,13 @@ describe("getHelpSectionsForRole admin", () => {
 
 describe("getHelpSectionsForRole shared sections", () => {
   it("shows all-audience sections to both admin and staff", () => {
-    const shared = ["followUpRules", "customerFlow", "recycleBin", "loginSecurity"];
+    const shared = [
+      "followUpRules",
+      "customerFlow",
+      "aiInsightDataScope",
+      "recycleBin",
+      "loginSecurity",
+    ];
 
     assertIncludes(sectionIds("admin"), shared);
     assertIncludes(sectionIds("staff"), shared);
@@ -110,6 +127,7 @@ describe("getHelpFaqForRole staff", () => {
       "sensitiveLocked",
       "publicPoolNameMask",
       "cannotClaimPool",
+      "aiInsightRefreshStaff",
     ]);
   });
 });
@@ -131,6 +149,7 @@ describe("getHelpFaqForRole admin", () => {
       "sensitiveLocked",
       "publicPoolNameMask",
       "cannotClaimPool",
+      "aiInsightRefreshStaff",
     ]);
   });
 });

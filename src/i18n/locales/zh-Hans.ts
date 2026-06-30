@@ -1167,6 +1167,40 @@ const zhHans: Messages = {
             "若已启用，可在客户详情页查看 AI 分析摘要与下一步建议。",
         },
       },
+      aiInsightDataScope: {
+        title: "AI 洞察资料范围",
+        description: "AI 意向分析会使用哪些资料、哪些不会送给外部 AI。",
+        items: {
+          purpose:
+            "AI 洞察用于辅助分析客户意向与下一步建议，不代替人工判断。",
+          dataIncluded:
+            "AI 主要参考：客户类型、需要的项目名称、销售阶段、客户状态、来源与来源备注、首次沟通备注（notes）、最近跟进内容、客户意向，以及下次跟进时间。",
+          contactNotSent:
+            "为降低敏感资料外传风险，系统默认不会把结构化联系方式（电话、微信、电邮）送给 AI provider。",
+          notesManualContact:
+            "若 notes 或跟进摘要中手动输入了电话、微信或电邮，AI 仍可能看到这些文字；请避免在备注中重复填写不必要的联系方式。",
+          humanJudgment:
+            "AI 分析仅作内部辅助，最终跟进与承诺仍以员工与管理员确认为准。",
+          refreshCooldown:
+            "手动刷新 AI 分析有 5 分钟冷却，避免短时间重复请求。",
+        },
+      },
+      aiInsightDataScopeAdmin: {
+        title: "AI 洞察（Admin）",
+        description: "管理员相关设置。",
+        items: {
+          adminSettings:
+            "Admin 可在「AI 设置」中管理 AI provider、是否启用，以及 Staff 是否可手动刷新。",
+        },
+      },
+      aiInsightDataScopeStaff: {
+        title: "AI 洞察（Staff）",
+        description: "员工刷新权限提示。",
+        items: {
+          staffRefresh:
+            "若无法刷新 AI 分析，可能是管理员已关闭 Staff 手动刷新，或刚完成刷新仍在 5 分钟冷却中。",
+        },
+      },
       recycleBin: {
         title: "回收站说明",
         description: "客户被删除后的处理方式。",
@@ -1302,6 +1336,16 @@ const zhHans: Messages = {
         question: "如何审批共同负责员工调整？",
         answer:
           "Staff Owner 提交申请后，Admin 在「批准」中心查看理由并通过或拒绝。",
+      },
+      aiInsightDataUsage: {
+        question: "AI 会读取客户电话或微信吗？",
+        answer:
+          "系统默认不会把结构化电话、微信、电邮送给 AI；但若备注或跟进摘要中手动写了联系方式，AI 仍可能看到。详见 Help「AI 洞察资料范围」。",
+      },
+      aiInsightRefreshStaff: {
+        question: "为什么我不能刷新 AI 分析？",
+        answer:
+          "可能是管理员已关闭 Staff 手动刷新，或刚完成刷新仍在 5 分钟冷却中；如需调整权限请联系 Admin。",
       },
     },
   },
