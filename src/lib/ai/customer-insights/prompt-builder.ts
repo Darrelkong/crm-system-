@@ -1,4 +1,5 @@
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
+import { sanitizeCustomerInsightContextForProvider } from "@/lib/ai/customer-insights/context-sanitize";
 import type { AiAnalysisLanguage } from "@/lib/settings/ai-keys";
 
 const LANGUAGE_LABELS: Record<AiAnalysisLanguage, string> = {
@@ -8,25 +9,27 @@ const LANGUAGE_LABELS: Record<AiAnalysisLanguage, string> = {
 };
 
 export function serializeCustomerInsightContext(context: CustomerInsightContext): string {
+  const sanitized = sanitizeCustomerInsightContextForProvider(context);
+
   return JSON.stringify(
     {
-      customerId: context.customerId,
-      customerName: context.customerName,
-      customerType: context.customerType,
-      salesStage: context.salesStage,
-      source: context.source,
-      status: context.status,
-      requestedProjectName: context.requestedProjectName,
-      sourceRemark: context.sourceRemark,
-      notes: context.notes,
-      phone: context.phone,
-      wechatId: context.wechatId,
-      email: context.email,
-      lastFollowUpAt: context.lastFollowUpAt,
-      lastValidFollowUpAt: context.lastValidFollowUpAt,
-      nextFollowUpAt: context.nextFollowUpAt,
-      updatedAt: context.updatedAt,
-      recentFollowUps: context.recentFollowUps,
+      customerId: sanitized.customerId,
+      customerName: sanitized.customerName,
+      customerType: sanitized.customerType,
+      salesStage: sanitized.salesStage,
+      source: sanitized.source,
+      status: sanitized.status,
+      requestedProjectName: sanitized.requestedProjectName,
+      sourceRemark: sanitized.sourceRemark,
+      notes: sanitized.notes,
+      phone: sanitized.phone,
+      wechatId: sanitized.wechatId,
+      email: sanitized.email,
+      lastFollowUpAt: sanitized.lastFollowUpAt,
+      lastValidFollowUpAt: sanitized.lastValidFollowUpAt,
+      nextFollowUpAt: sanitized.nextFollowUpAt,
+      updatedAt: sanitized.updatedAt,
+      recentFollowUps: sanitized.recentFollowUps,
     },
     null,
     2,

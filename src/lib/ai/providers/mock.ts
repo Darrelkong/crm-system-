@@ -73,8 +73,8 @@ export const mockCustomerInsightProvider: CustomerInsightAIProvider = {
     if (!context.requestedProjectName) {
       missingInformation.push("缺少明確的需求項目或服務名稱");
     }
-    if (context.includeSensitiveFields && !context.phone && !context.wechatId) {
-      missingInformation.push("缺少主要聯絡方式（電話或微信）");
+    if (context.recentFollowUps.length === 0 && !context.lastFollowUpAt) {
+      missingInformation.push("尚未記錄跟進互動，難以判斷客戶最新溝通狀態");
     }
     if (validCount === 0) {
       missingInformation.push("缺少有效跟進摘要，難以判斷客戶最新態度");
