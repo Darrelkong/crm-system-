@@ -1866,6 +1866,7 @@ const zhHant: Messages = {
     assigneeApprovalAlreadyPending: "已有共同負責員工調整申請正在審核中。",
     assigneeApprovalForbidden: "無法提交共同負責員工調整申請。",
     assigneeApprovalInvalidPayload: "共同負責員工調整申請資料無效。",
+    mergeCustomersDisabled: "客戶合併功能尚未啟用，請勿提交合併申請。",
     serverError: "系統錯誤，請稍後再試。",
     approvalNotFound: "申請不存在。",
     approvalAlreadyProcessed: "該申請已處理，不能重複審批。",

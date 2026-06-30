@@ -14,6 +14,11 @@ import {
 import {
   APPROVAL_AUDIT_ACTIONS,
 } from "./constants";
+import {
+  MERGE_CUSTOMERS_DISABLED_CODE,
+  MERGE_CUSTOMERS_DISABLED_MESSAGE,
+  isDisabledMergeCustomersRequestType,
+} from "./errors";
 import { findPendingApproval, getApprovalById } from "./queries";
 import type { ApprovalRequestInput } from "./validation";
 import { validateApprovalRequestInput } from "./validation";
@@ -498,6 +503,14 @@ export async function createApprovalRequest(
   input: ApprovalRequestInput,
   audit?: AuditMeta,
 ): Promise<{ id: string }> {
+  if (isDisabledMergeCustomersRequestType(input.requestType ?? "")) {
+    throw new ApprovalError(
+      403,
+      MERGE_CUSTOMERS_DISABLED_MESSAGE,
+      MERGE_CUSTOMERS_DISABLED_CODE,
+    );
+  }
+
   const db = getDb();
   const validation = validateApprovalRequestInput(input);
 
@@ -607,6 +620,14 @@ export async function approveApprovalRequest(
 
   if (approval.status !== "pending") {
     throw new ApprovalError(409, "该申请已处理，不能重复审批");
+  }
+
+  if (isDisabledMergeCustomersRequestType(approval.requestType)) {
+    throw new ApprovalError(
+      403,
+      MERGE_CUSTOMERS_DISABLED_MESSAGE,
+      MERGE_CUSTOMERS_DISABLED_CODE,
+    );
   }
 
   const customerRows = await db

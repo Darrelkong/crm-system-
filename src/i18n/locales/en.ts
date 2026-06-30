@@ -1959,6 +1959,8 @@ const en = {
       "A collaborator update request is already pending approval.",
     assigneeApprovalForbidden: "You cannot submit a collaborator update request.",
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data.",
+    mergeCustomersDisabled:
+      "Customer merge is not enabled yet. Please do not submit merge requests.",
     serverError: "System error. Please try again later.",
     approvalNotFound: "Approval request not found.",
     approvalAlreadyProcessed: "This request has already been processed.",

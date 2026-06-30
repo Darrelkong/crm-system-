@@ -78,6 +78,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   ASSIGNEE_APPROVAL_ALREADY_PENDING: "errors.assigneeApprovalAlreadyPending",
   ASSIGNEE_APPROVAL_INVALID_PAYLOAD: "errors.assigneeApprovalInvalidPayload",
   ASSIGNEE_APPROVAL_FORBIDDEN: "errors.assigneeApprovalForbidden",
+  MERGE_CUSTOMERS_DISABLED: "errors.mergeCustomersDisabled",
   "permission.denied.customer_assignees_request": "errors.assigneeApprovalForbidden",
   "permission.denied.customer_assignees_request_admin": "errors.assigneeApprovalForbidden",
 };
@@ -114,6 +115,7 @@ const FIELD_CODE_TO_KEY: Record<string, string> = {
   ON_HOLD_REASON_TOO_SHORT: "errors.onHoldReasonTooShort",
   ASSIGNEE_REASON_REQUIRED: "errors.assigneeReasonRequired",
   ASSIGNEE_REASON_TOO_SHORT: "errors.assigneeReasonTooShort",
+  MERGE_CUSTOMERS_DISABLED: "errors.mergeCustomersDisabled",
   SALES_STAGE_REQUIRED: "errors.salesStageRequired",
   INVALID_STATUS: "errors.invalidStatus",
   FOLLOW_UP_CHANNEL_REQUIRED: "errors.followUpChannelRequired",
@@ -198,6 +200,8 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "权限不足": "errors.insufficientPermissions",
   "此账户已被锁定，请联系管理员处理。": "auth.accountLocked",
   "账户已被锁定，请联系管理员处理。": "auth.accountLocked",
+  "客戶合併功能尚未啟用，請勿提交合併申請。": "errors.mergeCustomersDisabled",
+  "客户合并功能尚未启用，请勿提交合并申请。": "errors.mergeCustomersDisabled",
 };
 
 export function resolveApiError(

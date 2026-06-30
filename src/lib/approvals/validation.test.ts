@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { SEED_IDS } from "@/lib/constants/seed-ids";
 import {
   isApprovalRequestType,
   validateApprovalRequestInput,
@@ -39,6 +40,35 @@ describe("approval validation update_customer_assignees", () => {
     if (result.ok) {
       assert.equal(result.value.requestType, "update_customer_assignees");
       assert.equal(result.value.reason, "后续由 B 和 C 共同跟进");
+    }
+  });
+});
+
+describe("approval validation merge_customers disabled", () => {
+  it("rejects merge_customers create with MERGE_CUSTOMERS_DISABLED", () => {
+    const result = validateApprovalRequestInput({
+      requestType: "merge_customers",
+      reason: "疑似重复客户",
+      relatedCustomerIds: [SEED_IDS.customerStaffB],
+    });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      const requestTypeError = result.fieldErrors.find((e) => e.field === "requestType");
+      assert.ok(requestTypeError);
+      assert.equal(requestTypeError?.code, "MERGE_CUSTOMERS_DISABLED");
+    }
+  });
+
+  it("still accepts delete_customer requests", () => {
+    const result = validateApprovalRequestInput({
+      requestType: "delete_customer",
+      reason: "客户已流失",
+    });
+
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.equal(result.value.requestType, "delete_customer");
     }
   });
 });

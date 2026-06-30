@@ -1865,6 +1865,7 @@ const zhHans: Messages = {
     assigneeApprovalAlreadyPending: "已有共同负责员工调整申请正在审核中。",
     assigneeApprovalForbidden: "无法提交共同负责员工调整申请。",
     assigneeApprovalInvalidPayload: "共同负责员工调整申请数据无效。",
+    mergeCustomersDisabled: "客户合并功能尚未启用，请勿提交合并申请。",
     serverError: "系统错误，请稍后再试。",
     approvalNotFound: "申请不存在。",
     approvalAlreadyProcessed: "该申请已处理，不能重复审批。",

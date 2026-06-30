@@ -2,8 +2,13 @@ import {
   APPROVAL_REQUEST_TYPES,
   type ApprovalRequestType,
 } from "../../../drizzle/schema/approvals";
+import {
+  MERGE_CUSTOMERS_DISABLED_CODE,
+  MERGE_CUSTOMERS_DISABLED_MESSAGE,
+  isDisabledMergeCustomersRequestType,
+} from "./errors";
 
-export type FieldError = { field: string; message: string };
+export type FieldError = { field: string; message: string; code?: string };
 
 export type ValidatedApprovalRequest = {
   requestType: ApprovalRequestType;
@@ -47,18 +52,18 @@ export function validateApprovalRequestInput(
 
   const requestType = input.requestType;
 
+  if (isDisabledMergeCustomersRequestType(requestType)) {
+    fieldErrors.push({
+      field: "requestType",
+      message: MERGE_CUSTOMERS_DISABLED_MESSAGE,
+      code: MERGE_CUSTOMERS_DISABLED_CODE,
+    });
+    return { ok: false, fieldErrors };
+  }
+
   if (requestType === "transfer_customer") {
     if (!input.targetUserId?.trim()) {
       fieldErrors.push({ field: "targetUserId", message: "转移目标员工必填" });
-    }
-  }
-
-  if (requestType === "merge_customers") {
-    if (!input.relatedCustomerIds?.length) {
-      fieldErrors.push({
-        field: "relatedCustomerIds",
-        message: "合并客户至少需要一个相关客户 ID",
-      });
     }
   }
 

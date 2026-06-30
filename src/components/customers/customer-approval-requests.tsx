@@ -6,17 +6,14 @@ import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { Input, Label, Field, Select } from "@/components/ui/form";
 import type { ApprovalRequestType } from "../../../drizzle/schema/approvals";
+import { CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES } from "@/lib/approvals/errors";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 
 type StaffUser = { id: string; displayName: string; email: string };
 
 const REQUEST_TYPES: ApprovalRequestType[] = [
-  "delete_customer",
-  "transfer_customer",
-  "merge_customers",
-  "closed_won",
-  "second_conversion",
+  ...CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES,
 ];
 
 export function CustomerApprovalRequests({ customerId }: { customerId: string }) {
@@ -26,7 +23,6 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
   const [requestType, setRequestType] = useState<ApprovalRequestType>("delete_customer");
   const [reason, setReason] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
-  const [relatedCustomerIds, setRelatedCustomerIds] = useState("");
   const [dealAmount, setDealAmount] = useState("");
   const [signingDate, setSigningDate] = useState("");
   const [dealNotes, setDealNotes] = useState("");
@@ -70,12 +66,6 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
 
     if (requestType === "transfer_customer") {
       body.targetUserId = targetUserId;
-    }
-    if (requestType === "merge_customers") {
-      body.relatedCustomerIds = relatedCustomerIds
-        .split(",")
-        .map((id) => id.trim())
-        .filter(Boolean);
     }
     if (requestType === "closed_won" || requestType === "second_conversion") {
       body.payload = payload;
@@ -174,18 +164,6 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
                   </option>
                 ))}
               </Select>
-            </Field>
-          )}
-
-          {requestType === "merge_customers" && (
-            <Field>
-              <Label htmlFor="related-ids">{t("customers.relatedCustomerIds")}</Label>
-              <Input
-                id="related-ids"
-                value={relatedCustomerIds}
-                onChange={(e) => setRelatedCustomerIds(e.target.value)}
-                placeholder="22222222-2222-2222-2222-222222222202"
-              />
             </Field>
           )}
 
