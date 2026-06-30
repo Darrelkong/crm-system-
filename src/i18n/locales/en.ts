@@ -191,8 +191,6 @@ const en = {
     followUpsEmpty: "No global follow-up list yet. Open a client to view or add follow-ups.",
     reportsDescription: "View operational metrics for clients and follow-ups.",
     reportsEmpty: "No report data available yet.",
-    tagsStagesDescription: "Configure client tags and sales stages.",
-    tagsStagesEmpty: "Tags and stages management is coming soon.",
     recycleBinDescription: "Restore or permanently remove deleted items.",
     recycleBinEmpty: "The recycle bin is empty.",
   },
@@ -1723,8 +1721,6 @@ const en = {
   tagsStagesPage: {
     title: "Tags & Stages",
     description: "Manage client tags and review configured sales stages used across the CRM.",
-    readOnlyNotice:
-      "Read-only management. Stages and sources are defined in system constants today; add/edit will require a dedicated configuration store in a future release.",
     stagesReadOnlyNotice:
       "Customer stages are read-only. They map to customers.sales_stage and are used in Reports.",
     customerStages: "Customer stages",

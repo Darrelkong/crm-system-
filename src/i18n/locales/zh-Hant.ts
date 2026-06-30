@@ -188,8 +188,6 @@ const zhHant: Messages = {
     followUpsEmpty: "暫無全域跟進列表，請開啟客戶詳情查看或新增跟進。",
     reportsDescription: "查看客戶與跟進的營運數據摘要。",
     reportsEmpty: "暫無報告數據。",
-    tagsStagesDescription: "設定客戶標籤與銷售階段。",
-    tagsStagesEmpty: "標籤與階段管理功能即將推出。",
     recycleBinDescription: "還原或永久刪除已移除的項目。",
     recycleBinEmpty: "回收站為空。",
   },
@@ -1637,8 +1635,6 @@ const zhHant: Messages = {
   tagsStagesPage: {
     title: "標籤與階段",
     description: "管理客戶標籤，並查看 CRM 使用的銷售階段配置。",
-    readOnlyNotice:
-      "目前為只讀管理。階段與來源由系統常數定義，後續若要新增或編輯，需建立專用配置儲存。",
     stagesReadOnlyNotice:
       "客戶階段為只讀展示，對應 customers.sales_stage，Reports 使用相同值。",
     customerStages: "客戶階段",

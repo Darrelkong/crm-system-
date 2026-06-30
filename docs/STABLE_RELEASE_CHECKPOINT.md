@@ -1,7 +1,7 @@
 # CRM Stable Release Checkpoint
 
 **建立：** Phase RELEASE-CHECKPOINT-1（2026-06-30）  
-**更新：** Phase RELEASE-CHECKPOINT-2（2026-06-30）— AI-2g + MERGE-SAFE-1 穩定基線  
+**更新：** Phase TAGS-STAGES-CLEANUP-1（2026-06-30）— 清理 tags-stages dead i18n  
 **用途：** 記錄當前穩定版本基線，方便未來回溯、deploy 對照與 rollback 決策。  
 **相關：** [SYSTEM_MAP.md](./SYSTEM_MAP.md) · [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) · [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) · [TESTING.md](./TESTING.md)
 
@@ -66,6 +66,11 @@
 - **未實作**真正客戶合併
 - **未改** DB schema / migration
 - **MERGE-SAFE-1 deploy：** 主 Worker 已部署（Version `dac716e6-…`）
+
+### TAGS-STAGES-CLEANUP-1
+
+- 移除 dead i18n：`placeholders.tagsStagesEmpty`、`placeholders.tagsStagesDescription`、`tagsStagesPage.readOnlyNotice`
+- `/admin/tags-stages` 文件描述已同步：Sales Stages 只讀統計 + Customer Tags 管理
 
 ### 其他已穩定模組（摘要）
 
@@ -146,14 +151,14 @@
 
 1. **Production smoke checklist 人工補勾** — 完成 §4 各項並記錄於 checklist
 2. **Backup cron / restore flow 檢查** — 備份可還原性與 runbook 對照
-3. **Tags-stages placeholder 文案清理** — 移除或澄清未啟用功能文案
-4. **Audit logs 是否需要入口檢查** — Admin 是否需 audit 查詢 UI
-5. **真正 `merge_customers` 完整產品設計** — schema、canonical ID、衝突解決、migration
-6. **AI notes / follow-ups 內嵌聯絡方式遮罩設計** — AI-2g-5 候選
-7. **AI-2g-4：** 可選 Admin setting 控制 AI 是否可使用敏感聯絡資料
-8. **AI-2e / AI-2f：** fallback provider、成本 / token 估算與日限額
-9. **Public pool 更完整 API 測試** — claim / list 整合測
-10. **UI polish** — 空狀態、loading、錯誤提示一致性
+3. **Audit logs 是否需要入口檢查** — Admin 是否需 audit 查詢 UI
+4. **真正 `merge_customers` 完整產品設計** — schema、canonical ID、衝突解決、migration
+5. **AI notes / follow-ups 內嵌聯絡方式遮罩設計** — AI-2g-5 候選
+6. **AI-2g-4：** 可選 Admin setting 控制 AI 是否可使用敏感聯絡資料
+7. **AI-2e / AI-2f：** fallback provider、成本 / token 估算與日限額
+8. **Public pool 更完整 API 測試** — claim / list 整合測
+9. **UI polish** — 空狀態、loading、錯誤提示一致性
+10. **Sales stages Admin CRUD** — 若需可配置階段，需 schema + migration 設計
 
 ---
 

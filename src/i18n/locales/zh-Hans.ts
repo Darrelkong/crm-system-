@@ -188,8 +188,6 @@ const zhHans: Messages = {
     followUpsEmpty: "暂无全局跟进列表，请打开客户详情查看或新增跟进。",
     reportsDescription: "查看客户与跟进的运营数据摘要。",
     reportsEmpty: "暂无报告数据。",
-    tagsStagesDescription: "配置客户标签与销售阶段。",
-    tagsStagesEmpty: "标签与阶段管理功能即将推出。",
     recycleBinDescription: "恢复或永久删除已移除的项目。",
     recycleBinEmpty: "回收站为空。",
   },
@@ -1636,8 +1634,6 @@ const zhHans: Messages = {
   tagsStagesPage: {
     title: "标签与阶段",
     description: "管理客户标签，并查看 CRM 使用的销售阶段配置。",
-    readOnlyNotice:
-      "目前为只读管理。阶段与来源由系统常数定义，后续若要新增或编辑，需建立专用配置存储。",
     stagesReadOnlyNotice:
       "客户阶段为只读展示，对应 customers.sales_stage，Reports 使用相同值。",
     customerStages: "客户阶段",
