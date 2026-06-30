@@ -10,6 +10,7 @@ import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
   assertCanEditCustomer,
   assertStaffCannotChangeCustomerStatus,
+  assertStaffCannotModifySensitiveCustomerFields,
   assertPublicPoolRequiresReleaseFlow,
   PermissionError,
 } from "@/lib/permissions/customers";
@@ -193,6 +194,26 @@ export async function PATCH(request: Request, context: RouteContext) {
       salesStage: input.salesStage!,
       status: updateStatus,
     });
+
+    try {
+      assertStaffCannotModifySensitiveCustomerFields(user, existing, payload);
+    } catch (err) {
+      if (err instanceof PermissionError) {
+        await logPermissionDenied(request, {
+          action:
+            err.auditAction ??
+            "permission.denied.customer_sensitive_fields_locked",
+          userId: user.id,
+          entityType: "customer",
+          entityId: id,
+          metadata: {
+            ownerId: existing.ownerId,
+            status: existing.status,
+          },
+        });
+      }
+      throw err;
+    }
 
     const duplicates = await checkCustomerDuplicates(
       { phone: payload.phone, wechatId: payload.wechatId, email: payload.email },

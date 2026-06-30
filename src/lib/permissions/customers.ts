@@ -1,4 +1,5 @@
 import { isCustomerAssignee } from "@/lib/customers/assignees";
+import type { CustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import type { Database } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -196,6 +197,106 @@ export function assertCanEditCustomer(user: User, customer: Customer): void {
       403,
       "无权编辑该客户",
       "permission.denied.customer_edit",
+    );
+  }
+}
+
+const STAFF_LOCKED_SENSITIVE_FIELDS = [
+  "customerName",
+  "customerType",
+  "source",
+  "requestedProjectName",
+  "phoneCountryCode",
+  "phone",
+  "wechatId",
+  "email",
+  "notes",
+] as const;
+
+type StaffLockedSensitiveField = (typeof STAFF_LOCKED_SENSITIVE_FIELDS)[number];
+
+function normalizeSensitiveFieldForCompare(
+  field: StaffLockedSensitiveField,
+  value: string | null | undefined,
+): string | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (field === "email") {
+    const normalized = value.trim().toLowerCase();
+    return normalized === "" ? null : normalized;
+  }
+
+  if (field === "customerName") {
+    const normalized = value.trim();
+    return normalized === "" ? null : normalized;
+  }
+
+  if (
+    field === "phone" ||
+    field === "wechatId" ||
+    field === "notes" ||
+    field === "requestedProjectName"
+  ) {
+    const normalized = value.trim();
+    return normalized === "" ? null : normalized;
+  }
+
+  const normalized = value.trim();
+  return normalized === "" ? null : normalized;
+}
+
+function existingSensitiveValue(
+  customer: Customer,
+  field: StaffLockedSensitiveField,
+): string | null {
+  if (field === "phoneCountryCode") {
+    return normalizeSensitiveFieldForCompare(field, customer.phoneCountryCode);
+  }
+
+  return normalizeSensitiveFieldForCompare(
+    field,
+    customer[field] as string | null | undefined,
+  );
+}
+
+function payloadSensitiveValue(
+  payload: CustomerUpdatePayload,
+  field: StaffLockedSensitiveField,
+): string | null {
+  return normalizeSensitiveFieldForCompare(
+    field,
+    payload[field] as string | null | undefined,
+  );
+}
+
+export function staffSensitiveCustomerFieldsChanged(
+  existing: Customer,
+  payload: CustomerUpdatePayload,
+): boolean {
+  return STAFF_LOCKED_SENSITIVE_FIELDS.some(
+    (field) =>
+      existingSensitiveValue(existing, field) !==
+      payloadSensitiveValue(payload, field),
+  );
+}
+
+/** Staff cannot modify sensitive customer fields after creation; admin unrestricted. */
+export function assertStaffCannotModifySensitiveCustomerFields(
+  user: User,
+  existing: Customer,
+  payload: CustomerUpdatePayload,
+): void {
+  if (user.role === "admin") {
+    return;
+  }
+
+  if (staffSensitiveCustomerFieldsChanged(existing, payload)) {
+    throw new PermissionError(
+      403,
+      "敏感資料不可由員工修改",
+      "permission.denied.customer_sensitive_fields_locked",
     );
   }
 }

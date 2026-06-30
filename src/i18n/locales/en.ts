@@ -1676,6 +1676,8 @@ const en = {
     cannotEditCustomer: "You cannot edit this client.",
     cannotChangeCustomerStatus:
       "Staff cannot change client status through edit. Use release to pool or approval workflows instead.",
+    customerSensitiveFieldsLocked:
+      "Sensitive customer information can only be modified by an admin.",
     publicPoolRequiresReleaseFlow:
       "Client status cannot be set to public pool through edit. Use the release to public pool workflow instead.",
     cannotAddFollowUp: "You cannot add follow-ups for this client.",

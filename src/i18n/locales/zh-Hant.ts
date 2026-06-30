@@ -1597,6 +1597,8 @@ const zhHant: Messages = {
     cannotEditCustomer: "無權編輯該客戶。",
     cannotChangeCustomerStatus:
       "員工不能通過編輯修改客戶狀態。請使用釋放到公共池或審批等正式流程。",
+    customerSensitiveFieldsLocked:
+      "敏感資料不可由員工修改，請聯絡管理員處理。",
     publicPoolRequiresReleaseFlow:
       "不能通過普通編輯將狀態設為公共池，請使用「釋放到公共池」流程。",
     cannotAddFollowUp: "無權為該客戶新增跟進。",

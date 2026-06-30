@@ -57,6 +57,9 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   "permission.denied.customer_access": "errors.insufficientPermissions",
   "permission.denied.customer_edit": "errors.cannotEditCustomer",
   "permission.denied.customer_status_change": "errors.cannotChangeCustomerStatus",
+  "permission.denied.customer_sensitive_fields_locked":
+    "errors.customerSensitiveFieldsLocked",
+  CUSTOMER_SENSITIVE_FIELDS_LOCKED: "errors.customerSensitiveFieldsLocked",
   "permission.denied.follow_up_access": "errors.cannotAddFollowUp",
   "permission.denied.customer_timeline_access": "errors.cannotViewTimeline",
   "customer.release_to_pool_failed.permission_denied": "errors.cannotReleaseCustomer",
@@ -135,6 +138,8 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "无权访问该客户": "errors.insufficientPermissions",
   "无权查看该客户完整资料": "errors.insufficientPermissions",
   "无权编辑该客户": "errors.cannotEditCustomer",
+  "敏感資料不可由員工修改": "errors.customerSensitiveFieldsLocked",
+  "敏感资料不可由员工修改": "errors.customerSensitiveFieldsLocked",
   "无权编辑公共池客户": "errors.cannotEditPublicPool",
   "无权为该客户添加跟进": "errors.cannotAddFollowUp",
   "无权查看该客户跟进记录": "errors.cannotViewFollowUps",
