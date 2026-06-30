@@ -439,6 +439,17 @@ const en = {
     stageNotesRequired:
       "Please enter initial communication notes, at least 10 characters.",
     saveClient: "Save Client",
+    createConfirmTitle: "Confirm New Client",
+    createConfirmDescription:
+      "Please review the key details below. After creation, sensitive fields can only be corrected by an admin.",
+    confirmCustomerName: "Client Name",
+    confirmRequestedProjectName: "Requested Project / Service",
+    confirmPhone: "Phone Number",
+    confirmWechat: "WeChat ID",
+    confirmEmail: "Email",
+    createConfirmWait: "Please wait {{seconds}} seconds before confirming.",
+    createConfirmSubmit: "Confirm Create",
+    createConfirmBack: "Go Back and Edit",
     saving: "Saving…",
     saveChanges: "Save Changes",
     saveSuccess: "Saved successfully",

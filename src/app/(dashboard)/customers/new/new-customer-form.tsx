@@ -11,6 +11,7 @@ import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
+import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
 import { OnHoldApprovalSubmittedModal, OnHoldReasonModal } from "./on-hold-approval-pending-modal";
 
 type DuplicateMatch = {
@@ -27,6 +28,7 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+  const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
   const [showOnHoldReasonModal, setShowOnHoldReasonModal] = useState(false);
   const [showOnHoldSubmittedModal, setShowOnHoldSubmittedModal] = useState(false);
 
@@ -85,6 +87,7 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
       };
 
       if (res.ok && data.pendingApproval) {
+        setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
         setShowOnHoldSubmittedModal(true);
         return;
@@ -145,16 +148,40 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
       return;
     }
 
+    setShowCreateConfirmModal(true);
+  }
+
+  function handleConfirmCreate() {
+    if (submitting) {
+      return;
+    }
+
+    setShowCreateConfirmModal(false);
+
     if (form.salesStage === "on_hold") {
       setShowOnHoldReasonModal(true);
       return;
     }
 
-    await submitCreate();
+    void submitCreate();
   }
 
   return (
     <>
+      <CreateCustomerConfirmModal
+        open={showCreateConfirmModal}
+        submitting={submitting}
+        data={{
+          customerName: form.customerName,
+          requestedProjectName: form.requestedProjectName,
+          phoneCountryCode: form.phoneCountryCode,
+          phone: form.phone,
+          wechatId: form.wechatId,
+          email: form.email,
+        }}
+        onBack={() => setShowCreateConfirmModal(false)}
+        onConfirm={handleConfirmCreate}
+      />
       <OnHoldReasonModal
         open={showOnHoldReasonModal}
         submitting={submitting}
