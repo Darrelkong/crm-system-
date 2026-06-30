@@ -1,6 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import { Eye, EyeOff } from "lucide-react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
@@ -99,6 +101,45 @@ function DetailRow({
       <dd className="flex flex-wrap items-center gap-2 text-[#172033]">
         {value ? <span>{value}</span> : null}
         {action}
+      </dd>
+    </div>
+  );
+}
+
+const CONTACT_MASK = "********";
+
+function MaskedContactDetailRow({
+  label,
+  value,
+  showLabel,
+  hideLabel,
+}: {
+  label: string;
+  value?: string | null;
+  showLabel: string;
+  hideLabel: string;
+}) {
+  const [visible, setVisible] = useState(false);
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+
+  return (
+    <div className="flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4">
+      <dt className="shrink-0 text-[#6B7890] sm:w-36">{label}</dt>
+      <dd className="flex flex-wrap items-center gap-2 text-[#172033]">
+        <span>{visible ? trimmed : CONTACT_MASK}</span>
+        <button
+          type="button"
+          onClick={() => setVisible((prev) => !prev)}
+          className="inline-flex items-center justify-center rounded-md p-1 text-[#6B7890] transition-colors hover:bg-[#EEF2F7] hover:text-[#172033] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
+          aria-label={visible ? hideLabel : showLabel}
+        >
+          {visible ? (
+            <EyeOff className="h-4 w-4" aria-hidden="true" />
+          ) : (
+            <Eye className="h-4 w-4" aria-hidden="true" />
+          )}
+        </button>
       </dd>
     </div>
   );
@@ -248,16 +289,28 @@ export function CustomerDetailClient({
           {!view.isMasked && (
             <SectionCard title={t("customers.contactInfo")}>
               <dl>
-                <DetailRow
+                <MaskedContactDetailRow
                   label={t("customers.phone")}
                   value={
                     view.phone
                       ? `${view.phoneCountryCode ?? ""} ${view.phone}`.trim()
                       : undefined
                   }
+                  showLabel={t("customers.showPhone")}
+                  hideLabel={t("customers.hidePhone")}
                 />
-                <DetailRow label={t("customers.wechatId")} value={view.wechatId} />
-                <DetailRow label={t("customers.email")} value={view.email} />
+                <MaskedContactDetailRow
+                  label={t("customers.wechatId")}
+                  value={view.wechatId}
+                  showLabel={t("customers.showWechat")}
+                  hideLabel={t("customers.hideWechat")}
+                />
+                <MaskedContactDetailRow
+                  label={t("customers.email")}
+                  value={view.email}
+                  showLabel={t("customers.showEmail")}
+                  hideLabel={t("customers.hideEmail")}
+                />
               </dl>
             </SectionCard>
           )}
