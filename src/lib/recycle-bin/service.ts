@@ -139,6 +139,9 @@ function buildPermanentDeleteAuditMetadata(
   return {
     customerId: customer.id,
     customerName: customer.customerName,
+    customerCode: customer.customerCode,
+    customerType: customer.customerType,
+    deletedReason: customer.deletedReason,
     deletedAt: customer.deletedAt,
     deletedBy: customer.deletedBy,
     permanentDeletedBy,
@@ -173,6 +176,16 @@ async function executePermanentDeleteInBatch(
     db
       .delete(schema.reclamationWarningLogs)
       .where(eq(schema.reclamationWarningLogs.customerId, customer.id)),
+    // Cancel open tasks before DELETE so status is preserved after FK sets customerId→null.
+    db
+      .update(schema.tasks)
+      .set({ status: "cancelled", updatedAt: now })
+      .where(
+        and(
+          eq(schema.tasks.customerId, customer.id),
+          eq(schema.tasks.status, "open"),
+        ),
+      ),
     db.insert(schema.auditLogs).values({
       id: crypto.randomUUID(),
       userId: options.userId,

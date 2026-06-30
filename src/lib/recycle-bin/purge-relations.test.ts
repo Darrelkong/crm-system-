@@ -38,6 +38,8 @@ const REL_ASSIGNEE_COLLAB = "ca888888888888888888888888888888802";
 const REL_CONTACT = "cc888888-8888-8888-8888-888888888801";
 const REL_AI_INSIGHT = "ai888888-8888-8888-8888-888888888801";
 const REL_TASK = "t8888888-8888-8888-8888-888888888801";
+const REL_TASK_COMPLETED = "t8888888-8888-8888-8888-888888888802";
+const REL_TASK_CANCELLED = "t8888888-8888-8888-8888-888888888803";
 const REL_NOTIFICATION = "n8888888-8888-8888-8888-888888888801";
 const REL_APPROVAL = "ap888888-8888-8888-8888-888888888801";
 const REL_WARNING_LOG = "rw888888-8888-8888-8888-888888888801";
@@ -199,6 +201,33 @@ async function seedExpiredCustomerRelations(customerId: string) {
     updatedAt: ts,
   });
 
+  await db.insert(schema.tasks).values({
+    id: REL_TASK_COMPLETED,
+    customerId,
+    assignedTo: SEED_IDS.staffA,
+    createdBy: SEED_IDS.staffA,
+    title: "跟进客户：Purge Completed Task",
+    type: "follow_up",
+    status: "completed",
+    dueAt: "2026-01-01T12:00:00.000Z",
+    completedAt: ts,
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
+  await db.insert(schema.tasks).values({
+    id: REL_TASK_CANCELLED,
+    customerId,
+    assignedTo: SEED_IDS.staffA,
+    createdBy: SEED_IDS.staffA,
+    title: "跟进客户：Purge Cancelled Task",
+    type: "follow_up",
+    status: "cancelled",
+    dueAt: "2026-01-01T12:00:00.000Z",
+    createdAt: ts,
+    updatedAt: ts,
+  });
+
   await db.insert(schema.notifications).values({
     id: REL_NOTIFICATION,
     userId: SEED_IDS.staffA,
@@ -239,7 +268,7 @@ async function deleteTestData() {
     customerAssignees: [REL_ASSIGNEE_PRIMARY, REL_ASSIGNEE_COLLAB],
     customerContacts: [REL_CONTACT],
     customerAiInsights: [REL_AI_INSIGHT],
-    tasks: [REL_TASK],
+    tasks: [REL_TASK, REL_TASK_COMPLETED, REL_TASK_CANCELLED],
     notifications: [REL_NOTIFICATION],
     approvals: [REL_APPROVAL],
     reclamationWarningLogs: [REL_WARNING_LOG],
@@ -404,13 +433,32 @@ describe("purgeExpiredRecycleBinCustomers relation cleanup", () => {
       .where(eq(schema.customerAiInsights.customerId, EXPIRED_MAIN));
     assert.equal(insights.length, 0);
 
-    const tasks = await db
+    // open task → cancelled (no longer pollutes dashboard KPI)
+    const openTask = await db
       .select()
       .from(schema.tasks)
       .where(eq(schema.tasks.id, REL_TASK));
-    assert.equal(tasks.length, 1);
-    assert.equal(tasks[0]!.customerId, null);
-    assert.equal(tasks[0]!.status, "open");
+    assert.equal(openTask.length, 1);
+    assert.equal(openTask[0]!.customerId, null);
+    assert.equal(openTask[0]!.status, "cancelled");
+
+    // completed task → still completed (not touched)
+    const completedTask = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, REL_TASK_COMPLETED));
+    assert.equal(completedTask.length, 1);
+    assert.equal(completedTask[0]!.customerId, null);
+    assert.equal(completedTask[0]!.status, "completed");
+
+    // already-cancelled task → still cancelled (not touched)
+    const cancelledTask = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, REL_TASK_CANCELLED));
+    assert.equal(cancelledTask.length, 1);
+    assert.equal(cancelledTask[0]!.customerId, null);
+    assert.equal(cancelledTask[0]!.status, "cancelled");
 
     const notifications = await db
       .select()
@@ -437,11 +485,15 @@ describe("purgeExpiredRecycleBinCustomers relation cleanup", () => {
       deletedAt?: string;
       customerName?: string;
       customerId?: string;
+      customerCode?: string | null;
+      deletedReason?: string | null;
     };
     assert.equal(metadata.source, "cron");
     assert.equal(metadata.deletedAt, EXPIRED_DELETED_AT);
     assert.equal(metadata.customerName, "Purge Relations Main");
     assert.equal(metadata.customerId, EXPIRED_MAIN);
+    assert.equal(metadata.customerCode, "EF-PURGE-01");
+    assert.equal(metadata.deletedReason, "超期回收站清理");
   });
 
   it("E: does not purge customer deleted within 90 days", async () => {
