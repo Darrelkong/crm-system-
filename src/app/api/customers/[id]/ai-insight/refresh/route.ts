@@ -17,6 +17,10 @@ import {
   AiConfigError,
   AiRefreshDeniedError,
 } from "@/lib/ai/customer-insights/errors";
+import {
+  getSafeAiRefreshErrorMessage,
+  resolveAiRefreshErrorCode,
+} from "@/lib/ai/customer-insights/error-mapping";
 import { buildAiInsightRefreshFailedAuditMetadata } from "@/lib/ai/customer-insights/diagnostics";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
@@ -76,14 +80,7 @@ export async function POST(request: Request, context: RouteContext) {
     } catch (error) {
       const status = aiErrorStatus(error);
       if (status !== null) {
-        const code =
-          error instanceof AiConfigError
-            ? error.code
-            : error instanceof AiAnalysisError
-              ? error.code
-              : error instanceof AiRefreshDeniedError
-                ? error.code
-                : "AI_PROVIDER_ERROR";
+        const code = resolveAiRefreshErrorCode(error);
         await writeAuditLog(
           {
             userId: user.id,
@@ -102,14 +99,7 @@ export async function POST(request: Request, context: RouteContext) {
         );
         const currentInsight = await getCustomerAiInsightByCustomerId(db, customer.id);
         const body = {
-          error:
-            error instanceof AiConfigError
-              ? error.message
-              : error instanceof AiAnalysisError
-                ? error.message
-                : error instanceof AiRefreshDeniedError
-                  ? error.message
-                  : "AI 分析失败，请稍后重试",
+          error: getSafeAiRefreshErrorMessage(code),
           errorCode: code,
           insight: currentInsight,
           display: getCustomerAiInsightDisplayMeta(user, aiSettings),
@@ -143,18 +133,10 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     const status = aiErrorStatus(error);
     if (status !== null) {
-      const code =
-        error instanceof AiConfigError
-          ? error.code
-          : error instanceof AiAnalysisError
-            ? error.code
-            : error instanceof AiRefreshDeniedError
-              ? error.code
-              : "AI_PROVIDER_ERROR";
+      const code = resolveAiRefreshErrorCode(error);
       return Response.json(
         {
-          error:
-            error instanceof Error ? error.message : "AI 分析失败，请稍后重试",
+          error: getSafeAiRefreshErrorMessage(code),
           errorCode: code,
         },
         { status },

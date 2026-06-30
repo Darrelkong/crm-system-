@@ -4,6 +4,10 @@ export type AiErrorCode =
   | "AI_NOT_CONFIGURED"
   | "AI_CONFIG_ERROR"
   | "AI_ANALYSIS_FAILED"
+  | "AI_PROVIDER_TEMPORARILY_UNAVAILABLE"
+  | "AI_RATE_LIMITED"
+  | "AI_PROVIDER_TIMEOUT"
+  | "AI_PROVIDER_RESPONSE_INVALID"
   | "AI_REFRESH_DENIED"
   | "AI_PROVIDER_ERROR";
 
@@ -18,13 +22,18 @@ export class AiConfigError extends Error {
 }
 
 export class AiAnalysisError extends Error {
-  readonly code: AiErrorCode = "AI_ANALYSIS_FAILED";
+  readonly code: AiErrorCode;
   readonly diagnostics?: AiProviderDiagnostics;
 
-  constructor(message = "AI 分析失败，请稍后重试", diagnostics?: AiProviderDiagnostics) {
+  constructor(
+    message = "AI 分析失败，请稍后重试",
+    diagnostics?: AiProviderDiagnostics,
+    code: AiErrorCode = "AI_ANALYSIS_FAILED",
+  ) {
     super(message);
     this.name = "AiAnalysisError";
     this.diagnostics = diagnostics;
+    this.code = code;
   }
 }
 

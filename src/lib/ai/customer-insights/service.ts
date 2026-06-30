@@ -6,6 +6,7 @@ import {
   resolveCustomerInsightProvider,
 } from "@/lib/ai/providers/factory";
 import { buildCustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
+import { mapAiAnalysisErrorCode } from "@/lib/ai/customer-insights/error-mapping";
 import {
   AiAnalysisError,
   AiConfigError,
@@ -334,11 +335,19 @@ export async function refreshCustomerAiInsight(
       promptVersion: aiSettings.aiPromptVersion,
       sourceHash,
     });
-    throw new AiAnalysisError(undefined, diagnostics);
+    throw new AiAnalysisError(
+      undefined,
+      diagnostics,
+      mapAiAnalysisErrorCode(diagnostics),
+    );
   }
 
   const parsed = safeParseCustomerInsightOutput(rawOutput);
   if (!parsed.success) {
+    const diagnostics = buildResolvedProviderDiagnostics(
+      resolved,
+      "schema_validation_failed",
+    );
     await persistFailedInsight(db, customer.id, {
       model: resolved.model,
       promptVersion: aiSettings.aiPromptVersion,
@@ -346,7 +355,8 @@ export async function refreshCustomerAiInsight(
     });
     throw new AiAnalysisError(
       undefined,
-      buildResolvedProviderDiagnostics(resolved, "schema_validation_failed"),
+      diagnostics,
+      mapAiAnalysisErrorCode(diagnostics),
     );
   }
 

@@ -71,6 +71,14 @@ function resolveRefreshErrorMessage(
     case "AI_NOT_CONFIGURED":
     case "AI_CONFIG_ERROR":
       return t("customers.aiInsight.notConfigured");
+    case "AI_PROVIDER_TEMPORARILY_UNAVAILABLE":
+      return t("customers.aiInsight.providerTemporarilyUnavailable");
+    case "AI_RATE_LIMITED":
+      return t("customers.aiInsight.rateLimited");
+    case "AI_PROVIDER_TIMEOUT":
+      return t("customers.aiInsight.providerTimeout");
+    case "AI_PROVIDER_RESPONSE_INVALID":
+      return t("customers.aiInsight.providerResponseInvalid");
     case "AI_ANALYSIS_FAILED":
       return t("customers.aiInsight.analysisFailed");
     case "AI_REFRESH_DENIED":

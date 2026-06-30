@@ -37,9 +37,9 @@ npm run db:seed:local
 
 | 命令 | 說明 |
 |------|------|
-| `npm run test:unit` | 29 個純單元測試（無 D1） |
+| `npm run test:unit` | 30 個純單元測試（無 D1） |
 | `npm run test:db` | 14 個 local D1 整合測試（固定 `CRM_ALLOW_TEST_DB_BIND=1`、`--test-concurrency=1`） |
-| `npm run test` | `test:unit` + `test:db`（全部 43 個 `*.test.ts`） |
+| `npm run test` | `test:unit` + `test:db`（全部 44 個 `*.test.ts`） |
 | `npm run test:help` | Help Center 角色過濾 |
 | `npm run test:public-pool` | 公共池 display + claim limits |
 | `npm run test:permissions` | 敏感欄位 + assignee 權限（純單元） |
@@ -64,7 +64,7 @@ npm run db:seed:local
 | 改登入 / lockout / session | `npm run test:auth` |
 | 改 users-admin 刪除流程 | `npm run test:users-admin` |
 | 改 notifications 連結 / orphan fallback | `npm run test:unit`（含 `notification-href.test.ts`）+ `npm run test:db`（含 `notifications/queries.test.ts`） |
-| 改 AI provider / insight 錯誤處理 | `npm run test:unit`（含 `openai-compatible.test.ts`、`diagnostics.test.ts`、`prompt-builder.test.ts`） |
+| 改 AI provider / insight 錯誤處理 | `npm run test:unit`（含 `openai-compatible.test.ts`、`diagnostics.test.ts`、`error-mapping.test.ts`、`prompt-builder.test.ts`） |
 | **Deploy 前（完整）** | `npm run test:regression:full` |
 
 ---
@@ -102,7 +102,7 @@ CRM_ALLOW_TEST_DB_BIND=1 node --import tsx --test --test-concurrency=1 src/lib/r
 
 | 類型 | 數量 | 目錄範例 |
 |------|------|----------|
-| 純單元 | 29 | `help/`, `permissions/`, `auth/`, `reclamation/`, `ai/`（provider、diagnostics、prompt-builder）、`notifications/notification-href` |
+| 純單元 | 30 | `help/`, `permissions/`, `auth/`, `reclamation/`, `ai/`（provider、diagnostics、error-mapping、prompt-builder）、`notifications/notification-href` |
 | Local D1 | 14 | `public-pool/claim-limits`, `customers/assignees*`, `recycle-bin/*`, `users-admin/delete-*`, `notifications/queries` |
 
 完整清單見 `package.json` 中 `test:unit` / `test:db` script 參數。

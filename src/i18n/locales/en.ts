@@ -524,7 +524,13 @@ const en = {
       loading: "Loading AI analysis…",
       empty: "No AI analysis yet",
       restricted: "Insufficient permissions to view AI insights.",
-      notConfigured: "AI is not fully configured yet.",
+      notConfigured: "AI is not fully configured. Please contact an administrator.",
+      providerTemporarilyUnavailable:
+        "The AI service is temporarily unavailable. Please try again later.",
+      rateLimited: "The AI service is receiving too many requests. Please try again later.",
+      providerTimeout: "AI analysis timed out. Please try again later.",
+      providerResponseInvalid:
+        "The AI response format was invalid. Please try again later or contact an administrator.",
       analysisFailed: "AI analysis failed. Please try again later.",
       refreshDenied: "Manual AI refresh is not allowed for your role.",
       refreshAdminOnly: "Only administrators can refresh AI insights.",
