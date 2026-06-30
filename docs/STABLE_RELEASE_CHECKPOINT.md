@@ -1,6 +1,7 @@
 # CRM Stable Release Checkpoint
 
 **建立：** Phase RELEASE-CHECKPOINT-1（2026-06-30）  
+**更新：** Phase AI-RELEASE-CHECKPOINT-1（2026-06-30）— AI-2 / AI-2g 穩定基線  
 **用途：** 記錄當前穩定版本基線，方便未來回溯、deploy 對照與 rollback 決策。  
 **相關：** [SYSTEM_MAP.md](./SYSTEM_MAP.md) · [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) · [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) · [TESTING.md](./TESTING.md)
 
@@ -10,12 +11,24 @@
 
 | 項目 | 值 |
 |------|-----|
-| 最新 main commit | `79f2dc5` — Include notification tests in standard regression scripts |
-| 最新 Cloudflare Version ID | `e7dd4abe-147f-4a4c-a0aa-92f67d1041df` |
+| 最新 main commit | `df4f99b` — Document AI insight data usage scope |
+| 最新 Cloudflare Version ID | `6e78330d-61b1-44a9-9b5b-12edaf0429ff` |
 | 正式域名 | https://crm.echfronthk.com |
-| 狀態 | 正式站人工確認暫未發現問題 |
+| 狀態 | AI-2g post-deploy smoke 未發現問題；登入後 UI 仍建議人工確認 |
 
-**D-4e 部署 commits（含本 checkpoint 前已上線）：**
+**AI-2 / AI-2g 部署 commits（當前 production 基線）：**
+
+| Commit | 說明 |
+|--------|------|
+| `49dd7c7` | Add AI provider error handling tests |
+| `603e9ad` | Stabilize notification query regression test |
+| `b55f55a` | Improve AI insight error messages |
+| `907dcb6` | Add AI insight refresh cooldown |
+| `ea11e7f` | Add AI insight context sanitize helper |
+| `5ee06c0` | Sanitize AI insight context before provider prompt |
+| `df4f99b` | Document AI insight data usage scope |
+
+**先前 D-4e 基線（已 supersede）：** commit `79f2dc5` · Version `e7dd4abe-147f-4a0c-a0aa-92f67d1041df`
 
 | Commit | 說明 |
 |--------|------|
@@ -26,6 +39,16 @@
 ---
 
 ## 2. 最近完成的主要模組
+
+### Phase AI-2 / AI-2g — AI insight 安全與資料最小化
+
+- **AI-2a：** AI provider 503 / 429 / timeout / invalid response 單元測試
+- **AI-2b：** AI 錯誤提示安全分類（API 回傳固定文案，不暴露 raw provider error）
+- **AI-2d：** AI refresh **5 分鐘** cooldown（429 + `AI_REFRESH_COOLDOWN`）
+- **AI-2g-1 / 2g-2：** Provider prompt **不再包含**結構化 `phone` / `wechatId` / `email`；`notes` / `sourceRemark` / follow-ups **仍保留**
+- **AI-2g-3：** Help Center 三語說明 AI 資料使用範圍（Admin / Staff 分角色 section + FAQ）
+- **sourceHash：** 暫未調整（本來不含結構化聯絡欄位；policy version 留待後續）
+- **AI-2g deploy：** 主 Worker 已部署（Version ID 見 §1）
 
 ### Phase F — 敏感資料與公共池隱私
 
@@ -56,7 +79,7 @@
 
 - **D-4e-2a：** purge / permanent delete 前取消該客戶的 open tasks；audit metadata 補 `customerCode` / `customerType` / `deletedReason`
 - **D-4e-2b：** 已刪客戶的通知保留歷史，但不再產生 `/customers/{id}` 死連結；UI 顯示「相關客戶已永久刪除」
-- **D-4e deploy：** 主 Worker 已部署（Version ID 見上）
+- **D-4e deploy：** 主 Worker 已部署（Version ID 見 §1 先前基線）
 
 ---
 
@@ -75,6 +98,19 @@
 | Purge 行為（D-4e） | open tasks → `cancelled`；notifications 保留但 orphan link 已 fallback |
 | 正式站存取 | **Cloudflare Access** OTP 保護；未登入 API 回 302 |
 
+### AI insight 安全邊界（AI-2 / AI-2g）
+
+| 邊界 | 說明 |
+|------|------|
+| API key | **不讀取 / 不輸出** `AI_API_KEY`；僅 Worker Secret + Admin 顯示 `apiKeyConfigured` |
+| Provider 錯誤 | API **不**向前端暴露 provider raw error / HTTP body |
+| Diagnostics / audit | refresh 失敗 audit **不含** prompt、raw body、secret |
+| 結構化聯絡資料 | **預設不送** AI provider：`phone` / `wechatId` / `email` |
+| 文字型 PII | `notes` / follow-up `summary` **仍可能**含手動輸入的聯絡方式；員工應避免在備註重複填寫不必要聯絡資料 |
+| Refresh 節流 | 同一客戶 **5 分鐘** cooldown；命中不呼叫 provider |
+| 預設 provider | 正式站預設 **mock**；啟用 `openai_compatible` 需 Admin 設定 + Secret |
+| Help 透明度 | Help Center 已說明 AI 資料範圍（三語） |
+
 ---
 
 ## 4. 禁止事項
@@ -88,6 +124,7 @@
   - `npm run cron:recycle:deploy`（回收站 purge）
   - `npm run cron:backup:deploy`（備份）
 - **不要**在 production 跑 local D1 測試（`CRM_ALLOW_TEST_DB_BIND=1`）
+- **不要**在 production smoke 中大量點 AI refresh 或連續呼叫真實 AI provider
 
 ---
 
@@ -95,16 +132,44 @@
 
 以下為規劃候選，**本 checkpoint 未實作**：
 
-1. **AI insight 穩定性 / provider fallback** — 降低外部 API 失敗對 UX 的影響
-2. **Public pool 更完整 API 測試** — 補 claim API / list API 整合測
-3. **Notification fallback 正式站樣本確認** — 待 purge cron 產生 orphan 通知後再人工驗證
-4. **UI polish** — 空狀態、loading、錯誤提示一致性
-5. **Backup cron / restore flow 檢查** — 備份可還原性與 runbook 對照
-6. **`merge_customers` placeholder 檢查** — 確認審批類型是否仍為 placeholder / 未啟用
+1. **AI-2g-4：** 可選 Admin setting 控制 AI 是否可使用敏感聯絡資料
+2. **AI-2g-5：** `notes` / follow-up summary 內嵌電話、email、微信文字遮罩
+3. **AI-2e：** fallback provider 設計
+4. **AI-2f：** AI 使用成本 / token 估算與日限額
+5. **AI production smoke：** 通過 Cloudflare Access 後，使用測試客戶**單次** refresh 驗證（mock 或已配置 provider）
+6. **Public pool 更完整 API 測試** — 補 claim API / list API 整合測
+7. **Notification fallback 正式站樣本確認** — 待 purge cron 產生 orphan 通知後再人工驗證
+8. **UI polish** — 空狀態、loading、錯誤提示一致性
+9. **Backup cron / restore flow 檢查** — 備份可還原性與 runbook 對照
+10. **`merge_customers` placeholder 檢查** — 確認審批類型是否仍為 placeholder / 未啟用
 
 ---
 
 ## 回退參考
+
+**Git revert（AI-2g runtime + docs，保留 helper）：**
+
+```bash
+git revert 5ee06c0 df4f99b
+git push
+npm run deploy
+```
+
+**Git revert（完整 AI-2g，含 sanitize helper）：**
+
+```bash
+git revert ea11e7f 5ee06c0 df4f99b
+git push
+npm run deploy
+```
+
+**Git revert（AI-2 全線：error UX + cooldown + AI-2g）：**
+
+```bash
+git revert b55f55a 907dcb6 ea11e7f 5ee06c0 df4f99b
+git push
+npm run deploy
+```
 
 **Git revert（D-4e 三 commits）：**
 
@@ -114,7 +179,7 @@ git push
 npm run deploy
 ```
 
-**Cloudflare Dashboard：** Workers → `crm-system` → 回滾至上一個 production Version。
+**Cloudflare Dashboard：** Workers → `crm-system` → 回滾至上一個 production Version（例如 AI-2 deploy 前 `7c240043-52cb-4ad3-bfdc-bf7b3fc777b9`，或 D-4e `e7dd4abe-147f-4a0c-a0aa-92f67d1041df`）。
 
 **本 checkpoint 文件回退：**
 
