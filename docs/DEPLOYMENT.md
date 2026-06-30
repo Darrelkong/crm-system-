@@ -153,10 +153,12 @@ Cloudflare Cron 表达式使用 **UTC** 时间。
 |------|-------------|------------|------------------|------|
 | `wrangler.cron.jsonc` | `crm-system-reclamation-cron` | `0 21 * * *` | 每天 **05:00** | 客户自动回收 |
 | `wrangler.backup-cron.jsonc` | `crm-system-backup-cron` | `0 21 * * *` | 每天 **05:00** | 自动数据库备份 |
+| `wrangler.recycle-cron.jsonc` | `crm-system-recycle-cron` | `30 21 * * *` | 每天 **05:30** | 回收站 90 天到期清理 |
 
 **时区说明：**
 
 - `0 21 * * *` UTC = 中国 / 香港 / 台湾（UTC+8）每天早上 **05:00**。
+- `30 21 * * *` UTC = 中国 / 香港 / 台湾（UTC+8）每天早上 **05:30**（在回收与备份任务之后执行）。
 - 回收任务与备份任务均按 UTC+8 早上 5 点执行（UTC 21:00）。
 
 部署命令（确认 D1/R2 配置后）：
@@ -164,9 +166,29 @@ Cloudflare Cron 表达式使用 **UTC** 时间。
 ```bash
 npm run cron:deploy
 npm run cron:backup:deploy
+npm run cron:recycle:deploy
 ```
 
-两个 Cron Worker 需与主应用使用**同一** `database_id` 和 R2 bucket。
+三个 Cron Worker 需与主应用使用**同一** `database_id`（回收站 cron 仅绑定 D1，不需 R2）。
+
+#### Recycle Bin Cron（`crm-system-recycle-cron`）
+
+| 项 | 值 |
+|----|-----|
+| Worker | `crm-system-recycle-cron` |
+| 用途 | 自动清理回收站中超过 90 天保留期的客户（`status=archived` 且 `deletedAt` 已设置） |
+| Schedule (UTC) | `30 21 * * *`（香港时间每天 **05:30**） |
+| 部署 | `npm run cron:recycle:deploy` |
+
+**安全说明（首次部署或重新启用前必读）：**
+
+部署或启用回收站 cron 前，请先以 Admin 身份检查只读预览 API：
+
+```text
+GET /api/admin/recycle-bin/purge-preview?limit=50
+```
+
+仅当 `expiredCount` 为 **0**，或你已人工审阅 `customers[]` 中每一笔待清理客户后，才应部署 / 启用 cron。预览 API **不会**修改数据库、不会执行 purge。
 
 ### 3.6 部署配置占位符清单（上线前必须替换）
 
@@ -177,6 +199,7 @@ npm run cron:backup:deploy
 | `wrangler.jsonc` | `d1_databases[].database_id` | `00000000-0000-0000-0000-000000000001` | **上线前必须替换**为 `wrangler d1 create` 返回的 UUID |
 | `wrangler.cron.jsonc` | `d1_databases[].database_id` | 同上 | 与主应用使用同一生产 D1 |
 | `wrangler.backup-cron.jsonc` | `d1_databases[].database_id` | 同上 | 与主应用使用同一生产 D1 |
+| `wrangler.recycle-cron.jsonc` | `d1_databases[].database_id` | 同上 | 与主应用使用同一生产 D1 |
 | `wrangler.jsonc` | `d1_databases[].database_name` | `crm-db` | 逻辑名称；创建 D1 时需一致或同步修改 |
 | `wrangler.jsonc` | `r2_buckets[].bucket_name` | `crm-attachments` | **上线前必须**在 Cloudflare 创建对应 R2 桶（或改为你的桶名并同步配置） |
 | `wrangler.jsonc` | `r2_buckets[].preview_bucket_name` | `crm-attachments-preview` | 预览环境桶名；生产可选 |
@@ -184,6 +207,7 @@ npm run cron:backup:deploy
 | `wrangler.jsonc` | `name` | `crm-system` | Worker 名称；可按团队规范修改 |
 | `wrangler.cron.jsonc` | `name` | `crm-system-reclamation-cron` | 回收 Cron Worker 名称 |
 | `wrangler.backup-cron.jsonc` | `name` | `crm-system-backup-cron` | 备份 Cron Worker 名称 |
+| `wrangler.recycle-cron.jsonc` | `name` | `crm-system-recycle-cron` | 回收站清理 Cron Worker 名称 |
 | `wrangler.jsonc` | `services[].service` | `crm-system` | 自引用服务名，须与主 Worker `name` 一致 |
 
 **不在 wrangler 文件内、但生产必填：**
