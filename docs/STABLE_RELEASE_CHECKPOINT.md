@@ -1,9 +1,9 @@
 # CRM Stable Release Checkpoint
 
 **建立：** Phase RELEASE-CHECKPOINT-1（2026-06-30）  
-**更新：** Phase TAGS-STAGES-CLEANUP-1（2026-06-30）— 清理 tags-stages dead i18n  
+**更新：** Phase BACKUP-CHECKPOINT-1（2026-07-01）— 記錄 BACKUP-EXPORT-1 定時備份驗證結果  
 **用途：** 記錄當前穩定版本基線，方便未來回溯、deploy 對照與 rollback 決策。  
-**相關：** [SYSTEM_MAP.md](./SYSTEM_MAP.md) · [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) · [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) · [TESTING.md](./TESTING.md)
+**相關：** [SYSTEM_MAP.md](./SYSTEM_MAP.md) · [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) · [BACKUP_RESTORE_RUNBOOK.md](./BACKUP_RESTORE_RUNBOOK.md) · [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) · [TESTING.md](./TESTING.md)
 
 ---
 
@@ -72,12 +72,66 @@
 - 移除 dead i18n：`placeholders.tagsStagesEmpty`、`placeholders.tagsStagesDescription`、`tagsStagesPage.readOnlyNotice`
 - `/admin/tags-stages` 文件描述已同步：Sales Stages 只讀統計 + Customer Tags 管理
 
+### BACKUP-EXPORT-1
+
+- 備份 export 補齊 6 張遺漏表（`customer_assignees`、`customer_tags`、`customer_ai_insights`、`announcements`、`customer_code_counter`、`login_ip_email_restrictions`）
+- JSON 結構向後相容（僅 `tables` 內新增 key）；未改 DB schema、`backup_jobs` schema、R2 key 命名
+- 主 Worker 與 backup cron 已部署；詳見下方 **Backup export verification**
+
 ### 其他已穩定模組（摘要）
 
 - **Phase F：** 敏感資料遮罩、Staff 敏感欄位鎖定、公共池脫敏
 - **HELP-2 / HELP-2a：** 幫助中心分角色 sections / FAQ
 - **D-4e：** 回收站 purge orphan 處理、通知 dead link fallback
 - **TEST-1a / TEST-2 / TEST-4 / TEST-4a：** regression scripts 與 notifications 測試
+
+---
+
+## Backup export verification
+
+Phase BACKUP-VERIFY-1 只讀驗證結果（2026-07-01）。
+
+| 項目 | 值 |
+|------|-----|
+| Backup export 修復 commit | `62a3057` — Include missing CRM tables in backup export |
+| Restore runbook docs commit | `470a5fe` — Document backup restore runbook |
+| 主 Worker Version ID | `14c98540-9208-477b-bf53-760094d7f9d4` |
+| Backup cron Version ID | `0c2a3adc-3aa4-4d3f-b826-a5bf1a4387ee` |
+| Cron schedule | `0 21 * * *` UTC = **HKT 05:00** |
+| 驗證時間 | **2026-07-01 16:04 HKT** |
+
+### 最新 scheduled backup job（D1 `backup_jobs` metadata）
+
+| 欄位 | 值 |
+|------|-----|
+| status | `completed` |
+| file_name | `crm-backup-2026-07-01-050055.json` |
+| table_count | **21** |
+| record_count | **692** |
+| file_size_bytes | **387,900** |
+| started_at | `2026-06-30T21:00:55.735Z`（HKT 05:00:55） |
+| completed_at | `2026-06-30T21:00:57.114Z`（HKT 05:00:57） |
+
+### 新舊版對照
+
+| | 舊版 scheduled job（BACKUP-EXPORT-1 前） | 新版 scheduled job（BACKUP-EXPORT-1 後） |
+|--|------------------------------------------|------------------------------------------|
+| 代表 job | `crm-backup-2026-06-30-050013.json` | `crm-backup-2026-07-01-050055.json` |
+| table_count | **15** | **21** |
+| record_count | 627 | 692 |
+| file_size_bytes | 345,074 | 387,900 |
+
+**結論：** BACKUP-EXPORT-1 已生效；新增 6 張表已納入 backup export。Cloudflare cron invocation 狀態為 `success`（`errors: 0`）。
+
+### 驗證範圍與限制
+
+- 本次只驗證 `backup_jobs` metadata 與 Cloudflare cron invocation 狀態
+- **未**讀取 / **未**下載 R2 JSON
+- **未**手動執行 backup
+- **未** restore
+- Admin UI（`/admin/backups`）仍需 **Cloudflare Access OTP** 人工確認列表顯示
+
+恢復流程見 [BACKUP_RESTORE_RUNBOOK.md](./BACKUP_RESTORE_RUNBOOK.md)。
 
 ---
 
