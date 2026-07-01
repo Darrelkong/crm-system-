@@ -97,7 +97,7 @@ Cloudflare Cron 使用 **UTC**。香港時間 UTC+8：
 | Worker | 配置檔 | Cron (UTC) | 香港時間 | 功能 |
 |--------|--------|------------|----------|------|
 | `crm-system-reclamation-cron` | `wrangler.cron.jsonc` | `0 21 * * *` | 每天 **05:00** | 客戶自動回收到公共池 |
-| `crm-system-backup-cron` | `wrangler.backup-cron.jsonc` | `0 21 * * *` | 每天 **05:00** | D1 備份至 R2 |
+| `crm-system-backup-cron` | `wrangler.backup-cron.jsonc` | `0 21 * * *` | 每天 **05:00** | D1 備份至 R2（恢復流程見 [BACKUP_RESTORE_RUNBOOK.md](./BACKUP_RESTORE_RUNBOOK.md)） |
 | `crm-system-recycle-cron` | `wrangler.recycle-cron.jsonc` | `30 21 * * *` | 每天 **05:30** | 回收站 90 天到期 purge |
 
 ### 3.1 部署命令
