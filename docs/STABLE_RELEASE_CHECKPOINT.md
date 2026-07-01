@@ -1,7 +1,8 @@
 # CRM Stable Release Checkpoint
 
 **建立：** Phase RELEASE-CHECKPOINT-1（2026-06-30）  
-**更新：** Phase R2-RETENTION-CHECKPOINT-1（2026-07-01）— R2 `backups/` 90 天 lifecycle 已生效並記錄  
+**更新：** Phase AUDIT-CHECKPOINT-1（2026-07-01）— Admin 審計日誌 API + 只讀 UI 已部署並記錄  
+**先前：** Phase R2-RETENTION-CHECKPOINT-1（2026-07-01）— R2 `backups/` 90 天 lifecycle 已生效並記錄  
 **用途：** 記錄當前穩定版本基線，方便未來回溯、deploy 對照與 rollback 決策。  
 **相關：** [SYSTEM_MAP.md](./SYSTEM_MAP.md) · [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) · [BACKUP_RESTORE_RUNBOOK.md](./BACKUP_RESTORE_RUNBOOK.md) · [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) · [TESTING.md](./TESTING.md)
 
@@ -11,10 +12,17 @@
 
 | 項目 | 值 |
 |------|-----|
-| main 最新 commit | `652d5fd` — Disable placeholder customer merge approvals |
-| 最新 Cloudflare Version ID | `dac716e6-d0f0-4db5-9bef-3731b5d5c7a6` |
+| main 最新 commit | `568ceea` — Add admin audit log page |
+| 最新 Cloudflare Version ID | `537d7889-4300-420a-869d-4b21a6b10011` |
 | 正式域名 | https://crm.echfronthk.com |
-| 狀態 | MERGE-SAFE-1 已部署；未登入 Access 檢查正常；登入後 UI 仍建議人工確認 |
+| 狀態 | AUDIT-UI-1 已部署；未登入 Access 302 正常；登入後 Admin / Staff UI 仍建議 OTP 人工確認 |
+
+**AUDIT-UI-1 部署 commits：**
+
+| Commit | 說明 |
+|--------|------|
+| `7f734e6` | Add admin audit log query API |
+| `568ceea` | Add admin audit log page |
 
 **MERGE-SAFE-1 部署 commit：**
 
@@ -77,6 +85,13 @@
 - 備份 export 補齊 6 張遺漏表（`customer_assignees`、`customer_tags`、`customer_ai_insights`、`announcements`、`customer_code_counter`、`login_ip_email_restrictions`）
 - JSON 結構向後相容（僅 `tables` 內新增 key）；未改 DB schema、`backup_jobs` schema、R2 key 命名
 - 主 Worker 與 backup cron 已部署；詳見下方 **Backup export verification**
+
+### AUDIT-UI-1
+
+- **AUDIT-UI-1a：** Admin-only `GET /api/admin/audit-logs`（filters、cursor 分頁、metadata parse）
+- **AUDIT-UI-1b：** Admin 只讀頁 `/admin/audit-logs`；側欄 **系統設定 → 審計日誌**
+- Staff 無 nav 入口；未做 export / delete / retention
+- **AUDIT-UI-1 deploy：** 主 Worker Version `537d7889-4300-420a-869d-4b21a6b10011`；詳見 **Audit logs visibility**
 
 ### 其他已穩定模組（摘要）
 
@@ -157,6 +172,37 @@ Phase R2-RETENTION-1B Verify + R2-RETENTION-CHECKPOINT-1（2026-07-01）：
 
 ---
 
+## Audit logs visibility
+
+Phase AUDIT-UI-1a + AUDIT-UI-1b + Final Deploy + Post-Deploy Smoke（2026-07-01）：
+
+| 項目 | 值 |
+|------|-----|
+| AUDIT-UI-1a commit | `7f734e6` — Add admin audit log query API |
+| AUDIT-UI-1b commit | `568ceea` — Add admin audit log page |
+| Production Version ID | `537d7889-4300-420a-869d-4b21a6b10011` |
+| Admin-only API | `GET /api/admin/audit-logs` |
+| Admin 頁面 | `/admin/audit-logs` |
+| 側欄入口 | **系統設定 → 審計日誌**（在登入日誌下方） |
+| 功能 | 只讀列表；filters（action / entityType / entityId / userId / dateFrom / dateTo / limit）；cursor 載入更多；metadata 預設摺疊、展開為純文字 JSON |
+| 權限 | **Admin only** — Staff 無 nav 入口；API 與頁面需 Admin 權限 |
+| 未做 | export、delete、retention、purge |
+| D1 migration | **無**（沿用既有 `audit_logs` 表） |
+
+### Post-deploy smoke
+
+| 檢查 | 結果 |
+|------|------|
+| 未登入 `GET /api/health` | **HTTP 302** → Cloudflare Access（正常） |
+| 未登入 `GET /admin/audit-logs` | **HTTP 302** → Cloudflare Access（正常） |
+| 未登入 `GET /api/admin/audit-logs` | **HTTP 302** → Cloudflare Access（正常） |
+| Admin OTP 登入後 nav / 列表 / filters / metadata 摺疊 | ⬜ **待人工 OTP 確認** |
+| Staff OTP 登入後無 nav / 無法訪問 `/admin/audit-logs` | ⬜ **待人工 OTP 確認** |
+
+**後續候選：** audit export（CSV / JSON）、`audit_logs` retention policy、action 人類可讀 label 優化。
+
+---
+
 ## 3. 最新安全邊界
 
 ### 一般 CRM
@@ -218,6 +264,10 @@ Phase R2-RETENTION-1B Verify + R2-RETENTION-CHECKPOINT-1（2026-07-01）：
 | A1 | Help Center AI 資料範圍 | 三語（繁 / 簡 / EN）顯示正常，無裸 i18n key |
 | A2 | AI panel（測試客戶） | **單次** refresh 正常；cooldown 命中時顯示安全提示 |
 | A3 | System Online / customers / public pool / notifications | 基本載入與導航正常 |
+| AL1 | Admin 側欄 **系統設定 → 審計日誌** | 可進入 `/admin/audit-logs`；列表可載入 |
+| AL2 | Audit 列表 / metadata 摺疊 | 時間、操作者、action、entity 欄位正常；metadata 預設摺疊、展開為 JSON |
+| AL3 | Audit filters / 載入更多 | action / entityType / date 篩選可用；清除恢復；載入更多可用 |
+| AL4 | Staff 無審計日誌入口 | 側欄無「審計日誌」；直接訪問 `/admin/audit-logs` 被拒絕或導向 |
 
 ---
 
@@ -225,20 +275,29 @@ Phase R2-RETENTION-1B Verify + R2-RETENTION-CHECKPOINT-1（2026-07-01）：
 
 以下為規劃候選，**本 checkpoint 未實作**：
 
-1. **Production smoke checklist 人工補勾** — 完成 §4 各項並記錄於 checklist
+1. **Production smoke checklist 人工補勾** — 完成 §4 各項（含 AL1–AL4）並記錄於 checklist
 2. **Backup cron / restore flow 檢查** — 備份可還原性與 runbook 對照
-3. **Audit logs 是否需要入口檢查** — Admin 是否需 audit 查詢 UI
-4. **真正 `merge_customers` 完整產品設計** — schema、canonical ID、衝突解決、migration
-5. **AI notes / follow-ups 內嵌聯絡方式遮罩設計** — AI-2g-5 候選
-6. **AI-2g-4：** 可選 Admin setting 控制 AI 是否可使用敏感聯絡資料
-7. **AI-2e / AI-2f：** fallback provider、成本 / token 估算與日限額
-8. **Public pool 更完整 API 測試** — claim / list 整合測
-9. **UI polish** — 空狀態、loading、錯誤提示一致性
-10. **Sales stages Admin CRUD** — 若需可配置階段，需 schema + migration 設計
+3. **Audit logs OTP smoke 補勾** — 完成 AL1–AL4 人工確認
+4. **Audit export / retention / action labels** — 見「Audit logs visibility」後續候選
+5. **真正 `merge_customers` 完整產品設計** — schema、canonical ID、衝突解決、migration
+6. **AI notes / follow-ups 內嵌聯絡方式遮罩設計** — AI-2g-5 候選
+7. **AI-2g-4：** 可選 Admin setting 控制 AI 是否可使用敏感聯絡資料
+8. **AI-2e / AI-2f：** fallback provider、成本 / token 估算與日限額
+9. **Public pool 更完整 API 測試** — claim / list 整合測
+10. **UI polish** — 空狀態、loading、錯誤提示一致性
+11. **Sales stages Admin CRUD** — 若需可配置階段，需 schema + migration 設計
 
 ---
 
 ## 回退參考
+
+**Git revert（AUDIT-UI-1 only）：**
+
+```bash
+git revert 568ceea 7f734e6
+git push
+npm run deploy
+```
 
 **Git revert（MERGE-SAFE-1 only）：**
 
