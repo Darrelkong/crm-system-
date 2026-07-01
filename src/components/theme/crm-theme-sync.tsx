@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import {
   applyCrmThemeToDocument,
   ensureCrmThemeOnDocument,
@@ -10,14 +11,15 @@ import {
 /** Subscribes to shared CRM theme store so document stays in sync after hydration. */
 export function CrmThemeSync() {
   const theme = useCrmTheme();
+  const pathname = usePathname();
 
   useEffect(() => {
     ensureCrmThemeOnDocument();
   }, []);
 
   useEffect(() => {
-    applyCrmThemeToDocument(theme);
-  }, [theme]);
+    applyCrmThemeToDocument(theme, pathname);
+  }, [theme, pathname]);
 
   return null;
 }

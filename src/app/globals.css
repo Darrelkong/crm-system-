@@ -66,6 +66,7 @@ html {
 html[data-theme="light"],
 :root:not([data-theme]) {
   color-scheme: light;
+  background-color: var(--color-crm-bg);
 }
 
 html[data-theme="dark"] {

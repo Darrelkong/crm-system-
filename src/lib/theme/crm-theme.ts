@@ -3,8 +3,15 @@
 import { useCallback, useSyncExternalStore } from "react";
 import {
   CRM_THEME_COLOR_DARK,
-  CRM_THEME_COLOR_LIGHT,
   CRM_THEME_STORAGE_KEY,
+  resolveCrmThemeColor,
+  setCrmThemeColorMeta,
+} from "@/lib/theme/crm-theme-bootstrap";
+
+export {
+  CRM_THEME_COLOR_DARK,
+  CRM_THEME_COLOR_LIGHT,
+  CRM_THEME_COLOR_LOGIN_LIGHT,
 } from "@/lib/theme/crm-theme-bootstrap";
 
 export { CRM_THEME_STORAGE_KEY } from "@/lib/theme/crm-theme-bootstrap";
@@ -24,23 +31,25 @@ export function readCrmTheme(): CrmTheme {
   }
 }
 
-export function applyCrmThemeToDocument(theme: CrmTheme): void {
+export function applyCrmThemeToDocument(
+  theme: CrmTheme,
+  pathname?: string | null,
+): void {
   if (typeof document === "undefined") {
     return;
   }
 
+  const path =
+    pathname ??
+    (typeof window !== "undefined" ? window.location.pathname : null);
+
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
 
-  const color =
-    theme === "dark" ? CRM_THEME_COLOR_DARK : CRM_THEME_COLOR_LIGHT;
-  let meta = document.querySelector('meta[name="theme-color"]');
-  if (!meta) {
-    meta = document.createElement("meta");
-    meta.setAttribute("name", "theme-color");
-    document.head.appendChild(meta);
-  }
-  meta.setAttribute("content", color);
+  const color = resolveCrmThemeColor(theme, path);
+  setCrmThemeColorMeta(color);
+  document.documentElement.style.backgroundColor = color;
+  document.body.style.backgroundColor = color;
 }
 
 export function writeCrmTheme(theme: CrmTheme): void {
