@@ -217,13 +217,101 @@ npx wrangler d1 export crm-db --remote --output=pre-restore-$(date +%Y%m%d-%H%M)
 
 ---
 
+## R2 backup retention policy
+
+Phase R2-RETENTION-CHECK-1（2026-07-01）只讀檢查結論；**本文檔記錄建議方案，尚未在 Cloudflare 執行設定**（待 R2-RETENTION-1B）。
+
+### 1. 目前狀態
+
+| 項目 | 現況（檢查時點） |
+|------|------------------|
+| R2 bucket | `crm-attachments`（與主應用 `ATTACHMENTS` 綁定相同） |
+| Backup prefix | `backups/` |
+| Backup 檔名 | `crm-backup-{timestamp}.json`（完整 key：`backups/crm-backup-…`） |
+| R2 object 數量 | **8** 個 |
+| Bucket 大小 | 約 **1.64 MB** |
+| `backups/` expiration lifecycle | **無** |
+| 既有 lifecycle | 僅 Cloudflare 預設 **Default Multipart Abort Rule**（7 天後中止未完成 multipart upload；套用在所有 prefix） |
+| Backup cleanup cron / 刪除 API | **無** |
+
+### 2. 建議策略
+
+| 項目 | 說明 |
+|------|------|
+| 機制 | Cloudflare R2 **lifecycle expiration** |
+| 範圍 | **僅** prefix `backups/` |
+| 保留天數 | **90 天**（與 CRM 回收站 soft-delete 保留期一致） |
+| 對 90 天內備份 | **不影響**；僅在物件建立滿 90 天後由 R2 自動刪除 |
+| 程式碼 | **不改** src、API、backup cron |
+| R2 key 命名 | **不改** `backups/crm-backup-{timestamp}.json` |
+
+### 3. 操作前檢查
+
+設定 lifecycle **之前**，負責人須確認：
+
+- [ ] Lifecycle rule 的 **prefix 為 `backups/`**（含尾隨斜線與 Dashboard 欄位格式以當時 UI 為準）
+- [ ] **不要**將 expiration 套用到**整個 bucket**（未來客戶附件可能使用其他 prefix）
+- [ ] **不要**影響未來 attachments 所用 prefix（目前附件功能尚未上線，但 bucket 設計為共用）
+- [ ] 現有備份皆在 **90 天內**，設定後**不會立即刪除**現有物件
+- [ ] 記錄設定前的 `object_count` 與 `bucket_size`（可透過 Cloudflare Dashboard 或 `wrangler r2 bucket info crm-attachments` **只讀**查詢）
+- [ ] 記錄 Cloudflare Dashboard 設定截圖或變更時間、操作者
+
+### 4. 設定方式
+
+**以 Cloudflare Dashboard 當前 UI 為準**（欄位名稱可能隨產品更新而變動）。建議路徑：
+
+1. 登入 Cloudflare Dashboard
+2. **R2** → 選擇 bucket **`crm-attachments`**
+3. **Settings**（或 **Lifecycle rules** / **Object lifecycle** 等同等入口）
+4. **Add rule** / **Create lifecycle rule**
+5. 設定：
+   - **Prefix / Filter：** `backups/`
+   - **Action：** Expire objects / Delete objects after age（以 UI 實際選項為準）
+   - **Age：** **90 days**
+6. 儲存前再次核對 prefix **僅**為 `backups/`
+
+**注意：** 本文檔**不提供**會直接刪除資料的 CLI 一鍵命令。若日後以 Infrastructure-as-Code 管理 lifecycle，須另開變更單並在測試 bucket 驗證後才套用 production。
+
+### 5. 設定後驗證
+
+設定完成後（R2-RETENTION-1B），**只讀**確認：
+
+- [ ] Lifecycle rule 已存在且 **enabled**
+- [ ] Prefix / filter 為 **`backups/`**
+- [ ] Expiration age 為 **90 days**
+- [ ] **不要**手動刪除現有 backup 物件以「測試」規則
+- [ ] **不要**下載 backup JSON 內容
+- [ ] **不要**手動執行 backup
+- [ ] 等下一輪 backup cron（HKT **05:00**）後，確認新 `scheduled` job 仍為 `completed`（查 `backup_jobs` 或 Admin `/admin/backups`）
+
+### 6. backup_jobs metadata 注意
+
+| 行為 | 說明 |
+|------|------|
+| R2 lifecycle 刪除物件後 | `backup_jobs` 表內對應列**仍可能**保留 `status: completed` 與 `file_name` |
+| 原因 | 目前**無** R2 刪除事件回寫 D1 的機制 |
+| 影響 | Admin 列表可能顯示「已完成」但 R2 檔已不存在——屬**已知行為** |
+| 後續 | 可另做 **R2-RETENTION-2**：在 UI 標記「R2 已過期 / 物件不存在」（只讀檢查，不實作於本階段） |
+
+### 7. 禁止事項
+
+| 禁止 | 說明 |
+|------|------|
+| Lifecycle 套到整個 bucket | 會誤刪未來 attachments 或非備份物件 |
+| 手動刪除 R2 backup 以測試 | 備份為災難恢復最後防線 |
+| 下載 / 分享 backup JSON | 含客戶 PII；僅授權人員在 restore 流程中使用 |
+| 未確認 prefix 即儲存 lifecycle | 高風險誤刪 |
+| 以 cleanup cron **取代** lifecycle | 本階段採 Dashboard lifecycle 即可；cron 刪除需另案設計與 audit |
+
+---
+
 ## 7. 明確禁止事項
 
 | 禁止 | 說明 |
 |------|------|
 | **直接在 production 執行未驗證 SQL** | 所有 DDL/DML 批量腳本須先在測試 D1 跑過 |
 | **直接覆蓋 production D1** | 未經維護窗口與雙人確認禁止 |
-| **刪除 R2 backup** | 備份為最後防線；清理須有 retention 政策與審批（待補） |
+| **刪除 R2 backup** | 備份為最後防線；**未授權禁止手動刪除**。自動 retention 僅能依 [R2 backup retention policy](#r2-backup-retention-policy) 在 Cloudflare 設定 `backups/` 90 天 lifecycle，且須先完成操作前檢查 |
 | **將 backup JSON 傳給非授權人** | 含客戶與營運資料，依資料保護規範處理 |
 | **未通知團隊即 restore** | 可能造成登入失效、資料覆蓋與業務中斷 |
 | **在文檔或 ticket 寫入 API key / secret** | 使用 wrangler OAuth 或 Secrets Store，勿明文保存 |
@@ -239,7 +327,8 @@ npx wrangler d1 export crm-db --remote --output=pre-restore-$(date +%Y%m%d-%H%M)
 | **Restore dry-run script** | 對測試 D1 解析 R2 JSON 並報告將寫入的列數，不實際寫入 |
 | **Restore to test D1 script** | 一鍵將指定 `backup_jobs.file_name` replay 到測試庫 |
 | **Admin download backup 權限設計** | 是否允許 Admin 從 UI 下載 JSON；審計與 Access 策略 |
-| **R2 retention policy** | 自動清理舊備份的規則與例外 |
+| **R2 lifecycle 實際設定（R2-RETENTION-1B）** | 依本文「R2 backup retention policy」在 Dashboard 啟用 `backups/` 90 天 expiration |
+| **backup_jobs 過期標記 UI（R2-RETENTION-2）** | lifecycle 刪除 R2 後，UI 標記物件已不存在 |
 | **Backup integrity test** | 定期驗證 JSON 結構與表覆蓋（可整合 CI） |
 | **Backup restore drill** | 季度演練：測試 D1 還原 + smoke，更新本 runbook |
 
@@ -253,4 +342,4 @@ npx wrangler d1 export crm-db --remote --output=pre-restore-$(date +%Y%m%d-%H%M)
 
 ---
 
-*最後更新：BACKUP-RESTORE-DOC-1（備份 export 已含 21 表；restore 仍為人工流程）*
+*最後更新：R2-RETENTION-1A（R2 `backups/` 90 天 retention 文檔；尚未設定 Cloudflare lifecycle）*
