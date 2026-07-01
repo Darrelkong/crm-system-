@@ -219,19 +219,29 @@ npx wrangler d1 export crm-db --remote --output=pre-restore-$(date +%Y%m%d-%H%M)
 
 ## R2 backup retention policy
 
-Phase R2-RETENTION-CHECK-1（2026-07-01）只讀檢查結論；**本文檔記錄建議方案，尚未在 Cloudflare 執行設定**（待 R2-RETENTION-1B）。
+Phase R2-RETENTION-CHECK-1（2026-07-01）檢查 → R2-RETENTION-1A 文檔 → **R2-RETENTION-1B 已於 Cloudflare 設定並驗證**（2026-07-01）。
+
+### 目前已生效（運維摘要）
+
+| 項目 | 說明 |
+|------|------|
+| R2 retention | **已設定完成** — rule `backups`，prefix `backups/`，**90 天**後 lifecycle 自動過期刪除 |
+| 對現有備份 | 建立未滿 90 天的物件**不受影響**；滿 90 天後由 R2 自動刪除 |
+| `backup_jobs` | **可能仍保留** `completed` metadata，即使對應 R2 object 已被 lifecycle 清除——**已知行為** |
+| 災難恢復資料源 | 優先使用 **90 天內仍存在的** R2 backup，或 **migration 前** `wrangler d1 export` SQL |
+| lifecycle ≠ restore | lifecycle 只管理 R2 物件壽命；**restore 仍須**測試 D1 驗證 + 維護窗口（見 §6） |
 
 ### 1. 目前狀態
 
-| 項目 | 現況（檢查時點） |
-|------|------------------|
+| 項目 | 現況（R2-RETENTION-1B 驗證時點） |
+|------|----------------------------------|
 | R2 bucket | `crm-attachments`（與主應用 `ATTACHMENTS` 綁定相同） |
 | Backup prefix | `backups/` |
 | Backup 檔名 | `crm-backup-{timestamp}.json`（完整 key：`backups/crm-backup-…`） |
 | R2 object 數量 | **8** 個 |
 | Bucket 大小 | 約 **1.64 MB** |
-| `backups/` expiration lifecycle | **無** |
-| 既有 lifecycle | 僅 Cloudflare 預設 **Default Multipart Abort Rule**（7 天後中止未完成 multipart upload；套用在所有 prefix） |
+| `backups/` expiration lifecycle | **已啟用** — rule `backups`，**Expire objects after 90 days**，prefix `backups/` |
+| 既有 lifecycle | **Default Multipart Abort Rule**（7 天；all prefixes）+ **`backups/` 90 天 expiration** |
 | Backup cleanup cron / 刪除 API | **無** |
 
 ### 2. 建議策略
@@ -274,15 +284,20 @@ Phase R2-RETENTION-CHECK-1（2026-07-01）只讀檢查結論；**本文檔記錄
 
 ### 5. 設定後驗證
 
-設定完成後（R2-RETENTION-1B），**只讀**確認：
+R2-RETENTION-1B（2026-07-01）**已通過**只讀確認：
 
-- [ ] Lifecycle rule 已存在且 **enabled**
-- [ ] Prefix / filter 為 **`backups/`**
-- [ ] Expiration age 為 **90 days**
+- [x] Lifecycle rule 已存在且 **enabled**（name: `backups`）
+- [x] Prefix / filter 為 **`backups/`**
+- [x] Expiration age 為 **90 days**
+- [x] **Default Multipart Abort Rule** 仍保留（7 days，all prefixes）
+- [x] **未**將 object expiration 套用到整個 bucket
+- [x] 設定後 `object_count` 仍為 **8**，`bucket_size` **1.64 MB**（未刪除現有物件）
+
+**待觀察（非阻斷）：**
+
+- [ ] 下一輪 backup cron（HKT **05:00**）後，新 `scheduled` job 仍為 `completed`
 - [ ] **不要**手動刪除現有 backup 物件以「測試」規則
-- [ ] **不要**下載 backup JSON 內容
-- [ ] **不要**手動執行 backup
-- [ ] 等下一輪 backup cron（HKT **05:00**）後，確認新 `scheduled` job 仍為 `completed`（查 `backup_jobs` 或 Admin `/admin/backups`）
+- [ ] **不要**下載 backup JSON 內容驗證 lifecycle
 
 ### 6. backup_jobs metadata 注意
 
@@ -311,7 +326,7 @@ Phase R2-RETENTION-CHECK-1（2026-07-01）只讀檢查結論；**本文檔記錄
 |------|------|
 | **直接在 production 執行未驗證 SQL** | 所有 DDL/DML 批量腳本須先在測試 D1 跑過 |
 | **直接覆蓋 production D1** | 未經維護窗口與雙人確認禁止 |
-| **刪除 R2 backup** | 備份為最後防線；**未授權禁止手動刪除**。自動 retention 僅能依 [R2 backup retention policy](#r2-backup-retention-policy) 在 Cloudflare 設定 `backups/` 90 天 lifecycle，且須先完成操作前檢查 |
+| **刪除 R2 backup** | 備份為最後防線；**未授權禁止手動刪除**。`backups/` 已設 **90 天 lifecycle** 自動過期；變更規則須先完成 [操作前檢查](#3-操作前檢查) |
 | **將 backup JSON 傳給非授權人** | 含客戶與營運資料，依資料保護規範處理 |
 | **未通知團隊即 restore** | 可能造成登入失效、資料覆蓋與業務中斷 |
 | **在文檔或 ticket 寫入 API key / secret** | 使用 wrangler OAuth 或 Secrets Store，勿明文保存 |
@@ -327,7 +342,6 @@ Phase R2-RETENTION-CHECK-1（2026-07-01）只讀檢查結論；**本文檔記錄
 | **Restore dry-run script** | 對測試 D1 解析 R2 JSON 並報告將寫入的列數，不實際寫入 |
 | **Restore to test D1 script** | 一鍵將指定 `backup_jobs.file_name` replay 到測試庫 |
 | **Admin download backup 權限設計** | 是否允許 Admin 從 UI 下載 JSON；審計與 Access 策略 |
-| **R2 lifecycle 實際設定（R2-RETENTION-1B）** | 依本文「R2 backup retention policy」在 Dashboard 啟用 `backups/` 90 天 expiration |
 | **backup_jobs 過期標記 UI（R2-RETENTION-2）** | lifecycle 刪除 R2 後，UI 標記物件已不存在 |
 | **Backup integrity test** | 定期驗證 JSON 結構與表覆蓋（可整合 CI） |
 | **Backup restore drill** | 季度演練：測試 D1 還原 + smoke，更新本 runbook |
@@ -342,4 +356,4 @@ Phase R2-RETENTION-CHECK-1（2026-07-01）只讀檢查結論；**本文檔記錄
 
 ---
 
-*最後更新：R2-RETENTION-1A（R2 `backups/` 90 天 retention 文檔；尚未設定 Cloudflare lifecycle）*
+*最後更新：R2-RETENTION-CHECKPOINT-1（`backups/` 90 天 lifecycle 已生效；2026-07-01 驗證）*

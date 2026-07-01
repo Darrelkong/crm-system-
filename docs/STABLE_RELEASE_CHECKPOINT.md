@@ -1,7 +1,7 @@
 # CRM Stable Release Checkpoint
 
 **建立：** Phase RELEASE-CHECKPOINT-1（2026-06-30）  
-**更新：** Phase R2-RETENTION-1A（2026-07-01）— R2 backup 90 天 retention runbook 文檔（尚未設定 Cloudflare lifecycle）  
+**更新：** Phase R2-RETENTION-CHECKPOINT-1（2026-07-01）— R2 `backups/` 90 天 lifecycle 已生效並記錄  
 **用途：** 記錄當前穩定版本基線，方便未來回溯、deploy 對照與 rollback 決策。  
 **相關：** [SYSTEM_MAP.md](./SYSTEM_MAP.md) · [DEPLOY_RUNBOOK.md](./DEPLOY_RUNBOOK.md) · [BACKUP_RESTORE_RUNBOOK.md](./BACKUP_RESTORE_RUNBOOK.md) · [PRODUCTION_SMOKE_CHECKLIST.md](./PRODUCTION_SMOKE_CHECKLIST.md) · [TESTING.md](./TESTING.md)
 
@@ -135,17 +135,25 @@ Phase BACKUP-VERIFY-1 只讀驗證結果（2026-07-01）。
 
 ---
 
-## R2 backup retention（檢查與建議）
+## R2 backup retention lifecycle
 
-Phase R2-RETENTION-CHECK-1 只讀檢查（2026-07-01）：
+Phase R2-RETENTION-1B Verify + R2-RETENTION-CHECKPOINT-1（2026-07-01）：
 
-| 項目 | 狀態 |
-|------|------|
-| R2 retention 檢查 | **已完成**（見檢查報告；無 lifecycle expiration） |
-| 推薦策略 | Cloudflare R2 lifecycle：**prefix `backups/`**，**90 天**後自動刪除 |
-| 與回收站對齊 | 90 天與客戶回收站 soft-delete 保留期一致 |
-| Cloudflare lifecycle 實際設定 | **尚未執行**（文檔見 `BACKUP_RESTORE_RUNBOOK.md` § R2 backup retention policy） |
-| 後續候選 | **R2-RETENTION-1B** — 人工於 Dashboard 設定 90 天 lifecycle 並只讀驗證 |
+| 項目 | 值 |
+|------|-----|
+| R2 bucket | `crm-attachments` |
+| Lifecycle rule name | `backups` |
+| Prefix | `backups/` |
+| Expiration | **90 days** |
+| Default Multipart Abort Rule | **仍保留** — 7 days，`(all prefixes)`；僅中止未完成 multipart upload |
+| 整 bucket object expiration | **無** — expiration 僅套用 `backups/` prefix |
+| 設定驗證時間 | **2026-07-01** |
+| object_count | **8** |
+| bucket_size | **1.64 MB** |
+
+**結論：** `backups/` 90 天保留策略**已生效**；現有備份均在 90 天內，**未被刪除**。`backup_jobs` metadata 可能長期保留 `completed` 記錄，即使 R2 物件日後被 lifecycle 清除（見 `BACKUP_RESTORE_RUNBOOK.md`）。
+
+**後續候選：** R2-RETENTION-2 — Admin UI 標記 R2 物件已過期 / 不存在。
 
 ---
 
