@@ -37,9 +37,9 @@ npm run db:seed:local
 
 | 命令 | 說明 |
 |------|------|
-| `npm run test:unit` | 33 個純單元測試（無 D1；含 `backup/export-data.test.ts` 表覆蓋、`audit/queries.test.ts`） |
+| `npm run test:unit` | 35 個純單元測試（無 D1；含 `audit/queries.test.ts`、`audit/ui-helpers.test.ts`、`layout/nav-links.test.ts`） |
 | `npm run test:db` | 17 個 local D1 整合測試（固定 `CRM_ALLOW_TEST_DB_BIND=1`、`--test-concurrency=1`；含 backup export 整合、`audit/audit-api.test.ts`） |
-| `npm run test` | `test:unit` + `test:db`（全部 50 個 `*.test.ts`） |
+| `npm run test` | `test:unit` + `test:db`（全部 52 個 `*.test.ts`） |
 | `npm run test:help` | Help Center 角色過濾 |
 | `npm run test:public-pool` | 公共池 display + claim limits |
 | `npm run test:permissions` | 敏感欄位 + assignee 權限（純單元） |
@@ -66,6 +66,7 @@ npm run db:seed:local
 | 改 notifications 連結 / orphan fallback | `npm run test:unit`（含 `notification-href.test.ts`）+ `npm run test:db`（含 `notifications/queries.test.ts`） |
 | 改 backup export 覆蓋 / 備份表清單 | `npm run test:unit`（含 `backup/export-data.test.ts` 表覆蓋）+ `npm run test:db`（含 backup export D1 整合） |
 | 改 Admin audit logs 只讀 API / 查詢層 | `npm run test:unit`（含 `audit/queries.test.ts`）+ `npm run test:db`（含 `audit/audit-api.test.ts`） |
+| 改 Admin audit logs 頁面 / nav / UI helper | `npm run test:unit`（含 `audit/ui-helpers.test.ts`、`layout/nav-links.test.ts`） |
 | 改 AI provider / insight 錯誤處理 / refresh cooldown / context sanitize | `npm run test:unit`（含 `error-mapping.test.ts`、`cooldown.test.ts`、`context-sanitize.test.ts` 等）+ `npm run test:db`（含 `service-cooldown.test.ts`） |
 | **Deploy 前（完整）** | `npm run test:regression:full` |
 

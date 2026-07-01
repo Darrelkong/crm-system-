@@ -54,6 +54,11 @@ const adminSystemSettingsChildren: NavLink[] = [
     icon: "loginLogs",
   },
   {
+    href: "/admin/audit-logs",
+    labelKey: "nav.auditLogs",
+    icon: "auditLogs",
+  },
+  {
     href: "/admin/settings/security",
     labelKey: "nav.securityPolicies",
     icon: "securityPolicies",

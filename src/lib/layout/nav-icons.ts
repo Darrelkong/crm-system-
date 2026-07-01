@@ -4,6 +4,7 @@ import {
   Bell,
   CheckSquare,
   CircleHelp,
+  ClipboardList,
   Database,
   Download,
   FileText,
@@ -39,6 +40,7 @@ export type NavIconId =
   | "recycleBin"
   | "systemSettings"
   | "loginLogs"
+  | "auditLogs"
   | "securityPolicies"
   | "backups"
   | "customerImport"
@@ -62,6 +64,7 @@ export const navIcons: Record<NavIconId, LucideIcon> = {
   recycleBin: Trash2,
   systemSettings: Settings,
   loginLogs: ScrollText,
+  auditLogs: ClipboardList,
   securityPolicies: Shield,
   backups: Database,
   customerImport: Upload,
