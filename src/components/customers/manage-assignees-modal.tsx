@@ -6,6 +6,9 @@ import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError } from "@/i18n/resolve-api-error";
+import { ui } from "@/lib/ui/classes";
+
+const cd = ui.customerDetail;
 
 type StaffSummary = {
   id: string;
@@ -99,7 +102,7 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-md border border-[#D5DCE8] px-2.5 py-1 text-xs font-medium text-[#2563EB] hover:bg-[#F4F7FB]"
+        className="customer-detail-action-btn px-2.5 py-1 text-xs"
       >
         {t("customers.manageCollaborators")}
       </button>
@@ -114,7 +117,7 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
       }}
     >
       <ModalPanel className="max-h-[90vh] w-full max-w-lg overflow-y-auto">
-        <h3 className="text-lg font-semibold text-[#172033]">
+        <h3 className={cd.subsectionTitle}>
           {t("customers.manageCollaborators")}
         </h3>
 
@@ -126,13 +129,13 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
 
         <div className="mt-4 space-y-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+            <p className={cd.sectionTitle}>
               {t("customers.primaryOwner")}
             </p>
-            <p className="mt-1 text-sm text-[#172033]">
+            <p className={`mt-1 text-sm ${cd.value}`}>
               {owner?.name ?? t("customers.unknownStaff")}
               {owner?.email ? (
-                <span className="mt-0.5 block text-xs text-[#6B7890]">
+                <span className={`mt-0.5 block text-xs ${cd.muted}`}>
                   {owner.email}
                 </span>
               ) : null}
@@ -140,24 +143,24 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
           </div>
 
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+            <p className={cd.sectionTitle}>
               {t("customers.collaborators")}
             </p>
-            <p className="mt-1 text-sm text-[#6B7890]">
+            <p className={`mt-1 text-sm ${cd.muted}`}>
               {t("customers.selectCollaborators")}
             </p>
 
             {loading ? (
-              <p className="mt-3 text-sm text-[#6B7890]">{t("common.loading")}</p>
+              <p className={`mt-3 text-sm ${cd.muted}`}>{t("common.loading")}</p>
             ) : availableStaff.length === 0 ? (
-              <p className="mt-3 text-sm text-[#6B7890]">
+              <p className={`mt-3 text-sm ${cd.muted}`}>
                 {t("customers.noCollaboratorsYet")}
               </p>
             ) : (
-              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto rounded-lg border border-[#E8EDF5] p-3">
+              <ul className="mt-3 max-h-56 space-y-2 overflow-y-auto rounded-lg border crm-border p-3">
                 {availableStaff.map((staff) => (
                   <li key={staff.id}>
-                    <label className="flex cursor-pointer items-start gap-2 text-sm text-[#172033]">
+                    <label className={`flex cursor-pointer items-start gap-2 text-sm ${cd.value}`}>
                       <input
                         type="checkbox"
                         className="mt-1"
@@ -166,7 +169,7 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
                       />
                       <span>
                         {staff.name}
-                        <span className="mt-0.5 block text-xs text-[#6B7890]">
+                        <span className={`mt-0.5 block text-xs ${cd.muted}`}>
                           {staff.email}
                         </span>
                       </span>

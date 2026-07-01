@@ -8,12 +8,15 @@ import type {
   CustomerAiInsightView,
 } from "@/lib/ai/customer-insights/service";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { ui } from "@/lib/ui/classes";
+
+const cd = ui.customerDetail;
 
 const INTENT_BADGE_CLASS: Record<string, string> = {
   high: "bg-emerald-50 text-emerald-800 ring-emerald-200",
   medium: "bg-amber-50 text-amber-800 ring-amber-200",
-  low: "bg-[#EEF3F8] text-[#6B7890] ring-[#E3E8F0]",
-  unknown: "bg-[#EEF3F8] text-[#6B7890] ring-[#E3E8F0]",
+  low: cd.badgeNeutral,
+  unknown: cd.badgeNeutral,
 };
 
 type InsightBundle = {
@@ -42,22 +45,22 @@ function SignalList({
       ? "bg-green-500"
       : variant === "risk"
         ? "bg-amber-500"
-        : "bg-[#6B7890]";
+        : "bg-slate-400";
 
   return (
     <div>
-      <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">{title}</h4>
+      <h4 className={cd.sectionTitle}>{title}</h4>
       {items.length > 0 ? (
         <ul className="mt-2 space-y-1.5">
           {items.map((item) => (
-            <li key={item} className="flex gap-2 text-sm text-[#172033]">
+            <li key={item} className={`flex gap-2 text-sm ${cd.value}`}>
               <span className={`mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full ${dotClass}`} />
               <span>{item}</span>
             </li>
           ))}
         </ul>
       ) : (
-        <p className="mt-2 text-sm text-[#6B7890]">{emptyText}</p>
+        <p className={`mt-2 text-sm ${cd.muted}`}>{emptyText}</p>
       )}
     </div>
   );
@@ -200,15 +203,15 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
     <Card className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-[#172033]">{t("customers.aiInsight.title")}</h3>
-          <p className="mt-1 text-xs text-[#6B7890]">{t("customers.aiInsight.disclaimer")}</p>
+          <h3 className={cd.subsectionTitle}>{t("customers.aiInsight.title")}</h3>
+          <p className={`mt-1 text-xs ${cd.muted}`}>{t("customers.aiInsight.disclaimer")}</p>
         </div>
         {!restricted && display.canRefresh && (
           <button
             type="button"
             onClick={() => void handleRefresh()}
             disabled={loading || refreshing}
-            className="rounded-md border border-[#C5DAF0] bg-[#E8F1FA] px-3 py-1.5 text-sm font-medium text-[#1F4E79] hover:bg-[#DCEAF7] disabled:cursor-not-allowed disabled:opacity-50"
+            className="customer-detail-action-btn px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {refreshing ? t("customers.aiInsight.refreshing") : t("customers.aiInsight.refresh")}
           </button>
@@ -220,7 +223,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
       )}
 
       {loading && (
-        <p className="mt-4 text-sm text-[#6B7890]">{t("customers.aiInsight.loading")}</p>
+        <p className={`mt-4 text-sm ${cd.muted}`}>{t("customers.aiInsight.loading")}</p>
       )}
 
       {!loading && restricted && (
@@ -235,7 +238,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
 
       {!loading && !restricted && !error && !insight && (
         <div className="surface-muted mt-4 p-4 text-center">
-          <p className="text-sm text-[#6B7890]">{t("customers.aiInsight.empty")}</p>
+          <p className={`text-sm ${cd.muted}`}>{t("customers.aiInsight.empty")}</p>
         </div>
       )}
 
@@ -249,7 +252,7 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
         <div className="mt-4 space-y-4">
           <div className="flex flex-wrap items-center gap-3">
             <div>
-              <p className="text-xs font-medium text-[#6B7890]">{t("customers.aiInsight.intentLevel")}</p>
+              <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.intentLevel")}</p>
               <span
                 className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${INTENT_BADGE_CLASS[insight.intentLevel] ?? INTENT_BADGE_CLASS.unknown}`}
               >
@@ -257,27 +260,27 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
               </span>
             </div>
             <div>
-              <p className="text-xs font-medium text-[#6B7890]">{t("customers.aiInsight.intentScore")}</p>
-              <p className="mt-1 text-lg font-semibold text-[#172033]">{insight.intentScore}</p>
+              <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.intentScore")}</p>
+              <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>{insight.intentScore}</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-[#6B7890]">{t("customers.aiInsight.confidence")}</p>
-              <p className="mt-1 text-sm text-[#172033]">{Math.round(insight.confidence * 100)}%</p>
+              <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.confidence")}</p>
+              <p className={`mt-1 text-sm ${cd.value}`}>{Math.round(insight.confidence * 100)}%</p>
             </div>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+            <h4 className={cd.sectionTitle}>
               {t("customers.aiInsight.customerSummary")}
             </h4>
-            <p className="mt-2 text-sm text-[#172033]">{insight.customerSummary}</p>
+            <p className={`mt-2 text-sm ${cd.value}`}>{insight.customerSummary}</p>
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+            <h4 className={cd.sectionTitle}>
               {t("customers.aiInsight.currentSituation")}
             </h4>
-            <p className="mt-2 text-sm text-[#172033]">{insight.currentSituation}</p>
+            <p className={`mt-2 text-sm ${cd.value}`}>{insight.currentSituation}</p>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -302,35 +305,35 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
           </div>
 
           <div>
-            <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+            <h4 className={cd.sectionTitle}>
               {t("customers.aiInsight.nextBestAction")}
             </h4>
-            <p className="mt-2 text-sm text-[#172033]">{insight.nextBestAction}</p>
+            <p className={`mt-2 text-sm ${cd.value}`}>{insight.nextBestAction}</p>
           </div>
 
           {insight.suggestedFollowUpAt && (
             <div>
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+              <h4 className={cd.sectionTitle}>
                 {t("customers.aiInsight.suggestedFollowUpAt")}
               </h4>
-              <p className="mt-2 text-sm text-[#172033]">
+              <p className={`mt-2 text-sm ${cd.value}`}>
                 {formatDateTime(insight.suggestedFollowUpAt)}
               </p>
             </div>
           )}
 
           {display.showDraftMessage && (
-            <div className="rounded-lg border border-[#C5DAF0] bg-[#E8F1FA] p-3">
-              <h4 className="text-xs font-semibold uppercase tracking-wide text-[#1F4E79]">
+            <div className={`customer-detail-callout p-3`}>
+              <h4 className="customer-detail-callout-title">
                 {t("customers.aiInsight.suggestedEmployeeMessage")}
               </h4>
-              <p className="mt-2 whitespace-pre-wrap text-sm text-[#172033]">
+              <p className={`mt-2 whitespace-pre-wrap text-sm ${cd.value}`}>
                 {insight.suggestedEmployeeMessage}
               </p>
             </div>
           )}
 
-          <p className="text-xs text-[#6B7890]">
+          <p className={`text-xs ${cd.muted}`}>
             {t("customers.aiInsight.generatedAt", {
               time: formatDateTime(insight.generatedAt) ?? insight.generatedAt,
             })}

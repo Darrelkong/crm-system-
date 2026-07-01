@@ -23,10 +23,8 @@ import { isTimeoutLoginReason } from "@/lib/auth/timeout-login-visits";
 import { fetchIpEmailRestrictionStatus } from "@/lib/auth/login-ip-restriction-client";
 import {
   LoginThemeToggle,
-  readStoredLoginTheme,
-  type LoginTheme,
-  LOGIN_THEME_STORAGE_KEY,
 } from "@/app/(auth)/login/login-theme-toggle";
+import { useToggleCrmTheme } from "@/lib/theme/crm-theme";
 import "./login-page.css";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
@@ -60,21 +58,7 @@ export function LoginForm() {
   const [ipRestrictedUntil, setIpRestrictedUntil] = useState<string | null>(
     null,
   );
-  const [theme, setTheme] = useState<LoginTheme>("light");
-  const [themeReady, setThemeReady] = useState(false);
-
-  useEffect(() => {
-    setTheme(readStoredLoginTheme());
-    setThemeReady(true);
-  }, []);
-
-  const toggleTheme = useCallback(() => {
-    setTheme((current) => {
-      const next: LoginTheme = current === "light" ? "dark" : "light";
-      localStorage.setItem(LOGIN_THEME_STORAGE_KEY, next);
-      return next;
-    });
-  }, []);
+  const [theme, toggleTheme] = useToggleCrmTheme();
 
   const reasonParam = searchParams.get("reason");
   const sessionEndParam = searchParams.get("session_end");
@@ -224,11 +208,7 @@ export function LoginForm() {
       </div>
 
       <div className="login-page__toolbar">
-        <LoginThemeToggle
-          theme={theme}
-          onToggle={toggleTheme}
-          themeReady={themeReady}
-        />
+        <LoginThemeToggle theme={theme} onToggle={toggleTheme} />
         <LanguageSwitcher />
       </div>
 

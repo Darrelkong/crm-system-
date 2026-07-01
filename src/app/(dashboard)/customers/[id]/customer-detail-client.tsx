@@ -24,6 +24,9 @@ import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { HeatReasonPart } from "@/lib/customers/scoring/heat";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { ui } from "@/lib/ui/classes";
+
+const cd = ui.customerDetail;
 
 type FollowUpRow = {
   id: string;
@@ -89,16 +92,24 @@ function DetailRow({
   label,
   value,
   action,
+  emphasis = "default",
 }: {
   label: string;
   value?: string | null;
   action?: React.ReactNode;
+  emphasis?: "default" | "strong" | "code";
 }) {
   if (!value && !action) return null;
+  const valueClass =
+    emphasis === "strong"
+      ? cd.strongValue
+      : emphasis === "code"
+        ? cd.codeValue
+        : cd.value;
   return (
-    <div className="flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4">
-      <dt className="shrink-0 text-[#6B7890] sm:w-36">{label}</dt>
-      <dd className="flex flex-wrap items-center gap-2 text-[#172033]">
+    <div className={`flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4 ${cd.row}`}>
+      <dt className={`shrink-0 sm:w-36 ${cd.label}`}>{label}</dt>
+      <dd className={`flex flex-wrap items-center gap-2 ${valueClass}`}>
         {value ? <span>{value}</span> : null}
         {action}
       </dd>
@@ -124,14 +135,14 @@ function MaskedContactDetailRow({
   if (!trimmed) return null;
 
   return (
-    <div className="flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4">
-      <dt className="shrink-0 text-[#6B7890] sm:w-36">{label}</dt>
-      <dd className="flex flex-wrap items-center gap-2 text-[#172033]">
+    <div className={`flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4 ${cd.row}`}>
+      <dt className={`shrink-0 sm:w-36 ${cd.label}`}>{label}</dt>
+      <dd className={`flex flex-wrap items-center gap-2 ${cd.value}`}>
         <span>{visible ? trimmed : CONTACT_MASK}</span>
         <button
           type="button"
           onClick={() => setVisible((prev) => !prev)}
-          className="inline-flex items-center justify-center rounded-md p-1 text-[#6B7890] transition-colors hover:bg-[#EEF2F7] hover:text-[#172033] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB]"
+          className={`inline-flex items-center justify-center rounded-md p-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#2563EB] ${cd.revealBtn}`}
           aria-label={visible ? hideLabel : showLabel}
         >
           {visible ? (
@@ -154,9 +165,7 @@ function SectionCard({
 }) {
   return (
     <section className="surface-card p-5 sm:p-6">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
-        {title}
-      </h3>
+      <h3 className={cd.sectionTitle}>{title}</h3>
       <div className="mt-3">{children}</div>
     </section>
   );
@@ -237,7 +246,7 @@ export function CustomerDetailClient({
           )}
           <Link
             href="/customers"
-            className="px-3 py-2 text-sm text-[#6B7890] hover:text-[#172033]"
+            className={`px-3 py-2 text-sm ${cd.backLink}`}
           >
             ← {t("customers.backToList")}
           </Link>
@@ -245,7 +254,7 @@ export function CustomerDetailClient({
       </div>
 
       {view.isArchived && (
-        <div className="surface-muted mb-4 p-4 text-sm text-[#172033]">
+        <div className="surface-muted mb-4 p-4 text-sm crm-text">
           <p className="font-medium">{t("customers.archivedNoticeTitle")}</p>
           <p className="mt-1">{t("customers.archivedNoticeBody")}</p>
         </div>
@@ -261,26 +270,38 @@ export function CustomerDetailClient({
         <div className="space-y-4 lg:col-span-2 lg:space-y-6">
           <SectionCard title={t("customers.basicInfo")}>
             <dl>
-              <DetailRow label={t("customers.clientName")} value={view.customerName} />
+              <DetailRow
+                label={t("customers.clientName")}
+                value={view.customerName}
+                emphasis="strong"
+              />
               {isAdmin && view.customerCode && (
                 <DetailRow
                   label={t("customers.uniqueIdentifier")}
                   value={view.customerCode}
+                  emphasis="code"
                 />
               )}
               <DetailRow
                 label={t("customers.clientType")}
                 value={customerType(view.customerType)}
+                emphasis="strong"
               />
               <DetailRow
                 label={t("customers.salesStage")}
                 value={salesStage(view.salesStage)}
+                emphasis="strong"
               />
-              <DetailRow label={t("customers.source")} value={source(view.source)} />
+              <DetailRow
+                label={t("customers.source")}
+                value={source(view.source)}
+                emphasis="strong"
+              />
               {!view.isMasked && (
                 <DetailRow
                   label={t("customers.requestedProjectName")}
                   value={view.requestedProjectName}
+                  emphasis="strong"
                 />
               )}
             </dl>
@@ -326,14 +347,14 @@ export function CustomerDetailClient({
 
           {followUps.length > 0 && (
             <section>
-              <h3 className="mb-3 text-base font-semibold text-[#172033]">
+              <h3 className={`mb-3 ${cd.subsectionTitle}`}>
                 {t("customers.followUpRecords")}
               </h3>
               <div className="space-y-3">
                 {followUps.map((fu) => (
                   <div key={fu.id} className="surface-card p-4">
                     <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className="font-medium text-[#172033]">
+                      <span className={`font-medium ${cd.strongValue}`}>
                         {formatHongKongDateTime(fu.followUpTime)}
                       </span>
                       <Badge>{followUpChannel(fu.channel)}</Badge>
@@ -344,9 +365,9 @@ export function CustomerDetailClient({
                         <Badge>{t("customers.invalidFollowUp")}</Badge>
                       )}
                     </div>
-                    <p className="mt-2 text-sm leading-relaxed text-[#172033]">{fu.summary}</p>
+                    <p className={`mt-2 text-sm leading-relaxed ${cd.value}`}>{fu.summary}</p>
                     {fu.nextFollowUpAt && (
-                      <p className="mt-1 text-xs text-[#6B7890]">
+                      <p className={`mt-1 text-xs ${cd.muted}`}>
                         {t("customers.nextFollowUpLabel")}
                         {formatHongKongDateTime(fu.nextFollowUpAt)}
                       </p>

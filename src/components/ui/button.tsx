@@ -6,11 +6,10 @@ type ButtonProps = React.ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const variants = {
-  primary:
-    "primary-button bg-[#2F6FB3] text-white hover:bg-[#255A91] active:bg-[#1F4E79] shadow-[0_2px_8px_rgba(47,111,179,0.28)] hover:-translate-y-px",
+  primary: "primary-button text-white hover:-translate-y-px",
   secondary: "secondary-button",
   danger: "bg-red-600 text-white hover:bg-red-700 shadow-sm",
-  ghost: "text-[#6B7890] hover:bg-[#E8F1FA] hover:text-[#172033]",
+  ghost: "ghost-button",
 };
 
 const sizes = {

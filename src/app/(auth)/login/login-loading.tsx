@@ -1,19 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { T } from "@/components/i18n/t";
-import {
-  readStoredLoginTheme,
-  type LoginTheme,
-} from "@/app/(auth)/login/login-theme-toggle";
+import { useCrmTheme } from "@/lib/theme/crm-theme";
 import "./login-page.css";
 
 export function LoginLoadingFallback() {
-  const [theme, setTheme] = useState<LoginTheme>("light");
-
-  useEffect(() => {
-    setTheme(readStoredLoginTheme());
-  }, []);
+  const theme = useCrmTheme();
 
   return (
     <div

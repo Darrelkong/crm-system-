@@ -55,7 +55,7 @@ export function DashboardShell({
             sidebarWidth,
           )}
         >
-          <div className="border-b border-[#E3E8F0] px-3 py-4">
+          <div className="border-b crm-border px-3 py-4">
             <div
               className={cn(
                 "flex items-center gap-2",
@@ -68,11 +68,11 @@ export function DashboardShell({
                   sidebarCollapsed && "justify-center",
                 )}
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#2F6FB3] text-sm font-bold text-white shadow-[0_2px_8px_rgba(47,111,179,0.3)]">
+                <div className="brand-logo flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-sm font-bold text-white">
                   EF
                 </div>
                 {!sidebarCollapsed && (
-                  <p className="truncate text-base font-semibold tracking-tight text-[#172033] sm:text-lg">
+                  <p className="truncate text-base font-semibold tracking-tight crm-text sm:text-lg">
                     {t("brand.crmName")}
                   </p>
                 )}
@@ -81,7 +81,7 @@ export function DashboardShell({
                 <button
                   type="button"
                   onClick={toggleSidebar}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#6B7890] hover:bg-[#E8F1FA]"
+                  className="sidebar-icon-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
                   aria-label={t("nav.collapseSidebar")}
                   title={t("nav.collapseSidebar")}
                 >
@@ -93,7 +93,7 @@ export function DashboardShell({
               <button
                 type="button"
                 onClick={toggleSidebar}
-                className="mt-3 flex h-9 w-full items-center justify-center rounded-lg text-[#6B7890] hover:bg-[#E8F1FA]"
+                className="sidebar-icon-btn mt-3 flex h-9 w-full items-center justify-center rounded-lg"
                 aria-label={t("nav.expandSidebar")}
                 title={t("nav.expandSidebar")}
               >
@@ -102,7 +102,7 @@ export function DashboardShell({
             )}
           </div>
           <SidebarNav groups={navGroups} collapsed={sidebarCollapsed} />
-          <div className="mt-auto border-t border-[#E3E8F0] p-2">
+          <div className="mt-auto border-t crm-border p-2">
             <AccountMenu
               userName={userName}
               role={role}
@@ -117,10 +117,10 @@ export function DashboardShell({
             contentPad,
           )}
         >
-          <header className="surface-panel sticky top-0 z-20 border-b border-[#E3E8F0] bg-white">
+          <header className="surface-panel sticky top-0 z-20 border-b pt-[env(safe-area-inset-top,0px)]">
             <div className="flex items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:py-4">
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-lg font-semibold tracking-tight text-[#172033] sm:text-xl">
+                <h1 className="page-title truncate text-lg sm:text-xl">
                   {t(titleKey)}
                 </h1>
               </div>
@@ -128,7 +128,7 @@ export function DashboardShell({
             </div>
           </header>
 
-          <main className={`${ui.page} pb-24 md:pb-8`}>{children}</main>
+          <main className={`crm-main-content ${ui.page} pb-24 md:pb-8`}>{children}</main>
         </div>
       </div>
 

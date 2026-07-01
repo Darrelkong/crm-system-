@@ -40,6 +40,7 @@ import {
   CUSTOMER_LIST_PAGE_SIZE,
   type CustomerCreatorOption,
 } from "@/lib/customers/queries";
+import { ui } from "@/lib/ui/classes";
 
 export type CustomerListRow = CustomerListRowData;
 
@@ -212,26 +213,24 @@ export function CustomersListClient({
   function AssignedStaffCell({ c }: { c: CustomerListRow }) {
     const { display, title } = assignedStaffDisplay(c);
     return (
-      <span className="text-[#172033]" title={title}>
+      <span className="crm-text" title={title}>
         {display}
       </span>
     );
   }
 
   function CustomerNameLink({ c }: { c: CustomerListRow }) {
-    const title =
-      isAdmin && c.customerCode ? c.customerCode : undefined;
-
     return (
-      <span className="inline-flex items-center gap-2">
-        <Link
-          href={`/customers/${c.id}`}
-          className="font-medium text-[#2F6FB3] hover:underline"
-          title={title}
-        >
-          {c.customerName}
-        </Link>
-        {c.isPinned && <PinnedBadge />}
+      <span className="inline-flex flex-col gap-0.5">
+        <span className="inline-flex items-center gap-2">
+          <Link href={`/customers/${c.id}`} className={ui.customerName}>
+            {c.customerName}
+          </Link>
+          {c.isPinned && <PinnedBadge />}
+        </span>
+        {isAdmin && c.customerCode && (
+          <span className={ui.customerCode}>{c.customerCode}</span>
+        )}
       </span>
     );
   }
@@ -239,7 +238,7 @@ export function CustomersListClient({
   function ProjectNameCell({ name }: { name?: string | null }) {
     const { display, title } = formatProjectNameForList(name);
     return (
-      <span className="text-[#172033]" title={title}>
+      <span className="crm-text" title={title}>
         {display}
       </span>
     );
@@ -253,19 +252,23 @@ export function CustomersListClient({
       <Link
         href={`/customers/${c.id}`}
         className="interactive-card block p-4 active:scale-[0.99]"
-        title={isAdmin && c.customerCode ? c.customerCode : undefined}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className="truncate font-semibold text-[#172033]">{c.customerName}</p>
+              <p className={`truncate font-semibold ${ui.customerName}`}>
+                {c.customerName}
+              </p>
               {c.isPinned && <PinnedBadge />}
             </div>
-            <p className="mt-1 text-xs text-[#6B7890]">
+            {isAdmin && c.customerCode && (
+              <p className={`mt-0.5 ${ui.customerCode}`}>{c.customerCode}</p>
+            )}
+            <p className="mt-1 text-xs crm-text-secondary">
               <span title={staff.title}>{staff.display}</span> ·{" "}
               {salesStage(c.salesStage)}
             </p>
-            <p className="mt-0.5 text-xs text-[#6B7890]" title={project.title}>
+            <p className="mt-0.5 text-xs crm-text-secondary" title={project.title}>
               {project.display}
             </p>
           </div>
@@ -314,7 +317,7 @@ export function CustomersListClient({
         </div>
       )}
       {searching && (
-        <p className="mb-4 flex items-center gap-2 text-sm text-[#6B7890]">
+        <p className="mb-4 flex items-center gap-2 text-sm crm-text-secondary">
           <LoadingSpinner size="sm" />
           {t("common.loading")}
         </p>
@@ -358,7 +361,7 @@ export function CustomersListClient({
           {filterCreatedBy && (
             <Link
               href={clearFiltersHref}
-              className="text-sm text-[#6B7890] hover:underline sm:mb-2"
+              className="text-sm crm-text-secondary hover:underline sm:mb-2"
             >
               {t("customers.clearFilters")}
             </Link>
@@ -438,7 +441,7 @@ export function CustomersListClient({
                           <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>
                         )}
                         {!c.neverContacted && !c.overdueFollowUp && (
-                          <span className="text-xs text-[#6B7890]">—</span>
+                          <span className="text-xs crm-text-secondary">—</span>
                         )}
                       </div>
                     </Td>
@@ -451,7 +454,7 @@ export function CustomersListClient({
                         <Badge variant="success">{t("customers.fullData")}</Badge>
                       )}
                     </Td>
-                    <Td className="text-[#6B7890]">{formatHongKongDate(c.createdAt)}</Td>
+                    <Td className="crm-text-secondary">{formatHongKongDate(c.createdAt)}</Td>
                   </Tr>
                 ))}
               </TableBody>

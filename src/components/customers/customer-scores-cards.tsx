@@ -8,6 +8,9 @@ import {
 } from "@/lib/customers/scoring/constants";
 import type { CustomerWithScores } from "@/lib/customers/scoring/service";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
+import { ui } from "@/lib/ui/classes";
+
+const cd = ui.customerDetail;
 
 export function HeatBadge({ level }: { level: HeatLevel }) {
   const { heatLevel } = useCustomerLabels();
@@ -54,37 +57,37 @@ export function CustomerScoresCards({
   return (
     <div className="mt-6 grid gap-4 sm:grid-cols-2">
       <Card>
-        <h3 className="text-sm font-semibold text-[#172033]">{t("customers.heatLevel")}</h3>
+        <h3 className={cd.subsectionTitle}>{t("customers.heatLevel")}</h3>
         <div className="mt-2">
           <HeatBadge level={scores.heatLevel} />
         </div>
         {scores.heatReasonKeys && scores.heatReasonKeys.length > 0 && (
-          <p className="mt-2 text-sm text-[#6B7890]">
+          <p className={`mt-2 text-sm ${cd.muted}`}>
             {formatHeatReasons(t, scores.heatReasonKeys)}
           </p>
         )}
-        <p className="mt-3 text-xs text-[#6B7890]">{t("customers.heatDescription")}</p>
+        <p className={`mt-3 text-xs ${cd.muted}`}>{t("customers.heatDescription")}</p>
       </Card>
 
       <Card>
-        <h3 className="text-sm font-semibold text-[#172033]">{t("customers.completeness")}</h3>
-        <p className="mt-2 text-2xl font-semibold text-[#172033]">
+        <h3 className={cd.subsectionTitle}>{t("customers.completeness")}</h3>
+        <p className={`mt-2 text-2xl font-semibold ${cd.strongValue}`}>
           {scores.completenessScore}
-          <span className="ml-1 text-sm font-normal text-[#6B7890]">/ 100</span>
+          <span className={`ml-1 text-sm font-normal ${cd.muted}`}>/ 100</span>
         </p>
         {showMissingFields &&
         scores.completenessMissingFields &&
         scores.completenessMissingFields.length > 0 ? (
           <div className="mt-3">
-            <p className="text-xs font-medium text-[#6B7890]">{t("customers.missingFields")}</p>
-            <ul className="mt-1 list-inside list-disc text-sm text-[#6B7890]">
+            <p className={`text-xs font-medium ${cd.label}`}>{t("customers.missingFields")}</p>
+            <ul className={`mt-1 list-inside list-disc text-sm ${cd.muted}`}>
               {scores.completenessMissingFields.map((field) => (
                 <li key={field}>{completenessField(field)}</li>
               ))}
             </ul>
           </div>
         ) : scores.accessLevel !== "full" ? (
-          <p className="mt-2 text-xs text-[#6B7890]">{t("customers.completenessRestricted")}</p>
+          <p className={`mt-2 text-xs ${cd.muted}`}>{t("customers.completenessRestricted")}</p>
         ) : (
           <p className="mt-2 text-sm text-green-700">{t("customers.completenessGood")}</p>
         )}

@@ -9,6 +9,7 @@ import type { ApprovalRequestType } from "../../../drizzle/schema/approvals";
 import { CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES } from "@/lib/approvals/errors";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
+import { ui } from "@/lib/ui/classes";
 
 type StaffUser = { id: string; displayName: string; email: string };
 
@@ -113,7 +114,7 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
   return (
     <ModalOverlay onClose={() => setOpen(false)}>
       <ModalPanel>
-        <h3 className="text-lg font-semibold text-[#172033]">
+        <h3 className={ui.customerDetail.subsectionTitle}>
           {t("customers.submitApprovalTitle")}
         </h3>
 

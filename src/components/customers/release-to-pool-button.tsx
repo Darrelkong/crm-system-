@@ -7,6 +7,9 @@ import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { Input, Label, Field } from "@/components/ui/form";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
+import { ui } from "@/lib/ui/classes";
+
+const cd = ui.customerDetail;
 
 export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
   const router = useRouter();
@@ -80,7 +83,7 @@ export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
       }}
     >
       <ModalPanel>
-        <h3 className="text-lg font-semibold text-[#172033]">
+        <h3 className={cd.subsectionTitle}>
           {t("customers.releaseConfirmTitle")}
         </h3>
         <p className="mt-2 text-sm text-amber-700">{t("customers.releaseConfirmBody")}</p>
@@ -102,7 +105,7 @@ export function ReleaseToPoolButton({ customerId }: { customerId: string }) {
             />
           </Field>
 
-          <label className="mt-3 flex items-start gap-2 text-sm text-[#172033]">
+          <label className={`mt-3 flex items-start gap-2 text-sm ${cd.value}`}>
             <input
               type="checkbox"
               checked={confirmed}

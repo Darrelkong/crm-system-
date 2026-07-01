@@ -70,15 +70,13 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
   return (
     <Card>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-[#172033]">
-          {t("notifications.recentTitle")}
-        </h3>
-        <span className="text-xs text-[#6B7890]">
+        <h3 className="section-title">{t("notifications.recentTitle")}</h3>
+        <span className="text-xs crm-text-secondary">
           {t("notifications.unreadCount", { count: String(unreadCount) })}
         </span>
       </div>
       {sortedItems.length === 0 ? (
-        <p className="text-sm text-[#6B7890]">{t("notifications.noNotifications")}</p>
+        <p className="text-sm crm-text-secondary">{t("notifications.noNotifications")}</p>
       ) : (
         <ul className="space-y-2">
           {sortedItems.map((item) => {
@@ -91,32 +89,32 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
               <div
                 className={
                   item.is_read
-                    ? "rounded-xl border border-[#E3E8F0] bg-[#F7F9FC] px-3 py-2.5 transition-colors duration-200 hover:bg-[#EEF3F8]"
-                    : "rounded-xl border border-[#C5DAF0] bg-[#E8F1FA] px-3 py-2.5 transition-colors duration-200 hover:bg-[#DCEAF7]"
+                    ? "dashboard-notification-item"
+                    : "dashboard-notification-item dashboard-notification-item--unread"
                 }
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge variant="accent">
                     {t(`notificationCategories.${category}`)}
                   </Badge>
-                  <span className="text-xs text-[#6B7890]">{typeLabel}</span>
+                  <span className="text-xs crm-text-secondary">{typeLabel}</span>
                 </div>
-                <p className="text-sm font-medium text-[#172033]">
+                <p className="text-sm font-medium crm-text">
                   {safeResolveTitle(t, item)}
                 </p>
-                <p className="mt-0.5 line-clamp-2 text-xs text-[#6B7890]">
+                <p className="mt-0.5 line-clamp-2 text-xs crm-text-secondary">
                   {safeResolveMessage(t, item)}
                 </p>
-                <p className="mt-1 text-xs text-[#6B7890]">
+                <p className="mt-1 text-xs crm-text-secondary">
                   {formatCreatedAt(item.created_at)}
                   {!item.is_read && (
-                    <span className="ml-2 font-medium text-[#2F6FB3]">
+                    <span className="ml-2 font-medium crm-text-primary">
                       {t("notifications.unread")}
                     </span>
                   )}
                 </p>
                 {isRelatedCustomerMissing(item) && (
-                  <p className="mt-1 text-xs text-[#6B7890]">
+                  <p className="mt-1 text-xs crm-text-secondary">
                     {t("notifications.relatedCustomerMissing")}
                   </p>
                 )}
@@ -138,7 +136,7 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
       )}
       <Link
         href="/notifications"
-        className="mt-4 inline-block text-sm text-[#2F6FB3] hover:text-[#1F4E79] hover:underline"
+        className="mt-4 inline-block text-sm link-primary hover:underline"
       >
         {t("notifications.enterCenter")}
       </Link>

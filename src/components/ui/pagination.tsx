@@ -50,13 +50,11 @@ function getVisiblePageNumbers(
 const controlBase =
   "inline-flex min-h-9 min-w-9 items-center justify-center rounded-xl px-3 text-sm font-medium transition-all duration-200";
 
-const pageButtonClass =
-  "text-[#6B7890] hover:bg-[#E8F1FA] hover:text-[#172033]";
+const pageButtonClass = "pagination-btn";
 
-const activePageClass =
-  "bg-[#2F6FB3] text-white shadow-[0_2px_8px_rgba(47,111,179,0.28)] pointer-events-none";
+const activePageClass = "pagination-btn-active pointer-events-none";
 
-const disabledClass = "cursor-not-allowed text-[#B8C2D0]";
+const disabledClass = "pagination-btn-disabled cursor-not-allowed";
 
 function PaginationControl({
   targetPage,
@@ -152,7 +150,7 @@ export function Pagination({
         item === "ellipsis" ? (
           <span
             key={`ellipsis-${index}`}
-            className={cn(controlBase, "px-2 text-[#B8C2D0]")}
+            className={cn(controlBase, "pagination-btn-disabled px-2")}
             aria-hidden="true"
           >
             …

@@ -48,7 +48,7 @@ export function EmptyState({
 }) {
   return (
     <div className="surface-card flex flex-col items-center justify-center px-6 py-14 text-center">
-      <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#E8F1FA] text-[#2F6FB3]">
+      <div className="empty-state-icon-wrap mb-4 flex h-14 w-14 items-center justify-center rounded-2xl">
         {icon ?? (
           <svg
             className="h-7 w-7"
@@ -66,7 +66,7 @@ export function EmptyState({
           </svg>
         )}
       </div>
-      <p className="text-sm text-[#6B7890]">{message}</p>
+      <p className="text-sm crm-text-secondary">{message}</p>
       {action && <div className="mt-4">{action}</div>}
     </div>
   );
@@ -82,17 +82,17 @@ export function Badge({
   variant?: "default" | "success" | "warning" | "danger" | "accent";
 }) {
   const variants = {
-    default: "bg-[#EEF3F8] text-[#172033] ring-[#E3E8F0]",
-    success: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-    warning: "bg-amber-50 text-amber-900 ring-amber-200",
-    danger: "bg-red-50 text-red-800 ring-red-200",
-    accent: "bg-[#E8F1FA] text-[#1F4E79] ring-[#C5DAF0]",
+    default: "badge-default",
+    success: "badge-success",
+    warning: "badge-warning",
+    danger: "badge-danger",
+    accent: "badge-accent",
   };
 
   return (
     <span
       className={cn(
-        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset",
+        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium",
         variants[variant],
         className,
       )}

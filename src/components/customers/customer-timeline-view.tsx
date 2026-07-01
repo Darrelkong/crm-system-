@@ -4,12 +4,13 @@ import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { ui } from "@/lib/ui/classes";
 
-const EMPTY_MARKER = "__empty__";
+const cd = ui.customerDetail;
 
 function badgeClass(item: TimelineItem): string {
   if (item.metadata.category === "system") {
-    return "bg-[#EEF3F8] text-[#6B7890]";
+    return cd.badgeNeutral;
   }
   switch (item.type) {
     case "field_change":
@@ -21,9 +22,11 @@ function badgeClass(item: TimelineItem): string {
     case "approval":
       return "bg-purple-100 text-purple-800";
     default:
-      return "bg-[#E8F1FA] text-[#1F4E79]";
+      return cd.badgeInfo;
   }
 }
+
+const EMPTY_MARKER = "__empty__";
 
 export function CustomerTimelineView({
   items,
@@ -111,7 +114,7 @@ export function CustomerTimelineView({
   return (
     <Card className="mt-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-base font-semibold text-[#172033]">{t("customers.timeline")}</h3>
+        <h3 className={cd.subsectionTitle}>{t("customers.timeline")}</h3>
         {accessLevel !== "full" && (
           <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
             {accessLevel === "archived_basic"
@@ -122,7 +125,7 @@ export function CustomerTimelineView({
       </div>
 
       {items.length === 0 ? (
-        <p className="text-sm text-[#6B7890]">{t("customers.timelineNoRecords")}</p>
+        <p className={`text-sm ${cd.muted}`}>{t("customers.timelineNoRecords")}</p>
       ) : (
         <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
           {items.map((item) => (
@@ -135,7 +138,7 @@ export function CustomerTimelineView({
               }
             >
               <div className="flex flex-wrap items-center gap-2 text-xs">
-                <span className="font-medium text-[#6B7890]">
+                <span className={`font-medium ${cd.muted}`}>
                   {formatHongKongDateTime(item.occurredAt)}
                 </span>
                 <span
@@ -149,7 +152,7 @@ export function CustomerTimelineView({
                   </span>
                 )}
               </div>
-              <p className="mt-2 text-sm font-medium text-[#172033]">
+              <p className={`mt-2 text-sm font-medium ${cd.strongValue}`}>
                 {renderMessage(
                   item.titleKey,
                   item.titleKey === "timelineMessages.approvalTitle" && item.titleParams?.type
@@ -160,7 +163,7 @@ export function CustomerTimelineView({
                 )}
               </p>
               {item.descriptionKey && (
-                <p className="mt-1 text-sm text-[#172033]">
+                <p className={`mt-1 text-sm ${cd.value}`}>
                   {renderMessage(
                     item.descriptionKey,
                     item.descriptionParams,
@@ -168,7 +171,7 @@ export function CustomerTimelineView({
                   )}
                 </p>
               )}
-              <p className="mt-2 text-xs text-[#6B7890]">
+              <p className={`mt-2 text-xs ${cd.muted}`}>
                 {t("customers.timelineActor", { name: actorLabel(item) })}
               </p>
             </div>

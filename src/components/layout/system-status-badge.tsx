@@ -114,7 +114,7 @@ export function SystemStatusBadge({ className }: { className?: string }) {
         className={cn("h-2 w-2 shrink-0 rounded-full", config.dot)}
         aria-hidden
       />
-      <span className="text-[10px] font-semibold tracking-wide text-[#6B7890] sm:text-xs">
+      <span className="text-[10px] font-semibold tracking-wide crm-text-secondary sm:text-xs">
         {t(config.labelKey)}
       </span>
     </div>

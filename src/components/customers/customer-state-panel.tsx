@@ -2,6 +2,9 @@
 
 import Link from "next/link";
 import { useTranslation } from "@/i18n/provider";
+import { ui } from "@/lib/ui/classes";
+
+const cd = ui.customerDetail;
 
 export function CustomerStatePanel({
   titleKey,
@@ -27,11 +30,11 @@ export function CustomerStatePanel({
           : "surface-card p-8 text-center"
       }
     >
-      <p className={isError ? "font-medium text-red-700" : "text-[#6B7890]"}>
+      <p className={isError ? "font-medium text-red-700" : cd.muted}>
         {t(titleKey)}
       </p>
       {descriptionKey && (
-        <p className={`mt-1 text-sm ${isError ? "text-red-600" : "text-[#6B7890]"}`}>
+        <p className={`mt-1 text-sm ${isError ? "text-red-600" : cd.muted}`}>
           {t(descriptionKey)}
         </p>
       )}

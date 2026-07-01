@@ -8,7 +8,7 @@ export function LanguageSwitcher({ className }: { className?: string }) {
 
   return (
     <label
-      className={`inline-flex items-center gap-2 text-sm text-[#6B7890] ${className ?? ""}`}
+      className={`inline-flex items-center gap-2 text-sm crm-text-secondary ${className ?? ""}`}
     >
       <span className="sr-only">{t("common.language")}</span>
       <select

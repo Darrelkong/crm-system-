@@ -14,7 +14,7 @@ import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { AdminDashboardStats } from "@/lib/reports/types";
 
-const linkClass = "text-[#2F6FB3] hover:text-[#1F4E79] hover:underline";
+const linkClass = "link-primary hover:underline";
 
 export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) {
   const { t } = useTranslation();
@@ -168,7 +168,7 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <h3 className="mb-4 text-sm font-semibold text-[#172033]">
+          <h3 className="section-title mb-4">
             {t("dashboard.customersBySource")}
           </h3>
           <div className="space-y-3">
@@ -184,7 +184,7 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
         </Card>
 
         <Card>
-          <h3 className="mb-4 text-sm font-semibold text-[#172033]">
+          <h3 className="section-title mb-4">
             {t("dashboard.customersBySalesStage")}
           </h3>
           <div className="space-y-3">

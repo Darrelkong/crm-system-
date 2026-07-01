@@ -18,7 +18,7 @@ export function LoadingSpinner({
       role="status"
       aria-label="Loading"
       className={cn(
-        "inline-block animate-spin rounded-full border-[#E3E8F0] border-t-[#2F6FB3]",
+        "inline-block animate-spin rounded-full crm-spinner",
         sizes[size],
         className,
       )}
@@ -30,7 +30,7 @@ export function LoadingState({ message }: { message: string }) {
   return (
     <div className="surface-card flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
       <LoadingSpinner size="lg" />
-      <p className="text-sm text-[#6B7890]">{message}</p>
+      <p className="text-sm crm-text-secondary">{message}</p>
     </div>
   );
 }

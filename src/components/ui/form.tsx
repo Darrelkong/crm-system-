@@ -1,7 +1,7 @@
 import { cn } from "@/lib/cn";
 
 const inputClass =
-  "surface-input w-full px-3.5 py-2.5 text-sm text-[#172033] placeholder:text-[#6B7890]";
+  "surface-input w-full px-3.5 py-2.5 text-sm crm-text placeholder:crm-text-muted";
 
 export function Input({
   className,
@@ -41,7 +41,7 @@ export function Label({
 }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return (
     <label
-      className={cn("mb-1.5 block text-sm font-medium text-[#172033]", className)}
+      className={cn("mb-1.5 block text-sm font-medium crm-text", className)}
       {...props}
     >
       {children}

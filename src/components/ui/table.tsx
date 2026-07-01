@@ -31,7 +31,7 @@ export function TableHead({ children }: { children: React.ReactNode }) {
 }
 
 export function TableBody({ children }: { children: React.ReactNode }) {
-  return <tbody className="divide-y divide-[#EEF3F8]">{children}</tbody>;
+  return <tbody className="crm-divide-y divide-y">{children}</tbody>;
 }
 
 export function Th({
@@ -44,7 +44,7 @@ export function Th({
   return (
     <th
       className={cn(
-        "px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide text-[#6B7890]",
+        "px-4 py-3.5 text-left text-xs font-semibold uppercase tracking-wide th-label",
         className,
       )}
     >
@@ -61,7 +61,7 @@ export function Td({
   children: React.ReactNode;
 }) {
   return (
-    <td className={cn("px-4 py-3.5 text-[#172033]", className)}>{children}</td>
+    <td className={cn("px-4 py-3.5 td-body", className)}>{children}</td>
   );
 }
 

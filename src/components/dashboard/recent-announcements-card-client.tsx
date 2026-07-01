@@ -21,23 +21,23 @@ export function RecentAnnouncementsCardClient({
 
   return (
     <Card>
-      <h3 className="mb-3 text-sm font-semibold text-[#172033]">
+      <h3 className="section-title mb-3">
         {t("announcements.recentTitle")}
       </h3>
       {items.length === 0 ? (
-        <p className="text-sm text-[#6B7890]">{t("announcements.noAnnouncements")}</p>
+        <p className="text-sm crm-text-secondary">{t("announcements.noAnnouncements")}</p>
       ) : (
         <ul className="space-y-2">
           {items.map((item) => (
             <li
               key={item.id}
-              className="rounded-xl border border-[#EEF3F8] bg-[#FAFBFD] px-3 py-2.5"
+              className="dashboard-notification-item"
             >
-              <p className="text-sm font-medium text-[#172033]">{item.title}</p>
-              <p className="mt-0.5 line-clamp-2 text-xs text-[#6B7890]">
+              <p className="text-sm font-medium crm-text">{item.title}</p>
+              <p className="mt-0.5 line-clamp-2 text-xs crm-text-secondary">
                 {item.content}
               </p>
-              <p className="mt-1 text-xs text-[#6B7890]">
+              <p className="mt-1 text-xs crm-text-muted">
                 {formatHongKongDateTime(item.published_at)}
               </p>
             </li>

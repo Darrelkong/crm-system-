@@ -67,7 +67,7 @@ function NavLinkRow({
         <div
           className={cn(
             "flex items-center gap-1 rounded-xl",
-            link.active && "bg-[#E8F1FA]",
+            link.active && "nav-parent-active",
           )}
         >
           <Link
@@ -75,7 +75,7 @@ function NavLinkRow({
             onClick={handleNavigate}
             className={cn(
               "flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200",
-              link.active ? "nav-active" : "nav-item text-[#6B7890]",
+              link.active ? "nav-active" : "nav-item",
               isPending && !link.active && "nav-item-pending",
             )}
           >
@@ -101,7 +101,7 @@ function NavLinkRow({
             onClick={() =>
               setSubOpenOverride((prev) => !(prev ?? shouldBeOpen))
             }
-            className="mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#6B7890] hover:bg-[#E8F1FA]"
+            className="sidebar-icon-btn mr-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
             aria-expanded={subOpen}
             aria-label={subOpen ? t("common.collapse") : t("common.expand")}
           >
@@ -114,7 +114,7 @@ function NavLinkRow({
           </button>
         </div>
         {subOpen && (
-          <ul className="mt-0.5 space-y-0.5 border-l border-[#E3E8F0] pl-3 ml-5">
+          <ul className="crm-border-subtle mt-0.5 ml-5 space-y-0.5 border-l pl-3">
             {link.children!.map((child) => (
               <NavLinkRow
                 key={child.href}
@@ -144,8 +144,8 @@ function NavLinkRow({
           link.active && !childActive
             ? "nav-active"
             : link.active
-              ? "bg-[#E8F1FA] text-[#1F4E79]"
-              : "nav-item text-[#6B7890]",
+              ? "nav-sub-active"
+              : "nav-item",
         )}
       >
         <span className="relative shrink-0">
@@ -183,10 +183,10 @@ export function SidebarNav({
       {groups.map((group, index) => (
         <div
           key={group.id}
-          className={cn(index > 0 && "mt-6 border-t border-[#E3E8F0] pt-6")}
+          className={cn(index > 0 && "mt-6 border-t crm-border pt-6")}
         >
           {!collapsed && (
-            <p className="mb-2 px-3 text-[10px] font-semibold uppercase tracking-wider text-[#6B7890]">
+            <p className="menu-group-label mb-2 px-3">
               {t(group.labelKey)}
             </p>
           )}
@@ -244,19 +244,19 @@ export function MobileNavDrawer({
         onClick={onClose}
       />
       <aside className="mobile-drawer-panel absolute inset-y-0 left-0 flex w-[min(100vw-3rem,320px)] flex-col rounded-r-2xl">
-        <div className="flex items-center justify-between border-b border-[#E3E8F0] px-5 py-4">
-          <p className="text-sm font-semibold text-[#172033]">{t("nav.more")}</p>
+        <div className="flex items-center justify-between border-b crm-border px-5 py-4">
+          <p className="drawer-header-title">{t("nav.more")}</p>
           <button
             type="button"
             onClick={onClose}
-            className="flex h-10 w-10 items-center justify-center rounded-xl text-[#6B7890] hover:bg-[#E8F1FA]"
+            className="sidebar-icon-btn flex h-10 w-10 items-center justify-center rounded-xl"
             aria-label="Close"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
         <SidebarNav groups={groups} onNavigate={onClose} />
-        <div className="border-t border-[#E3E8F0] p-4">
+        <div className="border-t crm-border p-4">
           <AccountMenu userName={userName} role={role} onNavigate={onClose} />
         </div>
       </aside>
@@ -304,7 +304,7 @@ export function MobileBottomNav({
                 <button
                   type="button"
                   onClick={onMoreClick}
-                  className="flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium text-[#6B7890] active:bg-[#E8F1FA]"
+                  className="mobile-nav-inactive flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium"
                 >
                   <Icon className="h-5 w-5" />
                   <span>{t(item.labelKey)}</span>
@@ -321,10 +321,9 @@ export function MobileBottomNav({
                   beginNavigationPending(navigationPending, item.href, activePath)
                 }
                 className={cn(
-                  "flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors duration-200",
                   isActive
-                    ? "bg-[#2F6FB3] text-white shadow-[0_2px_8px_rgba(47,111,179,0.28)]"
-                    : "text-[#6B7890] active:bg-[#E8F1FA]",
+                    ? "mobile-nav-active flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors duration-200"
+                    : "mobile-nav-inactive flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors duration-200",
                   isPending && !isActive && "nav-item-pending",
                 )}
               >

@@ -3,10 +3,60 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
+import { CrmThemeToggle } from "@/components/theme/crm-theme-toggle";
 import { useTranslation } from "@/i18n/provider";
 import { performSecurityLogout } from "@/lib/auth/client-security";
 import { getUserInitial } from "@/lib/layout/nav-links";
 import { cn } from "@/lib/cn";
+
+function AccountMenuItems({
+  signingOut,
+  onSignOut,
+  onNavigate,
+}: {
+  signingOut: boolean;
+  onSignOut: () => void;
+  onNavigate?: () => void;
+}) {
+  const { t } = useTranslation();
+
+  return (
+    <>
+      <Link
+        href="/account"
+        role="menuitem"
+        className="account-menu__item block px-4 py-2.5 text-sm"
+        onClick={() => {
+          onNavigate?.();
+        }}
+      >
+        {t("nav.accountCenter")}
+      </Link>
+      <div className="account-menu__section-border border-t px-4 py-2.5">
+        <p className="account-menu__section-label mb-1.5 text-xs font-medium">
+          {t("nav.language")}
+        </p>
+        <LanguageSwitcher className="w-full" />
+      </div>
+      <div className="account-menu__section-border border-t px-4 py-2.5">
+        <div className="account-menu__theme-row">
+          <CrmThemeToggle />
+        </div>
+      </div>
+      <div className="account-menu__section-border border-t">
+        <button
+          type="button"
+          role="menuitem"
+          disabled={signingOut}
+          onClick={onSignOut}
+          className="account-menu__sign-out w-full px-4 py-2.5 text-left text-sm disabled:opacity-50"
+        >
+          {signingOut ? t("auth.signingOut") : t("nav.signOut")}
+        </button>
+      </div>
+    </>
+  );
+}
 
 export function AccountMenu({
   userName,
@@ -52,6 +102,15 @@ export function AccountMenu({
     await performSecurityLogout("manual");
   }
 
+  function handleNavigate() {
+    setOpen(false);
+    onNavigate?.();
+  }
+
+  function handleSignOutClick() {
+    void handleSignOut();
+  }
+
   const roleLabel = role === "admin" ? t("nav.roleAdmin") : t("nav.roleStaff");
   const initial = getUserInitial(userName);
 
@@ -61,7 +120,7 @@ export function AccountMenu({
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2F6FB3] text-sm font-semibold text-white shadow-sm ring-2 ring-white"
+          className="flex h-10 w-10 items-center justify-center rounded-full bg-[#2F6FB3] text-sm font-semibold text-white shadow-sm account-menu__avatar-ring"
           aria-expanded={open}
           aria-haspopup="menu"
           title={userName}
@@ -73,40 +132,17 @@ export function AccountMenu({
             role="menu"
             className="dropdown-panel absolute bottom-full left-1/2 z-50 mb-2 w-56 -translate-x-1/2 overflow-hidden py-1"
           >
-            <div className="border-b border-[#E3E8F0] px-4 py-2.5">
-              <p className="truncate text-sm font-medium text-[#172033]">{userName}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wide text-[#6B7890]">
+            <div className="account-menu__section-border border-b px-4 py-2.5">
+              <p className="truncate text-sm font-medium crm-text">{userName}</p>
+              <p className="account-menu__section-label text-[10px] font-semibold uppercase tracking-wide">
                 {roleLabel}
               </p>
             </div>
-            <Link
-              href="/account"
-              role="menuitem"
-              className="block px-4 py-2.5 text-sm text-[#172033] hover:bg-[#F7F9FC]"
-              onClick={() => {
-                setOpen(false);
-                onNavigate?.();
-              }}
-            >
-              {t("nav.accountCenter")}
-            </Link>
-            <div className="border-t border-[#E3E8F0] px-4 py-2.5">
-              <p className="mb-1.5 text-xs font-medium text-[#6B7890]">
-                {t("nav.language")}
-              </p>
-              <LanguageSwitcher className="w-full" />
-            </div>
-            <div className="border-t border-[#E3E8F0]">
-              <button
-                type="button"
-                role="menuitem"
-                disabled={signingOut}
-                onClick={() => void handleSignOut()}
-                className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-              >
-                {signingOut ? t("auth.signingOut") : t("nav.signOut")}
-              </button>
-            </div>
+            <AccountMenuItems
+              signingOut={signingOut}
+              onSignOut={handleSignOutClick}
+              onNavigate={handleNavigate}
+            />
           </div>
         )}
       </div>
@@ -118,7 +154,7 @@ export function AccountMenu({
       <button
         type="button"
         onClick={() => setOpen((prev) => !prev)}
-        className="flex w-full items-center gap-3 rounded-xl bg-white px-3 py-2.5 text-left shadow-sm ring-1 ring-[#E3E8F0] transition-colors hover:bg-[#F7F9FC]"
+        className="account-menu__trigger flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors"
         aria-expanded={open}
         aria-haspopup="menu"
       >
@@ -126,10 +162,10 @@ export function AccountMenu({
           {getUserInitial(userName)}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium text-[#172033]">
+          <span className="block truncate text-sm font-medium crm-text">
             {userName}
           </span>
-          <span className="block text-[10px] font-semibold uppercase tracking-wide text-[#6B7890]">
+          <span className="account-menu__section-label block text-[10px] font-semibold uppercase tracking-wide">
             {roleLabel}
           </span>
         </span>
@@ -140,34 +176,11 @@ export function AccountMenu({
           role="menu"
           className="dropdown-panel absolute bottom-full left-0 right-0 z-50 mb-2 overflow-hidden py-1"
         >
-          <Link
-            href="/account"
-            role="menuitem"
-            className="block px-4 py-2.5 text-sm text-[#172033] hover:bg-[#F7F9FC]"
-            onClick={() => {
-              setOpen(false);
-              onNavigate?.();
-            }}
-          >
-            {t("nav.accountCenter")}
-          </Link>
-          <div className="border-t border-[#E3E8F0] px-4 py-2.5">
-            <p className="mb-1.5 text-xs font-medium text-[#6B7890]">
-              {t("nav.language")}
-            </p>
-            <LanguageSwitcher className="w-full" />
-          </div>
-          <div className="border-t border-[#E3E8F0]">
-            <button
-              type="button"
-              role="menuitem"
-              disabled={signingOut}
-              onClick={() => void handleSignOut()}
-              className="w-full px-4 py-2.5 text-left text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-            >
-              {signingOut ? t("auth.signingOut") : t("nav.signOut")}
-            </button>
-          </div>
+          <AccountMenuItems
+            signingOut={signingOut}
+            onSignOut={handleSignOutClick}
+            onNavigate={handleNavigate}
+          />
         </div>
       )}
     </div>

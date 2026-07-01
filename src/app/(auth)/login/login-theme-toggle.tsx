@@ -1,32 +1,21 @@
 "use client";
 
 import { Moon, Sun } from "lucide-react";
+import type { CrmTheme } from "@/lib/theme/crm-theme";
 
-export const LOGIN_THEME_STORAGE_KEY = "crm-login-theme";
-
-export type LoginTheme = "light" | "dark";
-
-export function readStoredLoginTheme(): LoginTheme {
-  if (typeof window === "undefined") {
-    return "light";
-  }
-  return localStorage.getItem(LOGIN_THEME_STORAGE_KEY) === "dark"
-    ? "dark"
-    : "light";
-}
+export {
+  CRM_THEME_STORAGE_KEY as LOGIN_THEME_STORAGE_KEY,
+  readCrmTheme as readStoredLoginTheme,
+  type CrmTheme as LoginTheme,
+} from "@/lib/theme/crm-theme";
 
 type LoginThemeToggleProps = {
-  theme: LoginTheme;
+  theme: CrmTheme;
   onToggle: () => void;
-  themeReady?: boolean;
 };
 
-export function LoginThemeToggle({
-  theme,
-  onToggle,
-  themeReady = false,
-}: LoginThemeToggleProps) {
-  const isDark = themeReady && theme === "dark";
+export function LoginThemeToggle({ theme, onToggle }: LoginThemeToggleProps) {
+  const isDark = theme === "dark";
 
   return (
     <button
