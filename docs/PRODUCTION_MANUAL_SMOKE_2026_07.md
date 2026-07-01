@@ -21,9 +21,9 @@
 
 | 項目 | 值 |
 |------|-----|
-| 測試日期 | |
-| 測試人 | |
-| Commit / Version ID | |
+| 測試日期 | 2026-07-01 |
+| 測試人 | 使用者人工確認 |
+| Commit / Version ID | `568ceea` / `537d7889-4300-420a-869d-4b21a6b10011` |
 | Admin 帳號（遮罩） | |
 | Staff 帳號（遮罩） | |
 
@@ -136,20 +136,38 @@
 
 ## 驗收摘要
 
+| 項目 | 結果 |
+|------|------|
+| **Overall result** | **PASS** |
+| **Admin** | **PASS** |
+| **Staff** | **PASS** |
+| **Issues found** | **None reported** |
+
+### Dangerous operations not performed
+
+- permanent delete
+- restore
+- migration
+- manual backup
+- delete production tags
+- approve merge
+- excessive AI refresh
+
 | 區塊 | 通過 | 失敗 | 跳過 | 備註 |
 |------|------|------|------|------|
-| 1. Admin 登入 | | | | |
-| 2. Staff 登入 | | | | |
-| 3. 近期重點功能 | | | | |
-| **整體** | ⬜ 可上線 · ⬜ 有阻斷項 · ⬜ 待補測 | | | |
+| 1. Admin 登入 | ✅ | | | |
+| 2. Staff 登入 | ✅ | | | |
+| 3. 近期重點功能 | ✅ | | | |
+| **整體** | ✅ **可上線** | | | 2026-07-01 人工確認 |
 
 **簽核：**
 
 | 角色 | 姓名 | 日期 | 簽名 / 備註 |
 |------|------|------|-------------|
-| 測試人 | | | |
+| 測試人 | 使用者人工確認 | 2026-07-01 | PASS — 暫未發現問題 |
 | 覆核（可選） | | | |
 
 ---
 
-*建立：Phase PRODUCTION-MANUAL-SMOKE-1（2026-07-01）*
+*建立：Phase PRODUCTION-MANUAL-SMOKE-1（2026-07-01）*  
+*更新：Phase RELEASE-FINAL-CHECKPOINT-2026-07（2026-07-01）— 驗收結果 **PASS***
