@@ -88,6 +88,18 @@
     color 0.4s ease;
 }
 
+/* iOS Safari safe-area: keep html/body dark when login page is in dark mode */
+html[data-theme="dark"]:has(.login-page--dark),
+html[data-theme="dark"]:has(.login-page__loading--dark) {
+  background-color: #080b12;
+  color-scheme: dark;
+}
+
+html[data-theme="dark"]:has(.login-page--dark) body,
+html[data-theme="dark"]:has(.login-page__loading--dark) body {
+  background-color: #080b12;
+}
+
 .login-page--dark {
   --login-bg: #080b12;
   --login-title: #eef1f6;

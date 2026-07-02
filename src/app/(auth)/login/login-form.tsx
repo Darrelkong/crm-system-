@@ -24,7 +24,7 @@ import { fetchIpEmailRestrictionStatus } from "@/lib/auth/login-ip-restriction-c
 import {
   LoginThemeToggle,
 } from "@/app/(auth)/login/login-theme-toggle";
-import { useToggleCrmTheme } from "@/lib/theme/crm-theme";
+import { useToggleCrmTheme, applyCrmThemeToDocument } from "@/lib/theme/crm-theme";
 import "./login-page.css";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
@@ -58,7 +58,11 @@ export function LoginForm() {
   const [ipRestrictedUntil, setIpRestrictedUntil] = useState<string | null>(
     null,
   );
-  const [theme, toggleTheme] = useToggleCrmTheme();
+  const [theme, toggleTheme] = useToggleCrmTheme("/login");
+
+  useEffect(() => {
+    applyCrmThemeToDocument(theme, "/login");
+  }, [theme]);
 
   const reasonParam = searchParams.get("reason");
   const sessionEndParam = searchParams.get("session_end");

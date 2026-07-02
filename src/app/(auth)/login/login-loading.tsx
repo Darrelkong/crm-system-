@@ -1,11 +1,16 @@
 "use client";
 
+import { useEffect } from "react";
 import { T } from "@/components/i18n/t";
-import { useCrmTheme } from "@/lib/theme/crm-theme";
+import { applyCrmThemeToDocument, useCrmTheme } from "@/lib/theme/crm-theme";
 import "./login-page.css";
 
 export function LoginLoadingFallback() {
   const theme = useCrmTheme();
+
+  useEffect(() => {
+    applyCrmThemeToDocument(theme, "/login");
+  }, [theme]);
 
   return (
     <div

@@ -14,8 +14,8 @@ export function CrmThemeSync() {
   const pathname = usePathname();
 
   useEffect(() => {
-    ensureCrmThemeOnDocument();
-  }, []);
+    ensureCrmThemeOnDocument(pathname);
+  }, [pathname]);
 
   useEffect(() => {
     applyCrmThemeToDocument(theme, pathname);

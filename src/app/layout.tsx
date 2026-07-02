@@ -1,6 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
-import Script from "next/script";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { getMessages } from "@/i18n";
 import { I18nProvider } from "@/i18n/provider";
@@ -44,13 +43,16 @@ export default function RootLayout({
     <html
       lang={DEFAULT_LOCALE}
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
-      <body className="flex min-h-dvh flex-col app-bg">
-        <Script
+      <head>
+        <script
           id="crm-theme-bootstrap"
-          strategy="beforeInteractive"
           dangerouslySetInnerHTML={{ __html: CRM_THEME_BOOTSTRAP_SCRIPT }}
+          suppressHydrationWarning
         />
+      </head>
+      <body className="flex min-h-dvh flex-col app-bg">
         <CrmThemeSync />
         <I18nProvider>{children}</I18nProvider>
       </body>

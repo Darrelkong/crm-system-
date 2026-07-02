@@ -4,6 +4,7 @@ import { useCallback, useSyncExternalStore } from "react";
 import {
   CRM_THEME_COLOR_DARK,
   CRM_THEME_STORAGE_KEY,
+  isLoginPathname,
   resolveCrmThemeColor,
   setCrmThemeColorMeta,
 } from "@/lib/theme/crm-theme-bootstrap";
@@ -17,6 +18,42 @@ export {
 export { CRM_THEME_STORAGE_KEY } from "@/lib/theme/crm-theme-bootstrap";
 
 export type CrmTheme = "light" | "dark";
+
+function readPathname(): string | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.location.pathname;
+}
+
+function readThemeColorMeta(): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  return (
+    document.querySelector('meta[name="theme-color"]')?.getAttribute("content") ??
+    null
+  );
+}
+
+function documentNeedsThemeSync(
+  theme: CrmTheme,
+  pathname?: string | null,
+): boolean {
+  if (typeof document === "undefined") {
+    return false;
+  }
+
+  const path = pathname ?? readPathname();
+  const expectedColor = resolveCrmThemeColor(theme, path);
+  const root = document.documentElement;
+
+  return (
+    root.getAttribute("data-theme") !== theme ||
+    root.style.colorScheme !== theme ||
+    readThemeColorMeta() !== expectedColor
+  );
+}
 
 export function readCrmTheme(): CrmTheme {
   if (typeof window === "undefined") {
@@ -39,20 +76,20 @@ export function applyCrmThemeToDocument(
     return;
   }
 
-  const path =
-    pathname ??
-    (typeof window !== "undefined" ? window.location.pathname : null);
+  const path = pathname ?? readPathname();
+  const color = resolveCrmThemeColor(theme, path);
 
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
-
-  const color = resolveCrmThemeColor(theme, path);
   setCrmThemeColorMeta(color);
   document.documentElement.style.backgroundColor = color;
   document.body.style.backgroundColor = color;
 }
 
-export function writeCrmTheme(theme: CrmTheme): void {
+export function writeCrmTheme(
+  theme: CrmTheme,
+  pathname?: string | null,
+): void {
   try {
     window.localStorage.setItem(CRM_THEME_STORAGE_KEY, theme);
   } catch {
@@ -61,16 +98,16 @@ export function writeCrmTheme(theme: CrmTheme): void {
 
   themeStoreValue = theme;
   themeStoreReady = true;
-  applyCrmThemeToDocument(theme);
+  applyCrmThemeToDocument(theme, pathname);
 
   for (const listener of themeListeners) {
     listener();
   }
 }
 
-export function toggleCrmTheme(): CrmTheme {
+export function toggleCrmTheme(pathname?: string | null): CrmTheme {
   const next: CrmTheme = getThemeSnapshot() === "dark" ? "light" : "dark";
-  writeCrmTheme(next);
+  writeCrmTheme(next, pathname);
   return next;
 }
 
@@ -90,7 +127,7 @@ function getThemeSnapshot(): CrmTheme {
     const stored = readCrmTheme();
     themeStoreValue = stored;
     themeStoreReady = true;
-    if (document.documentElement.getAttribute("data-theme") !== stored) {
+    if (documentNeedsThemeSync(stored)) {
       applyCrmThemeToDocument(stored);
     }
   }
@@ -98,11 +135,11 @@ function getThemeSnapshot(): CrmTheme {
 }
 
 /** Re-read storage and sync DOM — used after hydration when data-theme may be cleared. */
-export function ensureCrmThemeOnDocument(): CrmTheme {
+export function ensureCrmThemeOnDocument(pathname?: string | null): CrmTheme {
   const theme = readCrmTheme();
   themeStoreValue = theme;
   themeStoreReady = true;
-  applyCrmThemeToDocument(theme);
+  applyCrmThemeToDocument(theme, pathname);
   return theme;
 }
 
@@ -118,10 +155,15 @@ export function useCrmTheme(): CrmTheme {
   );
 }
 
-export function useToggleCrmTheme(): [CrmTheme, () => void] {
+export function useToggleCrmTheme(
+  pathname?: string | null,
+): [CrmTheme, () => void] {
   const theme = useCrmTheme();
+  const path = pathname ?? readPathname();
   const toggle = useCallback(() => {
-    writeCrmTheme(theme === "light" ? "dark" : "light");
-  }, [theme]);
+    writeCrmTheme(theme === "light" ? "dark" : "light", path);
+  }, [theme, path]);
   return [theme, toggle];
 }
+
+export { isLoginPathname };
