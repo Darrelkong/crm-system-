@@ -205,6 +205,18 @@ export function LoginForm() {
     <div
       className={`login-page${theme === "dark" ? " login-page--dark" : ""}`}
     >
+      {theme === "dark" && (
+        <>
+          <div
+            className="login-page__safe-area login-page__safe-area--top"
+            aria-hidden="true"
+          />
+          <div
+            className="login-page__safe-area login-page__safe-area--bottom"
+            aria-hidden="true"
+          />
+        </>
+      )}
       <div className="login-page__scene" aria-hidden="true">
         <div className="login-page__blush login-page__blush--top" />
         <div className="login-page__blush login-page__blush--bottom" />

@@ -18,6 +18,18 @@ export function LoginLoadingFallback() {
         theme === "dark" ? " login-page__loading--dark" : ""
       }`}
     >
+      {theme === "dark" && (
+        <>
+          <div
+            className="login-page__safe-area login-page__safe-area--top"
+            aria-hidden="true"
+          />
+          <div
+            className="login-page__safe-area login-page__safe-area--bottom"
+            aria-hidden="true"
+          />
+        </>
+      )}
       <T k="common.loading" />
     </div>
   );

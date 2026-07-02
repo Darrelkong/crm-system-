@@ -6,6 +6,7 @@ import {
   CRM_THEME_STORAGE_KEY,
   isLoginPathname,
   resolveCrmThemeColor,
+  setCrmColorSchemeMeta,
   setCrmThemeColorMeta,
 } from "@/lib/theme/crm-theme-bootstrap";
 
@@ -36,6 +37,20 @@ function readThemeColorMeta(): string | null {
   );
 }
 
+function readColorSchemeMeta(): string | null {
+  if (typeof document === "undefined") {
+    return null;
+  }
+  return (
+    document.querySelector('meta[name="color-scheme"]')?.getAttribute("content") ??
+    null
+  );
+}
+
+function expectedColorSchemeMeta(theme: CrmTheme): string {
+  return theme === "dark" ? "dark light" : "light dark";
+}
+
 function documentNeedsThemeSync(
   theme: CrmTheme,
   pathname?: string | null,
@@ -51,7 +66,9 @@ function documentNeedsThemeSync(
   return (
     root.getAttribute("data-theme") !== theme ||
     root.style.colorScheme !== theme ||
-    readThemeColorMeta() !== expectedColor
+    readThemeColorMeta() !== expectedColor ||
+    readColorSchemeMeta() !== expectedColorSchemeMeta(theme) ||
+    document.querySelectorAll('meta[name="theme-color"]').length !== 1
   );
 }
 
@@ -82,8 +99,40 @@ export function applyCrmThemeToDocument(
   document.documentElement.dataset.theme = theme;
   document.documentElement.style.colorScheme = theme;
   setCrmThemeColorMeta(color);
+  setCrmColorSchemeMeta(theme);
   document.documentElement.style.backgroundColor = color;
   document.body.style.backgroundColor = color;
+}
+
+let themeMetaGuardStarted = false;
+let themeMetaGuardApplying = false;
+
+/** Re-apply theme meta if Next.js or Safari injects competing tags after hydration. */
+export function startCrmThemeMetaGuard(
+  getState: () => { theme: CrmTheme; pathname: string | null },
+): void {
+  if (themeMetaGuardStarted || typeof MutationObserver === "undefined") {
+    return;
+  }
+
+  themeMetaGuardStarted = true;
+
+  const observer = new MutationObserver(() => {
+    if (themeMetaGuardApplying) {
+      return;
+    }
+
+    const { theme, pathname } = getState();
+    if (!documentNeedsThemeSync(theme, pathname)) {
+      return;
+    }
+
+    themeMetaGuardApplying = true;
+    applyCrmThemeToDocument(theme, pathname);
+    themeMetaGuardApplying = false;
+  });
+
+  observer.observe(document.head, { childList: true, subtree: true });
 }
 
 export function writeCrmTheme(

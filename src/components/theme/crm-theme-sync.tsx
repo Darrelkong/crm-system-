@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import {
   applyCrmThemeToDocument,
   ensureCrmThemeOnDocument,
+  startCrmThemeMetaGuard,
   useCrmTheme,
 } from "@/lib/theme/crm-theme";
 
@@ -12,6 +13,13 @@ import {
 export function CrmThemeSync() {
   const theme = useCrmTheme();
   const pathname = usePathname();
+  const stateRef = useRef({ theme, pathname });
+
+  stateRef.current = { theme, pathname };
+
+  useEffect(() => {
+    startCrmThemeMetaGuard(() => stateRef.current);
+  }, []);
 
   useEffect(() => {
     ensureCrmThemeOnDocument(pathname);

@@ -90,14 +90,57 @@
 
 /* iOS Safari safe-area: keep html/body dark when login page is in dark mode */
 html[data-theme="dark"]:has(.login-page--dark),
-html[data-theme="dark"]:has(.login-page__loading--dark) {
+html[data-theme="dark"]:has(.login-page__loading--dark),
+html[data-theme="dark"]:has(.login-page) {
   background-color: #080b12;
   color-scheme: dark;
 }
 
 html[data-theme="dark"]:has(.login-page--dark) body,
-html[data-theme="dark"]:has(.login-page__loading--dark) body {
+html[data-theme="dark"]:has(.login-page__loading--dark) body,
+html[data-theme="dark"]:has(.login-page) body {
   background-color: #080b12;
+}
+
+/* Bootstrap may set data-theme before React adds .login-page--dark */
+html[data-theme="dark"] .login-page {
+  --login-bg: #080b12;
+  background-color: #080b12;
+}
+
+html[data-theme="dark"] .login-page .login-page__scene {
+  background-color: #080b12;
+  background: linear-gradient(
+    168deg,
+    #060810 0%,
+    #0a0e18 38%,
+    #0c1220 68%,
+    #080b12 100%
+  );
+}
+
+html[data-theme="dark"] .login-page__loading {
+  background-color: #080b12;
+  background: linear-gradient(168deg, #060810 0%, #0a0e18 52%, #080b12 100%);
+}
+
+.login-page__safe-area {
+  pointer-events: none;
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 1;
+  background: #080b12;
+}
+
+.login-page__safe-area--top {
+  top: 0;
+  height: max(env(safe-area-inset-top), 0px);
+}
+
+.login-page__safe-area--bottom {
+  bottom: 0;
+  height: max(env(safe-area-inset-bottom), 0px);
 }
 
 .login-page--dark {
@@ -172,6 +215,7 @@ html[data-theme="dark"]:has(.login-page__loading--dark) body {
 }
 
 .login-page--dark .login-page__scene {
+  background-color: #080b12;
   background: linear-gradient(
     168deg,
     #060810 0%,
@@ -657,6 +701,7 @@ html[data-theme="dark"]:has(.login-page__loading--dark) body {
 }
 
 .login-page__loading--dark {
+  background-color: #080b12;
   background: linear-gradient(168deg, #060810 0%, #0a0e18 52%, #080b12 100%);
   color: #8b93a8;
 }
