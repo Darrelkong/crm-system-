@@ -41,6 +41,7 @@ yarn-error.log*
 .open-next/
 .wrangler/
 .local-backups/
+backups/
 pre-migrate-*.sql
 
 # typescript
