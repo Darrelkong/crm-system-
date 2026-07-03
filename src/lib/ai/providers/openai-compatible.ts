@@ -1,6 +1,7 @@
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { buildProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
+import { CUSTOMER_INSIGHT_JSON_SCHEMA } from "@/lib/ai/customer-insights/json-schema";
 import {
   AI_PROVIDER_MAX_RESPONSE_CHARS,
   AI_PROVIDER_SCANNER_MAX_CANDIDATES,
@@ -232,12 +233,12 @@ function parseJsonContent(content: string, config: ProviderRuntimeConfig): unkno
 }
 
 /**
- * Returns true when a fallback attempt without response_format is worth trying.
+ * Returns true when a fallback attempt with json_object response_format is worth trying.
  * Parse failures and oversized responses indicate the content itself is the
- * problem — retrying with a different format parameter will not help and doubles
+ * problem — retrying with a weaker format parameter will not help and doubles
  * the CPU cost of the request.
  */
-function shouldFallbackToWithoutFormat(error: unknown): boolean {
+function shouldAttemptFormatFallback(error: unknown): boolean {
   if (!(error instanceof AiProviderError) || !error.diagnostics) {
     return true;
   }
@@ -281,18 +282,27 @@ async function requestStructuredJson(
   }
 
   try {
-    const withFormat = await postChatCompletion(config, {
+    const withJsonSchema = await postChatCompletion(config, {
       ...baseBody,
-      response_format: { type: "json_object" },
+      response_format: {
+        type: "json_schema",
+        json_schema: {
+          name: "customer_insight",
+          schema: CUSTOMER_INSIGHT_JSON_SCHEMA,
+        },
+      },
     });
-    return parseJsonContent(withFormat, config);
+    return parseJsonContent(withJsonSchema, config);
   } catch (firstError) {
-    if (!shouldFallbackToWithoutFormat(firstError)) {
+    if (!shouldAttemptFormatFallback(firstError)) {
       throw enrichError(firstError, false);
     }
     try {
-      const withoutFormat = await postChatCompletion(config, baseBody);
-      return parseJsonContent(withoutFormat, config);
+      const withJsonObject = await postChatCompletion(config, {
+        ...baseBody,
+        response_format: { type: "json_object" },
+      });
+      return parseJsonContent(withJsonObject, config);
     } catch (secondError) {
       throw enrichError(secondError, true);
     }

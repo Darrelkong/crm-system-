@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
-import { safeParseCustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
+import { CUSTOMER_INSIGHT_JSON_SCHEMA } from "@/lib/ai/customer-insights/json-schema";
+import { customerInsightOutputSchema, safeParseCustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import {
   buildChatCompletionsUrl,
@@ -346,18 +347,19 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
     });
   });
 
-  it("retries without response_format when first request fails and second succeeds", async () => {
+  it("falls back to json_object when json_schema request returns http error and second succeeds", async () => {
     let callIndex = 0;
     const fetchMock = mock.fn(async (_url, init) => {
       callIndex += 1;
       const body = parseRequestBody(init);
 
       if (callIndex === 1) {
-        assert.deepEqual(body.response_format, { type: "json_object" });
+        const rf = body.response_format as { type: string } | undefined;
+        assert.equal(rf?.type, "json_schema");
         return Response.json({ error: { message: "unsupported response_format" } }, { status: 400 });
       }
 
-      assert.equal("response_format" in body, false);
+      assert.deepEqual(body.response_format, { type: "json_object" });
       return Response.json(
         {
           choices: [{ message: { content: JSON.stringify(validInsightPayload) } }],
@@ -382,7 +384,7 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
     }
   });
 
-  it("returns safe error when response_format fallback second attempt also fails", async () => {
+  it("returns safe error when json_object fallback also fails", async () => {
     const fetchMock = mock.fn(async () =>
       Response.json({ error: { message: "service unavailable" } }, { status: 503 }),
     );
@@ -404,8 +406,9 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
       | undefined;
     const firstBody = parseRequestBody(firstCallArgs?.[1]);
     const secondBody = parseRequestBody(secondCallArgs?.[1]);
-    assert.deepEqual(firstBody.response_format, { type: "json_object" });
-    assert.equal("response_format" in secondBody, false);
+    const firstRf = firstBody.response_format as { type: string } | undefined;
+    assert.equal(firstRf?.type, "json_schema");
+    assert.deepEqual(secondBody.response_format, { type: "json_object" });
   });
 });
 
@@ -534,6 +537,111 @@ describe("openAiCompatibleCustomerInsightProvider retry safety", () => {
         runtimeConfig,
       );
       assert.deepEqual(result, validInsightPayload);
+      assert.equal(fetchMock.mock.calls.length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
+
+describe("openAiCompatibleCustomerInsightProvider json_schema structured output", () => {
+  it("first request uses json_schema response_format with customer_insight schema", async () => {
+    let capturedBody: Record<string, unknown> | null = null;
+    const fetchMock = mock.fn(async (_url: unknown, init: unknown) => {
+      capturedBody = parseRequestBody(init as RequestInit);
+      return Response.json(
+        { choices: [{ message: { content: JSON.stringify(validInsightPayload) } }] },
+        { status: 200 },
+      );
+    });
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      await openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+      assert.ok(capturedBody !== null);
+      const rf = (capturedBody as Record<string, unknown>).response_format as {
+        type: string;
+        json_schema?: { name: string; schema: unknown };
+      };
+      assert.equal(rf.type, "json_schema");
+      assert.equal(rf.json_schema?.name, "customer_insight");
+      assert.deepEqual(rf.json_schema?.schema, CUSTOMER_INSIGHT_JSON_SCHEMA);
+      assert.equal(fetchMock.mock.calls.length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("CUSTOMER_INSIGHT_JSON_SCHEMA required fields match customerInsightOutputSchema keys", () => {
+    const zodKeys = Object.keys(customerInsightOutputSchema.shape).sort();
+    const schemaRequired = [...CUSTOMER_INSIGHT_JSON_SCHEMA.required].sort();
+    assert.deepEqual(schemaRequired, zodKeys);
+  });
+
+  it("CUSTOMER_INSIGHT_JSON_SCHEMA properties keys match customerInsightOutputSchema keys", () => {
+    const zodKeys = Object.keys(customerInsightOutputSchema.shape).sort();
+    const schemaPropertyKeys = Object.keys(CUSTOMER_INSIGHT_JSON_SCHEMA.properties).sort();
+    assert.deepEqual(schemaPropertyKeys, zodKeys);
+  });
+
+  it("json_schema parse failure does not fall back — only one HTTP call is made", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: "{truncated by provider" } }] },
+        { status: 200 },
+      ),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_json_parse_failed");
+      assert.equal(error.diagnostics?.usedFallback, false);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("json_schema response_too_large does not fall back — only one HTTP call is made", async () => {
+    const oversizedContent = "x".repeat(20_001);
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: oversizedContent } }] },
+        { status: 200 },
+      ),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_response_too_large");
+      assert.equal(error.diagnostics?.usedFallback, false);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("json_schema success parses valid payload and passes schema validation", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: JSON.stringify(validInsightPayload) } }] },
+        { status: 200 },
+      ),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      const result = await openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+      assert.deepEqual(result, validInsightPayload);
+      assert.equal(safeParseCustomerInsightOutput(result).success, true);
       assert.equal(fetchMock.mock.calls.length, 1);
     } finally {
       globalThis.fetch = originalFetch;
