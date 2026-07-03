@@ -202,7 +202,8 @@ export async function getAdminDashboardStats(
     .groupBy(schema.followUps.userId, schema.users.displayName)
     .orderBy(desc(count()));
 
-  const scoringSummary = await computeScoringSummaryForAdmin(db, now);
+  // Pass `settings` to avoid a second getEffectiveSettings DB round-trip.
+  const scoringSummary = await computeScoringSummaryForAdmin(db, now, settings);
 
   return {
     totalCustomers: totalCustomersRow[0]?.value ?? 0,

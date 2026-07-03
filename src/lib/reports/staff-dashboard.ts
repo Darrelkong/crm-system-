@@ -8,14 +8,13 @@ import {
   lt,
   lte,
   ne,
+  notInArray,
 } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
-import { isReclamationEligibleCustomer } from "@/lib/reclamation/constants";
-import {
-  getDaysWithoutValidFollowUp,
-} from "@/lib/reclamation/days";
+import { RECLAMATION_EXCLUDED_SALES_STAGES } from "@/lib/reclamation/constants";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { computeScoringSummaryForStaff } from "@/lib/customers/scoring/service";
 import type { User } from "../../../drizzle/schema/users";
@@ -58,6 +57,7 @@ export async function getStaffDashboardStats(
     myClosedWonRow,
     myClaimedRow,
     myNeverContactedRow,
+    myReclaimRiskRow,
   ] = await Promise.all([
     db
       .select({ value: count() })
@@ -155,26 +155,39 @@ export async function getStaffDashboardStats(
           isNull(schema.customers.lastValidFollowUpAt),
         ),
       ),
+    // SQL COUNT for reclaim risk: replicates the JS filter that was previously
+    // applied to the ownedActiveCustomers full-table fetch.
+    // Conditions mirror isReclamationEligibleCustomer + getDaysWithoutValidFollowUp:
+    //   - sales_stage NOT IN (closed_won, converted, on_hold)
+    //   - is_pinned = 0
+    //   - days_without_valid >= warningThreshold AND < automaticReclaimDays
+    db
+      .select({ cnt: sql<number>`count(*)` })
+      .from(schema.customers)
+      .where(
+        and(
+          ownedActiveFilter,
+          notInArray(schema.customers.salesStage, [
+            ...RECLAMATION_EXCLUDED_SALES_STAGES,
+          ]),
+          eq(schema.customers.isPinned, 0),
+          sql`CAST((julianday(${nowIso}) - julianday(COALESCE(last_valid_follow_up_at, created_at))) AS INTEGER) >= ${settings.reclaimWarningThresholdDays}`,
+          sql`CAST((julianday(${nowIso}) - julianday(COALESCE(last_valid_follow_up_at, created_at))) AS INTEGER) < ${settings.automaticReclaimDays}`,
+        ),
+      ),
   ]);
 
-  const ownedActiveCustomers = await db
-    .select()
-    .from(schema.customers)
-    .where(ownedActiveFilter);
-
-  const myReclaimRiskCustomers = ownedActiveCustomers.filter((customer) => {
-    if (!isReclamationEligibleCustomer(customer)) {
-      return false;
-    }
-    const days = getDaysWithoutValidFollowUp(customer, now);
-    return (
-      days >= settings.reclaimWarningThresholdDays &&
-      days < settings.automaticReclaimDays
-    );
-  }).length;
+  const myReclaimRiskCustomers = Number(myReclaimRiskRow[0]?.cnt ?? 0);
 
   const claimStatus = await getStaffClaimStatus(user.id, now, db);
-  const scoringSummary = await computeScoringSummaryForStaff(db, user, now);
+  // Pass `settings` to avoid a second getEffectiveSettings DB round-trip inside
+  // computeScoringSummaryForStaff.
+  const scoringSummary = await computeScoringSummaryForStaff(
+    db,
+    user,
+    now,
+    settings,
+  );
 
   return {
     myCustomers: myCustomersRow[0]?.value ?? 0,
