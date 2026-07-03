@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
-import { serializeCustomerInsightContext } from "@/lib/ai/customer-insights/prompt-builder";
+import {
+  buildSystemPrompt,
+  serializeCustomerInsightContext,
+} from "@/lib/ai/customer-insights/prompt-builder";
 
 function buildSampleContext(
   overrides: Partial<CustomerInsightContext> = {},
@@ -75,5 +78,14 @@ describe("serializeCustomerInsightContext", () => {
     assert.equal(parsed.recentFollowUps.length, 1);
     assert.equal(parsed.recentFollowUps[0]?.summary, "客戶表示下週再聯絡");
     assert.equal(parsed.recentFollowUps[0]?.customerIntent, "high");
+  });
+});
+
+describe("buildSystemPrompt", () => {
+  it("requires one raw JSON object without markdown or explanations", () => {
+    const prompt = buildSystemPrompt("zh-Hans");
+    assert.match(prompt, /Return only one valid JSON object/);
+    assert.match(prompt, /Do not include markdown fences/);
+    assert.match(prompt, /Do not include explanations before or after the JSON/);
   });
 });

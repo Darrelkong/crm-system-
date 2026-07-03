@@ -18,6 +18,9 @@ export type AiProviderDiagnostics = {
   httpStatus?: number;
   requestUrlHost?: string;
   requestUrlPath?: string;
+  contentLength?: number;
+  parseStrategy?: "raw" | "fenced" | "extracted_object" | "none";
+  firstNonWhitespaceChar?: string;
 };
 
 const SAFE_DIAGNOSTIC_KEYS = [
@@ -27,6 +30,9 @@ const SAFE_DIAGNOSTIC_KEYS = [
   "providerErrorType",
   "requestUrlHost",
   "requestUrlPath",
+  "contentLength",
+  "parseStrategy",
+  "firstNonWhitespaceChar",
 ] as const satisfies ReadonlyArray<keyof AiProviderDiagnostics>;
 
 export function getRequestUrlDiagnostics(apiBaseUrl: string): {
@@ -45,6 +51,10 @@ export function buildProviderDiagnostics(
   providerKind: AiProviderKind,
   providerErrorType: AiProviderErrorType,
   httpStatus?: number,
+  safeDetails?: Pick<
+    AiProviderDiagnostics,
+    "contentLength" | "parseStrategy" | "firstNonWhitespaceChar"
+  >,
 ): AiProviderDiagnostics {
   const { requestUrlHost, requestUrlPath } = getRequestUrlDiagnostics(config.apiBaseUrl);
   return {
@@ -54,6 +64,7 @@ export function buildProviderDiagnostics(
     requestUrlHost,
     requestUrlPath,
     ...(httpStatus !== undefined ? { httpStatus } : {}),
+    ...safeDetails,
   };
 }
 

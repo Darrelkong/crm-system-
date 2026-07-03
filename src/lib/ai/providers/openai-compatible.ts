@@ -99,17 +99,119 @@ async function postChatCompletion(
   }
 }
 
+function tryParseJson(text: string): unknown | null {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+}
+
+function extractFencedJsonCandidates(content: string): string[] {
+  const candidates: string[] = [];
+  const fencePattern = /```(?:json)?\s*([\s\S]*?)\s*```/gi;
+  for (const match of content.matchAll(fencePattern)) {
+    const candidate = match[1]?.trim();
+    if (candidate) {
+      candidates.push(candidate);
+    }
+  }
+  return candidates;
+}
+
+function findBalancedJsonObjectEnd(
+  text: string,
+  startIndex: number,
+): number | null {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let i = startIndex; i < text.length; i += 1) {
+    const char = text[i];
+
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (char === "\\") {
+        escaped = true;
+      } else if (char === "\"") {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === "\"") {
+      inString = true;
+      continue;
+    }
+
+    if (char === "{") {
+      depth += 1;
+      continue;
+    }
+
+    if (char === "}") {
+      depth -= 1;
+      if (depth === 0) {
+        return i;
+      }
+    }
+  }
+
+  return null;
+}
+
+function extractBalancedJsonObjectCandidates(content: string): string[] {
+  const candidates: string[] = [];
+  for (
+    let start = content.indexOf("{");
+    start !== -1;
+    start = content.indexOf("{", start + 1)
+  ) {
+    const end = findBalancedJsonObjectEnd(content, start);
+    if (end !== null) {
+      candidates.push(content.slice(start, end + 1));
+    }
+  }
+  return candidates;
+}
+
 function parseJsonContent(content: string, config: ProviderRuntimeConfig): unknown {
   const trimmed = content.trim();
-  const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  const jsonText = fenced?.[1]?.trim() ?? trimmed;
-  try {
-    return JSON.parse(jsonText) as unknown;
-  } catch {
-    throw new AiProviderError(
-      buildProviderDiagnostics(config, PROVIDER_KIND, "provider_json_parse_failed"),
-    );
+  const raw = tryParseJson(trimmed);
+  if (raw !== null) {
+    return raw;
   }
+
+  for (const candidate of extractFencedJsonCandidates(trimmed)) {
+    const parsed = tryParseJson(candidate);
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  for (const candidate of extractBalancedJsonObjectCandidates(trimmed)) {
+    const parsed = tryParseJson(candidate);
+    if (parsed !== null) {
+      return parsed;
+    }
+  }
+
+  const firstNonWhitespaceChar = trimmed[0];
+  throw new AiProviderError(
+    buildProviderDiagnostics(
+      config,
+      PROVIDER_KIND,
+      "provider_json_parse_failed",
+      undefined,
+      {
+        contentLength: content.length,
+        parseStrategy: "none",
+        ...(firstNonWhitespaceChar ? { firstNonWhitespaceChar } : {}),
+      },
+    ),
+  );
 }
 
 async function requestStructuredJson(

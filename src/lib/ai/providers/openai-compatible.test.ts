@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
+import { safeParseCustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import {
   buildChatCompletionsUrl,
@@ -101,6 +102,26 @@ async function expectProviderError(
   }
 }
 
+async function analyzeContent(content: string): Promise<unknown> {
+  const fetchMock = mock.fn(async () =>
+    Response.json({ choices: [{ message: { content } }] }, { status: 200 }),
+  );
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fetchMock as typeof fetch;
+
+  try {
+    const result = await openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
+      context,
+      settings,
+      runtimeConfig,
+    );
+    assert.equal(fetchMock.mock.calls.length, 1);
+    return result;
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+}
+
 describe("buildChatCompletionsUrl", () => {
   it("appends /v1/chat/completions for OpenAI official base URL", () => {
     assert.equal(
@@ -128,6 +149,84 @@ describe("buildChatCompletionsUrl", () => {
       buildChatCompletionsUrl("https://generativelanguage.googleapis.com/v1beta/openai/"),
       "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
     );
+  });
+});
+
+describe("openAiCompatibleCustomerInsightProvider JSON parsing", () => {
+  it("parses raw JSON content", async () => {
+    const result = await analyzeContent(JSON.stringify(validInsightPayload));
+    assert.deepEqual(result, validInsightPayload);
+  });
+
+  it("parses content fully wrapped in fenced JSON", async () => {
+    const result = await analyzeContent(
+      `\`\`\`json\n${JSON.stringify(validInsightPayload)}\n\`\`\``,
+    );
+    assert.deepEqual(result, validInsightPayload);
+  });
+
+  it("parses fenced JSON after provider explanation text", async () => {
+    const result = await analyzeContent(
+      `Here is the JSON:\n\`\`\`json\n${JSON.stringify(validInsightPayload)}\n\`\`\``,
+    );
+    assert.deepEqual(result, validInsightPayload);
+  });
+
+  it("parses fenced JSON before trailing provider text", async () => {
+    const result = await analyzeContent(
+      `\`\`\`\n${JSON.stringify(validInsightPayload)}\n\`\`\`\nHope this helps.`,
+    );
+    assert.deepEqual(result, validInsightPayload);
+  });
+
+  it("parses a JSON object embedded between normal text", async () => {
+    const result = await analyzeContent(
+      `Analysis result follows:\n${JSON.stringify(validInsightPayload)}\nEnd.`,
+    );
+    assert.deepEqual(result, validInsightPayload);
+  });
+
+  it("handles braces inside JSON string fields while extracting embedded object", async () => {
+    const payload = {
+      ...validInsightPayload,
+      reasoning: 'The text contains {braces}, } characters, and an escaped " quote.',
+    };
+    const result = await analyzeContent(
+      `Gemini response:\n${JSON.stringify(payload)}\nDone.`,
+    );
+    assert.deepEqual(result, payload);
+  });
+
+  it("keeps truncated JSON as provider_json_parse_failed without leaking content", async () => {
+    const truncated = `Leading text ${JSON.stringify(validInsightPayload).slice(0, 40)}`;
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: truncated } }] },
+        { status: 200 },
+      ),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_json_parse_failed");
+      assert.equal(diagnostics?.contentLength, truncated.length);
+      assert.equal(diagnostics?.parseStrategy, "none");
+      assert.equal(diagnostics?.firstNonWhitespaceChar, "L");
+      const serialized = JSON.stringify(diagnostics);
+      assert.equal(serialized.includes(truncated), false);
+      assert.equal(serialized.includes("Leading text"), false);
+      assertNoSecrets(serialized);
+    });
+  });
+
+  it("does not treat schema validation failure as JSON parse failure", async () => {
+    const invalidSchemaPayload = {
+      ...validInsightPayload,
+      intentLevel: "definitely-not-valid",
+    };
+    const result = await analyzeContent(JSON.stringify(invalidSchemaPayload));
+    assert.deepEqual(result, invalidSchemaPayload);
+    assert.equal(safeParseCustomerInsightOutput(result).success, false);
   });
 });
 
