@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from "react";
@@ -24,6 +25,10 @@ export function NavigationPendingProvider({ children }: { children: ReactNode })
       ? pendingHref
       : null;
 
+  useEffect(() => {
+    setPendingHref(null);
+  }, [pathname]);
+
   return (
     <NavigationPendingContext.Provider
       value={{ pendingHref: activePendingHref, setPendingHref }}
@@ -35,6 +40,11 @@ export function NavigationPendingProvider({ children }: { children: ReactNode })
 
 export function useNavigationPending() {
   return useContext(NavigationPendingContext);
+}
+
+export function useIsNavigationPending(): boolean {
+  const pending = useNavigationPending();
+  return pending?.pendingHref != null;
 }
 
 export function beginNavigationPending(

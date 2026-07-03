@@ -10,6 +10,7 @@ import {
   SidebarNav,
 } from "@/components/layout/app-navigation";
 import { NotificationUnreadProvider } from "@/components/layout/notification-unread-context";
+import { NavigationProgressBar } from "@/components/layout/navigation-progress-bar";
 import { SystemStatusBadge } from "@/components/layout/system-status-badge";
 import {
   getMobileBottomNav,
@@ -117,7 +118,8 @@ export function DashboardShell({
             contentPad,
           )}
         >
-          <header className="surface-panel sticky top-0 z-20 border-b pt-[env(safe-area-inset-top,0px)]">
+          <header className="surface-panel relative sticky top-0 z-20 border-b pt-[env(safe-area-inset-top,0px)]">
+            <NavigationProgressBar />
             <div className="flex items-center justify-between gap-3 px-4 py-3 sm:gap-4 sm:px-6 lg:py-4">
               <div className="min-w-0 flex-1">
                 <h1 className="page-title truncate text-lg sm:text-xl">
