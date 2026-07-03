@@ -408,3 +408,135 @@ describe("openAiCompatibleCustomerInsightProvider diagnostics", () => {
     assert.equal("response_format" in secondBody, false);
   });
 });
+
+describe("openAiCompatibleCustomerInsightProvider retry safety", () => {
+  it("does not retry on parse failure — only one HTTP call is made", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: "this is not json" } }] },
+        { status: 200 },
+      ),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_json_parse_failed");
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("does not retry on response_too_large — only one HTTP call is made", async () => {
+    const oversizedContent = "x".repeat(20_001);
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: oversizedContent } }] },
+        { status: 200 },
+      ),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const diagnostics = error.diagnostics;
+      assert.equal(diagnostics?.providerErrorType, "provider_response_too_large");
+      assert.equal(diagnostics?.contentLength, 20_001);
+      const serialized = JSON.stringify(diagnostics);
+      assert.equal(serialized.includes(oversizedContent), false);
+      assertNoSecrets(serialized);
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("does retry on empty_content — second provider call is made", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ choices: [{ message: { content: "   " } }] }, { status: 200 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_empty_content");
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 2);
+  });
+
+  it("does retry on HTTP error — second provider call is made", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "bad request" } }, { status: 400 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(error.diagnostics?.httpStatus, 400);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 2);
+  });
+
+  it("includes durationMs, contextLength, promptLength, usedFallback in parse failure diagnostics", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: "not json" } }] },
+        { status: 200 },
+      ),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const d = error.diagnostics;
+      assert.equal(d?.providerErrorType, "provider_json_parse_failed");
+      assert.equal(typeof d?.durationMs, "number");
+      assert.ok((d?.durationMs ?? -1) >= 0);
+      assert.equal(typeof d?.contextLength, "number");
+      assert.ok((d?.contextLength ?? -1) > 0);
+      assert.equal(typeof d?.promptLength, "number");
+      assert.ok((d?.promptLength ?? -1) > 0);
+      assert.equal(d?.usedFallback, false);
+      const serialized = JSON.stringify(d);
+      assert.equal(serialized.includes("not json"), false);
+      assertNoSecrets(serialized);
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("sets usedFallback=true when second attempt is made and fails", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "unavailable" } }, { status: 503 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const d = error.diagnostics;
+      assert.equal(d?.usedFallback, true);
+      assert.equal(typeof d?.durationMs, "number");
+      assertNoSecrets(JSON.stringify(d));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 2);
+  });
+
+  it("response within max length is accepted normally", async () => {
+    const withinLimitContent = JSON.stringify(validInsightPayload);
+    assert.ok(withinLimitContent.length < 20_000);
+    const fetchMock = mock.fn(async () =>
+      Response.json(
+        { choices: [{ message: { content: withinLimitContent } }] },
+        { status: 200 },
+      ),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    try {
+      const result = await openAiCompatibleCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+      assert.deepEqual(result, validInsightPayload);
+      assert.equal(fetchMock.mock.calls.length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});

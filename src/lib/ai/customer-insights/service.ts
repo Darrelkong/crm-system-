@@ -324,6 +324,17 @@ export async function refreshCustomerAiInsight(
   const resolved = resolveCustomerInsightProvider(aiSettings);
   const provider = getCustomerInsightProviderImpl(resolved);
 
+  // Cooldown guard: pre-write a failed record before the expensive provider call so
+  // that a Worker CPU-limit kill (Error 1102) during the provider phase still sets
+  // generatedAt, preventing an immediate retry that would repeat the same crash.
+  if (resolved.kind === "openai_compatible") {
+    await persistFailedInsight(db, customer.id, {
+      model: resolved.model,
+      promptVersion: aiSettings.aiPromptVersion,
+      sourceHash,
+    });
+  }
+
   let rawOutput: unknown;
   try {
     rawOutput = await provider.analyzeCustomerInsight(

@@ -8,6 +8,7 @@ export type AiProviderErrorType =
   | "provider_http_error"
   | "provider_empty_content"
   | "provider_json_parse_failed"
+  | "provider_response_too_large"
   | "schema_validation_failed"
   | "provider_request_failed";
 
@@ -21,6 +22,10 @@ export type AiProviderDiagnostics = {
   contentLength?: number;
   parseStrategy?: "raw" | "fenced" | "extracted_object" | "none";
   firstNonWhitespaceChar?: string;
+  contextLength?: number;
+  promptLength?: number;
+  durationMs?: number;
+  usedFallback?: boolean;
 };
 
 const SAFE_DIAGNOSTIC_KEYS = [
@@ -33,6 +38,10 @@ const SAFE_DIAGNOSTIC_KEYS = [
   "contentLength",
   "parseStrategy",
   "firstNonWhitespaceChar",
+  "contextLength",
+  "promptLength",
+  "durationMs",
+  "usedFallback",
 ] as const satisfies ReadonlyArray<keyof AiProviderDiagnostics>;
 
 export function getRequestUrlDiagnostics(apiBaseUrl: string): {
@@ -97,7 +106,7 @@ export function toSafeFailureAuditMetadata(
   for (const key of SAFE_DIAGNOSTIC_KEYS) {
     const value = diagnostics[key];
     if (value !== undefined) {
-      safe[key] = value;
+      safe[key] = typeof value === "boolean" ? (value ? 1 : 0) : value;
     }
   }
   return safe;

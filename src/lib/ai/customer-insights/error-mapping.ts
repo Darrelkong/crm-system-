@@ -29,6 +29,7 @@ export function mapAiAnalysisErrorCode(
     case "provider_empty_content":
     case "provider_json_parse_failed":
     case "schema_validation_failed":
+    case "provider_response_too_large":
       return "AI_PROVIDER_RESPONSE_INVALID";
     case "provider_http_error":
       if (diagnostics.httpStatus === 503) {

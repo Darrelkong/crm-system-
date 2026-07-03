@@ -132,3 +132,117 @@ describe("sanitizeCustomerInsightContextForProvider", () => {
     assert.equal(sanitized.includeSensitiveFields, false);
   });
 });
+
+describe("sanitizeCustomerInsightContextForProvider field truncation", () => {
+  const TRUNCATION_MARKER = "…[truncated]";
+
+  it("truncates customer.notes longer than 2000 chars", () => {
+    const longNotes = "a".repeat(3000);
+    const context = buildSampleContext({ notes: longNotes });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+
+    assert.ok(sanitized.notes !== null);
+    assert.ok((sanitized.notes?.length ?? 0) < longNotes.length);
+    assert.ok(sanitized.notes?.endsWith(TRUNCATION_MARKER));
+    assert.equal(context.notes, longNotes);
+  });
+
+  it("does not truncate customer.notes within 2000 chars", () => {
+    const shortNotes = "b".repeat(2000);
+    const context = buildSampleContext({ notes: shortNotes });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+
+    assert.equal(sanitized.notes, shortNotes);
+  });
+
+  it("truncates customer.sourceRemark longer than 500 chars", () => {
+    const longRemark = "r".repeat(1000);
+    const context = buildSampleContext({ sourceRemark: longRemark });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+
+    assert.ok(sanitized.sourceRemark !== null);
+    assert.ok((sanitized.sourceRemark?.length ?? 0) < longRemark.length);
+    assert.ok(sanitized.sourceRemark?.endsWith(TRUNCATION_MARKER));
+    assert.equal(context.sourceRemark, longRemark);
+  });
+
+  it("truncates follow-up summary longer than 1000 chars", () => {
+    const longSummary = "s".repeat(2000);
+    const context = buildSampleContext({
+      recentFollowUps: [
+        {
+          id: "fu-1",
+          followUpTime: "2026-06-29T10:00:00.000Z",
+          channel: "wechat",
+          outcome: "interested",
+          summary: longSummary,
+          customerIntent: null,
+          isValidFollowUp: 1,
+          nextFollowUpAt: null,
+        },
+      ],
+    });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    const sanitizedSummary = sanitized.recentFollowUps[0]?.summary ?? "";
+
+    assert.ok(sanitizedSummary.length < longSummary.length);
+    assert.ok(sanitizedSummary.endsWith(TRUNCATION_MARKER));
+    assert.equal(context.recentFollowUps[0]?.summary, longSummary);
+  });
+
+  it("truncates follow-up customerIntent longer than 500 chars", () => {
+    const longIntent = "i".repeat(1000);
+    const context = buildSampleContext({
+      recentFollowUps: [
+        {
+          id: "fu-1",
+          followUpTime: "2026-06-29T10:00:00.000Z",
+          channel: "wechat",
+          outcome: "interested",
+          summary: "normal summary",
+          customerIntent: longIntent,
+          isValidFollowUp: 1,
+          nextFollowUpAt: null,
+        },
+      ],
+    });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    const sanitizedIntent = sanitized.recentFollowUps[0]?.customerIntent ?? "";
+
+    assert.ok(sanitizedIntent.length < longIntent.length);
+    assert.ok(sanitizedIntent.endsWith(TRUNCATION_MARKER));
+    assert.equal(context.recentFollowUps[0]?.customerIntent, longIntent);
+  });
+
+  it("leaves null free-text fields as null", () => {
+    const context = buildSampleContext({ notes: null, sourceRemark: null });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+
+    assert.equal(sanitized.notes, null);
+    assert.equal(sanitized.sourceRemark, null);
+  });
+
+  it("does not mutate follow-up objects when truncating", () => {
+    const longSummary = "t".repeat(1001);
+    const context = buildSampleContext({
+      recentFollowUps: [
+        {
+          id: "fu-1",
+          followUpTime: "2026-06-29T10:00:00.000Z",
+          channel: "phone",
+          outcome: "callback",
+          summary: longSummary,
+          customerIntent: "medium",
+          isValidFollowUp: 0,
+          nextFollowUpAt: null,
+        },
+      ],
+    });
+    const originalFollowUp = context.recentFollowUps[0];
+
+    sanitizeCustomerInsightContextForProvider(context);
+
+    assert.equal(context.recentFollowUps[0], originalFollowUp);
+    assert.equal(context.recentFollowUps[0]?.summary, longSummary);
+  });
+});

@@ -2,8 +2,13 @@ import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-
 import { buildProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
 import {
+  AI_PROVIDER_MAX_RESPONSE_CHARS,
+  AI_PROVIDER_SCANNER_MAX_CANDIDATES,
+} from "@/lib/ai/customer-insights/limits";
+import {
   buildSystemPrompt,
   buildUserPrompt,
+  serializeCustomerInsightContext,
 } from "@/lib/ai/customer-insights/prompt-builder";
 import { validateAiApiBaseUrl } from "@/lib/settings/ai-validation";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
@@ -86,7 +91,19 @@ async function postChatCompletion(
         ),
       );
     }
-    return extractMessageContent(data, config);
+    const content = extractMessageContent(data, config);
+    if (content.length > AI_PROVIDER_MAX_RESPONSE_CHARS) {
+      throw new AiProviderError(
+        buildProviderDiagnostics(
+          config,
+          PROVIDER_KIND,
+          "provider_response_too_large",
+          undefined,
+          { contentLength: content.length },
+        ),
+      );
+    }
+    return content;
   } catch (error) {
     if (error instanceof AiProviderError) {
       throw error;
@@ -166,7 +183,7 @@ function extractBalancedJsonObjectCandidates(content: string): string[] {
   const candidates: string[] = [];
   for (
     let start = content.indexOf("{");
-    start !== -1;
+    start !== -1 && candidates.length < AI_PROVIDER_SCANNER_MAX_CANDIDATES;
     start = content.indexOf("{", start + 1)
   ) {
     const end = findBalancedJsonObjectEnd(content, start);
@@ -214,17 +231,33 @@ function parseJsonContent(content: string, config: ProviderRuntimeConfig): unkno
   );
 }
 
+/**
+ * Returns true when a fallback attempt without response_format is worth trying.
+ * Parse failures and oversized responses indicate the content itself is the
+ * problem — retrying with a different format parameter will not help and doubles
+ * the CPU cost of the request.
+ */
+function shouldFallbackToWithoutFormat(error: unknown): boolean {
+  if (!(error instanceof AiProviderError) || !error.diagnostics) {
+    return true;
+  }
+  const t = error.diagnostics.providerErrorType;
+  return t !== "provider_json_parse_failed" && t !== "provider_response_too_large";
+}
+
 async function requestStructuredJson(
   config: ProviderRuntimeConfig,
   settings: EffectiveAiSettings,
   context: CustomerInsightContext,
 ): Promise<unknown> {
+  const contextJson = serializeCustomerInsightContext(context);
+  const contextLength = contextJson.length;
+  const userPrompt = buildUserPrompt(settings.aiPromptTemplate, context);
+  const promptLength = userPrompt.length;
+
   const messages = [
     { role: "system", content: buildSystemPrompt(settings.aiAnalysisLanguage) },
-    {
-      role: "user",
-      content: buildUserPrompt(settings.aiPromptTemplate, context),
-    },
+    { role: "user", content: userPrompt },
   ];
 
   const baseBody = {
@@ -234,6 +267,19 @@ async function requestStructuredJson(
     messages,
   };
 
+  const startMs = Date.now();
+
+  function enrichError(error: unknown, usedFallback: boolean): AiProviderError {
+    const durationMs = Date.now() - startMs;
+    if (error instanceof AiProviderError && error.diagnostics) {
+      return new AiProviderError(
+        { ...error.diagnostics, contextLength, promptLength, durationMs, usedFallback },
+        error.message,
+      );
+    }
+    return error instanceof AiProviderError ? error : new AiProviderError(undefined);
+  }
+
   try {
     const withFormat = await postChatCompletion(config, {
       ...baseBody,
@@ -241,17 +287,14 @@ async function requestStructuredJson(
     });
     return parseJsonContent(withFormat, config);
   } catch (firstError) {
+    if (!shouldFallbackToWithoutFormat(firstError)) {
+      throw enrichError(firstError, false);
+    }
     try {
       const withoutFormat = await postChatCompletion(config, baseBody);
       return parseJsonContent(withoutFormat, config);
     } catch (secondError) {
-      if (secondError instanceof AiProviderError && secondError.diagnostics) {
-        throw secondError;
-      }
-      if (firstError instanceof AiProviderError && firstError.diagnostics) {
-        throw firstError;
-      }
-      throw secondError;
+      throw enrichError(secondError, true);
     }
   }
 }
