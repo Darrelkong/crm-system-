@@ -5,7 +5,7 @@ export const CRM_LAST_ACTIVITY_KEY = "crm_last_activity_at";
 export const CRM_SESSION_BC = "crm_session_sync";
 
 export type SecurityLogoutReason = "manual" | "idle";
-export type SessionEndReason = "idle" | "revoked" | "invalid";
+export type SessionEndReason = "idle" | "revoked" | "invalid" | "device_revoked";
 
 export const SESSION_END_REDIRECT_DELAY_MS = 2500;
 
@@ -17,6 +17,8 @@ export function parseSessionEndReason(errorCode?: string): SessionEndReason | nu
       return "revoked";
     case "SESSION_INVALID":
       return "invalid";
+    case "SESSION_DEVICE_REVOKED":
+      return "device_revoked";
     default:
       return null;
   }
@@ -30,6 +32,8 @@ export function sessionEndMessageKey(reason: SessionEndReason): string {
       return "security.sessionRevokedByOtherDevice";
     case "invalid":
       return "security.sessionInvalidReLogin";
+    case "device_revoked":
+      return "security.deviceAuthorizationRevoked";
   }
 }
 

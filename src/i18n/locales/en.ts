@@ -103,6 +103,16 @@ const en = {
     ipEmailRestrictedMessage:
       "Too many attempts were made with emails that cannot sign in to this system. For security, please wait until the countdown ends before trying again.",
     ipEmailRestrictedCountdownSuffix: "seconds until you can try again",
+    deviceNewPending:
+      "This device is not authorized. Please contact an administrator.",
+    devicePendingReview:
+      "This device is awaiting administrator approval. Please try again later.",
+    deviceLimitReached:
+      "This account has reached the device limit. Please contact an administrator to remove an old device.",
+    deviceRevoked:
+      "This device authorization has been revoked. Please contact an administrator.",
+    deviceRejected:
+      "This device authorization request was rejected. Please contact an administrator.",
   },
   security: {
     accessExpired:
@@ -113,6 +123,8 @@ const en = {
       "Your account was signed in on another device. This session is no longer valid. Please sign in again.",
     sessionTimedOutReLogin: "Your session has timed out. Please sign in again.",
     sessionInvalidReLogin: "Your session is no longer valid. Please sign in again.",
+    deviceAuthorizationRevoked:
+      "This device is no longer authorized. Please contact an administrator.",
     sessionRevokedTitle: "Session ended",
     accessDenied: "Access denied",
     singleSessionTitle: "Access Denied",
@@ -157,6 +169,7 @@ const en = {
     roleStaff: "STAFF",
     help: "Help center",
     auditLogs: "Audit log",
+    deviceAuthorization: "Device Authorization",
     recycleBin: "Recycle Bin",
     more: "More",
     collapseSidebar: "Collapse sidebar",

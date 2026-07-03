@@ -101,6 +101,12 @@ const zhHant: Messages = {
     ipEmailRestrictedMessage:
       "您已多次嘗試輸入無法登入本系統的電郵。為保護系統安全，請等待倒計時結束後再重新嘗試。",
     ipEmailRestrictedCountdownSuffix: "秒後可重新嘗試",
+    deviceNewPending: "此設備尚未授權，請聯繫管理員。",
+    devicePendingReview: "此設備正在等待管理員審核，請稍後再試。",
+    deviceLimitReached:
+      "此帳號已達到設備數量上限，請聯繫管理員移除舊設備。",
+    deviceRevoked: "此設備授權已被撤銷，請聯繫管理員。",
+    deviceRejected: "此設備授權申請已被拒絕，請聯繫管理員。",
   },
   security: {
     accessExpired:
@@ -111,6 +117,8 @@ const zhHant: Messages = {
       "您的帳號已在其他設備登入，當前會話已失效，請重新登入。",
     sessionTimedOutReLogin: "登入已超時，請重新登入。",
     sessionInvalidReLogin: "登入已失效，請重新登入。",
+    deviceAuthorizationRevoked:
+      "此設備授權已被撤銷，請聯繫管理員。",
     sessionRevokedTitle: "工作階段已失效",
     accessDenied: "訪問被拒絕",
     singleSessionTitle: "訪問被拒絕",
@@ -154,6 +162,7 @@ const zhHant: Messages = {
     roleStaff: "STAFF",
     help: "幫助中心",
     auditLogs: "審計日誌",
+    deviceAuthorization: "設備授權",
     recycleBin: "回收站",
     more: "更多",
     collapseSidebar: "收起側邊欄",

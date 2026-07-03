@@ -1,5 +1,6 @@
 export * from "./users";
 export * from "./sessions";
+export * from "./authorized-devices";
 export * from "./customers";
 export * from "./customer-assignees";
 export * from "./customer-code-counter";

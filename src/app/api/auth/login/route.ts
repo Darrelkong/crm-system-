@@ -8,6 +8,12 @@ import {
   getSessionCookieOptions,
 } from "@/lib/auth/cookies";
 import {
+  getDeviceCookieExpiresAt,
+  getDeviceCookieOptions,
+  hashDeviceId,
+  resolveDeviceIdFromRequest,
+} from "@/lib/auth/device";
+import {
   AUTH_ERROR_CODES,
 } from "@/lib/auth/constants";
 import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
@@ -33,6 +39,11 @@ import {
 import { writeLoginLog } from "@/lib/audit/login-log";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getPostLoginRedirectPath } from "@/lib/permissions/auth";
+import {
+  evaluateStaffDeviceLogin,
+  recordAdminDeviceOnLogin,
+} from "@/lib/devices/service";
+import { DEVICE_AUDIT_ACTIONS } from "@/lib/devices/constants";
 
 export const dynamic = "force-dynamic";
 
@@ -221,7 +232,95 @@ export async function POST(request: Request) {
   await resetLoginFailures(user.id);
   await clearIpEmailRestriction(ipAddress);
 
-  const { token, expiresAt } = await createSession(user.id, request);
+  const { deviceId } = resolveDeviceIdFromRequest(request);
+  const deviceIdHash = await hashDeviceId(deviceId);
+  const deviceCookieExpiresAt = getDeviceCookieExpiresAt();
+
+  if (user.role === "admin") {
+    const deviceRecordId = await recordAdminDeviceOnLogin(user, deviceIdHash, {
+      ipAddress,
+      userAgent,
+    });
+    const { token, expiresAt } = await createSession(
+      user.id,
+      request,
+      deviceIdHash,
+    );
+    cookieStore.set({
+      ...getSessionCookieOptions(expiresAt),
+      value: token,
+    });
+    cookieStore.set({
+      ...getDeviceCookieOptions(deviceCookieExpiresAt),
+      value: deviceId,
+    });
+
+    await writeLoginLog({
+      userId: user.id,
+      emailAttempted: email,
+      success: true,
+      ipAddress,
+      userAgent,
+    });
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "auth.login.success",
+      entityType: "session",
+      entityId: user.id,
+      ipAddress,
+      userAgent,
+      metadata: { role: user.role, deviceRecordId },
+    });
+
+    return Response.json({
+      ok: true,
+      redirect: getPostLoginRedirectPath(user),
+      mustChangePassword: user.mustChangePassword === 1,
+      user: {
+        id: user.id,
+        email: user.email,
+        displayName: user.displayName,
+        role: user.role,
+      },
+    });
+  }
+
+  const deviceResult = await evaluateStaffDeviceLogin(
+    user,
+    deviceIdHash,
+    { ipAddress, userAgent },
+  );
+
+  cookieStore.set({
+    ...getDeviceCookieOptions(deviceCookieExpiresAt),
+    value: deviceId,
+  });
+
+  if (!deviceResult.ok) {
+    await writeLoginLog({
+      userId: user.id,
+      emailAttempted: email,
+      success: false,
+      failureReason: deviceResult.reason,
+      ipAddress,
+      userAgent,
+    });
+
+    return Response.json(
+      {
+        error: deviceResult.message,
+        errorCode: deviceResult.errorCode,
+      },
+      { status: 403 },
+    );
+  }
+
+  const { token, expiresAt } = await createSession(
+    user.id,
+    request,
+    deviceIdHash,
+  );
   cookieStore.set({
     ...getSessionCookieOptions(expiresAt),
     value: token,
@@ -244,6 +343,22 @@ export async function POST(request: Request) {
     userAgent,
     metadata: { role: user.role },
   });
+
+  if (deviceResult.deviceRecordId) {
+    await writeAuditLog({
+      userId: user.id,
+      action: DEVICE_AUDIT_ACTIONS.LOGIN_SUCCESS,
+      entityType: "authorized_device",
+      entityId: deviceResult.deviceRecordId,
+      ipAddress,
+      userAgent,
+      metadata: {
+        targetUserId: user.id,
+        targetUserEmail: user.email,
+        deviceRecordId: deviceResult.deviceRecordId,
+      },
+    });
+  }
 
   return Response.json({
     ok: true,

@@ -87,6 +87,31 @@ export async function revokeAllSessionsForUser(
     );
 }
 
+/** Revoke active sessions bound to a specific device hash for a user. */
+export async function revokeSessionsForUserDevice(
+  db: Db,
+  userId: string,
+  deviceIdHash: string,
+  now = new Date().toISOString(),
+): Promise<number> {
+  const sessions = await db
+    .select({ id: schema.sessions.id })
+    .from(schema.sessions)
+    .where(
+      and(
+        eq(schema.sessions.userId, userId),
+        eq(schema.sessions.deviceIdHash, deviceIdHash),
+        isNull(schema.sessions.revokedAt),
+      ),
+    );
+
+  for (const session of sessions) {
+    await revokeSessionById(db, session.id, now);
+  }
+
+  return sessions.length;
+}
+
 export async function touchSessionActivity(
   db: Db,
   sessionId: string,

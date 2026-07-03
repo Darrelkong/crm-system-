@@ -81,6 +81,23 @@ export async function requireAuth(
       );
     }
     if (
+      validation.reason === "device_revoked" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_DEVICE_REVOKED
+    ) {
+      if (request) {
+        await logPermissionDenied(request, {
+          action: "device.session.revoked",
+          entityType: "auth",
+        });
+      }
+      throw new AuthError(
+        401,
+        "device authorization revoked",
+        "device.session.revoked",
+        AUTH_ERROR_CODES.SESSION_DEVICE_REVOKED,
+      );
+    }
+    if (
       validation.reason === "invalid" ||
       validation.errorCode === AUTH_ERROR_CODES.SESSION_INVALID
     ) {
@@ -162,6 +179,7 @@ export function authErrorResponse(error: unknown): Response {
       AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED,
       AUTH_ERROR_CODES.SESSION_REVOKED,
       AUTH_ERROR_CODES.SESSION_INVALID,
+      AUTH_ERROR_CODES.SESSION_DEVICE_REVOKED,
     ] as string[];
     const errorCode =
       error.errorCode ?? error.auditAction ?? "INSUFFICIENT_PERMISSIONS";

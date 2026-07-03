@@ -1,9 +1,7 @@
 import { eq } from "drizzle-orm";
 import { cookies } from "next/headers";
 import type { NextRequest } from "next/server";
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { drizzle } from "drizzle-orm/d1";
-import * as schema from "../../../drizzle/schema";
+import { getDb, schema } from "@/lib/db";
 import { getSessionExpiresAt, getRequestMeta } from "@/lib/auth/cookies";
 import {
   AUTH_ERROR_CODES,
@@ -21,6 +19,7 @@ import {
   shouldTouchSessionActivity,
   touchSessionActivity,
 } from "@/lib/auth/session-policy";
+import { isDeviceApprovedForSession } from "@/lib/devices/service";
 
 export type SessionWithUser = {
   sessionId: string;
@@ -31,20 +30,26 @@ export type SessionValidationResult =
   | { ok: true; session: SessionWithUser }
   | {
       ok: false;
-      reason: "missing" | "invalid" | "idle_expired" | "revoked" | "inactive_user";
+      reason:
+        | "missing"
+        | "invalid"
+        | "idle_expired"
+        | "revoked"
+        | "inactive_user"
+        | "device_revoked";
       errorCode?: string;
     };
 
-function getD1Db() {
-  const { env } = getCloudflareContext();
-  return drizzle(env.DB, { schema });
+function getSessionDb() {
+  return getDb();
 }
 
 export async function createSession(
   userId: string,
   request: Request,
+  deviceIdHash: string,
 ): Promise<{ token: string; expiresAt: Date; sessionId: string }> {
-  const db = getD1Db();
+  const db = getSessionDb();
   await revokeExistingSessionsForLogin(db, userId);
 
   const token = generateSessionToken();
@@ -63,6 +68,7 @@ export async function createSession(
     revokedAt: null,
     ipAddress,
     userAgent,
+    deviceIdHash,
     createdAt: now,
   });
 
@@ -73,7 +79,7 @@ export async function validateSessionToken(
   token: string,
   options?: { touch?: boolean },
 ): Promise<SessionValidationResult> {
-  const db = getD1Db();
+  const db = getSessionDb();
   const tokenHash = await hashSessionToken(token);
   const nowIso = new Date().toISOString();
 
@@ -97,14 +103,6 @@ export async function validateSessionToken(
     };
   }
 
-  if (isSessionRevoked(row.session)) {
-    return {
-      ok: false,
-      reason: "revoked",
-      errorCode: AUTH_ERROR_CODES.SESSION_REVOKED,
-    };
-  }
-
   if (row.session.expiresAt <= nowIso) {
     await revokeSessionById(db, row.sessionId, nowIso);
     return {
@@ -116,6 +114,32 @@ export async function validateSessionToken(
 
   if (row.user.isActive !== 1) {
     return { ok: false, reason: "inactive_user" };
+  }
+
+  if (row.session.deviceIdHash) {
+    const deviceApproved = await isDeviceApprovedForSession(
+      row.user.id,
+      row.session.deviceIdHash,
+      db,
+    );
+    if (!deviceApproved) {
+      if (!isSessionRevoked(row.session)) {
+        await revokeSessionById(db, row.sessionId, nowIso);
+      }
+      return {
+        ok: false,
+        reason: "device_revoked",
+        errorCode: AUTH_ERROR_CODES.SESSION_DEVICE_REVOKED,
+      };
+    }
+  }
+
+  if (isSessionRevoked(row.session)) {
+    return {
+      ok: false,
+      reason: "revoked",
+      errorCode: AUTH_ERROR_CODES.SESSION_REVOKED,
+    };
   }
 
   const idleMinutes = await getIdleLogoutMinutes(db);
@@ -147,7 +171,7 @@ export async function getSessionByToken(
 }
 
 export async function destroySession(token: string): Promise<void> {
-  const db = getD1Db();
+  const db = getSessionDb();
   const tokenHash = await hashSessionToken(token);
   await revokeSessionByTokenHash(db, tokenHash);
 }

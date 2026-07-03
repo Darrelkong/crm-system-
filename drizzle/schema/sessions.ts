@@ -14,12 +14,14 @@ export const sessions = sqliteTable(
     revokedAt: text("revoked_at"),
     ipAddress: text("ip_address"),
     userAgent: text("user_agent"),
+    deviceIdHash: text("device_id_hash"),
     createdAt: text("created_at").notNull(),
   },
   (table) => [
     index("idx_sessions_user_id").on(table.userId),
     index("idx_sessions_expires_at").on(table.expiresAt),
     index("idx_sessions_revoked_at").on(table.revokedAt),
+    index("idx_sessions_device_id_hash").on(table.deviceIdHash),
   ],
 );
 

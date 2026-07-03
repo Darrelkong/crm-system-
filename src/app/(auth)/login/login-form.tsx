@@ -28,7 +28,7 @@ import { useToggleCrmTheme, applyCrmThemeToDocument } from "@/lib/theme/crm-them
 import "./login-page.css";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
-  if (value === "idle" || value === "revoked" || value === "invalid") {
+  if (value === "idle" || value === "revoked" || value === "invalid" || value === "device_revoked") {
     return value;
   }
   return null;

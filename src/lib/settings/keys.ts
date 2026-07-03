@@ -20,6 +20,8 @@ export const SETTING_KEYS = [
   "first_contact_sla_hours",
   "inactivity_logout_minutes",
   "business_timezone",
+  "device_authorization_enabled",
+  "device_authorization_limit_per_user",
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -34,6 +36,8 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   first_contact_sla_hours: "24",
   inactivity_logout_minutes: String(INACTIVITY_LOGOUT_MINUTES),
   business_timezone: "Asia/Shanghai",
+  device_authorization_enabled: "false",
+  device_authorization_limit_per_user: "2",
 };
 
 export const SETTING_LABELS: Record<SettingKey, string> = {
@@ -46,6 +50,8 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
   first_contact_sla_hours: "首次联系 SLA（小时）",
   inactivity_logout_minutes: "无操作登出（分钟）",
   business_timezone: "业务时区",
+  device_authorization_enabled: "设备授权（启用后限制员工登录设备）",
+  device_authorization_limit_per_user: "每位员工最多授权设备数",
 };
 
 /**

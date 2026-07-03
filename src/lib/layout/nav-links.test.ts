@@ -33,6 +33,16 @@ describe("admin audit logs navigation", () => {
     assert.ok(!hrefs.includes("/admin/audit-logs"));
   });
 
+  it("includes /admin/devices in admin nav", () => {
+    const hrefs = allNavHrefs("admin");
+    assert.ok(hrefs.includes("/admin/devices"));
+  });
+
+  it("does not include /admin/devices in staff nav", () => {
+    const hrefs = allNavHrefs("staff");
+    assert.ok(!hrefs.includes("/admin/devices"));
+  });
+
   it("places audit logs near login logs in admin system settings", () => {
     const groups = getAdminNavGroups();
     const systemSettings = groups

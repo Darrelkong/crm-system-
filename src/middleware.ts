@@ -11,7 +11,7 @@ import {
 import { validateSessionFromRequest } from "@/lib/auth/session";
 import { getRoleDashboardPath } from "@/lib/permissions/auth";
 
-type SessionEndReason = "idle" | "revoked" | "invalid";
+type SessionEndReason = "idle" | "revoked" | "invalid" | "device_revoked";
 
 function redirectToLogin(
   request: NextRequest,
@@ -65,6 +65,11 @@ export async function middleware(request: NextRequest) {
       validation.errorCode === AUTH_ERROR_CODES.SESSION_REVOKED
     ) {
       sessionEndReason = "revoked";
+    } else if (
+      validation.reason === "device_revoked" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_DEVICE_REVOKED
+    ) {
+      sessionEndReason = "device_revoked";
     } else if (
       validation.reason === "invalid" ||
       validation.errorCode === AUTH_ERROR_CODES.SESSION_INVALID

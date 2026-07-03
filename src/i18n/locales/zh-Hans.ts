@@ -101,6 +101,12 @@ const zhHans: Messages = {
     ipEmailRestrictedMessage:
       "您已多次尝试输入无法登录本系统的邮箱。为保护系统安全，请等待倒计时结束后再重新尝试。",
     ipEmailRestrictedCountdownSuffix: "秒后可重新尝试",
+    deviceNewPending: "此设备尚未授权，请联系管理员。",
+    devicePendingReview: "此设备正在等待管理员审核，请稍后再试。",
+    deviceLimitReached:
+      "此账号已达到设备数量上限，请联系管理员移除旧设备。",
+    deviceRevoked: "此设备授权已被撤销，请联系管理员。",
+    deviceRejected: "此设备授权申请已被拒绝，请联系管理员。",
   },
   security: {
     accessExpired:
@@ -111,6 +117,8 @@ const zhHans: Messages = {
       "您的账号已在其他设备登录，当前会话已失效，请重新登录。",
     sessionTimedOutReLogin: "登录已超时，请重新登录。",
     sessionInvalidReLogin: "登录已失效，请重新登录。",
+    deviceAuthorizationRevoked:
+      "此设备授权已被撤销，请联系管理员。",
     sessionRevokedTitle: "会话已失效",
     accessDenied: "访问被拒绝",
     singleSessionTitle: "访问被拒绝",
@@ -154,6 +162,7 @@ const zhHans: Messages = {
     roleStaff: "STAFF",
     help: "帮助中心",
     auditLogs: "审计日志",
+    deviceAuthorization: "设备授权",
     recycleBin: "回收站",
     more: "更多",
     collapseSidebar: "收起侧边栏",

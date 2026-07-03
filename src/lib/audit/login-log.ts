@@ -10,6 +10,12 @@ type LoginLogInput = {
     | "user_not_found"
     | "user_disabled"
     | "account_locked"
+    | "new_pending"
+    | "pending"
+    | "rejected"
+    | "revoked"
+    | "limit_reached"
+    | string
     | null;
   ipAddress?: string | null;
   userAgent?: string | null;

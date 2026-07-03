@@ -10,6 +10,7 @@ import {
   FileText,
   LayoutDashboard,
   Megaphone,
+  MonitorSmartphone,
   ScrollText,
   Settings,
   Shield,
@@ -36,6 +37,7 @@ export type NavIconId =
   | "announcements"
   | "aiSettings"
   | "userManagement"
+  | "deviceAuthorization"
   | "tagsStages"
   | "recycleBin"
   | "systemSettings"
@@ -60,6 +62,7 @@ export const navIcons: Record<NavIconId, LucideIcon> = {
   announcements: Megaphone,
   aiSettings: Sparkles,
   userManagement: UserCog,
+  deviceAuthorization: MonitorSmartphone,
   tagsStages: Tags,
   recycleBin: Trash2,
   systemSettings: Settings,

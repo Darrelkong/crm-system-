@@ -13,6 +13,13 @@ export function validateSettingValue(
   key: SettingKey,
   value: string,
 ): string | null {
+  if (key === "device_authorization_enabled") {
+    if (value !== "true" && value !== "false") {
+      return "必须为 true 或 false";
+    }
+    return null;
+  }
+
   if (key === "business_timezone") {
     if (!(ALLOWED_TIMEZONES as readonly string[]).includes(value)) {
       return "时区仅允许 Asia/Shanghai 或 UTC";

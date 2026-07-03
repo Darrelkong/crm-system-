@@ -19,7 +19,7 @@ import {
 
 type SyncMessage =
   | { type: "activity"; at: number }
-  | { type: "logout"; reason: "idle" | "revoked" | "invalid" | "manual" };
+  | { type: "logout"; reason: "idle" | "revoked" | "invalid" | "manual" | "device_revoked" };
 
 function shouldInspectSessionResponse(url: string): boolean {
   if (!url.includes("/api/")) return false;

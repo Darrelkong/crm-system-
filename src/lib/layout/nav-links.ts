@@ -115,6 +115,7 @@ export function getAdminNavGroups(activeHref?: string): NavGroup[] {
       labelKey: "nav.group.systemManagement",
       links: [
         { href: "/admin/users", labelKey: "nav.userManagement", icon: "userManagement" },
+        { href: "/admin/devices", labelKey: "nav.deviceAuthorization", icon: "deviceAuthorization" },
         { href: "/admin/tags-stages", labelKey: "nav.tagsStages", icon: "tagsStages" },
         { href: "/admin/recycle-bin", labelKey: "nav.recycleBin", icon: "recycleBin" },
         {
