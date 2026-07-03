@@ -116,7 +116,8 @@ export async function validateSessionToken(
     return { ok: false, reason: "inactive_user" };
   }
 
-  if (row.session.deviceIdHash) {
+  // Admin accounts are never blocked by device authorization status.
+  if (row.session.deviceIdHash && row.user.role !== "admin") {
     const deviceApproved = await isDeviceApprovedForSession(
       row.user.id,
       row.session.deviceIdHash,

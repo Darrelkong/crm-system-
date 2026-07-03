@@ -13,6 +13,7 @@ export const DEVICE_AUDIT_ACTIONS = {
   SESSION_REVOKED: "device.session.revoked",
   ADMIN_RECORDED: "device.admin.recorded",
   LOGIN_SUCCESS: "device.login.success",
+  REAPPROVAL_REQUESTED: "device.reapproval.requested",
 } as const;
 
 export const DEVICE_LOGIN_MESSAGES = {
@@ -21,4 +22,5 @@ export const DEVICE_LOGIN_MESSAGES = {
   LIMIT_REACHED: "此帳號已達到設備數量上限，請聯繫管理員移除舊設備。",
   REVOKED: "此設備授權已被撤銷，請聯繫管理員。",
   REJECTED: "此設備授權申請已被拒絕，請聯繫管理員。",
+  REAPPROVAL_PENDING: "此設備已重新提交授權申請，請等待管理員審核。",
 } as const;

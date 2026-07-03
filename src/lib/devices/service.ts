@@ -77,6 +77,32 @@ async function writeDeviceAudit(
   );
 }
 
+async function resetDeviceToPending(
+  device: AuthorizedDevice,
+  meta: RequestMeta,
+  db: Database,
+): Promise<void> {
+  const now = new Date().toISOString();
+  const newDeviceName = meta.userAgent
+    ? defaultDeviceName(meta.userAgent)
+    : (device.deviceName ?? null);
+  await db
+    .update(schema.authorizedDevices)
+    .set({
+      status: "pending",
+      approvedBy: null,
+      approvedAt: null,
+      revokedAt: null,
+      userAgent: meta.userAgent ?? device.userAgent,
+      ipAddress: meta.ipAddress ?? device.ipAddress,
+      deviceName: newDeviceName,
+      lastSeenIp: meta.ipAddress ?? device.lastSeenIp,
+      lastSeenUserAgent: meta.userAgent ?? device.lastSeenUserAgent,
+      updatedAt: now,
+    })
+    .where(eq(schema.authorizedDevices.id, device.id));
+}
+
 async function touchApprovedDevice(
   device: AuthorizedDevice,
   meta: RequestMeta,
@@ -316,28 +342,55 @@ export async function evaluateStaffDeviceLogin(
     };
   }
 
-  const blockByStatus: Record<
-    Exclude<AuthorizedDevice["status"], "approved">,
-    { errorCode: string; message: string; reason: DeviceLoginBlockReason }
-  > = {
-    pending: {
+  if (existing.status === "pending") {
+    await writeDeviceAudit(
+      {
+        actorUserId: user.id,
+        action: DEVICE_AUDIT_ACTIONS.LOGIN_BLOCKED,
+        entityId: existing.id,
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent,
+        metadata: {
+          targetUserId: user.id,
+          targetUserEmail: user.email,
+          deviceRecordId: existing.id,
+          deviceName: existing.deviceName,
+          reason: "pending",
+        },
+      },
+      database,
+    );
+    return {
+      ok: false,
       errorCode: AUTH_ERROR_CODES.DEVICE_PENDING_REVIEW,
       message: DEVICE_LOGIN_MESSAGES.PENDING_REVIEW,
       reason: "pending",
-    },
-    rejected: {
-      errorCode: AUTH_ERROR_CODES.DEVICE_REJECTED,
-      message: DEVICE_LOGIN_MESSAGES.REJECTED,
-      reason: "rejected",
-    },
-    revoked: {
-      errorCode: AUTH_ERROR_CODES.DEVICE_REVOKED,
-      message: DEVICE_LOGIN_MESSAGES.REVOKED,
-      reason: "revoked",
-    },
-  };
+      deviceRecordId: existing.id,
+    };
+  }
 
-  const block = blockByStatus[existing.status];
+  // Device is revoked or rejected: reset to pending so admin can re-approve.
+  const previousStatus = existing.status;
+  await resetDeviceToPending(existing, meta, database);
+
+  await writeDeviceAudit(
+    {
+      actorUserId: user.id,
+      action: DEVICE_AUDIT_ACTIONS.REAPPROVAL_REQUESTED,
+      entityId: existing.id,
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent,
+      metadata: {
+        targetUserId: user.id,
+        targetUserEmail: user.email,
+        deviceRecordId: existing.id,
+        deviceName: existing.deviceName,
+        previousStatus,
+      },
+    },
+    database,
+  );
+
   await writeDeviceAudit(
     {
       actorUserId: user.id,
@@ -350,7 +403,7 @@ export async function evaluateStaffDeviceLogin(
         targetUserEmail: user.email,
         deviceRecordId: existing.id,
         deviceName: existing.deviceName,
-        reason: block.reason,
+        reason: "reapproval_pending",
       },
     },
     database,
@@ -358,9 +411,9 @@ export async function evaluateStaffDeviceLogin(
 
   return {
     ok: false,
-    errorCode: block.errorCode,
-    message: block.message,
-    reason: block.reason,
+    errorCode: AUTH_ERROR_CODES.DEVICE_REAPPROVAL_PENDING,
+    message: DEVICE_LOGIN_MESSAGES.REAPPROVAL_PENDING,
+    reason: "reapproval_pending",
     deviceRecordId: existing.id,
   };
 }
@@ -537,12 +590,18 @@ export async function revokeAuthorizedDevice(
     })
     .where(eq(schema.authorizedDevices.id, deviceRecordId));
 
-  const revokedSessionCount = await revokeSessionsForUserDevice(
-    database,
-    device.userId,
-    device.deviceIdHash,
-    now,
-  );
+  // Admin sessions are not revoked when an admin device record is revoked —
+  // device status is audit-only for admins and must not block their access.
+  const isAdminDevice = user?.role === "admin";
+  let revokedSessionCount = 0;
+  if (!isAdminDevice) {
+    revokedSessionCount = await revokeSessionsForUserDevice(
+      database,
+      device.userId,
+      device.deviceIdHash,
+      now,
+    );
+  }
 
   await writeDeviceAudit(
     {
@@ -556,6 +615,7 @@ export async function revokeAuthorizedDevice(
         targetUserEmail: user?.email,
         deviceRecordId,
         deviceName: device.deviceName,
+        auditOnly: isAdminDevice,
       },
     },
     database,

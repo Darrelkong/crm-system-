@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
@@ -14,6 +14,7 @@ import {
   evaluateStaffDeviceLogin,
   isDeviceApprovedForSession,
   recordAdminDeviceOnLogin,
+  rejectAuthorizedDevice,
   revokeAuthorizedDevice,
 } from "@/lib/devices/service";
 import { createSession, validateSessionToken } from "@/lib/auth/session";
@@ -238,5 +239,195 @@ describe("device authorization service", () => {
 
     const approved = await isDeviceApprovedForSession(SEED_IDS.staffA, hash);
     assert.equal(approved, false);
+  });
+
+  // --- Reapproval flow tests ---
+
+  it("re-login with revoked device resets status to pending and blocks login", async () => {
+    // Device A is revoked from the previous test.
+    const hash = await hashDeviceId(DEVICE_A);
+
+    const result = await evaluateStaffDeviceLogin(staffUser, hash, {
+      ipAddress: "10.0.0.5",
+      userAgent: "Mozilla/5.0 (Macintosh) Chrome/121",
+    });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "reapproval_pending");
+      assert.equal(result.errorCode, "DEVICE_REAPPROVAL_PENDING");
+    }
+
+    const row = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hash))
+      .limit(1);
+    assert.ok(row[0]);
+    assert.equal(row[0]!.status, "pending");
+    assert.equal(row[0]!.approvedBy, null);
+    assert.equal(row[0]!.approvedAt, null);
+    assert.equal(row[0]!.revokedAt, null);
+  });
+
+  it("re-login with pending device (after reapply) keeps status pending", async () => {
+    const hash = await hashDeviceId(DEVICE_A);
+
+    const result = await evaluateStaffDeviceLogin(staffUser, hash, {
+      ipAddress: "10.0.0.5",
+      userAgent: "Mozilla/5.0 (Macintosh) Chrome/121",
+    });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "pending");
+      assert.equal(result.errorCode, "DEVICE_PENDING_REVIEW");
+    }
+
+    const row = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hash))
+      .limit(1);
+    assert.equal(row[0]!.status, "pending");
+  });
+
+  it("admin can re-approve a reapplied device and staff can login", async () => {
+    const hash = await hashDeviceId(DEVICE_A);
+    const row = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hash))
+      .limit(1);
+    assert.ok(row[0]);
+    assert.equal(row[0]!.status, "pending");
+
+    // Admin re-approves (need to free up the slot first: device B is still approved)
+    // Revoke device B to make room
+    const hashB = await hashDeviceId(DEVICE_B);
+    const deviceB = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hashB))
+      .limit(1);
+    if (deviceB[0]?.status === "approved") {
+      await revokeAuthorizedDevice(adminUser, deviceB[0]!.id, {
+        ipAddress: "127.0.0.1",
+        userAgent: "admin-agent",
+      });
+    }
+
+    await approveAuthorizedDevice(adminUser, row[0]!.id, {
+      ipAddress: "127.0.0.1",
+      userAgent: "admin-agent",
+    });
+
+    const result = await evaluateStaffDeviceLogin(staffUser, hash, {
+      ipAddress: "10.0.0.5",
+      userAgent: "Mozilla/5.0 (Macintosh) Chrome/121",
+    });
+    assert.equal(result.ok, true);
+  });
+
+  it("re-login with rejected device resets status to pending", async () => {
+    // Use device C which is in pending state from earlier test. Reject it first.
+    const hashC = await hashDeviceId(DEVICE_C);
+    const deviceC = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hashC))
+      .limit(1);
+    assert.ok(deviceC[0]);
+
+    if (deviceC[0]!.status === "pending") {
+      await rejectAuthorizedDevice(adminUser, deviceC[0]!.id, {
+        ipAddress: "127.0.0.1",
+        userAgent: "admin-agent",
+      });
+    }
+
+    const afterReject = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hashC))
+      .limit(1);
+    assert.equal(afterReject[0]!.status, "rejected");
+
+    // Staff re-login with rejected device
+    const result = await evaluateStaffDeviceLogin(staffUser, hashC, {
+      ipAddress: "10.0.0.6",
+      userAgent: "Mozilla/5.0 (iPhone) Safari/17",
+    });
+
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.reason, "reapproval_pending");
+      assert.equal(result.errorCode, "DEVICE_REAPPROVAL_PENDING");
+    }
+
+    const afterReapply = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.deviceIdHash, hashC))
+      .limit(1);
+    assert.equal(afterReapply[0]!.status, "pending");
+    assert.equal(afterReapply[0]!.approvedAt, null);
+  });
+
+  // --- Admin bypass tests ---
+
+  it("admin session remains valid even when admin device record is revoked", async () => {
+    const adminDeviceId = "admin-device-revoke-test-1234567890";
+    const hash = await hashDeviceId(adminDeviceId);
+
+    const deviceRecordId = await recordAdminDeviceOnLogin(adminUser, hash, {
+      ipAddress: "10.10.0.1",
+      userAgent: "AdminBrowser/1.0",
+    });
+
+    const request = new Request("https://crm.example/login", {
+      headers: { "user-agent": "AdminBrowser/1.0" },
+    });
+    const { token } = await createSession(adminUser.id, request, hash);
+
+    const validBefore = await validateSessionToken(token, { touch: false });
+    assert.equal(validBefore.ok, true);
+
+    // Revoke the admin device record
+    await revokeAuthorizedDevice(adminUser, deviceRecordId, {
+      ipAddress: "10.10.0.1",
+      userAgent: "AdminBrowser/1.0",
+    });
+
+    // Admin session must NOT be invalidated by device revocation
+    const validAfter = await validateSessionToken(token, { touch: false });
+    assert.equal(validAfter.ok, true);
+
+    // Cleanup admin session
+    await db
+      .delete(schema.sessions)
+      .where(
+        and(
+          eq(schema.sessions.userId, adminUser.id),
+          eq(schema.sessions.deviceIdHash, hash),
+        ),
+      );
+  });
+
+  it("admin login records device but is never blocked regardless of feature flag", async () => {
+    await setDeviceAuthEnabled(true);
+    const hash = await hashDeviceId("admin-no-block-device-99999");
+
+    const recordId = await recordAdminDeviceOnLogin(adminUser, hash, {
+      ipAddress: "127.0.0.1",
+      userAgent: "AdminChrome",
+    });
+
+    const row = await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.id, recordId))
+      .limit(1);
+    assert.equal(row[0]?.status, "approved");
   });
 });

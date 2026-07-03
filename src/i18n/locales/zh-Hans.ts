@@ -107,6 +107,7 @@ const zhHans: Messages = {
       "此账号已达到设备数量上限，请联系管理员移除旧设备。",
     deviceRevoked: "此设备授权已被撤销，请联系管理员。",
     deviceRejected: "此设备授权申请已被拒绝，请联系管理员。",
+    deviceReapprovalPending: "此设备已重新提交授权申请，请等待管理员审核。",
   },
   security: {
     accessExpired:

@@ -32,4 +32,5 @@ export type DeviceLoginBlockReason =
   | "pending"
   | "rejected"
   | "revoked"
-  | "limit_reached";
+  | "limit_reached"
+  | "reapproval_pending";
