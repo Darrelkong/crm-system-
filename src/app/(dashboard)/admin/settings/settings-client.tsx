@@ -17,6 +17,52 @@ const VISIBLE_SETTING_KEYS: readonly SettingKey[] = SETTING_KEYS.filter(
   (key) => !isHiddenSettingKey(key),
 );
 
+const BOOLEAN_SETTING_KEYS: readonly SettingKey[] = ["device_authorization_enabled"];
+
+function isBooleanSettingKey(key: string): boolean {
+  return (BOOLEAN_SETTING_KEYS as readonly string[]).includes(key);
+}
+
+function isSettingEnabled(value: string | undefined): boolean {
+  return value === "true";
+}
+
+function DeviceAuthorizationToggle({
+  id,
+  enabled,
+  onChange,
+}: {
+  id: string;
+  enabled: boolean;
+  onChange: (next: boolean) => void;
+}) {
+  return (
+    <div className="mt-1">
+      <button
+        type="button"
+        id={id}
+        role="switch"
+        aria-checked={enabled}
+        onClick={() => onChange(!enabled)}
+        className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+          enabled ? "bg-[#2563EB]" : "bg-[#CBD5E1] dark:bg-[#3A4459]"
+        }`}
+      >
+        <span
+          className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+            enabled ? "translate-x-5" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+      <p className="mt-1 text-xs text-[#6B7890]">
+        {enabled
+          ? "设备授权已启用，员工新设备需要管理员批准"
+          : "设备授权未启用，员工登录不受设备限制"}
+      </p>
+    </div>
+  );
+}
+
 function buildSavePayload(settings: Record<string, string>): Record<string, string> {
   return Object.fromEntries(
     Object.entries(settings).filter(([key]) => !isLockedSettingKey(key)),
@@ -77,7 +123,15 @@ export function SettingsClient() {
         {VISIBLE_SETTING_KEYS.map((key) => (
           <div key={key}>
             <Label htmlFor={key}>{SETTING_LABELS[key as SettingKey]}</Label>
-            {key === "business_timezone" ? (
+            {isBooleanSettingKey(key) ? (
+              <DeviceAuthorizationToggle
+                id={key}
+                enabled={isSettingEnabled(settings[key])}
+                onChange={(next) =>
+                  setSettings((s) => ({ ...s, [key]: next ? "true" : "false" }))
+                }
+              />
+            ) : key === "business_timezone" ? (
               <Select
                 id={key}
                 className="mt-1"
