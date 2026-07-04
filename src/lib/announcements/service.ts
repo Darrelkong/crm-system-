@@ -99,6 +99,29 @@ export async function listPublishedAnnouncementsForUser(
     .map(toPublishedView);
 }
 
+export async function getLatestPublishedAnnouncementForUser(
+  db: Database,
+  user: Pick<User, "role">,
+): Promise<PublishedAnnouncementView | null> {
+  const rows = await db
+    .select()
+    .from(schema.announcements)
+    .where(
+      and(
+        eq(schema.announcements.status, "published"),
+        audienceFilterForUser(user.role),
+      ),
+    )
+    .orderBy(desc(schema.announcements.publishedAt))
+    .limit(1);
+
+  const row = rows[0];
+  if (!row || !row.publishedAt) {
+    return null;
+  }
+  return toPublishedView(row);
+}
+
 export async function getAnnouncementById(
   db: Database,
   id: string,

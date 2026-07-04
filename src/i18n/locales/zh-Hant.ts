@@ -1035,6 +1035,28 @@ const zhHant: Messages = {
     viewAll: "查看全部公告 →",
     loadFailed: "載入失敗",
   },
+  welcome: {
+    staffGreeting: "歡迎回來",
+    staffSubtitle: "準備好開始今天的工作了嗎？",
+    adminGreeting: "歡迎，管理員",
+    adminSubtitle: "全局概覽與系統管理",
+    enterCrm: "進入 CRM 系統",
+    viewAnnouncement: "查看公告",
+    latestAnnouncementTitle: "最新公告",
+    noAnnouncement: "目前沒有新公告。",
+    announcementAlreadyRead: "您已閱讀此公告。",
+    riskReminder:
+      "請及時查看您的客戶跟進狀態。若客戶長時間未跟進，系統將根據客戶風險狀態進行提醒；超過規定期限仍未跟進的客戶，可能會自動解除負責關係或釋放至公共池。",
+    adminRiskReminder:
+      "請及時查看系統狀態與待處理批准。及時處理有助於維持團隊順暢運作。",
+    pendingApprovals: "待處理批准：{{count}}",
+    pendingApprovalsNone: "目前沒有待處理批准。",
+    countdownPrompt: "請仔細閱讀公告內容，{{seconds}} 秒後可確認。",
+    countdownPromptReady: "您現在可以確認了。",
+    confirmRead: "我已閱讀 / 繼續",
+    backToWelcome: "返回",
+    loadFailed: "載入公告失敗。",
+  },
   help: {
     title: "幫助中心",
     description: "CRM 常用操作、權限與安全規則說明，僅供查閱。",

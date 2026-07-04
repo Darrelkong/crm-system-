@@ -1070,6 +1070,28 @@ const en = {
     viewAll: "View all announcements →",
     loadFailed: "Failed to load announcements.",
   },
+  welcome: {
+    staffGreeting: "Welcome back",
+    staffSubtitle: "Ready to start your workday?",
+    adminGreeting: "Welcome, Administrator",
+    adminSubtitle: "Global overview and system management",
+    enterCrm: "Enter CRM System",
+    viewAnnouncement: "View Announcement",
+    latestAnnouncementTitle: "Latest Announcement",
+    noAnnouncement: "No new announcements.",
+    announcementAlreadyRead: "You have already read this announcement.",
+    riskReminder:
+      "Please keep your client follow-up status up to date. Clients that go a long time without follow-up will be flagged based on their risk level; those exceeding the required period may be automatically unassigned or released to the public pool.",
+    adminRiskReminder:
+      "Please review system status and pending approvals in a timely manner. Prompt action keeps the team operating smoothly.",
+    pendingApprovals: "Pending approvals: {{count}}",
+    pendingApprovalsNone: "No pending approvals.",
+    countdownPrompt: "Please read the announcement carefully. You may confirm in {{seconds}} second(s).",
+    countdownPromptReady: "You may now confirm.",
+    confirmRead: "I Have Read This — Continue",
+    backToWelcome: "Back",
+    loadFailed: "Failed to load announcement.",
+  },
   help: {
     title: "Help Center",
     description:

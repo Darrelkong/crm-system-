@@ -1034,6 +1034,28 @@ const zhHans: Messages = {
     viewAll: "查看全部公告 →",
     loadFailed: "加载失败",
   },
+  welcome: {
+    staffGreeting: "欢迎回来",
+    staffSubtitle: "准备好开始今天的工作了吗？",
+    adminGreeting: "欢迎，管理员",
+    adminSubtitle: "全局概览与系统管理",
+    enterCrm: "进入 CRM 系统",
+    viewAnnouncement: "查看公告",
+    latestAnnouncementTitle: "最新公告",
+    noAnnouncement: "目前没有新公告。",
+    announcementAlreadyRead: "您已阅读此公告。",
+    riskReminder:
+      "请及时查看您的客户跟进状态。若客户长时间未跟进，系统将根据客户风险状态进行提醒；超过规定期限仍未跟进的客户，可能会自动解除负责关系或释放至公共池。",
+    adminRiskReminder:
+      "请及时查看系统状态与待处理批准。及时处理有助于维持团队顺畅运作。",
+    pendingApprovals: "待处理批准：{{count}}",
+    pendingApprovalsNone: "目前没有待处理批准。",
+    countdownPrompt: "请仔细阅读公告内容，{{seconds}} 秒后可确认。",
+    countdownPromptReady: "您现在可以确认了。",
+    confirmRead: "我已阅读 / 继续",
+    backToWelcome: "返回",
+    loadFailed: "加载公告失败。",
+  },
   help: {
     title: "帮助中心",
     description: "CRM 常用操作、权限与安全规则说明，仅供查阅。",

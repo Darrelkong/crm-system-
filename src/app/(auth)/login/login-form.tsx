@@ -187,8 +187,10 @@ export function LoginForm() {
         return;
       }
 
-      const redirect =
-        data.redirect ?? searchParams.get("redirect") ?? "/";
+      const isFreshLogin = !isTimeoutVisit && !sessionEndParam;
+      const redirect = isFreshLogin
+        ? "/welcome"
+        : (data.redirect ?? searchParams.get("redirect") ?? "/");
       keepPendingModal = true;
       router.push(redirect);
       router.refresh();
