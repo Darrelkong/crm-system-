@@ -50,6 +50,8 @@ export const customers = sqliteTable(
     deletedReason: text("deleted_reason"),
     isPinned: integer("is_pinned").notNull().default(0),
     pinnedAt: text("pinned_at"),
+    /** Set when collaborative ownership is dissolved (future C-4/C-5). Nullable until then. */
+    collaborativeDissolvedAt: text("collaborative_dissolved_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

@@ -22,6 +22,8 @@ export const SETTING_KEYS = [
   "business_timezone",
   "device_authorization_enabled",
   "device_authorization_limit_per_user",
+  /** When true, enables automatic collaborative dissolution (future C-4/C-5). Default off. */
+  "collaborative_dissolution_enabled",
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -38,6 +40,7 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   business_timezone: "Asia/Shanghai",
   device_authorization_enabled: "false",
   device_authorization_limit_per_user: "2",
+  collaborative_dissolution_enabled: "false",
 };
 
 export const SETTING_LABELS: Record<SettingKey, string> = {
@@ -52,6 +55,7 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
   business_timezone: "业务时区",
   device_authorization_enabled: "设备授权（启用后限制员工登录设备）",
   device_authorization_limit_per_user: "每位员工最多授权设备数",
+  collaborative_dissolution_enabled: "共同负责自动解散（90 天未跟进）",
 };
 
 /**

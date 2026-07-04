@@ -82,6 +82,7 @@ function buildCustomer(
     deletedReason: null,
     isPinned: rest.isPinned ?? 0,
     pinnedAt: rest.pinnedAt ?? null,
+    collaborativeDissolvedAt: null,
     createdAt,
     updatedAt: createdAt,
     ...rest,

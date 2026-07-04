@@ -96,7 +96,7 @@ function makeCustomer(overrides: Partial<Customer> = {}): Customer {
     createdAt: daysAgoIso(30),
     updatedAt: daysAgoIso(1),
     ...overrides,
-  };
+  } as Customer;
 }
 
 // ---------------------------------------------------------------------------
