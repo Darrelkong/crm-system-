@@ -35,11 +35,29 @@ Return JSON only with these fields:
 - keySignals: string[]
 - riskFlags: string[]
 - missingInformation: string[]
-- nextBestAction: string
+- nextBestAction: string (see rules below)
 - suggestedFollowUpAt: ISO-8601 string or null
-- suggestedEmployeeMessage: string
+- suggestedEmployeeMessage: string (see rules below)
 - confidence: number 0-1
-- reasoning: string`;
+- reasoning: string
+
+nextBestAction rules:
+- Be concrete and action-oriented; do not only say "follow up" or "communicate further".
+- Specify exactly what the staff member should do next.
+- Include 2–3 practical questions to ask the client if key information is missing.
+- Early-stage clients: suggest confirming goals, family situation, budget range, timeline, and main purpose.
+- Clients with a clear direction: suggest arranging a basic assessment or eligibility/document review.
+- If contactAvailability.hasWeChat is true, recommend WeChat as the preferred follow-up channel.
+- Keep the advice realistic, warm, and low-pressure; do not over-promise.
+
+suggestedEmployeeMessage rules:
+- Write like a real staff member, not a customer service bot.
+- Keep it short: 1–3 sentences, suitable for WeChat or SMS.
+- Tone: polite, warm, professional, and low-pressure.
+- Do not hard-sell; do not over-promise.
+- It should be copyable by staff with minimal editing.
+- If information is insufficient, ask 1–2 natural questions rather than immediately pushing a solution.`;
+
 
 export const AI_SETTING_DEFAULTS: Record<AiSettingKey, string> = {
   ai_enabled: "false",
@@ -51,7 +69,7 @@ export const AI_SETTING_DEFAULTS: Record<AiSettingKey, string> = {
   ai_timeout_ms: "30000",
   ai_analysis_language: "zh-Hant",
   ai_prompt_template: DEFAULT_AI_PROMPT_TEMPLATE,
-  ai_prompt_version: "phase-1b-v1",
+  ai_prompt_version: "phase-1c-v1",
   ai_show_draft_message: "true",
   ai_staff_manual_refresh_enabled: "true",
   ai_admin_only_manual_refresh: "false",

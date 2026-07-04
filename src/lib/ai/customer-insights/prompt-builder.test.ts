@@ -5,6 +5,7 @@ import {
   buildSystemPrompt,
   serializeCustomerInsightContext,
 } from "@/lib/ai/customer-insights/prompt-builder";
+import { AI_SETTING_DEFAULTS, DEFAULT_AI_PROMPT_TEMPLATE } from "@/lib/settings/ai-keys";
 
 function buildSampleContext(
   overrides: Partial<CustomerInsightContext> = {},
@@ -158,5 +159,112 @@ describe("buildSystemPrompt contactAvailability guidance", () => {
   it("system prompt includes guidance about not re-collecting existing contact info", () => {
     const prompt = buildSystemPrompt("en");
     assert.match(prompt, /re-collect/);
+  });
+});
+
+describe("buildSystemPrompt business background", () => {
+  it("system prompt describes the company as providing overseas identity and immigration services", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /overseas identity planning/i);
+    assert.match(prompt, /immigration/i);
+  });
+
+  it("system prompt mentions Hong Kong and US immigration advisory", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /Hong Kong/i);
+    assert.match(prompt, /US immigration/i);
+  });
+
+  it("system prompt mentions cross-border business support", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /cross-border/i);
+  });
+
+  it("system prompt clarifies AI role is to help staff, not make final commitments", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /final commitments/i);
+  });
+});
+
+describe("buildSystemPrompt compliance rules", () => {
+  it("system prompt forbids guaranteeing approval outcomes", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /Do not guarantee/);
+  });
+
+  it("system prompt forbids absolute-promise phrases like 'guaranteed to succeed'", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /guaranteed to succeed/);
+    assert.match(prompt, /definitely approved/);
+  });
+
+  it("system prompt forbids legal, tax, investment, and financial advice", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /legal, tax, investment, or financial advice/);
+  });
+
+  it("system prompt requires deferring institutional outcomes to relevant authority", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /subject to final review by the relevant authority/);
+  });
+
+  it("system prompt forbids speculating about client assets or finances without evidence", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /Do not speculate/);
+  });
+
+  it("system prompt requires using missingInformation instead of guessing", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /missingInformation/);
+  });
+});
+
+describe("DEFAULT_AI_PROMPT_TEMPLATE nextBestAction guidance", () => {
+  it("template includes nextBestAction rules section", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /nextBestAction rules/i);
+  });
+
+  it("template forbids vague 'follow up' or 'communicate further' as the entire action", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /do not only say.*follow up/i);
+  });
+
+  it("template requires 2–3 practical questions when information is missing", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /2.{1,3}3 practical questions/i);
+  });
+
+  it("template recommends WeChat as preferred channel when available", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /hasWeChat/);
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /WeChat/);
+  });
+
+  it("template advises low-pressure and no over-promise in nextBestAction", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /low-pressure/i);
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /do not over-promise/i);
+  });
+});
+
+describe("DEFAULT_AI_PROMPT_TEMPLATE suggestedEmployeeMessage guidance", () => {
+  it("template includes suggestedEmployeeMessage rules section", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /suggestedEmployeeMessage rules/i);
+  });
+
+  it("template requires natural tone, not a customer service bot", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /not a customer service bot/i);
+  });
+
+  it("template limits message to 1–3 sentences suitable for WeChat or SMS", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /1.{1,3}3 sentences/i);
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /WeChat or SMS/i);
+  });
+
+  it("template prohibits hard-sell and over-promise in message", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /Do not hard-sell/i);
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /do not over-promise/i);
+  });
+});
+
+describe("AI_SETTING_DEFAULTS prompt version", () => {
+  it("ai_prompt_version default is phase-1c-v1", () => {
+    assert.equal(AI_SETTING_DEFAULTS.ai_prompt_version, "phase-1c-v1");
   });
 });
