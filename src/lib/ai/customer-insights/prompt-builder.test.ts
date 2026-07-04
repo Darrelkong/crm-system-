@@ -54,7 +54,7 @@ describe("serializeCustomerInsightContext", () => {
     assert.equal("wechatId" in parsed, false);
     assert.equal("email" in parsed, false);
     assert.ok(typeof parsed.contactAvailability === "object" && parsed.contactAvailability !== null);
-    assert.equal(parsed.notes, "內部備註內容");
+    assert.equal(parsed.initialCommunicationNote, "內部備註內容");
     assert.equal(parsed.sourceRemark, "來源備註");
     assert.equal(parsed.includeSensitiveFields, undefined);
   });
@@ -264,7 +264,100 @@ describe("DEFAULT_AI_PROMPT_TEMPLATE suggestedEmployeeMessage guidance", () => {
 });
 
 describe("AI_SETTING_DEFAULTS prompt version", () => {
-  it("ai_prompt_version default is phase-1c-v1", () => {
-    assert.equal(AI_SETTING_DEFAULTS.ai_prompt_version, "phase-1c-v1");
+  it("ai_prompt_version default is phase-1d-v1", () => {
+    assert.equal(AI_SETTING_DEFAULTS.ai_prompt_version, "phase-1d-v1");
+  });
+});
+
+describe("serializeCustomerInsightContext initialCommunicationNote", () => {
+  it("serialized JSON contains initialCommunicationNote key", () => {
+    const parsed = JSON.parse(serializeCustomerInsightContext(buildSampleContext())) as Record<string, unknown>;
+    assert.ok("initialCommunicationNote" in parsed);
+  });
+
+  it("initialCommunicationNote value equals the notes value from context", () => {
+    const context = buildSampleContext({ notes: "原始詢問內容" });
+    const parsed = JSON.parse(serializeCustomerInsightContext(context)) as Record<string, unknown>;
+    assert.equal(parsed.initialCommunicationNote, "原始詢問內容");
+  });
+
+  it("serialized JSON top level does not contain a notes key", () => {
+    const parsed = JSON.parse(serializeCustomerInsightContext(buildSampleContext())) as Record<string, unknown>;
+    assert.equal("notes" in parsed, false);
+  });
+
+  it("initialCommunicationNote is null when notes is null", () => {
+    const context = buildSampleContext({ notes: null });
+    const parsed = JSON.parse(serializeCustomerInsightContext(context)) as Record<string, unknown>;
+    assert.equal(parsed.initialCommunicationNote, null);
+  });
+
+  it("initialCommunicationNote is truncated when notes exceeds the character limit", () => {
+    const longNote = "首次溝通備註".repeat(400);
+    const context = buildSampleContext({ notes: longNote });
+    const parsed = JSON.parse(serializeCustomerInsightContext(context)) as Record<string, unknown>;
+    assert.ok(typeof parsed.initialCommunicationNote === "string");
+    assert.ok((parsed.initialCommunicationNote as string).includes("[truncated]"));
+    assert.ok((parsed.initialCommunicationNote as string).length < longNote.length);
+  });
+
+  it("recentFollowUps still present alongside initialCommunicationNote", () => {
+    const parsed = JSON.parse(serializeCustomerInsightContext(buildSampleContext())) as Record<string, unknown>;
+    assert.ok("initialCommunicationNote" in parsed);
+    assert.ok(Array.isArray(parsed.recentFollowUps));
+  });
+
+  it("sourceRemark is preserved separately from initialCommunicationNote", () => {
+    const context = buildSampleContext({ sourceRemark: "透過朋友介紹", notes: "客戶希望申請香港身份" });
+    const parsed = JSON.parse(serializeCustomerInsightContext(context)) as Record<string, unknown>;
+    assert.equal(parsed.sourceRemark, "透過朋友介紹");
+    assert.equal(parsed.initialCommunicationNote, "客戶希望申請香港身份");
+  });
+});
+
+describe("buildSystemPrompt initialCommunicationNote guidance", () => {
+  it("system prompt mentions initialCommunicationNote", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /initialCommunicationNote/);
+  });
+
+  it("system prompt states initialCommunicationNote contains original inquiry and intent at first contact", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /original inquiry/i);
+    assert.match(prompt, /first contact/i);
+  });
+
+  it("system prompt instructs to always consider initialCommunicationNote together with recentFollowUps", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /Always consider initialCommunicationNote together with recentFollowUps/);
+  });
+
+  it("system prompt instructs not to rely only on recentFollowUps when initialCommunicationNote exists", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /Do not rely only on recentFollowUps when initialCommunicationNote exists/);
+  });
+
+  it("system prompt handles null initialCommunicationNote case with fallback to recentFollowUps", () => {
+    const prompt = buildSystemPrompt("en");
+    assert.match(prompt, /null or empty/i);
+    assert.match(prompt, /recentFollowUps/);
+  });
+});
+
+describe("DEFAULT_AI_PROMPT_TEMPLATE initialCommunicationNote guidance", () => {
+  it("template contains initialCommunicationNote field description", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /initialCommunicationNote/);
+  });
+
+  it("template describes initialCommunicationNote as the client's original note at first contact", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /original note recorded at first contact/i);
+  });
+
+  it("template requires using initialCommunicationNote together with recentFollowUps", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /initialCommunicationNote together with recentFollowUps/i);
+  });
+
+  it("template instructs not to ignore the initial note when follow-up records exist", () => {
+    assert.match(DEFAULT_AI_PROMPT_TEMPLATE, /do not ignore the initial note when follow-up records exist/i);
   });
 });

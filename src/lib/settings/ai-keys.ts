@@ -27,6 +27,11 @@ export const DEFAULT_AI_PROMPT_TEMPLATE = `Analyze the following CRM customer co
 Customer context JSON:
 {{context_json}}
 
+Context field notes:
+- initialCommunicationNote: the client's original note recorded at first contact; use it to understand the client's original inquiry and pain point (may be null if not recorded).
+- Use initialCommunicationNote together with recentFollowUps; do not ignore the initial note when follow-up records exist.
+- If initialCommunicationNote is null or empty, rely on recentFollowUps and flag missing background in missingInformation.
+
 Return JSON only with these fields:
 - intentLevel: "high" | "medium" | "low" | "unknown"
 - intentScore: integer 0-100
@@ -69,7 +74,7 @@ export const AI_SETTING_DEFAULTS: Record<AiSettingKey, string> = {
   ai_timeout_ms: "30000",
   ai_analysis_language: "zh-Hant",
   ai_prompt_template: DEFAULT_AI_PROMPT_TEMPLATE,
-  ai_prompt_version: "phase-1c-v1",
+  ai_prompt_version: "phase-1d-v1",
   ai_show_draft_message: "true",
   ai_staff_manual_refresh_enabled: "true",
   ai_admin_only_manual_refresh: "false",

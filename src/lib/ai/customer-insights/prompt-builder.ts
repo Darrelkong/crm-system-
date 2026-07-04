@@ -21,7 +21,7 @@ export function serializeCustomerInsightContext(context: CustomerInsightContext)
       status: sanitized.status,
       requestedProjectName: sanitized.requestedProjectName,
       sourceRemark: sanitized.sourceRemark,
-      notes: sanitized.notes,
+      initialCommunicationNote: sanitized.notes,
       contactAvailability: sanitized.contactAvailability,
       lastFollowUpAt: sanitized.lastFollowUpAt,
       lastValidFollowUpAt: sanitized.lastValidFollowUpAt,
@@ -65,6 +65,12 @@ export function buildSystemPrompt(analysisLanguage: AiAnalysisLanguage): string 
     "- If contactAvailability.hasWeChat is true, WeChat can be recommended as a follow-up channel.",
     "- Only flag missing contact information when contactAvailability.hasAnyContactMethod is false.",
     "- Do not ask staff to re-collect contact information that already exists in the CRM.",
+    "Context field rules:",
+    "- initialCommunicationNote contains the client's original inquiry, pain point, and intent recorded at first contact.",
+    "- Treat initialCommunicationNote as a primary signal for understanding the client's original goals.",
+    "- Always consider initialCommunicationNote together with recentFollowUps.",
+    "- Do not rely only on recentFollowUps when initialCommunicationNote exists.",
+    "- If initialCommunicationNote is null or empty, rely more on recentFollowUps and missingInformation.",
   ].join("\n");
 }
 
