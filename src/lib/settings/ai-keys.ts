@@ -16,7 +16,7 @@ export const AI_SETTING_KEYS = [
 
 export type AiSettingKey = (typeof AI_SETTING_KEYS)[number];
 
-export const AI_PROVIDERS = ["mock", "openai_compatible"] as const;
+export const AI_PROVIDERS = ["mock", "openai_compatible", "google_gemini"] as const;
 export type AiProviderKind = (typeof AI_PROVIDERS)[number];
 
 export const AI_ANALYSIS_LANGUAGES = ["zh-Hant", "zh-Hans", "en"] as const;

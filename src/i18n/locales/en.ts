@@ -1642,6 +1642,7 @@ const en = {
     providers: {
       mock: "Mock (local testing)",
       openai_compatible: "OpenAI-compatible",
+      google_gemini: "Google Gemini (Native)",
     },
     languages: {
       "zh-Hant": "Traditional Chinese",

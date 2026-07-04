@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/db";
 import {
   AI_SETTING_DEFAULTS,
+  isAiProvider,
   parseBooleanSetting,
   type AiAnalysisLanguage,
   type AiProviderKind,
@@ -55,7 +56,7 @@ export function parseEffectiveAiSettings(raw: AiSettingsMap): EffectiveAiSetting
     ? (raw.ai_analysis_language as AiAnalysisLanguage)
     : "zh-Hant";
 
-  const provider = raw.ai_provider === "openai_compatible" ? "openai_compatible" : "mock";
+  const provider: AiProviderKind = isAiProvider(raw.ai_provider) ? raw.ai_provider : "mock";
 
   return {
     aiEnabled: parseBooleanSetting(raw.ai_enabled),

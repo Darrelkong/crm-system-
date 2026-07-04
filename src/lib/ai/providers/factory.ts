@@ -3,6 +3,7 @@ import { AiConfigError } from "@/lib/ai/customer-insights/errors";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import { mockCustomerInsightProvider } from "./mock";
 import { openAiCompatibleCustomerInsightProvider } from "./openai-compatible";
+import { googleGeminiCustomerInsightProvider } from "./google-gemini";
 import type {
   CustomerInsightAIProvider,
   ResolvedCustomerInsightProvider,
@@ -33,7 +34,7 @@ export function resolveCustomerInsightProvider(
   }
 
   return {
-    kind: "openai_compatible",
+    kind: settings.aiProvider,
     model: settings.aiModel,
     config: {
       apiBaseUrl: settings.aiApiBaseUrl,
@@ -49,7 +50,7 @@ export function resolveCustomerInsightProvider(
 export function getCustomerInsightProviderImpl(
   resolved: ResolvedCustomerInsightProvider,
 ): CustomerInsightAIProvider {
-  return resolved.kind === "openai_compatible"
-    ? openAiCompatibleCustomerInsightProvider
-    : mockCustomerInsightProvider;
+  if (resolved.kind === "openai_compatible") return openAiCompatibleCustomerInsightProvider;
+  if (resolved.kind === "google_gemini") return googleGeminiCustomerInsightProvider;
+  return mockCustomerInsightProvider;
 }

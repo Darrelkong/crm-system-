@@ -1551,6 +1551,7 @@ const zhHant: Messages = {
     providers: {
       mock: "Mock（本地測試）",
       openai_compatible: "OpenAI-compatible",
+      google_gemini: "Google Gemini（原生）",
     },
     languages: {
       "zh-Hant": "繁體中文",

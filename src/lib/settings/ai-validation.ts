@@ -121,7 +121,7 @@ export function validateAiSettingValue(key: AiSettingKey, value: string): string
     case "ai_admin_only_manual_refresh":
       return validateBoolean(key, trimmed);
     case "ai_provider":
-      return isAiProvider(trimmed) ? null : `${key} 仅允许 mock 或 openai_compatible`;
+      return isAiProvider(trimmed) ? null : `${key} 仅允许 mock、openai_compatible 或 google_gemini`;
     case "ai_api_base_url":
       return validateAiApiBaseUrl(trimmed);
     case "ai_model":
