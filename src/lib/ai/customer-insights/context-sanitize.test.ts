@@ -246,3 +246,85 @@ describe("sanitizeCustomerInsightContextForProvider field truncation", () => {
     assert.equal(context.recentFollowUps[0]?.summary, longSummary);
   });
 });
+
+describe("sanitizeCustomerInsightContextForProvider contactAvailability", () => {
+  it("wechatId only → hasWeChat=true, hasAnyContactMethod=true, count=1, label=partial", () => {
+    const context = buildSampleContext({ phone: null, email: null, wechatId: "wx_only" });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.deepEqual(sanitized.contactAvailability, {
+      hasPhone: false,
+      hasEmail: false,
+      hasWeChat: true,
+      hasAnyContactMethod: true,
+      contactMethodCount: 1,
+      contactCompletenessLabel: "partial",
+    });
+  });
+
+  it("phone present → hasPhone=true, count=1, hasAnyContactMethod=true", () => {
+    const context = buildSampleContext({ phone: "91234567", wechatId: null, email: null });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.equal(sanitized.contactAvailability.hasPhone, true);
+    assert.equal(sanitized.contactAvailability.contactMethodCount, 1);
+    assert.equal(sanitized.contactAvailability.hasAnyContactMethod, true);
+  });
+
+  it("email present → hasEmail=true", () => {
+    const context = buildSampleContext({ phone: null, wechatId: null, email: "test@example.com" });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.equal(sanitized.contactAvailability.hasEmail, true);
+  });
+
+  it("all null → hasAnyContactMethod=false, count=0, label=none", () => {
+    const context = buildSampleContext({ phone: null, wechatId: null, email: null });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.deepEqual(sanitized.contactAvailability, {
+      hasPhone: false,
+      hasEmail: false,
+      hasWeChat: false,
+      hasAnyContactMethod: false,
+      contactMethodCount: 0,
+      contactCompletenessLabel: "none",
+    });
+  });
+
+  it("all three present → count=3, label=complete, hasAnyContactMethod=true", () => {
+    const context = buildSampleContext({
+      phone: "91234567",
+      wechatId: "wx_test",
+      email: "test@example.com",
+    });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.equal(sanitized.contactAvailability.contactMethodCount, 3);
+    assert.equal(sanitized.contactAvailability.contactCompletenessLabel, "complete");
+    assert.equal(sanitized.contactAvailability.hasAnyContactMethod, true);
+  });
+
+  it("two contact methods → count=2, label=complete", () => {
+    const context = buildSampleContext({ phone: "91234567", wechatId: "wx_test", email: null });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.equal(sanitized.contactAvailability.contactMethodCount, 2);
+    assert.equal(sanitized.contactAvailability.contactCompletenessLabel, "complete");
+  });
+
+  it("empty string and whitespace-only values are not counted as valid contact", () => {
+    const context = buildSampleContext({ phone: "", wechatId: "   ", email: null });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.equal(sanitized.contactAvailability.hasPhone, false);
+    assert.equal(sanitized.contactAvailability.hasWeChat, false);
+    assert.equal(sanitized.contactAvailability.hasAnyContactMethod, false);
+    assert.equal(sanitized.contactAvailability.contactCompletenessLabel, "none");
+  });
+
+  it("sanitized phone/wechatId/email remain null for type compatibility", () => {
+    const context = buildSampleContext({
+      phone: "91234567",
+      wechatId: "wx_test",
+      email: "test@example.com",
+    });
+    const sanitized = sanitizeCustomerInsightContextForProvider(context);
+    assert.equal(sanitized.phone, null);
+    assert.equal(sanitized.wechatId, null);
+    assert.equal(sanitized.email, null);
+  });
+});

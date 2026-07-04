@@ -1,4 +1,8 @@
-import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
+import {
+  computeContactAvailability,
+  type ContactAvailability,
+  type CustomerInsightContext,
+} from "@/lib/ai/customer-insights/context-builder";
 import {
   AI_CONTEXT_FOLLOW_UP_INTENT_MAX_CHARS,
   AI_CONTEXT_FOLLOW_UP_SUMMARY_MAX_CHARS,
@@ -12,6 +16,10 @@ function truncateField(value: string | null, maxChars: number): string | null {
   return value.slice(0, maxChars) + AI_CONTEXT_TRUNCATION_SUFFIX;
 }
 
+type SanitizedCustomerInsightContext = CustomerInsightContext & {
+  contactAvailability: ContactAvailability;
+};
+
 /**
  * Returns a copy of customer insight context with structured contact fields removed
  * and free-text fields truncated to safe lengths before sending to an external AI
@@ -19,7 +27,7 @@ function truncateField(value: string | null, maxChars: number): string | null {
  */
 export function sanitizeCustomerInsightContextForProvider(
   context: CustomerInsightContext,
-): CustomerInsightContext {
+): SanitizedCustomerInsightContext {
   return {
     customerId: context.customerId,
     customerName: context.customerName,
@@ -38,6 +46,7 @@ export function sanitizeCustomerInsightContextForProvider(
     phone: null,
     wechatId: null,
     email: null,
+    contactAvailability: computeContactAvailability(context.phone, context.email, context.wechatId),
     recentFollowUps: context.recentFollowUps.map((followUp) => ({
       ...followUp,
       summary: truncateField(followUp.summary, AI_CONTEXT_FOLLOW_UP_SUMMARY_MAX_CHARS) ?? followUp.summary,

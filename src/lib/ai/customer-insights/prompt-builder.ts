@@ -22,9 +22,7 @@ export function serializeCustomerInsightContext(context: CustomerInsightContext)
       requestedProjectName: sanitized.requestedProjectName,
       sourceRemark: sanitized.sourceRemark,
       notes: sanitized.notes,
-      phone: sanitized.phone,
-      wechatId: sanitized.wechatId,
-      email: sanitized.email,
+      contactAvailability: sanitized.contactAvailability,
       lastFollowUpAt: sanitized.lastFollowUpAt,
       lastValidFollowUpAt: sanitized.lastValidFollowUpAt,
       nextFollowUpAt: sanitized.nextFollowUpAt,
@@ -51,6 +49,12 @@ export function buildSystemPrompt(analysisLanguage: AiAnalysisLanguage): string 
     "- Do not send messages to the customer automatically.",
     "- Suggestions are for internal staff reference only.",
     `- Write all human-readable text fields in ${languageLabel}.`,
+    "- contactAvailability shows whether contact information exists in the CRM; actual values are hidden for privacy.",
+    "- Use contactAvailability as the source of truth for contact-method availability.",
+    "- Do not flag missing contact information when contactAvailability.hasAnyContactMethod is true.",
+    "- If contactAvailability.hasWeChat is true, WeChat can be recommended as a follow-up channel.",
+    "- Only flag missing contact information when contactAvailability.hasAnyContactMethod is false.",
+    "- Do not ask staff to re-collect contact information that already exists in the CRM.",
   ].join("\n");
 }
 

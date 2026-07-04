@@ -6,6 +6,41 @@ import {
   type CustomerAccessLevel,
 } from "@/lib/permissions/customers";
 
+export type ContactAvailability = {
+  hasPhone: boolean;
+  hasEmail: boolean;
+  hasWeChat: boolean;
+  hasAnyContactMethod: boolean;
+  contactMethodCount: number;
+  contactCompletenessLabel: "none" | "partial" | "complete";
+};
+
+function hasContactText(value: string | null): boolean {
+  return !!value && value.trim().length > 0;
+}
+
+export function computeContactAvailability(
+  phone: string | null,
+  email: string | null,
+  wechatId: string | null,
+): ContactAvailability {
+  const hasPhone = hasContactText(phone);
+  const hasEmail = hasContactText(email);
+  const hasWeChat = hasContactText(wechatId);
+  const contactMethodCount = [hasPhone, hasEmail, hasWeChat].filter(Boolean).length;
+  const hasAnyContactMethod = contactMethodCount > 0;
+  const contactCompletenessLabel: ContactAvailability["contactCompletenessLabel"] =
+    contactMethodCount === 0 ? "none" : contactMethodCount === 1 ? "partial" : "complete";
+  return {
+    hasPhone,
+    hasEmail,
+    hasWeChat,
+    hasAnyContactMethod,
+    contactMethodCount,
+    contactCompletenessLabel,
+  };
+}
+
 const RECENT_FOLLOW_UP_LIMIT = 10;
 
 export type CustomerInsightFollowUpContext = {
