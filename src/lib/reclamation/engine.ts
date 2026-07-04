@@ -19,6 +19,7 @@ import {
   getEffectiveSettings,
   type EffectiveSettings,
 } from "@/lib/settings/effective";
+import { getCollaborativeCustomerIds } from "./collaborative";
 
 export type ReclamationRunResult = {
   /** Pre-reclaim warnings sent this run (single-warning model, E-4b). */
@@ -26,6 +27,8 @@ export type ReclamationRunResult = {
   reclaimedCount: number;
   skippedCount: number;
   affectedCustomerIds: string[];
+  /** Customers skipped because they have ≥1 collaborator (C-2). */
+  skippedCollaborativeCount: number;
   /** @deprecated Kept for backward-compatible callers/tests; equals warningsCount. */
   warningsDay6Count: number;
   /** @deprecated Two-stage warning removed in E-4b; always 0. */
@@ -317,16 +320,33 @@ export async function runReclamationCheck(
       ),
     );
 
+  // C-2: identify collaborative customers (≥1 collaborator in customer_assignees)
+  // so we can skip them from ordinary auto-reclaim. They will be handled by the
+  // collaborative-dissolution rules introduced in PHASE-C-3.
+  const collaborativeCustomerIds = await getCollaborativeCustomerIds(
+    db,
+    eligibleCustomers.map((c) => c.id),
+  );
+
   const result: ReclamationRunResult = {
     warningsCount: 0,
     warningsDay6Count: 0,
     warningsDay7Count: 0,
     reclaimedCount: 0,
     skippedCount: 0,
+    skippedCollaborativeCount: 0,
     affectedCustomerIds: [],
   };
 
   for (const customer of eligibleCustomers) {
+    // C-2: collaborative customers are exempt from ordinary auto-reclaim and
+    // pre-reclaim warnings. Skip without touching ownerId/status/assignees.
+    if (collaborativeCustomerIds.has(customer.id)) {
+      result.skippedCount += 1;
+      result.skippedCollaborativeCount += 1;
+      continue;
+    }
+
     const days = getDaysWithoutValidFollowUp(customer, now);
 
     if (days >= reclaimDays) {

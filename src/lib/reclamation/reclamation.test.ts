@@ -485,3 +485,137 @@ describe("auto-reclamation customer status assumptions", () => {
     assert.equal(activeOnlyStatuses.includes("deleted"), false);
   });
 });
+
+// ---------------------------------------------------------------------------
+// C-2: collaborative customers (≥1 collaborator row) are exempt from
+// ordinary auto-reclaim and pre-reclaim warnings.
+// ---------------------------------------------------------------------------
+
+describe("C-2: collaborative customers are exempt from ordinary auto-reclaim", () => {
+  const now = new Date("2026-06-29T12:00:00.000Z");
+
+  /**
+   * Mirror of the updated engine loop decision.
+   * When hasCollaborators=true the engine skips the customer entirely
+   * before evaluating days, exactly as `runReclamationCheck` does.
+   */
+  function classifyWithCollaborators(
+    customer: Customer,
+    settings: EffectiveSettings,
+    nowDate: Date,
+    hasCollaborators: boolean,
+  ): ReclamationOutcome {
+    if (hasCollaborators) return "none";
+    return classifyReclamationOutcome(customer, settings, nowDate);
+  }
+
+  it("collaborative customer at reclaim threshold (day 7) is skipped", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(7, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, true),
+      "none",
+    );
+  });
+
+  it("collaborative customer well beyond reclaim threshold (day 30) is still skipped", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(30, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, true),
+      "none",
+    );
+  });
+
+  it("collaborative customer in warning band (day 5) is also skipped", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(5, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, true),
+      "none",
+    );
+  });
+
+  it("collaborative customer does not change ownerId or status (fields stay intact)", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(30, now) },
+      now,
+    );
+    const outcome = classifyWithCollaborators(
+      customer,
+      DEFAULT_SETTINGS,
+      now,
+      true,
+    );
+    assert.equal(outcome, "none");
+    // Engine must not touch these fields for collaborative customers.
+    assert.equal(customer.ownerId, "owner-id");
+    assert.equal(customer.status, "active");
+  });
+
+  it("non-collaborative customer at reclaim threshold (day 7) is still reclaimed", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(7, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, false),
+      "reclaim",
+    );
+  });
+
+  it("non-collaborative customer in warning band (day 5) still gets a warning", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(5, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, false),
+      "warning",
+    );
+  });
+
+  it("non-collaborative customer below warning threshold (day 3) has no action", () => {
+    const customer = buildCustomer(
+      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(3, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, false),
+      "none",
+    );
+  });
+
+  it("hasCollaborators=false does not override on_hold exclusion", () => {
+    const customer = buildCustomer(
+      { salesStage: "on_hold", lastValidFollowUpAt: daysAgoIso(10, now) },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, false),
+      "none",
+    );
+  });
+
+  it("hasCollaborators=false does not override pinned exclusion", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        isPinned: 1,
+        pinnedAt: daysAgoIso(1, now),
+        lastValidFollowUpAt: daysAgoIso(10, now),
+      },
+      now,
+    );
+    assert.equal(
+      classifyWithCollaborators(customer, DEFAULT_SETTINGS, now, false),
+      "none",
+    );
+  });
+});
