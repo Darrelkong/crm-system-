@@ -1059,295 +1059,172 @@ const zhHant: Messages = {
   },
   help: {
     title: "幫助中心",
-    description: "CRM 常用操作、權限與安全規則說明，僅供查閱。",
-    descriptionAdmin: "管理員專用操作、系統設定與審批說明，僅供查閱。",
-    descriptionStaff: "員工日常操作、敏感資料與公共池規則說明，僅供查閱。",
+    description: "教您如何使用 CRM 管理客戶、記錄跟進、公共池與 AI 分析等功能。",
+    descriptionAdmin:
+      "教您如何使用 CRM 管理客戶、記錄跟進、公共池與 AI 分析等功能。",
+    descriptionStaff:
+      "教您如何使用 CRM 管理客戶、記錄跟進、公共池與 AI 分析等功能。",
+    testingPhaseBadge: "測試階段",
     adminOnlyBadge: "僅 Admin 可用",
     staffOnlyBadge: "僅 Staff 適用",
     readOnlyNotice: "此頁面僅供參考，不會修改任何系統設定。",
     sections: {
-      adminGuide: {
-        title: "Admin 使用指南",
-        description: "管理員在 CRM 中的主要操作入口。",
+      aiCustomerAnalysis: {
+        title: "AI 客戶分析功能",
+        description: "AI 可以協助您更快理解客戶，但仍需由您做最終判斷。",
         items: {
-          dashboard: "在管理員儀表盤查看 KPI、工作量、團隊績效與近期動態。",
-          manageCustomers:
-            "在「客戶管理」瀏覽與管理所有客戶，包括進行中、公共池與已歸檔記錄。",
-          addCustomer: "使用「新增客戶」建立客戶並按需指定負責人。",
-          manageEmployees:
-            "在「員工管理」新增 Staff、重設密碼、解鎖賬戶或軟刪除離職員工。",
-          loginLogs: "在「系統設定 → 登入日誌」查看登入嘗試記錄。",
-          notificationsAnnouncements:
-            "在管理選單中管理公告並查看系統通知。",
-          securityPolicies: "在「系統設定 → 安全策略」查看目前強制執行的安全規則。",
-          systemSettings:
-            "在「系統設定」調整自動回收、公共池領取配額等參數（以系統目前設定為準）。",
+          understandIntent:
+            "AI 可以幫助您理解客戶目前意向，以及對產品或服務的興趣程度。",
+          dataSources:
+            "AI 會參考客戶基本資料、首次溝通備註，以及您記錄的跟進內容。",
+          nextSteps:
+            "AI 可提供下一步建議與建議話術，方便您規劃下一次聯絡。",
+          assistantOnly:
+            "AI 只是輔助工具，不會代替您做承諾或最終決定，請以實際溝通為準。",
+          keepFollowUpsUpdated:
+            "跟進記錄越完整、越真實，AI 分析通常會越準確。",
         },
       },
-      adminWorkspace: {
-        title: "Admin 儀表盤與通知",
-        description: "管理員工作台與訊息中心。",
+      addCustomer: {
+        title: "如何新增客戶",
+        description: "建立新客戶時，請盡量把第一次溝通的資訊記錄清楚。",
         items: {
-          dashboardKpi:
-            "儀表盤展示客戶總數、公共池、待審批、任務與團隊跟進等 KPI。",
-          workflowPriorities:
-            "「工作流程」面板集中顯示待審批、逾期任務與今日任務。",
-          notifications:
-            "「通知中心」顯示審批、自動回收預警等訊息；未讀數會顯示 badge。",
-          announcements: "在「公告管理」發布或歸檔公司公告。",
-          systemOnline:
-            "介面顯示的 System Online 表示 CRM 服務可用，僅供狀態參考。",
+          basicInfo:
+            "在「新增客戶」填寫姓名、聯絡方式、客戶類型、來源等基本資料。",
+          firstContactNotes:
+            "請認真填寫「首次溝通備註」，例如客戶需求、預算、時間安排、特殊要求等。",
+          whyNotesMatter:
+            "首次溝通備註會幫助您和 AI 更快理解客戶背景，後續跟進也更順暢。",
+          confirmBeforeCreate:
+            "儲存後會跳出確認視窗，需等待 {{seconds}} 秒並核對資料後才會建立客戶。",
         },
       },
-      adminSensitiveAssignees: {
-        title: "敏感資料與共同負責（Admin）",
-        description: "管理員對客戶敏感欄位與共同負責員工的權限。",
+      myCustomers: {
+        title: "如何查看我的客戶",
+        description: "在客戶管理頁面查看您負責或共同負責的客戶。",
         items: {
-          editSensitive:
-            "Admin 可在編輯頁修改客戶姓名、聯絡方式、來源、備註等敏感欄位；Staff 建立後不可自行修改。",
-          manageAssignees:
-            "Admin 可在客戶詳情頁「管理共同負責員工」直接增刪協作負責人。",
-          approveAssigneeRequests:
-            "Owner Staff 提交的「調整共同負責員工」申請需在「批准」中心審批。",
-          collaboratorLimits:
-            "共同負責員工可查看客戶並新增跟進，但不可編輯客戶或釋放到公共池。",
+          list:
+            "在「客戶管理」可看到您負責的客戶列表，也可依狀態或關鍵字搜尋。",
+          detail:
+            "點選客戶名稱進入詳情頁，可查看基本資料、跟進記錄與 AI 分析。",
+          status:
+            "留意客戶狀態、銷售階段與下次跟進時間，優先處理需要跟進的客戶。",
+          collaborators:
+            "若您是共同負責人，同樣可以在列表中找到該客戶並新增跟進。",
         },
       },
-      staffGuide: {
-        title: "Staff 使用指南",
-        description: "一般員工的日常操作。",
+      recordFollowUp: {
+        title: "如何記錄跟進",
+        description: "每次與客戶溝通後，請盡快記錄有效跟進。",
         items: {
-          viewCustomers:
-            "在「客戶管理」查看自己負責的客戶，以及作為共同負責人的客戶。",
-          addCustomer:
-            "使用「新增客戶」登記新客戶；儲存後需經確認 modal 才會建立。",
-          updateCustomer:
-            "負責人可編輯非敏感欄位（如銷售階段）；敏感資料建立後已鎖定，詳見下方說明。",
-          addFollowUp: "在客戶詳情頁新增跟進紀錄，保持溝通歷史完整。",
-          notifications:
-            "在「通知中心」查看審批結果、跟進提醒等；未讀數會顯示 badge。",
-          announcements: "在「公告」頁閱讀公司公告。",
+          validFollowUp:
+            "有效跟進需填寫下次跟進時間、客戶意向，以及至少 10 字的下一步行動。",
+          recordPromptly:
+            "請在溝通後盡快記錄，避免忘記重點，也方便同事了解最新進度。",
+          invalidFollowUp:
+            "只改狀態、只填幾個字、或沒有實際溝通內容的記錄，通常不算有效跟進。",
+          riskOfDelay:
+            "若長時間沒有有效跟進，客戶可能會收到系統提醒，嚴重時可能被釋放到公共池。",
         },
       },
-      staffDashboard: {
-        title: "Staff 儀表盤",
-        description: "員工工作台重點指標。",
+      useAiAnalysis: {
+        title: "如何使用 AI 客戶分析",
+        description: "在客戶詳情頁查看 AI 分析，協助您規劃下一步。",
         items: {
-          myClients: "「我的客戶」顯示目前由你負責的 active 客戶數（不含公共池/歸檔）。",
-          tasks: "「今日任務」與「逾期任務」來自系統派發的跟進任務。",
-          approvals: "「待審批」顯示你提交的申請狀態，可跳轉至批准列表。",
-          riskAndCompleteness:
-            "「高流失風險」與「低完整度」協助你優先處理需跟進的客戶。",
-          recentCards: "儀表盤下方展示近期通知與公告摘要。",
+          whereToFind:
+            "進入客戶詳情頁後，在 AI 分析區塊查看目前分析結果。",
+          readOutput:
+            "可重點看客戶意向（intent）、建議下一步（next best action）等內容。",
+          suggestedMessage:
+            "若有建議話術（suggested message），可參考後再依實際情況調整。",
+          whenInaccurate:
+            "若 AI 不完整或不準確，請補充真實跟進記錄，稍後再查看更新後的分析。",
         },
       },
-      sensitiveDataStaff: {
-        title: "敏感資料保護（Staff）",
-        description: "客戶建立後的資料隱私與顯示規則。",
+      avoidPublicPool: {
+        title: "如何避免客戶被釋放到公共池",
+        description: "持續跟進是保留客戶負責權的關鍵。",
         items: {
-          createConfirm:
-            "新增客戶時，點「儲存客戶」後會彈出確認 modal，需等待 {{seconds}} 秒並核對姓名、項目、電話、微信、電郵後才可建立。",
-          lockedFields:
-            "建立後，Staff 不可修改客戶姓名、類型、來源、項目名稱、電話、微信、電郵、首次溝通備註；如需修改請聯絡 Admin。",
-          contactMasking:
-            "客戶詳情頁的電話、微信、電郵默認顯示 ********，點小眼睛可暫時查看；刷新頁面後重新隱藏。",
-          noCustomerCode: "Staff 看不到客戶 EF 唯一識別碼；Admin 可查看。",
+          followOnTime:
+            "請按計劃聯絡客戶，並在每次溝通後記錄跟進。",
+          validRecords:
+            "確保跟進內容完整有效，不要只用敷衍文字應付。",
+          watchReminders:
+            "留意通知中心的提醒；系統通常會在回收前 {{warningDays}} 天左右先提醒您（預設約 {{reclaimDays}} 天無有效跟進可能回收）。",
+          collaborativeCustomers:
+            "有共同負責人的客戶，也需要有人持續跟進；不要以為有其他人負責就可以不管。",
         },
       },
-      publicPoolStaff: {
-        title: "公共池（Staff）",
-        description: "員工在公共池的查看與領取規則。",
+      claimFromPool: {
+        title: "如何從公共池領取客戶",
+        description: "公共池中的客戶可供符合條件的員工領取。",
         items: {
-          nameMasking:
-            "公共池列表中，中文姓名僅顯示首字 + **，英文姓名僅顯示首字母 + **。",
-          listColumns:
-            "列表顯示「客戶類型」與「資料完整度」分數，而非完整來源/階段細節。",
-          poolReasonPreview: "「入池原因」僅顯示前三個字 + ⋯，完整原因不展示。",
-          claimSuccess:
-            "領取成功後會顯示「領取成功」與「立即查看」，可跳轉至剛領取的客戶詳情。",
-          quotaCooldown:
-            "公共池領取會受到配額與冷卻時間限制；預設 7 天內最多領取 {{quota}} 次，冷卻時間預設 {{hours}} 小時，實際限制以系統設定為準；不可領取自己釋放的客戶。",
+          whatIsPool:
+            "公共池是暫時無固定負責人的客戶列表，供其他員工領取跟進。",
+          whyEnterPool:
+            "常見原因包括：長時間無有效跟進、主動釋放，或原負責人離職等。",
+          howToClaim:
+            "在「公共池」選擇客戶並點「領取」；領取可能受配額與冷卻時間限制（預設 7 天內 {{quota}} 次、冷卻 {{hours}} 小時）。",
+          followUpAfterClaim:
+            "領取成功後請盡快聯絡客戶並記錄跟進，避免再次長時間未跟進。",
         },
       },
-      publicPoolAdmin: {
-        title: "公共池（Admin）",
-        description: "管理員在公共池的完整視圖。",
+      announcements: {
+        title: "如何查看公告",
+        description: "登入後可先查看公司最新公告。",
         items: {
-          fullName: "Admin 可看到完整客戶姓名，不受 Staff 脫敏規則影響。",
-          contactColumn: "列表可查看聯絡方式摘要欄（電話、微信）。",
-          claimSuccess: "領取成功後同樣可「立即查看」跳轉客戶詳情。",
-          poolSettings:
-            "公共池領取配額（預設 {{quota}} 次/7 天）與冷卻（預設 {{hours}} 小時）可在系統設定調整。",
+          welcomePage:
+            "登入成功後會先進入 welcome 頁面，顯示歡迎訊息與最新公告。",
+          latestAnnouncement:
+            "若有新公告，會在 welcome 頁面或「公告」頁顯示標題與內容。",
+          confirmThenEnter:
+            "閱讀公告後點「我已閱讀 / 繼續」，即可進入 CRM 主畫面。",
+          staffCountdown:
+            "部分情況下需等待 {{seconds}} 秒倒數後才能確認，請先仔細閱讀公告內容。",
         },
       },
-      collaboratorsStaff: {
-        title: "共同負責員工（Staff）",
-        description: "Owner 申請調整共同負責人的流程。",
+      approvals: {
+        title: "如何提交申請 / 查看批准狀態",
+        description: "部分客戶操作需要提交申請並等待批准。",
         items: {
-          ownerRequest:
-            "客戶 Owner 可點「申請調整共同負責員工」，填寫理由後提交審批。",
-          collaboratorRole:
-            "若你已是共同負責人，可查看客戶並新增跟進，但不可提交此申請。",
-          adminOnlyManage: "只有 Admin 可直接管理共同負責員工，無需審批。",
-        },
-      },
-      followUpRules: {
-        title: "新增跟進規則",
-        description: "填寫跟進紀錄時的必填與格式要求。",
-        items: {
-          nextFollowUpRequired:
-            "「下次跟進時間」必填，且須為未來的有效時間。",
-          customerIntentRequired: "「客戶意向」必填。",
-          nextActionMinLength: "「下一步行動」至少 10 個字（不含首尾空白）。",
-          validFollowUpImpact:
-            "有效跟進會影響客戶熱度、完整度及自動回收計時。",
-        },
-      },
-      customerFlow: {
-        title: "客戶管理流程",
-        description: "客戶資料在 CRM 中的典型流轉方式。",
-        items: {
-          addCustomer: "建立客戶時填寫必要的聯絡方式與來源資訊。",
-          assignOwner:
-            "進行中的客戶有負責人跟進。Admin 可重新分配；Staff 通常負責自己建立或領取的客戶。",
-          updateStatusStage:
-            "隨商機推進更新銷售階段；擱置（on_hold）等變更可能需要 Admin 審批。",
-          addFollowUp:
-            "每次聯絡後記錄跟進內容，有效跟進會影響自動回收計時與報表。",
-          timeline: "客戶時間軸展示負責人變更、跟進、審批等稽核事件。",
-          aiInsight:
-            "若已啟用，可在客戶詳情頁查看 AI 分析摘要與下一步建議。",
-        },
-      },
-      aiInsightDataScope: {
-        title: "AI 洞察資料範圍",
-        description: "AI 意向分析會使用哪些資料、哪些不會送給外部 AI。",
-        items: {
-          purpose:
-            "AI 洞察用於輔助分析客戶意向與下一步建議，不代替人工判斷。",
-          dataIncluded:
-            "AI 主要參考：客戶類型、需要的項目名稱、銷售階段、客戶狀態、來源與來源備註、首次溝通備註（notes）、最近跟進內容、客戶意向，以及下次跟進時間。",
-          contactNotSent:
-            "為降低敏感資料外傳風險，系統預設不會把結構化聯絡方式（電話、微信、電郵）送給 AI provider。",
-          notesManualContact:
-            "若 notes 或跟進摘要中手動輸入了電話、微信或電郵，AI 仍可能看到這些文字；請避免在備註中重複填寫不必要的聯絡方式。",
-          humanJudgment:
-            "AI 分析僅作內部輔助，最終跟進與承諾仍以員工與管理員確認為準。",
-          refreshCooldown:
-            "手動刷新 AI 分析有 5 分鐘冷卻，避免短時間重複請求。",
-        },
-      },
-      aiInsightDataScopeAdmin: {
-        title: "AI 洞察（Admin）",
-        description: "管理員相關設定。",
-        items: {
-          adminSettings:
-            "Admin 可在「AI 設定」中管理 AI provider、是否啟用，以及 Staff 是否可手動刷新。",
-        },
-      },
-      aiInsightDataScopeStaff: {
-        title: "AI 洞察（Staff）",
-        description: "員工刷新權限提示。",
-        items: {
-          staffRefresh:
-            "若無法刷新 AI 分析，可能是管理員已關閉 Staff 手動刷新，或剛完成刷新仍在 5 分鐘冷卻中。",
-        },
-      },
-      recycleBin: {
-        title: "回收站說明",
-        description: "客戶被刪除後的處理方式。",
-        items: {
-          softDelete: "刪除客戶會進入回收站，不會立即永久刪除。",
-          retention: "已刪除客戶在回收站保留 {{days}} 天。",
-          staffNoAccess: "Staff 無法查看回收站；如需恢復客戶請聯繫 Admin。",
-        },
-      },
-      recycleBinAdmin: {
-        title: "回收站管理（Admin）",
-        description: "管理員恢復或永久刪除客戶。",
-        items: {
-          adminRestore: "Admin 可在 {{days}} 天保留期內從回收站恢復客戶。",
-          permanentDelete:
-            "「永久刪除」會清除客戶資料且無法恢復，操作前請再次確認。",
-          autoPurge:
-            "超過 {{days}} 天仍留在回收站的客戶，可能由系統清理任務永久刪除。",
-        },
-      },
-      employeeMgmt: {
-        title: "員工管理說明",
-        description: "員工賬戶的建立、停用與離職處理。",
-        items: {
-          adminManage:
-            "Admin 可新增 Staff、停用賬戶、重設密碼與解鎖被鎖定賬戶。",
-          deletePreview:
-            "刪除前會顯示預覽：名下客戶數、共同負責移除數等，確認後才執行。",
-          softDeleteEmployee: "刪除員工為軟刪除，歷史紀錄會保留。",
-          deletedRecordsKept:
-            "已刪除員工仍可在員工列表查閱；列表顯示員工總數與現有員工數。",
-          deletedCannotLogin: "已刪除員工無法再次登入，即使賬戶被解鎖亦然。",
-          customerTransfer:
-            "刪除員工時，其名下的客戶會轉移至執行刪除操作的 Admin。",
-        },
-      },
-      autoReclaimSettings: {
-        title: "自動回收與系統設定",
-        description: "客戶自動回收到公共池的規則（預設值如下，以系統設定為準）。",
-        items: {
-          reclaimDays:
-            "預設連續 {{days}} 天無有效跟進後，客戶會自動回收到公共池。",
-          warningDays:
-            "預設在回收前 {{days}} 天（即第 {{reclaimDays}} 天起算）向負責員工發送預警通知。",
-          onHoldPinned:
-            "銷售階段為「擱置（on_hold）」或已置頂（pinned）的客戶不會被自動回收。",
-          settingsPath:
-            "可在「系統設定」調整 automatic_reclaim_days、reclaim_warning_days_before 等參數。",
-        },
-      },
-      loginSecurity: {
-        title: "登入安全說明",
-        description: "保護 CRM 賬戶與 Session 的規則。",
-        items: {
-          staffLockout: "Staff 密碼連續錯誤 {{count}} 次會自動鎖定賬戶。",
-          lockedCannotLogin:
-            "被鎖定賬戶不能登入，需由 Admin 解鎖或重設密碼。",
-          adminExempt: "Admin 賬戶不受自動鎖定限制。",
-          adminUnlock: "只有 Admin 可以在員工管理頁解鎖 Staff 賬戶。",
-          inactivityLogout: "連續 {{minutes}} 分鐘無操作會自動退出。",
-          timeoutReverify:
-            "若多次停留在超時登入頁仍未重新登入，系統將重新進行安全驗證。",
+          whatToSubmit:
+            "例如調整共同負責員工、部分客戶狀態變更等，可在客戶詳情頁提交申請。",
+          checkStatus:
+            "提交後可在「批准」頁面查看申請狀態，也會收到通知提醒。",
+          navBadge:
+            "左側選單「批准」旁若顯示數字，代表有待處理或待查看的申請。",
+          collaboratorRequest:
+            "若您是客戶主負責人，可申請調整共同負責員工並填寫理由。",
         },
       },
     },
     faq: {
       title: "常見問題",
-      description: "快速解答常見疑問。",
-      autoLogout: {
-        question: "為什麼我被自動退出？",
+      description: "快速解答日常使用中的常見疑問。",
+      cannotSeeCustomer: {
+        question: "為什麼我看不到某個客戶？",
         answer:
-          "CRM 會在 {{minutes}} 分鐘無操作後自動退出，或在其他裝置登入後使舊 Session 失效。",
+          "您通常只能查看自己負責或共同負責的客戶。若客戶已進入公共池、被刪除或不在您的負責範圍內，可能無法在「我的客戶」中看到。",
       },
-      accountLocked: {
-        question: "為什麼賬戶被鎖定？",
+      customerInPublicPool: {
+        question: "為什麼客戶進了公共池？",
         answer:
-          "Staff 密碼連續錯誤 {{count}} 次會鎖定賬戶，請聯繫 Admin 解鎖或重設密碼。",
+          "常見原因是長時間沒有有效跟進（預設約 {{reclaimDays}} 天），或原負責人主動釋放。請持續記錄有效跟進以避免客戶被回收。",
       },
-      deletedCustomer: {
-        question: "客戶刪除後去哪裡了？",
-        answer: "已刪除客戶會進入回收站，保留 {{days}} 天，Admin 可在此期間恢復。",
-      },
-      deletedEmployeeCustomers: {
-        question: "已刪除員工的客戶去哪裡了？",
-        answer: "會轉移至執行刪除操作的管理員賬戶。",
-      },
-      missingFeatures: {
-        question: "為什麼我看不到某些功能？",
+      aiAnalysisIncomplete: {
+        question: "為什麼 AI 分析不完整？",
         answer:
-          "功能由角色決定。Staff 無法使用員工管理、回收站、備份、安全策略等 Admin 專用功能。",
+          "若首次溝通備註或跟進記錄較少，AI 可能暫時無法給出準確建議。請補充真實跟進內容後再查看。",
       },
-      roleDifference: {
-        question: "Staff 和 Admin 權限有什麼不同？",
+      whyRecordFollowUp: {
+        question: "為什麼需要記錄跟進？",
         answer:
-          "Admin 可管理用戶、系統設定、匯入匯出、備份、審批及全部客戶；Staff 在配額內管理自己的客戶、跟進、通知與公共池領取。",
+          "跟進記錄幫助您和團隊了解客戶最新進度，也會影響系統提醒與 AI 分析。沒有記錄，容易錯過下次聯絡時機。",
+      },
+      welcomePageFirst: {
+        question: "為什麼登入後先看到 welcome page？",
+        answer:
+          "登入後會先顯示 welcome 頁面，方便您閱讀最新公告與重要提醒，確認後再進入 CRM 主畫面。",
       },
       followUpRequired: {
         question: "為什麼跟進表單無法提交？",
@@ -1357,47 +1234,12 @@ const zhHant: Messages = {
       createConfirmWait: {
         question: "為什麼新增客戶要等幾秒才能確認？",
         answer:
-          "為避免誤填敏感資料，系統要求等待 {{seconds}} 秒並核對 modal 中的資料後才可建立客戶。",
-      },
-      sensitiveLocked: {
-        question: "為什麼我不能修改客戶電話或姓名？",
-        answer:
-          "客戶建立後，Staff 不可修改敏感欄位；請聯繫 Admin 協助更正。",
-      },
-      publicPoolNameMask: {
-        question: "公共池為什麼看不到完整姓名？",
-        answer:
-          "Staff 公共池列表會脫敏姓名以保護隱私；領取後可在詳情頁查看完整資料。",
+          "為避免誤填資料，系統要求等待 {{seconds}} 秒並核對確認視窗中的資料後才可建立客戶。",
       },
       cannotClaimPool: {
         question: "為什麼不能領取公共池客戶？",
         answer:
-          "可能原因：7 天領取名額已滿（預設 {{quota}} 次）、仍在冷卻期（預設 {{hours}} 小時）、或該客戶由你本人釋放。",
-      },
-      permanentDelete: {
-        question: "永久刪除和恢復有什麼區別？",
-        answer:
-          "恢復可在保留期內還原客戶；永久刪除後資料無法找回，請謹慎操作。",
-      },
-      autoReclaim: {
-        question: "客戶什麼時候會被自動回收？",
-        answer:
-          "預設 {{reclaimDays}} 天無有效跟進會回收；提前 {{warningDays}} 天會收到預警。擱置或置頂客戶不回收。",
-      },
-      assigneeApproval: {
-        question: "如何審批共同負責員工調整？",
-        answer:
-          "Staff Owner 提交申請後，Admin 在「批准」中心查看理由並通過或拒絕。",
-      },
-      aiInsightDataUsage: {
-        question: "AI 會讀取客戶電話或微信嗎？",
-        answer:
-          "系統預設不會把結構化電話、微信、電郵送給 AI；但若備註或跟進摘要中手動寫了聯絡方式，AI 仍可能看到。詳見 Help「AI 洞察資料範圍」。",
-      },
-      aiInsightRefreshStaff: {
-        question: "為什麼我不能刷新 AI 分析？",
-        answer:
-          "可能是管理員已關閉 Staff 手動刷新，或剛完成刷新仍在 5 分鐘冷卻中；如需調整權限請聯絡 Admin。",
+          "可能原因：7 天領取名額已滿（預設 {{quota}} 次）、仍在冷卻期（預設 {{hours}} 小時）、或該客戶由您本人釋放。",
       },
     },
   },

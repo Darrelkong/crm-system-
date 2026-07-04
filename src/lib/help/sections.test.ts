@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import zhHant from "@/i18n/locales/zh-Hant";
 import {
   HELP_CONTENT_SECTIONS,
   HELP_FAQ_ITEMS,
@@ -35,122 +36,110 @@ function assertIncludes(ids: string[], required: string[]) {
   }
 }
 
+describe("help page title", () => {
+  it("keeps help.title as 幫助中心", () => {
+    assert.equal(zhHant.help.title, "幫助中心");
+  });
+
+  it("does not use 員工使用指南 as page title", () => {
+    assert.notEqual(zhHant.help.title, "員工使用指南");
+    assert.equal(
+      JSON.stringify(zhHant.help).includes("員工使用指南"),
+      false,
+      "help copy should not use 員工使用指南 as page title",
+    );
+  });
+});
+
 describe("getHelpSectionsForRole staff", () => {
   const staffSectionIds = sectionIds("staff");
 
-  it("excludes admin-only sections", () => {
+  it("includes employee-focused sections", () => {
+    assertIncludes(staffSectionIds, [
+      "aiCustomerAnalysis",
+      "addCustomer",
+      "recordFollowUp",
+      "avoidPublicPool",
+      "claimFromPool",
+      "announcements",
+      "approvals",
+    ]);
+  });
+
+  it("excludes legacy admin-only sections", () => {
     assertExcludes(staffSectionIds, [
       "adminGuide",
+      "adminWorkspace",
       "employeeMgmt",
       "autoReclaimSettings",
-      "adminSensitiveAssignees",
       "recycleBinAdmin",
     ]);
-  });
-
-  it("includes staff guide and deep-dive sections", () => {
-    assertIncludes(staffSectionIds, [
-      "staffGuide",
-      "sensitiveDataStaff",
-      "publicPoolStaff",
-      "collaboratorsStaff",
-      "followUpRules",
-      "loginSecurity",
-      "aiInsightDataScope",
-      "aiInsightDataScopeStaff",
-    ]);
-  });
-
-  it("excludes admin-only AI insight section", () => {
-    assertExcludes(staffSectionIds, ["aiInsightDataScopeAdmin"]);
   });
 });
 
 describe("getHelpSectionsForRole admin", () => {
   const adminSectionIds = sectionIds("admin");
 
-  it("includes admin-only sections", () => {
+  it("includes the same employee-focused sections", () => {
     assertIncludes(adminSectionIds, [
+      "aiCustomerAnalysis",
+      "addCustomer",
+      "recordFollowUp",
+      "avoidPublicPool",
+      "claimFromPool",
+      "announcements",
+      "approvals",
+    ]);
+  });
+
+  it("excludes legacy admin-only backend sections", () => {
+    assertExcludes(adminSectionIds, [
       "adminGuide",
+      "adminWorkspace",
       "employeeMgmt",
       "autoReclaimSettings",
-      "adminSensitiveAssignees",
-      "recycleBinAdmin",
-      "aiInsightDataScopeAdmin",
-    ]);
-  });
-
-  it("excludes staff-only AI insight section", () => {
-    assertExcludes(adminSectionIds, ["aiInsightDataScopeStaff"]);
-  });
-
-  it("excludes staff-only deep sections", () => {
-    assertExcludes(adminSectionIds, [
-      "sensitiveDataStaff",
-      "publicPoolStaff",
-      "collaboratorsStaff",
     ]);
   });
 });
 
-describe("getHelpSectionsForRole shared sections", () => {
-  it("shows all-audience sections to both admin and staff", () => {
-    const shared = [
-      "followUpRules",
-      "customerFlow",
-      "aiInsightDataScope",
-      "recycleBin",
-      "loginSecurity",
-    ];
+describe("AI customer analysis section", () => {
+  it("includes aiCustomerAnalysis with testingPhase badge flag", () => {
+    const section = HELP_CONTENT_SECTIONS.find(
+      (item) => item.id === "aiCustomerAnalysis",
+    );
+    assert.ok(section);
+    assert.equal(section?.testingPhase, true);
+  });
 
-    assertIncludes(sectionIds("admin"), shared);
-    assertIncludes(sectionIds("staff"), shared);
+  it("includes testing phase badge copy in zh-Hant", () => {
+    assert.equal(zhHant.help.testingPhaseBadge, "測試階段");
   });
 });
 
-describe("getHelpFaqForRole staff", () => {
-  const staffFaqIds = faqIds("staff");
-
-  it("excludes admin-only FAQ items", () => {
-    assertExcludes(staffFaqIds, [
-      "permanentDelete",
-      "autoReclaim",
-      "assigneeApproval",
-      "deletedCustomer",
-      "deletedEmployeeCustomers",
+describe("getHelpFaqForRole", () => {
+  it("includes employee FAQ items for staff", () => {
+    assertIncludes(faqIds("staff"), [
+      "cannotSeeCustomer",
+      "customerInPublicPool",
+      "aiAnalysisIncomplete",
+      "whyRecordFollowUp",
+      "welcomePageFirst",
     ]);
   });
 
-  it("includes staff FAQ items", () => {
-    assertIncludes(staffFaqIds, [
-      "createConfirmWait",
-      "sensitiveLocked",
-      "publicPoolNameMask",
-      "cannotClaimPool",
-      "aiInsightRefreshStaff",
-    ]);
-  });
-});
-
-describe("getHelpFaqForRole admin", () => {
-  const adminFaqIds = faqIds("admin");
-
-  it("includes admin FAQ items", () => {
-    assertIncludes(adminFaqIds, [
-      "permanentDelete",
-      "autoReclaim",
-      "assigneeApproval",
+  it("includes employee FAQ items for admin", () => {
+    assertIncludes(faqIds("admin"), [
+      "cannotSeeCustomer",
+      "customerInPublicPool",
+      "aiAnalysisIncomplete",
+      "whyRecordFollowUp",
+      "welcomePageFirst",
     ]);
   });
 
-  it("excludes staff-only FAQ items", () => {
-    assertExcludes(adminFaqIds, [
-      "createConfirmWait",
-      "sensitiveLocked",
-      "publicPoolNameMask",
-      "cannotClaimPool",
-      "aiInsightRefreshStaff",
-    ]);
+  it("does not include roleDifference FAQ", () => {
+    assertExcludes(faqIds("staff"), ["roleDifference"]);
+    assertExcludes(faqIds("admin"), ["roleDifference"]);
   });
 });
 

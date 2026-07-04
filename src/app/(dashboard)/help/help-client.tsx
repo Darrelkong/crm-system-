@@ -3,15 +3,10 @@
 import { Badge } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import {
-  INACTIVITY_LOGOUT_MINUTES,
-  LOCKOUT_THRESHOLD,
-} from "@/lib/auth/constants";
-import {
   getHelpFaqForRole,
   getHelpSectionsForRole,
   type HelpSectionConfig,
 } from "@/lib/help/sections";
-import { RECYCLE_BIN_RETENTION_DAYS } from "@/lib/recycle-bin/constants";
 import { SETTING_DEFAULTS } from "@/lib/settings/keys";
 import { useTranslation } from "@/i18n/provider";
 
@@ -20,49 +15,25 @@ const RECLAIM_WARNING_DAYS = SETTING_DEFAULTS.reclaim_warning_days_before;
 const POOL_QUOTA = SETTING_DEFAULTS.public_pool_claim_quota_7_days;
 const POOL_COOLDOWN_HOURS = SETTING_DEFAULTS.public_pool_claim_cooldown_hours;
 const CREATE_CONFIRM_SECONDS = "5";
+const WELCOME_COUNTDOWN_SECONDS = "5";
 
 const HELP_I18N_PARAMS: Record<string, Record<string, string>> = {
-  "help.sections.recycleBin.items.retention": {
-    days: String(RECYCLE_BIN_RETENTION_DAYS),
-  },
-  "help.sections.recycleBinAdmin.items.adminRestore": {
-    days: String(RECYCLE_BIN_RETENTION_DAYS),
-  },
-  "help.sections.recycleBinAdmin.items.autoPurge": {
-    days: String(RECYCLE_BIN_RETENTION_DAYS),
-  },
-  "help.sections.sensitiveDataStaff.items.createConfirm": {
+  "help.sections.addCustomer.items.confirmBeforeCreate": {
     seconds: CREATE_CONFIRM_SECONDS,
   },
-  "help.sections.autoReclaimSettings.items.reclaimDays": {
-    days: RECLAIM_DAYS,
-  },
-  "help.sections.autoReclaimSettings.items.warningDays": {
-    days: RECLAIM_WARNING_DAYS,
+  "help.sections.avoidPublicPool.items.watchReminders": {
+    warningDays: RECLAIM_WARNING_DAYS,
     reclaimDays: RECLAIM_DAYS,
   },
-  "help.sections.publicPoolStaff.items.quotaCooldown": {
+  "help.sections.claimFromPool.items.howToClaim": {
     quota: POOL_QUOTA,
     hours: POOL_COOLDOWN_HOURS,
   },
-  "help.sections.publicPoolAdmin.items.poolSettings": {
-    quota: POOL_QUOTA,
-    hours: POOL_COOLDOWN_HOURS,
+  "help.sections.announcements.items.staffCountdown": {
+    seconds: WELCOME_COUNTDOWN_SECONDS,
   },
-  "help.sections.loginSecurity.items.staffLockout": {
-    count: String(LOCKOUT_THRESHOLD),
-  },
-  "help.sections.loginSecurity.items.inactivityLogout": {
-    minutes: String(INACTIVITY_LOGOUT_MINUTES),
-  },
-  "help.faq.autoLogout.answer": {
-    minutes: String(INACTIVITY_LOGOUT_MINUTES),
-  },
-  "help.faq.accountLocked.answer": {
-    count: String(LOCKOUT_THRESHOLD),
-  },
-  "help.faq.deletedCustomer.answer": {
-    days: String(RECYCLE_BIN_RETENTION_DAYS),
+  "help.faq.customerInPublicPool.answer": {
+    reclaimDays: RECLAIM_DAYS,
   },
   "help.faq.createConfirmWait.answer": {
     seconds: CREATE_CONFIRM_SECONDS,
@@ -71,19 +42,13 @@ const HELP_I18N_PARAMS: Record<string, Record<string, string>> = {
     quota: POOL_QUOTA,
     hours: POOL_COOLDOWN_HOURS,
   },
-  "help.faq.autoReclaim.answer": {
-    reclaimDays: RECLAIM_DAYS,
-    warningDays: RECLAIM_WARNING_DAYS,
-  },
 };
 
 function HelpSectionCard({
   section,
-  role,
   t,
 }: {
   section: HelpSectionConfig;
-  role: "admin" | "staff";
   t: (key: string, params?: Record<string, string>) => string;
 }) {
   return (
@@ -92,11 +57,8 @@ function HelpSectionCard({
         <h3 className="text-base font-semibold text-[#172033]">
           {t(section.titleKey)}
         </h3>
-        {section.audience === "admin" && role === "admin" && (
-          <Badge variant="accent">{t("help.adminOnlyBadge")}</Badge>
-        )}
-        {section.audience === "staff" && role === "staff" && (
-          <Badge variant="accent">{t("help.staffOnlyBadge")}</Badge>
+        {section.testingPhase && (
+          <Badge variant="accent">{t("help.testingPhaseBadge")}</Badge>
         )}
       </div>
       <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
@@ -123,21 +85,11 @@ export function HelpClient({ role }: { role: "admin" | "staff" }) {
 
   return (
     <div>
-      <PageIntro
-        title={t("help.title")}
-        description={t(
-          role === "admin" ? "help.descriptionAdmin" : "help.descriptionStaff",
-        )}
-      />
+      <PageIntro title={t("help.title")} description={t("help.description")} />
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         {sections.map((section) => (
-          <HelpSectionCard
-            key={section.id}
-            section={section}
-            role={role}
-            t={t}
-          />
+          <HelpSectionCard key={section.id} section={section} t={t} />
         ))}
       </div>
 
