@@ -10,6 +10,7 @@ import {
   SidebarNav,
 } from "@/components/layout/app-navigation";
 import { NotificationUnreadProvider } from "@/components/layout/notification-unread-context";
+import { ApprovalPendingProvider } from "@/components/layout/approval-pending-context";
 import { NavigationProgressBar } from "@/components/layout/navigation-progress-bar";
 import { SystemStatusBadge } from "@/components/layout/system-status-badge";
 import {
@@ -48,6 +49,7 @@ export function DashboardShell({
 
   return (
     <NotificationUnreadProvider>
+    <ApprovalPendingProvider>
     <div className="crm-app-bg min-h-dvh">
       <div className="flex min-h-dvh">
         <aside
@@ -148,6 +150,7 @@ export function DashboardShell({
         role={role}
       />
     </div>
+    </ApprovalPendingProvider>
     </NotificationUnreadProvider>
   );
 }

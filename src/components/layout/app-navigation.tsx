@@ -19,6 +19,7 @@ import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { AccountMenu } from "@/components/layout/account-menu";
 import { useNotificationUnreadCount } from "@/components/layout/notification-unread-context";
+import { useApprovalPendingCount } from "@/components/layout/approval-pending-context";
 import {
   beginNavigationPending,
   isSameNavTarget,
@@ -27,6 +28,7 @@ import {
 import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
 
 const NOTIFICATIONS_HREF = "/notifications";
+const APPROVALS_HREF = "/approvals";
 
 function NavLinkRow({
   link,
@@ -54,7 +56,9 @@ function NavLinkRow({
   const Icon = navIcons[link.icon];
   const label = t(link.labelKey);
   const unreadCount = useNotificationUnreadCount();
+  const approvalPendingCount = useApprovalPendingCount();
   const showNotificationBadge = link.href === NOTIFICATIONS_HREF;
+  const showApprovalBadge = link.href === APPROVALS_HREF;
 
   function handleNavigate() {
     beginNavigationPending(navigationPending, link.href, pathname);
@@ -87,11 +91,23 @@ function NavLinkRow({
                   variant="overlay"
                 />
               )}
+              {showApprovalBadge && (
+                <NotificationCountBadge
+                  count={approvalPendingCount}
+                  variant="overlay"
+                />
+              )}
             </span>
             <span className="truncate">{label}</span>
             {showNotificationBadge && (
               <NotificationCountBadge
                 count={unreadCount}
+                className="ml-auto"
+              />
+            )}
+            {showApprovalBadge && (
+              <NotificationCountBadge
+                count={approvalPendingCount}
                 className="ml-auto"
               />
             )}
@@ -153,12 +169,18 @@ function NavLinkRow({
           {collapsed && showNotificationBadge && (
             <NotificationCountBadge count={unreadCount} variant="overlay" />
           )}
+          {collapsed && showApprovalBadge && (
+            <NotificationCountBadge count={approvalPendingCount} variant="overlay" />
+          )}
         </span>
         {!collapsed && (
           <>
             <span className="min-w-0 flex-1 truncate">{label}</span>
             {showNotificationBadge && (
               <NotificationCountBadge count={unreadCount} className="ml-auto" />
+            )}
+            {showApprovalBadge && (
+              <NotificationCountBadge count={approvalPendingCount} className="ml-auto" />
             )}
           </>
         )}

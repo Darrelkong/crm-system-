@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { Approval, ApprovalStatus } from "../../../drizzle/schema/approvals";
@@ -75,6 +75,27 @@ export async function findPendingApproval(
     )
     .limit(1);
   return rows[0] ?? null;
+}
+
+/**
+ * Count pending approvals visible to the user.
+ * Admin: all pending approvals.
+ * Staff: only approvals they submitted that are still pending.
+ * Approved / rejected are never counted.
+ */
+export async function getPendingApprovalCountForUser(
+  db: Database,
+  user: Pick<User, "id" | "role">,
+): Promise<number> {
+  const filters = [eq(schema.approvals.status, "pending")];
+  if (user.role !== "admin") {
+    filters.push(eq(schema.approvals.requestedBy, user.id));
+  }
+  const row = await db
+    .select({ value: count() })
+    .from(schema.approvals)
+    .where(and(...filters));
+  return row[0]?.value ?? 0;
 }
 
 export async function listApprovalsForUser(
