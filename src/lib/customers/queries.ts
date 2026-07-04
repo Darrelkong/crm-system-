@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, like, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, like, ne, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { ON_HOLD_CREATE_APPROVAL_TYPE } from "@/lib/customers/on-hold-create-pending";
 import { buildCustomerListOrderBy } from "@/lib/customers/list-sort";
@@ -73,8 +73,6 @@ export function buildCustomerListPagination(
   };
 }
 
-type PermissionScope = "list" | "search";
-
 export function staffAssigneeExistsWhere(userId: string): SQL {
   return sql`EXISTS (
     SELECT 1 FROM customer_assignees ca
@@ -86,32 +84,23 @@ export function staffAssigneeExistsWhere(userId: string): SQL {
 function buildPermissionWhere(
   user: User,
   filter: CustomerListFilter = {},
-  scope: PermissionScope = "list",
 ): SQL | undefined {
   if (user.role === "admin") {
     if (filter.status === "archived") {
       return eq(schema.customers.status, "archived");
     }
-    return ne(schema.customers.status, "archived");
-  }
-
-  if (scope === "search") {
     return and(
       ne(schema.customers.status, "archived"),
-      or(
-        eq(schema.customers.ownerId, user.id),
-        staffAssigneeExistsWhere(user.id),
-      ),
+      ne(schema.customers.status, "public_pool"),
     );
   }
 
   return and(
     ne(schema.customers.status, "archived"),
+    ne(schema.customers.status, "public_pool"),
     or(
       eq(schema.customers.ownerId, user.id),
       staffAssigneeExistsWhere(user.id),
-      eq(schema.customers.status, "public_pool"),
-      isNull(schema.customers.ownerId),
     ),
   );
 }
@@ -165,10 +154,9 @@ export function excludePendingOnHoldCreateApprovalWhere(): SQL {
 function buildListWhere(
   user: User,
   filter: CustomerListFilter = {},
-  scope: PermissionScope = "list",
 ): SQL | undefined {
   return combineWhere(
-    buildPermissionWhere(user, filter, scope),
+    buildPermissionWhere(user, filter),
     buildCreatedByWhere(user, filter),
     excludePendingOnHoldCreateApprovalWhere(),
   );
@@ -181,7 +169,10 @@ export async function listCustomerCreatorsForAdmin(
   const statusWhere =
     filter.status === "archived"
       ? eq(schema.customers.status, "archived")
-      : ne(schema.customers.status, "archived");
+      : and(
+          ne(schema.customers.status, "archived"),
+          ne(schema.customers.status, "public_pool"),
+        );
 
   const rows = await db
     .selectDistinct({
@@ -266,7 +257,7 @@ export async function searchCustomersForUser(
 
   const db = getDb();
   const whereClause = combineWhere(
-    buildListWhere(user, filter, "search"),
+    buildListWhere(user, filter),
     buildSearchWhere(term),
   );
   const orderBy = buildCustomerListOrderBy();
@@ -292,7 +283,7 @@ export async function searchCustomersForUserPaginated(
 
   const db = getDb();
   const whereClause = combineWhere(
-    buildListWhere(user, filter, "search"),
+    buildListWhere(user, filter),
     buildSearchWhere(term),
   );
   const total = await countCustomersWhere(whereClause);
