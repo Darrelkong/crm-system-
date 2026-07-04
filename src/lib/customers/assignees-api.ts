@@ -3,6 +3,7 @@ import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 import { listActiveStaffUsers } from "@/lib/users/queries";
 import { getUserById } from "@/lib/users/queries";
+import { formatUserSummaryForViewer } from "@/lib/users/display";
 import {
   listCustomerAssignees,
   type CustomerAssigneeRecord,
@@ -23,7 +24,8 @@ import {
 export type AssigneeStaffSummary = {
   id: string;
   name: string;
-  email: string;
+  /** null when the viewer is staff and the subject is an admin. */
+  email: string | null;
 };
 
 export type CustomerAssigneesAdminPayload = {
@@ -63,18 +65,16 @@ export function mapAssigneeMutationErrorToApiCode(
 }
 
 function toStaffSummary(
-  user: Pick<User, "id" | "displayName" | "email">,
+  user: Pick<User, "id" | "role" | "displayName" | "email">,
+  viewer: Pick<User, "role">,
 ): AssigneeStaffSummary {
-  return {
-    id: user.id,
-    name: user.displayName,
-    email: user.email,
-  };
+  return formatUserSummaryForViewer(viewer, user);
 }
 
 async function resolveStaffSummaries(
   db: Database,
   userIds: string[],
+  viewer: Pick<User, "role">,
 ): Promise<AssigneeStaffSummary[]> {
   if (userIds.length === 0) {
     return [];
@@ -84,7 +84,7 @@ async function resolveStaffSummaries(
   for (const userId of userIds) {
     const user = await getUserById(userId);
     if (user) {
-      summaries.push(toStaffSummary(user));
+      summaries.push(toStaffSummary(user, viewer));
     }
   }
   return summaries;
@@ -93,6 +93,7 @@ async function resolveStaffSummaries(
 export async function buildCustomerAssigneesAdminPayload(
   db: Database,
   customer: Customer,
+  viewer: Pick<User, "role"> = { role: "admin" },
 ): Promise<CustomerAssigneesAdminPayload> {
   const assignees = await listCustomerAssignees(db, customer.id);
   const collaborators = assignees.filter((row) => row.role === "collaborator");
@@ -102,16 +103,17 @@ export async function buildCustomerAssigneesAdminPayload(
 
   const availableStaff = activeStaff
     .filter((staff) => staff.id !== customer.ownerId)
-    .map(toStaffSummary)
+    .map((staff) => toStaffSummary({ ...staff, role: "staff" as const }, viewer))
     .sort((a, b) => a.name.localeCompare(b.name, "zh-Hant"));
 
   const collaboratorSummaries = await resolveStaffSummaries(
     db,
     collaborators.map((row) => row.userId),
+    viewer,
   );
 
   return {
-    owner: owner ? toStaffSummary(owner) : null,
+    owner: owner ? toStaffSummary(owner, viewer) : null,
     collaborators: collaboratorSummaries,
     availableStaff,
     assignees,
@@ -132,7 +134,7 @@ export async function getCustomerAssigneesAdminPayload(
 ): Promise<CustomerAssigneesAdminPayload> {
   assertCanAdminManageAssignees(user, customer);
   await assertCustomerCollaboratorsMutable(db, customer.id);
-  return buildCustomerAssigneesAdminPayload(db, customer);
+  return buildCustomerAssigneesAdminPayload(db, customer, user);
 }
 
 export async function updateCustomerCollaborators(
@@ -166,7 +168,7 @@ export async function updateCustomerCollaborators(
     throw error;
   }
 
-  return buildCustomerAssigneesAdminPayload(db, customer);
+  return buildCustomerAssigneesAdminPayload(db, customer, user);
 }
 
 export function toAssigneesPermissionError(error: unknown): AssigneesApiError | null {

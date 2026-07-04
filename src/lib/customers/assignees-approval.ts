@@ -120,7 +120,7 @@ export async function getCustomerAssigneesPreviewPayload(
 
   assertCanRequestCustomerAssigneeUpdate(user, customer);
   await assertCustomerCollaboratorsMutable(db, customer.id);
-  return buildCustomerAssigneesAdminPayload(db, customer);
+  return buildCustomerAssigneesAdminPayload(db, customer, user);
 }
 
 async function notifyAdminsAssigneePending(
@@ -213,7 +213,7 @@ export async function createCustomerAssigneeUpdateApprovalRequest(
     requestedCollaboratorIds,
   );
 
-  const preview = await buildCustomerAssigneesAdminPayload(db, customer);
+  const preview = await buildCustomerAssigneesAdminPayload(db, customer, user);
   const staffSummaries = [...preview.availableStaff, ...preview.collaborators];
 
   const payload: AssigneeUpdateApprovalPayload = {
