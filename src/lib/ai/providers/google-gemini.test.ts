@@ -518,6 +518,190 @@ describe("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA integrity", () => {
   });
 });
 
+describe("googleGeminiCustomerInsightProvider multi-part response merging", () => {
+  function makeMultiPartResponse(parts: Array<{ text?: string }>): Response {
+    return Response.json(
+      {
+        candidates: [
+          {
+            content: { parts, role: "model" },
+            finishReason: "STOP",
+          },
+        ],
+      },
+      { status: 200 },
+    );
+  }
+
+  it("single text part valid JSON → success (baseline)", async () => {
+    const fetchMock = mock.fn(async () =>
+      makeSuccessResponse(JSON.stringify(validInsightPayload)),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      const result = await googleGeminiCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+      assert.deepEqual(result, validInsightPayload);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("multiple text parts joined produce valid JSON → success", async () => {
+    const json = JSON.stringify(validInsightPayload);
+    // Split into three roughly-equal chunks so no single chunk is valid JSON.
+    const a = Math.floor(json.length / 3);
+    const b = Math.floor((json.length * 2) / 3);
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([
+        { text: json.slice(0, a) },
+        { text: json.slice(a, b) },
+        { text: json.slice(b) },
+      ]),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      const result = await googleGeminiCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+      assert.deepEqual(result, validInsightPayload);
+      assert.equal(fetchMock.mock.calls.length, 1);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("first part alone is invalid JSON but concatenation of two parts is valid → success", async () => {
+    const json = JSON.stringify(validInsightPayload);
+    const splitAt = Math.floor(json.length / 2);
+    // Confirm the first half is indeed not valid JSON on its own.
+    let firstHalfIsInvalid = false;
+    try {
+      JSON.parse(json.slice(0, splitAt));
+    } catch {
+      firstHalfIsInvalid = true;
+    }
+    assert.ok(firstHalfIsInvalid, "test pre-condition: first half must be invalid JSON");
+
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([
+        { text: json.slice(0, splitAt) },
+        { text: json.slice(splitAt) },
+      ]),
+    );
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      const result = await googleGeminiCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+      assert.deepEqual(result, validInsightPayload);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("parts with no text field (e.g. inlineData only) → provider_empty_content", async () => {
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([
+        { text: undefined } as unknown as { text?: string },
+      ]),
+    );
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_empty_content");
+      assert.equal(error.diagnostics?.partsCount, 1);
+      assert.equal(error.diagnostics?.textPartsCount, 0);
+      assert.equal(error.diagnostics?.combinedTextLength, 0);
+    });
+  });
+
+  it("text parts all whitespace across multiple parts → provider_empty_content", async () => {
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([{ text: "  " }, { text: "   " }, { text: " " }]),
+    );
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_empty_content");
+      assert.equal(error.diagnostics?.textPartsCount, 3);
+      assert.equal(error.diagnostics?.combinedTextLength, 0);
+    });
+  });
+
+  it("combined text from multiple parts exceeds response cap → provider_response_too_large", async () => {
+    // Build an oversized string split across two parts so neither alone triggers the cap.
+    const half = "x".repeat(10_001);
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([{ text: half }, { text: half }]),
+    );
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_response_too_large");
+      assert.ok((error.diagnostics?.contentLength ?? 0) > 20_000);
+    });
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("combined text from multiple parts is malformed JSON → provider_json_parse_failed", async () => {
+    // Two parts that together form invalid JSON (no closing brace overall).
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([{ text: '{"key": "val' }, { text: "ue without closing" }]),
+    );
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_json_parse_failed");
+      assert.equal(error.diagnostics?.usedFallback, false);
+      assert.equal(error.diagnostics?.partsCount, 2);
+      assert.equal(error.diagnostics?.textPartsCount, 2);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("parse failure diagnostics include candidateCount, partsCount, textPartsCount, firstTextPartLength, combinedTextLength, finishReason", async () => {
+    const fetchMock = mock.fn(async () =>
+      makeSuccessResponse("{malformed json no closing brace"),
+    );
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const d = error.diagnostics;
+      assert.equal(d?.providerErrorType, "provider_json_parse_failed");
+      assert.equal(d?.candidateCount, 1);
+      assert.equal(d?.partsCount, 1);
+      assert.equal(d?.textPartsCount, 1);
+      assert.equal(typeof d?.firstTextPartLength, "number");
+      assert.ok((d?.firstTextPartLength ?? -1) > 0);
+      assert.equal(typeof d?.combinedTextLength, "number");
+      assert.ok((d?.combinedTextLength ?? -1) > 0);
+      assert.equal(d?.finishReason, "STOP");
+      // Ensure raw content is not exposed.
+      const serialized = JSON.stringify(d);
+      assert.equal(serialized.includes("malformed"), false);
+      assertNoSecrets(serialized);
+    });
+  });
+
+  it("empty_content diagnostics include response structure fields (partsCount, textPartsCount)", async () => {
+    const fetchMock = mock.fn(async () =>
+      makeMultiPartResponse([{ text: "  " }, { text: "\n" }]),
+    );
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      const d = error.diagnostics;
+      assert.equal(d?.providerErrorType, "provider_empty_content");
+      assert.equal(d?.candidateCount, 1);
+      assert.equal(d?.partsCount, 2);
+      assert.equal(d?.textPartsCount, 2);
+      assert.equal(d?.combinedTextLength, 0);
+      assert.equal(d?.finishReason, "STOP");
+      assertNoSecrets(JSON.stringify(d));
+    });
+  });
+});
+
 describe("factory routing for google_gemini", () => {
   it("getCustomerInsightProviderImpl returns googleGeminiCustomerInsightProvider for google_gemini", () => {
     const resolved: ResolvedCustomerInsightProvider = {

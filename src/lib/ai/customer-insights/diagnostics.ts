@@ -26,6 +26,13 @@ export type AiProviderDiagnostics = {
   promptLength?: number;
   durationMs?: number;
   usedFallback?: boolean;
+  /** Gemini native response structure — populated by google_gemini provider only. */
+  candidateCount?: number;
+  partsCount?: number;
+  textPartsCount?: number;
+  firstTextPartLength?: number;
+  combinedTextLength?: number;
+  finishReason?: string;
 };
 
 const SAFE_DIAGNOSTIC_KEYS = [
@@ -42,6 +49,12 @@ const SAFE_DIAGNOSTIC_KEYS = [
   "promptLength",
   "durationMs",
   "usedFallback",
+  "candidateCount",
+  "partsCount",
+  "textPartsCount",
+  "firstTextPartLength",
+  "combinedTextLength",
+  "finishReason",
 ] as const satisfies ReadonlyArray<keyof AiProviderDiagnostics>;
 
 export function getRequestUrlDiagnostics(apiBaseUrl: string): {

@@ -39,10 +39,7 @@ function buildGeminiDiagnostics(
   config: ProviderRuntimeConfig,
   providerErrorType: AiProviderErrorType,
   httpStatus?: number,
-  safeDetails?: Pick<
-    AiProviderDiagnostics,
-    "contentLength" | "parseStrategy" | "firstNonWhitespaceChar"
-  >,
+  safeDetails?: Partial<AiProviderDiagnostics>,
 ): AiProviderDiagnostics {
   let requestUrlHost: string | undefined;
   let requestUrlPath: string | undefined;
@@ -173,22 +170,57 @@ function parseJsonContent(content: string, config: ProviderRuntimeConfig): unkno
   );
 }
 
+/** Safe response-structure metadata extracted from a Gemini candidate. */
+type GeminiResponseInfo = {
+  candidateCount: number;
+  partsCount: number;
+  textPartsCount: number;
+  firstTextPartLength: number;
+  combinedTextLength: number;
+  finishReason?: string;
+};
+
 function extractResponseText(
   data: GeminiGenerateContentResponse,
   config: ProviderRuntimeConfig,
-): string {
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text || !text.trim()) {
-    throw new AiProviderError(buildGeminiDiagnostics(config, "provider_empty_content"));
+): { combinedText: string; responseInfo: GeminiResponseInfo } {
+  const candidate = data.candidates?.[0];
+  const candidateCount = data.candidates?.length ?? 0;
+  const parts = candidate?.content?.parts ?? [];
+  const partsCount = parts.length;
+  const finishReason = candidate?.finishReason;
+
+  const textParts = parts.filter((p): p is { text: string } => typeof p.text === "string");
+  const textPartsCount = textParts.length;
+  const firstTextPartLength = textParts[0]?.text.length ?? 0;
+
+  const combined = textParts.map((p) => p.text).join("");
+  const trimmed = combined.trim();
+  const combinedTextLength = trimmed.length;
+
+  const responseInfo: GeminiResponseInfo = {
+    candidateCount,
+    partsCount,
+    textPartsCount,
+    firstTextPartLength,
+    combinedTextLength,
+    ...(finishReason !== undefined ? { finishReason } : {}),
+  };
+
+  if (!trimmed) {
+    throw new AiProviderError(
+      buildGeminiDiagnostics(config, "provider_empty_content", undefined, responseInfo),
+    );
   }
-  return text.trim();
+
+  return { combinedText: trimmed, responseInfo };
 }
 
 async function postGenerateContent(
   config: ProviderRuntimeConfig,
   systemPrompt: string,
   userPrompt: string,
-): Promise<string> {
+): Promise<{ text: string; responseInfo: GeminiResponseInfo }> {
   if (validateAiApiBaseUrl(config.apiBaseUrl)) {
     throw new AiProviderError();
   }
@@ -234,17 +266,18 @@ async function postGenerateContent(
       );
     }
 
-    const text = extractResponseText(data, config);
+    const { combinedText, responseInfo } = extractResponseText(data, config);
 
-    if (text.length > AI_PROVIDER_MAX_RESPONSE_CHARS) {
+    if (combinedText.length > AI_PROVIDER_MAX_RESPONSE_CHARS) {
       throw new AiProviderError(
         buildGeminiDiagnostics(config, "provider_response_too_large", undefined, {
-          contentLength: text.length,
+          contentLength: combinedText.length,
+          ...responseInfo,
         }),
       );
     }
 
-    return text;
+    return { text: combinedText, responseInfo };
   } catch (error) {
     if (error instanceof AiProviderError) {
       throw error;
@@ -267,15 +300,24 @@ async function requestStructuredJson(
   const systemPrompt = buildSystemPrompt(settings.aiAnalysisLanguage);
 
   const startMs = Date.now();
+  let responseInfo: GeminiResponseInfo | undefined;
 
   try {
-    const text = await postGenerateContent(config, systemPrompt, userPrompt);
-    return parseJsonContent(text, config);
+    const result = await postGenerateContent(config, systemPrompt, userPrompt);
+    responseInfo = result.responseInfo;
+    return parseJsonContent(result.text, config);
   } catch (error) {
     const durationMs = Date.now() - startMs;
     if (error instanceof AiProviderError && error.diagnostics) {
       throw new AiProviderError(
-        { ...error.diagnostics, contextLength, promptLength, durationMs, usedFallback: false },
+        {
+          ...error.diagnostics,
+          ...(responseInfo !== undefined ? responseInfo : {}),
+          contextLength,
+          promptLength,
+          durationMs,
+          usedFallback: false,
+        },
         error.message,
       );
     }
