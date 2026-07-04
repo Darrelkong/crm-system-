@@ -1,21 +1,23 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
+import { PageIntro } from "@/components/ui/page-intro";
 import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 import { useTranslation } from "@/i18n/provider";
 import {
-  isHiddenSettingKey,
-  isLockedSettingKey,
-  SETTING_KEYS,
-  SETTING_LABELS,
-  type SettingKey,
-} from "@/lib/settings/keys";
-
-const VISIBLE_SETTING_KEYS: readonly SettingKey[] = SETTING_KEYS.filter(
-  (key) => !isHiddenSettingKey(key),
-);
+  COLLABORATIVE_DISSOLUTION_FLAG_KEY,
+  buildSettingsSavePayload,
+  SETTINGS_LINK_CARDS,
+  SETTINGS_LINK_ONLY_SECTIONS,
+  SETTINGS_UI_SECTIONS,
+  type SettingsLinkCard,
+  type SettingsSection,
+} from "@/lib/settings/settings-ui-sections";
+import { SETTING_LABELS, type SettingKey } from "@/lib/settings/keys";
 
 const BOOLEAN_SETTING_KEYS: readonly SettingKey[] = ["device_authorization_enabled"];
 
@@ -30,10 +32,14 @@ function isSettingEnabled(value: string | undefined): boolean {
 function DeviceAuthorizationToggle({
   id,
   enabled,
+  enabledLabel,
+  disabledLabel,
   onChange,
 }: {
   id: string;
   enabled: boolean;
+  enabledLabel: string;
+  disabledLabel: string;
   onChange: (next: boolean) => void;
 }) {
   return (
@@ -55,17 +61,155 @@ function DeviceAuthorizationToggle({
         />
       </button>
       <p className="mt-1 text-xs text-[#6B7890]">
-        {enabled
-          ? "设备授权已启用，员工新设备需要管理员批准"
-          : "设备授权未启用，员工登录不受设备限制"}
+        {enabled ? enabledLabel : disabledLabel}
       </p>
     </div>
   );
 }
 
-function buildSavePayload(settings: Record<string, string>): Record<string, string> {
-  return Object.fromEntries(
-    Object.entries(settings).filter(([key]) => !isLockedSettingKey(key)),
+function SettingsLinkCardView({
+  card,
+  t,
+}: {
+  card: SettingsLinkCard;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="rounded-xl border border-[#EEF3F8] bg-[#FAFBFD] p-4">
+      <p className="text-sm font-semibold text-[#172033]">{t(card.titleKey)}</p>
+      <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
+        {t(card.descriptionKey)}
+      </p>
+      <Link
+        href={card.href}
+        className="secondary-button mt-4 inline-flex min-h-9 items-center rounded-xl px-3 py-1.5 text-sm font-medium"
+      >
+        {t(card.buttonKey)}
+      </Link>
+    </div>
+  );
+}
+
+function SettingsSectionCard({
+  section,
+  settings,
+  t,
+  onChange,
+}: {
+  section: SettingsSection;
+  settings: Record<string, string>;
+  t: (key: string) => string;
+  onChange: (key: SettingKey, value: string) => void;
+}) {
+  const fieldKeys = [
+    ...section.editableKeys,
+    ...(section.readonlyKeys ?? []),
+  ];
+
+  return (
+    <section className="surface-card p-5 sm:p-6">
+      <div className="max-w-3xl">
+        <h3 className="text-base font-semibold text-[#172033]">
+          {t(section.titleKey)}
+        </h3>
+        <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
+          {t(section.descriptionKey)}
+        </p>
+      </div>
+
+      {fieldKeys.length > 0 ? (
+        <div className="mt-5 grid max-w-lg gap-4">
+          {fieldKeys.map((key) => (
+            <div key={key}>
+              {key === COLLABORATIVE_DISSOLUTION_FLAG_KEY ? (
+                <>
+                  <Label>{SETTING_LABELS[key]}</Label>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Badge
+                      variant={
+                        isSettingEnabled(settings[key]) ? "success" : "default"
+                      }
+                    >
+                      {isSettingEnabled(settings[key])
+                        ? t("settings.statusEnabled")
+                        : t("settings.statusDisabled")}
+                    </Badge>
+                    <Badge variant="warning">{t("settings.badgeReadOnly")}</Badge>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <Label htmlFor={key}>{SETTING_LABELS[key]}</Label>
+                  {isBooleanSettingKey(key) ? (
+                    <DeviceAuthorizationToggle
+                      id={key}
+                      enabled={isSettingEnabled(settings[key])}
+                      enabledLabel={t("settings.deviceAuthEnabledOn")}
+                      disabledLabel={t("settings.deviceAuthEnabledOff")}
+                      onChange={(next) =>
+                        onChange(key, next ? "true" : "false")
+                      }
+                    />
+                  ) : key === "business_timezone" ? (
+                    <Select
+                      id={key}
+                      className="mt-1"
+                      value={settings[key] ?? ""}
+                      onChange={(e) => onChange(key, e.target.value)}
+                    >
+                      <option value="Asia/Shanghai">Asia/Shanghai</option>
+                      <option value="UTC">UTC</option>
+                    </Select>
+                  ) : key === "inactivity_logout_minutes" ? (
+                    <>
+                      <Input
+                        id={key}
+                        type="number"
+                        className="mt-1"
+                        value={String(INACTIVITY_LOGOUT_MINUTES)}
+                        readOnly
+                        disabled
+                      />
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Badge variant="warning">
+                          {t("settings.badgeReadOnly")}
+                        </Badge>
+                      </div>
+                      <p className="mt-1 text-xs text-[#6B7890]">
+                        {t("settings.inactivityLogoutFixedHint")}
+                      </p>
+                    </>
+                  ) : (
+                    <Input
+                      id={key}
+                      type="number"
+                      min={1}
+                      className="mt-1"
+                      value={settings[key] ?? ""}
+                      onChange={(e) => onChange(key, e.target.value)}
+                    />
+                  )}
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {section.linkCards && section.linkCards.length > 0 ? (
+        <div
+          className={`grid gap-4 ${fieldKeys.length > 0 ? "mt-5" : "mt-5"} md:grid-cols-2`}
+        >
+          {section.linkCards.map((cardId) => (
+            <SettingsLinkCardView
+              key={cardId}
+              card={SETTINGS_LINK_CARDS[cardId]}
+              t={t}
+            />
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 
@@ -88,96 +232,82 @@ export function SettingsClient() {
     void load();
   }, [load]);
 
+  function updateSetting(key: SettingKey, value: string) {
+    setSettings((current) => ({ ...current, [key]: value }));
+  }
+
   async function save() {
     setSaving(true);
     setMessage(null);
     const res = await fetch("/api/admin/settings", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings: buildSavePayload(settings) }),
+      body: JSON.stringify({ settings: buildSettingsSavePayload(settings) }),
     });
     const data = (await res.json()) as {
       settings?: Record<string, string>;
       error?: string;
     };
     if (!res.ok) {
-      setMessage(data.error ?? "保存失败");
+      setMessage(data.error ?? t("settings.saveFailed"));
       setSaving(false);
       return;
     }
     setSettings(data.settings ?? {});
-    setMessage("设置已保存");
+    setMessage(t("settings.saveSuccess"));
     setSaving(false);
   }
 
   if (loading) {
-    return <p className="text-sm text-[#6B7890]">加载中…</p>;
+    return <p className="text-sm text-[#6B7890]">{t("settings.loading")}</p>;
   }
 
   return (
-    <div className="surface-card p-6">
-      <div className="grid max-w-lg gap-4">
-        <p className="text-xs text-[#6B7890]">
-          {t("settings.reclaimHelperText")}
-        </p>
-        {VISIBLE_SETTING_KEYS.map((key) => (
-          <div key={key}>
-            <Label htmlFor={key}>{SETTING_LABELS[key as SettingKey]}</Label>
-            {isBooleanSettingKey(key) ? (
-              <DeviceAuthorizationToggle
-                id={key}
-                enabled={isSettingEnabled(settings[key])}
-                onChange={(next) =>
-                  setSettings((s) => ({ ...s, [key]: next ? "true" : "false" }))
-                }
-              />
-            ) : key === "business_timezone" ? (
-              <Select
-                id={key}
-                className="mt-1"
-                value={settings[key] ?? ""}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, [key]: e.target.value }))
-                }
-              >
-                <option value="Asia/Shanghai">Asia/Shanghai</option>
-                <option value="UTC">UTC</option>
-              </Select>
-            ) : key === "inactivity_logout_minutes" ? (
-              <>
-                <Input
-                  id={key}
-                  type="number"
-                  className="mt-1"
-                  value={String(INACTIVITY_LOGOUT_MINUTES)}
-                  readOnly
-                  disabled
-                />
-                <p className="mt-1 text-xs text-[#6B7890]">
-                  {t("settings.inactivityLogoutFixedHint")}
-                </p>
-              </>
-            ) : (
-              <Input
-                id={key}
-                type="number"
-                min={1}
-                className="mt-1"
-                value={settings[key] ?? ""}
-                onChange={(e) =>
-                  setSettings((s) => ({ ...s, [key]: e.target.value }))
-                }
-              />
-            )}
-            <p className="mt-0.5 font-mono text-xs text-[#6B7890]">{key}</p>
+    <div className="space-y-6">
+      <PageIntro
+        title={t("settings.title")}
+        description={t("settings.pageDescription")}
+      />
+
+      {SETTINGS_UI_SECTIONS.map((section) => (
+        <SettingsSectionCard
+          key={section.id}
+          section={section}
+          settings={settings}
+          t={t}
+          onChange={updateSetting}
+        />
+      ))}
+
+      {SETTINGS_LINK_ONLY_SECTIONS.map((section) => (
+        <section key={section.id} className="surface-card p-5 sm:p-6">
+          <div className="max-w-3xl">
+            <h3 className="text-base font-semibold text-[#172033]">
+              {t(section.titleKey)}
+            </h3>
+            <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
+              {t(section.descriptionKey)}
+            </p>
           </div>
-        ))}
-      </div>
-      <div className="mt-6">
+          <div className="mt-5 grid gap-4 md:grid-cols-2">
+            {section.linkCards.map((cardId) => (
+              <SettingsLinkCardView
+                key={cardId}
+                card={SETTINGS_LINK_CARDS[cardId]}
+                t={t}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
+
+      <div className="surface-card p-5 sm:p-6">
         <Button onClick={save} disabled={saving}>
-          {saving ? "保存中…" : "保存设置"}
+          {saving ? t("settings.saving") : t("settings.save")}
         </Button>
-        {message && <p className="mt-2 text-sm text-[#6B7890]">{message}</p>}
+        {message ? (
+          <p className="mt-2 text-sm text-[#6B7890]">{message}</p>
+        ) : null}
       </div>
     </div>
   );

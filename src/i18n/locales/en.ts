@@ -1530,9 +1530,87 @@ const en = {
   },
   settings: {
     title: "System settings",
+    pageDescription:
+      "Manage customer rules, security policies, and feature entry points in one place. Some high-risk features show read-only status and report links only.",
     inactivityLogoutFixedHint: "This security policy is fixed at 30 minutes.",
     reclaimHelperText:
       "Customers without valid follow-up for the configured number of days will be reclaimed to the public pool. The system will remind the responsible staff the configured number of days before reclamation.",
+    loading: "Loading…",
+    saving: "Saving…",
+    save: "Save settings",
+    saveSuccess: "Settings saved",
+    saveFailed: "Save failed",
+    statusEnabled: "Enabled",
+    statusDisabled: "Disabled",
+    badgeReadOnly: "Read-only",
+    deviceAuthEnabledOn:
+      "Device authorization is enabled. New staff devices require admin approval.",
+    deviceAuthEnabledOff:
+      "Device authorization is disabled. Staff login is not restricted by device.",
+    sections: {
+      basic: {
+        title: "Basic system settings",
+        description: "Timezone used for reports and timestamps across the CRM.",
+      },
+      reclaimPublicPool: {
+        title: "Public pool & auto-reclaim",
+        description:
+          "Single-owner customers without valid follow-up are reclaimed to the public pool after the configured days, with a pre-reclaim warning. Collaborative customers with assignees are not directly released by ordinary auto-reclaim.",
+      },
+      customerRules: {
+        title: "Customer management rules",
+        description:
+          "First-contact SLA hours used for customer heat scoring and follow-up urgency.",
+      },
+      collaborative: {
+        title: "Collaborative ownership",
+        description:
+          "Future 90-day collaborative dissolution is not enabled yet. Use the dry-run report to preview candidates without changing any data.",
+      },
+      security: {
+        title: "Login & device security",
+        description:
+          "Session timeout is fixed. Device authorization limits which devices staff may use to sign in.",
+      },
+      ai: {
+        title: "AI customer insights",
+        description:
+          "Configure AI analysis on a dedicated page. API keys are managed via Cloudflare secrets.",
+      },
+      announcements: {
+        title: "Announcements & welcome",
+        description:
+          "Published announcements appear on the staff welcome flow after login.",
+      },
+    },
+    cards: {
+      dryRun: {
+        title: "Collaborative dry-run report",
+        description:
+          "Preview customers that would be affected if 90-day collaborative auto-dissolution is enabled in the future. Read-only — no data is modified.",
+        button: "View dry-run report",
+      },
+      ai: {
+        title: "AI settings",
+        description: "Open the dedicated AI configuration page.",
+        button: "Open AI settings",
+      },
+      announcements: {
+        title: "Announcement management",
+        description: "Create and publish announcements for staff and admins.",
+        button: "Manage announcements",
+      },
+      devices: {
+        title: "Authorized devices",
+        description: "Review and approve staff login devices.",
+        button: "Manage devices",
+      },
+      securityPolicies: {
+        title: "Security policies",
+        description: "Read-only overview of enforced login and session rules.",
+        button: "View security policies",
+      },
+    },
   },
   securityPolicies: {
     title: "Security Policies",

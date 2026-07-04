@@ -1454,9 +1454,82 @@ const zhHant: Messages = {
   },
   settings: {
     title: "系統設定",
+    pageDescription:
+      "集中管理 CRM 的客戶規則、安全策略與系統功能入口。部分高風險功能僅提供只讀狀態與報告入口。",
     inactivityLogoutFixedHint: "此安全策略已固定為 30 分鐘。",
     reclaimHelperText:
       "客戶連續多日未有效跟進後，系統會自動回收到公共池。系統會在回收前指定天數提醒負責員工。",
+    loading: "載入中…",
+    saving: "儲存中…",
+    save: "儲存設定",
+    saveSuccess: "設定已儲存",
+    saveFailed: "儲存失敗",
+    statusEnabled: "已啟用",
+    statusDisabled: "未啟用",
+    badgeReadOnly: "唯讀",
+    deviceAuthEnabledOn: "設備授權已啟用，員工新設備需要管理員批准",
+    deviceAuthEnabledOff: "設備授權未啟用，員工登入不受設備限制",
+    sections: {
+      basic: {
+        title: "基本系統設定",
+        description: "業務時區，用於報表與系統時間顯示。",
+      },
+      reclaimPublicPool: {
+        title: "公共池與自動回收",
+        description:
+          "普通單人負責客戶若連續未有效跟進，會按設定天數進入公共池，並在回收前提醒負責員工。有共同負責人的客戶目前不會被普通自動回收直接釋放。",
+      },
+      customerRules: {
+        title: "客戶管理規則",
+        description: "首次聯繫 SLA 小時數，用於客戶熱度與跟進優先級。",
+      },
+      collaborative: {
+        title: "共同負責管理",
+        description:
+          "90 天共同負責自動解散尚未啟用。可透過 Dry-run 報告預覽候選客戶，不會修改任何資料。",
+      },
+      security: {
+        title: "登入與設備安全",
+        description:
+          "Session 無操作登出時間為固定策略。設備授權限制員工可使用的登入設備。",
+      },
+      ai: {
+        title: "AI 客戶分析",
+        description: "AI 設定在獨立頁面管理，API Key 透過 Cloudflare Secret 配置。",
+      },
+      announcements: {
+        title: "公告與歡迎頁",
+        description: "已發布公告會在員工登入後的 welcome 流程中顯示。",
+      },
+    },
+    cards: {
+      dryRun: {
+        title: "共同負責 Dry-run 報告",
+        description:
+          "查看如果未來啟用 90 天共同負責自動解散，可能受影響的客戶。目前只讀，不會修改資料。",
+        button: "查看 Dry-run 報告",
+      },
+      ai: {
+        title: "AI 設定",
+        description: "前往 AI 客戶分析設定頁。",
+        button: "開啟 AI 設定",
+      },
+      announcements: {
+        title: "公告管理",
+        description: "建立與發布給員工及管理員的公告。",
+        button: "管理公告",
+      },
+      devices: {
+        title: "授權設備",
+        description: "查看並批准員工登入設備。",
+        button: "管理設備",
+      },
+      securityPolicies: {
+        title: "安全策略",
+        description: "唯讀查看目前強制執行的登入與 Session 規則。",
+        button: "查看安全策略",
+      },
+    },
   },
   securityPolicies: {
     title: "安全策略",
