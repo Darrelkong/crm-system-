@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import {
   listCustomerCreatorsForAdmin,
   listCustomersForUser,
@@ -33,7 +33,7 @@ type Props = {
 };
 
 export default async function CustomersPage({ searchParams }: Props) {
-  const user = await requireAuth();
+  const user = await requireAuthCached();
   const params = await searchParams;
   const listFilter = parseCustomerListFilter(user, params);
   const showArchived = listFilter.status === "archived";

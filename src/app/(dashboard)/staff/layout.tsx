@@ -1,4 +1,4 @@
-import { requireStaff } from "@/lib/permissions/auth";
+import { requireStaffCached } from "@/lib/auth/request-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default async function StaffLayout({
@@ -6,7 +6,7 @@ export default async function StaffLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireStaff();
+  const user = await requireStaffCached();
 
   return (
     <DashboardShell

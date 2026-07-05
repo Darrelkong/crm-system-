@@ -1,12 +1,12 @@
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { DashboardHeaderActions } from "@/components/dashboard/dashboard-header-actions";
-import { requireAdmin } from "@/lib/permissions/auth";
+import { requireAdminCached } from "@/lib/auth/request-cache";
 import { AdminDashboardView } from "@/components/dashboard/admin-dashboard-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function AdminDashboardPage() {
-  const user = await requireAdmin();
+  const user = await requireAdminCached();
 
   return (
     <div>

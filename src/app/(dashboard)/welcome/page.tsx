@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
 import { getLatestPublishedAnnouncementForUser } from "@/lib/announcements/service";
 import { WelcomeClient } from "./welcome-client";
@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function WelcomePage() {
   let user;
   try {
-    user = await requireAuth();
+    user = await requireAuthCached();
   } catch {
     redirect("/login?redirect=/welcome");
   }

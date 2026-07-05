@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getCustomerById } from "@/lib/customers/queries";
 import { getDb } from "@/lib/db";
 import { listActiveCustomerTags } from "@/lib/customer-tags/queries";
@@ -20,7 +20,7 @@ type Props = { params: Promise<{ id: string }> };
 
 export default async function EditCustomerPage({ params }: Props) {
   const { id } = await params;
-  const user = await requireAuth();
+  const user = await requireAuthCached();
   const customer = await getCustomerById(id);
 
   if (!customer) {

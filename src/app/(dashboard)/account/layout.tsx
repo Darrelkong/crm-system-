@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default async function AccountLayout({
@@ -8,7 +8,7 @@ export default async function AccountLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireAuth();
+  const user = await requireAuthCached();
 
   return (
     <DashboardShell

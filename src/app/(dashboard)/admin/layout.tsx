@@ -1,13 +1,13 @@
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
-import { getCurrentUser } from "@/lib/permissions/auth";
+import { getCurrentUserCached } from "@/lib/auth/request-cache";
 
 export default async function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUser();
+  const user = await getCurrentUserCached();
 
   if (!user) {
     redirect("/login");

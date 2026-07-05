@@ -1,12 +1,12 @@
 import { DashboardHeaderActions } from "@/components/dashboard/dashboard-header-actions";
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
-import { requireStaff } from "@/lib/permissions/auth";
+import { requireStaffCached } from "@/lib/auth/request-cache";
 import { StaffDashboardView } from "@/components/dashboard/staff-dashboard-view";
 
 export const dynamic = "force-dynamic";
 
 export default async function StaffDashboardPage() {
-  const user = await requireStaff();
+  const user = await requireStaffCached();
 
   return (
     <div>

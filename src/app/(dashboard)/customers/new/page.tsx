@@ -1,11 +1,11 @@
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
 import { listActiveCustomerTags } from "@/lib/customer-tags/queries";
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { NewCustomerForm } from "./new-customer-form";
 
 export default async function NewCustomerPage() {
-  await requireAuth();
+  await requireAuthCached();
   const db = getDb();
   const tags = await listActiveCustomerTags(db);
 

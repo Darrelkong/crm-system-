@@ -1,4 +1,4 @@
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
 export default async function ApprovalsLayout({
@@ -6,7 +6,7 @@ export default async function ApprovalsLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await requireAuth();
+  const user = await requireAuthCached();
 
   return (
     <DashboardShell

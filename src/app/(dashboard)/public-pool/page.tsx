@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { requireAuth } from "@/lib/permissions/auth";
+import { requireAuthCached } from "@/lib/auth/request-cache";
 import { formatPublicPoolListForUser } from "@/lib/public-pool/queries";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
 import type { AdminClaimStatus } from "@/lib/public-pool/constants";
@@ -16,7 +16,7 @@ const ADMIN_CLAIM_STATUS: AdminClaimStatus = {
 };
 
 export default async function PublicPoolPage() {
-  const user = await requireAuth();
+  const user = await requireAuthCached();
   const items = await formatPublicPoolListForUser(user);
 
   const claimStatus =
