@@ -9,7 +9,11 @@ import {
   syncIdleReloginCookiesOnLoginVisit,
 } from "@/lib/auth/idle-relogin-cookie";
 import { validateSessionFromRequest } from "@/lib/auth/session";
-import { getRoleDashboardPath } from "@/lib/permissions/auth";
+import {
+  getRoleDashboardPath,
+  isAdminGuardedPath,
+  resolveAdminGuardedRouteDecision,
+} from "@/lib/permissions/auth";
 
 type SessionEndReason = "idle" | "revoked" | "invalid" | "device_revoked";
 
@@ -44,15 +48,22 @@ function mustChangePassword(user: { mustChangePassword: number }): boolean {
   return user.mustChangePassword === 1;
 }
 
+function redirectToStaff(request: NextRequest) {
+  return NextResponse.redirect(new URL("/staff", request.url));
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value ?? null;
+  const adminGuardedPath = isAdminGuardedPath(pathname);
 
   let sessionUser = null;
   let sessionEndReason: SessionEndReason | null = null;
 
   if (token) {
-    const validation = await validateSessionFromRequest(request, { touch: true });
+    const validation = await validateSessionFromRequest(request, {
+      touch: !adminGuardedPath,
+    });
     if (validation.ok) {
       sessionUser = validation.session.user;
     } else if (
@@ -119,22 +130,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(destination, request.url));
   }
 
-  if (pathname.startsWith("/admin")) {
-    if (!sessionUser) {
-      return redirectToLogin(request);
-    }
-    if (sessionUser.role !== "admin") {
-      return NextResponse.redirect(new URL("/staff", request.url));
-    }
-    return NextResponse.next();
+  const adminDecision = resolveAdminGuardedRouteDecision(pathname, sessionUser);
+  if (adminDecision?.kind === "require_login") {
+    return redirectToLogin(request);
   }
-
-  if (pathname.startsWith("/import") || pathname.startsWith("/export")) {
-    if (!sessionUser) {
-      return redirectToLogin(request);
-    }
-    if (sessionUser.role !== "admin") {
-      return NextResponse.redirect(new URL("/staff", request.url));
+  if (adminDecision?.kind === "redirect_staff") {
+    return redirectToStaff(request);
+  }
+  if (adminDecision?.kind === "allow_admin") {
+    if (token) {
+      await validateSessionFromRequest(request, { touch: true });
     }
     return NextResponse.next();
   }
@@ -187,9 +192,11 @@ export const config = {
     "/",
     "/login",
     "/change-password",
+    "/admin",
     "/admin/:path*",
     "/import/:path*",
     "/export/:path*",
+    "/staff",
     "/staff/:path*",
     "/customers",
     "/customers/:path*",

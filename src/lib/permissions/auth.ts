@@ -216,6 +216,41 @@ export function getRoleDashboardPath(role: User["role"]): string {
   return role === "admin" ? "/admin" : "/staff";
 }
 
+/** Routes that require an admin session (middleware + layout guard). */
+export function isAdminGuardedPath(pathname: string): boolean {
+  return (
+    pathname.startsWith("/admin") ||
+    pathname.startsWith("/import") ||
+    pathname.startsWith("/export")
+  );
+}
+
+export type AdminGuardedRouteDecision =
+  | { kind: "require_login" }
+  | { kind: "redirect_staff" }
+  | { kind: "allow_admin" };
+
+export function resolveAdminGuardedRouteDecision(
+  pathname: string,
+  sessionUser: Pick<User, "role"> | null,
+): AdminGuardedRouteDecision | null {
+  if (!isAdminGuardedPath(pathname)) {
+    return null;
+  }
+  if (!sessionUser) {
+    return { kind: "require_login" };
+  }
+  if (sessionUser.role !== "admin") {
+    return { kind: "redirect_staff" };
+  }
+  return { kind: "allow_admin" };
+}
+
+/** Staff denied on admin routes should not touch session activity (avoid D1 write). */
+export function shouldValidateSessionWithoutTouch(pathname: string): boolean {
+  return isAdminGuardedPath(pathname);
+}
+
 export function getPostLoginRedirectPath(user: User): string {
   if (userMustChangePassword(user)) {
     return "/change-password";
