@@ -5,11 +5,9 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
 import { NOTIFICATION_UNREAD_CHANGED_EVENT } from "@/lib/notifications/badge-count";
 import {
   getCachedUnreadCount,
@@ -25,12 +23,8 @@ type NotificationUnreadContextValue = {
 const NotificationUnreadContext =
   createContext<NotificationUnreadContextValue | null>(null);
 
-const PATHNAME_DEBOUNCE_MS = 300;
-
 export function NotificationUnreadProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname() ?? "";
   const [unreadCount, setUnreadCount] = useState(0);
-  const pathnameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshUnreadCount = useCallback(async (options?: { force?: boolean }) => {
     const force = options?.force ?? false;
@@ -56,6 +50,7 @@ export function NotificationUnreadProvider({ children }: { children: ReactNode }
     }
   }, []);
 
+  // Fetch on mount; use cache if available to avoid a flash of zero.
   useEffect(() => {
     const cached = getCachedUnreadCount();
     if (cached != null) {
@@ -64,22 +59,7 @@ export function NotificationUnreadProvider({ children }: { children: ReactNode }
     void refreshUnreadCount({ force: cached == null });
   }, [refreshUnreadCount]);
 
-  useEffect(() => {
-    if (pathnameDebounceRef.current) {
-      clearTimeout(pathnameDebounceRef.current);
-    }
-
-    pathnameDebounceRef.current = setTimeout(() => {
-      void refreshUnreadCount();
-    }, PATHNAME_DEBOUNCE_MS);
-
-    return () => {
-      if (pathnameDebounceRef.current) {
-        clearTimeout(pathnameDebounceRef.current);
-      }
-    };
-  }, [pathname, refreshUnreadCount]);
-
+  // Force-refresh whenever a notification is marked read/unread elsewhere.
   useEffect(() => {
     const handleChange = () => {
       invalidateUnreadCountCache();

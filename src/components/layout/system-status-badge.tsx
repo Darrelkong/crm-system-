@@ -3,6 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/i18n/provider";
 import { cn } from "@/lib/cn";
+import {
+  getStatusCache,
+  setStatusCache,
+  statusCacheRemainingMs,
+  type StableSystemStatus,
+} from "@/components/layout/system-status-cache";
 
 type SystemStatus = "online" | "checking" | "degraded" | "offline";
 
@@ -49,7 +55,8 @@ const statusConfig: Record<
 
 export function SystemStatusBadge({ className }: { className?: string }) {
   const { t } = useTranslation();
-  const [status, setStatus] = useState<SystemStatus>("online");
+  const cachedOnMount = getStatusCache();
+  const [status, setStatus] = useState<SystemStatus>(cachedOnMount ?? "online");
   const failureCountRef = useRef(0);
   const pollInFlightRef = useRef(false);
 
@@ -67,21 +74,31 @@ export function SystemStatusBadge({ className }: { className?: string }) {
         if (result.ok) {
           failureCountRef.current = 0;
           setStatus(result.status);
+          setStatusCache(result.status);
           return;
         }
 
         failureCountRef.current += 1;
         if (failureCountRef.current >= OFFLINE_AFTER_CONSECUTIVE_FAILURES) {
-          setStatus("offline");
+          const s = "offline" as StableSystemStatus;
+          setStatus(s);
+          setStatusCache(s);
         } else {
           setStatus("checking");
+          // "checking" is transient — not worth caching
         }
       } finally {
         pollInFlightRef.current = false;
       }
     }
 
-    const initial = window.setTimeout(() => void poll(), 0);
+    // If a fresh status is already in the module cache, delay the first network
+    // request until the cache expires. This avoids hitting /api/health on every
+    // DashboardShell remount (cross-segment navigation).
+    const remaining = statusCacheRemainingMs();
+    const initialDelay = remaining > 0 ? remaining : 0;
+
+    const initial = window.setTimeout(() => void poll(), initialDelay);
     const intervalId = window.setInterval(() => void poll(), POLL_INTERVAL_MS);
 
     const onVisibility = () => {

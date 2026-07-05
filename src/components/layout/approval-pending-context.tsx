@@ -5,11 +5,9 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
-import { usePathname } from "next/navigation";
 import {
   getCachedPendingApprovalCount,
   setCachedPendingApprovalCount,
@@ -21,12 +19,8 @@ type ApprovalPendingContextValue = {
 
 const ApprovalPendingContext = createContext<ApprovalPendingContextValue | null>(null);
 
-const PATHNAME_DEBOUNCE_MS = 300;
-
 export function ApprovalPendingProvider({ children }: { children: ReactNode }) {
-  const pathname = usePathname() ?? "";
   const [pendingCount, setPendingCount] = useState(0);
-  const pathnameDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const refreshPendingCount = useCallback(async (options?: { force?: boolean }) => {
     const force = options?.force ?? false;
@@ -52,6 +46,7 @@ export function ApprovalPendingProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Fetch on mount; use cache if available to avoid a flash of zero.
   useEffect(() => {
     const cached = getCachedPendingApprovalCount();
     if (cached != null) {
@@ -59,21 +54,6 @@ export function ApprovalPendingProvider({ children }: { children: ReactNode }) {
     }
     void refreshPendingCount({ force: cached == null });
   }, [refreshPendingCount]);
-
-  useEffect(() => {
-    if (pathnameDebounceRef.current) {
-      clearTimeout(pathnameDebounceRef.current);
-    }
-    pathnameDebounceRef.current = setTimeout(() => {
-      void refreshPendingCount();
-    }, PATHNAME_DEBOUNCE_MS);
-
-    return () => {
-      if (pathnameDebounceRef.current) {
-        clearTimeout(pathnameDebounceRef.current);
-      }
-    };
-  }, [pathname, refreshPendingCount]);
 
   return (
     <ApprovalPendingContext.Provider value={{ pendingCount }}>
