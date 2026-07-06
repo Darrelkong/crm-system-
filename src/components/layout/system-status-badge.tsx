@@ -65,10 +65,11 @@ export function SystemStatusBadge({ className }: { className?: string }) {
   const failureCountRef = useRef(0);
   const pollInFlightRef = useRef(false);
 
-  const { openModal } = useIdleExempt();
+  const { openModal, modalOpen } = useIdleExempt();
   const clickTimestampsRef = useRef<number[]>([]);
 
   function handleHiddenClick() {
+    if (modalOpen) return;
     const now = Date.now();
     const updated = addClickTimestamp(clickTimestampsRef.current, now);
     if (shouldTriggerIdleExempt(updated)) {
