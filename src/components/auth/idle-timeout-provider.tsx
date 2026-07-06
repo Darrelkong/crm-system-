@@ -16,6 +16,8 @@ import {
   type SessionEndReason,
   writeLastActivityMs,
 } from "@/lib/auth/client-security";
+import { useIdleExempt } from "@/components/auth/idle-exempt-context";
+import { isIdleExemptActive } from "@/lib/auth/idle-exempt-ui";
 
 type SyncMessage =
   | { type: "activity"; at: number }
@@ -41,6 +43,7 @@ export function IdleTimeoutProvider({
   );
   const loggingOutRef = useRef(false);
   const idleMs = idleMinutes * 60 * 1000;
+  const { exemptUntil } = useIdleExempt();
 
   const handleSessionEnd = useCallback(async (reason: SessionEndReason) => {
     if (loggingOutRef.current) return;
@@ -86,6 +89,13 @@ export function IdleTimeoutProvider({
   }, []);
 
   const checkIdle = useCallback(async () => {
+    // Client-side UX guard: skip local idle redirect while exemption is active.
+    // The server remains the sole security authority; this only prevents an
+    // unnecessary client-triggered redirect when the user deliberately opted in.
+    if (isIdleExemptActive(exemptUntil, Date.now())) {
+      return;
+    }
+
     const last = readLastActivityMs();
     if (last == null) {
       writeLastActivityMs();
@@ -105,7 +115,7 @@ export function IdleTimeoutProvider({
     } catch {
       // ignore transient network errors
     }
-  }, [handleApiSessionEnd, handleSessionEnd, idleMs]);
+  }, [handleApiSessionEnd, handleSessionEnd, idleMs, exemptUntil]);
 
   useEffect(() => {
     writeLastActivityMs();

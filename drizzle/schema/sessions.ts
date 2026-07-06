@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
 export const sessions = sqliteTable(
@@ -16,6 +16,9 @@ export const sessions = sqliteTable(
     userAgent: text("user_agent"),
     deviceIdHash: text("device_id_hash"),
     createdAt: text("created_at").notNull(),
+    idleExemptUntil: text("idle_exempt_until"),
+    idleExemptAttempts: integer("idle_exempt_attempts").notNull().default(0),
+    idleExemptLockedUntil: text("idle_exempt_locked_until"),
   },
   (table) => [
     index("idx_sessions_user_id").on(table.userId),

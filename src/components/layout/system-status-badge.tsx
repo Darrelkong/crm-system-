@@ -9,6 +9,11 @@ import {
   statusCacheRemainingMs,
   type StableSystemStatus,
 } from "@/components/layout/system-status-cache";
+import { useIdleExempt } from "@/components/auth/idle-exempt-context";
+import {
+  addClickTimestamp,
+  shouldTriggerIdleExempt,
+} from "@/lib/auth/idle-exempt-ui";
 
 type SystemStatus = "online" | "checking" | "degraded" | "offline";
 
@@ -59,6 +64,20 @@ export function SystemStatusBadge({ className }: { className?: string }) {
   const [status, setStatus] = useState<SystemStatus>(cachedOnMount ?? "online");
   const failureCountRef = useRef(0);
   const pollInFlightRef = useRef(false);
+
+  const { openModal } = useIdleExempt();
+  const clickTimestampsRef = useRef<number[]>([]);
+
+  function handleHiddenClick() {
+    const now = Date.now();
+    const updated = addClickTimestamp(clickTimestampsRef.current, now);
+    if (shouldTriggerIdleExempt(updated)) {
+      clickTimestampsRef.current = [];
+      openModal();
+    } else {
+      clickTimestampsRef.current = updated;
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -126,6 +145,7 @@ export function SystemStatusBadge({ className }: { className?: string }) {
       )}
       role="status"
       aria-live="polite"
+      onClick={handleHiddenClick}
     >
       <span
         className={cn("h-2 w-2 shrink-0 rounded-full", config.dot)}

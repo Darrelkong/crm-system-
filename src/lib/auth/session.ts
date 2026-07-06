@@ -144,7 +144,10 @@ export async function validateSessionToken(
   }
 
   const idleMinutes = await getIdleLogoutMinutes(db);
-  if (isSessionIdleExpired(row.session, idleMinutes)) {
+  const isIdleExempt =
+    row.session.idleExemptUntil != null &&
+    row.session.idleExemptUntil > nowIso;
+  if (!isIdleExempt && isSessionIdleExpired(row.session, idleMinutes)) {
     await revokeSessionById(db, row.sessionId, nowIso);
     return {
       ok: false,

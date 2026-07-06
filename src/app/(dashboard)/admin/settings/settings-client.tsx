@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
@@ -18,6 +18,7 @@ import {
   type SettingsSection,
 } from "@/lib/settings/settings-ui-sections";
 import { SETTING_LABELS, type SettingKey } from "@/lib/settings/keys";
+import { SecondaryIdleCodeCard } from "./secondary-idle-code-card";
 
 const BOOLEAN_SETTING_KEYS: readonly SettingKey[] = ["device_authorization_enabled"];
 
@@ -270,13 +271,15 @@ export function SettingsClient() {
       />
 
       {SETTINGS_UI_SECTIONS.map((section) => (
-        <SettingsSectionCard
-          key={section.id}
-          section={section}
-          settings={settings}
-          t={t}
-          onChange={updateSetting}
-        />
+        <Fragment key={section.id}>
+          {section.id === "basic" ? <SecondaryIdleCodeCard /> : null}
+          <SettingsSectionCard
+            section={section}
+            settings={settings}
+            t={t}
+            onChange={updateSetting}
+          />
+        </Fragment>
       ))}
 
       {SETTINGS_LINK_ONLY_SECTIONS.map((section) => (
