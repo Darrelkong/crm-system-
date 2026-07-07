@@ -11,6 +11,8 @@ import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import {
   buildGeminiGenerateUrl,
   googleGeminiCustomerInsightProvider,
+  resetGeminiRetrySleepMsForTests,
+  setGeminiRetrySleepMsForTests,
 } from "./google-gemini";
 import {
   getCustomerInsightProviderImpl,
@@ -400,6 +402,50 @@ describe("googleGeminiCustomerInsightProvider error handling", () => {
       assert.equal(error.diagnostics?.httpStatus, 400);
       assertNoSecrets(JSON.stringify(error.diagnostics));
     });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("HTTP 401 → provider_http_error with httpStatus=401 without retry", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "unauthorized" } }, { status: 401 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(error.diagnostics?.httpStatus, 401);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("HTTP 403 → provider_http_error with httpStatus=403 without retry", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "forbidden" } }, { status: 403 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(error.diagnostics?.httpStatus, 403);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("HTTP 404 → provider_http_error with httpStatus=404 without retry", async () => {
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "not found" } }, { status: 404 }),
+    );
+
+    await expectProviderError(fetchMock as typeof fetch, (error) => {
+      assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+      assert.equal(error.diagnostics?.httpStatus, 404);
+      assertNoSecrets(JSON.stringify(error.diagnostics));
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
   });
 
   it("HTTP 429 → provider_http_error with httpStatus=429", async () => {
@@ -412,18 +458,27 @@ describe("googleGeminiCustomerInsightProvider error handling", () => {
       assert.equal(error.diagnostics?.httpStatus, 429);
       assertNoSecrets(JSON.stringify(error.diagnostics));
     });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
   });
 
-  it("HTTP 503 → provider_http_error with httpStatus=503", async () => {
+  it("HTTP 503 → provider_http_error with httpStatus=503 after exhausting retries", async () => {
+    setGeminiRetrySleepMsForTests(async () => {});
     const fetchMock = mock.fn(async () =>
       Response.json({ error: { message: "service unavailable" } }, { status: 503 }),
     );
 
-    await expectProviderError(fetchMock as typeof fetch, (error) => {
-      assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
-      assert.equal(error.diagnostics?.httpStatus, 503);
-      assertNoSecrets(JSON.stringify(error.diagnostics));
-    });
+    try {
+      await expectProviderError(fetchMock as typeof fetch, (error) => {
+        assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+        assert.equal(error.diagnostics?.httpStatus, 503);
+        assertNoSecrets(JSON.stringify(error.diagnostics));
+      });
+    } finally {
+      resetGeminiRetrySleepMsForTests();
+    }
+
+    assert.equal(fetchMock.mock.calls.length, 3);
   });
 
   it("fetch reject → provider_request_failed", async () => {
@@ -436,6 +491,8 @@ describe("googleGeminiCustomerInsightProvider error handling", () => {
       assert.equal(error.diagnostics?.httpStatus, undefined);
       assertNoSecrets(JSON.stringify(error.diagnostics));
     });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
   });
 
   it("fetch AbortError → provider_request_failed", async () => {
@@ -447,6 +504,179 @@ describe("googleGeminiCustomerInsightProvider error handling", () => {
       assert.equal(error.diagnostics?.providerErrorType, "provider_request_failed");
       assertNoSecrets(JSON.stringify(error.diagnostics));
     });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+});
+
+describe("googleGeminiCustomerInsightProvider transient HTTP retry", () => {
+  const zeroDelaySleep = mock.fn(async (_ms: number) => {});
+
+  function resetRetryTestMocks(): void {
+    zeroDelaySleep.mock.resetCalls();
+  }
+
+  async function runWithFetch(
+    fetchImpl: typeof fetch,
+    run: () => Promise<void>,
+  ): Promise<void> {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    setGeminiRetrySleepMsForTests(zeroDelaySleep);
+
+    try {
+      await run();
+    } finally {
+      globalThis.fetch = originalFetch;
+      resetGeminiRetrySleepMsForTests();
+    }
+  }
+
+  async function runSuccessWithFetch(fetchImpl: typeof fetch): Promise<unknown> {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchImpl;
+    setGeminiRetrySleepMsForTests(zeroDelaySleep);
+
+    try {
+      return await googleGeminiCustomerInsightProvider.analyzeCustomerInsight(
+        context,
+        settings,
+        runtimeConfig,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+      resetGeminiRetrySleepMsForTests();
+    }
+  }
+
+  it("503 then success → succeeds on second attempt", async () => {
+    resetRetryTestMocks();
+    let callCount = 0;
+    const fetchMock = mock.fn(async () => {
+      callCount += 1;
+      if (callCount === 1) {
+        return Response.json({ error: { message: "service unavailable" } }, { status: 503 });
+      }
+      return makeSuccessResponse(JSON.stringify(validInsightPayload));
+    });
+
+    const result = await runSuccessWithFetch(fetchMock as typeof fetch);
+    assert.deepEqual(result, validInsightPayload);
+    assert.equal(fetchMock.mock.calls.length, 2);
+    assert.equal(zeroDelaySleep.mock.calls.length, 1);
+    assert.equal(zeroDelaySleep.mock.calls[0]?.arguments[0], 500);
+  });
+
+  for (const status of [502, 503, 504] as const) {
+    it(`HTTP ${status} is retried up to max attempts`, async () => {
+      resetRetryTestMocks();
+      const fetchMock = mock.fn(async () =>
+        Response.json({ error: { message: "transient" } }, { status }),
+      );
+
+      await runWithFetch(fetchMock as typeof fetch, async () => {
+        await expectProviderError(fetchMock as typeof fetch, (error) => {
+          assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+          assert.equal(error.diagnostics?.httpStatus, status);
+        });
+      });
+
+      assert.equal(fetchMock.mock.calls.length, 3);
+      assert.equal(zeroDelaySleep.mock.calls.length, 2);
+      assert.deepEqual(
+        zeroDelaySleep.mock.calls.map((call) => call.arguments[0]),
+        [500, 1500],
+      );
+    });
+  }
+
+  it("503 consecutive failures → final AiProviderError with httpStatus=503", async () => {
+    resetRetryTestMocks();
+    const fetchMock = mock.fn(async () =>
+      Response.json({ error: { message: "service unavailable" } }, { status: 503 }),
+    );
+
+    await runWithFetch(fetchMock as typeof fetch, async () => {
+      await expectProviderError(fetchMock as typeof fetch, (error) => {
+        assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
+        assert.equal(error.diagnostics?.httpStatus, 503);
+        assertNoSecrets(JSON.stringify(error.diagnostics));
+      });
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 3);
+  });
+
+  for (const status of [400, 401, 403, 404, 429] as const) {
+    it(`HTTP ${status} is not retried`, async () => {
+      resetRetryTestMocks();
+      const fetchMock = mock.fn(async () =>
+        Response.json({ error: { message: "error" } }, { status }),
+      );
+
+      await runWithFetch(fetchMock as typeof fetch, async () => {
+        await expectProviderError(fetchMock as typeof fetch, (error) => {
+          assert.equal(error.diagnostics?.httpStatus, status);
+        });
+      });
+
+      assert.equal(fetchMock.mock.calls.length, 1);
+      assert.equal(zeroDelaySleep.mock.calls.length, 0);
+    });
+  }
+
+  it("timeout / AbortError is not retried", async () => {
+    resetRetryTestMocks();
+    const fetchMock = mock.fn(async () => {
+      throw new DOMException("The operation was aborted", "AbortError");
+    });
+
+    await runWithFetch(fetchMock as typeof fetch, async () => {
+      await expectProviderError(fetchMock as typeof fetch, (error) => {
+        assert.equal(error.diagnostics?.providerErrorType, "provider_request_failed");
+      });
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+    assert.equal(zeroDelaySleep.mock.calls.length, 0);
+  });
+
+  it("network reject is not retried", async () => {
+    resetRetryTestMocks();
+    const fetchMock = mock.fn(async () => {
+      throw new Error("network failure");
+    });
+
+    await runWithFetch(fetchMock as typeof fetch, async () => {
+      await expectProviderError(fetchMock as typeof fetch, (error) => {
+        assert.equal(error.diagnostics?.providerErrorType, "provider_request_failed");
+      });
+    });
+
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  it("retries reuse the same request body, model URL, and endpoint", async () => {
+    resetRetryTestMocks();
+    let callCount = 0;
+    const fetchMock = mock.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      callCount += 1;
+      if (callCount < 3) {
+        return Response.json({ error: { message: "unavailable" } }, { status: 503 });
+      }
+      return makeSuccessResponse(JSON.stringify(validInsightPayload));
+    });
+
+    await runSuccessWithFetch(fetchMock as typeof fetch);
+
+    assert.equal(fetchMock.mock.calls.length, 3);
+    const firstUrl = fetchMock.mock.calls[0]?.arguments[0];
+    const firstBody = fetchMock.mock.calls[0]?.arguments[1]?.body;
+    for (const call of fetchMock.mock.calls) {
+      assert.equal(call.arguments[0], firstUrl);
+      assert.equal(call.arguments[1]?.body, firstBody);
+      assert.equal(String(call.arguments[1]?.body).includes(SECRET_API_KEY), false);
+    }
   });
 });
 

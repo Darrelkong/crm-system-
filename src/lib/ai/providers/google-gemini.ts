@@ -20,6 +20,32 @@ import type { CustomerInsightAIProvider, ProviderRuntimeConfig } from "./types";
 
 const PROVIDER_KIND = "google_gemini" as const;
 
+/** HTTP statuses that may succeed on a subsequent attempt (transient gateway / overload). */
+const RETRYABLE_HTTP_STATUSES = new Set([502, 503, 504]);
+
+/** Initial attempt + up to 2 retries. */
+export const GEMINI_TRANSIENT_HTTP_MAX_ATTEMPTS = 3;
+
+/** Backoff after attempt 1 and 2 failures (ms). */
+export const GEMINI_TRANSIENT_HTTP_RETRY_BACKOFF_MS = [500, 1500] as const;
+
+let retrySleepMs: (ms: number) => Promise<void> = (ms) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/** @internal Unit tests inject zero-delay sleep to avoid real backoff waits. */
+export function setGeminiRetrySleepMsForTests(fn: (ms: number) => Promise<void>): void {
+  retrySleepMs = fn;
+}
+
+/** @internal Resets sleep hook after unit tests. */
+export function resetGeminiRetrySleepMsForTests(): void {
+  retrySleepMs = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function isRetryableHttpStatus(status: number): boolean {
+  return RETRYABLE_HTTP_STATUSES.has(status);
+}
+
 type GeminiGenerateContentResponse = {
   candidates?: Array<{
     content?: {
@@ -244,48 +270,63 @@ async function postGenerateContent(
     },
   };
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  const requestBody = JSON.stringify(body);
+  const requestHeaders = {
+    "x-goog-api-key": config.apiKey,
+    "Content-Type": "application/json",
+  };
 
-  try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "x-goog-api-key": config.apiKey,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+  for (let attempt = 0; attempt < GEMINI_TRANSIENT_HTTP_MAX_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
 
-    const data = (await response.json()) as GeminiGenerateContentResponse;
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: requestHeaders,
+        body: requestBody,
+        signal: controller.signal,
+      });
 
-    if (!response.ok) {
-      throw new AiProviderError(
-        buildGeminiDiagnostics(config, "provider_http_error", response.status),
-      );
+      const data = (await response.json()) as GeminiGenerateContentResponse;
+
+      if (!response.ok) {
+        if (
+          isRetryableHttpStatus(response.status) &&
+          attempt < GEMINI_TRANSIENT_HTTP_MAX_ATTEMPTS - 1
+        ) {
+          await retrySleepMs(GEMINI_TRANSIENT_HTTP_RETRY_BACKOFF_MS[attempt]!);
+          continue;
+        }
+
+        throw new AiProviderError(
+          buildGeminiDiagnostics(config, "provider_http_error", response.status),
+        );
+      }
+
+      const { combinedText, responseInfo } = extractResponseText(data, config);
+
+      if (combinedText.length > AI_PROVIDER_MAX_RESPONSE_CHARS) {
+        throw new AiProviderError(
+          buildGeminiDiagnostics(config, "provider_response_too_large", undefined, {
+            contentLength: combinedText.length,
+            ...responseInfo,
+          }),
+        );
+      }
+
+      return { text: combinedText, responseInfo };
+    } catch (error) {
+      if (error instanceof AiProviderError) {
+        throw error;
+      }
+      throw new AiProviderError(buildGeminiDiagnostics(config, "provider_request_failed"));
+    } finally {
+      clearTimeout(timeout);
     }
-
-    const { combinedText, responseInfo } = extractResponseText(data, config);
-
-    if (combinedText.length > AI_PROVIDER_MAX_RESPONSE_CHARS) {
-      throw new AiProviderError(
-        buildGeminiDiagnostics(config, "provider_response_too_large", undefined, {
-          contentLength: combinedText.length,
-          ...responseInfo,
-        }),
-      );
-    }
-
-    return { text: combinedText, responseInfo };
-  } catch (error) {
-    if (error instanceof AiProviderError) {
-      throw error;
-    }
-    throw new AiProviderError(buildGeminiDiagnostics(config, "provider_request_failed"));
-  } finally {
-    clearTimeout(timeout);
   }
+
+  throw new AiProviderError(buildGeminiDiagnostics(config, "provider_request_failed"));
 }
 
 async function requestStructuredJson(
