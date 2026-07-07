@@ -26,6 +26,7 @@ import type { HeatReasonPart } from "@/lib/customers/scoring/heat";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { ui } from "@/lib/ui/classes";
+import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-stage-badges";
 
 const cd = ui.customerDetail;
 
@@ -45,6 +46,7 @@ export type CustomerDetailView = {
   customerName: string;
   customerType: string;
   salesStage: string;
+  lifecycleStatus?: string | null;
   source: string;
   status: string;
   isMasked: boolean;
@@ -214,6 +216,12 @@ export function CustomerDetailClient({
     ? view.createdByName
     : t("customers.unknownStaff");
 
+  const showPendingSecondConversionBadge = shouldShowPendingSecondConversionBadge({
+    lifecycleStatus: view.lifecycleStatus,
+    status: view.status,
+    isArchived: view.isArchived,
+  });
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -229,6 +237,9 @@ export function CustomerDetailClient({
             )}
             {view.isArchived && (
               <Badge>{t("customers.archivedBadge")}</Badge>
+            )}
+            {showPendingSecondConversionBadge && (
+              <Badge variant="success">{t("customers.pendingSecondConversion")}</Badge>
             )}
           </div>
         </div>

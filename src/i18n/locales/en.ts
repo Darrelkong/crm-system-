@@ -528,6 +528,7 @@ const en = {
     lifecycleCompleteNotes: "Completion notes",
     lifecycleCompleteNotesPlaceholder: "Optional completion notes",
     lifecycleCompleteConfirm: "Confirm update",
+    pendingSecondConversion: "Pending Second Conversion",
     opportunityDescription: "Opportunity Description",
     estimatedAmount: "Estimated Amount",
     nextAction: "Next Action",

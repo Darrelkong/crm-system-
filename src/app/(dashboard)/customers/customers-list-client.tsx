@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
+import { resolveSalesStageListDisplay } from "@/lib/customers/sales-stage-badges";
 import {
   resolveAssigneeStaffForList,
   type AssigneeDisplayLocale,
@@ -77,6 +78,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     assigneeNames: item.assigneeNames ?? [],
     requestedProjectName: item.requestedProjectName,
     salesStage: item.salesStage,
+    lifecycleStatus: item.lifecycleStatus ?? null,
     status: item.status,
     heatLevel: item.heatLevel,
     completenessScore: item.completenessScore,
@@ -244,6 +246,27 @@ export function CustomersListClient({
     );
   }
 
+  function SalesStageCell({ c }: { c: CustomerListRow }) {
+    const display = resolveSalesStageListDisplay({
+      lifecycleStatus: c.lifecycleStatus,
+      status: c.status,
+      isArchived: c.isArchived,
+      salesStage: c.salesStage,
+    });
+
+    if (display === "pending_second_conversion") {
+      return (
+        <Badge variant="success">{t("customers.pendingSecondConversion")}</Badge>
+      );
+    }
+
+    if (display === "negotiation_reminder") {
+      return <Badge variant="warning">{salesStage("negotiation")}</Badge>;
+    }
+
+    return <span className="crm-text">{salesStage(c.salesStage)}</span>;
+  }
+
   function CustomerMobileCard({ c }: { c: CustomerListRow }) {
     const project = formatProjectNameForList(c.requestedProjectName);
     const staff = assignedStaffDisplay(c);
@@ -266,7 +289,7 @@ export function CustomersListClient({
             )}
             <p className="mt-1 text-xs crm-text-secondary">
               <span title={staff.title}>{staff.display}</span> ·{" "}
-              {salesStage(c.salesStage)}
+              <SalesStageCell c={c} />
             </p>
             <p className="mt-0.5 text-xs crm-text-secondary" title={project.title}>
               {project.display}
@@ -422,7 +445,9 @@ export function CustomersListClient({
                     <Td>
                       <ProjectNameCell name={c.requestedProjectName} />
                     </Td>
-                    <Td>{salesStage(c.salesStage)}</Td>
+                    <Td>
+                      <SalesStageCell c={c} />
+                    </Td>
                     <Td>
                       <Badge>{status(c.status)}</Badge>
                     </Td>

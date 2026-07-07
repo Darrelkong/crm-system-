@@ -13,6 +13,7 @@ export type CustomerListRowData = {
   assigneeNames: string[];
   requestedProjectName?: string | null;
   salesStage: string;
+  lifecycleStatus?: string | null;
   status: string;
   heatLevel: HeatLevel;
   completenessScore: number;
@@ -39,6 +40,7 @@ export function toCustomerListRow(
     assigneeNames,
     requestedProjectName: customer.requestedProjectName,
     salesStage: customer.salesStage,
+    lifecycleStatus: customer.lifecycleStatus ?? null,
     status: customer.status,
     heatLevel: customer.heatLevel,
     completenessScore: customer.completenessScore,

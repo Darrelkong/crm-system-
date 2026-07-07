@@ -116,6 +116,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         customerName: view.customerName,
         customerType: view.customerType,
         salesStage: view.salesStage,
+        lifecycleStatus: customer.lifecycleStatus,
         source: view.source,
         status: view.status,
         isMasked: !!view.isMasked,

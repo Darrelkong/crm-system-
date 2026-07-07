@@ -81,6 +81,7 @@ export type CustomerView = {
   nextFollowUpAt?: string | null;
   neverContacted: boolean;
   overdueFollowUp: boolean;
+  lifecycleStatus?: string | null;
 };
 
 export class PermissionError extends Error {
@@ -478,6 +479,7 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
     requestedProjectName: customer.requestedProjectName,
+    lifecycleStatus: customer.lifecycleStatus,
     ...getCustomerFollowUpMeta(customer),
   };
 }
@@ -508,6 +510,7 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     updatedBy: customer.updatedBy,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
+    lifecycleStatus: customer.lifecycleStatus,
     ...getCustomerFollowUpMeta(customer),
   };
 }

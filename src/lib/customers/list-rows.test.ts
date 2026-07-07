@@ -183,6 +183,20 @@ describe("toCustomerListRow pin fields", () => {
     assert.equal(row.customerCode, undefined);
     assert.equal("customerCode" in view, false);
   });
+
+  it("includes lifecycleStatus for completed customers", () => {
+    const customer = makeCustomer({
+      id: "c3",
+      customerName: "Completed client",
+      salesStage: "paid",
+      lifecycleStatus: "completed",
+    });
+    const view = makeScoredView(adminUser, customer);
+    const row = toCustomerListRow(view, "Staff A");
+
+    assert.equal(row.lifecycleStatus, "completed");
+    assert.equal(row.salesStage, "paid");
+  });
 });
 
 describe("D-2b list filtering unchanged", () => {

@@ -505,6 +505,7 @@ const zhHans: Messages = {
     lifecycleCompleteNotes: "完成说明",
     lifecycleCompleteNotesPlaceholder: "可选填完成说明",
     lifecycleCompleteConfirm: "确认更新",
+    pendingSecondConversion: "待二次转化",
     opportunityDescription: "机会描述",
     estimatedAmount: "预估金额",
     nextAction: "下一步行动",
