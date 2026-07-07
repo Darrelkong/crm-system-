@@ -10,6 +10,7 @@ export const APPROVAL_REQUEST_TYPES = [
   "second_conversion",
   "create_on_hold_customer",
   "update_customer_assignees",
+  "paid_customer",
 ] as const;
 
 export type ApprovalRequestType = (typeof APPROVAL_REQUEST_TYPES)[number];

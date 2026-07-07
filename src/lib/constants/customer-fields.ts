@@ -15,6 +15,7 @@ export const SALES_STAGES = [
   "closed_won",
   "closed_lost",
   "on_hold",
+  "paid",
 ] as const;
 export type SalesStage = (typeof SALES_STAGES)[number];
 
@@ -29,16 +30,46 @@ export const CREATABLE_SALES_STAGES = [
 ] as const;
 export type CreatableSalesStage = (typeof CREATABLE_SALES_STAGES)[number];
 
-/** Cannot be set directly on create/import; closed_won uses approval flow. */
+/** Cannot be set directly on create/import; closed_won uses approval or admin update. */
 export const DIRECT_CREATE_BLOCKED_SALES_STAGES = [
   "closed_won",
   "closed_lost",
 ] as const;
 
+/** Only settable via dedicated approval flow — blocked for all roles on direct create/update. */
+export const APPROVAL_ONLY_SALES_STAGES = ["paid"] as const;
+
 export function isDirectCreateBlockedSalesStage(stage: string): boolean {
   return (DIRECT_CREATE_BLOCKED_SALES_STAGES as readonly string[]).includes(
     stage,
   );
+}
+
+export function isApprovalOnlySalesStage(stage: string): boolean {
+  return (APPROVAL_ONLY_SALES_STAGES as readonly string[]).includes(stage);
+}
+
+/** Sales stages selectable on ordinary create/edit forms (excludes approval-only stages). */
+export function buildEditSalesStageOptions(options: {
+  isStaff: boolean;
+  currentSalesStage?: string | null;
+}): string[] {
+  const stages: string[] = options.isStaff
+    ? [...CREATABLE_SALES_STAGES]
+    : SALES_STAGES.filter((stage) => !isApprovalOnlySalesStage(stage));
+
+  const current = options.currentSalesStage?.trim();
+  if (
+    current &&
+    !stages.includes(current) &&
+    ((LEGACY_SALES_STAGES as readonly string[]).includes(current) ||
+      isDirectCreateBlockedSalesStage(current) ||
+      isApprovalOnlySalesStage(current))
+  ) {
+    stages.push(current);
+  }
+
+  return stages;
 }
 
 /** Legacy values still accepted in DB records and validation */
@@ -54,6 +85,7 @@ export const SALES_STAGE_LABELS: Record<SalesStage | LegacySalesStage, string> =
   closed_won: "已成交",
   closed_lost: "已流失",
   on_hold: "搁置",
+  paid: "已付款",
   negotiating: "洽谈中",
   converted: "已成交",
   lost: "已流失",

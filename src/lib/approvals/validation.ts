@@ -77,6 +77,30 @@ export function validateApprovalRequestInput(
     }
   }
 
+  if (requestType === "paid_customer") {
+    const payload = input.payload ?? {};
+
+    const serviceItems =
+      typeof payload.serviceItems === "string" ? payload.serviceItems.trim() : "";
+    if (!serviceItems) {
+      fieldErrors.push({ field: "serviceItems", message: "已付款服务项目必填" });
+    }
+
+    const paidAmount = payload.paidAmount;
+    if (paidAmount === undefined || paidAmount === null || paidAmount === "") {
+      fieldErrors.push({ field: "paidAmount", message: "付款金额必填" });
+    } else {
+      const amount = Number(paidAmount);
+      if (isNaN(amount) || amount <= 0) {
+        fieldErrors.push({ field: "paidAmount", message: "付款金额必须大于 0" });
+      }
+    }
+
+    if (!payload.paidAt || typeof payload.paidAt !== "string" || !payload.paidAt.trim()) {
+      fieldErrors.push({ field: "paidAt", message: "付款时间必填" });
+    }
+  }
+
   if (fieldErrors.length > 0) {
     return { ok: false, fieldErrors };
   }

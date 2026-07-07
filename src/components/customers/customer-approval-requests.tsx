@@ -4,9 +4,13 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
-import { Input, Label, Field, Select } from "@/components/ui/form";
+import { Input, Textarea, Label, Field, Select } from "@/components/ui/form";
 import type { ApprovalRequestType } from "../../../drizzle/schema/approvals";
 import { CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES } from "@/lib/approvals/errors";
+import {
+  buildPaidCustomerApprovalPayload,
+  validatePaidCustomerFormClient,
+} from "@/lib/approvals/paid-customer-payload";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { ui } from "@/lib/ui/classes";
@@ -24,12 +28,10 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
   const [requestType, setRequestType] = useState<ApprovalRequestType>("delete_customer");
   const [reason, setReason] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
-  const [dealAmount, setDealAmount] = useState("");
-  const [signingDate, setSigningDate] = useState("");
-  const [dealNotes, setDealNotes] = useState("");
-  const [opportunityDescription, setOpportunityDescription] = useState("");
-  const [estimatedAmount, setEstimatedAmount] = useState("");
-  const [nextAction, setNextAction] = useState("");
+  const [serviceItems, setServiceItems] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+  const [paidAt, setPaidAt] = useState("");
+  const [remarks, setRemarks] = useState("");
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -46,20 +48,6 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
     setSubmitting(true);
     setError(null);
 
-    const payload: Record<string, unknown> = {};
-    if (requestType === "closed_won") {
-      payload.dealAmount = dealAmount;
-      payload.signingDate = signingDate;
-      if (dealNotes.trim()) payload.dealNotes = dealNotes.trim();
-    }
-    if (requestType === "second_conversion") {
-      if (opportunityDescription.trim()) {
-        payload.opportunityDescription = opportunityDescription.trim();
-      }
-      if (estimatedAmount.trim()) payload.estimatedAmount = estimatedAmount.trim();
-      if (nextAction.trim()) payload.nextAction = nextAction.trim();
-    }
-
     const body: Record<string, unknown> = {
       requestType,
       reason: reason.trim(),
@@ -68,8 +56,25 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
     if (requestType === "transfer_customer") {
       body.targetUserId = targetUserId;
     }
-    if (requestType === "closed_won" || requestType === "second_conversion") {
-      body.payload = payload;
+
+    if (requestType === "paid_customer") {
+      const validation = validatePaidCustomerFormClient({
+        serviceItems,
+        paidAmount,
+        paidAt,
+        remarks,
+      });
+      if (!validation.ok) {
+        setError(validation.errors.map((e) => e.message).join(" · "));
+        setSubmitting(false);
+        return;
+      }
+      body.payload = buildPaidCustomerApprovalPayload({
+        serviceItems,
+        paidAmount,
+        paidAt,
+        remarks,
+      });
     }
 
     try {
@@ -168,60 +173,48 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
             </Field>
           )}
 
-          {requestType === "closed_won" && (
+          {requestType === "paid_customer" && (
             <>
               <Field>
-                <Label htmlFor="deal-amount">{t("customers.dealAmount")}</Label>
+                <Label htmlFor="paid-service-items">
+                  {t("customers.paidServiceItems")} <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  id="deal-amount"
-                  value={dealAmount}
-                  onChange={(e) => setDealAmount(e.target.value)}
+                  id="paid-service-items"
+                  value={serviceItems}
+                  onChange={(e) => setServiceItems(e.target.value)}
+                  placeholder={t("customers.paidServiceItemsPlaceholder")}
                 />
               </Field>
               <Field>
-                <Label htmlFor="signing-date">{t("customers.signingDate")}</Label>
+                <Label htmlFor="paid-amount">
+                  {t("customers.paidAmount")} <span className="text-red-500">*</span>
+                </Label>
                 <Input
-                  id="signing-date"
+                  id="paid-amount"
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <Label htmlFor="paid-at">
+                  {t("customers.paidAt")} <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="paid-at"
                   type="date"
-                  value={signingDate}
-                  onChange={(e) => setSigningDate(e.target.value)}
+                  value={paidAt}
+                  onChange={(e) => setPaidAt(e.target.value)}
                 />
               </Field>
               <Field>
-                <Label htmlFor="deal-notes">{t("customers.dealNotes")}</Label>
-                <Input
-                  id="deal-notes"
-                  value={dealNotes}
-                  onChange={(e) => setDealNotes(e.target.value)}
-                />
-              </Field>
-            </>
-          )}
-
-          {requestType === "second_conversion" && (
-            <>
-              <Field>
-                <Label htmlFor="opportunity-desc">{t("customers.opportunityDescription")}</Label>
-                <Input
-                  id="opportunity-desc"
-                  value={opportunityDescription}
-                  onChange={(e) => setOpportunityDescription(e.target.value)}
-                />
-              </Field>
-              <Field>
-                <Label htmlFor="estimated-amount">{t("customers.estimatedAmount")}</Label>
-                <Input
-                  id="estimated-amount"
-                  value={estimatedAmount}
-                  onChange={(e) => setEstimatedAmount(e.target.value)}
-                />
-              </Field>
-              <Field>
-                <Label htmlFor="next-action">{t("customers.nextAction")}</Label>
-                <Input
-                  id="next-action"
-                  value={nextAction}
-                  onChange={(e) => setNextAction(e.target.value)}
+                <Label htmlFor="paid-remarks">{t("customers.paidRemarks")}</Label>
+                <Textarea
+                  id="paid-remarks"
+                  value={remarks}
+                  onChange={(e) => setRemarks(e.target.value)}
+                  placeholder={t("customers.paidRemarksPlaceholder")}
+                  rows={3}
                 />
               </Field>
             </>

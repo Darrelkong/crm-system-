@@ -15,6 +15,5 @@ export function isDisabledMergeCustomersRequestType(
 export const CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES = [
   "delete_customer",
   "transfer_customer",
-  "closed_won",
-  "second_conversion",
+  "paid_customer",
 ] as const satisfies readonly ApprovalRequestType[];

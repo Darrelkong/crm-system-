@@ -5,11 +5,9 @@ import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import {
-  CREATABLE_SALES_STAGES,
+  buildEditSalesStageOptions,
   CUSTOMER_TYPES,
   isDirectCreateBlockedSalesStage,
-  LEGACY_SALES_STAGES,
-  SALES_STAGES,
 } from "@/lib/constants/customer-fields";
 import type { CustomerType } from "@/lib/constants/customer-fields";
 import type { CustomerTagOption } from "@/lib/customer-tags/types";
@@ -80,17 +78,10 @@ export function EditCustomerForm({
   const showStatusDropdown = canEditStatus && !isPublicPool;
   const lockSensitiveFields = isStaff;
 
-  const salesStageOptions: string[] = isStaff
-    ? [...CREATABLE_SALES_STAGES]
-    : [...SALES_STAGES];
-  if (
-    initial.salesStage &&
-    !salesStageOptions.includes(initial.salesStage) &&
-    ((LEGACY_SALES_STAGES as readonly string[]).includes(initial.salesStage) ||
-      isDirectCreateBlockedSalesStage(initial.salesStage))
-  ) {
-    salesStageOptions.push(initial.salesStage);
-  }
+  const salesStageOptions = buildEditSalesStageOptions({
+    isStaff,
+    currentSalesStage: initial.salesStage,
+  });
 
   const [form, setForm] = useState({
     customerName: initial.customerName,

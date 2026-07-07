@@ -17,4 +17,11 @@ describe("merge_customers disabled helpers", () => {
     assert.equal(types.includes("delete_customer"), true);
     assert.equal(types.includes("transfer_customer"), true);
   });
+
+  it("includes paid_customer and hides closed_won / second_conversion", () => {
+    const types = CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES as readonly string[];
+    assert.equal(types.includes("paid_customer"), true);
+    assert.equal(types.includes("closed_won"), false);
+    assert.equal(types.includes("second_conversion"), false);
+  });
 });

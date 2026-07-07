@@ -403,6 +403,41 @@ async function executeApprovedAction(
       break;
     }
 
+    case "paid_customer": {
+      await db
+        .update(schema.customers)
+        .set({
+          salesStage: "paid",
+          updatedBy: reviewer.id,
+          updatedAt: now,
+        })
+        .where(eq(schema.customers.id, customer.id));
+
+      await writeFieldChangeLogEntry(
+        customer.id,
+        "sales_stage",
+        customer.salesStage,
+        "paid",
+        reviewer.id,
+      );
+
+      await writeAuditLog(
+        {
+          userId: reviewer.id,
+          action: APPROVAL_AUDIT_ACTIONS.customerPaidApproved,
+          entityType: "customer",
+          entityId: customer.id,
+          metadata: {
+            approvalId: approval.id,
+            customerName: customer.customerName,
+            payload: approval.payload,
+          },
+        },
+        db,
+      );
+      break;
+    }
+
     case "update_customer_assignees": {
       try {
         await executeApprovedAssigneeUpdate(

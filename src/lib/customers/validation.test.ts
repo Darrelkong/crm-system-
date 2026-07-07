@@ -151,6 +151,75 @@ describe("validateCustomerInput sales stage", () => {
     );
     assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
   });
+
+  it("blocks staff create with paid", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "paid" },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: sourceKeys,
+        userRole: "staff",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("blocks admin create with paid", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "paid" },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: sourceKeys,
+        userRole: "admin",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("blocks staff update transitioning to paid", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "paid" },
+      {
+        isUpdate: true,
+        existingNotes: BASE_INPUT.notes,
+        existingSalesStage: "negotiation",
+        allowedSourceKeys: sourceKeys,
+        userRole: "staff",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("blocks admin update transitioning to paid", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "paid" },
+      {
+        isUpdate: true,
+        existingNotes: BASE_INPUT.notes,
+        existingSalesStage: "negotiation",
+        allowedSourceKeys: sourceKeys,
+        userRole: "admin",
+      },
+    );
+    assert.ok(errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"));
+  });
+
+  it("allows update when paid is unchanged", () => {
+    const errors = validateCustomerInput(
+      { ...BASE_INPUT, salesStage: "paid" },
+      {
+        isUpdate: true,
+        existingNotes: BASE_INPUT.notes,
+        existingSalesStage: "paid",
+        allowedSourceKeys: sourceKeys,
+        userRole: "admin",
+      },
+    );
+    assert.equal(
+      errors.some((e) => e.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED"),
+      false,
+    );
+  });
 });
 
 describe("validateCustomerInput customer tags", () => {

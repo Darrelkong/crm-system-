@@ -8,6 +8,7 @@ export const APPROVAL_REQUEST_TYPE_LABELS: Record<ApprovalRequestType, string> =
   second_conversion: "二次转化",
   create_on_hold_customer: "申请新增搁置客户",
   update_customer_assignees: "调整负责员工",
+  paid_customer: "申请已付款",
 };
 
 export const APPROVAL_STATUS_LABELS = {
@@ -30,6 +31,7 @@ export const APPROVAL_AUDIT_ACTIONS = {
   customerOnHoldCreateApproved: "customer.on_hold_create.approved",
   customerOnHoldCreateRejected: "customer.on_hold_create.rejected",
   customerAssigneesUpdatedViaApproval: "customer.assignees.updated_via_approval",
+  customerPaidApproved: "customer.paid.approved",
 } as const;
 
 export const APPROVAL_NOTIFICATION_TITLES = {

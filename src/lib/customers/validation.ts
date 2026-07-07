@@ -4,6 +4,7 @@ import {
 } from "@/lib/constants/customer-sources";
 import {
   isCustomerType,
+  isApprovalOnlySalesStage,
   isDirectCreateBlockedSalesStage,
   isSalesStage,
 } from "@/lib/constants/customer-fields";
@@ -69,14 +70,39 @@ export type CustomerValidationContext = {
 };
 
 const DIRECT_TERMINAL_SALES_STAGE_MESSAGE =
-  "不能直接设置为已成交或已流失，请使用审批流程";
+  "不能直接设置为已成交、已流失或已付款，请使用审批流程";
 
 function validateDirectTerminalSalesStage(
   salesStage: string | undefined,
   context?: CustomerValidationContext,
 ): ValidationFieldError | null {
   const stage = salesStage?.trim();
-  if (!stage || !isDirectCreateBlockedSalesStage(stage)) {
+  if (!stage) {
+    return null;
+  }
+
+  if (isApprovalOnlySalesStage(stage)) {
+    if (!context?.isUpdate) {
+      return {
+        field: "salesStage",
+        message: DIRECT_TERMINAL_SALES_STAGE_MESSAGE,
+        code: "SALES_STAGE_DIRECT_TERMINAL_BLOCKED",
+      };
+    }
+
+    const existing = context.existingSalesStage?.trim() ?? "";
+    if (stage === existing) {
+      return null;
+    }
+
+    return {
+      field: "salesStage",
+      message: DIRECT_TERMINAL_SALES_STAGE_MESSAGE,
+      code: "SALES_STAGE_DIRECT_TERMINAL_BLOCKED",
+    };
+  }
+
+  if (!isDirectCreateBlockedSalesStage(stage)) {
     return null;
   }
 
