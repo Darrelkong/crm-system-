@@ -29,6 +29,7 @@ const AUDIT_ACTION_MESSAGE_KEYS: Record<string, string> = {
   "customer.transferred.staff_deleted": "customerTransferredStaffDeleted",
   "customer.closed_won.approved": "customerClosedWonApproved",
   "customer.paid.approved": "customerPaidApproved",
+  "customer.lifecycle.completed": "customerLifecycleCompleted",
   "customer.on_hold_create.approved": "customerOnHoldCreateApproved",
   "customer.on_hold_create.rejected": "customerOnHoldCreateRejected",
   "customer.deleted.soft": "customerSoftDeleted",

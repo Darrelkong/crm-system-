@@ -520,6 +520,14 @@ const en = {
     paidApprovalEditNotice:
       "Paid status requires approval and will only apply after admin approval.",
     paidApprovalEditDefaultReason: "Paid status requested from customer edit",
+    lifecycleCompleteButton: "Update client status",
+    lifecycleCompleteTitle: "Update client status",
+    lifecycleCompleteCurrentLabel: "Current status",
+    lifecycleCompleteTargetLabel: "Update to",
+    lifecycleCompleteTargetValue: "Completed client",
+    lifecycleCompleteNotes: "Completion notes",
+    lifecycleCompleteNotesPlaceholder: "Optional completion notes",
+    lifecycleCompleteConfirm: "Confirm update",
     opportunityDescription: "Opportunity Description",
     estimatedAmount: "Estimated Amount",
     nextAction: "Next Action",
@@ -1756,6 +1764,7 @@ const en = {
       "Previous owner: {{previousOwnerName}} → New owner: {{newOwnerName}}",
     customerClosedWonApproved: "Close-won approved",
     customerPaidApproved: "Paid customer approval approved",
+    customerLifecycleCompleted: "Customer marked as completed",
     customerOnHoldCreateApproved: "On-hold request approved",
     onHoldCreateApproved:
       "Requested by: {{requestedByName}} · On-hold reason: {{onHoldReason}}",

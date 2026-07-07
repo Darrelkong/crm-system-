@@ -47,4 +47,15 @@ describe("CUSTOMER_TIMELINE_AUDIT_ACTIONS (CUSTOMER-FLOW-SAFETY-1)", () => {
       "客户已付款审批通过",
     );
   });
+
+  it("includes customer.lifecycle.completed for lifecycle complete timeline display", () => {
+    assert.equal(
+      CUSTOMER_TIMELINE_AUDIT_ACTIONS.has("customer.lifecycle.completed"),
+      true,
+    );
+    assert.equal(
+      AUDIT_ACTION_LABELS["customer.lifecycle.completed"],
+      "客户已标记为已完结",
+    );
+  });
 });

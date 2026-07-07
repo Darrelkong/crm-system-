@@ -52,6 +52,13 @@ export const customers = sqliteTable(
     pinnedAt: text("pinned_at"),
     /** Set when collaborative ownership is dissolved (future C-4/C-5). Nullable until then. */
     collaborativeDissolvedAt: text("collaborative_dissolved_at"),
+    /** Post-paid lifecycle: null or "completed" (CUSTOMER-FLOW-3A). */
+    lifecycleStatus: text("lifecycle_status"),
+    lifecycleCompletedAt: text("lifecycle_completed_at"),
+    lifecycleCompletedBy: text("lifecycle_completed_by").references(
+      () => users.id,
+    ),
+    lifecycleCompletionNotes: text("lifecycle_completion_notes"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

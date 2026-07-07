@@ -87,6 +87,13 @@ export default async function CustomerDetailPage({ params }: Props) {
     user,
     customer,
   );
+  const showLifecycleCompleteButton =
+    user.role === "admin" &&
+    customer.salesStage === "paid" &&
+    customer.lifecycleStatus !== "completed" &&
+    customer.status !== "archived" &&
+    customer.status !== "public_pool" &&
+    !customer.deletedAt;
 
   let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
   try {
@@ -153,6 +160,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       showReleaseButton={showReleaseButton}
       showFollowUpButton={showFollowUpButton}
       showApprovalButton={showApprovalButton}
+      showLifecycleCompleteButton={showLifecycleCompleteButton}
       showManageAssigneesButton={showManageAssigneesButton}
       showRequestAssigneesButton={showRequestAssigneesButton}
     />

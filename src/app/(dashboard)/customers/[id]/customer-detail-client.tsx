@@ -14,6 +14,7 @@ import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-butt
 import { ManageAssigneesButton } from "@/components/customers/manage-assignees-modal";
 import { RequestAssigneesButton } from "@/components/customers/request-assignees-modal";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
+import { CustomerLifecycleCompleteModal } from "@/components/customers/customer-lifecycle-complete-modal";
 import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
 import { CustomerTimelineView } from "@/components/customers/customer-timeline-view";
 import { CustomerAiInsightPanel } from "@/components/customers/customer-ai-insight-panel";
@@ -84,6 +85,7 @@ type Props = {
   showReleaseButton: boolean;
   showFollowUpButton: boolean;
   showApprovalButton: boolean;
+  showLifecycleCompleteButton: boolean;
   showManageAssigneesButton: boolean;
   showRequestAssigneesButton: boolean;
 };
@@ -181,6 +183,7 @@ export function CustomerDetailClient({
   showReleaseButton,
   showFollowUpButton,
   showApprovalButton,
+  showLifecycleCompleteButton,
   showManageAssigneesButton,
   showRequestAssigneesButton,
 }: Props) {
@@ -230,6 +233,9 @@ export function CustomerDetailClient({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {showLifecycleCompleteButton && (
+            <CustomerLifecycleCompleteModal customerId={id} />
+          )}
           {showApprovalButton && <CustomerApprovalRequests customerId={id} />}
           {showReleaseButton && <ReleaseToPoolButton customerId={id} />}
           {showFollowUpButton && (
