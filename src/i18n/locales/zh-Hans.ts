@@ -887,6 +887,7 @@ const zhHans: Messages = {
     approval_rejected: "申请已拒绝",
     customer_transferred: "客户已转移",
     customer_closed_won_approved: "成交申请已通过",
+    customer_pending_second_conversion: "待二次转化",
     backup_failed: "系统备份失败",
   },
   notificationMessages: {
@@ -898,6 +899,8 @@ const zhHans: Messages = {
     customerTransferredAway: "客户「{{customerName}}」已转移给其他同事。",
     customerTransferredToYou: "客户「{{customerName}}」已转移给你。",
     closedWonApproved: "客户「{{customerName}}」成交申请已通过。",
+    pendingSecondConversion:
+      "客户「{{customerName}}」已完成当前流程，建议安排后续二次转化跟进。",
     autoReclaimWarning:
       "客户「{{customerName}}」已多日未有效跟进，请尽快安排跟进，否则将被自动回收到公共池。",
     autoReclaimWarningDay6:

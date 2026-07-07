@@ -7,6 +7,7 @@ import {
   completeCustomerLifecycle,
 } from "@/lib/customers/lifecycle-complete";
 import { getDb } from "@/lib/db";
+import { safelyNotifyPendingSecondConversionAfterLifecycleComplete } from "@/lib/notifications/pending-second-conversion";
 import { requireAdmin, authErrorResponse } from "@/lib/permissions/auth";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -38,6 +39,12 @@ export async function POST(request: Request, context: RouteContext) {
       ipAddress,
       userAgent,
     });
+
+    await safelyNotifyPendingSecondConversionAfterLifecycleComplete(
+      db,
+      customer,
+      result,
+    );
 
     return Response.json({ ok: true, ...result });
   } catch (error) {

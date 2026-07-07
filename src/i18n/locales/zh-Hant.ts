@@ -888,6 +888,7 @@ const zhHant: Messages = {
     approval_rejected: "申請已拒絕",
     customer_transferred: "客戶已轉移",
     customer_closed_won_approved: "成交申請已通過",
+    customer_pending_second_conversion: "待二次轉化",
     backup_failed: "系統備份失敗",
   },
   notificationMessages: {
@@ -899,6 +900,8 @@ const zhHant: Messages = {
     customerTransferredAway: "客戶「{{customerName}}」已轉移給其他同事。",
     customerTransferredToYou: "客戶「{{customerName}}」已轉移給你。",
     closedWonApproved: "客戶「{{customerName}}」成交申請已通過。",
+    pendingSecondConversion:
+      "客戶「{{customerName}}」已完成目前流程，建議安排後續二次轉化跟進。",
     autoReclaimWarning:
       "客戶「{{customerName}}」已多日未有效跟進，請盡快安排跟進，否則將被自動回收到公共池。",
     autoReclaimWarningDay6:

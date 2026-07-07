@@ -917,6 +917,7 @@ const en = {
     approval_rejected: "Request Rejected",
     customer_transferred: "Client Transferred",
     customer_closed_won_approved: "Close-Won Approved",
+    customer_pending_second_conversion: "Pending second conversion",
     backup_failed: "Backup Failed",
   },
   notificationMessages: {
@@ -934,6 +935,8 @@ const en = {
       "Client \"{{customerName}}\" has been transferred to you.",
     closedWonApproved:
       "Close-won request for \"{{customerName}}\" has been approved.",
+    pendingSecondConversion:
+      "Customer \"{{customerName}}\" has completed the current flow. Consider scheduling a follow-up for second conversion.",
     autoReclaimWarning:
       "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
     autoReclaimWarningDay6:

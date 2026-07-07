@@ -10,6 +10,7 @@ export const NOTIFICATION_TYPES = [
   "approval.rejected",
   "customer.transferred",
   "customer.closed_won.approved",
+  "customer.pending_second_conversion",
   "backup_failed",
 ] as const;
 
