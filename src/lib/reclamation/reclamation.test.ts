@@ -128,6 +128,10 @@ describe("auto-reclamation sales stage exclusions (E-4 Safe-1)", () => {
     assert.equal(isReclamationExcludedSalesStage("on_hold"), true);
   });
 
+  it("excludes paid (CUSTOMER-FLOW-SAFETY-1 approved paid customers)", () => {
+    assert.equal(isReclamationExcludedSalesStage("paid"), true);
+  });
+
   it("does not exclude closed_lost", () => {
     assert.equal(isReclamationExcludedSalesStage("closed_lost"), false);
   });
@@ -298,6 +302,20 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     const customer = buildCustomer(
       {
         salesStage: "closed_won",
+        lastValidFollowUpAt: daysAgoIso(10, now),
+      },
+      now,
+    );
+    assert.equal(
+      classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
+      "none",
+    );
+  });
+
+  it("does not reclaim paid customers", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "paid",
         lastValidFollowUpAt: daysAgoIso(10, now),
       },
       now,

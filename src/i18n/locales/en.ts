@@ -1755,6 +1755,7 @@ const en = {
     staffDeletedTransfer:
       "Previous owner: {{previousOwnerName}} → New owner: {{newOwnerName}}",
     customerClosedWonApproved: "Close-won approved",
+    customerPaidApproved: "Paid customer approval approved",
     customerOnHoldCreateApproved: "On-hold request approved",
     onHoldCreateApproved:
       "Requested by: {{requestedByName}} · On-hold reason: {{onHoldReason}}",

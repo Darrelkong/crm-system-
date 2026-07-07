@@ -1690,6 +1690,7 @@ const zhHans: Messages = {
     staffDeletedTransfer:
       "原负责人：{{previousOwnerName}} → 新负责人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申请已通过",
+    customerPaidApproved: "客户已付款审批通过",
     customerOnHoldCreateApproved: "管理员批准搁置申请",
     onHoldCreateApproved:
       "申请人：{{requestedByName}} · 搁置理由：{{onHoldReason}}",

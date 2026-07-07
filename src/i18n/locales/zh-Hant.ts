@@ -1691,6 +1691,7 @@ const zhHant: Messages = {
     staffDeletedTransfer:
       "原負責人：{{previousOwnerName}} → 新負責人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申請已通過",
+    customerPaidApproved: "客戶已付款審批通過",
     customerOnHoldCreateApproved: "管理員批准擱置申請",
     onHoldCreateApproved:
       "申請人：{{requestedByName}} · 擱置理由：{{onHoldReason}}",

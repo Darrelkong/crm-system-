@@ -447,11 +447,20 @@ describe("staff myReclaimRiskCustomers — reclaim risk boundary", () => {
     assert.equal(isReclaimRisk(c), false);
   });
 
+  it("paid customer is NOT reclaim risk (excluded stage)", () => {
+    const c = makeCustomer({
+      salesStage: "paid",
+      lastValidFollowUpAt: daysAgoIso(5),
+    });
+    assert.equal(isReclaimRisk(c), false);
+  });
+
   it("RECLAMATION_EXCLUDED_SALES_STAGES list matches the conditions above", () => {
     const excluded = new Set([...RECLAMATION_EXCLUDED_SALES_STAGES]);
     assert.ok(excluded.has("closed_won"));
     assert.ok(excluded.has("converted"));
     assert.ok(excluded.has("on_hold"));
+    assert.ok(excluded.has("paid"));
   });
 
   it("isPinned = 1 customer is NOT reclaim risk", () => {

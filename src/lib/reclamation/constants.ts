@@ -5,6 +5,8 @@ export const RECLAMATION_EXCLUDED_SALES_STAGES = [
   "converted",
   /** Admin-approved on-hold customers stay with the owner (D-1b). */
   "on_hold",
+  /** Admin-approved paid customers stay with the owner (CUSTOMER-FLOW-SAFETY-1). */
+  "paid",
 ] as const;
 
 export type ReclamationExcludedSalesStage =
