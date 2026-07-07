@@ -37,7 +37,7 @@ describe("safelyNotifyPendingSecondConversionAfterLifecycleComplete", () => {
         notify: async (_db, input) => {
           called = true;
           receivedCustomerId = input.id;
-          return "notification-id";
+          return ["notification-id"];
         },
       },
     );

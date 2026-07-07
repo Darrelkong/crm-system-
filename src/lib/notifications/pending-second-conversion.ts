@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { NotificationType } from "../../../drizzle/schema/notifications";
+import { listCustomerAssignees } from "@/lib/customers/assignees";
 import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-stage-badges";
 import type { CompleteCustomerLifecycleResult } from "@/lib/customers/lifecycle-complete";
 import type { Database } from "@/lib/db";
@@ -44,10 +45,55 @@ export async function hasPendingSecondConversionNotification(
   return rows.length > 0;
 }
 
+export async function resolvePendingSecondConversionRecipients(
+  db: Database,
+  customerId: string,
+  ownerId?: string | null,
+): Promise<string[]> {
+  const assignees = await listCustomerAssignees(db, customerId);
+  const candidateUserIds = new Set<string>();
+
+  const trimmedOwnerId = ownerId?.trim();
+  if (trimmedOwnerId) {
+    candidateUserIds.add(trimmedOwnerId);
+  }
+
+  for (const assignee of assignees) {
+    candidateUserIds.add(assignee.userId);
+  }
+
+  if (candidateUserIds.size === 0) {
+    return [];
+  }
+
+  const users = await db
+    .select({
+      id: schema.users.id,
+      role: schema.users.role,
+      isActive: schema.users.isActive,
+      deletedAt: schema.users.deletedAt,
+    })
+    .from(schema.users)
+    .where(inArray(schema.users.id, [...candidateUserIds]));
+
+  const eligibleRecipients = new Set<string>();
+  for (const user of users) {
+    if (
+      user.role === "staff" &&
+      user.isActive === 1 &&
+      user.deletedAt == null
+    ) {
+      eligibleRecipients.add(user.id);
+    }
+  }
+
+  return [...eligibleRecipients];
+}
+
 export async function notifyPendingSecondConversionIfEligible(
   db: Database,
   input: NotifyPendingSecondConversionInput,
-): Promise<string | null> {
+): Promise<string[]> {
   if (
     !shouldShowPendingSecondConversionBadge({
       lifecycleStatus: input.lifecycleStatus,
@@ -56,27 +102,40 @@ export async function notifyPendingSecondConversionIfEligible(
       deletedAt: input.deletedAt,
     })
   ) {
-    return null;
+    return [];
   }
 
-  const ownerId = input.ownerId?.trim();
-  if (!ownerId) {
-    return null;
+  const recipients = await resolvePendingSecondConversionRecipients(
+    db,
+    input.id,
+    input.ownerId,
+  );
+
+  if (recipients.length === 0) {
+    return [];
   }
 
-  if (await hasPendingSecondConversionNotification(db, ownerId, input.id)) {
-    return null;
+  const createdNotificationIds: string[] = [];
+
+  for (const userId of recipients) {
+    if (await hasPendingSecondConversionNotification(db, userId, input.id)) {
+      continue;
+    }
+
+    const notificationId = await createNotification(db, {
+      userId,
+      type: PENDING_SECOND_CONVERSION_NOTIFICATION_TYPE,
+      titleKey: "notificationTypes.customer_pending_second_conversion",
+      messageKey: "notificationMessages.pendingSecondConversion",
+      messageParams: { customerName: input.customerName },
+      relatedEntityType: "customer",
+      relatedEntityId: input.id,
+    });
+
+    createdNotificationIds.push(notificationId);
   }
 
-  return createNotification(db, {
-    userId: ownerId,
-    type: PENDING_SECOND_CONVERSION_NOTIFICATION_TYPE,
-    titleKey: "notificationTypes.customer_pending_second_conversion",
-    messageKey: "notificationMessages.pendingSecondConversion",
-    messageParams: { customerName: input.customerName },
-    relatedEntityType: "customer",
-    relatedEntityId: input.id,
-  });
+  return createdNotificationIds;
 }
 
 function toNotifyInput(
