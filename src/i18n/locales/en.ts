@@ -516,6 +516,10 @@ const en = {
     paidAt: "Payment Date",
     paidRemarks: "Remarks",
     paidRemarksPlaceholder: "Optional payment context or service notes",
+    paidApprovalEditTitle: "Mark as Paid Request",
+    paidApprovalEditNotice:
+      "Paid status requires approval and will only apply after admin approval.",
+    paidApprovalEditDefaultReason: "Paid status requested from customer edit",
     opportunityDescription: "Opportunity Description",
     estimatedAmount: "Estimated Amount",
     nextAction: "Next Action",

@@ -4,8 +4,9 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import {
-  buildEditSalesStageOptions,
+  buildEditFormSalesStageOptions,
   CUSTOMER_TYPES,
   isDirectCreateBlockedSalesStage,
 } from "@/lib/constants/customer-fields";
@@ -13,8 +14,14 @@ import type { CustomerType } from "@/lib/constants/customer-fields";
 import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
+import {
+  buildPaidCustomerApprovalRequestBody,
+  requiresPaidCustomerApprovalOnEdit,
+  validatePaidCustomerFormClient,
+} from "@/lib/approvals/paid-customer-payload";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
+import { ui } from "@/lib/ui/classes";
 
 type DuplicateMatch = {
   field: string;
@@ -73,12 +80,19 @@ export function EditCustomerForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+  const [paidModalOpen, setPaidModalOpen] = useState(false);
+  const [paidServiceItems, setPaidServiceItems] = useState("");
+  const [paidAmount, setPaidAmount] = useState("");
+  const [paidAt, setPaidAt] = useState("");
+  const [paidRemarks, setPaidRemarks] = useState("");
+  const [paidModalError, setPaidModalError] = useState<string | null>(null);
+  const [paidSubmitting, setPaidSubmitting] = useState(false);
 
   const isPublicPool = initial.status === "public_pool";
   const showStatusDropdown = canEditStatus && !isPublicPool;
   const lockSensitiveFields = isStaff;
 
-  const salesStageOptions = buildEditSalesStageOptions({
+  const salesStageOptions = buildEditFormSalesStageOptions({
     isStaff,
     currentSalesStage: initial.salesStage,
   });
@@ -113,6 +127,72 @@ export function EditCustomerForm({
     setDuplicates(null);
   }
 
+  function closePaidApprovalModal() {
+    setPaidModalOpen(false);
+    setPaidModalError(null);
+    setPaidServiceItems("");
+    setPaidAmount("");
+    setPaidAt("");
+    setPaidRemarks("");
+    setForm((prev) => ({ ...prev, salesStage: initial.salesStage }));
+  }
+
+  async function handlePaidApprovalSubmit() {
+    setPaidSubmitting(true);
+    setPaidModalError(null);
+
+    const validation = validatePaidCustomerFormClient({
+      serviceItems: paidServiceItems,
+      paidAmount,
+      paidAt,
+      remarks: paidRemarks,
+    });
+    if (!validation.ok) {
+      setPaidModalError(validation.errors.map((e) => e.message).join(" · "));
+      setPaidSubmitting(false);
+      return;
+    }
+
+    const body = buildPaidCustomerApprovalRequestBody({
+      reason: t("customers.paidApprovalEditDefaultReason"),
+      serviceItems: paidServiceItems,
+      paidAmount,
+      paidAt,
+      remarks: paidRemarks,
+    });
+
+    try {
+      const res = await fetch(`/api/customers/${initial.id}/approval-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        errorCode?: string;
+        fieldErrors?: ValidationFieldError[];
+      };
+
+      if (res.ok) {
+        setPaidModalOpen(false);
+        setForm((prev) => ({ ...prev, salesStage: initial.salesStage }));
+        router.push(`/customers/${initial.id}`);
+        return;
+      }
+
+      if (data.fieldErrors?.length) {
+        setPaidModalError(data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "));
+        return;
+      }
+
+      setPaidModalError(resolveApiError(t, data));
+    } catch {
+      setPaidModalError(t("common.networkError"));
+    } finally {
+      setPaidSubmitting(false);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
@@ -120,10 +200,18 @@ export function EditCustomerForm({
     setServerError(null);
     setDuplicates(null);
 
+    if (requiresPaidCustomerApprovalOnEdit(form.salesStage, initial.salesStage)) {
+      setPaidModalOpen(true);
+      setSubmitting(false);
+      return;
+    }
+
     const validationErrors = validateCustomerInput(form, {
       isUpdate: true,
       existingNotes: initial.notes,
+      existingSalesStage: initial.salesStage,
       allowedSourceKeys: tags.map((tag) => tag.tagKey),
+      userRole: isStaff ? "staff" : "admin",
     });
     if (validationErrors.length > 0) {
       const errs: Record<string, string> = {};
@@ -469,6 +557,83 @@ export function EditCustomerForm({
           {t("common.cancel")}
         </Button>
       </div>
+
+      {paidModalOpen && (
+        <ModalOverlay onClose={closePaidApprovalModal}>
+          <ModalPanel>
+            <h3 className={ui.customerDetail.subsectionTitle}>
+              {t("customers.paidApprovalEditTitle")}
+            </h3>
+            <p className="mt-2 text-sm text-[#6B7890]">
+              {t("customers.paidApprovalEditNotice")}
+            </p>
+
+            {paidModalError && (
+              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+                {paidModalError}
+              </p>
+            )}
+
+            <div className="mt-4 space-y-4">
+              <Field>
+                <Label htmlFor="edit-paid-service-items">
+                  {t("customers.paidServiceItems")} <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-paid-service-items"
+                  value={paidServiceItems}
+                  onChange={(e) => setPaidServiceItems(e.target.value)}
+                  placeholder={t("customers.paidServiceItemsPlaceholder")}
+                />
+              </Field>
+              <Field>
+                <Label htmlFor="edit-paid-amount">
+                  {t("customers.paidAmount")} <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-paid-amount"
+                  value={paidAmount}
+                  onChange={(e) => setPaidAmount(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <Label htmlFor="edit-paid-at">
+                  {t("customers.paidAt")} <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  id="edit-paid-at"
+                  type="date"
+                  value={paidAt}
+                  onChange={(e) => setPaidAt(e.target.value)}
+                />
+              </Field>
+              <Field>
+                <Label htmlFor="edit-paid-remarks">{t("customers.paidRemarks")}</Label>
+                <Textarea
+                  id="edit-paid-remarks"
+                  value={paidRemarks}
+                  onChange={(e) => setPaidRemarks(e.target.value)}
+                  placeholder={t("customers.paidRemarksPlaceholder")}
+                  rows={3}
+                />
+              </Field>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button type="button" variant="secondary" onClick={closePaidApprovalModal}>
+                {t("common.cancel")}
+              </Button>
+              <Button
+                type="button"
+                disabled={paidSubmitting}
+                onClick={() => void handlePaidApprovalSubmit()}
+              >
+                {paidSubmitting ? t("customers.submitting") : t("customers.submitRequest")}
+              </Button>
+            </div>
+          </ModalPanel>
+        </ModalOverlay>
+      )}
     </form>
   );
 }

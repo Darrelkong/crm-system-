@@ -49,6 +49,18 @@ export function isApprovalOnlySalesStage(stage: string): boolean {
   return (APPROVAL_ONLY_SALES_STAGES as readonly string[]).includes(stage);
 }
 
+function insertPaidAfterNegotiation(stages: readonly string[]): string[] {
+  const withoutPaid = stages.filter((stage) => stage !== "paid");
+  const negotiationIndex = withoutPaid.indexOf("negotiation");
+  if (negotiationIndex === -1) {
+    return [...withoutPaid, "paid"];
+  }
+
+  const result = [...withoutPaid];
+  result.splice(negotiationIndex + 1, 0, "paid");
+  return result;
+}
+
 /** Sales stages selectable on ordinary create/edit forms (excludes approval-only stages). */
 export function buildEditSalesStageOptions(options: {
   isStaff: boolean;
@@ -57,6 +69,30 @@ export function buildEditSalesStageOptions(options: {
   const stages: string[] = options.isStaff
     ? [...CREATABLE_SALES_STAGES]
     : SALES_STAGES.filter((stage) => !isApprovalOnlySalesStage(stage));
+
+  const current = options.currentSalesStage?.trim();
+  if (
+    current &&
+    !stages.includes(current) &&
+    ((LEGACY_SALES_STAGES as readonly string[]).includes(current) ||
+      isDirectCreateBlockedSalesStage(current) ||
+      isApprovalOnlySalesStage(current))
+  ) {
+    stages.push(current);
+  }
+
+  return stages;
+}
+
+/** Edit form sales stages: includes paid entry after negotiation (approval required to apply). */
+export function buildEditFormSalesStageOptions(options: {
+  isStaff: boolean;
+  currentSalesStage?: string | null;
+}): string[] {
+  const baseStages = options.isStaff
+    ? [...CREATABLE_SALES_STAGES]
+    : SALES_STAGES.filter((stage) => !isApprovalOnlySalesStage(stage));
+  const stages = insertPaidAfterNegotiation(baseStages);
 
   const current = options.currentSalesStage?.trim();
   if (

@@ -27,6 +27,43 @@ export function buildPaidCustomerApprovalPayload(
   return payload;
 }
 
+export function requiresPaidCustomerApprovalOnEdit(
+  formSalesStage: string,
+  initialSalesStage: string,
+): boolean {
+  return formSalesStage.trim() === "paid" && initialSalesStage.trim() !== "paid";
+}
+
+export function shouldSubmitNormalCustomerUpdate(
+  formSalesStage: string,
+  initialSalesStage: string,
+): boolean {
+  return !requiresPaidCustomerApprovalOnEdit(formSalesStage, initialSalesStage);
+}
+
+export function buildPaidCustomerApprovalRequestBody(input: {
+  reason: string;
+  serviceItems: string;
+  paidAmount: string;
+  paidAt: string;
+  remarks?: string;
+}): {
+  requestType: "paid_customer";
+  reason: string;
+  payload: Record<string, string>;
+} {
+  return {
+    requestType: "paid_customer",
+    reason: input.reason.trim(),
+    payload: buildPaidCustomerApprovalPayload({
+      serviceItems: input.serviceItems,
+      paidAmount: input.paidAmount,
+      paidAt: input.paidAt,
+      remarks: input.remarks,
+    }),
+  };
+}
+
 export function validatePaidCustomerFormClient(
   input: PaidCustomerFormInput,
 ): { ok: true } | { ok: false; errors: PaidCustomerFormFieldError[] } {
