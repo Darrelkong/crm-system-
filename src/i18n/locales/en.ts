@@ -575,6 +575,16 @@ const en = {
       intentLevel: "Intent level",
       intentScore: "Intent score",
       confidence: "Confidence",
+      confidenceAssessmentTitle: "AI confidence assessment",
+      confidenceLevel: {
+        high: "High confidence",
+        medium: "Medium confidence",
+        low: "Low confidence",
+      },
+      confidencePercent: "Confidence {{percent}}%",
+      confidenceReasoningLabel: "Reasoning",
+      confidenceLowHint:
+        "Information may be insufficient. Consider adding customer communication records before refreshing.",
       customerSummary: "Client overview",
       currentSituation: "Current situation",
       keySignals: "Positive signals",

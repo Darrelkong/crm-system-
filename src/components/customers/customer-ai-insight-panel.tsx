@@ -9,6 +9,11 @@ import type {
 } from "@/lib/ai/customer-insights/service";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { CustomerAiInsightFeedback } from "@/components/customers/customer-ai-insight-feedback";
+import {
+  formatConfidencePercent,
+  resolveAiConfidenceLevel,
+  type AiConfidenceLevel,
+} from "@/lib/ai/customer-insights/confidence-display";
 import { ui } from "@/lib/ui/classes";
 
 const cd = ui.customerDetail;
@@ -18,6 +23,12 @@ const INTENT_BADGE_CLASS: Record<string, string> = {
   medium: "bg-amber-50 text-amber-800 ring-amber-200",
   low: cd.badgeNeutral,
   unknown: cd.badgeNeutral,
+};
+
+const CONFIDENCE_LEVEL_BADGE_CLASS: Record<AiConfidenceLevel, string> = {
+  high: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
+  medium: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  low: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
 };
 
 type InsightBundle = {
@@ -257,6 +268,42 @@ export function CustomerAiInsightPanel({
 
       {!loading && !restricted && showInsightContent && (
         <div className="mt-4 space-y-4">
+          {insight.status === "ready" && (() => {
+            const confidenceLevel = resolveAiConfidenceLevel(insight.confidence);
+            return (
+              <div className="customer-detail-callout p-4">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                  <h4 className="customer-detail-callout-title">
+                    {t("customers.aiInsight.confidenceAssessmentTitle")}
+                  </h4>
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${CONFIDENCE_LEVEL_BADGE_CLASS[confidenceLevel]}`}
+                  >
+                    {t(`customers.aiInsight.confidenceLevel.${confidenceLevel}`)}
+                  </span>
+                  <span className={`text-sm ${cd.value}`}>
+                    {t("customers.aiInsight.confidencePercent", {
+                      percent: String(formatConfidencePercent(insight.confidence)),
+                    })}
+                  </span>
+                </div>
+                <div className="mt-3">
+                  <p className={`text-xs font-medium ${cd.label}`}>
+                    {t("customers.aiInsight.confidenceReasoningLabel")}
+                  </p>
+                  <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${cd.value}`}>
+                    {insight.reasoning}
+                  </p>
+                </div>
+                {confidenceLevel === "low" && (
+                  <p className="mt-3 text-sm text-amber-800">
+                    {t("customers.aiInsight.confidenceLowHint")}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           <div className="flex flex-wrap items-center gap-3">
             <div>
               <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.intentLevel")}</p>
@@ -270,10 +317,12 @@ export function CustomerAiInsightPanel({
               <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.intentScore")}</p>
               <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>{insight.intentScore}</p>
             </div>
-            <div>
-              <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.confidence")}</p>
-              <p className={`mt-1 text-sm ${cd.value}`}>{Math.round(insight.confidence * 100)}%</p>
-            </div>
+            {insight.status !== "ready" && (
+              <div>
+                <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.confidence")}</p>
+                <p className={`mt-1 text-sm ${cd.value}`}>{formatConfidencePercent(insight.confidence)}%</p>
+              </div>
+            )}
           </div>
 
           <div>
