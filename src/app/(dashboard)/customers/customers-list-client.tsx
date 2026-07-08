@@ -6,7 +6,6 @@ import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
 import {
-  CompletenessBadge,
   HeatBadge,
 } from "@/components/customers/customer-scores-cards";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
@@ -312,7 +311,9 @@ export function CustomersListClient({
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge>{status(c.status)}</Badge>
-          <CompletenessBadge score={c.completenessScore} />
+          <span className="text-xs font-medium crm-text">
+            {t("customers.completenessPoints", { score: String(c.completenessScore) })}
+          </span>
           {c.neverContacted && <Badge variant="warning">{t("customers.neverContacted")}</Badge>}
           {c.overdueFollowUp && <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>}
         </div>
@@ -468,7 +469,11 @@ export function CustomersListClient({
                       <HeatBadge level={c.heatLevel} />
                     </Td>
                     <Td>
-                      <CompletenessBadge score={c.completenessScore} />
+                      <span className="text-xs font-medium crm-text">
+                        {t("customers.completenessPoints", {
+                          score: String(c.completenessScore),
+                        })}
+                      </span>
                     </Td>
                     <Td>
                       <div className="flex flex-wrap gap-1">
@@ -489,7 +494,9 @@ export function CustomersListClient({
                       ) : c.isMasked ? (
                         <Badge variant="warning">{t("customers.masked")}</Badge>
                       ) : (
-                        <Badge variant="success">{t("customers.fullData")}</Badge>
+                        <span className="text-xs font-medium crm-text">
+                          {t("customers.fullData")}
+                        </span>
                       )}
                     </Td>
                     <Td className="crm-text-secondary">{formatHongKongDate(c.createdAt)}</Td>
