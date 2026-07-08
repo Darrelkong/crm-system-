@@ -787,6 +787,11 @@ html[data-theme="dark"] {
   border-color: var(--color-crm-border-subtle);
 }
 
+tbody.crm-divide-y.divide-y > tr:not(:last-child) {
+  border-bottom-color: var(--color-crm-border-subtle) !important;
+  border-top-color: var(--color-crm-border-subtle) !important;
+}
+
 .crm-surface-muted {
   background: var(--color-crm-bg-muted);
 }
