@@ -9,6 +9,12 @@ import { ui } from "@/lib/ui/classes";
 
 const cd = ui.customerDetail;
 
+const QUICK_RATING_OPTIONS = [
+  { key: "helpful" as const, rating: 5 },
+  { key: "neutral" as const, rating: 3 },
+  { key: "notHelpful" as const, rating: 1 },
+];
+
 const REASON_TAG_KEYS: AiInsightFeedbackReasonTag[] = [
   "inaccurate_intent",
   "next_action_too_generic",
@@ -125,6 +131,16 @@ export function CustomerAiInsightFeedback({ customerId, insight }: Props) {
 
   const hasExistingFeedback = feedback !== null;
   const showLowScoreReasons = rating > 0 && rating <= 3;
+  const showReasonTagsHint = rating > 0 && rating <= 2 && reasonTags.length === 0;
+
+  function selectRating(value: number) {
+    setRating(value);
+    setSavedMessage(null);
+  }
+
+  function quickOptionSelected(optionRating: number): boolean {
+    return rating === optionRating;
+  }
 
   return (
     <div className="mt-6 border-t border-[var(--color-crm-border-subtle)] pt-4">
@@ -136,7 +152,6 @@ export function CustomerAiInsightFeedback({ customerId, insight }: Props) {
           </span>
         )}
       </div>
-      <p className={`mt-1 text-xs ${cd.muted}`}>{t("customers.aiInsightFeedback.prompt")}</p>
       <p className={`mt-1 text-xs ${cd.muted}`}>{t("customers.aiInsightFeedback.adminOnly")}</p>
 
       {loading && (
@@ -150,6 +165,32 @@ export function CustomerAiInsightFeedback({ customerId, insight }: Props) {
       {!loading && !error && (
         <div className="mt-4 space-y-4">
           <div>
+            <p className={`text-sm font-medium ${cd.label}`}>
+              {t("customers.aiInsightFeedback.prompt")}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {QUICK_RATING_OPTIONS.map((option) => {
+                const selected = quickOptionSelected(option.rating);
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    disabled={saving}
+                    onClick={() => selectRating(option.rating)}
+                    className={`rounded-full px-4 py-1.5 text-sm font-medium transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                      selected
+                        ? "bg-slate-800 text-white"
+                        : "bg-slate-100 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200"
+                    }`}
+                  >
+                    {t(`customers.aiInsightFeedback.quickOptions.${option.key}`)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div>
             <p className={`text-xs font-medium ${cd.label}`}>
               {t("customers.aiInsightFeedback.ratingLabel")}
             </p>
@@ -162,10 +203,7 @@ export function CustomerAiInsightFeedback({ customerId, insight }: Props) {
                     type="button"
                     aria-label={`${value}`}
                     disabled={saving}
-                    onClick={() => {
-                      setRating(value);
-                      setSavedMessage(null);
-                    }}
+                    onClick={() => selectRating(value)}
                     className="rounded p-1 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     <Star
@@ -186,6 +224,11 @@ export function CustomerAiInsightFeedback({ customerId, insight }: Props) {
               <p className={`text-xs font-medium ${cd.label}`}>
                 {t("customers.aiInsightFeedback.reasonTagsLabel")}
               </p>
+              {showReasonTagsHint && (
+                <p className={`mt-1 text-xs ${cd.muted}`}>
+                  {t("customers.aiInsightFeedback.reasonTagsHint")}
+                </p>
+              )}
               <div className="mt-2 flex flex-wrap gap-2">
                 {REASON_TAG_KEYS.map((tag) => {
                   const selected = reasonTags.includes(tag);

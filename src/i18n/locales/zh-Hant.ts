@@ -572,7 +572,12 @@ const zhHant: Messages = {
     },
     aiInsightFeedback: {
       title: "AI 分析評分",
-      prompt: "本次分析是否有幫助？",
+      prompt: "本次 AI 分析是否有幫助？",
+      quickOptions: {
+        helpful: "有幫助",
+        neutral: "一般",
+        notHelpful: "沒幫助",
+      },
       alreadyRated: "已評分",
       saveRating: "保存評分",
       updateRating: "更新評分",
@@ -585,6 +590,7 @@ const zhHant: Messages = {
       ratingLabel: "評分",
       ratingRequired: "請選擇 1 至 5 星評分",
       reasonTagsLabel: "低分原因（可多選）",
+      reasonTagsHint: "建議選擇原因標籤，方便後續優化分析質量（可選）。",
       commentLabel: "補充備註",
       commentPlaceholder: "可選，最多 500 字",
       reasonTags: {

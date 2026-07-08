@@ -596,7 +596,12 @@ const en = {
     },
     aiInsightFeedback: {
       title: "AI analysis rating",
-      prompt: "Was this analysis helpful?",
+      prompt: "Was this AI analysis helpful?",
+      quickOptions: {
+        helpful: "Helpful",
+        neutral: "Neutral",
+        notHelpful: "Not helpful",
+      },
       alreadyRated: "Rated",
       saveRating: "Save rating",
       updateRating: "Update rating",
@@ -609,6 +614,7 @@ const en = {
       ratingLabel: "Rating",
       ratingRequired: "Please select a 1–5 star rating",
       reasonTagsLabel: "Low-score reasons (multi-select)",
+      reasonTagsHint: "Consider selecting reason tags to help improve analysis quality (optional).",
       commentLabel: "Additional notes",
       commentPlaceholder: "Optional, up to 500 characters",
       reasonTags: {
