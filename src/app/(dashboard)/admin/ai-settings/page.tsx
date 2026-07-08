@@ -4,6 +4,7 @@ import { PageIntro } from "@/components/ui/page-intro";
 import { isAiApiKeyConfigured } from "@/lib/ai/env";
 import { getAiSettings } from "@/lib/settings/ai-service";
 import { AiSettingsClient } from "./ai-settings-client";
+import { AiInsightFeedbackStatsPanel } from "@/components/admin/ai-insight-feedback-stats-panel";
 
 export default async function AdminAiSettingsPage() {
   const settings = await getAiSettings();
@@ -19,6 +20,7 @@ export default async function AdminAiSettingsPage() {
         initialSettings={settings}
         initialApiKeyConfigured={apiKeyConfigured}
       />
+      <AiInsightFeedbackStatsPanel />
     </div>
   );
 }
