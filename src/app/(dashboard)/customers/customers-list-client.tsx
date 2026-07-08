@@ -32,7 +32,10 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
-import { resolveSalesStageListDisplay } from "@/lib/customers/sales-stage-badges";
+import {
+  getSalesStageBadgeClass,
+  resolveSalesStageListDisplay,
+} from "@/lib/customers/sales-stage-badges";
 import {
   resolveAssigneeStaffForList,
   type AssigneeDisplayLocale,
@@ -254,17 +257,27 @@ export function CustomersListClient({
       salesStage: c.salesStage,
     });
 
+    let label: string;
+    let badgeKey: string;
+
     if (display === "pending_second_conversion") {
-      return (
-        <Badge variant="success">{t("customers.pendingSecondConversion")}</Badge>
-      );
+      label = t("customers.pendingSecondConversion");
+      badgeKey = "pending_second_conversion";
+    } else if (display === "negotiation_reminder") {
+      label = salesStage("negotiation");
+      badgeKey = "negotiation_reminder";
+    } else {
+      label = salesStage(c.salesStage);
+      badgeKey = c.salesStage;
     }
 
-    if (display === "negotiation_reminder") {
-      return <Badge variant="warning">{salesStage("negotiation")}</Badge>;
-    }
-
-    return <span className="crm-text">{salesStage(c.salesStage)}</span>;
+    return (
+      <span
+        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${getSalesStageBadgeClass(badgeKey)}`}
+      >
+        {label}
+      </span>
+    );
   }
 
   function CustomerMobileCard({ c }: { c: CustomerListRow }) {

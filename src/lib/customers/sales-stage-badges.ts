@@ -41,3 +41,26 @@ export function resolveSalesStageListDisplay(
   }
   return "plain";
 }
+
+const SALES_STAGE_BADGE_CLASS: Record<string, string> = {
+  new_lead: "badge-stage-new-lead",
+  contacted: "badge-stage-contacted",
+  interested: "badge-stage-interested",
+  proposal: "badge-stage-proposal",
+  negotiation: "badge-stage-negotiation",
+  negotiation_reminder: "badge-stage-negotiation",
+  paid: "badge-stage-paid",
+  closed_won: "badge-stage-closed-won",
+  closed_lost: "badge-stage-closed-lost",
+  on_hold: "badge-stage-on-hold",
+  negotiating: "badge-stage-negotiation",
+  converted: "badge-stage-closed-won",
+  lost: "badge-stage-closed-lost",
+  qualified: "badge-stage-qualified",
+  invalid: "badge-stage-invalid",
+  pending_second_conversion: "badge-stage-pending-second-conversion",
+};
+
+export function getSalesStageBadgeClass(stageOrDisplay: string): string {
+  return SALES_STAGE_BADGE_CLASS[stageOrDisplay] ?? "badge-stage-unknown";
+}
