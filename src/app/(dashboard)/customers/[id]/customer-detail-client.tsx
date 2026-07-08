@@ -461,7 +461,7 @@ export function CustomerDetailClient({
             showMissingFields={view.accessLevel === "full"}
           />
 
-          <CustomerAiInsightPanel key={id} customerId={id} />
+          <CustomerAiInsightPanel key={id} customerId={id} isAdmin={isAdmin} />
         </div>
       </div>
     </div>

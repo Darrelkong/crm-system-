@@ -8,6 +8,7 @@ import type {
   CustomerAiInsightView,
 } from "@/lib/ai/customer-insights/service";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { CustomerAiInsightFeedback } from "@/components/customers/customer-ai-insight-feedback";
 import { ui } from "@/lib/ui/classes";
 
 const cd = ui.customerDetail;
@@ -93,7 +94,13 @@ function resolveRefreshErrorMessage(
   }
 }
 
-export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
+export function CustomerAiInsightPanel({
+  customerId,
+  isAdmin = false,
+}: {
+  customerId: string;
+  isAdmin?: boolean;
+}) {
   const { t } = useCustomerLabels();
   const [insight, setInsight] = useState<CustomerAiInsightView | null>(null);
   const [display, setDisplay] = useState<CustomerAiInsightDisplayMeta>({
@@ -338,6 +345,10 @@ export function CustomerAiInsightPanel({ customerId }: { customerId: string }) {
               time: formatDateTime(insight.generatedAt) ?? insight.generatedAt,
             })}
           </p>
+
+          {isAdmin && insight.status === "ready" && (
+            <CustomerAiInsightFeedback customerId={customerId} insight={insight} />
+          )}
         </div>
       )}
     </Card>
