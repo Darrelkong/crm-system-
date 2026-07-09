@@ -2,11 +2,13 @@ import { asc, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
-import {
-  formatCustomerForUser,
-} from "@/lib/permissions/customers";
+import { formatCustomerForUser } from "@/lib/permissions/customers";
 import { calculateDataCompletenessScore } from "@/lib/customers/scoring/completeness";
 import { getCustomerIdsWithFollowUps } from "@/lib/customers/scoring/service";
+import {
+  maskPublicPoolCustomerName,
+  truncatePoolReason,
+} from "@/lib/public-pool/display";
 import { getStaffClaimStatus } from "./claim-limits";
 import type { StaffClaimStatus } from "./constants";
 
@@ -23,26 +25,57 @@ export type ClaimEligibility = {
   claimBlockedReasonParams?: Record<string, string>;
 };
 
-export type PublicPoolCustomerView = {
+export type PublicPoolListItemBase = {
   id: string;
-  customerName: string;
+  maskedName: string;
   customerType: string;
   source: string;
   salesStage: string;
   completenessScore: number;
   poolEnteredAt: string | null;
-  poolReason: string | null;
-  accessLevel: "full" | "masked";
-  isMasked: boolean;
+  poolReasonPreview: string | null;
+  lastFollowUpAt: string | null;
+  lastValidFollowUpAt: string | null;
   canClaim: boolean;
   claimBlockedReasonKey: ClaimBlockReasonKey | null;
   claimBlockedReasonParams?: Record<string, string>;
+};
+
+export type StaffPublicPoolCustomerView = PublicPoolListItemBase & {
+  accessLevel: "masked";
+  isMasked: true;
+};
+
+export type AdminPublicPoolCustomerView = PublicPoolListItemBase & {
+  customerName: string;
+  poolReason: string | null;
+  accessLevel: "full";
+  isMasked: false;
   phone?: string | null;
   wechatId?: string | null;
   email?: string | null;
   notes?: string | null;
   sourceRemark?: string | null;
 };
+
+export type PublicPoolCustomerView =
+  | StaffPublicPoolCustomerView
+  | AdminPublicPoolCustomerView;
+
+export function isAdminPublicPoolCustomerView(
+  view: PublicPoolCustomerView,
+): view is AdminPublicPoolCustomerView {
+  return view.accessLevel === "full";
+}
+
+export function displayPublicPoolReason(
+  view: PublicPoolCustomerView,
+): string | null {
+  if (isAdminPublicPoolCustomerView(view)) {
+    return view.poolReason ?? view.poolReasonPreview;
+  }
+  return view.poolReasonPreview;
+}
 
 function getReleasedById(customer: Customer): string | null {
   return customer.releasedBy ?? customer.releaserUserId ?? null;
@@ -95,41 +128,79 @@ export function evaluateCustomerClaimEligibility(
   return { canClaim: true, claimBlockedReasonKey: null };
 }
 
-export function formatPublicPoolCustomer(
-  user: User,
+function buildPublicPoolListItemBase(
   customer: Customer,
   claim: ClaimEligibility,
   hasFollowUp: boolean,
-): PublicPoolCustomerView {
-  const base = formatCustomerForUser(user, customer);
+): PublicPoolListItemBase {
   const { completenessScore } = calculateDataCompletenessScore(
     customer,
     hasFollowUp,
   );
 
   return {
-    id: base.id,
-    customerName: base.customerName,
-    customerType: base.customerType,
-    source: base.source,
-    salesStage: base.salesStage,
+    id: customer.id,
+    maskedName: maskPublicPoolCustomerName(customer.customerName),
+    customerType: customer.customerType,
+    source: customer.source,
+    salesStage: customer.salesStage,
     completenessScore,
     poolEnteredAt: customer.poolEnteredAt ?? null,
-    poolReason: customer.poolReason ?? null,
-    accessLevel:
-      base.accessLevel === "denied" || base.accessLevel === "archived_basic"
-        ? "masked"
-        : base.accessLevel,
-    isMasked: base.isMasked,
+    poolReasonPreview: truncatePoolReason(customer.poolReason),
+    lastFollowUpAt: customer.lastFollowUpAt ?? null,
+    lastValidFollowUpAt: customer.lastValidFollowUpAt ?? null,
     canClaim: claim.canClaim,
     claimBlockedReasonKey: claim.claimBlockedReasonKey,
     claimBlockedReasonParams: claim.claimBlockedReasonParams,
+  };
+}
+
+export function formatStaffPublicPoolCustomer(
+  customer: Customer,
+  claim: ClaimEligibility,
+  hasFollowUp: boolean,
+): StaffPublicPoolCustomerView {
+  return {
+    ...buildPublicPoolListItemBase(customer, claim, hasFollowUp),
+    accessLevel: "masked",
+    isMasked: true,
+  };
+}
+
+export function formatAdminPublicPoolCustomer(
+  user: User,
+  customer: Customer,
+  claim: ClaimEligibility,
+  hasFollowUp: boolean,
+): AdminPublicPoolCustomerView {
+  const base = formatCustomerForUser(user, customer);
+  const shared = buildPublicPoolListItemBase(customer, claim, hasFollowUp);
+
+  return {
+    ...shared,
+    customerName: customer.customerName,
+    poolReason: customer.poolReason ?? null,
+    accessLevel: "full",
+    isMasked: false,
     phone: base.phone,
     wechatId: base.wechatId,
     email: base.email,
     notes: base.notes,
     sourceRemark: base.sourceRemark,
   };
+}
+
+export function formatPublicPoolCustomer(
+  user: User,
+  customer: Customer,
+  claim: ClaimEligibility,
+  hasFollowUp: boolean,
+): PublicPoolCustomerView {
+  if (user.role === "admin") {
+    return formatAdminPublicPoolCustomer(user, customer, claim, hasFollowUp);
+  }
+
+  return formatStaffPublicPoolCustomer(customer, claim, hasFollowUp);
 }
 
 export async function listPublicPoolCustomers() {

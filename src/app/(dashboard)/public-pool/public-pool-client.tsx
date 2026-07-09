@@ -20,10 +20,10 @@ import { resolveApiError } from "@/i18n/resolve-api-error";
 import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import {
-  maskPublicPoolCustomerName,
-  truncatePoolReason,
-} from "@/lib/public-pool/display";
-import type { PublicPoolCustomerView } from "@/lib/public-pool/queries";
+  displayPublicPoolReason,
+  isAdminPublicPoolCustomerView,
+  type PublicPoolCustomerView,
+} from "@/lib/public-pool/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 export function PublicPoolClient({
@@ -45,8 +45,11 @@ export function PublicPoolClient({
     setItems(initialItems);
   }, [initialItems]);
 
-  function displayCustomerName(name: string): string {
-    return isAdmin ? name : maskPublicPoolCustomerName(name);
+  function displayCustomerName(item: PublicPoolCustomerView): string {
+    if (isAdminPublicPoolCustomerView(item)) {
+      return item.customerName || item.maskedName;
+    }
+    return item.maskedName;
   }
 
   async function handleClaim(id: string) {
@@ -126,7 +129,7 @@ export function PublicPoolClient({
                   c.claimBlockedReasonKey,
                   c.claimBlockedReasonParams,
                 );
-                const poolReasonDisplay = truncatePoolReason(c.poolReason);
+                const poolReasonDisplay = displayPublicPoolReason(c);
 
                 return (
                   <Tr key={c.id}>
@@ -135,7 +138,7 @@ export function PublicPoolClient({
                         href={`/customers/${c.id}`}
                         className="link-primary font-medium hover:underline"
                       >
-                        {displayCustomerName(c.customerName)}
+                        {displayCustomerName(c)}
                       </Link>
                       {c.isMasked && (
                         <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
@@ -153,7 +156,7 @@ export function PublicPoolClient({
                     <Td className="text-[#6B7890]">
                       {poolReasonDisplay ?? "—"}
                     </Td>
-                    {isAdmin && (
+                    {isAdmin && isAdminPublicPoolCustomerView(c) && (
                       <Td className="text-[#6B7890]">
                         {c.phone ?? "—"}
                         {c.wechatId && (
