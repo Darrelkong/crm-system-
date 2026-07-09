@@ -263,6 +263,14 @@ describe("public pool exclusion from normal customer lists", () => {
       await db
         .delete(schema.customerAssignees)
         .where(eq(schema.customerAssignees.id, TEMP_ASSIGNEE_ROW_ID));
+      await db
+        .delete(schema.customerAssignees)
+        .where(
+          and(
+            eq(schema.customerAssignees.customerId, SEED_IDS.customerPublicPool),
+            eq(schema.customerAssignees.userId, SEED_IDS.staffA),
+          ),
+        );
       await db.insert(schema.customerAssignees).values({
         id: TEMP_ASSIGNEE_ROW_ID,
         customerId: SEED_IDS.customerPublicPool,

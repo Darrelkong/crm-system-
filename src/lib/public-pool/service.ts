@@ -2,6 +2,10 @@ import { and, eq, isNull } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getEffectiveSettings } from "@/lib/settings/effective";
+import {
+  countCustomerAssignees,
+  replaceCustomerPrimaryAssignee,
+} from "@/lib/public-pool/assignee-sync";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -82,6 +86,37 @@ export async function claimCustomerFromPool(
     return { ok: false, reason: "already_claimed" };
   }
 
+  let clearedAssigneeCount = 0;
+  try {
+    const syncResult = await replaceCustomerPrimaryAssignee(db, {
+      customerId: customer.id,
+      userId: user.id,
+      assignedBy: user.id,
+      now,
+    });
+    clearedAssigneeCount = syncResult.clearedAssigneeCount;
+  } catch (error) {
+    await db
+      .update(schema.customers)
+      .set({
+        ownerId: null,
+        status: "public_pool",
+        claimedBy: null,
+        claimedAt: null,
+        poolLeftAt: null,
+        updatedBy: customer.updatedBy,
+        updatedAt: customer.updatedAt,
+      })
+      .where(
+        and(
+          eq(schema.customers.id, customer.id),
+          eq(schema.customers.ownerId, user.id),
+          eq(schema.customers.status, "active"),
+        ),
+      );
+    throw error;
+  }
+
   const updated = { ...customer, customerName: customer.customerName };
   const taskId = await createFirstContactTask(updated, user.id, user.id, audit);
 
@@ -96,6 +131,8 @@ export async function claimCustomerFromPool(
       customerName: customer.customerName,
       taskId,
       previousReleasedBy: customer.releasedBy ?? customer.releaserUserId,
+      primaryAssigneeSynced: true,
+      clearedAssigneeCount,
     },
   });
 
@@ -111,21 +148,27 @@ export async function releaseCustomerToPool(
   const db = getDb();
   const now = new Date().toISOString();
   const previousOwnerId = customer.ownerId;
+  const clearedAssigneeCount = await countCustomerAssignees(db, customer.id);
 
-  await db
-    .update(schema.customers)
-    .set({
-      ownerId: null,
-      status: "public_pool",
-      poolEnteredAt: now,
-      poolReason: reason.trim(),
-      releasedBy: user.id,
-      releaserUserId: user.id,
-      previousOwnerId,
-      updatedBy: user.id,
-      updatedAt: now,
-    })
-    .where(eq(schema.customers.id, customer.id));
+  await db.batch([
+    db
+      .update(schema.customers)
+      .set({
+        ownerId: null,
+        status: "public_pool",
+        poolEnteredAt: now,
+        poolReason: reason.trim(),
+        releasedBy: user.id,
+        releaserUserId: user.id,
+        previousOwnerId,
+        updatedBy: user.id,
+        updatedAt: now,
+      })
+      .where(eq(schema.customers.id, customer.id)),
+    db
+      .delete(schema.customerAssignees)
+      .where(eq(schema.customerAssignees.customerId, customer.id)),
+  ] as unknown as Parameters<typeof db.batch>[0]);
 
   await writeAuditLog({
     userId: user.id,
@@ -138,6 +181,7 @@ export async function releaseCustomerToPool(
       customerName: customer.customerName,
       poolReason: reason.trim(),
       previousOwnerId,
+      clearedAssigneeCount,
     },
   });
 }
