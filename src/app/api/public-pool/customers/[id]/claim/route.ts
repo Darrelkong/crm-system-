@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { getCustomerById } from "@/lib/customers/queries";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
+import { SELF_RELEASE_CLAIM_BLOCK_DAYS } from "@/lib/public-pool/constants";
 import {
   claimBlockReasonToErrorCode,
   evaluateCustomerClaimEligibility,
@@ -55,22 +56,56 @@ export async function POST(request: Request, context: RouteContext) {
     );
 
     if (!eligibility.canClaim) {
-      const releasedBy = customer.releasedBy ?? customer.releaserUserId;
       let action = "customer.claim_failed.not_in_pool";
       let status = 403;
 
-      if (releasedBy === user.id) {
-        action = "customer.claim_failed.released_by_self";
-      } else if (staffStatus?.inCooldown) {
-        action = "customer.claim_failed.cooldown";
-      } else if (staffStatus && staffStatus.remainingQuota <= 0) {
-        action = "customer.claim_failed.quota_exceeded";
-        status = 429;
+      switch (eligibility.claimBlockedReasonKey) {
+        case "selfReleased":
+          action = "customer.claim_failed.released_by_self";
+          break;
+        case "cooldown":
+          action = "customer.claim_failed.cooldown";
+          break;
+        case "quotaExceeded":
+          action = "customer.claim_failed.quota_exceeded";
+          status = 429;
+          break;
+        case "statusUnavailable":
+          action = "customer.claim_failed.status_unavailable";
+          break;
+        default:
+          break;
       }
 
       const errorCode =
         claimBlockReasonToErrorCode(eligibility.claimBlockedReasonKey) ??
         "CANNOT_CLAIM_CLIENT";
+
+      const metadata: Record<string, unknown> = {
+        reasonKey: eligibility.claimBlockedReasonKey,
+        reasonParams: eligibility.claimBlockedReasonParams,
+      };
+
+      if (eligibility.claimBlockedReasonKey === "selfReleased") {
+        const params = eligibility.claimBlockedReasonParams;
+        metadata.reason = "self_released_within_block_window";
+        metadata.blockDays = Number(
+          params?.blockDays ?? SELF_RELEASE_CLAIM_BLOCK_DAYS,
+        );
+        metadata.releasedBy =
+          params?.releasedBy ??
+          customer.releasedBy ??
+          customer.releaserUserId;
+        metadata.poolEnteredAt =
+          params?.poolEnteredAt ?? customer.poolEnteredAt ?? null;
+        metadata.blockedUntil = params?.blockedUntil ?? null;
+        if (params?.remainingHours) {
+          metadata.remainingHours = Number(params.remainingHours);
+        }
+        if (params?.remainingDays) {
+          metadata.remainingDays = Number(params.remainingDays);
+        }
+      }
 
       await writeAuditLog({
         userId: user.id,
@@ -79,10 +114,7 @@ export async function POST(request: Request, context: RouteContext) {
         entityId: id,
         ipAddress,
         userAgent,
-        metadata: {
-          reasonKey: eligibility.claimBlockedReasonKey,
-          reasonParams: eligibility.claimBlockedReasonParams,
-        },
+        metadata,
       });
 
       return Response.json(

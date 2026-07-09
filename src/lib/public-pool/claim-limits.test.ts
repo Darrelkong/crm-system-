@@ -207,6 +207,24 @@ describe("evaluateCustomerClaimEligibility admin bypass", () => {
     status: "public_pool",
   } as Customer;
 
+  it("allows admin to claim self-released pool customer within block window", () => {
+    const customer = {
+      id: "22222222-2222-2222-2222-222222222203",
+      status: "public_pool",
+      releasedBy: SEED_IDS.admin,
+      poolEnteredAt: new Date().toISOString(),
+    } as Customer;
+
+    const result = evaluateCustomerClaimEligibility(
+      TEST_ADMIN,
+      customer,
+      null,
+    );
+
+    assert.equal(result.canClaim, true);
+    assert.equal(result.claimBlockedReasonKey, null);
+  });
+
   it("allows admin to claim regardless of staff cooldown/quota status", () => {
     const blockedStaffStatus = {
       claimedInLast7Days: QUOTA_LIMIT,

@@ -1360,6 +1360,8 @@ const zhHant: Messages = {
     claimBlockReasons: {
       notInPool: "客戶不在公共池",
       selfReleased: "不能領取自己釋放到公共池的客戶",
+      selfReleasedWithinBlockWindow:
+        "自己釋放的客戶，{{blockDays}} 天內不能重新領取",
       statusUnavailable: "無法獲取領取狀態",
       cooldown: "當前處於領取冷卻期，請稍後再試",
       cooldownWithHours: "當前處於領取冷卻期（{{hours}} 小時），請稍後再試",
@@ -1944,7 +1946,7 @@ const zhHant: Messages = {
     importFileRequired: "請先上傳 CSV 文件。",
     importInvalidFileFormat: "文件格式不正確。",
     importFailed: "匯入失敗。",
-    claimSelfReleased: "不能領取自己釋放到公共池的客戶。",
+    claimSelfReleased: "自己釋放的客戶，7 天內不能重新領取。",
     claimCooldown: "當前處於領取冷卻期，請稍後再試。",
     claimQuotaExceeded: "7 天領取名額已達上限。",
     claimStatusUnavailable: "無法獲取領取狀態。",

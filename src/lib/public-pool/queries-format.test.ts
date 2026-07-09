@@ -9,8 +9,10 @@ import {
   formatAdminPublicPoolCustomer,
   formatPublicPoolCustomer,
   formatStaffPublicPoolCustomer,
+  getSelfReleaseClaimBlockState,
   isAdminPublicPoolCustomerView,
 } from "@/lib/public-pool/queries";
+import { SELF_RELEASE_CLAIM_BLOCK_DAYS } from "@/lib/public-pool/constants";
 
 const adminUser = { id: SEED_IDS.admin, role: "admin" } as User;
 const staffUser = { id: SEED_IDS.staffA, role: "staff" } as User;
@@ -61,6 +63,25 @@ function poolCustomer(overrides: Partial<Customer> = {}): Customer {
 }
 
 const claimAllowed = { canClaim: true, claimBlockedReasonKey: null } as const;
+
+const staffStatusOk = {
+  claimedInLast7Days: 0,
+  remainingQuota: 5,
+  quotaLimit: 5,
+  cooldownHours: 12,
+  cooldownUntil: null,
+  inCooldown: false,
+  canClaimNow: true,
+  blockedReasonKey: null,
+  blockedReasonParams: undefined,
+};
+
+const FIXED_NOW = new Date("2026-07-09T12:00:00.000Z");
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function daysAgoIso(days: number, now = FIXED_NOW): string {
+  return new Date(now.getTime() - days * MS_PER_DAY).toISOString();
+}
 
 describe("formatStaffPublicPoolCustomer", () => {
   it("does not expose full customerName, poolReason, or contact fields", () => {
@@ -176,20 +197,179 @@ describe("displayPublicPoolReason", () => {
 });
 
 describe("evaluateCustomerClaimEligibility", () => {
-  it("is unchanged for staff self-released pool customer", () => {
-    const customer = poolCustomer({ releasedBy: SEED_IDS.staffA });
-    const result = evaluateCustomerClaimEligibility(staffUser, customer, {
-      claimedInLast7Days: 0,
-      remainingQuota: 5,
-      quotaLimit: 5,
-      cooldownHours: 12,
-      cooldownUntil: null,
-      inCooldown: false,
-      canClaimNow: true,
-      blockedReasonKey: null,
-      blockedReasonParams: undefined,
+  it("blocks staff self-released pool customer within 7-day window", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffA,
+      releaserUserId: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(3),
     });
+    const result = evaluateCustomerClaimEligibility(
+      staffUser,
+      customer,
+      staffStatusOk,
+      FIXED_NOW,
+    );
     assert.equal(result.canClaim, false);
     assert.equal(result.claimBlockedReasonKey, "selfReleased");
+    assert.equal(
+      result.claimBlockedReasonParams?.blockDays,
+      String(SELF_RELEASE_CLAIM_BLOCK_DAYS),
+    );
+    assert.equal(result.claimBlockedReasonParams?.releasedBy, SEED_IDS.staffA);
+    assert.equal(result.claimBlockedReasonParams?.poolEnteredAt, daysAgoIso(3));
+    assert.ok(result.claimBlockedReasonParams?.blockedUntil);
+    assert.ok(result.claimBlockedReasonParams?.remainingDays);
+    assert.ok(result.claimBlockedReasonParams?.remainingHours);
+  });
+
+  it("allows staff self-released pool customer after 7-day window", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffA,
+      releaserUserId: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(8),
+    });
+    const result = evaluateCustomerClaimEligibility(
+      staffUser,
+      customer,
+      staffStatusOk,
+      FIXED_NOW,
+    );
+    assert.equal(result.canClaim, true);
+    assert.equal(result.claimBlockedReasonKey, null);
+  });
+
+  it("still applies cooldown after self-release window expires", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffA,
+      releaserUserId: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(8),
+    });
+    const result = evaluateCustomerClaimEligibility(
+      staffUser,
+      customer,
+      {
+        ...staffStatusOk,
+        inCooldown: true,
+        canClaimNow: false,
+        blockedReasonKey: "cooldown",
+        blockedReasonParams: { hours: "12" },
+        cooldownUntil: new Date(FIXED_NOW.getTime() + 3600000).toISOString(),
+      },
+      FIXED_NOW,
+    );
+    assert.equal(result.canClaim, false);
+    assert.equal(result.claimBlockedReasonKey, "cooldown");
+  });
+
+  it("still applies quota after self-release window expires", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffA,
+      releaserUserId: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(8),
+    });
+    const result = evaluateCustomerClaimEligibility(
+      staffUser,
+      customer,
+      {
+        ...staffStatusOk,
+        remainingQuota: 0,
+        claimedInLast7Days: 5,
+        canClaimNow: false,
+        blockedReasonKey: "quotaExceeded",
+        blockedReasonParams: { limit: "5" },
+      },
+      FIXED_NOW,
+    );
+    assert.equal(result.canClaim, false);
+    assert.equal(result.claimBlockedReasonKey, "quotaExceeded");
+  });
+
+  it("allows admin to claim self-released pool customer within block window", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.admin,
+      releaserUserId: SEED_IDS.admin,
+      poolEnteredAt: daysAgoIso(1),
+    });
+    const result = evaluateCustomerClaimEligibility(
+      adminUser,
+      customer,
+      null,
+      FIXED_NOW,
+    );
+    assert.equal(result.canClaim, true);
+    assert.equal(result.claimBlockedReasonKey, null);
+  });
+
+  it("does not block staff for auto-reclaimed customers with releasedBy null", () => {
+    const customer = poolCustomer({
+      releasedBy: null,
+      releaserUserId: null,
+      previousOwnerId: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(1),
+    });
+    const result = evaluateCustomerClaimEligibility(
+      staffUser,
+      customer,
+      staffStatusOk,
+      FIXED_NOW,
+    );
+    assert.equal(result.canClaim, true);
+    assert.equal(result.claimBlockedReasonKey, null);
+  });
+
+  it("allows staff to claim pool customer released by another staff", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffB,
+      releaserUserId: SEED_IDS.staffB,
+      poolEnteredAt: daysAgoIso(1),
+    });
+    const result = evaluateCustomerClaimEligibility(
+      staffUser,
+      customer,
+      staffStatusOk,
+      FIXED_NOW,
+    );
+    assert.equal(result.canClaim, true);
+    assert.equal(result.claimBlockedReasonKey, null);
+  });
+});
+
+describe("getSelfReleaseClaimBlockState audit metadata", () => {
+  it("returns blockDays, poolEnteredAt, and blockedUntil for in-window self-release", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffA,
+      releaserUserId: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(2),
+    });
+    const state = getSelfReleaseClaimBlockState(
+      customer,
+      SEED_IDS.staffA,
+      FIXED_NOW,
+    );
+    assert.ok(state);
+    assert.equal(state.blocked, true);
+    assert.equal(state.blockDays, SELF_RELEASE_CLAIM_BLOCK_DAYS);
+    assert.equal(state.poolEnteredAt, daysAgoIso(2));
+    assert.equal(
+      state.blockedUntil,
+      new Date(
+        new Date(daysAgoIso(2)).getTime() +
+          SELF_RELEASE_CLAIM_BLOCK_DAYS * MS_PER_DAY,
+      ).toISOString(),
+    );
+  });
+
+  it("returns blocked=false after the window expires", () => {
+    const customer = poolCustomer({
+      releasedBy: SEED_IDS.staffA,
+      poolEnteredAt: daysAgoIso(10),
+    });
+    const state = getSelfReleaseClaimBlockState(
+      customer,
+      SEED_IDS.staffA,
+      FIXED_NOW,
+    );
+    assert.ok(state);
+    assert.equal(state.blocked, false);
   });
 });

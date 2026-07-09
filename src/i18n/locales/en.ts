@@ -1400,6 +1400,8 @@ const en = {
     claimBlockReasons: {
       notInPool: "Client is not in the public pool.",
       selfReleased: "You cannot claim a client you released to the public pool.",
+      selfReleasedWithinBlockWindow:
+        "Clients you released cannot be reclaimed for {{blockDays}} days.",
       statusUnavailable: "Unable to determine claim eligibility.",
       cooldown: "You are in a claim cooldown period. Please try again later.",
       cooldownWithHours:
@@ -2017,7 +2019,8 @@ const en = {
     importFileRequired: "Please upload a CSV file first.",
     importInvalidFileFormat: "Invalid file format.",
     importFailed: "Import failed.",
-    claimSelfReleased: "You cannot claim a client you released to the public pool.",
+    claimSelfReleased:
+      "Clients you released cannot be reclaimed within 7 days.",
     claimCooldown: "You are in a claim cooldown period. Please try again later.",
     claimQuotaExceeded: "Your 7-day claim quota has been reached.",
     claimStatusUnavailable: "Unable to determine claim eligibility.",

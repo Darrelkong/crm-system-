@@ -1359,6 +1359,8 @@ const zhHans: Messages = {
     claimBlockReasons: {
       notInPool: "客户不在公共池",
       selfReleased: "不能领取自己释放到公共池的客户",
+      selfReleasedWithinBlockWindow:
+        "自己释放的客户，{{blockDays}} 天内不能重新领取",
       statusUnavailable: "无法获取领取状态",
       cooldown: "当前处于领取冷却期，请稍后再试",
       cooldownWithHours: "当前处于领取冷却期（{{hours}} 小时），请稍后再试",
@@ -1943,7 +1945,7 @@ const zhHans: Messages = {
     importFileRequired: "请先上传 CSV 文件。",
     importInvalidFileFormat: "文件格式不正确。",
     importFailed: "导入失败。",
-    claimSelfReleased: "不能领取自己释放到公共池的客户。",
+    claimSelfReleased: "自己释放的客户，7 天内不能重新领取。",
     claimCooldown: "当前处于领取冷却期，请稍后再试。",
     claimQuotaExceeded: "7 天领取名额已达上限。",
     claimStatusUnavailable: "无法获取领取状态。",

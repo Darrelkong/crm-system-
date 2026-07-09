@@ -14,7 +14,9 @@ export function resolveClaimBlockReason(
       ? "cooldownWithHours"
       : key === "quotaExceeded" && params?.limit
         ? "quotaExceededWithLimit"
-        : key;
+        : key === "selfReleased" && params?.blockDays
+          ? "selfReleasedWithinBlockWindow"
+          : key;
   const fullKey = `publicPool.claimBlockReasons.${resolvedKey}`;
   const translated = t(fullKey, params);
   return translated === fullKey ? key : translated;

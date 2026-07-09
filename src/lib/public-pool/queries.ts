@@ -10,7 +10,82 @@ import {
   truncatePoolReason,
 } from "@/lib/public-pool/display";
 import { getStaffClaimStatus } from "./claim-limits";
-import type { StaffClaimStatus } from "./constants";
+import {
+  SELF_RELEASE_CLAIM_BLOCK_DAYS,
+  type StaffClaimStatus,
+} from "./constants";
+
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+const MS_PER_HOUR = 60 * 60 * 1000;
+
+export type SelfReleaseClaimBlockState = {
+  blocked: boolean;
+  releasedBy: string;
+  poolEnteredAt: string;
+  blockedUntil: string;
+  blockDays: number;
+  remainingHours: number | null;
+  remainingDays: number | null;
+};
+
+export function getSelfReleaseClaimBlockState(
+  customer: Customer,
+  userId: string,
+  now: Date = new Date(),
+): SelfReleaseClaimBlockState | null {
+  const releasedBy = getReleasedById(customer);
+  if (!releasedBy || releasedBy !== userId) {
+    return null;
+  }
+
+  const poolEnteredAt = customer.poolEnteredAt;
+  if (!poolEnteredAt) {
+    return {
+      blocked: false,
+      releasedBy,
+      poolEnteredAt: "",
+      blockedUntil: "",
+      blockDays: SELF_RELEASE_CLAIM_BLOCK_DAYS,
+      remainingHours: null,
+      remainingDays: null,
+    };
+  }
+
+  const blockedUntil = new Date(
+    new Date(poolEnteredAt).getTime() +
+      SELF_RELEASE_CLAIM_BLOCK_DAYS * MS_PER_DAY,
+  );
+  const blocked = blockedUntil > now;
+  const remainingMs = blocked ? blockedUntil.getTime() - now.getTime() : 0;
+
+  return {
+    blocked,
+    releasedBy,
+    poolEnteredAt,
+    blockedUntil: blockedUntil.toISOString(),
+    blockDays: SELF_RELEASE_CLAIM_BLOCK_DAYS,
+    remainingHours: blocked ? Math.ceil(remainingMs / MS_PER_HOUR) : null,
+    remainingDays: blocked ? Math.ceil(remainingMs / MS_PER_DAY) : null,
+  };
+}
+
+function selfReleaseBlockParams(
+  state: SelfReleaseClaimBlockState,
+): Record<string, string> {
+  const params: Record<string, string> = {
+    blockDays: String(state.blockDays),
+    releasedBy: state.releasedBy,
+    poolEnteredAt: state.poolEnteredAt,
+    blockedUntil: state.blockedUntil,
+  };
+  if (state.remainingHours != null) {
+    params.remainingHours = String(state.remainingHours);
+  }
+  if (state.remainingDays != null) {
+    params.remainingDays = String(state.remainingDays);
+  }
+  return params;
+}
 
 export type ClaimBlockReasonKey =
   | "notInPool"
@@ -85,6 +160,7 @@ export function evaluateCustomerClaimEligibility(
   user: User,
   customer: Customer,
   staffStatus: StaffClaimStatus | null,
+  now: Date = new Date(),
 ): ClaimEligibility {
   if (customer.status !== "public_pool") {
     return {
@@ -97,11 +173,12 @@ export function evaluateCustomerClaimEligibility(
     return { canClaim: true, claimBlockedReasonKey: null };
   }
 
-  const releasedBy = getReleasedById(customer);
-  if (releasedBy === user.id) {
+  const selfReleaseBlock = getSelfReleaseClaimBlockState(customer, user.id, now);
+  if (selfReleaseBlock?.blocked) {
     return {
       canClaim: false,
       claimBlockedReasonKey: "selfReleased",
+      claimBlockedReasonParams: selfReleaseBlockParams(selfReleaseBlock),
     };
   }
 

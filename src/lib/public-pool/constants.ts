@@ -1,5 +1,8 @@
 export const CLAIM_QUOTA_DAYS = 7;
 
+/** Staff cannot reclaim a client they released within this many days after pool entry. */
+export const SELF_RELEASE_CLAIM_BLOCK_DAYS = 7;
+
 /** @deprecated Use system_settings via getEffectiveSettings() */
 export const CLAIM_QUOTA_MAX = 5;
 /** @deprecated Use system_settings via getEffectiveSettings() */
