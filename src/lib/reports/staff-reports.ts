@@ -1,6 +1,10 @@
-import { and, count, desc, eq, gte, lt, lte, ne } from "drizzle-orm";
+import { and, count, desc, eq, gte, lt, lte } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
+import {
+  normalCustomerListStatusWhere,
+  ownedNormalCustomerListWhere,
+} from "@/lib/customers/customer-list-filters";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import type { User } from "../../../drizzle/schema/users";
 import {
@@ -12,10 +16,7 @@ import { listRecentFollowUpsForStaff } from "./recent-follow-ups";
 import type { StaffReportsStats } from "./types";
 
 function ownedNonArchivedFilter(userId: string) {
-  return and(
-    eq(schema.customers.ownerId, userId),
-    ne(schema.customers.status, "archived"),
-  );
+  return ownedNormalCustomerListWhere(userId);
 }
 
 function ownedNewCustomerFilter(
@@ -24,10 +25,9 @@ function ownedNewCustomerFilter(
   endExclusive: string,
 ) {
   return and(
-    eq(schema.customers.ownerId, userId),
+    ownedNormalCustomerListWhere(userId),
     gte(schema.customers.createdAt, start),
     lt(schema.customers.createdAt, endExclusive),
-    ne(schema.customers.status, "archived"),
   );
 }
 
@@ -85,7 +85,7 @@ export async function getStaffReportsStats(
           eq(schema.customers.ownerId, user.id),
           gte(schema.customers.createdAt, todayStart),
           lte(schema.customers.createdAt, todayEnd),
-          ne(schema.customers.status, "archived"),
+          normalCustomerListStatusWhere(),
         ),
       ),
     db

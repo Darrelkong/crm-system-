@@ -1,9 +1,16 @@
-import { and, asc, eq, like, ne, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
+import {
+  adminCustomerListStatusWhere,
+  staffAssigneeExistsWhere,
+  staffCustomerListPermissionWhere,
+} from "@/lib/customers/customer-list-filters";
 import { ON_HOLD_CREATE_APPROVAL_TYPE } from "@/lib/customers/on-hold-create-pending";
 import { buildCustomerListOrderBy } from "@/lib/customers/list-sort";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
+
+export { staffAssigneeExistsWhere } from "@/lib/customers/customer-list-filters";
 
 export { buildCustomerListOrderBy, buildFollowUpSort } from "@/lib/customers/list-sort";
 
@@ -73,36 +80,15 @@ export function buildCustomerListPagination(
   };
 }
 
-export function staffAssigneeExistsWhere(userId: string): SQL {
-  return sql`EXISTS (
-    SELECT 1 FROM customer_assignees ca
-    WHERE ca.customer_id = ${schema.customers.id}
-      AND ca.user_id = ${userId}
-  )`;
-}
-
 function buildPermissionWhere(
   user: User,
   filter: CustomerListFilter = {},
 ): SQL | undefined {
   if (user.role === "admin") {
-    if (filter.status === "archived") {
-      return eq(schema.customers.status, "archived");
-    }
-    return and(
-      ne(schema.customers.status, "archived"),
-      ne(schema.customers.status, "public_pool"),
-    );
+    return adminCustomerListStatusWhere(filter);
   }
 
-  return and(
-    ne(schema.customers.status, "archived"),
-    ne(schema.customers.status, "public_pool"),
-    or(
-      eq(schema.customers.ownerId, user.id),
-      staffAssigneeExistsWhere(user.id),
-    ),
-  );
+  return staffCustomerListPermissionWhere(user.id);
 }
 
 function escapeLikePattern(term: string): string {
@@ -166,13 +152,7 @@ export async function listCustomerCreatorsForAdmin(
   filter: CustomerListFilter = {},
 ): Promise<CustomerCreatorOption[]> {
   const db = getDb();
-  const statusWhere =
-    filter.status === "archived"
-      ? eq(schema.customers.status, "archived")
-      : and(
-          ne(schema.customers.status, "archived"),
-          ne(schema.customers.status, "public_pool"),
-        );
+  const statusWhere = adminCustomerListStatusWhere(filter);
 
   const rows = await db
     .selectDistinct({

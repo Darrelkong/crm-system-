@@ -7,12 +7,12 @@ import {
   isNull,
   lt,
   lte,
-  ne,
   notInArray,
 } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
+import { normalCustomerListStatusWhere } from "@/lib/customers/customer-list-filters";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
 import { RECLAMATION_EXCLUDED_SALES_STAGES } from "@/lib/reclamation/constants";
 import { getEffectiveSettings } from "@/lib/settings/effective";
@@ -103,7 +103,7 @@ export async function getStaffDashboardStats(
           eq(schema.customers.ownerId, user.id),
           gte(schema.customers.createdAt, monthStart),
           lt(schema.customers.createdAt, monthEndExclusive),
-          ne(schema.customers.status, "archived"),
+          normalCustomerListStatusWhere(),
         ),
       ),
     db

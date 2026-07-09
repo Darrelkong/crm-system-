@@ -11,6 +11,7 @@ import {
   searchCustomersForUserPaginated,
   listCustomerCreatorsForAdmin,
 } from "./queries";
+import { listPublicPoolCustomers } from "@/lib/public-pool/queries";
 import type { User } from "../../../drizzle/schema/users";
 
 const adminUser = { id: SEED_IDS.admin, role: "admin" } as User;
@@ -135,20 +136,78 @@ describe("public pool exclusion from normal customer lists", () => {
 
   it("staff paginated count excludes public_pool customer", async () => {
     const withPool = await listCustomersForUserPaginated(staffA, {}, 1);
-    // Count should not include public_pool customers – assert the ID is absent
-    // and no pagination.total inflation from pool customers.
     assert.equal(
-      withPool.pagination.total,
-      withPool.items.filter((c) => c.status !== "public_pool").length +
-        (withPool.pagination.pageCount > 1
-          ? withPool.pagination.total - withPool.items.length
-          : 0),
-      "pagination total must not exceed non-pool item count",
+      withPool.items.some((c) => c.status === "public_pool"),
+      false,
+      "page items must not include public_pool",
     );
-    // Simpler sanity: customerPublicPool is not in items
     assert.equal(
       withPool.items.some((c) => c.id === SEED_IDS.customerPublicPool),
       false,
+    );
+
+    const poolFreeTotal = await listCustomersForUserPaginated(staffA, {}, 1);
+    const allStatuses = poolFreeTotal.items.every(
+      (c) => c.status !== "public_pool" && c.status !== "archived",
+    );
+    assert.equal(allStatuses, true, "staff list items must be non-pool, non-archived");
+  });
+
+  it("admin pagination total excludes public_pool customers", async () => {
+    const result = await listCustomersForUserPaginated(adminUser, {}, 1);
+    assert.equal(
+      result.items.every((c) => c.status !== "public_pool"),
+      true,
+      "admin page items must not include public_pool",
+    );
+    assert.equal(
+      result.items.every((c) => c.status !== "archived"),
+      true,
+      "admin normal list must not include archived",
+    );
+  });
+
+  it("public pool dedicated list still includes public_pool customers", async () => {
+    const poolCustomers = await listPublicPoolCustomers();
+    assert.ok(
+      poolCustomers.some((c) => c.id === SEED_IDS.customerPublicPool),
+      "public pool API must still return pool customers",
+    );
+    assert.equal(
+      poolCustomers.every((c) => c.status === "public_pool"),
+      true,
+      "public pool list must only contain public_pool status",
+    );
+  });
+
+  it("admin createdBy filter excludes public_pool customers", async () => {
+    const result = await listCustomersForUserPaginated(
+      adminUser,
+      { createdBy: SEED_IDS.staffA },
+      1,
+    );
+    assert.equal(
+      result.items.some((c) => c.status === "public_pool"),
+      false,
+      "createdBy filter must not return public_pool customers",
+    );
+    assert.equal(
+      result.items.some((c) => c.id === SEED_IDS.customerPublicPool),
+      false,
+    );
+  });
+
+  it("admin search with createdBy filter excludes public_pool customers", async () => {
+    const result = await searchCustomersForUserPaginated(
+      adminUser,
+      "测试",
+      { createdBy: SEED_IDS.staffA },
+      1,
+    );
+    assert.equal(
+      result.items.some((c) => c.status === "public_pool"),
+      false,
+      "search + createdBy must not return public_pool customers",
     );
   });
 
