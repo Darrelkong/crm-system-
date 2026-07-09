@@ -20,6 +20,7 @@ import {
   type EffectiveSettings,
 } from "@/lib/settings/effective";
 import { getCollaborativeCustomerIds } from "./collaborative";
+import { countCustomerAssignees } from "@/lib/public-pool/assignee-sync";
 
 export type ReclamationRunResult = {
   /** Pre-reclaim warnings sent this run (single-warning model, E-4b). */
@@ -207,20 +208,27 @@ async function autoReclaimCustomer(
   }
 
   try {
-    await db
-      .update(schema.customers)
-      .set({
-        ownerId: null,
-        status: "public_pool",
-        poolEnteredAt: now,
-        poolReason: `${AUTO_RECLAIM_POOL_REASON_PREFIX}${settings.automaticReclaimDays} 天无有效跟进`,
-        releasedBy: null,
-        releaserUserId: null,
-        previousOwnerId,
-        updatedBy: null,
-        updatedAt: now,
-      })
-      .where(eq(schema.customers.id, customer.id));
+    const clearedAssigneeCount = await countCustomerAssignees(db, customer.id);
+
+    await db.batch([
+      db
+        .update(schema.customers)
+        .set({
+          ownerId: null,
+          status: "public_pool",
+          poolEnteredAt: now,
+          poolReason: `${AUTO_RECLAIM_POOL_REASON_PREFIX}${settings.automaticReclaimDays} 天无有效跟进`,
+          releasedBy: null,
+          releaserUserId: null,
+          previousOwnerId,
+          updatedBy: null,
+          updatedAt: now,
+        })
+        .where(eq(schema.customers.id, customer.id)),
+      db
+        .delete(schema.customerAssignees)
+        .where(eq(schema.customerAssignees.customerId, customer.id)),
+    ] as unknown as Parameters<Database["batch"]>[0]);
 
     const cancelledTaskCount = await cancelOwnerOpenTasks(
       db,
@@ -234,6 +242,7 @@ async function autoReclaimCustomer(
       ...buildAuditMetadata(customer, days),
       cancelledTaskCount,
       reclamationAnchorAt: getReclamationAnchorAt(customer),
+      clearedAssigneeCount,
     };
 
     await writeAuditLog(

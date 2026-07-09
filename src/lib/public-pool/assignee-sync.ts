@@ -14,7 +14,7 @@ export async function countCustomerAssignees(
   return rows.length;
 }
 
-/** Clears all assignees for a customer. Used by public pool release / claim sync only. */
+/** Clears all assignees for a customer. Used by public pool release / claim / auto reclaim sync. */
 export async function clearCustomerAssignees(
   db: Database,
   customerId: string,
