@@ -1382,6 +1382,12 @@ const en = {
     masked: "Masked",
     wechat: "WeChat",
     contact: "Contact",
+    businessSummary: "Business Summary",
+    followUpSummary: "Follow-up / Pool Entry",
+    lastValidFollowUp: "Last Valid Follow-up",
+    noFollowUp: "None",
+    maskedDataNotice:
+      "Public pool clients show masked summaries until claimed; full details appear after claim.",
     claimedLast7Days: "Claimed in last 7 days",
     remainingQuota: "Remaining quota",
     claimStatus: "Claim status",

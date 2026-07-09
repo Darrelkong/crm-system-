@@ -19,6 +19,12 @@ import { useTranslation } from "@/i18n/provider";
 import { resolveApiError } from "@/i18n/resolve-api-error";
 import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { getSalesStageBadgeClass } from "@/lib/customers/sales-stage-badges";
+import {
+  displayStaffPoolReasonPreview,
+  formatPublicPoolAdminContact,
+  formatPublicPoolDateCell,
+} from "@/lib/public-pool/display";
 import {
   displayPublicPoolReason,
   isAdminPublicPoolCustomerView,
@@ -35,7 +41,7 @@ export function PublicPoolClient({
 }) {
   const router = useRouter();
   const { t } = useTranslation();
-  const { customerType } = useCustomerLabels();
+  const { customerType, source, salesStage } = useCustomerLabels();
   const [items, setItems] = useState(initialItems);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimSuccessId, setClaimSuccessId] = useState<string | null>(null);
@@ -45,11 +51,13 @@ export function PublicPoolClient({
     setItems(initialItems);
   }, [initialItems]);
 
-  function displayCustomerName(item: PublicPoolCustomerView): string {
-    if (isAdminPublicPoolCustomerView(item)) {
-      return item.customerName || item.maskedName;
-    }
-    return item.maskedName;
+  function formatPoolDate(value: string | null | undefined): string {
+    return formatPublicPoolDateCell(value, formatHongKongDateTime);
+  }
+
+  function displayFollowUpDate(value: string | null | undefined): string {
+    const formatted = formatPoolDate(value);
+    return formatted === "—" ? t("publicPool.noFollowUp") : formatted;
   }
 
   async function handleClaim(id: string) {
@@ -114,9 +122,9 @@ export function PublicPoolClient({
             <TableHead>
               <tr>
                 <Th>{t("publicPool.clientName")}</Th>
-                <Th>{t("publicPool.poolClientType")}</Th>
+                <Th>{t("publicPool.businessSummary")}</Th>
                 <Th>{t("publicPool.poolDataCompleteness")}</Th>
-                <Th>{t("publicPool.poolEnteredAt")}</Th>
+                <Th>{t("publicPool.followUpSummary")}</Th>
                 <Th>{t("publicPool.poolReason")}</Th>
                 {isAdmin && <Th>{t("publicPool.contact")}</Th>}
                 <Th>{t("publicPool.actions")}</Th>
@@ -129,7 +137,13 @@ export function PublicPoolClient({
                   c.claimBlockedReasonKey,
                   c.claimBlockedReasonParams,
                 );
-                const poolReasonDisplay = displayPublicPoolReason(c);
+                const adminView = isAdminPublicPoolCustomerView(c);
+                const poolReasonDisplay = adminView
+                  ? displayPublicPoolReason(c)
+                  : displayStaffPoolReasonPreview(c.poolReasonPreview);
+                const contact = adminView
+                  ? formatPublicPoolAdminContact(c)
+                  : null;
 
                 return (
                   <Tr key={c.id}>
@@ -138,7 +152,7 @@ export function PublicPoolClient({
                         href={`/customers/${c.id}`}
                         className="link-primary font-medium hover:underline"
                       >
-                        {displayCustomerName(c)}
+                        {adminView ? c.customerName || c.maskedName : c.maskedName}
                       </Link>
                       {c.isMasked && (
                         <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
@@ -146,22 +160,60 @@ export function PublicPoolClient({
                         </span>
                       )}
                     </Td>
-                    <Td className="text-[#6B7890]">{customerType(c.customerType)}</Td>
+                    <Td>
+                      <div className="space-y-1 text-sm">
+                        <span className="block text-[#172033]">
+                          {customerType(c.customerType)}
+                        </span>
+                        <span className="block text-xs text-[#6B7890]">
+                          {source(c.source)}
+                        </span>
+                        <span
+                          className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getSalesStageBadgeClass(c.salesStage)}`}
+                        >
+                          {salesStage(c.salesStage)}
+                        </span>
+                      </div>
+                    </Td>
                     <Td>
                       <CompletenessBadge score={c.completenessScore} />
                     </Td>
-                    <Td className="text-[#6B7890]">
-                      {formatHongKongDateTime(c.poolEnteredAt)}
+                    <Td>
+                      <div className="space-y-1 text-xs text-[#6B7890]">
+                        <div>
+                          <span className="font-medium text-[#172033]">
+                            {t("publicPool.lastValidFollowUp")}:{" "}
+                          </span>
+                          {displayFollowUpDate(c.lastValidFollowUpAt)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-[#172033]">
+                            {t("publicPool.lastFollowUp")}:{" "}
+                          </span>
+                          {displayFollowUpDate(c.lastFollowUpAt)}
+                        </div>
+                        <div>
+                          <span className="font-medium text-[#172033]">
+                            {t("publicPool.poolEnteredAt")}:{" "}
+                          </span>
+                          {formatPoolDate(c.poolEnteredAt)}
+                        </div>
+                      </div>
                     </Td>
-                    <Td className="text-[#6B7890]">
-                      {poolReasonDisplay ?? "—"}
+                    <Td className="max-w-[220px] text-[#6B7890]">
+                      {poolReasonDisplay}
                     </Td>
-                    {isAdmin && isAdminPublicPoolCustomerView(c) && (
+                    {isAdmin && contact && (
                       <Td className="text-[#6B7890]">
-                        {c.phone ?? "—"}
-                        {c.wechatId && (
-                          <span className="block text-xs text-[#6B7890]">
-                            {t("publicPool.wechat")}：{c.wechatId}
+                        <span className="block text-sm">{contact.phone}</span>
+                        {contact.wechatId && (
+                          <span className="block text-xs">
+                            {t("publicPool.wechat")}：{contact.wechatId}
+                          </span>
+                        )}
+                        {contact.email && (
+                          <span className="block text-xs">
+                            {t("common.email")}：{contact.email}
                           </span>
                         )}
                       </Td>

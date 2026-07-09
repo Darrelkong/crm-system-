@@ -1342,6 +1342,12 @@ const zhHant: Messages = {
     masked: "脫敏",
     wechat: "微信",
     contact: "聯繫方式",
+    businessSummary: "業務摘要",
+    followUpSummary: "跟進 / 入池",
+    lastValidFollowUp: "最近有效跟進",
+    noFollowUp: "暫無",
+    maskedDataNotice:
+      "公共池客戶在領取前僅顯示脫敏摘要，領取後可查看完整資料。",
     claimedLast7Days: "7 天內已領取",
     remainingQuota: "剩餘名額",
     claimStatus: "領取狀態",

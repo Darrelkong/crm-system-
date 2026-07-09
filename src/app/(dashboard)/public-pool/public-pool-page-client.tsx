@@ -58,6 +58,12 @@ export function PublicPoolPageClient({ items, isAdmin, claimStatus }: Props) {
         </div>
       )}
 
+      {!isAdmin && (
+        <p className="mb-4 text-sm text-[#6B7890]">
+          {t("publicPool.maskedDataNotice")}
+        </p>
+      )}
+
       <PublicPoolClient initialItems={items} isAdmin={isAdmin} />
     </div>
   );

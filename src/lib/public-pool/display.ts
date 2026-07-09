@@ -28,3 +28,46 @@ export function truncatePoolReason(reason: string | null | undefined): string | 
 
   return `${chars.slice(0, 3).join("")}⋯`;
 }
+
+export function formatPublicPoolDateCell(
+  value: string | null | undefined,
+  formatDate: (iso: string) => string,
+  emptyLabel = "—",
+): string {
+  const trimmed = value?.trim();
+  if (!trimmed) return emptyLabel;
+  return formatDate(trimmed);
+}
+
+export function displayStaffPoolReasonPreview(
+  poolReasonPreview: string | null | undefined,
+  emptyLabel = "—",
+): string {
+  const trimmed = poolReasonPreview?.trim();
+  return trimmed ? trimmed : emptyLabel;
+}
+
+export type PublicPoolAdminContactView = {
+  phone?: string | null;
+  wechatId?: string | null;
+  email?: string | null;
+};
+
+export function formatPublicPoolAdminContact(
+  contact: PublicPoolAdminContactView,
+  emptyLabel = "—",
+): {
+  phone: string;
+  wechatId: string | null;
+  email: string | null;
+} {
+  const phone = contact.phone?.trim();
+  const wechatId = contact.wechatId?.trim();
+  const email = contact.email?.trim();
+
+  return {
+    phone: phone || emptyLabel,
+    wechatId: wechatId || null,
+    email: email || null,
+  };
+}
