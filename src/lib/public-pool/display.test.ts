@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  canLinkPublicPoolCustomerToDetail,
   displayStaffPoolReasonPreview,
   formatPublicPoolAdminContact,
   formatPublicPoolDateCell,
@@ -70,6 +71,13 @@ describe("truncatePoolReason", () => {
     assert.equal(truncatePoolReason(undefined), null);
     assert.equal(truncatePoolReason(""), null);
     assert.equal(truncatePoolReason("   "), null);
+  });
+});
+
+describe("canLinkPublicPoolCustomerToDetail", () => {
+  it("allows admin detail links only", () => {
+    assert.equal(canLinkPublicPoolCustomerToDetail(true), true);
+    assert.equal(canLinkPublicPoolCustomerToDetail(false), false);
   });
 });
 

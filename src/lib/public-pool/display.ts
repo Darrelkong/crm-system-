@@ -71,3 +71,8 @@ export function formatPublicPoolAdminContact(
     email: email || null,
   };
 }
+
+/** Staff public pool list names must not link to customer detail before claim. */
+export function canLinkPublicPoolCustomerToDetail(isAdminView: boolean): boolean {
+  return isAdminView;
+}

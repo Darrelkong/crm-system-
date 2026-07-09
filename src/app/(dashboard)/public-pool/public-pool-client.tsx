@@ -21,6 +21,7 @@ import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { getSalesStageBadgeClass } from "@/lib/customers/sales-stage-badges";
 import {
+  canLinkPublicPoolCustomerToDetail,
   displayStaffPoolReasonPreview,
   formatPublicPoolAdminContact,
   formatPublicPoolDateCell,
@@ -148,12 +149,19 @@ export function PublicPoolClient({
                 return (
                   <Tr key={c.id}>
                     <Td>
-                      <Link
-                        href={`/customers/${c.id}`}
-                        className="link-primary font-medium hover:underline"
-                      >
-                        {adminView ? c.customerName || c.maskedName : c.maskedName}
-                      </Link>
+                      {canLinkPublicPoolCustomerToDetail(adminView) &&
+                      isAdminPublicPoolCustomerView(c) ? (
+                        <Link
+                          href={`/customers/${c.id}`}
+                          className="link-primary font-medium hover:underline"
+                        >
+                          {c.customerName || c.maskedName}
+                        </Link>
+                      ) : (
+                        <span className="font-medium text-[#172033]">
+                          {c.maskedName}
+                        </span>
+                      )}
                       {c.isMasked && (
                         <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
                           {t("publicPool.masked")}

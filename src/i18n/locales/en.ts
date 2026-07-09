@@ -1388,6 +1388,10 @@ const en = {
     noFollowUp: "None",
     maskedDataNotice:
       "Public pool clients show masked summaries until claimed; full details appear after claim.",
+    detailDeniedTitle: "Client detail unavailable before claim",
+    detailDeniedDescription:
+      "This client is still in the public pool. Review the masked summary on the pool list, claim the client, then open full details.",
+    backToPool: "Back to Public Pool",
     claimedLast7Days: "Claimed in last 7 days",
     remainingQuota: "Remaining quota",
     claimStatus: "Claim status",

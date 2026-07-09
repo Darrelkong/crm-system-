@@ -100,6 +100,27 @@ export function isPublicPoolCustomer(customer: Customer): boolean {
   return customer.ownerId === null || customer.status === "public_pool";
 }
 
+/** Staff may not open detail/timeline until the client is claimed (status leaves public_pool). */
+export function isStaffUnclaimedPublicPoolCustomer(
+  user: User,
+  customer: Customer,
+): boolean {
+  return user.role === "staff" && customer.status === "public_pool";
+}
+
+export function assertStaffCanViewCustomerDetailPage(
+  user: User,
+  customer: Customer,
+): void {
+  if (isStaffUnclaimedPublicPoolCustomer(user, customer)) {
+    throw new PermissionError(
+      403,
+      "公共池客户在领取前不能查看详情",
+      "PUBLIC_POOL_DETAIL_DENIED",
+    );
+  }
+}
+
 /**
  * Returns the access level for a user against a customer.
  * - Admin: always full (including archived)

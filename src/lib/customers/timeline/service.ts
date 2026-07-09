@@ -3,6 +3,7 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
   getCustomerAccessLevel,
+  isStaffUnclaimedPublicPoolCustomer,
   PermissionError,
   type CustomerAccessOptions,
 } from "@/lib/permissions/customers";
@@ -59,6 +60,14 @@ export function assertCanViewCustomerTimeline(
   customer: Customer,
   options?: CustomerAccessOptions,
 ): ReturnType<typeof getCustomerAccessLevel> {
+  if (isStaffUnclaimedPublicPoolCustomer(user, customer)) {
+    throw new PermissionError(
+      403,
+      "公共池客户在领取前不能查看时间线",
+      "PUBLIC_POOL_TIMELINE_DENIED",
+    );
+  }
+
   const level = getCustomerAccessLevel(user, customer, options);
   if (level === "denied") {
     throw new PermissionError(

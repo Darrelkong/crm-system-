@@ -11,6 +11,7 @@ import {
   resolveCustomerAccessOptions,
   canManageCustomerAssignees,
   canRequestCustomerAssigneeUpdate,
+  isStaffUnclaimedPublicPoolCustomer,
 } from "@/lib/permissions/customers";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
@@ -49,6 +50,18 @@ export default async function CustomerDetailPage({ params }: Props) {
         titleKey="customers.onHoldCreatePendingTitle"
         descriptionKey="customers.onHoldCreatePendingDescription"
         backHref="/customers"
+      />
+    );
+  }
+
+  if (isStaffUnclaimedPublicPoolCustomer(user, customer)) {
+    return (
+      <CustomerStatePanel
+        titleKey="publicPool.detailDeniedTitle"
+        descriptionKey="publicPool.detailDeniedDescription"
+        backHref="/public-pool"
+        backKey="publicPool.backToPool"
+        variant="error"
       />
     );
   }

@@ -8,6 +8,7 @@ import {
 } from "@/lib/customers/pending-on-hold-access";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import {
+  assertStaffCanViewCustomerDetailPage,
   assertCanEditCustomer,
   assertStaffCannotChangeCustomerStatus,
   assertStaffCannotModifySensitiveCustomerFields,
@@ -58,6 +59,7 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     try {
+      assertStaffCanViewCustomerDetailPage(user, customer);
       const customerView = await enrichCustomerResponse(db, user, customer);
       return Response.json({ customer: customerView });
     } catch (err) {

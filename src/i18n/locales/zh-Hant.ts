@@ -1348,6 +1348,10 @@ const zhHant: Messages = {
     noFollowUp: "暫無",
     maskedDataNotice:
       "公共池客戶在領取前僅顯示脫敏摘要，領取後可查看完整資料。",
+    detailDeniedTitle: "領取前無法查看客戶詳情",
+    detailDeniedDescription:
+      "此客戶仍在公共池。請先在公共池列表查看脫敏摘要並領取，領取後再查看完整資料。",
+    backToPool: "返回公共池",
     claimedLast7Days: "7 天內已領取",
     remainingQuota: "剩餘名額",
     claimStatus: "領取狀態",

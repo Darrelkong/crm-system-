@@ -1347,6 +1347,10 @@ const zhHans: Messages = {
     noFollowUp: "暂无",
     maskedDataNotice:
       "公共池客户在领取前仅显示脱敏摘要，领取后可查看完整资料。",
+    detailDeniedTitle: "领取前无法查看客户详情",
+    detailDeniedDescription:
+      "该客户仍在公共池。请先在公共池列表查看脱敏摘要并领取，领取后再查看完整资料。",
+    backToPool: "返回公共池",
     claimedLast7Days: "7 天内已领取",
     remainingQuota: "剩余名额",
     claimStatus: "领取状态",
