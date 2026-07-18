@@ -17,7 +17,7 @@ import {
 
 type SessionEndReason = "idle" | "revoked" | "invalid" | "device_revoked";
 
-function redirectToLogin(
+async function redirectToLogin(
   request: NextRequest,
   sessionEnd?: SessionEndReason,
 ) {
@@ -39,7 +39,7 @@ function redirectToLogin(
     });
   }
   if (sessionEnd === "idle") {
-    incrementIdleReloginOnResponse(request, response);
+    await incrementIdleReloginOnResponse(request, response);
   }
   return response;
 }
@@ -90,7 +90,7 @@ export async function middleware(request: NextRequest) {
   }
 
   if (sessionEndReason && pathname !== "/login") {
-    return redirectToLogin(request, sessionEndReason);
+    return await redirectToLogin(request, sessionEndReason);
   }
 
   const pendingPasswordChange =
@@ -98,7 +98,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname === "/change-password") {
     if (!sessionUser) {
-      return redirectToLogin(request);
+      return await redirectToLogin(request);
     }
     if (!pendingPasswordChange) {
       return NextResponse.redirect(
@@ -118,7 +118,7 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(destination, request.url));
     }
     const response = NextResponse.next();
-    syncIdleReloginCookiesOnLoginVisit(request, response);
+    await syncIdleReloginCookiesOnLoginVisit(request, response);
     return response;
   }
 
@@ -132,7 +132,7 @@ export async function middleware(request: NextRequest) {
 
   const adminDecision = resolveAdminGuardedRouteDecision(pathname, sessionUser);
   if (adminDecision?.kind === "require_login") {
-    return redirectToLogin(request);
+    return await redirectToLogin(request);
   }
   if (adminDecision?.kind === "redirect_staff") {
     return redirectToStaff(request);
@@ -146,7 +146,7 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/staff")) {
     if (!sessionUser) {
-      return redirectToLogin(request);
+      return await redirectToLogin(request);
     }
     if (sessionUser.role === "admin") {
       return NextResponse.redirect(new URL("/admin", request.url));
@@ -156,14 +156,14 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/public-pool")) {
     if (!sessionUser) {
-      return redirectToLogin(request);
+      return await redirectToLogin(request);
     }
     return NextResponse.next();
   }
 
   if (pathname.startsWith("/customers")) {
     if (!sessionUser) {
-      return redirectToLogin(request);
+      return await redirectToLogin(request);
     }
     return NextResponse.next();
   }
@@ -179,7 +179,7 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith("/welcome")
   ) {
     if (!sessionUser) {
-      return redirectToLogin(request);
+      return await redirectToLogin(request);
     }
     return NextResponse.next();
   }

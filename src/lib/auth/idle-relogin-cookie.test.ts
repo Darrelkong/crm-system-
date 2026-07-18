@@ -1,7 +1,18 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { describe, it } from "node:test";
-import { validateAccessLoginWindowFromRequest } from "@/lib/auth/access-jwt";
+import { after, before, describe, it } from "node:test";
+import {
+  SignJWT,
+  createLocalJWKSet,
+  exportJWK,
+  generateKeyPair,
+  type JWK,
+} from "jose";
+import {
+  setAccessJwtTestDeps,
+  resetAccessJwtJwksCache,
+  validateAccessLoginWindowFromRequest,
+} from "@/lib/auth/access-jwt";
 import { AUTH_ERROR_CODES } from "@/lib/auth/constants";
 import {
   IDLE_RELOGIN_COUNT_COOKIE,
@@ -9,31 +20,47 @@ import {
   IDLE_RELOGIN_THRESHOLD,
   computeIdleReloginState,
   computeIncrementedIdleRelogin,
+  getAccessIatFromHeaders,
   getIdleReloginCookieOptions,
   parseIdleReloginCount,
   resolveIdleReloginStateFromRequest,
 } from "@/lib/auth/idle-relogin-cookie";
 import { isTimeoutLoginReason } from "@/lib/auth/timeout-login-visits";
 
-function encodeJwtPart(value: object): string {
-  return Buffer.from(JSON.stringify(value)).toString("base64url");
+const TEAM_DOMAIN = "https://example-team.cloudflareaccess.com";
+const AUDIENCE = "test-aud-value";
+
+let privateKey: CryptoKey;
+let publicJwk: JWK;
+
+async function signAccessJwt(claims: Record<string, unknown>): Promise<string> {
+  return new SignJWT(claims)
+    .setProtectedHeader({ alg: "RS256", typ: "JWT" })
+    .sign(privateKey);
 }
 
-function fakeAccessJwt(iat: number): string {
-  return `${encodeJwtPart({ alg: "none", typ: "JWT" })}.${encodeJwtPart({
+function unsignedFakeJwt(iat: number): string {
+  const encode = (value: object) =>
+    Buffer.from(JSON.stringify(value)).toString("base64url");
+  return `${encode({ alg: "none", typ: "JWT" })}.${encode({
     iat,
     exp: iat + 3600,
+    email: "anyone@example.com",
   })}.sig`;
 }
 
-function withProductionAccess<T>(fn: () => T): T {
+async function withProductionAccess<T>(fn: () => T | Promise<T>): Promise<T> {
   const env = process.env as Record<string, string | undefined>;
   const prevEnv = env.NODE_ENV;
   const prevSkip = env.SKIP_ACCESS_JWT_CHECK;
+  const prevTeam = env.CF_ACCESS_TEAM_DOMAIN;
+  const prevAud = env.CF_ACCESS_AUD;
   env.NODE_ENV = "production";
   delete env.SKIP_ACCESS_JWT_CHECK;
+  env.CF_ACCESS_TEAM_DOMAIN = TEAM_DOMAIN;
+  env.CF_ACCESS_AUD = AUDIENCE;
   try {
-    return fn();
+    return await fn();
   } finally {
     env.NODE_ENV = prevEnv;
     if (prevSkip !== undefined) {
@@ -41,32 +68,52 @@ function withProductionAccess<T>(fn: () => T): T {
     } else {
       delete env.SKIP_ACCESS_JWT_CHECK;
     }
+    if (prevTeam !== undefined) {
+      env.CF_ACCESS_TEAM_DOMAIN = prevTeam;
+    } else {
+      delete env.CF_ACCESS_TEAM_DOMAIN;
+    }
+    if (prevAud !== undefined) {
+      env.CF_ACCESS_AUD = prevAud;
+    } else {
+      delete env.CF_ACCESS_AUD;
+    }
   }
 }
 
-function makeAccessRequest(options: {
+async function makeAccessRequest(options: {
   count: number;
   marker: number;
   accessIat: number;
-}): Request {
+  unsigned?: boolean;
+}): Promise<Request> {
   const cookie = `${IDLE_RELOGIN_COUNT_COOKIE}=${options.count}; ${ACCESS_IAT_MARKER_COOKIE}=${options.marker}`;
+  const token = options.unsigned
+    ? unsignedFakeJwt(options.accessIat)
+    : await signAccessJwt({
+        email: "staff.a@example.com",
+        iat: options.accessIat,
+        exp: options.accessIat + 3600,
+        iss: TEAM_DOMAIN,
+        aud: AUDIENCE,
+      });
   return new Request("https://crm.echfronthk.com/api/auth/login", {
     method: "POST",
     headers: {
       Cookie: cookie,
       Host: "crm.echfronthk.com",
-      "Cf-Access-Jwt-Assertion": fakeAccessJwt(options.accessIat),
+      "Cf-Access-Jwt-Assertion": token,
       "Content-Type": "application/json",
     },
   });
 }
 
 /** Mirrors login/route.ts idle gate before credential validation. */
-function simulateLoginApiIdleGate(request: Request): {
+async function simulateLoginApiIdleGate(request: Request): Promise<{
   blocked: boolean;
   errorCode?: string;
-} {
-  const accessWindow = validateAccessLoginWindowFromRequest(request);
+}> {
+  const accessWindow = await validateAccessLoginWindowFromRequest(request);
   if (!accessWindow.ok) {
     return {
       blocked: true,
@@ -74,7 +121,7 @@ function simulateLoginApiIdleGate(request: Request): {
     };
   }
 
-  const idleState = resolveIdleReloginStateFromRequest(request);
+  const idleState = await resolveIdleReloginStateFromRequest(request);
   if (idleState.requiresAccessReverify) {
     return {
       blocked: true,
@@ -86,18 +133,42 @@ function simulateLoginApiIdleGate(request: Request): {
 }
 
 /** Mirrors login/page.tsx SSR view selection (read-only; no cookie writes). */
-function simulateLoginPageView(request: Request): "LoginForm" | "AccessExpiredGate" {
-  const accessWindow = validateAccessLoginWindowFromRequest(request);
+async function simulateLoginPageView(
+  request: Request,
+): Promise<"LoginForm" | "AccessExpiredGate"> {
+  const accessWindow = await validateAccessLoginWindowFromRequest(request);
   if (!accessWindow.ok) {
     return "AccessExpiredGate";
   }
 
-  const idleState = resolveIdleReloginStateFromRequest(request);
+  const idleState = await resolveIdleReloginStateFromRequest(request);
   if (idleState.requiresAccessReverify) {
     return "AccessExpiredGate";
   }
 
   return "LoginForm";
+}
+
+before(async () => {
+  const pair = await generateKeyPair("RS256");
+  privateKey = pair.privateKey;
+  publicJwk = await exportJWK(pair.publicKey);
+  publicJwk.alg = "RS256";
+  publicJwk.use = "sig";
+  publicJwk.kid = "test-kid";
+});
+
+after(() => {
+  setAccessJwtTestDeps(null);
+  resetAccessJwtJwksCache();
+});
+
+function installLocalJwks() {
+  setAccessJwtTestDeps({
+    teamDomain: TEAM_DOMAIN,
+    audience: AUDIENCE,
+    getKey: createLocalJWKSet({ keys: [publicJwk] }),
+  });
 }
 
 describe("idle relogin cookie", () => {
@@ -166,8 +237,8 @@ describe("idle relogin cookie", () => {
     assert.equal(parseIdleReloginCount("invalid"), 0);
   });
 
-  it("sets secure httpOnly lax cookies for idle relogin state", () => {
-    withProductionAccess(() => {
+  it("sets secure httpOnly lax cookies for idle relogin state", async () => {
+    await withProductionAccess(() => {
       const options = getIdleReloginCookieOptions();
       assert.equal(options.httpOnly, true);
       assert.equal(options.secure, true);
@@ -184,26 +255,32 @@ describe("idle relogin cookie", () => {
 });
 
 describe("idle relogin production request simulation", () => {
-  it("does not block login API when count is 1 or 2", () => {
-    withProductionAccess(() => {
+  it("does not block login API when count is 1 or 2", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
       const iat = Math.floor(Date.now() / 1000);
 
       assert.deepEqual(
-        simulateLoginApiIdleGate(makeAccessRequest({ count: 1, marker: iat, accessIat: iat })),
+        await simulateLoginApiIdleGate(
+          await makeAccessRequest({ count: 1, marker: iat, accessIat: iat }),
+        ),
         { blocked: false },
       );
       assert.deepEqual(
-        simulateLoginApiIdleGate(makeAccessRequest({ count: 2, marker: iat, accessIat: iat })),
+        await simulateLoginApiIdleGate(
+          await makeAccessRequest({ count: 2, marker: iat, accessIat: iat }),
+        ),
         { blocked: false },
       );
     });
   });
 
-  it("blocks login API when count is 3 and Access iat is unchanged", () => {
-    withProductionAccess(() => {
+  it("blocks login API when count is 3 and Access iat is unchanged", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
       const iat = Math.floor(Date.now() / 1000);
-      const result = simulateLoginApiIdleGate(
-        makeAccessRequest({ count: 3, marker: iat, accessIat: iat }),
+      const result = await simulateLoginApiIdleGate(
+        await makeAccessRequest({ count: 3, marker: iat, accessIat: iat }),
       );
 
       assert.equal(result.blocked, true);
@@ -211,58 +288,98 @@ describe("idle relogin production request simulation", () => {
     });
   });
 
-  it("allows login API after Access iat advances and resets count", () => {
-    withProductionAccess(() => {
+  it("allows login API after Access iat advances and resets count", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
       const iat = Math.floor(Date.now() / 1000);
       const previousIat = iat - 120;
-      const state = resolveIdleReloginStateFromRequest(
-        makeAccessRequest({ count: 3, marker: previousIat, accessIat: iat }),
+      const state = await resolveIdleReloginStateFromRequest(
+        await makeAccessRequest({
+          count: 3,
+          marker: previousIat,
+          accessIat: iat,
+        }),
       );
 
       assert.equal(state.count, 0);
       assert.equal(state.requiresAccessReverify, false);
 
-      const result = simulateLoginApiIdleGate(
-        makeAccessRequest({ count: 3, marker: previousIat, accessIat: iat }),
+      const result = await simulateLoginApiIdleGate(
+        await makeAccessRequest({
+          count: 3,
+          marker: previousIat,
+          accessIat: iat,
+        }),
       );
       assert.deepEqual(result, { blocked: false });
     });
   });
 
-  it("shows LoginForm for count 1 and 2 on login page SSR", () => {
-    withProductionAccess(() => {
+  it("shows LoginForm for count 1 and 2 on login page SSR", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
       const iat = Math.floor(Date.now() / 1000);
 
       assert.equal(
-        simulateLoginPageView(makeAccessRequest({ count: 1, marker: iat, accessIat: iat })),
+        await simulateLoginPageView(
+          await makeAccessRequest({ count: 1, marker: iat, accessIat: iat }),
+        ),
         "LoginForm",
       );
       assert.equal(
-        simulateLoginPageView(makeAccessRequest({ count: 2, marker: iat, accessIat: iat })),
+        await simulateLoginPageView(
+          await makeAccessRequest({ count: 2, marker: iat, accessIat: iat }),
+        ),
         "LoginForm",
       );
     });
   });
 
-  it("shows AccessExpiredGate for count 3 when Access iat is unchanged", () => {
-    withProductionAccess(() => {
+  it("shows AccessExpiredGate for count 3 when Access iat is unchanged", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
       const iat = Math.floor(Date.now() / 1000);
       assert.equal(
-        simulateLoginPageView(makeAccessRequest({ count: 3, marker: iat, accessIat: iat })),
+        await simulateLoginPageView(
+          await makeAccessRequest({ count: 3, marker: iat, accessIat: iat }),
+        ),
         "AccessExpiredGate",
       );
     });
   });
 
-  it("returns LoginForm after Access iat advances on login page SSR", () => {
-    withProductionAccess(() => {
+  it("returns LoginForm after Access iat advances on login page SSR", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
       const iat = Math.floor(Date.now() / 1000);
       assert.equal(
-        simulateLoginPageView(
-          makeAccessRequest({ count: 3, marker: iat - 120, accessIat: iat }),
+        await simulateLoginPageView(
+          await makeAccessRequest({
+            count: 3,
+            marker: iat - 120,
+            accessIat: iat,
+          }),
         ),
         "LoginForm",
       );
+    });
+  });
+
+  it("rejects unsigned fake JWT for access iat marker", async () => {
+    await withProductionAccess(async () => {
+      installLocalJwks();
+      const iat = Math.floor(Date.now() / 1000);
+      const request = await makeAccessRequest({
+        count: 1,
+        marker: iat,
+        accessIat: iat,
+        unsigned: true,
+      });
+      const accessIat = await getAccessIatFromHeaders(request.headers);
+      assert.equal(accessIat, null);
+
+      const gate = await simulateLoginApiIdleGate(request);
+      assert.equal(gate.blocked, true);
     });
   });
 });

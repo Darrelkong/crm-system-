@@ -22,6 +22,7 @@ import {
   resolveIdleReloginStateFromRequest,
 } from "@/lib/auth/idle-relogin-cookie";
 import {
+  evaluateAccessLoginEmailBinding,
   shouldRequireCloudflareAccess,
   validateAccessLoginWindowFromRequest,
 } from "@/lib/auth/access-jwt";
@@ -77,8 +78,11 @@ function ipRestrictionResponse(
 export async function POST(request: Request) {
   const cookieStore = await cookies();
 
+  let accessCheckSkipped = true;
+  let verifiedAccessEmail: string | null = null;
+
   if (shouldRequireCloudflareAccess(request.headers)) {
-    const accessWindow = validateAccessLoginWindowFromRequest(request);
+    const accessWindow = await validateAccessLoginWindowFromRequest(request);
     if (!accessWindow.ok) {
       return Response.json(
         {
@@ -90,7 +94,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const idleState = resolveIdleReloginStateFromRequest(request);
+    accessCheckSkipped = accessWindow.skipped;
+    verifiedAccessEmail = accessWindow.email ?? null;
+
+    const idleState = await resolveIdleReloginStateFromRequest(request);
     if (idleState.cookieUpdate) {
       applyIdleReloginCookieUpdateToStore(
         cookieStore,
@@ -117,6 +124,32 @@ export async function POST(request: Request) {
 
   if (!email || !password) {
     return Response.json({ error: "请输入邮箱和密码" }, { status: 400 });
+  }
+
+  let isCrossAccountSuperAdminLogin = false;
+  if (!accessCheckSkipped) {
+    const binding = evaluateAccessLoginEmailBinding({
+      verifiedAccessEmail,
+      loginEmail: email,
+    });
+    if (!binding.ok) {
+      await writeLoginLog({
+        userId: null,
+        emailAttempted: email,
+        success: false,
+        failureReason: binding.reason,
+        ipAddress,
+        userAgent,
+      });
+      return Response.json(
+        {
+          error: "Unable to verify login permission",
+          errorCode: AUTH_ERROR_CODES.UNAUTHORIZED_EMAIL,
+        },
+        { status: 401 },
+      );
+    }
+    isCrossAccountSuperAdminLogin = binding.crossAccountSuperAdmin;
   }
 
   const emailAttempted = email;
@@ -273,6 +306,23 @@ export async function POST(request: Request) {
       metadata: { role: user.role, deviceRecordId },
     });
 
+    if (isCrossAccountSuperAdminLogin) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "auth.super_admin_cross_account_login",
+        entityType: "session",
+        entityId: user.id,
+        ipAddress,
+        userAgent,
+        metadata: {
+          targetUserId: user.id,
+          targetRole: user.role,
+          crossAccountLogin: true,
+          verifiedSuperAdminAccess: true,
+        },
+      });
+    }
+
     return Response.json({
       ok: true,
       redirect: getPostLoginRedirectPath(user),
@@ -343,6 +393,23 @@ export async function POST(request: Request) {
     userAgent,
     metadata: { role: user.role },
   });
+
+  if (isCrossAccountSuperAdminLogin) {
+    await writeAuditLog({
+      userId: user.id,
+      action: "auth.super_admin_cross_account_login",
+      entityType: "session",
+      entityId: user.id,
+      ipAddress,
+      userAgent,
+      metadata: {
+        targetUserId: user.id,
+        targetRole: user.role,
+        crossAccountLogin: true,
+        verifiedSuperAdminAccess: true,
+      },
+    });
+  }
 
   if (deviceResult.deviceRecordId) {
     await writeAuditLog({

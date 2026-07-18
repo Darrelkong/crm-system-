@@ -1,10 +1,10 @@
 import type { NextRequest, NextResponse } from "next/server";
 import {
   getAccessJwtFromHeaders,
-  decodeAccessJwtPayload,
   isAccessJwtCheckSkipped,
   validateAccessLoginWindow,
   validateAccessLoginWindowFromRequest,
+  verifyCloudflareAccessJwt,
 } from "@/lib/auth/access-jwt";
 
 export const IDLE_RELOGIN_COUNT_COOKIE = "crm_idle_relogin_count";
@@ -66,11 +66,21 @@ export function readIdleReloginCookies(
   };
 }
 
-export function getAccessIatFromHeaders(headers: Headers): number | null {
+/**
+ * Returns Access JWT iat only after cryptographic verification.
+ * Unsigned / invalid tokens yield null (fail closed for marker use).
+ */
+export async function getAccessIatFromHeaders(
+  headers: Headers,
+): Promise<number | null> {
+  if (isAccessJwtCheckSkipped(headers)) {
+    return Math.floor(Date.now() / 1000);
+  }
   const token = getAccessJwtFromHeaders(headers);
   if (!token) return null;
-  const payload = decodeAccessJwtPayload(token);
-  return payload?.iat ?? null;
+  const verified = await verifyCloudflareAccessJwt(token);
+  if (!verified.ok) return null;
+  return verified.identity.iat;
 }
 
 /**
@@ -155,12 +165,12 @@ export function applyIdleReloginCookieUpdateToStore(
   });
 }
 
-export function incrementIdleReloginOnResponse(
+export async function incrementIdleReloginOnResponse(
   request: NextRequest,
   response: NextResponse,
-): void {
+): Promise<void> {
   const stored = readIdleReloginCookies(request.cookies);
-  const accessIat = getAccessIatFromHeaders(request.headers);
+  const accessIat = await getAccessIatFromHeaders(request.headers);
   const update = computeIncrementedIdleRelogin(
     stored.count,
     accessIat,
@@ -170,20 +180,20 @@ export function incrementIdleReloginOnResponse(
 }
 
 /** Sync marker init / iat reset on /login without incrementing idle count. */
-export function syncIdleReloginCookiesOnLoginVisit(
+export async function syncIdleReloginCookiesOnLoginVisit(
   request: NextRequest,
   response: NextResponse,
-): void {
-  const state = resolveIdleReloginStateFromNextRequest(request);
+): Promise<void> {
+  const state = await resolveIdleReloginStateFromNextRequest(request);
   if (state.cookieUpdate) {
     applyIdleReloginCookieUpdateToResponse(response, state.cookieUpdate);
   }
 }
 
-export function resolveIdleReloginState(
+export async function resolveIdleReloginState(
   headers: Headers,
   reader: CookieReader,
-): IdleReloginState & { accessCheckSkipped: boolean } {
+): Promise<IdleReloginState & { accessCheckSkipped: boolean }> {
   if (isAccessJwtCheckSkipped(headers)) {
     return {
       count: 0,
@@ -193,7 +203,7 @@ export function resolveIdleReloginState(
     };
   }
 
-  const accessWindow = validateAccessLoginWindow(headers);
+  const accessWindow = await validateAccessLoginWindow(headers);
   if (!accessWindow.ok) {
     return {
       count: readIdleReloginCookies(reader).count,
@@ -237,26 +247,26 @@ export function readIdleReloginCookiesFromRequest(
   );
 }
 
-export function resolveIdleReloginStateFromRequest(
+export async function resolveIdleReloginStateFromRequest(
   request: Pick<Request, "headers">,
-): IdleReloginState & { accessCheckSkipped: boolean } {
+): Promise<IdleReloginState & { accessCheckSkipped: boolean }> {
   return resolveIdleReloginState(
     request.headers,
     createCookieReaderFromHeader(request.headers.get("cookie")),
   );
 }
 
-export function resolveIdleReloginStateFromNextRequest(
+export async function resolveIdleReloginStateFromNextRequest(
   request: NextRequest,
-): IdleReloginState & { accessCheckSkipped: boolean } {
+): Promise<IdleReloginState & { accessCheckSkipped: boolean }> {
   return resolveIdleReloginState(request.headers, request.cookies);
 }
 
-export function incrementIdleReloginForRequest(
+export async function incrementIdleReloginForRequest(
   request: Pick<Request, "headers">,
-): IdleReloginCookieUpdate {
+): Promise<IdleReloginCookieUpdate> {
   const stored = readIdleReloginCookiesFromRequest(request);
-  const accessIat = getAccessIatFromHeaders(request.headers);
+  const accessIat = await getAccessIatFromHeaders(request.headers);
   return computeIncrementedIdleRelogin(
     stored.count,
     accessIat,
@@ -264,9 +274,11 @@ export function incrementIdleReloginForRequest(
   );
 }
 
-export function isAccessLoginWindowValid(request: Request): boolean {
+export async function isAccessLoginWindowValid(
+  request: Request,
+): Promise<boolean> {
   if (isAccessJwtCheckSkipped(request.headers)) {
     return true;
   }
-  return validateAccessLoginWindowFromRequest(request).ok;
+  return (await validateAccessLoginWindowFromRequest(request)).ok;
 }

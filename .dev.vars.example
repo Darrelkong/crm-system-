@@ -1,5 +1,14 @@
 # Local development: skip Cloudflare Access JWT gate on /login and POST /api/auth/login
+# 生产永远忽略此变量（含 Host/X-Forwarded-Host=localhost），仅本地 dev 生效
 SKIP_ACCESS_JWT_CHECK=true
+
+# Cloudflare Access JWT 验签（生产必填，本地 skip 时可留空）
+# 完整 HTTPS origin，格式 https://<team-name>.cloudflareaccess.com（不带结尾 /、不含 JWKS 路径、不是 CRM 域名）
+# CF_ACCESS_TEAM_DOMAIN=
+# Cloudflare Access Application 的 Audience (AUD) tag（不是 Account/Application/Client ID）
+# CF_ACCESS_AUD=
+# 可选：指定的最高权限 Access email，允许跨 CRM 帐户登入（仍需目标帐户密码）；仅 server 使用，勿提交真实值
+# CF_ACCESS_SUPER_ADMIN_EMAIL=
 
 # Cloudflare Turnstile（Phase 2+ 登录验证，当前预留）
 # TURNSTILE_SITE_KEY=

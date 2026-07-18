@@ -4,7 +4,10 @@
 
 | 变量 | 阶段 | 必填 | 说明 |
 |------|------|------|------|
-| `SKIP_ACCESS_JWT_CHECK` | Phase 17A | 本地 dev 建议 `true` | 设为 `true` 时跳过 Cloudflare Access JWT 5 分钟窗口校验（**生产勿启用**） |
+| `CF_ACCESS_TEAM_DOMAIN` | Access 验签 | 生产必填 | Cloudflare Access 团队完整 HTTPS origin，格式 `https://<team-name>.cloudflareaccess.com`；**不带结尾 `/`**、不含 JWKS 路径、不是 CRM 正式域名。JWKS 由 `${CF_ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs` 推导，issuer 亦为该值。生产缺失时 fail closed |
+| `CF_ACCESS_AUD` | Access 验签 | 生产必填 | Cloudflare Access Application 的 Audience (AUD) tag；不是 Account ID / Application ID / Client ID。生产缺失时 fail closed |
+| `CF_ACCESS_SUPER_ADMIN_EMAIL` | Access 验签 | 否 | 指定的最高权限 Cloudflare Access email（trim + lowercase 比对）。仅当**已验签 JWT 的 email** 与此值完全一致时，允许跨 CRM 帐户登入；仍须目标帐户正确密码，并受目标帐户 active / lockout / device / session 规则约束。仅 server 使用，不下发前端、不写入日志、不得从 request body / header 提供。缺失时不启用跨帐户例外，普通 email 绑定照常生效 |
+| `SKIP_ACCESS_JWT_CHECK` | Phase 17A | 仅本地 dev | 设为 `true` 时跳过 Cloudflare Access JWT 校验。**生产永远忽略**（含 `Host` / `X-Forwarded-Host=localhost`），不能作为生产紧急 bypass |
 | `TURNSTILE_SITE_KEY` | Phase 2+ | 否 | Cloudflare Turnstile 站点公钥（登录页） |
 | `TURNSTILE_SECRET_KEY` | Phase 2+ | 否 | Turnstile 服务端校验密钥 |
 | `SESSION_SECRET` | Phase 1 | 生产建议填写 | Session 相关预留配置；生产环境请使用强随机字符串 |

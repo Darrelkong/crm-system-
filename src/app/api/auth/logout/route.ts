@@ -50,7 +50,7 @@ export async function POST(request: Request) {
   if (reason === "idle") {
     applyIdleReloginCookieUpdateToStore(
       cookieStore,
-      incrementIdleReloginForRequest(request),
+      await incrementIdleReloginForRequest(request),
     );
   }
 

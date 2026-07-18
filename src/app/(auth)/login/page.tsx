@@ -14,12 +14,12 @@ export default async function LoginPage() {
   const cookieStore = await cookies();
 
   if (shouldRequireCloudflareAccess(hdrs)) {
-    const accessWindow = validateAccessLoginWindow(hdrs);
+    const accessWindow = await validateAccessLoginWindow(hdrs);
     if (!accessWindow.ok) {
       return <AccessExpiredGate />;
     }
 
-    const idleState = resolveIdleReloginState(hdrs, cookieStore);
+    const idleState = await resolveIdleReloginState(hdrs, cookieStore);
     if (idleState.requiresAccessReverify) {
       return <AccessExpiredGate />;
     }
@@ -27,7 +27,7 @@ export default async function LoginPage() {
 
   return (
     <Suspense fallback={<LoginLoadingFallback />}>
-      <LoginForm />
+    <LoginForm />
     </Suspense>
   );
 }
