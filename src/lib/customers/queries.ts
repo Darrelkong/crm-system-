@@ -27,7 +27,7 @@ export type CustomerCreatorOption = {
   role: string;
 };
 
-export const CUSTOMER_LIST_PAGE_SIZE = 10;
+export const CUSTOMER_LIST_PAGE_SIZE = 40;
 
 export type CustomerListPaginationMeta = {
   page: number;

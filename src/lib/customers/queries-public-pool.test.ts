@@ -167,6 +167,46 @@ describe("public pool exclusion from normal customer lists", () => {
     );
   });
 
+  it("admin and staff paginated lists use page size 40", async () => {
+    const adminPage1 = await listCustomersForUserPaginated(adminUser, {}, 1);
+    assert.equal(adminPage1.pagination.pageSize, 40);
+    assert.ok(adminPage1.items.length <= 40);
+    assert.equal(
+      adminPage1.pagination.pageCount,
+      Math.max(1, Math.ceil(adminPage1.pagination.total / 40)),
+    );
+
+    const staffPage1 = await listCustomersForUserPaginated(staffA, {}, 1);
+    assert.equal(staffPage1.pagination.pageSize, 40);
+    assert.ok(staffPage1.items.length <= 40);
+    assert.equal(
+      staffPage1.items.every((c) => c.status !== "public_pool"),
+      true,
+    );
+
+    if (adminPage1.pagination.total > 40) {
+      const adminPage2 = await listCustomersForUserPaginated(adminUser, {}, 2);
+      assert.equal(adminPage2.pagination.page, 2);
+      assert.equal(adminPage2.pagination.pageSize, 40);
+      assert.ok(adminPage2.items.length <= 40);
+      const page1Ids = new Set(adminPage1.items.map((c) => c.id));
+      assert.equal(
+        adminPage2.items.every((c) => !page1Ids.has(c.id)),
+        true,
+        "page 2 items must not overlap page 1",
+      );
+    }
+
+    const searchPage1 = await searchCustomersForUserPaginated(
+      adminUser,
+      "测试",
+      {},
+      1,
+    );
+    assert.equal(searchPage1.pagination.pageSize, 40);
+    assert.ok(searchPage1.items.length <= 40);
+  });
+
   it("public pool dedicated list still includes public_pool customers", async () => {
     const poolCustomers = await listPublicPoolCustomers();
     assert.ok(
