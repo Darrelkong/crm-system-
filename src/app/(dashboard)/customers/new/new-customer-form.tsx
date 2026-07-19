@@ -16,7 +16,9 @@ import { OnHoldApprovalSubmittedModal, OnHoldReasonModal } from "./on-hold-appro
 
 type DuplicateMatch = {
   field: string;
-  customer: { id: string; customerName: string; status: string; isMasked: boolean };
+  customer:
+    | { isMasked: true }
+    | { isMasked: false; id: string; customerName: string; status: string };
 };
 
 const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
@@ -207,8 +209,8 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
                 <li key={i} className="text-sm text-red-600">
                   {t("customers.fieldExists", { field: fieldLabel(d.field) })}
                   {d.customer.isMasked ? (
-                    <span className="ml-1 font-medium">
-                      {d.customer.customerName} {t("customers.maskedNoDetail")}
+                    <span className="ml-1">
+                      {t("customers.maskedDuplicateHint")}
                     </span>
                   ) : (
                     <a

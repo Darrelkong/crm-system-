@@ -459,6 +459,7 @@ const zhHant: Messages = {
     duplicateFound: "發現重複客戶，請檢查以下資訊",
     fieldExists: "{{field}} 已存在：",
     maskedNoDetail: "（脫敏客戶，無法查看詳情）",
+    maskedDuplicateHint: "該欄位可能與系統中已有資料重複，請聯絡管理員確認。",
     heatDescription: "基於有效跟進、銷售階段、下次跟進與自動回收預警規則動態計算。",
     completenessPoints: "{{score}} 分",
     missingFields: "待完善項：",

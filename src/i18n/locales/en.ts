@@ -476,6 +476,8 @@ const en = {
     duplicateFound: "Duplicate client detected. Please review the following:",
     fieldExists: "{{field}} already exists:",
     maskedNoDetail: "(masked client — details unavailable)",
+    maskedDuplicateHint:
+      "This field may match an existing record. Please contact an administrator.",
     heatDescription:
       "Calculated from valid follow-ups, sales stage, next follow-up, and auto-reclaim rules.",
     completenessPoints: "{{score}} pts",

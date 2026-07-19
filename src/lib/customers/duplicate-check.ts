@@ -6,18 +6,27 @@ import type { User } from "../../../drizzle/schema/users";
 
 export type DuplicateField = "phone" | "wechatId" | "email";
 
-export type DuplicateMatch = {
+export type FullDuplicateMatch = {
   field: DuplicateField;
   customer: {
+    isMasked: false;
     id: string;
     customerName: string;
     status: string;
-    isMasked: boolean;
     phone?: string | null;
     wechatId?: string | null;
     email?: string | null;
   };
 };
+
+export type MaskedDuplicateMatch = {
+  field: DuplicateField;
+  customer: {
+    isMasked: true;
+  };
+};
+
+export type DuplicateMatch = FullDuplicateMatch | MaskedDuplicateMatch;
 
 type CheckInput = {
   phone?: string | null;
@@ -66,21 +75,24 @@ export async function checkCustomerDuplicates(
     const level = getCustomerAccessLevel(currentUser, customer, {
       isAssignee,
     });
-    const isMasked = level !== "full";
+    if (level !== "full") {
+      // Opaque masked match: only the input field is revealed, never any
+      // customer-identifying data (id/name/status/contacts/pool membership).
+      matches.push({ field, customer: { isMasked: true } });
+      continue;
+    }
 
     matches.push({
       field,
-      customer: isMasked
-        ? { id: customer.id, customerName: customer.customerName, status: customer.status, isMasked: true }
-        : {
-            id: customer.id,
-            customerName: customer.customerName,
-            status: customer.status,
-            isMasked: false,
-            phone: customer.phone,
-            wechatId: customer.wechatId,
-            email: customer.email,
-          },
+      customer: {
+        isMasked: false,
+        id: customer.id,
+        customerName: customer.customerName,
+        status: customer.status,
+        phone: customer.phone,
+        wechatId: customer.wechatId,
+        email: customer.email,
+      },
     });
   }
 
