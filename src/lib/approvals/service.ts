@@ -31,6 +31,7 @@ import {
 import {
   executeApprovedAssigneeUpdate,
 } from "@/lib/customers/assignees-approval";
+import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
 import {
   AssigneeMutationError,
 } from "@/lib/customers/assignees-mutations";
@@ -177,23 +178,40 @@ async function executeApprovedAction(
 
       const previousOwnerId = customer.ownerId;
       const transferredFromPublicPool = customer.status === "public_pool";
+      const targetUserId = approval.targetUserId;
 
-      await db
+      const updateCustomerStmt = db
         .update(schema.customers)
         .set({
-          ownerId: approval.targetUserId,
+          ownerId: targetUserId,
           updatedBy: reviewer.id,
           updatedAt: now,
           ...(transferredFromPublicPool
             ? {
                 status: "active" as const,
                 poolLeftAt: now,
-                claimedBy: approval.targetUserId,
+                claimedBy: targetUserId,
                 claimedAt: now,
               }
             : {}),
         })
         .where(eq(schema.customers.id, customer.id));
+
+      // Owner ⇔ primary assignee must be synced atomically: the customer owner
+      // update and the primary reassignment share one db.batch so a partial
+      // failure can never leave ownerId and the primary row inconsistent.
+      const primaryAssigneeStmts = buildTransferPrimaryAssigneeStatements(db, {
+        customerId: customer.id,
+        targetUserId,
+        assignedBy: reviewer.id,
+        now,
+      });
+
+      await db.batch(
+        [updateCustomerStmt, ...primaryAssigneeStmts] as unknown as Parameters<
+          Database["batch"]
+        >[0],
+      );
 
       await writeFieldChangeLogEntry(
         customer.id,
