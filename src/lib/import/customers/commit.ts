@@ -3,6 +3,7 @@ import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
+import { buildInsertPrimaryAssigneeStatement } from "@/lib/customers/primary-assignee";
 import {
   assertCommitableImportJob,
   ImportJobGuardError,
@@ -96,7 +97,7 @@ export async function commitCustomerImport(
         status: "active",
       });
 
-      await db.insert(schema.customers).values({
+      const insertCustomerStmt = db.insert(schema.customers).values({
         id,
         customerCode,
         customerName: payload.customerName,
@@ -117,6 +118,20 @@ export async function commitCustomerImport(
         createdAt: now,
         updatedAt: now,
       });
+
+      // Owner ⇔ primary assignee must be written atomically (see PRIMARY-ASSIGNEE-INVARIANT).
+      const insertPrimaryAssigneeStmt = buildInsertPrimaryAssigneeStatement(db, {
+        customerId: id,
+        ownerId: user.id,
+        assignedBy: user.id,
+        now,
+      });
+
+      await db.batch(
+        [insertCustomerStmt, insertPrimaryAssigneeStmt] as unknown as Parameters<
+          Database["batch"]
+        >[0],
+      );
 
       createdCustomerIds.push(id);
 

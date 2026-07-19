@@ -28,6 +28,7 @@ import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
+import { buildInsertPrimaryAssigneeStatement } from "@/lib/customers/primary-assignee";
 import {
   buildOnHoldCreateApprovalPayload,
   isStaffOnHoldCreatePending,
@@ -264,7 +265,7 @@ export async function POST(request: Request) {
       status: "active",
     });
 
-    await db.insert(schema.customers).values({
+    const insertCustomerStmt = db.insert(schema.customers).values({
       id,
       customerCode,
       customerName: payload.customerName,
@@ -285,6 +286,20 @@ export async function POST(request: Request) {
       createdAt: now,
       updatedAt: now,
     });
+
+    // Owner ⇔ primary assignee must be written atomically (see PRIMARY-ASSIGNEE-INVARIANT).
+    const insertPrimaryAssigneeStmt = buildInsertPrimaryAssigneeStatement(db, {
+      customerId: id,
+      ownerId,
+      assignedBy: user.id,
+      now,
+    });
+
+    await db.batch(
+      [insertCustomerStmt, insertPrimaryAssigneeStmt] as unknown as Parameters<
+        typeof db.batch
+      >[0],
+    );
 
     if (pendingOnHoldApproval) {
       const customer = await getCustomerById(id);
