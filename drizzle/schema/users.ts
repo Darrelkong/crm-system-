@@ -14,6 +14,12 @@ export const users = sqliteTable(
     mustChangePassword: integer("must_change_password").notNull().default(0),
     passwordChangedAt: text("password_changed_at"),
     passwordResetAt: text("password_reset_at"),
+    /** Staff-only one-time first-device auto-approval eligibility (0|1). Never expose to clients. */
+    initialDeviceAutoApprovalEligible: integer(
+      "initial_device_auto_approval_eligible",
+    )
+      .notNull()
+      .default(0),
     deletedAt: text("deleted_at"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),

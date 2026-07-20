@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as ChangePasswordBody;
     const { ipAddress, userAgent } = getRequestMeta(request);
 
-    const fieldErrors = await changeUserPassword(
+    const result = await changeUserPassword(
       user,
       {
         currentPassword: body.currentPassword ?? "",
@@ -26,14 +26,25 @@ export async function POST(request: Request) {
       { ipAddress, userAgent },
     );
 
-    if (fieldErrors.length > 0) {
+    if (!result.ok && "fieldErrors" in result) {
       return Response.json(
         {
           error: "输入校验失败",
           errorCode: "VALIDATION_FAILED",
-          fieldErrors,
+          fieldErrors: result.fieldErrors,
         },
         { status: 400 },
+      );
+    }
+
+    if (!result.ok && "conflict" in result) {
+      return Response.json(
+        {
+          error: result.message,
+          errorCode: result.errorCode,
+          redirect: "/login",
+        },
+        { status: 409 },
       );
     }
 

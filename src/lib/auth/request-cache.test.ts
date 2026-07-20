@@ -31,6 +31,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     mustChangePassword: 0,
     passwordChangedAt: null,
     passwordResetAt: null,
+    initialDeviceAutoApprovalEligible: 0,
     deletedAt: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -41,7 +42,7 @@ function makeUser(overrides: Partial<User> = {}): User {
 function okResult(user: User): SessionValidationResult {
   return {
     ok: true,
-    session: { sessionId: "sess-1", user },
+    session: { sessionId: "sess-1", user, deviceIdHash: null },
     globalIdleTimeoutExempt: false,
   };
 }

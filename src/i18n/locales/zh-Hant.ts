@@ -108,6 +108,7 @@ const zhHant: Messages = {
     deviceRevoked: "此設備授權已被撤銷，請聯繫管理員。",
     deviceRejected: "此設備授權申請已被拒絕，請聯繫管理員。",
     deviceReapprovalPending: "此設備已重新提交授權申請，請等待管理員審核。",
+    initialActivationStateChanged: "啟用狀態已更新，請重新登入後再試。",
   },
   security: {
     accessExpired:

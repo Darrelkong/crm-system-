@@ -14,6 +14,10 @@ import {
   getDeviceAuthorizationLimit,
   isDeviceAuthorizationEnabled,
 } from "@/lib/devices/queries";
+import {
+  buildConsumeInitialDeviceAutoApprovalEligibilityStatement,
+  canCreateInitialActivationRestrictedSession,
+} from "@/lib/devices/initial-device-auto-approval";
 import { defaultDeviceName } from "@/lib/devices/ua-summary";
 import type { DeviceLoginBlockReason } from "@/lib/devices/types";
 import type { AuthorizedDevice } from "../../../drizzle/schema/authorized-devices";
@@ -40,6 +44,31 @@ export type DeviceLoginBlock = {
 };
 
 export type DeviceLoginResult = DeviceLoginAllow | DeviceLoginBlock;
+
+function tryInitialActivationRestrictedAllow(
+  user: User,
+  deviceRecordId: string,
+  deviceIdHash: string,
+  approvedCount: number,
+  deviceLimit: number,
+): DeviceLoginAllow | null {
+  if (
+    !canCreateInitialActivationRestrictedSession({
+      role: user.role,
+      mustChangePassword: user.mustChangePassword,
+      initialDeviceAutoApprovalEligible:
+        user.initialDeviceAutoApprovalEligible,
+      deviceAuthorizationEnabled: true,
+      deviceStatus: "pending",
+      deviceBelongsToUser: true,
+      approvedCount,
+      deviceLimit,
+    })
+  ) {
+    return null;
+  }
+  return { ok: true, deviceRecordId, deviceIdHash };
+}
 
 export class DeviceAdminError extends Error {
   constructor(
@@ -296,6 +325,17 @@ export async function evaluateStaffDeviceLogin(
       database,
     );
 
+    const restrictedAllow = tryInitialActivationRestrictedAllow(
+      user,
+      created.id,
+      deviceIdHash,
+      approvedCount,
+      limit,
+    );
+    if (restrictedAllow) {
+      return restrictedAllow;
+    }
+
     await writeDeviceAudit(
       {
         actorUserId: user.id,
@@ -343,6 +383,19 @@ export async function evaluateStaffDeviceLogin(
   }
 
   if (existing.status === "pending") {
+    const limit = await getDeviceAuthorizationLimit(database);
+    const approvedCount = await countApprovedDevicesForUser(user.id, database);
+    const restrictedAllow = tryInitialActivationRestrictedAllow(
+      user,
+      existing.id,
+      deviceIdHash,
+      approvedCount,
+      limit,
+    );
+    if (restrictedAllow) {
+      return restrictedAllow;
+    }
+
     await writeDeviceAudit(
       {
         actorUserId: user.id,
@@ -391,6 +444,19 @@ export async function evaluateStaffDeviceLogin(
     database,
   );
 
+  const limit = await getDeviceAuthorizationLimit(database);
+  const approvedCount = await countApprovedDevicesForUser(user.id, database);
+  const restrictedAllow = tryInitialActivationRestrictedAllow(
+    user,
+    existing.id,
+    deviceIdHash,
+    approvedCount,
+    limit,
+  );
+  if (restrictedAllow) {
+    return restrictedAllow;
+  }
+
   await writeDeviceAudit(
     {
       actorUserId: user.id,
@@ -436,6 +502,54 @@ export async function isDeviceApprovedForSession(
   return device?.status === "approved";
 }
 
+/**
+ * Staff session device gate: Approved always allowed; Pending allowed only
+ * while the user still qualifies for the initial-activation restricted session.
+ */
+export async function isDeviceAllowedForStaffSession(
+  user: Pick<
+    User,
+    | "id"
+    | "role"
+    | "mustChangePassword"
+    | "initialDeviceAutoApprovalEligible"
+  >,
+  deviceIdHash: string,
+  db?: Database,
+): Promise<boolean> {
+  const database = db ?? getDb();
+  const enabled = await isDeviceAuthorizationEnabled(database);
+  if (!enabled) {
+    return true;
+  }
+
+  const device = await getAuthorizedDeviceByUserAndHash(
+    user.id,
+    deviceIdHash,
+    database,
+  );
+  if (device?.status === "approved") {
+    return true;
+  }
+  if (device?.status !== "pending") {
+    return false;
+  }
+
+  const approvedCount = await countApprovedDevicesForUser(user.id, database);
+  const deviceLimit = await getDeviceAuthorizationLimit(database);
+  return canCreateInitialActivationRestrictedSession({
+    role: user.role,
+    mustChangePassword: user.mustChangePassword,
+    initialDeviceAutoApprovalEligible:
+      user.initialDeviceAutoApprovalEligible,
+    deviceAuthorizationEnabled: true,
+    deviceStatus: "pending",
+    deviceBelongsToUser: true,
+    approvedCount,
+    deviceLimit,
+  });
+}
+
 export async function approveAuthorizedDevice(
   actor: User,
   deviceRecordId: string,
@@ -474,33 +588,45 @@ export async function approveAuthorizedDevice(
   }
 
   const now = new Date().toISOString();
-  await database
-    .update(schema.authorizedDevices)
-    .set({
-      status: "approved",
-      approvedBy: actor.id,
-      approvedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(schema.authorizedDevices.id, deviceRecordId));
-
-  await writeDeviceAudit(
-    {
-      actorUserId: actor.id,
+  const auditId = crypto.randomUUID();
+  await database.batch([
+    database
+      .update(schema.authorizedDevices)
+      .set({
+        status: "approved",
+        approvedBy: actor.id,
+        approvedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.authorizedDevices.id, deviceRecordId),
+          eq(schema.authorizedDevices.status, "pending"),
+        ),
+      ),
+    buildConsumeInitialDeviceAutoApprovalEligibilityStatement(
+      database,
+      device.userId,
+      now,
+    ),
+    database.insert(schema.auditLogs).values({
+      id: auditId,
+      userId: actor.id,
       action: DEVICE_AUDIT_ACTIONS.APPROVED,
+      entityType: "authorized_device",
       entityId: deviceRecordId,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      metadata: {
+      ipAddress: meta.ipAddress ?? null,
+      userAgent: meta.userAgent ?? null,
+      metadata: JSON.stringify({
         targetUserId: user.id,
         targetUserEmail: user.email,
         deviceRecordId,
         deviceName: device.deviceName,
         ipAddress: meta.ipAddress,
-      },
-    },
-    database,
-  );
+      }),
+      createdAt: now,
+    }),
+  ] as unknown as Parameters<Database["batch"]>[0]);
 }
 
 export async function rejectAuthorizedDevice(
@@ -529,30 +655,42 @@ export async function rejectAuthorizedDevice(
   const user = targetUser[0];
 
   const now = new Date().toISOString();
-  await database
-    .update(schema.authorizedDevices)
-    .set({
-      status: "rejected",
-      updatedAt: now,
-    })
-    .where(eq(schema.authorizedDevices.id, deviceRecordId));
-
-  await writeDeviceAudit(
-    {
-      actorUserId: actor.id,
+  const auditId = crypto.randomUUID();
+  await database.batch([
+    database
+      .update(schema.authorizedDevices)
+      .set({
+        status: "rejected",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.authorizedDevices.id, deviceRecordId),
+          eq(schema.authorizedDevices.status, "pending"),
+        ),
+      ),
+    buildConsumeInitialDeviceAutoApprovalEligibilityStatement(
+      database,
+      device.userId,
+      now,
+    ),
+    database.insert(schema.auditLogs).values({
+      id: auditId,
+      userId: actor.id,
       action: DEVICE_AUDIT_ACTIONS.REJECTED,
+      entityType: "authorized_device",
       entityId: deviceRecordId,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      metadata: {
+      ipAddress: meta.ipAddress ?? null,
+      userAgent: meta.userAgent ?? null,
+      metadata: JSON.stringify({
         targetUserId: device.userId,
         targetUserEmail: user?.email,
         deviceRecordId,
         deviceName: device.deviceName,
-      },
-    },
-    database,
-  );
+      }),
+      createdAt: now,
+    }),
+  ] as unknown as Parameters<Database["batch"]>[0]);
 }
 
 export async function revokeAuthorizedDevice(
@@ -581,18 +719,49 @@ export async function revokeAuthorizedDevice(
   const user = targetUser[0];
 
   const now = new Date().toISOString();
-  await database
-    .update(schema.authorizedDevices)
-    .set({
-      status: "revoked",
-      revokedAt: now,
-      updatedAt: now,
-    })
-    .where(eq(schema.authorizedDevices.id, deviceRecordId));
+  const isAdminDevice = user?.role === "admin";
+  const auditId = crypto.randomUUID();
+
+  await database.batch([
+    database
+      .update(schema.authorizedDevices)
+      .set({
+        status: "revoked",
+        revokedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.authorizedDevices.id, deviceRecordId),
+          eq(schema.authorizedDevices.status, "approved"),
+        ),
+      ),
+    buildConsumeInitialDeviceAutoApprovalEligibilityStatement(
+      database,
+      device.userId,
+      now,
+    ),
+    database.insert(schema.auditLogs).values({
+      id: auditId,
+      userId: actor.id,
+      action: DEVICE_AUDIT_ACTIONS.REVOKED,
+      entityType: "authorized_device",
+      entityId: deviceRecordId,
+      ipAddress: meta.ipAddress ?? null,
+      userAgent: meta.userAgent ?? null,
+      metadata: JSON.stringify({
+        targetUserId: device.userId,
+        targetUserEmail: user?.email,
+        deviceRecordId,
+        deviceName: device.deviceName,
+        auditOnly: isAdminDevice,
+      }),
+      createdAt: now,
+    }),
+  ] as unknown as Parameters<Database["batch"]>[0]);
 
   // Admin sessions are not revoked when an admin device record is revoked —
   // device status is audit-only for admins and must not block their access.
-  const isAdminDevice = user?.role === "admin";
   let revokedSessionCount = 0;
   if (!isAdminDevice) {
     revokedSessionCount = await revokeSessionsForUserDevice(
@@ -602,24 +771,6 @@ export async function revokeAuthorizedDevice(
       now,
     );
   }
-
-  await writeDeviceAudit(
-    {
-      actorUserId: actor.id,
-      action: DEVICE_AUDIT_ACTIONS.REVOKED,
-      entityId: deviceRecordId,
-      ipAddress: meta.ipAddress,
-      userAgent: meta.userAgent,
-      metadata: {
-        targetUserId: device.userId,
-        targetUserEmail: user?.email,
-        deviceRecordId,
-        deviceName: device.deviceName,
-        auditOnly: isAdminDevice,
-      },
-    },
-    database,
-  );
 
   if (revokedSessionCount > 0) {
     await writeDeviceAudit(

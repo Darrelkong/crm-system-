@@ -51,6 +51,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   DEVICE_REVOKED: "auth.deviceRevoked",
   DEVICE_LIMIT_REACHED: "auth.deviceLimitReached",
   DEVICE_REAPPROVAL_PENDING: "auth.deviceReapprovalPending",
+  INITIAL_ACTIVATION_STATE_CHANGED: "auth.initialActivationStateChanged",
   ON_HOLD_REASON_REQUIRED: "errors.onHoldReasonRequired",
   ON_HOLD_REASON_TOO_SHORT: "errors.onHoldReasonTooShort",
   validation: "errors.validationFailed",

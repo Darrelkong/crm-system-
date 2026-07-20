@@ -19,7 +19,7 @@ import {
   shouldTouchSessionActivity,
   touchSessionActivity,
 } from "@/lib/auth/session-policy";
-import { isDeviceApprovedForSession } from "@/lib/devices/service";
+import { isDeviceAllowedForStaffSession } from "@/lib/devices/service";
 import {
   getGlobalIdlePolicy,
   isStaffSessionBlockedByReverifyEpoch,
@@ -28,6 +28,8 @@ import {
 export type SessionWithUser = {
   sessionId: string;
   user: User;
+  /** Bound device hash from the session row; null when unset. */
+  deviceIdHash: string | null;
 };
 
 export type SessionValidationResult =
@@ -148,12 +150,12 @@ export async function validateSessionToken(
 
   // Admin accounts are never blocked by device authorization status.
   if (row.session.deviceIdHash && row.user.role !== "admin") {
-    const deviceApproved = await isDeviceApprovedForSession(
-      row.user.id,
+    const deviceAllowed = await isDeviceAllowedForStaffSession(
+      row.user,
       row.session.deviceIdHash,
       db,
     );
-    if (!deviceApproved) {
+    if (!deviceAllowed) {
       if (!isSessionRevoked(row.session)) {
         await revokeSessionById(db, row.sessionId, nowIso);
       }
@@ -194,7 +196,11 @@ export async function validateSessionToken(
 
   return {
     ok: true,
-    session: { sessionId: row.sessionId, user: row.user },
+    session: {
+      sessionId: row.sessionId,
+      user: row.user,
+      deviceIdHash: row.session.deviceIdHash ?? null,
+    },
     globalIdleTimeoutExempt: policy.globalIdleTimeoutExempt,
   };
 }

@@ -22,6 +22,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     mustChangePassword: 0,
     passwordChangedAt: null,
     passwordResetAt: null,
+    initialDeviceAutoApprovalEligible: 0,
     deletedAt: null,
     createdAt: NOW,
     updatedAt: NOW,
@@ -35,7 +36,7 @@ function okResult(
 ): Extract<SessionValidationResult, { ok: true }> {
   return {
     ok: true,
-    session: { sessionId: "sess-1", user },
+    session: { sessionId: "sess-1", user, deviceIdHash: null },
     globalIdleTimeoutExempt,
   };
 }
@@ -65,12 +66,19 @@ describe("buildAuthMeSuccessPayload", () => {
   });
 
   it("does not expose epoch, Access iat, or internal security fields", () => {
-    const payload = buildAuthMeSuccessPayload(okResult(makeUser(), true));
+    const payload = buildAuthMeSuccessPayload(
+      okResult(
+        makeUser({ initialDeviceAutoApprovalEligible: 1 }),
+        true,
+      ),
+    );
     const json = JSON.stringify(payload);
     assert.ok(!json.includes("staffAccessReverifyAfter"));
     assert.ok(!json.includes("staff_access_reverify_after"));
     assert.ok(!json.includes("accessJwtIat"));
     assert.ok(!json.includes("idleExemptUntil"));
+    assert.ok(!json.includes("initialDeviceAutoApprovalEligible"));
+    assert.ok(!json.includes("initial_device_auto_approval_eligible"));
     assert.ok(!Object.prototype.hasOwnProperty.call(payload, "session"));
     assert.deepEqual(Object.keys(payload).sort(), [
       "globalIdleTimeoutExempt",

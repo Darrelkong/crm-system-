@@ -7,6 +7,7 @@ export const DEVICE_COOKIE_TTL_MS = 400 * 24 * 60 * 60 * 1000;
 export const DEVICE_AUDIT_ACTIONS = {
   CREATED_PENDING: "device.created.pending",
   APPROVED: "device.approved",
+  APPROVED_INITIAL_ACTIVATION: "device.approved.initial_activation",
   REJECTED: "device.rejected",
   REVOKED: "device.revoked",
   LOGIN_BLOCKED: "device.login.blocked",

@@ -23,6 +23,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     mustChangePassword: 0,
     passwordChangedAt: null,
     passwordResetAt: null,
+    initialDeviceAutoApprovalEligible: 0,
     deletedAt: null,
     createdAt: "2026-01-01T00:00:00.000Z",
     updatedAt: "2026-01-01T00:00:00.000Z",

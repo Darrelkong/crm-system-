@@ -7,6 +7,7 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getUserById } from "@/lib/users/queries";
 import { buildUserDeletionAuditMetadata } from "@/lib/users-admin/deletion-metadata";
 import { appendStaffDeleteAssigneeStatements } from "@/lib/users-admin/staff-delete-assignees";
+import { initialDeviceAutoApprovalEligibleForNewRole } from "@/lib/devices/initial-device-auto-approval";
 import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 
@@ -125,6 +126,10 @@ export async function createUserAccount(
     mustChangePassword: input.role === "staff" ? 1 : 0,
     passwordChangedAt: null,
     passwordResetAt: null,
+    // Staff-only one-time first-device auto-approval eligibility.
+    // Admin Reset Password must never set this back to 1.
+    initialDeviceAutoApprovalEligible:
+      initialDeviceAutoApprovalEligibleForNewRole(input.role),
     deletedAt: null,
     createdAt: now,
     updatedAt: now,

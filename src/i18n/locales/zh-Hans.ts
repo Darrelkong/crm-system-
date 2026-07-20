@@ -108,6 +108,7 @@ const zhHans: Messages = {
     deviceRevoked: "此设备授权已被撤销，请联系管理员。",
     deviceRejected: "此设备授权申请已被拒绝，请联系管理员。",
     deviceReapprovalPending: "此设备已重新提交授权申请，请等待管理员审核。",
+    initialActivationStateChanged: "启用状态已更新，请重新登录后再试。",
   },
   security: {
     accessExpired:

@@ -115,6 +115,8 @@ const en = {
       "This device authorization request was rejected. Please contact an administrator.",
     deviceReapprovalPending:
       "A new authorization request has been submitted for this device. Please wait for administrator approval.",
+    initialActivationStateChanged:
+      "Activation state changed. Please sign in again and retry.",
   },
   security: {
     accessExpired:
