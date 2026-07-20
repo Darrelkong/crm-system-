@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { planLoginAccessReverifyResponse } from "@/lib/auth/idle-timeout-check";
 
 /**
  * Mirrors login-form.tsx submit response classification for automated verification.
@@ -10,6 +11,7 @@ function isJsonContentType(contentType: string | null): boolean {
 
 type LoginSubmitOutcome =
   | "access_reverify"
+  | "access_reverify_local_notice"
   | "network_error"
   | "json_error_handler"
   | "json_success";
@@ -20,6 +22,7 @@ function classifyLoginSubmitResponse(options: {
   jsonParseFailed: boolean;
   ok: boolean;
   errorCode?: string;
+  isLocalDevelopment?: boolean;
 }): LoginSubmitOutcome {
   if (options.fetchThrew) {
     return "network_error";
@@ -38,6 +41,15 @@ function classifyLoginSubmitResponse(options: {
     options.errorCode === "ACCESS_VERIFICATION_EXPIRED"
   ) {
     return "access_reverify";
+  }
+
+  if (!options.ok && options.errorCode === "SESSION_ACCESS_REVERIFY_REQUIRED") {
+    const plan = planLoginAccessReverifyResponse({
+      isLocalDevelopment: options.isLocalDevelopment === true,
+    });
+    return plan.action === "show_local_notice"
+      ? "access_reverify_local_notice"
+      : "access_reverify";
   }
 
   if (options.ok) {
@@ -87,6 +99,47 @@ describe("login form response handling", () => {
       }),
       "access_reverify",
     );
+  });
+
+  it("SESSION_ACCESS_REVERIFY_REQUIRED production goes to Access reverify", () => {
+    assert.equal(
+      classifyLoginSubmitResponse({
+        fetchThrew: false,
+        contentType: "application/json",
+        jsonParseFailed: false,
+        ok: false,
+        errorCode: "SESSION_ACCESS_REVERIFY_REQUIRED",
+        isLocalDevelopment: false,
+      }),
+      "access_reverify",
+    );
+  });
+
+  it("SESSION_ACCESS_REVERIFY_REQUIRED local shows dedicated notice", () => {
+    assert.equal(
+      classifyLoginSubmitResponse({
+        fetchThrew: false,
+        contentType: "application/json",
+        jsonParseFailed: false,
+        ok: false,
+        errorCode: "SESSION_ACCESS_REVERIFY_REQUIRED",
+        isLocalDevelopment: true,
+      }),
+      "access_reverify_local_notice",
+    );
+  });
+
+  it("does not treat SESSION_ACCESS_REVERIFY_REQUIRED as credentials error", () => {
+    const outcome = classifyLoginSubmitResponse({
+      fetchThrew: false,
+      contentType: "application/json",
+      jsonParseFailed: false,
+      ok: false,
+      errorCode: "SESSION_ACCESS_REVERIFY_REQUIRED",
+      isLocalDevelopment: true,
+    });
+    assert.notEqual(outcome, "json_error_handler");
+    assert.notEqual(outcome, "json_success");
   });
 
   it("routes other JSON login errors to existing handlers", () => {

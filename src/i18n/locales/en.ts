@@ -138,6 +138,8 @@ const en = {
     sessionTimeoutTitle: "Session expired",
     timeoutReverifyHint:
       "If you do not sign in again after multiple attempts, security verification will restart.",
+    accessReverifyRequired:
+      "Security settings have changed. Please verify your access again before signing in.",
   },
   nav: {
     dashboard: "Dashboard",
@@ -1433,6 +1435,27 @@ const en = {
       "Device authorization is enabled. New staff devices require admin approval.",
     deviceAuthEnabledOff:
       "Device authorization is disabled. Staff login is not restricted by device.",
+    globalIdleExemption: {
+      title: "Exempt users from the 30-minute inactivity logout",
+      description:
+        "When enabled, current and future users will not be logged out solely because the CRM has been inactive for 30 minutes. Device authorization, account status, session security checks, and Cloudflare Access verification remain active.",
+      statusOn: "Enabled",
+      statusOff: "Disabled",
+      loading: "Loading…",
+      enableSuccess:
+        "Global inactivity exemption has been enabled. Other security protections remain active.",
+      disableSuccess:
+        "The 30-minute inactivity logout has been restored. All non-Admin users must verify their Access again.",
+      saveFailed: "Unable to update the security setting. Please try again.",
+      loadFailed:
+        "Unable to load the global inactivity exemption setting. Please try again.",
+      saving: "Working…",
+      confirmTitle: "Restore the 30-minute inactivity logout?",
+      confirmDescription:
+        "Disabling this setting will immediately invalidate all current non-Admin CRM sessions. Those users must verify their Cloudflare Access again.\n\nThe current Admin session will remain active. This action does not disable user accounts or delete any customer or business data.",
+      confirmSubmit: "Disable and require re-verification",
+      confirmCancel: "Cancel",
+    },
     sections: {
       basic: {
         title: "Basic system settings",

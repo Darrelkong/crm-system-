@@ -98,6 +98,24 @@ export async function requireAuth(
       );
     }
     if (
+      validation.reason === "access_reverify" ||
+      validation.errorCode ===
+        AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED
+    ) {
+      if (request) {
+        await logPermissionDenied(request, {
+          action: "auth.session.access_reverify",
+          entityType: "auth",
+        });
+      }
+      throw new AuthError(
+        401,
+        "session access reverify required",
+        "auth.session.access_reverify",
+        AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
+      );
+    }
+    if (
       validation.reason === "invalid" ||
       validation.errorCode === AUTH_ERROR_CODES.SESSION_INVALID
     ) {

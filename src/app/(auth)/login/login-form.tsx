@@ -28,7 +28,13 @@ import { useToggleCrmTheme, applyCrmThemeToDocument } from "@/lib/theme/crm-them
 import "./login-page.css";
 
 function parseSessionEndParam(value: string | null): SessionEndReason | null {
-  if (value === "idle" || value === "revoked" || value === "invalid" || value === "device_revoked") {
+  if (
+    value === "idle" ||
+    value === "revoked" ||
+    value === "invalid" ||
+    value === "device_revoked" ||
+    value === "access_reverify"
+  ) {
     return value;
   }
   return null;
@@ -164,6 +170,15 @@ export function LoginForm() {
           data.errorCode === "ACCESS_VERIFICATION_EXPIRED" &&
           !isLocalDevelopmentClient()
         ) {
+          keepPendingModal = true;
+          redirectForAccessVerification();
+          return;
+        }
+        if (data.errorCode === "SESSION_ACCESS_REVERIFY_REQUIRED") {
+          if (isLocalDevelopmentClient()) {
+            setError(t("security.accessReverifyRequired"));
+            return;
+          }
           keepPendingModal = true;
           redirectForAccessVerification();
           return;

@@ -97,6 +97,17 @@ export function resolveAuthFromValidation(
     );
   }
   if (
+    reason === "access_reverify" ||
+    errorCode === AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED
+  ) {
+    throw new AuthError(
+      401,
+      "session access reverify required",
+      "auth.session.access_reverify",
+      AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
+    );
+  }
+  if (
     reason === "invalid" ||
     errorCode === AUTH_ERROR_CODES.SESSION_INVALID
   ) {
@@ -115,6 +126,17 @@ export function resolveAuthFromValidation(
     "permission.denied.unauthenticated",
     AUTH_ERROR_CODES.UNAUTHENTICATED,
   );
+}
+
+/**
+ * Returns the full request-scoped SessionValidationResult (ok or fail).
+ * Same D1 work as requireAuthCached — do not call validateSessionToken again
+ * in the same Server Component tree after this.
+ *
+ * Do NOT use in Middleware or API Route Handlers.
+ */
+export async function getAuthValidationCached(): Promise<SessionValidationResult> {
+  return getRequestValidation();
 }
 
 /**

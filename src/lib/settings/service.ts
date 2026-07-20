@@ -3,6 +3,7 @@ import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
+  isDedicatedOnlySettingKey,
   isLockedSettingKey,
   SETTING_DEFAULTS,
   SETTING_KEYS,
@@ -47,6 +48,11 @@ export async function updateSystemSettings(
   for (const [rawKey, rawValue] of Object.entries(updates)) {
     if (isLockedSettingKey(rawKey)) {
       continue;
+    }
+    if (isDedicatedOnlySettingKey(rawKey)) {
+      throw new SettingsError(
+        `配置项 ${rawKey} 请使用专用接口修改`,
+      );
     }
     if (!isSettingKey(rawKey)) {
       throw new SettingsError(`未知配置项：${rawKey}`);

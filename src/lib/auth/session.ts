@@ -20,6 +20,10 @@ import {
   touchSessionActivity,
 } from "@/lib/auth/session-policy";
 import { isDeviceApprovedForSession } from "@/lib/devices/service";
+import {
+  getGlobalIdlePolicy,
+  isStaffSessionBlockedByReverifyEpoch,
+} from "@/lib/settings/global-idle-exemption";
 
 export type SessionWithUser = {
   sessionId: string;
@@ -27,7 +31,11 @@ export type SessionWithUser = {
 };
 
 export type SessionValidationResult =
-  | { ok: true; session: SessionWithUser }
+  | {
+      ok: true;
+      session: SessionWithUser;
+      globalIdleTimeoutExempt: boolean;
+    }
   | {
       ok: false;
       reason:
@@ -36,7 +44,8 @@ export type SessionValidationResult =
         | "idle_expired"
         | "revoked"
         | "inactive_user"
-        | "device_revoked";
+        | "device_revoked"
+        | "access_reverify";
       errorCode?: string;
     };
 
@@ -116,6 +125,27 @@ export async function validateSessionToken(
     return { ok: false, reason: "inactive_user" };
   }
 
+  // One D1 read for both keys. Request-level dedupe of full session validation
+  // is handled by getRequestValidation (React cache) in SSR; this call stays
+  // uncached so setting changes apply on the next validateSessionToken.
+  const policy = await getGlobalIdlePolicy(db);
+
+  // Staff sessions created at/before the reverify epoch must complete Access again.
+  // Do not set revokedAt — this is distinct from SESSION_REVOKED / other-device login.
+  if (
+    isStaffSessionBlockedByReverifyEpoch(
+      row.user.role,
+      row.session.createdAt,
+      policy.staffAccessReverifyAfter,
+    )
+  ) {
+    return {
+      ok: false,
+      reason: "access_reverify",
+      errorCode: AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
+    };
+  }
+
   // Admin accounts are never blocked by device authorization status.
   if (row.session.deviceIdHash && row.user.role !== "admin") {
     const deviceApproved = await isDeviceApprovedForSession(
@@ -144,10 +174,12 @@ export async function validateSessionToken(
   }
 
   const idleMinutes = await getIdleLogoutMinutes(db);
-  const isIdleExempt =
+  const sessionIdleExempt =
     row.session.idleExemptUntil != null &&
     row.session.idleExemptUntil > nowIso;
-  if (!isIdleExempt && isSessionIdleExpired(row.session, idleMinutes)) {
+  const skipIdle =
+    policy.globalIdleTimeoutExempt || sessionIdleExempt;
+  if (!skipIdle && isSessionIdleExpired(row.session, idleMinutes)) {
     await revokeSessionById(db, row.sessionId, nowIso);
     return {
       ok: false,
@@ -163,6 +195,7 @@ export async function validateSessionToken(
   return {
     ok: true,
     session: { sessionId: row.sessionId, user: row.user },
+    globalIdleTimeoutExempt: policy.globalIdleTimeoutExempt,
   };
 }
 

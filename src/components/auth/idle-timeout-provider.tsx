@@ -9,26 +9,27 @@ import {
   CRM_SESSION_BC,
   SESSION_END_REDIRECT_DELAY_MS,
   clearSessionClientState,
+  getAccessReverifyRedirectPath,
+  parseBroadcastLogoutReason,
   parseSessionEndReason,
   readLastActivityMs,
   redirectToLoginWithSessionEnd,
   sessionEndMessageKey,
+  sessionEndShowsModal,
+  shouldInspectSessionApiResponse,
+  type SessionBroadcastLogoutReason,
   type SessionEndReason,
   writeLastActivityMs,
 } from "@/lib/auth/client-security";
 import { useIdleExempt } from "@/components/auth/idle-exempt-context";
-import { isIdleExemptActive } from "@/lib/auth/idle-exempt-ui";
+import {
+  interpretAuthMeResponse,
+  planIdleCheckAfterMe,
+} from "@/lib/auth/idle-timeout-check";
 
 type SyncMessage =
   | { type: "activity"; at: number }
-  | { type: "logout"; reason: "idle" | "revoked" | "invalid" | "manual" | "device_revoked" };
-
-function shouldInspectSessionResponse(url: string): boolean {
-  if (!url.includes("/api/")) return false;
-  if (url.includes("/api/auth/login")) return false;
-  if (url.includes("/api/auth/logout")) return false;
-  return true;
-}
+  | { type: "logout"; reason: SessionBroadcastLogoutReason };
 
 export function IdleTimeoutProvider({
   idleMinutes,
@@ -42,30 +43,49 @@ export function IdleTimeoutProvider({
     null,
   );
   const loggingOutRef = useRef(false);
+  const globalIdleExemptRef = useRef(false);
   const idleMs = idleMinutes * 60 * 1000;
   const { exemptUntil } = useIdleExempt();
 
-  const handleSessionEnd = useCallback(async (reason: SessionEndReason) => {
-    if (loggingOutRef.current) return;
-    loggingOutRef.current = true;
-    setSessionEndReason(reason);
+  const handleSessionEnd = useCallback(
+    async (
+      reason: SessionEndReason,
+      options?: { fromBroadcast?: boolean },
+    ) => {
+      if (loggingOutRef.current) return;
+      loggingOutRef.current = true;
 
-    try {
-      const bc = new BroadcastChannel(CRM_SESSION_BC);
-      bc.postMessage({ type: "logout", reason } satisfies SyncMessage);
-      bc.close();
-    } catch {
-      // ignore
-    }
+      if (sessionEndShowsModal(reason)) {
+        setSessionEndReason(reason);
+      }
 
-    const logoutReason = reason === "idle" ? "idle" : "expired";
-    await clearSessionClientState(logoutReason);
+      if (!options?.fromBroadcast) {
+        try {
+          const bc = new BroadcastChannel(CRM_SESSION_BC);
+          bc.postMessage({ type: "logout", reason } satisfies SyncMessage);
+          bc.close();
+        } catch {
+          // ignore
+        }
+      }
 
-    await new Promise((resolve) =>
-      setTimeout(resolve, SESSION_END_REDIRECT_DELAY_MS),
-    );
-    redirectToLoginWithSessionEnd(reason);
-  }, []);
+      if (reason === "access_reverify") {
+        // Dedicated path: clear CRM session, no idle modal, no timeout visit count.
+        await clearSessionClientState("expired");
+        window.location.href = getAccessReverifyRedirectPath();
+        return;
+      }
+
+      const logoutReason = reason === "idle" ? "idle" : "expired";
+      await clearSessionClientState(logoutReason);
+
+      await new Promise((resolve) =>
+        setTimeout(resolve, SESSION_END_REDIRECT_DELAY_MS),
+      );
+      redirectToLoginWithSessionEnd(reason);
+    },
+    [],
+  );
 
   const handleApiSessionEnd = useCallback(
     async (errorCode?: string) => {
@@ -89,33 +109,84 @@ export function IdleTimeoutProvider({
   }, []);
 
   const checkIdle = useCallback(async () => {
-    // Client-side UX guard: skip local idle redirect while exemption is active.
-    // The server remains the sole security authority; this only prevents an
-    // unnecessary client-triggered redirect when the user deliberately opted in.
-    if (isIdleExemptActive(exemptUntil, Date.now())) {
+    // Step 1: always poll /api/auth/me (even when exempt) for revoke / device /
+    // access reverify / global idle flag. Network failures do not force logout.
+    let meResult = interpretAuthMeResponse({ status: 0 });
+    try {
+      const res = await fetch("/api/auth/me", { cache: "no-store" });
+      if (res.status === 401) {
+        let errorCode: string | undefined;
+        try {
+          const data = (await res.json()) as { errorCode?: string };
+          errorCode = data.errorCode;
+        } catch {
+          // non-JSON 401 — ignore for forced logout
+        }
+        meResult = interpretAuthMeResponse({ status: 401, errorCode });
+      } else if (res.ok) {
+        let globalIdleTimeoutExempt: unknown = false;
+        try {
+          const data = (await res.json()) as {
+            globalIdleTimeoutExempt?: unknown;
+          };
+          globalIdleTimeoutExempt = data.globalIdleTimeoutExempt;
+        } catch {
+          // treat as ignore / no global flag
+        }
+        meResult = interpretAuthMeResponse({
+          status: res.status,
+          globalIdleTimeoutExempt,
+        });
+      } else {
+        meResult = interpretAuthMeResponse({ status: res.status });
+      }
+    } catch {
+      meResult = interpretAuthMeResponse({ status: 0 });
+    }
+
+    if (meResult.kind === "ok") {
+      globalIdleExemptRef.current = meResult.globalIdleTimeoutExempt;
+    }
+
+    // Session-end from me takes priority; network/ignore keeps last known global flag.
+    const meForPlan =
+      meResult.kind === "session_end"
+        ? meResult
+        : {
+            kind: "ok" as const,
+            globalIdleTimeoutExempt:
+              meResult.kind === "ok"
+                ? meResult.globalIdleTimeoutExempt
+                : globalIdleExemptRef.current,
+          };
+
+    const plan = planIdleCheckAfterMe({
+      me: meForPlan,
+      idleExemptUntilMs: exemptUntil,
+      nowMs: Date.now(),
+      lastActivityMs: readLastActivityMs(),
+      idleMs,
+    });
+
+    if (plan.type === "end_session") {
+      await handleSessionEnd(plan.reason);
       return;
     }
 
-    const last = readLastActivityMs();
-    if (last == null) {
-      writeLastActivityMs();
+    if (plan.type === "skip_local_idle") {
       return;
     }
-    if (Date.now() - last > idleMs) {
+
+    if (plan.type === "local_idle_expired") {
       await handleSessionEnd("idle");
       return;
     }
 
-    try {
-      const res = await fetch("/api/auth/me", { cache: "no-store" });
-      if (res.status === 401) {
-        const data = (await res.json()) as { errorCode?: string };
-        await handleApiSessionEnd(data.errorCode);
-      }
-    } catch {
-      // ignore transient network errors
+    // continue: seed activity if missing
+    if (readLastActivityMs() == null) {
+      writeLastActivityMs();
     }
-  }, [handleApiSessionEnd, handleSessionEnd, idleMs, exemptUntil]);
+  }, [handleSessionEnd, idleMs, exemptUntil]);
 
   useEffect(() => {
     writeLastActivityMs();
@@ -134,7 +205,7 @@ export function IdleTimeoutProvider({
             ? args[0].url
             : String(args[0]);
 
-      if (!shouldInspectSessionResponse(requestUrl)) {
+      if (!shouldInspectSessionApiResponse(requestUrl)) {
         return response;
       }
 
@@ -192,14 +263,9 @@ export function IdleTimeoutProvider({
           writeLastActivityMs(event.data.at);
         }
         if (event.data.type === "logout") {
-          if (event.data.reason === "manual") return;
-          void handleSessionEnd(
-            event.data.reason === "revoked"
-              ? "revoked"
-              : event.data.reason === "invalid"
-                ? "invalid"
-                : "idle",
-          );
+          const reason = parseBroadcastLogoutReason(event.data.reason);
+          if (!reason) return;
+          void handleSessionEnd(reason, { fromBroadcast: true });
         }
       };
     } catch {

@@ -130,6 +130,8 @@ const zhHans: Messages = {
     sessionTimeoutTitle: "会话已超时",
     timeoutReverifyHint:
       "如果多次未重新登录，系统将重新进行安全验证。",
+    accessReverifyRequired:
+      "安全设置已更新，请重新完成验证后登录。",
   },
   nav: {
     dashboard: "仪表盘",
@@ -1387,6 +1389,26 @@ const zhHans: Messages = {
     badgeReadOnly: "只读",
     deviceAuthEnabledOn: "设备授权已启用，员工新设备需要管理员批准",
     deviceAuthEnabledOff: "设备授权未启用，员工登录不受设备限制",
+    globalIdleExemption: {
+      title: "免除 30 分钟无操作自动退出",
+      description:
+        "开启后，所有已登录及后续登录的用户将不再因 CRM 连续 30 分钟无操作而自动退出。设备授权、账户停用、Session 安全检查及 Cloudflare Access 验证仍然有效。",
+      statusOn: "已开启",
+      statusOff: "已关闭",
+      loading: "加载中…",
+      enableSuccess:
+        "已开启全局免超时。用户仍会受到其他安全规则保护。",
+      disableSuccess:
+        "已恢复 30 分钟无操作退出。所有非 Admin 用户需要重新完成 Access 验证。",
+      saveFailed: "安全设置更新失败，请稍后重试。",
+      loadFailed: "无法加载全局免超时设置，请稍后重试。",
+      saving: "处理中…",
+      confirmTitle: "确认恢复 30 分钟自动退出？",
+      confirmDescription:
+        "关闭后，所有非 Admin 用户的现有 CRM Session 将立即失效，并需要重新完成 Cloudflare Access 验证。\n\nAdmin 的当前 Session 不会受到影响。此操作不会停用账户，也不会删除任何客户或业务数据。",
+      confirmSubmit: "确认关闭并要求重新验证",
+      confirmCancel: "取消",
+    },
     sections: {
       basic: {
         title: "基本系统设置",

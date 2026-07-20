@@ -8,6 +8,23 @@ export function isLockedSettingKey(key: string): key is LockedSettingKey {
   return (LOCKED_SETTING_KEYS as readonly string[]).includes(key);
 }
 
+/**
+ * Settings that must only be changed via a dedicated API (not generic PATCH).
+ * Still readable via getSystemSettings when listed in SETTING_KEYS.
+ */
+export const DEDICATED_ONLY_SETTING_KEYS = [
+  "global_idle_timeout_exempt_enabled",
+] as const;
+
+export type DedicatedOnlySettingKey =
+  (typeof DEDICATED_ONLY_SETTING_KEYS)[number];
+
+export function isDedicatedOnlySettingKey(
+  key: string,
+): key is DedicatedOnlySettingKey {
+  return (DEDICATED_ONLY_SETTING_KEYS as readonly string[]).includes(key);
+}
+
 export const SETTING_KEYS = [
   "automatic_reclaim_days",
   "reclaim_warning_days_before",
@@ -24,6 +41,11 @@ export const SETTING_KEYS = [
   "device_authorization_limit_per_user",
   /** When true, enables automatic collaborative dissolution (future C-4/C-5). Default off. */
   "collaborative_dissolution_enabled",
+  /**
+   * When true, CRM skips its own 30-minute idle logout for all roles.
+   * Mutate only via /api/admin/settings/global-idle-exemption.
+   */
+  "global_idle_timeout_exempt_enabled",
 ] as const;
 
 export type SettingKey = (typeof SETTING_KEYS)[number];
@@ -41,6 +63,7 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   device_authorization_enabled: "false",
   device_authorization_limit_per_user: "2",
   collaborative_dissolution_enabled: "false",
+  global_idle_timeout_exempt_enabled: "false",
 };
 
 export const SETTING_LABELS: Record<SettingKey, string> = {
@@ -56,6 +79,7 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
   device_authorization_enabled: "设备授权（启用后限制员工登录设备）",
   device_authorization_limit_per_user: "每位员工最多授权设备数",
   collaborative_dissolution_enabled: "共同负责自动解散（90 天未跟进）",
+  global_idle_timeout_exempt_enabled: "免除 30 分钟无操作自动退出",
 };
 
 /**
@@ -66,6 +90,8 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
 export const HIDDEN_SETTING_KEYS = [
   "reclaim_warning_day_1",
   "reclaim_warning_day_2",
+  /** Phase 1A: no Admin Switch yet; mutate via dedicated API only. */
+  "global_idle_timeout_exempt_enabled",
 ] as const satisfies readonly SettingKey[];
 
 export function isHiddenSettingKey(key: string): boolean {

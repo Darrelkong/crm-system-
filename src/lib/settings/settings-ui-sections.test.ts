@@ -55,6 +55,27 @@ describe("settings UI sections", () => {
     assert.equal(keys.includes("inactivity_logout_minutes"), true);
   });
 
+  it("keeps global idle exemption out of ordinary settings section keys (dedicated API UI)", () => {
+    const allSectionKeys = SETTINGS_UI_SECTIONS.flatMap((section) => [
+      ...section.editableKeys,
+      ...(section.readonlyKeys ?? []),
+    ]);
+    assert.equal(
+      allSectionKeys.includes("global_idle_timeout_exempt_enabled"),
+      false,
+    );
+    assert.equal(
+      getEditableSettingKeys().includes("global_idle_timeout_exempt_enabled"),
+      false,
+    );
+    const payload = buildSettingsSavePayload({
+      global_idle_timeout_exempt_enabled: "true",
+      device_authorization_enabled: "true",
+    });
+    assert.equal("global_idle_timeout_exempt_enabled" in payload, false);
+    assert.equal(payload.device_authorization_enabled, "true");
+  });
+
   it("does not define execute / dissolve / release / enable action ids", () => {
     assert.deepEqual(FORBIDDEN_SETTINGS_ACTION_IDS, [
       "execute",

@@ -8,6 +8,7 @@ import {
   incrementIdleReloginOnResponse,
   syncIdleReloginCookiesOnLoginVisit,
 } from "@/lib/auth/idle-relogin-cookie";
+import { buildAccessReverifyMiddlewareResponse } from "@/lib/auth/access-reverify-redirect";
 import { validateSessionFromRequest } from "@/lib/auth/session";
 import {
   getRoleDashboardPath,
@@ -66,6 +67,14 @@ export async function middleware(request: NextRequest) {
     });
     if (validation.ok) {
       sessionUser = validation.session.user;
+    } else if (
+      validation.reason === "access_reverify" ||
+      validation.errorCode === AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED
+    ) {
+      // Dedicated Access reverify: clear CRM session and go to Access logout
+      // (production) or /login?session_end=access_reverify (development).
+      // Must not fold into idle/revoked/invalid or increment idle-relogin.
+      return buildAccessReverifyMiddlewareResponse(request);
     } else if (
       validation.reason === "idle_expired" ||
       validation.errorCode === AUTH_ERROR_CODES.SESSION_IDLE_EXPIRED

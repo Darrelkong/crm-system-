@@ -44,6 +44,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   SESSION_REVOKED: "security.sessionRevokedByOtherDevice",
   SESSION_INVALID: "security.sessionInvalidReLogin",
   SESSION_DEVICE_REVOKED: "security.deviceAuthorizationRevoked",
+  SESSION_ACCESS_REVERIFY_REQUIRED: "security.accessReverifyRequired",
   DEVICE_NEW_PENDING: "auth.deviceNewPending",
   DEVICE_PENDING_REVIEW: "auth.devicePendingReview",
   DEVICE_REJECTED: "auth.deviceRejected",

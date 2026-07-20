@@ -15,7 +15,8 @@ export function validateSettingValue(
 ): string | null {
   if (
     key === "device_authorization_enabled" ||
-    key === "collaborative_dissolution_enabled"
+    key === "collaborative_dissolution_enabled" ||
+    key === "global_idle_timeout_exempt_enabled"
   ) {
     if (value !== "true" && value !== "false") {
       return "必须为 true 或 false";

@@ -39,7 +39,11 @@ function makeUser(overrides: Partial<User> = {}): User {
 }
 
 function okResult(user: User): SessionValidationResult {
-  return { ok: true, session: { sessionId: "sess-1", user } };
+  return {
+    ok: true,
+    session: { sessionId: "sess-1", user },
+    globalIdleTimeoutExempt: false,
+  };
 }
 
 function failResult(
@@ -142,6 +146,20 @@ describe("resolveAuthFromValidation — session errors", () => {
       (err: unknown) =>
         err instanceof AuthError &&
         err.errorCode === AUTH_ERROR_CODES.SESSION_DEVICE_REVOKED &&
+        err.status === 401,
+    );
+  });
+
+  it("throws SESSION_ACCESS_REVERIFY_REQUIRED for access_reverify reason", () => {
+    const result = failResult(
+      "access_reverify",
+      AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
+    );
+    assert.throws(
+      () => resolveAuthFromValidation(result),
+      (err: unknown) =>
+        err instanceof AuthError &&
+        err.errorCode === AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED &&
         err.status === 401,
     );
   });
