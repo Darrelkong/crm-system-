@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 
@@ -7,8 +7,16 @@ import { schema } from "@/lib/db";
 export const MISSING_PRIMARY_BACKFILL_AUDIT_ACTION =
   "customer.assignee.primary_backfilled" as const;
 
+export const MISSING_PRIMARY_BACKFILL_ROLLBACK_AUDIT_ACTION =
+  "customer.assignee.primary_backfill_rolled_back" as const;
+
 export const MISSING_PRIMARY_BACKFILL_SOURCE =
   "missing_primary_backfill" as const;
+
+export const MISSING_PRIMARY_BACKFILL_MANIFEST_VERSION = 1 as const;
+
+/** D1 batch statement limit is 100. Pair insert + assert-style audit = 2 stmts/target. */
+export const MISSING_PRIMARY_BACKFILL_DEFAULT_CHUNK_SIZE = 40;
 
 /**
  * Deterministic primary assignee id — identical to migration 0025:
@@ -60,6 +68,27 @@ export type MissingPrimaryBackfillManifestEntry = {
   assigneeId: string;
   customerId: string;
   ownerId: string;
+  auditLogId: string;
+  chunkIndex: number;
+};
+
+export type MissingPrimaryBackfillManifestStatus =
+  | "in_progress"
+  | "completed"
+  | "partial_failed";
+
+export type MissingPrimaryBackfillManifest = {
+  version: typeof MISSING_PRIMARY_BACKFILL_MANIFEST_VERSION;
+  backfillRunId: string;
+  snapshotHash: string;
+  expectedCount: number;
+  startedAt: string;
+  updatedAt: string;
+  status: MissingPrimaryBackfillManifestStatus;
+  completedChunks: number;
+  failedChunkIndex: number | null;
+  errorCode: string | null;
+  insertedRows: MissingPrimaryBackfillManifestEntry[];
 };
 
 export type MissingPrimaryApplyResult = {
@@ -68,7 +97,7 @@ export type MissingPrimaryApplyResult = {
   attemptedCount: number;
   insertedCount: number;
   skippedAlreadyCompliant: number;
-  manifest: MissingPrimaryBackfillManifestEntry[];
+  manifest: MissingPrimaryBackfillManifest;
   snapshotHash: string;
   rowsWritten: number;
 };
@@ -78,6 +107,74 @@ export type MissingPrimaryApplyOptions = {
   expectedSnapshot: string;
   /** Optional stable run id; defaults to a new UUID. */
   backfillRunId?: string;
+  /**
+   * Required fail-closed persist hook. Called after manifest init, after each
+   * successful chunk, and before throwing on partial failure.
+   */
+  onManifestUpdate: (
+    manifest: MissingPrimaryBackfillManifest,
+  ) => void | Promise<void>;
+  /** Override chunk size (default 40). Intended for tests. */
+  chunkSize?: number;
+};
+
+export type RollbackManifestEntry = {
+  assigneeId: string;
+  customerId: string;
+  ownerId: string;
+  auditLogId: string;
+  chunkIndex: number;
+};
+
+export type RollbackSkipReason =
+  | "assignee_missing"
+  | "role_mismatch"
+  | "customer_mismatch"
+  | "user_mismatch"
+  | "owner_transferred"
+  | "replaced_primary";
+
+export type RollbackSkip = {
+  assigneeId: string;
+  customerId: string;
+  ownerId: string;
+  reason: RollbackSkipReason;
+};
+
+export type MissingPrimaryRollbackManifest = {
+  version: typeof MISSING_PRIMARY_BACKFILL_MANIFEST_VERSION;
+  rollbackRunId: string;
+  originalBackfillRunId: string;
+  startedAt: string;
+  updatedAt: string;
+  status: MissingPrimaryBackfillManifestStatus;
+  completedChunks: number;
+  failedChunkIndex: number | null;
+  errorCode: string | null;
+  deletedRows: Array<{
+    assigneeId: string;
+    customerId: string;
+    ownerId: string;
+    rollbackAuditLogId: string;
+    chunkIndex: number;
+  }>;
+  skipped: RollbackSkip[];
+};
+
+export type MissingPrimaryRollbackOptions = {
+  originalBackfillRunId: string;
+  rollbackRunId?: string;
+  onManifestUpdate: (
+    manifest: MissingPrimaryRollbackManifest,
+  ) => void | Promise<void>;
+  chunkSize?: number;
+};
+
+export type MissingPrimaryRollbackResult = {
+  deletedCount: number;
+  skippedCount: number;
+  skipped: RollbackSkip[];
+  manifest: MissingPrimaryRollbackManifest;
 };
 
 export class MissingPrimaryBackfillError extends Error {
@@ -88,11 +185,35 @@ export class MissingPrimaryBackfillError extends Error {
       | "COUNT_MISMATCH"
       | "INVARIANT_BLOCKER"
       | "TARGET_CONFLICT"
-      | "INVALID_OPTIONS",
+      | "INVALID_OPTIONS"
+      | "TOCTOU_GUARD_FAILED"
+      | "CHUNK_REVALIDATION_FAILED"
+      | "PARTIAL_CHUNK_FAILED"
+      | "MANIFEST_REQUIRED",
+    public readonly manifest: MissingPrimaryBackfillManifest | null = null,
   ) {
     super(message);
     this.name = "MissingPrimaryBackfillError";
   }
+}
+
+export class MissingPrimaryRollbackError extends Error {
+  constructor(
+    message: string,
+    public readonly code:
+      | "INVALID_OPTIONS"
+      | "PARTIAL_CHUNK_FAILED"
+      | "MANIFEST_REQUIRED",
+    public readonly manifest: MissingPrimaryRollbackManifest | null = null,
+  ) {
+    super(message);
+    this.name = "MissingPrimaryRollbackError";
+  }
+}
+
+/** Locale-independent ASCII / binary compare for stable snapshot ordering. */
+export function compareAscii(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /** Snapshot payload: sorted customerId lines of `customerId\tcustomerCode\townerId`. */
@@ -104,12 +225,11 @@ export function buildSnapshotPayload(
   }>,
 ): string {
   const sorted = [...targets].sort((a, b) =>
-    a.customerId.localeCompare(b.customerId),
+    compareAscii(a.customerId, b.customerId),
   );
   return sorted
     .map(
-      (t) =>
-        `${t.customerId}\t${t.customerCode ?? ""}\t${t.ownerId}`,
+      (t) => `${t.customerId}\t${t.customerCode ?? ""}\t${t.ownerId}`,
     )
     .join("\n");
 }
@@ -123,6 +243,33 @@ export function computeSnapshotHash(
 ): string {
   const payload = buildSnapshotPayload(targets);
   return createHash("sha256").update(payload, "utf8").digest("hex");
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function extractChanges(result: unknown): number | null {
+  if (
+    result &&
+    typeof result === "object" &&
+    "meta" in result &&
+    result.meta &&
+    typeof result.meta === "object" &&
+    "changes" in result.meta &&
+    typeof (result.meta as { changes: unknown }).changes === "number"
+  ) {
+    return (result.meta as { changes: number }).changes;
+  }
+  return null;
+}
+
+function isConstraintNotNullError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return (
+    message.includes("NOT NULL constraint failed") ||
+    message.includes("SQLITE_CONSTRAINT_NOTNULL")
+  );
 }
 
 /**
@@ -395,14 +542,248 @@ export async function runMissingPrimaryDryRun(
 }
 
 /**
+ * Statement-level guarded primary insert.
+ *
+ * Always emits one candidate row via `FROM (SELECT 1)`. When guards fail,
+ * `id` becomes NULL and SQLite aborts with NOT NULL — rolling back the whole
+ * D1 batch (D1 forbids RAISE outside triggers; this is the fail-closed substitute).
+ * Parameters are bound via drizzle `sql` — no string concatenation of ids.
+ */
+export function buildGuardedPrimaryInsertStatement(
+  db: Database,
+  target: MissingPrimaryTarget,
+) {
+  const assigneeId = deterministicPrimaryAssigneeId(
+    target.customerId,
+    target.ownerId,
+  );
+
+  return db.insert(schema.customerAssignees).select(
+    sql`
+      SELECT
+        CASE
+          WHEN
+            ${schema.customers.id} IS NOT NULL
+            AND ${schema.customers.status} = 'active'
+            AND ${schema.customers.ownerId} = ${target.ownerId}
+            AND ${schema.users.id} IS NOT NULL
+            AND ${schema.users.isActive} = 1
+            AND ${schema.users.deletedAt} IS NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM customer_assignees ca
+              WHERE ca.customer_id = ${target.customerId}
+                AND ca.role = 'primary'
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM customer_assignees ca
+              WHERE ca.id = ${assigneeId}
+            )
+            AND NOT EXISTS (
+              SELECT 1 FROM customer_assignees ca
+              WHERE ca.customer_id = ${target.customerId}
+                AND ca.user_id = ${target.ownerId}
+            )
+          THEN ${assigneeId}
+          ELSE NULL
+        END AS id,
+        COALESCE(${schema.customers.id}, ${target.customerId}) AS customer_id,
+        COALESCE(${schema.customers.ownerId}, ${target.ownerId}) AS user_id,
+        'primary' AS role,
+        COALESCE(
+          ${schema.customers.createdBy},
+          ${schema.customers.ownerId},
+          ${target.ownerId}
+        ) AS assigned_by,
+        COALESCE(${schema.customers.createdAt}, ${target.createdAt}) AS assigned_at,
+        COALESCE(${schema.customers.createdAt}, ${target.createdAt}) AS created_at,
+        COALESCE(${schema.customers.updatedAt}, ${target.updatedAt}) AS updated_at
+      FROM (SELECT 1 AS _probe)
+      LEFT JOIN customers ON customers.id = ${target.customerId}
+      LEFT JOIN users ON users.id = ${target.ownerId}
+    `,
+  );
+}
+
+/**
+ * Audit insert that only writes when the guarded primary row exists.
+ * Bound parameters only; no PII.
+ */
+export function buildConditionalAuditInsertStatement(
+  db: Database,
+  input: {
+    auditLogId: string;
+    customerId: string;
+    ownerId: string;
+    assigneeId: string;
+    backfillRunId: string;
+    createdAt: string;
+  },
+) {
+  return db.insert(schema.auditLogs).select(
+    sql`
+      SELECT
+        ${input.auditLogId} AS id,
+        NULL AS user_id,
+        ${MISSING_PRIMARY_BACKFILL_AUDIT_ACTION} AS action,
+        'customer' AS entity_type,
+        ${input.customerId} AS entity_id,
+        NULL AS ip_address,
+        NULL AS user_agent,
+        ${JSON.stringify({
+          customerId: input.customerId,
+          ownerId: input.ownerId,
+          assigneeId: input.assigneeId,
+          backfillRunId: input.backfillRunId,
+          source: MISSING_PRIMARY_BACKFILL_SOURCE,
+        })} AS metadata,
+        ${input.createdAt} AS created_at
+      FROM customer_assignees
+      WHERE customer_assignees.id = ${input.assigneeId}
+        AND customer_assignees.customer_id = ${input.customerId}
+        AND customer_assignees.user_id = ${input.ownerId}
+        AND customer_assignees.role = 'primary'
+    `,
+  );
+}
+
+async function revalidateChunkTargets(
+  db: Database,
+  chunk: MissingPrimaryTarget[],
+): Promise<{ ok: true } | { ok: false; reason: string }> {
+  for (const target of chunk) {
+    const customerRows = await db
+      .select({
+        status: schema.customers.status,
+        ownerId: schema.customers.ownerId,
+      })
+      .from(schema.customers)
+      .where(eq(schema.customers.id, target.customerId))
+      .limit(1);
+    const customer = customerRows[0];
+    if (!customer) {
+      return { ok: false, reason: `customer missing ${target.customerId}` };
+    }
+    if (customer.status === "public_pool") {
+      return {
+        ok: false,
+        reason: `public_pool candidate ${target.customerId}`,
+      };
+    }
+    if (customer.status !== "active") {
+      return {
+        ok: false,
+        reason: `non-active candidate ${target.customerId} status=${customer.status}`,
+      };
+    }
+    if (customer.ownerId !== target.ownerId) {
+      return {
+        ok: false,
+        reason: `owner changed for ${target.customerId}`,
+      };
+    }
+
+    const ownerRows = await db
+      .select({
+        isActive: schema.users.isActive,
+        deletedAt: schema.users.deletedAt,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.id, target.ownerId))
+      .limit(1);
+    const owner = ownerRows[0];
+    if (!owner) {
+      return { ok: false, reason: `owner missing ${target.ownerId}` };
+    }
+    if (owner.isActive !== 1) {
+      return { ok: false, reason: `owner inactive ${target.ownerId}` };
+    }
+    if (owner.deletedAt) {
+      return { ok: false, reason: `owner deleted ${target.ownerId}` };
+    }
+
+    const primaryRows = await db
+      .select({ id: schema.customerAssignees.id })
+      .from(schema.customerAssignees)
+      .where(
+        and(
+          eq(schema.customerAssignees.customerId, target.customerId),
+          eq(schema.customerAssignees.role, "primary"),
+        ),
+      )
+      .limit(1);
+    if (primaryRows.length > 0) {
+      return {
+        ok: false,
+        reason: `primary already exists for ${target.customerId}`,
+      };
+    }
+
+    const ownerAssignee = await db
+      .select({ id: schema.customerAssignees.id })
+      .from(schema.customerAssignees)
+      .where(
+        and(
+          eq(schema.customerAssignees.customerId, target.customerId),
+          eq(schema.customerAssignees.userId, target.ownerId),
+        ),
+      )
+      .limit(1);
+    if (ownerAssignee.length > 0) {
+      return {
+        ok: false,
+        reason: `owner already assignee on ${target.customerId}`,
+      };
+    }
+
+    const assigneeId = deterministicPrimaryAssigneeId(
+      target.customerId,
+      target.ownerId,
+    );
+    const idRows = await db
+      .select({
+        id: schema.customerAssignees.id,
+        customerId: schema.customerAssignees.customerId,
+        userId: schema.customerAssignees.userId,
+        role: schema.customerAssignees.role,
+      })
+      .from(schema.customerAssignees)
+      .where(eq(schema.customerAssignees.id, assigneeId))
+      .limit(1);
+    if (idRows.length > 0) {
+      return {
+        ok: false,
+        reason: `deterministic id conflict for ${assigneeId}`,
+      };
+    }
+  }
+
+  return { ok: true };
+}
+
+async function persistManifest(
+  options: MissingPrimaryApplyOptions,
+  manifest: MissingPrimaryBackfillManifest,
+): Promise<void> {
+  manifest.updatedAt = nowIso();
+  await options.onManifestUpdate(manifest);
+}
+
+/**
  * Inserts missing primary rows using migration 0025 field semantics.
  * Requires expectedCount + expectedSnapshot to match a fresh re-query.
+ * Requires onManifestUpdate (fail-closed durability).
  * System actor: audit userId = null (schema allows null).
  */
 export async function runMissingPrimaryApply(
   db: Database,
   options: MissingPrimaryApplyOptions,
 ): Promise<MissingPrimaryApplyResult> {
+  if (typeof options.onManifestUpdate !== "function") {
+    throw new MissingPrimaryBackfillError(
+      "onManifestUpdate is required for apply (fail-closed manifest durability)",
+      "MANIFEST_REQUIRED",
+    );
+  }
   if (
     !Number.isInteger(options.expectedCount) ||
     options.expectedCount < 0
@@ -418,6 +799,15 @@ export async function runMissingPrimaryApply(
   ) {
     throw new MissingPrimaryBackfillError(
       "expectedSnapshot is required",
+      "INVALID_OPTIONS",
+    );
+  }
+
+  const chunkSize =
+    options.chunkSize ?? MISSING_PRIMARY_BACKFILL_DEFAULT_CHUNK_SIZE;
+  if (!Number.isInteger(chunkSize) || chunkSize < 1 || chunkSize > 40) {
+    throw new MissingPrimaryBackfillError(
+      "chunkSize must be an integer between 1 and 40",
       "INVALID_OPTIONS",
     );
   }
@@ -459,7 +849,6 @@ export async function runMissingPrimaryApply(
     );
   }
 
-  // Extra hard stops from the phase brief.
   for (const target of fullTargets) {
     const customerRows = await db
       .select({ status: schema.customers.status })
@@ -482,6 +871,22 @@ export async function runMissingPrimaryApply(
   }
 
   const backfillRunId = options.backfillRunId ?? crypto.randomUUID();
+  const startedAt = nowIso();
+  const manifest: MissingPrimaryBackfillManifest = {
+    version: MISSING_PRIMARY_BACKFILL_MANIFEST_VERSION,
+    backfillRunId,
+    snapshotHash,
+    expectedCount: options.expectedCount,
+    startedAt,
+    updatedAt: startedAt,
+    status: "in_progress",
+    completedChunks: 0,
+    failedChunkIndex: null,
+    errorCode: null,
+    insertedRows: [],
+  };
+  await persistManifest(options, manifest);
+
   const toInsert: MissingPrimaryTarget[] = [];
   let skippedAlreadyCompliant = 0;
 
@@ -511,7 +916,6 @@ export async function runMissingPrimaryApply(
       .where(eq(schema.customerAssignees.id, assigneeId))
       .limit(1);
     if (existingById.length > 0) {
-      // Idempotent path: deterministic row already present as matching primary.
       skippedAlreadyCompliant += 1;
       continue;
     }
@@ -520,108 +924,194 @@ export async function runMissingPrimaryApply(
   }
 
   if (toInsert.length === 0) {
+    manifest.status = "completed";
+    await persistManifest(options, manifest);
     return {
       mode: "apply",
       backfillRunId,
       attemptedCount: fullTargets.length,
       insertedCount: 0,
       skippedAlreadyCompliant,
-      manifest: [],
+      manifest,
       snapshotHash,
       rowsWritten: 0,
     };
   }
 
-  const manifest: MissingPrimaryBackfillManifestEntry[] = toInsert.map(
-    (target) => ({
-      assigneeId: deterministicPrimaryAssigneeId(
-        target.customerId,
-        target.ownerId,
-      ),
-      customerId: target.customerId,
-      ownerId: target.ownerId,
-    }),
-  );
+  let chunkIndex = 0;
+  for (let offset = 0; offset < toInsert.length; offset += chunkSize) {
+    const chunk = toInsert.slice(offset, offset + chunkSize);
 
-  // D1 batch statement limit is 100. Pair insert + audit = 2 stmts/target.
-  // Chunk by 40 targets (80 stmts) to stay safely under the limit.
-  const CHUNK = 40;
-  for (let offset = 0; offset < toInsert.length; offset += CHUNK) {
-    const chunk = toInsert.slice(offset, offset + CHUNK);
+    const revalidation = await revalidateChunkTargets(db, chunk);
+    if (!revalidation.ok) {
+      manifest.status = "partial_failed";
+      manifest.failedChunkIndex = chunkIndex;
+      manifest.errorCode = "CHUNK_REVALIDATION_FAILED";
+      await persistManifest(options, manifest);
+      throw new MissingPrimaryBackfillError(
+        `chunk revalidation failed: ${revalidation.reason}`,
+        "CHUNK_REVALIDATION_FAILED",
+        manifest,
+      );
+    }
+
+    const draftRows: MissingPrimaryBackfillManifestEntry[] = chunk.map(
+      (target) => ({
+        assigneeId: deterministicPrimaryAssigneeId(
+          target.customerId,
+          target.ownerId,
+        ),
+        customerId: target.customerId,
+        ownerId: target.ownerId,
+        auditLogId: crypto.randomUUID(),
+        chunkIndex,
+      }),
+    );
+
     const statements: unknown[] = [];
-
-    for (const target of chunk) {
-      const assigneeId = deterministicPrimaryAssigneeId(
-        target.customerId,
-        target.ownerId,
-      );
-      // Migration 0025 semantics:
-      // assigned_by = COALESCE(created_by, owner_id)
-      // assigned_at / created_at = customer.created_at
-      // updated_at = customer.updated_at
+    const auditCreatedAt = nowIso();
+    for (let i = 0; i < chunk.length; i += 1) {
+      const target = chunk[i]!;
+      const draft = draftRows[i]!;
+      statements.push(buildGuardedPrimaryInsertStatement(db, target));
       statements.push(
-        db.insert(schema.customerAssignees).values({
-          id: assigneeId,
+        buildConditionalAuditInsertStatement(db, {
+          auditLogId: draft.auditLogId,
           customerId: target.customerId,
-          userId: target.ownerId,
-          role: "primary",
-          assignedBy: target.createdBy ?? target.ownerId,
-          assignedAt: target.createdAt,
-          createdAt: target.createdAt,
-          updatedAt: target.updatedAt,
-        }),
-      );
-      statements.push(
-        db.insert(schema.auditLogs).values({
-          id: crypto.randomUUID(),
-          userId: null,
-          action: MISSING_PRIMARY_BACKFILL_AUDIT_ACTION,
-          entityType: "customer",
-          entityId: target.customerId,
-          ipAddress: null,
-          userAgent: null,
-          metadata: JSON.stringify({
-            customerId: target.customerId,
-            ownerId: target.ownerId,
-            assigneeId,
-            backfillRunId,
-            source: MISSING_PRIMARY_BACKFILL_SOURCE,
-          }),
-          createdAt: new Date().toISOString(),
+          ownerId: target.ownerId,
+          assigneeId: draft.assigneeId,
+          backfillRunId,
+          createdAt: auditCreatedAt,
         }),
       );
     }
 
-    await db.batch(
-      statements as unknown as Parameters<Database["batch"]>[0],
-    );
+    let batchResults: unknown[];
+    try {
+      batchResults = (await db.batch(
+        statements as unknown as Parameters<Database["batch"]>[0],
+      )) as unknown as unknown[];
+    } catch (error) {
+      manifest.status = "partial_failed";
+      manifest.failedChunkIndex = chunkIndex;
+      if (isConstraintNotNullError(error)) {
+        manifest.errorCode = "TOCTOU_GUARD_FAILED";
+        await persistManifest(options, manifest);
+        throw new MissingPrimaryBackfillError(
+          `statement-level TOCTOU guard failed in chunk ${chunkIndex}`,
+          "TOCTOU_GUARD_FAILED",
+          manifest,
+        );
+      }
+      manifest.errorCode = "PARTIAL_CHUNK_FAILED";
+      await persistManifest(options, manifest);
+      throw new MissingPrimaryBackfillError(
+        `chunk ${chunkIndex} batch failed`,
+        "PARTIAL_CHUNK_FAILED",
+        manifest,
+      );
+    }
+
+    for (let i = 0; i < chunk.length; i += 1) {
+      const primaryResult = batchResults[i * 2];
+      const auditResult = batchResults[i * 2 + 1];
+      const primaryChanges = extractChanges(primaryResult);
+      const auditChanges = extractChanges(auditResult);
+
+      if (primaryChanges !== 1 || auditChanges !== 1) {
+        // Should be unreachable when NULL-id abort works; fail closed if API drifts.
+        manifest.status = "partial_failed";
+        manifest.failedChunkIndex = chunkIndex;
+        manifest.errorCode = "TOCTOU_GUARD_FAILED";
+        await persistManifest(options, manifest);
+        throw new MissingPrimaryBackfillError(
+          `affected-row guard failed in chunk ${chunkIndex} (primary=${primaryChanges} audit=${auditChanges})`,
+          "TOCTOU_GUARD_FAILED",
+          manifest,
+        );
+      }
+    }
+
+    manifest.insertedRows.push(...draftRows);
+    manifest.completedChunks = chunkIndex + 1;
+    await persistManifest(options, manifest);
+    chunkIndex += 1;
   }
+
+  manifest.status = "completed";
+  await persistManifest(options, manifest);
 
   return {
     mode: "apply",
     backfillRunId,
     attemptedCount: fullTargets.length,
-    insertedCount: manifest.length,
+    insertedCount: manifest.insertedRows.length,
     skippedAlreadyCompliant,
     manifest,
     snapshotHash,
-    rowsWritten: manifest.length,
+    rowsWritten: manifest.insertedRows.length,
   };
 }
 
 /**
- * Deletes only primary rows listed in the manifest (exact assignee ids).
- * Re-checks each row is still primary for the recorded customer/owner before delete.
+ * Deletes only primary rows listed in the manifest insertedRows.
+ * Re-checks assignee identity AND customers.ownerId before delete.
+ * Primary delete + rollback audit share one atomic batch per chunk.
  */
 export async function rollbackMissingPrimaryBackfill(
   db: Database,
-  manifest: MissingPrimaryBackfillManifestEntry[],
-): Promise<{ deletedCount: number; skippedCount: number }> {
-  let deletedCount = 0;
-  let skippedCount = 0;
+  insertedRows: MissingPrimaryBackfillManifestEntry[],
+  options: MissingPrimaryRollbackOptions,
+): Promise<MissingPrimaryRollbackResult> {
+  if (typeof options.onManifestUpdate !== "function") {
+    throw new MissingPrimaryRollbackError(
+      "onManifestUpdate is required for rollback",
+      "MANIFEST_REQUIRED",
+    );
+  }
+  if (
+    typeof options.originalBackfillRunId !== "string" ||
+    options.originalBackfillRunId.length === 0
+  ) {
+    throw new MissingPrimaryRollbackError(
+      "originalBackfillRunId is required",
+      "INVALID_OPTIONS",
+    );
+  }
 
-  for (const entry of manifest) {
-    const rows = await db
+  const chunkSize =
+    options.chunkSize ?? MISSING_PRIMARY_BACKFILL_DEFAULT_CHUNK_SIZE;
+  if (!Number.isInteger(chunkSize) || chunkSize < 1 || chunkSize > 40) {
+    throw new MissingPrimaryRollbackError(
+      "chunkSize must be an integer between 1 and 40",
+      "INVALID_OPTIONS",
+    );
+  }
+
+  const rollbackRunId = options.rollbackRunId ?? crypto.randomUUID();
+  const startedAt = nowIso();
+  const manifest: MissingPrimaryRollbackManifest = {
+    version: MISSING_PRIMARY_BACKFILL_MANIFEST_VERSION,
+    rollbackRunId,
+    originalBackfillRunId: options.originalBackfillRunId,
+    startedAt,
+    updatedAt: startedAt,
+    status: "in_progress",
+    completedChunks: 0,
+    failedChunkIndex: null,
+    errorCode: null,
+    deletedRows: [],
+    skipped: [],
+  };
+  await options.onManifestUpdate(manifest);
+
+  const deletable: Array<{
+    entry: MissingPrimaryBackfillManifestEntry;
+    rollbackAuditLogId: string;
+  }> = [];
+
+  for (const entry of insertedRows) {
+    const assigneeRows = await db
       .select({
         id: schema.customerAssignees.id,
         role: schema.customerAssignees.role,
@@ -632,22 +1122,202 @@ export async function rollbackMissingPrimaryBackfill(
       .where(eq(schema.customerAssignees.id, entry.assigneeId))
       .limit(1);
 
-    const row = rows[0];
-    if (
-      !row ||
-      row.role !== "primary" ||
-      row.customerId !== entry.customerId ||
-      row.userId !== entry.ownerId
-    ) {
-      skippedCount += 1;
+    const row = assigneeRows[0];
+    if (!row) {
+      manifest.skipped.push({
+        assigneeId: entry.assigneeId,
+        customerId: entry.customerId,
+        ownerId: entry.ownerId,
+        reason: "assignee_missing",
+      });
+      continue;
+    }
+    if (row.role !== "primary") {
+      manifest.skipped.push({
+        assigneeId: entry.assigneeId,
+        customerId: entry.customerId,
+        ownerId: entry.ownerId,
+        reason: "role_mismatch",
+      });
+      continue;
+    }
+    if (row.customerId !== entry.customerId) {
+      manifest.skipped.push({
+        assigneeId: entry.assigneeId,
+        customerId: entry.customerId,
+        ownerId: entry.ownerId,
+        reason: "customer_mismatch",
+      });
+      continue;
+    }
+    if (row.userId !== entry.ownerId) {
+      manifest.skipped.push({
+        assigneeId: entry.assigneeId,
+        customerId: entry.customerId,
+        ownerId: entry.ownerId,
+        reason: "user_mismatch",
+      });
       continue;
     }
 
-    await db
-      .delete(schema.customerAssignees)
-      .where(eq(schema.customerAssignees.id, entry.assigneeId));
-    deletedCount += 1;
+    const customerRows = await db
+      .select({ ownerId: schema.customers.ownerId })
+      .from(schema.customers)
+      .where(eq(schema.customers.id, entry.customerId))
+      .limit(1);
+    const currentOwnerId = customerRows[0]?.ownerId ?? null;
+    if (currentOwnerId !== entry.ownerId) {
+      manifest.skipped.push({
+        assigneeId: entry.assigneeId,
+        customerId: entry.customerId,
+        ownerId: entry.ownerId,
+        reason: "owner_transferred",
+      });
+      continue;
+    }
+
+    deletable.push({
+      entry,
+      rollbackAuditLogId: crypto.randomUUID(),
+    });
   }
 
-  return { deletedCount, skippedCount };
+  manifest.updatedAt = nowIso();
+  await options.onManifestUpdate(manifest);
+
+  let chunkIndex = 0;
+  for (let offset = 0; offset < deletable.length; offset += chunkSize) {
+    const chunk = deletable.slice(offset, offset + chunkSize);
+    const statements: unknown[] = [];
+    const auditCreatedAt = nowIso();
+
+    for (const item of chunk) {
+      const { entry, rollbackAuditLogId } = item;
+      // Re-check owner + identity in the DELETE WHERE (statement-level).
+      statements.push(
+        db
+          .delete(schema.customerAssignees)
+          .where(
+            and(
+              eq(schema.customerAssignees.id, entry.assigneeId),
+              eq(schema.customerAssignees.customerId, entry.customerId),
+              eq(schema.customerAssignees.userId, entry.ownerId),
+              eq(schema.customerAssignees.role, "primary"),
+              sql`EXISTS (
+                SELECT 1 FROM customers c
+                WHERE c.id = ${entry.customerId}
+                  AND c.owner_id = ${entry.ownerId}
+              )`,
+            ),
+          ),
+      );
+      // Fail closed: if DELETE was a no-op (race), id becomes NULL and the
+      // whole chunk batch aborts — D1 cannot RAISE outside triggers.
+      statements.push(
+        db.insert(schema.auditLogs).select(
+          sql`
+            SELECT
+              CASE
+                WHEN NOT EXISTS (
+                  SELECT 1 FROM customer_assignees ca
+                  WHERE ca.id = ${entry.assigneeId}
+                )
+                AND EXISTS (
+                  SELECT 1 FROM customers c
+                  WHERE c.id = ${entry.customerId}
+                    AND c.owner_id = ${entry.ownerId}
+                )
+                THEN ${rollbackAuditLogId}
+                ELSE NULL
+              END AS id,
+              NULL AS user_id,
+              ${MISSING_PRIMARY_BACKFILL_ROLLBACK_AUDIT_ACTION} AS action,
+              'customer' AS entity_type,
+              ${entry.customerId} AS entity_id,
+              NULL AS ip_address,
+              NULL AS user_agent,
+              ${JSON.stringify({
+                customerId: entry.customerId,
+                ownerId: entry.ownerId,
+                assigneeId: entry.assigneeId,
+                originalBackfillRunId: options.originalBackfillRunId,
+                rollbackRunId,
+                source: MISSING_PRIMARY_BACKFILL_SOURCE,
+              })} AS metadata,
+              ${auditCreatedAt} AS created_at
+            FROM (SELECT 1 AS _probe)
+          `,
+        ),
+      );
+    }
+
+    let batchResults: unknown[];
+    try {
+      batchResults = (await db.batch(
+        statements as unknown as Parameters<Database["batch"]>[0],
+      )) as unknown as unknown[];
+    } catch {
+      manifest.status = "partial_failed";
+      manifest.failedChunkIndex = chunkIndex;
+      manifest.errorCode = "PARTIAL_CHUNK_FAILED";
+      manifest.updatedAt = nowIso();
+      await options.onManifestUpdate(manifest);
+      throw new MissingPrimaryRollbackError(
+        `rollback chunk ${chunkIndex} batch failed`,
+        "PARTIAL_CHUNK_FAILED",
+        manifest,
+      );
+    }
+
+    for (let i = 0; i < chunk.length; i += 1) {
+      const deleteChanges = extractChanges(batchResults[i * 2]);
+      const auditChanges = extractChanges(batchResults[i * 2 + 1]);
+      const item = chunk[i]!;
+
+      if (deleteChanges === 1 && auditChanges === 1) {
+        manifest.deletedRows.push({
+          assigneeId: item.entry.assigneeId,
+          customerId: item.entry.customerId,
+          ownerId: item.entry.ownerId,
+          rollbackAuditLogId: item.rollbackAuditLogId,
+          chunkIndex,
+        });
+      } else if (deleteChanges === 0) {
+        // Row vanished or owner changed between pre-check and delete.
+        manifest.skipped.push({
+          assigneeId: item.entry.assigneeId,
+          customerId: item.entry.customerId,
+          ownerId: item.entry.ownerId,
+          reason: "replaced_primary",
+        });
+      } else {
+        manifest.status = "partial_failed";
+        manifest.failedChunkIndex = chunkIndex;
+        manifest.errorCode = "PARTIAL_CHUNK_FAILED";
+        manifest.updatedAt = nowIso();
+        await options.onManifestUpdate(manifest);
+        throw new MissingPrimaryRollbackError(
+          `rollback affected-row mismatch in chunk ${chunkIndex} (delete=${deleteChanges} audit=${auditChanges})`,
+          "PARTIAL_CHUNK_FAILED",
+          manifest,
+        );
+      }
+    }
+
+    manifest.completedChunks = chunkIndex + 1;
+    manifest.updatedAt = nowIso();
+    await options.onManifestUpdate(manifest);
+    chunkIndex += 1;
+  }
+
+  manifest.status = "completed";
+  manifest.updatedAt = nowIso();
+  await options.onManifestUpdate(manifest);
+
+  return {
+    deletedCount: manifest.deletedRows.length,
+    skippedCount: manifest.skipped.length,
+    skipped: manifest.skipped,
+    manifest,
+  };
 }
