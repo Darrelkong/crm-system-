@@ -93,6 +93,46 @@ async function deleteTestClaimCustomers() {
     .where(inArray(schema.customers.id, [...TEST_CUSTOMER_IDS]));
 }
 
+/**
+ * Park foreign claimed_at rows for the test staff so status reflects only
+ * TEST_CUSTOMER_IDS fixtures (shared local D1 may retain leftover claims).
+ */
+async function withIsolatedStaffClaims<T>(
+  keepIds: readonly string[],
+  fn: () => Promise<T>,
+): Promise<T> {
+  const keep = new Set(keepIds);
+  const rows = await db
+    .select({
+      id: schema.customers.id,
+      claimedAt: schema.customers.claimedAt,
+    })
+    .from(schema.customers)
+    .where(eq(schema.customers.claimedBy, TEST_STAFF_ID));
+
+  const parkIso = "1990-01-01T00:00:00.000Z";
+  const originals: Array<{ id: string; claimedAt: string }> = [];
+  for (const row of rows) {
+    if (!row.claimedAt || keep.has(row.id)) continue;
+    originals.push({ id: row.id, claimedAt: row.claimedAt });
+    await db
+      .update(schema.customers)
+      .set({ claimedAt: parkIso })
+      .where(eq(schema.customers.id, row.id));
+  }
+
+  try {
+    return await fn();
+  } finally {
+    for (const orig of originals) {
+      await db
+        .update(schema.customers)
+        .set({ claimedAt: orig.claimedAt })
+        .where(eq(schema.customers.id, orig.id));
+    }
+  }
+}
+
 async function insertClaimedCustomers(
   entries: Array<{ id: string; claimedAt: string }>,
 ) {
@@ -127,29 +167,34 @@ describe("getStaffClaimStatus", () => {
       { id: TEST_CUSTOMER_IDS[0], claimedAt: hoursAgoIso(13) },
     ]);
 
-    const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
+    await withIsolatedStaffClaims([TEST_CUSTOMER_IDS[0]], async () => {
+      const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
 
-    assert.equal(status.canClaimNow, true);
-    assert.equal(status.blockedReasonKey, null);
-    assert.equal(status.claimedInLast7Days, 1);
-    assert.equal(status.remainingQuota, QUOTA_LIMIT - 1);
+      assert.equal(status.canClaimNow, true);
+      assert.equal(status.blockedReasonKey, null);
+      assert.equal(status.claimedInLast7Days, 1);
+      assert.equal(status.remainingQuota, QUOTA_LIMIT - 1);
+    });
   });
 
   it("blocks claim when 7-day quota is reached", async () => {
     await deleteTestClaimCustomers();
+    const keep = TEST_CUSTOMER_IDS.slice(0, QUOTA_LIMIT);
     await insertClaimedCustomers(
-      TEST_CUSTOMER_IDS.slice(0, QUOTA_LIMIT).map((id, index) => ({
+      keep.map((id, index) => ({
         id,
         claimedAt: hoursAgoIso(24 + index),
       })),
     );
 
-    const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
+    await withIsolatedStaffClaims(keep, async () => {
+      const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
 
-    assert.equal(status.canClaimNow, false);
-    assert.equal(status.blockedReasonKey, "quotaExceeded");
-    assert.equal(status.claimedInLast7Days, QUOTA_LIMIT);
-    assert.equal(status.remainingQuota, 0);
+      assert.equal(status.canClaimNow, false);
+      assert.equal(status.blockedReasonKey, "quotaExceeded");
+      assert.equal(status.claimedInLast7Days, QUOTA_LIMIT);
+      assert.equal(status.remainingQuota, 0);
+    });
   });
 
   it("blocks claim during cooldown after a recent claim", async () => {
@@ -158,33 +203,42 @@ describe("getStaffClaimStatus", () => {
       { id: TEST_CUSTOMER_IDS[0], claimedAt: hoursAgoIso(1) },
     ]);
 
-    const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
+    await withIsolatedStaffClaims([TEST_CUSTOMER_IDS[0]], async () => {
+      const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
 
-    assert.equal(status.canClaimNow, false);
-    assert.equal(status.blockedReasonKey, "cooldown");
-    assert.equal(status.inCooldown, true);
-    assert.ok(status.cooldownUntil);
+      assert.equal(status.canClaimNow, false);
+      assert.equal(status.blockedReasonKey, "cooldown");
+      assert.equal(status.inCooldown, true);
+      assert.ok(status.cooldownUntil);
+    });
   });
 
   it("prefers cooldown over quota when both would block", async () => {
     await deleteTestClaimCustomers();
+    const keep = TEST_CUSTOMER_IDS.slice(0, QUOTA_LIMIT);
     await insertClaimedCustomers(
-      TEST_CUSTOMER_IDS.slice(0, QUOTA_LIMIT).map((id, index) => ({
+      keep.map((id, index) => ({
         id,
         claimedAt:
           index === 0 ? hoursAgoIso(1) : hoursAgoIso(24 + index),
       })),
     );
 
-    const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
+    await withIsolatedStaffClaims(keep, async () => {
+      const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
 
-    assert.equal(status.canClaimNow, false);
-    assert.equal(status.blockedReasonKey, "cooldown");
-    assert.notEqual(status.blockedReasonKey, "quotaExceeded");
+      assert.equal(status.canClaimNow, false);
+      assert.equal(status.blockedReasonKey, "cooldown");
+      assert.notEqual(status.blockedReasonKey, "quotaExceeded");
+    });
   });
 
   it("excludes claims older than 7 days from rolling quota", async () => {
     await deleteTestClaimCustomers();
+    const keep = [
+      TEST_CUSTOMER_IDS[0],
+      ...TEST_CUSTOMER_IDS.slice(1, QUOTA_LIMIT),
+    ];
     await insertClaimedCustomers([
       { id: TEST_CUSTOMER_IDS[0], claimedAt: daysAgoIso(8) },
       ...TEST_CUSTOMER_IDS.slice(1, QUOTA_LIMIT).map((id, index) => ({
@@ -193,11 +247,13 @@ describe("getStaffClaimStatus", () => {
       })),
     ]);
 
-    const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
+    await withIsolatedStaffClaims(keep, async () => {
+      const status = await getStaffClaimStatus(TEST_STAFF_ID, FIXED_NOW, db);
 
-    assert.equal(status.claimedInLast7Days, QUOTA_LIMIT - 1);
-    assert.equal(status.canClaimNow, true);
-    assert.equal(status.blockedReasonKey, null);
+      assert.equal(status.claimedInLast7Days, QUOTA_LIMIT - 1);
+      assert.equal(status.canClaimNow, true);
+      assert.equal(status.blockedReasonKey, null);
+    });
   });
 });
 

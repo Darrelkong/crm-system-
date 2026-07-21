@@ -360,10 +360,10 @@ export async function listRandomClaimCandidatesForStaff(
     1,
     Math.floor(input.pageSize ?? RANDOM_CLAIM_CANDIDATE_SCAN_PAGE_SIZE),
   );
-  const maxScanRows = Math.max(
-    limit,
-    Math.floor(input.maxScanRows ?? RANDOM_CLAIM_CANDIDATE_MAX_SCAN_ROWS),
-  );
+  const requestedMaxScan = Number.isFinite(input.maxScanRows)
+    ? Math.floor(input.maxScanRows as number)
+    : RANDOM_CLAIM_CANDIDATE_MAX_SCAN_ROWS;
+  const maxScanRows = Math.max(1, requestedMaxScan);
 
   const candidates: RandomClaimCandidate[] = [];
   let offset = 0;

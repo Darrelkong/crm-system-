@@ -8,19 +8,74 @@ import {
   claimBlockReasonToErrorCode,
   evaluateCustomerClaimEligibility,
 } from "@/lib/public-pool/queries";
+import { idClaimStaffMethodGate } from "@/lib/public-pool/random-claim-request";
 import { claimCustomerFromPool } from "@/lib/public-pool/service";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
+import type { User } from "../../../../../../../drizzle/schema/users";
+import type { Customer } from "../../../../../../../drizzle/schema/customers";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
-export async function POST(request: Request, context: RouteContext) {
-  try {
-    const user = await requireAuth(request);
-    const { id } = await context.params;
-    const { ipAddress, userAgent } = getRequestMeta(request);
+/**
+ * Injectable deps for Route Handler unit tests.
+ * Production POST always uses defaults — never accept deps from the client.
+ */
+export type IdClaimRouteDeps = {
+  requireAuth: (request: Request) => Promise<User>;
+  getRequestMeta: (request: Request) => {
+    ipAddress: string | null;
+    userAgent: string | null;
+  };
+  getCustomerById: (id: string) => Promise<Customer | null>;
+  claimCustomerFromPool: typeof claimCustomerFromPool;
+  writeAuditLog: typeof writeAuditLog;
+  getStaffClaimStatus: typeof getStaffClaimStatus;
+};
 
-    const customer = await getCustomerById(id);
+const defaultDeps: IdClaimRouteDeps = {
+  requireAuth,
+  getRequestMeta,
+  getCustomerById,
+  claimCustomerFromPool,
+  writeAuditLog,
+  getStaffClaimStatus,
+};
+
+/**
+ * Shared ID-claim Route Handler. Staff method gate runs before customer load.
+ */
+export async function handleIdClaimPost(
+  request: Request,
+  context: RouteContext,
+  deps: IdClaimRouteDeps = defaultDeps,
+): Promise<Response> {
+  try {
+    const user = await deps.requireAuth(request);
+    const { id } = await context.params;
+    const { ipAddress, userAgent } = deps.getRequestMeta(request);
+
+    const methodGate = idClaimStaffMethodGate(user.role);
+    if (!methodGate.ok) {
+      await deps.writeAuditLog({
+        userId: user.id,
+        action: "customer.claim_failed.method_not_allowed",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: { reason: "staff_must_use_random_claim" },
+      });
+      return Response.json(
+        {
+          error: methodGate.error,
+          errorCode: methodGate.errorCode,
+        },
+        { status: methodGate.httpStatus },
+      );
+    }
+
+    const customer = await deps.getCustomerById(id);
     if (!customer) {
       return Response.json(
         { error: "客户不存在", errorCode: "CUSTOMER_NOT_FOUND" },
@@ -29,7 +84,7 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     if (customer.status !== "public_pool") {
-      await writeAuditLog({
+      await deps.writeAuditLog({
         userId: user.id,
         action: "customer.claim_failed.not_in_pool",
         entityType: "customer",
@@ -47,7 +102,9 @@ export async function POST(request: Request, context: RouteContext) {
     }
 
     const staffStatus =
-      user.role === "staff" ? await getStaffClaimStatus(user.id) : null;
+      user.role === "staff"
+        ? await deps.getStaffClaimStatus(user.id)
+        : null;
 
     const eligibility = evaluateCustomerClaimEligibility(
       user,
@@ -107,7 +164,7 @@ export async function POST(request: Request, context: RouteContext) {
         }
       }
 
-      await writeAuditLog({
+      await deps.writeAuditLog({
         userId: user.id,
         action,
         entityType: "customer",
@@ -126,13 +183,13 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const claimResult = await claimCustomerFromPool(customer, user, {
+    const claimResult = await deps.claimCustomerFromPool(customer, user, {
       ipAddress,
       userAgent,
     });
 
     if (!claimResult.ok) {
-      await writeAuditLog({
+      await deps.writeAuditLog({
         userId: user.id,
         action: "customer.claim_failed.already_claimed",
         entityType: "customer",
@@ -153,4 +210,8 @@ export async function POST(request: Request, context: RouteContext) {
   } catch (error) {
     return authErrorResponse(error);
   }
+}
+
+export async function POST(request: Request, context: RouteContext) {
+  return handleIdClaimPost(request, context);
 }
