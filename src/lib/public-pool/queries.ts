@@ -1,4 +1,5 @@
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -11,6 +12,9 @@ import {
 } from "@/lib/public-pool/display";
 import { getStaffClaimStatus } from "./claim-limits";
 import {
+  RANDOM_CLAIM_CANDIDATE_BATCH_SIZE,
+  RANDOM_CLAIM_CANDIDATE_MAX_SCAN_ROWS,
+  RANDOM_CLAIM_CANDIDATE_SCAN_PAGE_SIZE,
   SELF_RELEASE_CLAIM_BLOCK_DAYS,
   type StaffClaimStatus,
 } from "./constants";
@@ -287,6 +291,163 @@ export async function listPublicPoolCustomers() {
     .from(schema.customers)
     .where(eq(schema.customers.status, "public_pool"))
     .orderBy(asc(schema.customers.poolEnteredAt));
+}
+
+/** Minimal fields for staff random-claim candidate selection (no PII). */
+export type RandomClaimCandidate = {
+  id: string;
+  poolEnteredAt: string | null;
+  createdAt: string;
+  releasedBy: string | null;
+};
+
+export type RandomClaimCandidateScanResult = {
+  candidates: RandomClaimCandidate[];
+  /** Raw public-pool rows inspected (excludes sentinel existence check). */
+  scannedRows: number;
+  /**
+   * True only when the scan stopped at maxScanRows before filling the batch
+   * and at least one more matching public-pool row exists beyond the scan window.
+   */
+  scanLimitReached: boolean;
+};
+
+/**
+ * Internal options for tests and server-side callers only.
+ * Do not bind these values to client request input.
+ */
+export type ListRandomClaimCandidatesForStaffInput = {
+  userId: string;
+  /** Caps at RANDOM_CLAIM_CANDIDATE_BATCH_SIZE. Tests may pass a smaller value. */
+  limit?: number;
+  now?: Date;
+  db?: Database;
+  /** Internal scan page size (not the product batch size). */
+  pageSize?: number;
+  /** Safety cap on rows scanned while filling the batch. */
+  maxScanRows?: number;
+};
+
+const publicPoolCandidateBaseWhere = and(
+  eq(schema.customers.status, "public_pool"),
+  isNull(schema.customers.deletedAt),
+);
+
+const publicPoolCandidateOrderBy = [
+  sql`COALESCE(${schema.customers.poolEnteredAt}, ${schema.customers.createdAt}) ASC`,
+  asc(schema.customers.id),
+] as const;
+
+/**
+ * Oldest claimable public-pool customers for staff random claim.
+ * Reuses getSelfReleaseClaimBlockState (does not invent a second self-release rule).
+ * Not wired to a Route in RANDOM-CLAIM-1.
+ */
+export async function listRandomClaimCandidatesForStaff(
+  input: ListRandomClaimCandidatesForStaffInput,
+): Promise<RandomClaimCandidateScanResult> {
+  const database = input.db ?? getDb();
+  const now = input.now ?? new Date();
+  const requestedLimit = input.limit ?? RANDOM_CLAIM_CANDIDATE_BATCH_SIZE;
+  const flooredLimit = Number.isFinite(requestedLimit)
+    ? Math.floor(requestedLimit)
+    : RANDOM_CLAIM_CANDIDATE_BATCH_SIZE;
+  const limit = Math.min(
+    Math.max(1, flooredLimit),
+    RANDOM_CLAIM_CANDIDATE_BATCH_SIZE,
+  );
+  const pageSize = Math.max(
+    1,
+    Math.floor(input.pageSize ?? RANDOM_CLAIM_CANDIDATE_SCAN_PAGE_SIZE),
+  );
+  const maxScanRows = Math.max(
+    limit,
+    Math.floor(input.maxScanRows ?? RANDOM_CLAIM_CANDIDATE_MAX_SCAN_ROWS),
+  );
+
+  const candidates: RandomClaimCandidate[] = [];
+  let offset = 0;
+  let scanned = 0;
+  let reachedEnd = false;
+
+  while (candidates.length < limit && scanned < maxScanRows) {
+    const take = Math.min(pageSize, maxScanRows - scanned);
+    const rows = await database
+      .select({
+        id: schema.customers.id,
+        poolEnteredAt: schema.customers.poolEnteredAt,
+        createdAt: schema.customers.createdAt,
+        releasedBy: schema.customers.releasedBy,
+        releaserUserId: schema.customers.releaserUserId,
+      })
+      .from(schema.customers)
+      .where(publicPoolCandidateBaseWhere)
+      .orderBy(...publicPoolCandidateOrderBy)
+      .limit(take)
+      .offset(offset);
+
+    if (rows.length === 0) {
+      reachedEnd = true;
+      break;
+    }
+
+    scanned += rows.length;
+    offset += rows.length;
+
+    for (const row of rows) {
+      const selfReleaseBlock = getSelfReleaseClaimBlockState(
+        {
+          releasedBy: row.releasedBy,
+          releaserUserId: row.releaserUserId,
+          poolEnteredAt: row.poolEnteredAt,
+        } as Customer,
+        input.userId,
+        now,
+      );
+      if (selfReleaseBlock?.blocked) {
+        continue;
+      }
+
+      candidates.push({
+        id: row.id,
+        poolEnteredAt: row.poolEnteredAt,
+        createdAt: row.createdAt,
+        releasedBy: row.releasedBy ?? row.releaserUserId ?? null,
+      });
+
+      if (candidates.length >= limit) {
+        break;
+      }
+    }
+
+    if (candidates.length >= limit) {
+      break;
+    }
+
+    if (rows.length < take) {
+      reachedEnd = true;
+      break;
+    }
+  }
+
+  let scanLimitReached = false;
+  if (candidates.length < limit && scanned >= maxScanRows && !reachedEnd) {
+    // Existence-only check beyond the scan window — not counted in scannedRows.
+    const sentinel = await database
+      .select({ id: schema.customers.id })
+      .from(schema.customers)
+      .where(publicPoolCandidateBaseWhere)
+      .orderBy(...publicPoolCandidateOrderBy)
+      .limit(1)
+      .offset(scanned);
+    scanLimitReached = sentinel.length > 0;
+  }
+
+  return {
+    candidates,
+    scannedRows: scanned,
+    scanLimitReached,
+  };
 }
 
 export async function formatPublicPoolListForUser(user: User) {
