@@ -1356,7 +1356,7 @@ const en = {
     subtitleAdmin:
       "Admins can view full details and claim clients (no claim limits)",
     subtitleStaff:
-      "Staff see masked details only; sorted by earliest pool entry time",
+      "Staff see masked details only; use random assignment to receive one customer",
     availableClients: "Available Clients",
     releaseToPool: "Release to Public Pool",
     claimClient: "Claim Client",
@@ -1403,6 +1403,21 @@ const en = {
     claimStatus: "Claim status",
     canClaim: "Ready to claim",
     cooldownUntil: "Cooldown until {{date}}",
+    randomClaimButton: "Randomly assign a customer",
+    randomClaimAssigning: "Assigning a customer…",
+    randomClaimNoQuota: "No claim quota remaining",
+    randomClaimSuccessTitle: "Claim successful",
+    randomClaimSuccessBody:
+      "The system randomly assigned a public-pool customer to you.",
+    randomClaimSuccessAssigned: "A customer has been assigned to you",
+    randomClaimCustomerLabel: "Customer",
+    randomClaimCustomerCodeLabel: "Customer code",
+    randomClaimViewCustomer: "View customer",
+    randomClaimReturnToPool: "Back to public pool",
+    randomClaimStatusRefreshHint:
+      "Claim status will update after you refresh the page",
+    randomClaimUncertain:
+      "The assignment status could not be confirmed. Check “My Customers” first and only try again if no new customer appears.",
     claimBlockReasons: {
       notInPool: "Client is not in the public pool.",
       selfReleased: "You cannot claim a client you released to the public pool.",
@@ -2052,6 +2067,19 @@ const en = {
     claimQuotaExceeded: "Your 7-day claim quota has been reached.",
     claimStatusUnavailable: "Unable to determine claim eligibility.",
     cannotClaimClient: "Unable to claim this client.",
+    randomClaimBodyNotAllowed:
+      "Random assignment does not accept a selected customer or custom parameters.",
+    invalidRequestBody:
+      "The request format is invalid. Refresh the page and try again.",
+    randomClaimStaffOnly: "This feature is available to staff only.",
+    claimMethodNotAllowed:
+      "Staff cannot select a specific public-pool customer. Use random assignment instead.",
+    publicPoolNoEligibleCustomer:
+      "There are currently no eligible public-pool customers available.",
+    publicPoolCandidateScanLimit:
+      "The system could not safely complete the assignment. Try again later or contact an administrator if it continues.",
+    publicPoolRandomClaimConflict:
+      "Another staff member claimed the available customer first. Try again shortly.",
     missingJobId: "Missing job ID. Please run precheck first.",
     unauthorized: "Unauthorized.",
     notificationNotFound: "Notification not found.",

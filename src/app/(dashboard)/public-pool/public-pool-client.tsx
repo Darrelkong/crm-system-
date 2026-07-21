@@ -32,6 +32,10 @@ import {
   type PublicPoolCustomerView,
 } from "@/lib/public-pool/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import {
+  shouldShowActionsColumn,
+  shouldShowRowClaimButton,
+} from "./random-claim-ui";
 
 export function PublicPoolClient({
   initialItems,
@@ -47,6 +51,8 @@ export function PublicPoolClient({
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimSuccessId, setClaimSuccessId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const showRowClaim = shouldShowRowClaimButton(isAdmin);
+  const showActions = shouldShowActionsColumn(isAdmin);
 
   useEffect(() => {
     setItems(initialItems);
@@ -62,6 +68,7 @@ export function PublicPoolClient({
   }
 
   async function handleClaim(id: string) {
+    if (!showRowClaim) return;
     setClaimingId(id);
     setError(null);
     setClaimSuccessId(null);
@@ -128,7 +135,7 @@ export function PublicPoolClient({
                 <Th>{t("publicPool.followUpSummary")}</Th>
                 <Th>{t("publicPool.poolReason")}</Th>
                 {isAdmin && <Th>{t("publicPool.contact")}</Th>}
-                <Th>{t("publicPool.actions")}</Th>
+                {showActions && <Th>{t("publicPool.actions")}</Th>}
               </tr>
             </TableHead>
             <TableBody>
@@ -226,24 +233,26 @@ export function PublicPoolClient({
                         )}
                       </Td>
                     )}
-                    <Td>
-                      <Button
-                        type="button"
-                        size="sm"
-                        disabled={!c.canClaim || claimingId === c.id}
-                        onClick={() => handleClaim(c.id)}
-                        title={blockReason ?? undefined}
-                      >
-                        {claimingId === c.id
-                          ? t("publicPool.claiming")
-                          : t("publicPool.claim")}
-                      </Button>
-                      {!c.canClaim && blockReason && (
-                        <p className="mt-1 max-w-[140px] text-xs text-red-600">
-                          {blockReason}
-                        </p>
-                      )}
-                    </Td>
+                    {showActions && showRowClaim && (
+                      <Td>
+                        <Button
+                          type="button"
+                          size="sm"
+                          disabled={!c.canClaim || claimingId === c.id}
+                          onClick={() => handleClaim(c.id)}
+                          title={blockReason ?? undefined}
+                        >
+                          {claimingId === c.id
+                            ? t("publicPool.claiming")
+                            : t("publicPool.claim")}
+                        </Button>
+                        {!c.canClaim && blockReason && (
+                          <p className="mt-1 max-w-[140px] text-xs text-red-600">
+                            {blockReason}
+                          </p>
+                        )}
+                      </Td>
+                    )}
                   </Tr>
                 );
               })}

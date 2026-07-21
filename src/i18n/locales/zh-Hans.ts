@@ -1314,7 +1314,8 @@ const zhHans: Messages = {
     title: "公共池",
     pageTitle: "公共客户池",
     subtitleAdmin: "管理员可查看完整资料并领取客户（无领取限制）",
-    subtitleStaff: "员工仅可查看脱敏资料；按入池时间从早到晚排序",
+    subtitleStaff:
+      "员工仅可查看脱敏资料；使用随机领取由系统分配一位客户",
     availableClients: "可领取客户",
     releaseToPool: "释放到公共池",
     claimClient: "领取客户",
@@ -1360,6 +1361,19 @@ const zhHans: Messages = {
     claimStatus: "领取状态",
     canClaim: "可以领取",
     cooldownUntil: "冷却至：{{date}}",
+    randomClaimButton: "随机领取一位客户",
+    randomClaimAssigning: "正在为你分配客户……",
+    randomClaimNoQuota: "目前没有可用的领取次数",
+    randomClaimSuccessTitle: "领取成功",
+    randomClaimSuccessBody: "系统已随机为你分配一位公共池客户。",
+    randomClaimSuccessAssigned: "已成功为你分配一位客户",
+    randomClaimCustomerLabel: "客户",
+    randomClaimCustomerCodeLabel: "客户编号",
+    randomClaimViewCustomer: "查看客户",
+    randomClaimReturnToPool: "返回公共池",
+    randomClaimStatusRefreshHint: "领取状态将在刷新页面后更新",
+    randomClaimUncertain:
+      "无法确认本次领取是否已完成。请先刷新“我的客户”查看，确认没有新增客户后再重新操作。",
     claimBlockReasons: {
       notInPool: "客户不在公共池",
       selfReleased: "不能领取自己释放到公共池的客户",
@@ -1974,6 +1988,18 @@ const zhHans: Messages = {
     claimQuotaExceeded: "7 天领取名额已达上限。",
     claimStatusUnavailable: "无法获取领取状态。",
     cannotClaimClient: "无法领取该客户。",
+    randomClaimBodyNotAllowed:
+      "随机领取不接受指定客户或其他自定义参数。",
+    invalidRequestBody: "请求格式不正确，请刷新页面后重试。",
+    randomClaimStaffOnly: "此功能仅供员工使用。",
+    claimMethodNotAllowed:
+      "员工不能指定领取某一位公共池客户，请使用随机领取。",
+    publicPoolNoEligibleCustomer:
+      "目前没有符合条件的公共池客户可供领取。",
+    publicPoolCandidateScanLimit:
+      "本次未能安全完成客户分配，请稍后重试。如持续出现，请联系管理员。",
+    publicPoolRandomClaimConflict:
+      "其他员工刚刚领取了相关客户，本次未能完成分配。请稍后重试。",
     missingJobId: "缺少 jobId，请先预检。",
     unauthorized: "未授权。",
     notificationNotFound: "通知不存在。",

@@ -1315,7 +1315,8 @@ const zhHant: Messages = {
     title: "公共池",
     pageTitle: "公共客戶池",
     subtitleAdmin: "管理員可查看完整資料並領取客戶（無領取限制）",
-    subtitleStaff: "員工僅可查看脫敏資料；按入池時間從早到晚排序",
+    subtitleStaff:
+      "員工僅可查看脫敏資料；使用隨機領取由系統分配一位客戶",
     availableClients: "可領取客戶",
     releaseToPool: "釋放到公共池",
     claimClient: "領取客戶",
@@ -1361,6 +1362,19 @@ const zhHant: Messages = {
     claimStatus: "領取狀態",
     canClaim: "可以領取",
     cooldownUntil: "冷卻至：{{date}}",
+    randomClaimButton: "隨機領取一位客戶",
+    randomClaimAssigning: "正在為你分配客戶……",
+    randomClaimNoQuota: "目前沒有可用的領取次數",
+    randomClaimSuccessTitle: "領取成功",
+    randomClaimSuccessBody: "系統已隨機為你分配一位公共池客戶。",
+    randomClaimSuccessAssigned: "已成功為你分配一位客戶",
+    randomClaimCustomerLabel: "客戶",
+    randomClaimCustomerCodeLabel: "客戶編號",
+    randomClaimViewCustomer: "查看客戶",
+    randomClaimReturnToPool: "返回公共池",
+    randomClaimStatusRefreshHint: "領取狀態將在刷新頁面後更新",
+    randomClaimUncertain:
+      "無法確認本次領取是否已完成。請先刷新「我的客戶」查看，確認沒有新增客戶後再重新操作。",
     claimBlockReasons: {
       notInPool: "客戶不在公共池",
       selfReleased: "不能領取自己釋放到公共池的客戶",
@@ -1975,6 +1989,18 @@ const zhHant: Messages = {
     claimQuotaExceeded: "7 天領取名額已達上限。",
     claimStatusUnavailable: "無法獲取領取狀態。",
     cannotClaimClient: "無法領取該客戶。",
+    randomClaimBodyNotAllowed:
+      "隨機領取不接受指定客戶或其他自訂參數。",
+    invalidRequestBody: "請求格式不正確，請重新整理頁面後再試。",
+    randomClaimStaffOnly: "此功能僅供員工使用。",
+    claimMethodNotAllowed:
+      "員工不可指定領取某一位公共池客戶，請使用隨機領取。",
+    publicPoolNoEligibleCustomer:
+      "目前沒有符合條件的公共池客戶可供領取。",
+    publicPoolCandidateScanLimit:
+      "本次未能安全完成客戶分配，請稍後再試。如持續出現，請聯絡管理員。",
+    publicPoolRandomClaimConflict:
+      "其他員工剛剛領取了相關客戶，本次未能完成分配。請稍後再試。",
     missingJobId: "缺少 jobId，請先預檢。",
     unauthorized: "未授權。",
     notificationNotFound: "通知不存在。",
