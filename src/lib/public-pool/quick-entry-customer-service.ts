@@ -44,19 +44,36 @@ export type QuickEntryCreateResult =
   | QuickEntryCreateSuccess
   | QuickEntryCreateFailure;
 
-/**
- * Creates one customer directly in the public pool.
- *
- * Caller MUST pass a server-verified active CRM User (Admin or Staff).
- * Does not check Quick Entry grant — that belongs to the future Batch Route.
- */
-export async function createCustomerDirectlyInPublicPool(input: {
-  actor: User;
-  customer: QuickEntryCustomerInput;
-  db?: Database;
-  now?: Date;
-}): Promise<QuickEntryCreateResult> {
-  const actor = input.actor;
+export type PrepareDirectPublicPoolCustomerInvalid = {
+  kind: "invalid";
+  errorCode: string;
+  message: string;
+  field?: string;
+  validationErrors?: QuickEntryValidationError[];
+};
+
+export type PrepareDirectPublicPoolCustomerDuplicate = {
+  kind: "duplicate";
+  errorCode: string;
+  message: string;
+  field?: string;
+  duplicateField: "phone" | "wechatId" | "email";
+};
+
+export type PrepareDirectPublicPoolCustomerReady = {
+  kind: "ready";
+  customerId: string;
+  customerCode: string;
+  customerName: string;
+  statements: unknown[];
+};
+
+export type PrepareDirectPublicPoolCustomerResult =
+  | PrepareDirectPublicPoolCustomerInvalid
+  | PrepareDirectPublicPoolCustomerDuplicate
+  | PrepareDirectPublicPoolCustomerReady;
+
+function assertActor(actor: User): QuickEntryCreateFailure | null {
   if (
     !actor ||
     actor.isActive !== 1 ||
@@ -70,12 +87,35 @@ export async function createCustomerDirectlyInPublicPool(input: {
       message: "操作者无效",
     };
   }
+  return null;
+}
+
+/**
+ * Validates + duplicate-checks and builds Customer + Audit INSERT statements
+ * without executing them. Intended for Batch Domain atomic composition.
+ */
+export async function prepareDirectPublicPoolCustomerCreation(input: {
+  actor: User;
+  customer: QuickEntryCustomerInput;
+  db?: Database;
+  now?: Date;
+}): Promise<PrepareDirectPublicPoolCustomerResult> {
+  const actorFailure = assertActor(input.actor);
+  if (actorFailure) {
+    return {
+      kind: "invalid",
+      errorCode: actorFailure.errorCode,
+      message: actorFailure.message,
+    };
+  }
 
   const validated = validateQuickEntryCustomerInput(input.customer);
   if (!validated.ok) {
     return {
-      ok: false,
-      errorCode: validated.errors[0]?.errorCode ?? "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
+      kind: "invalid",
+      errorCode:
+        validated.errors[0]?.errorCode ??
+        "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
       message: "输入校验失败",
       field: validated.errors[0]?.field,
       validationErrors: validated.errors,
@@ -84,14 +124,31 @@ export async function createCustomerDirectlyInPublicPool(input: {
 
   const database = input.db ?? getDb();
   const normalized = validated.value;
+  const actor = input.actor;
 
   const firstDup = await findSafeDuplicate(normalized, actor);
-  if (firstDup) return firstDup;
+  if (firstDup) {
+    return {
+      kind: "duplicate",
+      errorCode: firstDup.errorCode,
+      message: firstDup.message,
+      field: firstDup.field,
+      duplicateField: firstDup.duplicateField ?? "phone",
+    };
+  }
 
   const customerCode = await allocateCustomerCode(database);
 
   const secondDup = await findSafeDuplicate(normalized, actor);
-  if (secondDup) return secondDup;
+  if (secondDup) {
+    return {
+      kind: "duplicate",
+      errorCode: secondDup.errorCode,
+      message: secondDup.message,
+      field: secondDup.field,
+      duplicateField: secondDup.duplicateField ?? "phone",
+    };
+  }
 
   const now = (input.now ?? new Date()).toISOString();
   const customerId = crypto.randomUUID();
@@ -153,16 +210,58 @@ export async function createCustomerDirectlyInPublicPool(input: {
     createdAt: now,
   });
 
-  await database.batch([
-    insertCustomer,
-    insertAudit,
-  ] as unknown as Parameters<Database["batch"]>[0]);
-
   return {
-    ok: true,
+    kind: "ready",
     customerId,
     customerCode,
     customerName: normalized.customerName,
+    statements: [insertCustomer, insertAudit],
+  };
+}
+
+/**
+ * Creates one customer directly in the public pool.
+ *
+ * Caller MUST pass a server-verified active CRM User (Admin or Staff).
+ * Does not check Quick Entry grant — that belongs to the future Batch Route.
+ */
+export async function createCustomerDirectlyInPublicPool(input: {
+  actor: User;
+  customer: QuickEntryCustomerInput;
+  db?: Database;
+  now?: Date;
+}): Promise<QuickEntryCreateResult> {
+  const prepared = await prepareDirectPublicPoolCustomerCreation(input);
+  if (prepared.kind === "invalid") {
+    return {
+      ok: false,
+      errorCode: prepared.errorCode,
+      message: prepared.message,
+      field: prepared.field,
+      validationErrors: prepared.validationErrors,
+    };
+  }
+  if (prepared.kind === "duplicate") {
+    return {
+      ok: false,
+      errorCode: prepared.errorCode,
+      message: prepared.message,
+      field: prepared.field,
+      duplicate: true,
+      duplicateField: prepared.duplicateField,
+    };
+  }
+
+  const database = input.db ?? getDb();
+  await database.batch(
+    prepared.statements as unknown as Parameters<Database["batch"]>[0],
+  );
+
+  return {
+    ok: true,
+    customerId: prepared.customerId,
+    customerCode: prepared.customerCode,
+    customerName: prepared.customerName,
   };
 }
 

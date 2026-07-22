@@ -33,6 +33,20 @@ export type QuickEntryCustomerInput = {
   supplementalNote?: string | null;
 };
 
+/**
+ * Shared canonical customer fields for hash + QE-2 create.
+ * Trimmed; empty optionals → null; phoneCountryCode always set (default +86).
+ */
+export type QuickEntryCanonicalCustomerFields = {
+  customerName: string;
+  phone: string | null;
+  phoneCountryCode: string;
+  wechatId: string | null;
+  requestedProjectName: string;
+  initialFollowUpNote: string | null;
+  supplementalNote: string | null;
+};
+
 export type QuickEntryCustomerNormalized = {
   customerName: string;
   phone: string | null;
@@ -63,8 +77,78 @@ function asTrimmedNullable(value: unknown): string | null {
 }
 
 /**
+ * Shared normalize for QE-2 validator and Batch canonical hash.
+ * Does not validate business rules (name length, phone format, …).
+ */
+export function normalizeQuickEntryCustomerInput(
+  input: QuickEntryCustomerInput,
+): QuickEntryCanonicalCustomerFields {
+  const customerName =
+    typeof input.customerName === "string" ? input.customerName.trim() : "";
+  const phone =
+    typeof input.phone === "string" || input.phone == null
+      ? asTrimmedNullable(input.phone)
+      : null;
+  const wechatId =
+    typeof input.wechatId === "string" || input.wechatId == null
+      ? asTrimmedNullable(input.wechatId)
+      : null;
+
+  let phoneCountryCode = "+86";
+  if (phone) {
+    const ccRaw =
+      typeof input.phoneCountryCode === "string"
+        ? input.phoneCountryCode.trim()
+        : "";
+    phoneCountryCode = ccRaw || "+86";
+  }
+
+  const requestedProjectName =
+    typeof input.requestedProjectName === "string"
+      ? input.requestedProjectName.trim()
+      : "";
+
+  const initialFollowUpNote =
+    typeof input.initialFollowUpNote === "string" ||
+    input.initialFollowUpNote == null
+      ? asTrimmedNullable(input.initialFollowUpNote)
+      : null;
+
+  const supplementalNote =
+    typeof input.supplementalNote === "string" ||
+    input.supplementalNote == null
+      ? asTrimmedNullable(input.supplementalNote)
+      : null;
+
+  return {
+    customerName,
+    phone,
+    phoneCountryCode,
+    wechatId,
+    requestedProjectName,
+    initialFollowUpNote,
+    supplementalNote,
+  };
+}
+
+export function canonicalToNormalizedCustomer(
+  canonical: QuickEntryCanonicalCustomerFields,
+): QuickEntryCustomerNormalized {
+  return {
+    customerName: canonical.customerName,
+    phone: canonical.phone,
+    phoneCountryCode: canonical.phoneCountryCode,
+    wechatId: canonical.wechatId,
+    requestedProjectName: canonical.requestedProjectName,
+    notes: canonical.initialFollowUpNote,
+    sourceRemark: canonical.supplementalNote,
+  };
+}
+
+/**
  * Server-side validator for public-pool quick-entry customer create.
  * Does not accept / apply Client-controlled system fields (owner/status/source/…).
+ * Reuses {@link normalizeQuickEntryCustomerInput} for trim／null／country-code.
  */
 export function validateQuickEntryCustomerInput(
   input: unknown,
@@ -86,30 +170,6 @@ export function validateQuickEntryCustomerInput(
 
   const record = input as Record<string, unknown>;
 
-  const customerNameRaw =
-    typeof record.customerName === "string" ? record.customerName.trim() : "";
-  if (!customerNameRaw) {
-    errors.push({
-      field: "customerName",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_REQUIRED,
-      message: "客户名称必填",
-    });
-  } else if (
-    customerNameRaw.length > QUICK_ENTRY_NAME_MAX_LENGTH ||
-    !isValidCustomerName(customerNameRaw)
-  ) {
-    errors.push({
-      field: "customerName",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
-      message:
-        "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
-    });
-  }
-
-  const phone =
-    typeof record.phone === "string" || record.phone == null
-      ? asTrimmedNullable(record.phone)
-      : null;
   if (record.phone != null && typeof record.phone !== "string") {
     errors.push({
       field: "phone",
@@ -117,11 +177,6 @@ export function validateQuickEntryCustomerInput(
       message: "手机号无效",
     });
   }
-
-  const wechatId =
-    typeof record.wechatId === "string" || record.wechatId == null
-      ? asTrimmedNullable(record.wechatId)
-      : null;
   if (record.wechatId != null && typeof record.wechatId !== "string") {
     errors.push({
       field: "wechatId",
@@ -129,65 +184,6 @@ export function validateQuickEntryCustomerInput(
       message: "微信号无效",
     });
   }
-
-  if (!phone && !wechatId) {
-    errors.push({
-      field: "phone",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CONTACT_REQUIRED,
-      message: "请至少填写手机号或微信号",
-    });
-  }
-
-  let phoneCountryCode = "+86";
-  if (phone) {
-    const ccRaw =
-      typeof record.phoneCountryCode === "string"
-        ? record.phoneCountryCode.trim()
-        : "";
-    phoneCountryCode = ccRaw || "+86";
-    if (phoneCountryCode === "+86" && !CN_PHONE_RE.test(phone)) {
-      errors.push({
-        field: "phone",
-        errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
-        message: "+86 手机号必须为 11 位数字，且以 1 开头",
-      });
-    }
-  }
-
-  if (wechatId && wechatId.length > QUICK_ENTRY_WECHAT_MAX_LENGTH) {
-    errors.push({
-      field: "wechatId",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.WECHAT_INVALID,
-      message: "微信号过长",
-    });
-  }
-
-  const requestedProjectName =
-    typeof record.requestedProjectName === "string"
-      ? record.requestedProjectName.trim()
-      : "";
-  if (!requestedProjectName) {
-    errors.push({
-      field: "requestedProjectName",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_REQUIRED,
-      message: "客户需要的项目名称必填",
-    });
-  } else if (
-    requestedProjectName.length > QUICK_ENTRY_PROJECT_MAX_LENGTH ||
-    !hasSubstantiveContent(requestedProjectName, 4)
-  ) {
-    errors.push({
-      field: "requestedProjectName",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_INVALID,
-      message: "项目名称至少 4 个字，且不能只填符号",
-    });
-  }
-
-  const notes =
-    typeof record.initialFollowUpNote === "string" ||
-    record.initialFollowUpNote == null
-      ? asTrimmedNullable(record.initialFollowUpNote)
-      : null;
   if (
     record.initialFollowUpNote != null &&
     typeof record.initialFollowUpNote !== "string"
@@ -197,19 +193,7 @@ export function validateQuickEntryCustomerInput(
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.NOTE_TOO_LONG,
       message: "首次跟进备注无效",
     });
-  } else if (notes && notes.length > QUICK_ENTRY_NOTE_MAX_LENGTH) {
-    errors.push({
-      field: "initialFollowUpNote",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.NOTE_TOO_LONG,
-      message: "首次跟进备注过长",
-    });
   }
-
-  const sourceRemark =
-    typeof record.supplementalNote === "string" ||
-    record.supplementalNote == null
-      ? asTrimmedNullable(record.supplementalNote)
-      : null;
   if (
     record.supplementalNote != null &&
     typeof record.supplementalNote !== "string"
@@ -219,7 +203,127 @@ export function validateQuickEntryCustomerInput(
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.NOTE_TOO_LONG,
       message: "补充备注无效",
     });
-  } else if (sourceRemark && sourceRemark.length > QUICK_ENTRY_NOTE_MAX_LENGTH) {
+  }
+
+  if (errors.length > 0) {
+    return { ok: false, errors };
+  }
+
+  const typed: QuickEntryCustomerInput = {
+    customerName:
+      typeof record.customerName === "string" ? record.customerName : "",
+    phone:
+      typeof record.phone === "string" || record.phone == null
+        ? (record.phone as string | null | undefined)
+        : null,
+    phoneCountryCode:
+      typeof record.phoneCountryCode === "string" ||
+      record.phoneCountryCode == null
+        ? (record.phoneCountryCode as string | null | undefined)
+        : null,
+    wechatId:
+      typeof record.wechatId === "string" || record.wechatId == null
+        ? (record.wechatId as string | null | undefined)
+        : null,
+    requestedProjectName:
+      typeof record.requestedProjectName === "string"
+        ? record.requestedProjectName
+        : "",
+    initialFollowUpNote:
+      typeof record.initialFollowUpNote === "string" ||
+      record.initialFollowUpNote == null
+        ? (record.initialFollowUpNote as string | null | undefined)
+        : null,
+    supplementalNote:
+      typeof record.supplementalNote === "string" ||
+      record.supplementalNote == null
+        ? (record.supplementalNote as string | null | undefined)
+        : null,
+  };
+
+  const canonical = normalizeQuickEntryCustomerInput(typed);
+
+  if (!canonical.customerName) {
+    errors.push({
+      field: "customerName",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_REQUIRED,
+      message: "客户名称必填",
+    });
+  } else if (
+    canonical.customerName.length > QUICK_ENTRY_NAME_MAX_LENGTH ||
+    !isValidCustomerName(canonical.customerName)
+  ) {
+    errors.push({
+      field: "customerName",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
+      message:
+        "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
+    });
+  }
+
+  if (!canonical.phone && !canonical.wechatId) {
+    errors.push({
+      field: "phone",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CONTACT_REQUIRED,
+      message: "请至少填写手机号或微信号",
+    });
+  }
+
+  if (
+    canonical.phone &&
+    canonical.phoneCountryCode === "+86" &&
+    !CN_PHONE_RE.test(canonical.phone)
+  ) {
+    errors.push({
+      field: "phone",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
+      message: "+86 手机号必须为 11 位数字，且以 1 开头",
+    });
+  }
+
+  if (
+    canonical.wechatId &&
+    canonical.wechatId.length > QUICK_ENTRY_WECHAT_MAX_LENGTH
+  ) {
+    errors.push({
+      field: "wechatId",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.WECHAT_INVALID,
+      message: "微信号过长",
+    });
+  }
+
+  if (!canonical.requestedProjectName) {
+    errors.push({
+      field: "requestedProjectName",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_REQUIRED,
+      message: "客户需要的项目名称必填",
+    });
+  } else if (
+    canonical.requestedProjectName.length > QUICK_ENTRY_PROJECT_MAX_LENGTH ||
+    !hasSubstantiveContent(canonical.requestedProjectName, 4)
+  ) {
+    errors.push({
+      field: "requestedProjectName",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_INVALID,
+      message: "项目名称至少 4 个字，且不能只填符号",
+    });
+  }
+
+  if (
+    canonical.initialFollowUpNote &&
+    canonical.initialFollowUpNote.length > QUICK_ENTRY_NOTE_MAX_LENGTH
+  ) {
+    errors.push({
+      field: "initialFollowUpNote",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.NOTE_TOO_LONG,
+      message: "首次跟进备注过长",
+    });
+  }
+
+  if (
+    canonical.supplementalNote &&
+    canonical.supplementalNote.length > QUICK_ENTRY_NOTE_MAX_LENGTH
+  ) {
     errors.push({
       field: "supplementalNote",
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.NOTE_TOO_LONG,
@@ -233,14 +337,6 @@ export function validateQuickEntryCustomerInput(
 
   return {
     ok: true,
-    value: {
-      customerName: customerNameRaw,
-      phone,
-      phoneCountryCode,
-      wechatId,
-      requestedProjectName,
-      notes,
-      sourceRemark,
-    },
+    value: canonicalToNormalizedCustomer(canonical),
   };
 }

@@ -2,7 +2,8 @@ export type QuickEntryCanonicalSubmissionRow = {
   clientRowId: string;
   customerName: string;
   phone: string | null;
-  phoneCountryCode: string | null;
+  /** Always present after shared normalize (default +86). */
+  phoneCountryCode: string;
   wechatId: string | null;
   requestedProjectName: string;
   initialFollowUpNote: string | null;
