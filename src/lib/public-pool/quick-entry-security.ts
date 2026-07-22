@@ -120,6 +120,77 @@ export async function getQuickEntryGrantStatusForSession(
   });
 }
 
+/**
+ * Route guard: require an active Quick Entry grant for this CRM session.
+ * Admin does not bypass. Grant is snapshotted for the duration of one request.
+ */
+export async function requireActiveQuickEntryGrant(
+  sessionId: string,
+  db?: Database,
+  now: Date = new Date(),
+): Promise<{ grantExpiresAt: string; grantVersion: number }> {
+  const database = db ?? getDb();
+  const settings = await getQuickEntrySettingsInternal(database);
+  const rows = await database
+    .select({
+      grantUntil: schema.sessions.quickEntryGrantUntil,
+      grantVersion: schema.sessions.quickEntryGrantVersion,
+      lockedUntil: schema.sessions.quickEntryLockedUntil,
+    })
+    .from(schema.sessions)
+    .where(eq(schema.sessions.id, sessionId))
+    .limit(1);
+
+  const row = rows[0];
+  const nowIso = now.toISOString();
+
+  if (!settings.enabled) {
+    throw new QuickEntrySecurityError(
+      QUICK_ENTRY_ERROR_CODES.DISABLED,
+      "快速录入未启用",
+      403,
+    );
+  }
+
+  if (row?.lockedUntil && row.lockedUntil > nowIso) {
+    throw new QuickEntrySecurityError(
+      QUICK_ENTRY_ERROR_CODES.RATE_LIMITED,
+      "快速录入验证已锁定",
+      429,
+      retryAfterSecondsFrom(row.lockedUntil, now),
+    );
+  }
+
+  if (row?.grantUntil == null || row.grantVersion == null) {
+    throw new QuickEntrySecurityError(
+      QUICK_ENTRY_ERROR_CODES.GRANT_REQUIRED,
+      "需要先验证快速录入密码",
+      403,
+    );
+  }
+
+  if (row.grantUntil <= nowIso) {
+    throw new QuickEntrySecurityError(
+      QUICK_ENTRY_ERROR_CODES.GRANT_EXPIRED,
+      "快速录入授权已过期",
+      403,
+    );
+  }
+
+  if (row.grantVersion !== settings.grantVersion) {
+    throw new QuickEntrySecurityError(
+      QUICK_ENTRY_ERROR_CODES.GRANT_VERSION_MISMATCH,
+      "快速录入授权已失效",
+      403,
+    );
+  }
+
+  return {
+    grantExpiresAt: row.grantUntil,
+    grantVersion: row.grantVersion,
+  };
+}
+
 async function clearSessionGrant(
   db: Database,
   sessionId: string,
