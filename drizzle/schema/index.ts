@@ -22,3 +22,4 @@ export * from "./announcements";
 export * from "./customer-ai-insights";
 export * from "./ai-insight-feedback";
 export * from "./customer-tags";
+export * from "./public-pool-quick-entry-submissions";
