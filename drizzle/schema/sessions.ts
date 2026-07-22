@@ -19,6 +19,14 @@ export const sessions = sqliteTable(
     idleExemptUntil: text("idle_exempt_until"),
     idleExemptAttempts: integer("idle_exempt_attempts").notNull().default(0),
     idleExemptLockedUntil: text("idle_exempt_locked_until"),
+    /** Public-pool quick-entry short grant expiry (ISO). */
+    quickEntryGrantUntil: text("quick_entry_grant_until"),
+    /** Settings grant_version captured when grant was issued. */
+    quickEntryGrantVersion: integer("quick_entry_grant_version"),
+    quickEntryFailedAttempts: integer("quick_entry_failed_attempts")
+      .notNull()
+      .default(0),
+    quickEntryLockedUntil: text("quick_entry_locked_until"),
   },
   (table) => [
     index("idx_sessions_user_id").on(table.userId),
