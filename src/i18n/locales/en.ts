@@ -1714,6 +1714,7 @@ const en = {
     online_media: "Online media",
     agent_client: "Agent client",
     other: "Other",
+    public_pool_quick_entry: "Public Pool Quick Entry",
   },
   salesStages: {
     new_lead: "New Lead",

@@ -24,7 +24,10 @@ export function countLatinLetters(value: string): number {
   return value.match(LATIN_LETTER_RE)?.length ?? 0;
 }
 
-function hasSubstantiveContent(value: string, minLength: number): boolean {
+export function hasSubstantiveContent(
+  value: string,
+  minLength: number,
+): boolean {
   const trimmed = value.trim();
   if (trimmed.length < minLength) return false;
   const substantive = trimmed.replace(/[^A-Za-z0-9\u4e00-\u9fff]/g, "");

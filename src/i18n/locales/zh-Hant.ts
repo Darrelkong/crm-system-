@@ -1647,6 +1647,7 @@ const zhHant: Messages = {
     online_media: "線上媒體平台",
     agent_client: "代理客戶",
     other: "其他",
+    public_pool_quick_entry: "公共池快速錄入",
   },
   salesStages: {
     new_lead: "新線索",

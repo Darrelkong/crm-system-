@@ -1,8 +1,14 @@
 import { asc, eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
-import { CUSTOMER_SOURCE_KEYS } from "@/lib/constants/customer-sources";
-import { CUSTOMER_SOURCE_LABELS } from "@/lib/constants/customer-source-labels";
+import {
+  CUSTOMER_SOURCE_KEYS,
+  INTERNAL_CUSTOMER_SOURCE_KEYS,
+} from "@/lib/constants/customer-sources";
+import {
+  CUSTOMER_SOURCE_LABELS,
+  INTERNAL_CUSTOMER_SOURCE_LABELS,
+} from "@/lib/constants/customer-source-labels";
 import { CUSTOMER_SOURCE_OTHER_KEY } from "./constants";
 import type { CustomerTag } from "../../../drizzle/schema/customer-tags";
 
@@ -96,6 +102,11 @@ export async function getCustomerTagLabelMap(
       map.set(key, CUSTOMER_SOURCE_LABELS[key]);
     }
   }
+  for (const key of INTERNAL_CUSTOMER_SOURCE_KEYS) {
+    if (!map.has(key)) {
+      map.set(key, INTERNAL_CUSTOMER_SOURCE_LABELS[key]);
+    }
+  }
   return map;
 }
 
@@ -103,5 +114,12 @@ export function resolveCustomerTagLabel(
   tagKey: string,
   labelMap: Map<string, string>,
 ): string {
-  return labelMap.get(tagKey) ?? CUSTOMER_SOURCE_LABELS[tagKey as keyof typeof CUSTOMER_SOURCE_LABELS] ?? tagKey;
+  return (
+    labelMap.get(tagKey) ??
+    INTERNAL_CUSTOMER_SOURCE_LABELS[
+      tagKey as keyof typeof INTERNAL_CUSTOMER_SOURCE_LABELS
+    ] ??
+    CUSTOMER_SOURCE_LABELS[tagKey as keyof typeof CUSTOMER_SOURCE_LABELS] ??
+    tagKey
+  );
 }
