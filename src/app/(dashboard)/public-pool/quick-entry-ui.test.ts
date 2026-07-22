@@ -182,6 +182,7 @@ describe("request body security", () => {
     row.requestedProjectName = "项目A";
     const body = buildCustomersRequestBody(uuidB, [row]);
     assert.deepEqual(Object.keys(body).sort(), ["rows", "submissionId"]);
+    assert.equal(body.rows[0]?.phoneCountryCode, "+86");
     assert.equal(
       customersRequestBodyHasForbiddenKeys(body as unknown as Record<string, unknown>),
       false,
@@ -191,6 +192,27 @@ describe("request body security", () => {
     assert.ok(!JSON.stringify(body).includes("actorId"));
     assert.ok(!JSON.stringify(body).includes("ownerId"));
     assert.ok(!JSON.stringify(body).includes("salesStage"));
+  });
+
+  it("defaults country code to +86 and keeps it on clear", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    assert.equal(row.phoneCountryCode, "+86");
+    const cleared = clearQuickEntryRow(row);
+    assert.equal(cleared.phoneCountryCode, "+86");
+  });
+
+  it("client validation rejects invalid phones and requires contact", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    row.customerName = "张三";
+    row.requestedProjectName = "移民项目咨询";
+    assert.equal(validateQuickEntryFormRows([row]).ok, false);
+    row.phone = "1380013800";
+    assert.equal(validateQuickEntryFormRows([row]).ok, false);
+    row.phone = "13800138000";
+    assert.equal(validateQuickEntryFormRows([row]).ok, true);
+    row.phone = "";
+    row.wechatId = "wx_ok";
+    assert.equal(validateQuickEntryFormRows([row]).ok, true);
   });
 
   it("detects injected internal fields", () => {
@@ -346,6 +368,17 @@ describe("quick entry UI wiring and security scans", () => {
     assert.ok(!panelSrc.includes("salesStage"));
   });
 
+  it("locks country code to +86 and maps known row errors", () => {
+    assert.match(panelSrc, /QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE/);
+    assert.match(panelSrc, /readOnly/);
+    assert.match(panelSrc, /QUICK_ENTRY_PHONE_INVALID/);
+    assert.match(panelSrc, /QUICK_ENTRY_PROJECT_INVALID/);
+    assert.match(panelSrc, /QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID/);
+    assert.match(panelSrc, /reviseNeedsNewBatch/);
+    assert.match(panelSrc, /type="tel"/);
+    assert.match(panelSrc, /maxLength=\{11\}/);
+  });
+
   it("keeps submissionId on retry helpers and clears verify code after success path", () => {
     assert.match(panelSrc, /createNewQuickEntryBatch/);
     assert.match(panelSrc, /setVerifyCode\(""\)/);
@@ -361,5 +394,12 @@ describe("quick entry i18n keys", () => {
     assert.ok(en.publicPool.quickEntry.fields.customerName.length > 0);
     assert.ok(zhHant.publicPool.quickEntry.fields.wechatId.length > 0);
     assert.ok(zhHans.settings.publicPoolQuickEntry.title.includes("快速录入"));
+    assert.ok(
+      zhHant.publicPool.quickEntry.errors.phoneInvalid.includes("11"),
+    );
+    assert.ok(
+      zhHans.publicPool.quickEntry.errors.countryCodeInvalid.includes("+86"),
+    );
+    assert.ok(en.publicPool.quickEntry.reviseNeedsNewBatch.length > 0);
   });
 });

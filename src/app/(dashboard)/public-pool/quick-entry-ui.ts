@@ -3,6 +3,10 @@
  * No React — fully unit-testable. Server remains the authority.
  */
 
+import {
+  QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
+  isValidQuickEntryCnPhone,
+} from "@/lib/public-pool/quick-entry-customer-validation";
 import { QUICK_ENTRY_BATCH_MAX_ROWS } from "@/lib/public-pool/quick-entry-submission-constants";
 
 export const QUICK_ENTRY_STATUS_API_PATH =
@@ -86,7 +90,8 @@ export type QuickEntryBatchFailureView = {
 export type QuickEntryClientRowError =
   | "name_required"
   | "project_required"
-  | "contact_required";
+  | "contact_required"
+  | "phone_invalid";
 
 export type QuickEntryClientValidation =
   | { ok: true }
@@ -154,7 +159,7 @@ export function createEmptyQuickEntryRow(
     clientRowId: createQuickEntryClientRowId(randomUuid),
     customerName: "",
     phone: "",
-    phoneCountryCode: "",
+    phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
     wechatId: "",
     requestedProjectName: "",
     initialFollowUpNote: "",
@@ -186,7 +191,7 @@ export function clearQuickEntryRow(
     ...row,
     customerName: "",
     phone: "",
-    phoneCountryCode: "",
+    phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
     wechatId: "",
     requestedProjectName: "",
     initialFollowUpNote: "",
@@ -291,11 +296,10 @@ export function buildCustomersRequestBody(
         clientRowId: row.clientRowId,
         customerName: row.customerName.trim(),
         requestedProjectName: row.requestedProjectName.trim(),
+        phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
       };
       const phone = optionalStringField(row.phone);
       if (phone !== undefined) out.phone = phone;
-      const phoneCountryCode = optionalStringField(row.phoneCountryCode);
-      if (phoneCountryCode !== undefined) out.phoneCountryCode = phoneCountryCode;
       const wechatId = optionalStringField(row.wechatId);
       if (wechatId !== undefined) out.wechatId = wechatId;
       const initialFollowUpNote = optionalStringField(row.initialFollowUpNote);
@@ -351,8 +355,14 @@ export function validateQuickEntryFormRows(
       rowErrors[row.clientRowId] = "project_required";
       continue;
     }
-    if (!row.phone.trim() && !row.wechatId.trim()) {
+    const phone = row.phone.trim();
+    const wechatId = row.wechatId.trim();
+    if (!phone && !wechatId) {
       rowErrors[row.clientRowId] = "contact_required";
+      continue;
+    }
+    if (phone && !isValidQuickEntryCnPhone(phone)) {
+      rowErrors[row.clientRowId] = "phone_invalid";
     }
   }
   if (Object.keys(rowErrors).length > 0) {

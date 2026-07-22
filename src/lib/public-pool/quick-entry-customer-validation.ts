@@ -3,7 +3,9 @@ import {
   isValidCustomerName,
 } from "@/lib/customers/validation";
 
-const CN_PHONE_RE = /^1\d{10}$/;
+/** Mainland China mobile: ASCII digits only, starts with 1, exactly 11 digits. */
+export const QUICK_ENTRY_CN_PHONE_RE = /^1\d{10}$/;
+export const QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE = "+86";
 
 /** Practical upper bounds (SQLite TEXT has no hard limit). */
 export const QUICK_ENTRY_NOTE_MAX_LENGTH = 2000;
@@ -16,6 +18,7 @@ export const QUICK_ENTRY_CUSTOMER_ERROR_CODES = {
   CUSTOMER_NAME_INVALID: "QUICK_ENTRY_CUSTOMER_NAME_INVALID",
   CONTACT_REQUIRED: "QUICK_ENTRY_CONTACT_REQUIRED",
   PHONE_INVALID: "QUICK_ENTRY_PHONE_INVALID",
+  PHONE_COUNTRY_CODE_INVALID: "QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID",
   WECHAT_INVALID: "QUICK_ENTRY_WECHAT_INVALID",
   PROJECT_REQUIRED: "QUICK_ENTRY_PROJECT_REQUIRED",
   PROJECT_INVALID: "QUICK_ENTRY_PROJECT_INVALID",
@@ -79,6 +82,7 @@ function asTrimmedNullable(value: unknown): string | null {
 /**
  * Shared normalize for QE-2 validator and Batch canonical hash.
  * Does not validate business rules (name length, phone format, …).
+ * phoneCountryCode: missing／null／"" → +86; any other non-empty trimmed value kept for validation.
  */
 export function normalizeQuickEntryCustomerInput(
   input: QuickEntryCustomerInput,
@@ -94,14 +98,11 @@ export function normalizeQuickEntryCustomerInput(
       ? asTrimmedNullable(input.wechatId)
       : null;
 
-  let phoneCountryCode = "+86";
-  if (phone) {
-    const ccRaw =
-      typeof input.phoneCountryCode === "string"
-        ? input.phoneCountryCode.trim()
-        : "";
-    phoneCountryCode = ccRaw || "+86";
-  }
+  const ccRaw =
+    typeof input.phoneCountryCode === "string" || input.phoneCountryCode == null
+      ? asTrimmedNullable(input.phoneCountryCode)
+      : null;
+  const phoneCountryCode = ccRaw ?? QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE;
 
   const requestedProjectName =
     typeof input.requestedProjectName === "string"
@@ -145,6 +146,10 @@ export function canonicalToNormalizedCustomer(
   };
 }
 
+export function isValidQuickEntryCnPhone(phone: string): boolean {
+  return QUICK_ENTRY_CN_PHONE_RE.test(phone);
+}
+
 /**
  * Server-side validator for public-pool quick-entry customer create.
  * Does not accept / apply Client-controlled system fields (owner/status/source/…).
@@ -175,6 +180,16 @@ export function validateQuickEntryCustomerInput(
       field: "phone",
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
       message: "手机号无效",
+    });
+  }
+  if (
+    record.phoneCountryCode != null &&
+    typeof record.phoneCountryCode !== "string"
+  ) {
+    errors.push({
+      field: "phoneCountryCode",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_COUNTRY_CODE_INVALID,
+      message: "国家区号仅支持 +86",
     });
   }
   if (record.wechatId != null && typeof record.wechatId !== "string") {
@@ -261,6 +276,14 @@ export function validateQuickEntryCustomerInput(
     });
   }
 
+  if (canonical.phoneCountryCode !== QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE) {
+    errors.push({
+      field: "phoneCountryCode",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_COUNTRY_CODE_INVALID,
+      message: "国家区号仅支持 +86",
+    });
+  }
+
   if (!canonical.phone && !canonical.wechatId) {
     errors.push({
       field: "phone",
@@ -269,15 +292,11 @@ export function validateQuickEntryCustomerInput(
     });
   }
 
-  if (
-    canonical.phone &&
-    canonical.phoneCountryCode === "+86" &&
-    !CN_PHONE_RE.test(canonical.phone)
-  ) {
+  if (canonical.phone && !isValidQuickEntryCnPhone(canonical.phone)) {
     errors.push({
       field: "phone",
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
-      message: "+86 手机号必须为 11 位数字，且以 1 开头",
+      message: "电话必须为1开头的11位数字",
     });
   }
 
@@ -337,6 +356,9 @@ export function validateQuickEntryCustomerInput(
 
   return {
     ok: true,
-    value: canonicalToNormalizedCustomer(canonical),
+    value: canonicalToNormalizedCustomer({
+      ...canonical,
+      phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
+    }),
   };
 }

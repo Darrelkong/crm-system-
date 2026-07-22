@@ -126,6 +126,103 @@ describe("validateQuickEntryCustomerInput", () => {
     assert.equal(wechat.ok, false);
   });
 
+  it("canonicalizes missing／null／empty country code to +86", () => {
+    for (const phoneCountryCode of [undefined, null, "", "  "]) {
+      const result = validateQuickEntryCustomerInput({
+        ...validBase,
+        phoneCountryCode,
+      });
+      assert.equal(result.ok, true, String(phoneCountryCode));
+      if (result.ok) {
+        assert.equal(result.value.phoneCountryCode, "+86");
+      }
+    }
+  });
+
+  it("rejects non-+86 country codes", () => {
+    for (const phoneCountryCode of ["+1", "+852", "86", "+086"]) {
+      const result = validateQuickEntryCustomerInput({
+        ...validBase,
+        phoneCountryCode,
+      });
+      assert.equal(result.ok, false, phoneCountryCode);
+      if (!result.ok) {
+        assert.equal(
+          result.errors.some(
+            (e) =>
+              e.errorCode ===
+              QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_COUNTRY_CODE_INVALID,
+          ),
+          true,
+          phoneCountryCode,
+        );
+      }
+    }
+  });
+
+  it("rejects phones that are not exactly 1 + 10 ASCII digits", () => {
+    for (const phone of [
+      "1380013800",
+      "138001380000",
+      "23800138000",
+      "1380013800a",
+      "+8613800138000",
+      "138-0013-8000",
+      "138 0013 8000",
+    ]) {
+      const result = validateQuickEntryCustomerInput({
+        ...validBase,
+        phone,
+      });
+      assert.equal(result.ok, false, phone);
+      if (!result.ok) {
+        assert.ok(
+          result.errors.some(
+            (e) => e.errorCode === QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
+          ),
+          phone,
+        );
+      }
+    }
+  });
+
+  it("accepts wechat-only and phone-only and both", () => {
+    assert.equal(
+      validateQuickEntryCustomerInput({
+        customerName: "测试用户",
+        wechatId: "wx_only",
+        requestedProjectName: "移民项目咨询",
+      }).ok,
+      true,
+    );
+    assert.equal(
+      validateQuickEntryCustomerInput({
+        ...validBase,
+        wechatId: "wx_both",
+      }).ok,
+      true,
+    );
+  });
+
+  it("maps reproduction payload project short name to PROJECT_INVALID", () => {
+    const result = validateQuickEntryCustomerInput({
+      customerName: "測試",
+      phoneCountryCode: "",
+      phone: "13800138000",
+      wechatId: "",
+      requestedProjectName: "測試",
+      initialFollowUpNote: "測試測試測試",
+      supplementalNote: "測試測試",
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(
+        result.errors[0]?.errorCode,
+        QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_INVALID,
+      );
+    }
+  });
+
   it("rejects missing / invalid project", () => {
     const missing = validateQuickEntryCustomerInput({
       customerName: "钱七",

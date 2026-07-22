@@ -34,6 +34,7 @@ import {
   type QuickEntryFormRow,
   type QuickEntryStatus,
 } from "./quick-entry-ui";
+import { QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE } from "@/lib/public-pool/quick-entry-customer-validation";
 
 type Props = {
   /** Reserved for future role-specific copy; both admin and staff may use Quick Entry. */
@@ -62,7 +63,15 @@ function errorMessageForCode(
     QUICK_ENTRY_CUSTOMER_NAME_INVALID:
       "publicPool.quickEntry.errors.nameInvalid",
     QUICK_ENTRY_CONTACT_REQUIRED: "publicPool.quickEntry.errors.contactRequired",
+    QUICK_ENTRY_PHONE_INVALID: "publicPool.quickEntry.errors.phoneInvalid",
+    QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID:
+      "publicPool.quickEntry.errors.countryCodeInvalid",
+    QUICK_ENTRY_WECHAT_INVALID: "publicPool.quickEntry.errors.wechatInvalid",
     QUICK_ENTRY_PROJECT_REQUIRED: "publicPool.quickEntry.errors.projectRequired",
+    QUICK_ENTRY_PROJECT_INVALID: "publicPool.quickEntry.errors.projectInvalid",
+    QUICK_ENTRY_NOTE_TOO_LONG: "publicPool.quickEntry.errors.noteTooLong",
+    QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED:
+      "publicPool.quickEntry.errors.generic",
     QUICK_ENTRY_DUPLICATE_PHONE: "publicPool.quickEntry.duplicatePhone",
     QUICK_ENTRY_DUPLICATE_WECHAT: "publicPool.quickEntry.duplicateWechat",
   };
@@ -559,6 +568,9 @@ export function StaffQuickEntryPanel(_props: Props) {
                           failed: String(batchResult.summary.failed),
                         })}
                       </p>
+                      <p className="mt-2 text-xs text-[#6B7890]">
+                        {t("publicPool.quickEntry.reviseNeedsNewBatch")}
+                      </p>
                     </div>
                   ) : null}
 
@@ -652,14 +664,16 @@ export function StaffQuickEntryPanel(_props: Props) {
                                 </Label>
                                 <Input
                                   id={`${row.clientRowId}-country`}
-                                  value={row.phoneCountryCode}
-                                  disabled={fieldDisabled}
-                                  onChange={(e) =>
-                                    updateRow(row.clientRowId, {
-                                      phoneCountryCode: e.target.value,
-                                    })
-                                  }
+                                  value={QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE}
+                                  readOnly
+                                  disabled
+                                  aria-readonly="true"
                                 />
+                                <p className="mt-1 text-xs text-[#6B7890]">
+                                  {t(
+                                    "publicPool.quickEntry.fields.phoneCountryCodeFixedHint",
+                                  )}
+                                </p>
                               </div>
                               <div>
                                 <Label htmlFor={`${row.clientRowId}-phone`}>
@@ -667,6 +681,13 @@ export function StaffQuickEntryPanel(_props: Props) {
                                 </Label>
                                 <Input
                                   id={`${row.clientRowId}-phone`}
+                                  type="tel"
+                                  inputMode="numeric"
+                                  maxLength={11}
+                                  autoComplete="tel-national"
+                                  placeholder={t(
+                                    "publicPool.quickEntry.fields.phonePlaceholder",
+                                  )}
                                   value={row.phone}
                                   disabled={fieldDisabled}
                                   onChange={(e) =>

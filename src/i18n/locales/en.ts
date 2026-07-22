@@ -1455,6 +1455,8 @@ const en = {
         customerName: "Customer name",
         phone: "Phone",
         phoneCountryCode: "Country code",
+        phoneCountryCodeFixedHint: "Fixed to +86 (Mainland China mobile).",
+        phonePlaceholder: "Enter an 11-digit mobile number",
         wechatId: "WeChat ID",
         requestedProjectName: "Requested project / business",
         initialFollowUpNote: "Initial follow-up note",
@@ -1470,6 +1472,8 @@ const en = {
       retryLater: "Retry later",
       newBatch: "Start a new batch",
       refreshPool: "Refresh public pool list",
+      reviseNeedsNewBatch:
+        "Create a new batch before submitting revised information.",
       summaryTitle: "Batch summary",
       summaryLine:
         "Total {{total}} · Created {{created}} · Duplicates {{duplicates}} · Invalid {{invalid}} · Failed {{failed}}",
@@ -1493,7 +1497,9 @@ const en = {
         duplicateIds: "Each row needs a unique client row id.",
         name_required: "Customer name is required.",
         project_required: "Requested project is required.",
-        contact_required: "Enter a phone number or WeChat ID.",
+        contact_required: "Enter at least a phone number or WeChat ID.",
+        phone_invalid:
+          "The phone number must be 11 digits and start with 1.",
       },
       errors: {
         generic: "Something went wrong. Please try again.",
@@ -1503,8 +1509,15 @@ const en = {
         locked: "Quick entry is temporarily locked.",
         nameRequired: "Customer name is required.",
         nameInvalid: "Customer name is invalid.",
-        contactRequired: "Phone or WeChat is required.",
+        contactRequired: "Enter at least a phone number or WeChat ID.",
+        phoneInvalid:
+          "The phone number must be 11 digits and start with 1.",
+        countryCodeInvalid: "Only the +86 country code is supported.",
+        wechatInvalid: "WeChat ID is invalid.",
         projectRequired: "Requested project is required.",
+        projectInvalid:
+          "Project name must be at least 4 characters and cannot be symbols only.",
+        noteTooLong: "The note is too long.",
       },
     },
   },
