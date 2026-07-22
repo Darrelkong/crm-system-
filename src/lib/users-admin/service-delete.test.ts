@@ -22,6 +22,17 @@ const CUSTOMER_2 = "d3333333-3333-3333-3333-333333333302";
 const CUSTOMER_3 = "d3333333-3333-3333-3333-333333333303";
 const ARCHIVED_CUSTOMER = "d3333333-3333-3333-3333-333333333304";
 
+/** Isolated fixtures for public-pool collaborator soft-delete (not seed pool / staffB). */
+const SERVICE_DELETE_PUBLIC_POOL_STAFF_ID =
+  "aa111111-aaaa-4111-8111-111111111101";
+const SERVICE_DELETE_PUBLIC_POOL_STAFF_EMAIL =
+  "svc-delete-pool-staff@crm.test.local";
+const SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID =
+  "aa111111-aaaa-4111-8111-111111111102";
+const SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_CODE = "EFDELPP01";
+const SERVICE_DELETE_PUBLIC_POOL_COLLAB_ID =
+  "aa111111-aaaa-4111-8111-111111111103";
+
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let adminUser: User;
 let disposeProxy: (() => Promise<void>) | undefined;
@@ -182,6 +193,85 @@ async function expectUserAdminError(
   });
 }
 
+async function cleanupPublicPoolCollaboratorFixtures() {
+  await db
+    .delete(schema.customerAssignees)
+    .where(
+      eq(
+        schema.customerAssignees.customerId,
+        SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID,
+      ),
+    );
+  await db
+    .delete(schema.tasks)
+    .where(
+      eq(schema.tasks.customerId, SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID),
+    );
+  await db
+    .delete(schema.fieldChangeLogs)
+    .where(
+      eq(
+        schema.fieldChangeLogs.customerId,
+        SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID,
+      ),
+    );
+  await db
+    .delete(schema.auditLogs)
+    .where(
+      eq(schema.auditLogs.entityId, SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID),
+    );
+  await db
+    .delete(schema.customers)
+    .where(eq(schema.customers.id, SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID));
+  await db
+    .delete(schema.sessions)
+    .where(eq(schema.sessions.userId, SERVICE_DELETE_PUBLIC_POOL_STAFF_ID));
+  await db
+    .delete(schema.auditLogs)
+    .where(eq(schema.auditLogs.entityId, SERVICE_DELETE_PUBLIC_POOL_STAFF_ID));
+  await db
+    .delete(schema.users)
+    .where(eq(schema.users.id, SERVICE_DELETE_PUBLIC_POOL_STAFF_ID));
+}
+
+async function ensurePublicPoolCollaboratorStaff(): Promise<void> {
+  const now = new Date().toISOString();
+  const existing = await db
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.id, SERVICE_DELETE_PUBLIC_POOL_STAFF_ID))
+    .limit(1);
+
+  if (existing.length > 0) {
+    await db
+      .update(schema.users)
+      .set({
+        email: SERVICE_DELETE_PUBLIC_POOL_STAFF_EMAIL,
+        displayName: "Service Delete Pool Staff",
+        role: "staff",
+        isActive: 1,
+        deletedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(schema.users.id, SERVICE_DELETE_PUBLIC_POOL_STAFF_ID));
+    return;
+  }
+
+  await db.insert(schema.users).values({
+    id: SERVICE_DELETE_PUBLIC_POOL_STAFF_ID,
+    email: SERVICE_DELETE_PUBLIC_POOL_STAFF_EMAIL,
+    displayName: "Service Delete Pool Staff",
+    passwordHash: "INVALID_HASH_TEST_ONLY",
+    role: "staff",
+    isActive: 1,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    mustChangePassword: 0,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
 describe("softDeleteUserAccount assignee sync", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
@@ -207,6 +297,7 @@ describe("softDeleteUserAccount assignee sync", () => {
   after(async () => {
     await resetStaffUser(SEED_IDS.staffA);
     await resetStaffUser(SEED_IDS.staffB);
+    await cleanupPublicPoolCollaboratorFixtures();
     await deleteTestCustomers();
     await restoreSeedCustomers();
     bindTestDatabase(null);
@@ -392,39 +483,110 @@ describe("softDeleteUserAccount assignee sync", () => {
   });
 
   it("removes collaborator rows on public pool customers without owner transfer", async () => {
-    await resetStaffUser(SEED_IDS.staffB);
+    await cleanupPublicPoolCollaboratorFixtures();
+    await ensurePublicPoolCollaboratorStaff();
 
-    const publicPoolId = SEED_IDS.customerPublicPool;
-    await applyCollaboratorAssignees(db, {
+    const now = new Date().toISOString();
+    const publicPoolId = SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_ID;
+    await db.insert(schema.customers).values(
+      makeCustomer({
+        id: publicPoolId,
+        customerCode: SERVICE_DELETE_PUBLIC_POOL_CUSTOMER_CODE,
+        customerName: "Service Delete Public Pool Customer",
+        ownerId: null,
+        status: "public_pool",
+        poolEnteredAt: now,
+        poolReason: "service-delete isolated fixture",
+        releasedBy: null,
+        releaserUserId: null,
+        previousOwnerId: null,
+        createdBy: SEED_IDS.admin,
+        updatedBy: SEED_IDS.admin,
+      }),
+    );
+
+    const existingAssignee = await db
+      .select({ id: schema.customerAssignees.id })
+      .from(schema.customerAssignees)
+      .where(
+        and(
+          eq(schema.customerAssignees.customerId, publicPoolId),
+          eq(
+            schema.customerAssignees.userId,
+            SERVICE_DELETE_PUBLIC_POOL_STAFF_ID,
+          ),
+        ),
+      )
+      .limit(1);
+    assert.equal(
+      existingAssignee.length,
+      0,
+      "isolated pool customer must have no assignee for target staff before setup",
+    );
+
+    await db.insert(schema.customerAssignees).values({
+      id: SERVICE_DELETE_PUBLIC_POOL_COLLAB_ID,
       customerId: publicPoolId,
-      collaboratorUserIds: [SEED_IDS.staffB],
+      userId: SERVICE_DELETE_PUBLIC_POOL_STAFF_ID,
+      role: "collaborator",
       assignedBy: SEED_IDS.admin,
+      assignedAt: now,
+      createdAt: now,
+      updatedAt: now,
     });
 
     const before = await db
-      .select({ ownerId: schema.customers.ownerId })
+      .select({
+        ownerId: schema.customers.ownerId,
+        status: schema.customers.status,
+      })
       .from(schema.customers)
       .where(eq(schema.customers.id, publicPoolId))
       .limit(1);
+    assert.equal(before[0]?.ownerId ?? null, null);
+    assert.equal(before[0]?.status, "public_pool");
+    assert.equal(
+      await isCustomerAssignee(
+        db,
+        publicPoolId,
+        SERVICE_DELETE_PUBLIC_POOL_STAFF_ID,
+      ),
+      true,
+    );
 
-    await softDeleteUserAccount(adminUser, SEED_IDS.staffB, {});
+    await softDeleteUserAccount(
+      adminUser,
+      SERVICE_DELETE_PUBLIC_POOL_STAFF_ID,
+      {},
+    );
 
     const after = await db
-      .select({ ownerId: schema.customers.ownerId })
+      .select({
+        ownerId: schema.customers.ownerId,
+        status: schema.customers.status,
+      })
       .from(schema.customers)
       .where(eq(schema.customers.id, publicPoolId))
       .limit(1);
-    assert.equal(after[0]?.ownerId, before[0]?.ownerId ?? null);
+    assert.equal(after[0]?.ownerId ?? null, null);
+    assert.equal(after[0]?.status, "public_pool");
     assert.equal(
-      await isCustomerAssignee(db, publicPoolId, SEED_IDS.staffB),
+      await isCustomerAssignee(
+        db,
+        publicPoolId,
+        SERVICE_DELETE_PUBLIC_POOL_STAFF_ID,
+      ),
       false,
     );
 
-    await applyCollaboratorAssignees(db, {
-      customerId: publicPoolId,
-      collaboratorUserIds: [],
-      assignedBy: SEED_IDS.admin,
-    });
+    const assignees = await listCustomerAssignees(db, publicPoolId);
+    assert.equal(
+      assignees.some((row) => row.role === "primary"),
+      false,
+    );
+    assert.equal(assignees.length, 0);
+
+    await cleanupPublicPoolCollaboratorFixtures();
   });
 
   it("avoids duplicate assignee rows when admin already exists on transferred customer", async () => {

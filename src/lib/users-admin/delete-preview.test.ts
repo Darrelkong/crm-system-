@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
@@ -12,9 +12,20 @@ import { applyCollaboratorAssignees } from "@/lib/customers/assignees-mutations"
 import { getStaffDeletePreview } from "@/lib/users-admin/delete-preview";
 import { UserAdminError } from "@/lib/users-admin/service";
 
-const PREVIEW_CUSTOMER = "d4444444-4444-4444-4444-444444444401";
-const PREVIEW_TASK = "d4444444-4444-4444-4444-444444444402";
-const PREVIEW_APPROVAL = "d4444444-4444-4444-4444-444444444403";
+/** Isolated target staff for impact-count assertions (not SEED_IDS.staffB). */
+const DELETE_PREVIEW_STAFF_ID = "d4444444-4444-4444-4444-444444444410";
+const DELETE_PREVIEW_STAFF_EMAIL = "delete-preview-staff@crm.test.local";
+const DELETE_PREVIEW_OWNED_1 = "d4444444-4444-4444-4444-444444444411";
+const DELETE_PREVIEW_OWNED_2 = "d4444444-4444-4444-4444-444444444412";
+const DELETE_PREVIEW_COLLAB_CUSTOMER = "d4444444-4444-4444-4444-444444444413";
+const DELETE_PREVIEW_TASK = "d4444444-4444-4444-4444-444444444414";
+const DELETE_PREVIEW_APPROVAL = "d4444444-4444-4444-4444-444444444415";
+const DELETE_PREVIEW_COLLAB_PRIMARY = "d4444444-4444-4444-4444-444444444416";
+const DELETE_PREVIEW_CUSTOMER_IDS = [
+  DELETE_PREVIEW_OWNED_1,
+  DELETE_PREVIEW_OWNED_2,
+  DELETE_PREVIEW_COLLAB_CUSTOMER,
+] as const;
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let adminUser: User;
@@ -70,37 +81,77 @@ async function resetStaffUser(userId: string) {
     .where(eq(schema.users.id, userId));
 }
 
-async function cleanupPreviewFixtures() {
+async function cleanupImpactCountFixtures() {
   await db
     .delete(schema.approvals)
-    .where(eq(schema.approvals.id, PREVIEW_APPROVAL));
-  await db.delete(schema.tasks).where(eq(schema.tasks.id, PREVIEW_TASK));
+    .where(eq(schema.approvals.id, DELETE_PREVIEW_APPROVAL));
+  await db
+    .delete(schema.tasks)
+    .where(eq(schema.tasks.id, DELETE_PREVIEW_TASK));
   await db
     .delete(schema.customerAssignees)
-    .where(eq(schema.customerAssignees.customerId, SEED_IDS.customerStaffA));
+    .where(
+      inArray(schema.customerAssignees.customerId, [
+        ...DELETE_PREVIEW_CUSTOMER_IDS,
+      ]),
+    );
   await db
     .delete(schema.customers)
-    .where(eq(schema.customers.id, PREVIEW_CUSTOMER));
+    .where(inArray(schema.customers.id, [...DELETE_PREVIEW_CUSTOMER_IDS]));
   await db
-    .update(schema.customers)
-    .set({
-      ownerId: SEED_IDS.staffB,
-      updatedBy: SEED_IDS.admin,
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(schema.customers.id, SEED_IDS.customerStaffB));
+    .delete(schema.sessions)
+    .where(eq(schema.sessions.userId, DELETE_PREVIEW_STAFF_ID));
+  await db
+    .delete(schema.users)
+    .where(eq(schema.users.id, DELETE_PREVIEW_STAFF_ID));
+}
 
+async function ensureImpactCountStaff(): Promise<User> {
   const now = new Date().toISOString();
-  await db.insert(schema.customerAssignees).values({
-    id: `ca_${SEED_IDS.customerStaffA}_${SEED_IDS.staffA}`,
-    customerId: SEED_IDS.customerStaffA,
-    userId: SEED_IDS.staffA,
-    role: "primary",
-    assignedBy: SEED_IDS.admin,
-    assignedAt: now,
+  const existing = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, DELETE_PREVIEW_STAFF_ID))
+    .limit(1);
+
+  if (existing[0]) {
+    await db
+      .update(schema.users)
+      .set({
+        email: DELETE_PREVIEW_STAFF_EMAIL,
+        displayName: "Delete Preview Staff",
+        role: "staff",
+        isActive: 1,
+        deletedAt: null,
+        updatedAt: now,
+      })
+      .where(eq(schema.users.id, DELETE_PREVIEW_STAFF_ID));
+    return (await db
+      .select()
+      .from(schema.users)
+      .where(eq(schema.users.id, DELETE_PREVIEW_STAFF_ID))
+      .limit(1))[0] as User;
+  }
+
+  await db.insert(schema.users).values({
+    id: DELETE_PREVIEW_STAFF_ID,
+    email: DELETE_PREVIEW_STAFF_EMAIL,
+    displayName: "Delete Preview Staff",
+    passwordHash: "INVALID_HASH_TEST_ONLY",
+    role: "staff",
+    isActive: 1,
+    failedLoginAttempts: 0,
+    lockedUntil: null,
+    mustChangePassword: 0,
     createdAt: now,
     updatedAt: now,
   });
+
+  return (await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, DELETE_PREVIEW_STAFF_ID))
+    .limit(1))[0] as User;
 }
 
 async function expectUserAdminError(
@@ -130,75 +181,118 @@ describe("getStaffDeletePreview", () => {
     adminUser = adminRows[0] as User;
 
     await resetStaffUser(SEED_IDS.staffB);
-    await cleanupPreviewFixtures();
-
-    const now = new Date().toISOString();
-    await db.insert(schema.customers).values(
-      makeCustomer({
-        id: PREVIEW_CUSTOMER,
-        customerName: "Preview Owned Customer",
-        ownerId: SEED_IDS.staffB,
-      }),
-    );
-
-    await applyCollaboratorAssignees(db, {
-      customerId: SEED_IDS.customerStaffA,
-      collaboratorUserIds: [SEED_IDS.staffB],
-      assignedBy: SEED_IDS.admin,
-    });
-
-    await db.insert(schema.tasks).values({
-      id: PREVIEW_TASK,
-      customerId: SEED_IDS.customerStaffB,
-      assignedTo: SEED_IDS.staffB,
-      createdBy: SEED_IDS.admin,
-      title: "Preview open task",
-      description: null,
-      type: "follow_up",
-      status: "open",
-      dueAt: now,
-      completedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    await db.insert(schema.approvals).values({
-      id: PREVIEW_APPROVAL,
-      requestType: "update_customer_assignees",
-      status: "pending",
-      customerId: SEED_IDS.customerStaffB,
-      requestedBy: SEED_IDS.staffB,
-      targetUserId: null,
-      relatedCustomerIds: null,
-      payload: JSON.stringify({ action: "set_collaborators" }),
-      reason: "需要调整共同负责员工安排",
-      adminComment: null,
-      reviewedBy: null,
-      reviewedAt: null,
-      createdAt: now,
-      updatedAt: now,
-    });
   });
 
   after(async () => {
     await resetStaffUser(SEED_IDS.staffB);
-    await cleanupPreviewFixtures();
     bindTestDatabase(null);
     delete process.env.CRM_ALLOW_TEST_DB_BIND;
     await disposeProxy?.();
     disposeProxy = undefined;
   });
 
-  it("returns preview for admin actor with impact counts", async () => {
-    const preview = await getStaffDeletePreview(adminUser, SEED_IDS.staffB);
+  describe("impact counts with isolated staff", () => {
+    before(async () => {
+      await cleanupImpactCountFixtures();
+      await ensureImpactCountStaff();
 
-    assert.equal(preview.ok, true);
-    assert.equal(preview.user.id, SEED_IDS.staffB);
-    assert.equal(preview.transferTo.id, SEED_IDS.admin);
-    assert.ok(preview.impact.ownedCustomersCount >= 2);
-    assert.equal(preview.impact.collaboratorCustomersCount, 1);
-    assert.equal(preview.impact.openTasksCount, 1);
-    assert.equal(preview.impact.pendingApprovalsCount, 1);
+      const now = new Date().toISOString();
+      await db.insert(schema.customers).values(
+        makeCustomer({
+          id: DELETE_PREVIEW_OWNED_1,
+          customerName: "Preview Owned Customer 1",
+          ownerId: DELETE_PREVIEW_STAFF_ID,
+          createdBy: DELETE_PREVIEW_STAFF_ID,
+          updatedBy: DELETE_PREVIEW_STAFF_ID,
+        }),
+      );
+      await db.insert(schema.customers).values(
+        makeCustomer({
+          id: DELETE_PREVIEW_OWNED_2,
+          customerName: "Preview Owned Customer 2",
+          ownerId: DELETE_PREVIEW_STAFF_ID,
+          createdBy: DELETE_PREVIEW_STAFF_ID,
+          updatedBy: DELETE_PREVIEW_STAFF_ID,
+        }),
+      );
+      await db.insert(schema.customers).values(
+        makeCustomer({
+          id: DELETE_PREVIEW_COLLAB_CUSTOMER,
+          customerName: "Preview Collaborator Host",
+          ownerId: SEED_IDS.staffA,
+          createdBy: SEED_IDS.staffA,
+          updatedBy: SEED_IDS.admin,
+        }),
+      );
+
+      await db.insert(schema.customerAssignees).values({
+        id: DELETE_PREVIEW_COLLAB_PRIMARY,
+        customerId: DELETE_PREVIEW_COLLAB_CUSTOMER,
+        userId: SEED_IDS.staffA,
+        role: "primary",
+        assignedBy: SEED_IDS.admin,
+        assignedAt: now,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await applyCollaboratorAssignees(db, {
+        customerId: DELETE_PREVIEW_COLLAB_CUSTOMER,
+        collaboratorUserIds: [DELETE_PREVIEW_STAFF_ID],
+        assignedBy: SEED_IDS.admin,
+      });
+
+      await db.insert(schema.tasks).values({
+        id: DELETE_PREVIEW_TASK,
+        customerId: DELETE_PREVIEW_OWNED_1,
+        assignedTo: DELETE_PREVIEW_STAFF_ID,
+        createdBy: SEED_IDS.admin,
+        title: "Preview open task",
+        description: null,
+        type: "follow_up",
+        status: "open",
+        dueAt: now,
+        completedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await db.insert(schema.approvals).values({
+        id: DELETE_PREVIEW_APPROVAL,
+        requestType: "update_customer_assignees",
+        status: "pending",
+        customerId: DELETE_PREVIEW_OWNED_1,
+        requestedBy: DELETE_PREVIEW_STAFF_ID,
+        targetUserId: null,
+        relatedCustomerIds: null,
+        payload: JSON.stringify({ action: "set_collaborators" }),
+        reason: "需要调整共同负责员工安排",
+        adminComment: null,
+        reviewedBy: null,
+        reviewedAt: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+    });
+
+    after(async () => {
+      await cleanupImpactCountFixtures();
+    });
+
+    it("returns preview for admin actor with impact counts", async () => {
+      const preview = await getStaffDeletePreview(
+        adminUser,
+        DELETE_PREVIEW_STAFF_ID,
+      );
+
+      assert.equal(preview.ok, true);
+      assert.equal(preview.user.id, DELETE_PREVIEW_STAFF_ID);
+      assert.equal(preview.transferTo.id, SEED_IDS.admin);
+      assert.equal(preview.impact.ownedCustomersCount, 2);
+      assert.equal(preview.impact.collaboratorCustomersCount, 1);
+      assert.equal(preview.impact.openTasksCount, 1);
+      assert.equal(preview.impact.pendingApprovalsCount, 1);
+    });
   });
 
   it("does not modify database state", async () => {
