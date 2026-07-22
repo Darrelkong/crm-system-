@@ -20,6 +20,7 @@ import {
 import { SETTING_LABELS, type SettingKey } from "@/lib/settings/keys";
 import { SecondaryIdleCodeCard } from "./secondary-idle-code-card";
 import { GlobalIdleExemptionSetting } from "./global-idle-exemption-setting";
+import { PublicPoolQuickEntrySettingsCard } from "./public-pool-quick-entry-settings-card";
 
 const BOOLEAN_SETTING_KEYS: readonly SettingKey[] = ["device_authorization_enabled"];
 
@@ -274,6 +275,9 @@ export function SettingsClient() {
       {SETTINGS_UI_SECTIONS.map((section) => (
         <Fragment key={section.id}>
           {section.id === "basic" ? <SecondaryIdleCodeCard /> : null}
+          {section.id === "reclaimPublicPool" ? (
+            <PublicPoolQuickEntrySettingsCard />
+          ) : null}
           {section.id === "security" ? <GlobalIdleExemptionSetting /> : null}
           <SettingsSectionCard
             section={section}

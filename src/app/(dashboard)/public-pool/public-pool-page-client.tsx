@@ -11,6 +11,7 @@ import type {
 import type { PublicPoolCustomerView } from "@/lib/public-pool/queries";
 import { PublicPoolClient } from "./public-pool-client";
 import { StaffRandomClaimPanel } from "./staff-random-claim-panel";
+import { StaffQuickEntryPanel } from "./staff-quick-entry-panel";
 import { shouldShowStaffRandomClaim } from "./random-claim-ui";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -102,6 +103,8 @@ export function PublicPoolPageClient({
           }}
         />
       )}
+
+      <StaffQuickEntryPanel isAdmin={isAdmin} />
 
       {!isAdmin && (
         <p className="mb-4 text-sm text-[#6B7890]">
