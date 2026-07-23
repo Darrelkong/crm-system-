@@ -1,0 +1,1167 @@
+<!DOCTYPE html>
+<html lang="zh-Hant" data-theme="light" data-viewport="desktop">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quick Entry V2 — UX Prototype</title>
+  <style>
+    :root, [data-theme="light"] {
+      --bg: #f5f7fa;
+      --bg-muted: #eef3f8;
+      --card: #ffffff;
+      --card-subtle: #fbfcfe;
+      --border: #e3e8f0;
+      --text: #172033;
+      --text-2: #6b7890;
+      --text-3: #8b95a8;
+      --primary: #2f6fb3;
+      --primary-hover: #255a91;
+      --primary-soft: #e8f1fa;
+      --danger: #c23b3b;
+      --danger-soft: #fdecec;
+      --success: #1f7a4c;
+      --success-soft: #e8f6ee;
+      --warning: #9a6b12;
+      --warning-soft: #fff6e5;
+      --shadow: 0 12px 40px rgba(23, 32, 51, 0.14);
+      --overlay: rgba(15, 23, 42, 0.42);
+      --radius: 12px;
+      --radius-sm: 8px;
+      --focus: 0 0 0 3px rgba(47, 111, 179, 0.28);
+      --drawer-w: 560px;
+      --font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans TC", "PingFang TC", sans-serif;
+    }
+    [data-theme="dark"] {
+      --bg: #080b12;
+      --bg-muted: #0f1626;
+      --card: #121826;
+      --card-subtle: #161c28;
+      --border: #2a3344;
+      --text: #f4f7fb;
+      --text-2: #9aa6bc;
+      --text-3: #7a869c;
+      --primary: #6d60c8;
+      --primary-hover: #7d70d8;
+      --primary-soft: rgba(109, 96, 200, 0.18);
+      --danger: #ef6b6b;
+      --danger-soft: rgba(239, 107, 107, 0.14);
+      --success: #3dbe7a;
+      --success-soft: rgba(61, 190, 122, 0.14);
+      --warning: #e0b24a;
+      --warning-soft: rgba(224, 178, 74, 0.14);
+      --shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+      --overlay: rgba(0, 0, 0, 0.55);
+      --focus: 0 0 0 3px rgba(109, 96, 200, 0.35);
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; font-family: var(--font); color: var(--text); background: var(--bg); }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    :focus-visible { outline: none; box-shadow: var(--focus); }
+
+    .app { min-height: 100vh; display: grid; grid-template-columns: 220px 1fr; }
+    .sidebar { background: var(--card-subtle); border-right: 1px solid var(--border); padding: 20px 14px; }
+    .brand { font-weight: 700; font-size: 15px; margin-bottom: 24px; letter-spacing: 0.02em; }
+    .nav-item { display: block; padding: 10px 12px; border-radius: var(--radius-sm); color: var(--text-2); text-decoration: none; margin-bottom: 4px; font-size: 14px; }
+    .nav-item.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+    .main { padding: 24px 28px 80px; }
+    .page-title { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+    .page-sub { color: var(--text-2); margin: 0 0 20px; font-size: 14px; }
+    .quota { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px; }
+    .quota .card, .pool-card, .entry-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+    .quota .label { font-size: 12px; color: var(--text-2); }
+    .quota .value { font-size: 20px; font-weight: 700; margin-top: 4px; }
+    .entry-card { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-wrap: wrap; }
+    .entry-card h3 { margin: 0; font-size: 14px; }
+    .entry-card p { margin: 4px 0 0; font-size: 13px; color: var(--text-2); }
+    .pool-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .pool-table th, .pool-table td { text-align: left; padding: 10px 8px; border-bottom: 1px solid var(--border); }
+    .pool-table th { color: var(--text-2); font-weight: 600; }
+    .muted { color: var(--text-3); }
+
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: var(--radius-sm); border: 1px solid transparent; font-size: 14px; font-weight: 600; transition: background .15s, border-color .15s; }
+    .btn:disabled { opacity: .55; cursor: not-allowed; }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+    .btn-secondary { background: var(--card); color: var(--text); border-color: var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: var(--bg-muted); }
+    .btn-ghost { background: transparent; color: var(--text-2); border-color: transparent; }
+    .btn-danger { background: var(--danger-soft); color: var(--danger); border-color: transparent; }
+    .btn-sm { min-height: 36px; padding: 0 10px; font-size: 13px; }
+    .btn-block { width: 100%; }
+
+    .overlay { position: fixed; inset: 0; background: var(--overlay); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 40; }
+    .overlay.open { opacity: 1; pointer-events: auto; }
+    .drawer {
+      position: fixed; top: 0; right: 0; height: 100%; width: min(var(--drawer-w), 100vw);
+      background: var(--card); box-shadow: var(--shadow); transform: translateX(100%);
+      transition: transform .22s ease; z-index: 50; display: flex; flex-direction: column;
+    }
+    .drawer.open { transform: translateX(0); }
+    [data-viewport="tablet"] .drawer { width: min(75vw, 640px); }
+    [data-viewport="mobile"] .drawer { width: 100vw; }
+
+    .drawer-header { flex: 0 0 auto; padding: 14px 16px 10px; border-bottom: 1px solid var(--border); }
+    .drawer-header-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+    .drawer-title { margin: 0; font-size: 16px; font-weight: 700; }
+    .tabs { display: inline-flex; background: var(--bg-muted); border-radius: 999px; padding: 3px; gap: 2px; }
+    .tab { border: 0; background: transparent; color: var(--text-2); border-radius: 999px; padding: 8px 14px; min-height: 36px; font-size: 13px; font-weight: 600; }
+    .tab.active { background: var(--card); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+    .drawer-body { flex: 1 1 auto; overflow: auto; padding: 16px; -webkit-overflow-scrolling: touch; }
+    .drawer-footer { flex: 0 0 auto; border-top: 1px solid var(--border); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: var(--card); display: flex; flex-wrap: wrap; gap: 8px; }
+    .drawer-footer .grow { flex: 1 1 auto; }
+
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+    .hint { font-size: 12px; color: var(--text-2); margin-top: 4px; }
+    .error-text { font-size: 12px; color: var(--danger); margin-top: 5px; }
+    .row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    [data-viewport="mobile"] .row-2 { grid-template-columns: 1fr; }
+
+    .input, .textarea {
+      width: 100%; border: 1px solid var(--border); background: var(--card); color: var(--text);
+      border-radius: var(--radius-sm); padding: 10px 12px; min-height: 44px;
+    }
+    .textarea { min-height: 88px; resize: vertical; }
+    .input.is-invalid, .textarea.is-invalid, .phone-wrap.is-invalid { border-color: var(--danger); }
+    .phone-wrap { display: flex; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: var(--card); }
+    .phone-prefix { flex: 0 0 auto; min-width: 56px; display: flex; align-items: center; justify-content: center; background: var(--bg-muted); color: var(--text-2); font-weight: 700; font-size: 13px; border-right: 1px solid var(--border); }
+    .phone-wrap .input { border: 0; border-radius: 0; box-shadow: none; }
+    .phone-wrap:focus-within { box-shadow: var(--focus); }
+
+    .combo { position: relative; }
+    .combo-list { position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); max-height: 220px; overflow: auto; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); box-shadow: var(--shadow); display: none; }
+    .combo-list.open { display: block; }
+    .combo-item { width: 100%; text-align: left; border: 0; background: transparent; padding: 10px 12px; color: var(--text); font-size: 13px; }
+    .combo-item:hover, .combo-item.active { background: var(--primary-soft); }
+    .linkish { border: 0; background: transparent; color: var(--primary); font-size: 13px; font-weight: 600; padding: 0; min-height: 44px; }
+
+    .switch-row { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-2); margin: 8px 0 4px; }
+    .switch { position: relative; width: 42px; height: 24px; border-radius: 999px; border: 0; background: #cbd5e1; flex: 0 0 auto; }
+    .switch.on { background: var(--primary); }
+    .switch span { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; transition: transform .15s; }
+    .switch.on span { transform: translateX(18px); }
+
+    .badge { display: inline-flex; align-items: center; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+    .badge-neutral { background: var(--bg-muted); color: var(--text-2); }
+    .badge-ok { background: var(--success-soft); color: var(--success); }
+    .badge-warn { background: var(--warning-soft); color: var(--warning); }
+    .badge-err { background: var(--danger-soft); color: var(--danger); }
+    .badge-info { background: var(--primary-soft); color: var(--primary); }
+
+    .batch-toolbar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+    .batch-toolbar .left { font-size: 13px; color: var(--text-2); font-weight: 600; }
+    .accordion { display: flex; flex-direction: column; gap: 10px; }
+    .acc-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--card-subtle); overflow: hidden; }
+    .acc-card.has-error { border-color: color-mix(in srgb, var(--danger) 45%, var(--border)); }
+    .acc-summary { display: flex; gap: 8px; align-items: center; padding: 10px 12px; min-height: 52px; }
+    .acc-summary .meta { flex: 1; min-width: 0; }
+    .acc-summary .title { font-size: 13px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .acc-summary .sub { font-size: 12px; color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .acc-body { display: none; padding: 0 12px 12px; border-top: 1px solid var(--border); background: var(--card); }
+    .acc-card.open .acc-body { display: block; padding-top: 12px; }
+
+    .result { text-align: left; }
+    .result-icon { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; font-size: 22px; margin-bottom: 12px; }
+    .result-icon.ok { background: var(--success-soft); color: var(--success); }
+    .result-icon.warn { background: var(--warning-soft); color: var(--warning); }
+    .result-icon.err { background: var(--danger-soft); color: var(--danger); }
+    .result h2 { margin: 0 0 8px; font-size: 18px; }
+    .result p { margin: 0 0 8px; color: var(--text-2); font-size: 14px; }
+    .result-meta { background: var(--bg-muted); border-radius: var(--radius-sm); padding: 12px; margin: 14px 0; font-size: 13px; }
+    .result-meta div { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
+    .result-meta span:first-child { color: var(--text-2); }
+    .result-actions { display: flex; flex-direction: column; gap: 8px; margin-top: 16px; }
+    .summary-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin: 12px 0; }
+    .summary-grid .cell { background: var(--bg-muted); border-radius: var(--radius-sm); padding: 10px 8px; text-align: center; }
+    .summary-grid .n { font-size: 18px; font-weight: 700; }
+    .summary-grid .l { font-size: 11px; color: var(--text-2); margin-top: 2px; }
+    [data-viewport="mobile"] .summary-grid { grid-template-columns: repeat(3, 1fr); }
+    .result-list { list-style: none; margin: 0; padding: 0; }
+    .result-list li { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+
+    .toast { position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-20px); background: var(--text); color: var(--card); padding: 10px 14px; border-radius: 999px; font-size: 13px; opacity: 0; pointer-events: none; transition: .2s; z-index: 80; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    .dialog-back { position: fixed; inset: 0; background: var(--overlay); z-index: 70; display: none; align-items: center; justify-content: center; padding: 16px; }
+    .dialog-back.open { display: flex; }
+    .dialog { width: min(420px, 100%); background: var(--card); border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow); }
+    .dialog h3 { margin: 0 0 8px; font-size: 16px; }
+    .dialog p { margin: 0 0 16px; color: var(--text-2); font-size: 14px; }
+    .dialog-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+
+    .proto-panel {
+      position: fixed; left: 12px; bottom: 12px; z-index: 90; width: min(300px, calc(100vw - 24px));
+      background: var(--card); border: 1px dashed var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+      font-size: 12px;
+    }
+    .proto-panel summary { cursor: pointer; padding: 10px 12px; font-weight: 700; color: var(--warning); list-style: none; }
+    .proto-panel summary::-webkit-details-marker { display: none; }
+    .proto-body { padding: 0 12px 12px; border-top: 1px dashed var(--border); }
+    .proto-note { color: var(--text-3); margin: 8px 0 10px; line-height: 1.4; }
+    .proto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .proto-grid label { display: flex; flex-direction: column; gap: 3px; color: var(--text-2); }
+    .proto-grid select { min-height: 36px; border: 1px solid var(--border); border-radius: 6px; background: var(--card); color: var(--text); padding: 4px 6px; }
+    .proto-grid .full { grid-column: 1 / -1; }
+
+    .frame-hint { display: none; position: fixed; top: 8px; right: 8px; z-index: 30; background: var(--warning-soft); color: var(--warning); border: 1px solid var(--border); border-radius: 999px; padding: 6px 10px; font-size: 11px; font-weight: 700; }
+    [data-viewport="tablet"] .frame-hint, [data-viewport="mobile"] .frame-hint { display: block; }
+    [data-viewport="tablet"] .app, [data-viewport="mobile"] .app {
+      max-width: 834px; margin: 0 auto; border-left: 1px solid var(--border); border-right: 1px solid var(--border); min-height: 100vh;
+    }
+    [data-viewport="mobile"] .app { max-width: 390px; grid-template-columns: 1fr; }
+    [data-viewport="mobile"] .sidebar { display: none; }
+    [data-viewport="mobile"] .quota { grid-template-columns: 1fr; }
+
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+    .spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff; border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-bar { height: 3px; background: var(--primary-soft); overflow: hidden; border-radius: 99px; margin-bottom: 12px; }
+    .loading-bar > i { display: block; height: 100%; width: 40%; background: var(--primary); animation: load 1s ease-in-out infinite; }
+    @keyframes load { 0% { transform: translateX(-100%); } 100% { transform: translateX(280%); } }
+  </style>
+</head>
+<body>
+  <div class="frame-hint" id="frameHint">Viewport: Desktop</div>
+
+  <div class="app" id="appShell">
+    <aside class="sidebar">
+      <div class="brand">CRM System</div>
+      <a class="nav-item" href="#">我的客戶</a>
+      <a class="nav-item active" href="#">公共池</a>
+      <a class="nav-item" href="#">跟進</a>
+      <a class="nav-item" href="#">報表</a>
+    </aside>
+    <main class="main">
+      <h1 class="page-title">共享客戶池</h1>
+      <p class="page-sub">員工僅見脫敏摘要；使用隨機領取或快速錄入。</p>
+      <div class="quota">
+        <div class="card"><div class="label">7 天內已領取</div><div class="value">2 / 10</div></div>
+        <div class="card"><div class="label">剩餘名額</div><div class="value">8</div></div>
+        <div class="card"><div class="label">領取狀態</div><div class="value" style="font-size:14px;margin-top:8px">可以領取</div></div>
+      </div>
+      <div class="card" style="margin-bottom:16px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--radius);background:var(--card)">
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+          <div>
+            <strong style="font-size:14px">隨機領取一位客戶</strong>
+            <div class="muted" style="font-size:13px;margin-top:4px">系統隨機分配一位符合資格的公共池客戶</div>
+          </div>
+          <button class="btn btn-primary" type="button" disabled title="原型：非本範圍">隨機領取</button>
+        </div>
+      </div>
+      <div class="entry-card">
+        <div>
+          <h3>快速錄入客戶</h3>
+          <p>將一位或多位新客戶直接錄入公共池（V2 原型）</p>
+        </div>
+        <button class="btn btn-secondary" type="button" id="openQuickEntry">開啟快速錄入</button>
+      </div>
+      <div class="pool-card">
+        <table class="pool-table">
+          <thead>
+            <tr><th>客戶</th><th>類型</th><th>進池時間</th><th>摘要</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>王**</td><td>潛在</td><td>2026-07-20</td><td class="muted">銀行開戶相關</td></tr>
+            <tr><td>李**</td><td>潛在</td><td>2026-07-18</td><td class="muted">身份規劃</td></tr>
+            <tr><td>陳**</td><td>潛在</td><td>2026-07-15</td><td class="muted">企業服務</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
+  <div class="overlay" id="overlay" hidden></div>
+  <aside class="drawer" id="drawer" aria-hidden="true" role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
+    <div class="drawer-header">
+      <div class="drawer-header-row">
+        <h2 class="drawer-title" id="drawerTitle">快速錄入</h2>
+        <button class="btn btn-ghost btn-sm" type="button" id="btnCloseX" aria-label="關閉">✕</button>
+      </div>
+      <div class="tabs" role="tablist" aria-label="錄入模式">
+        <button class="tab active" type="button" role="tab" data-mode="single" id="tabSingle">單筆錄入</button>
+        <button class="tab" type="button" role="tab" data-mode="batch" id="tabBatch">批量錄入</button>
+      </div>
+    </div>
+    <div class="drawer-body" id="drawerBody"></div>
+    <div class="drawer-footer" id="drawerFooter"></div>
+  </aside>
+
+  <div class="toast" id="toast" role="status"></div>
+  <div class="dialog-back" id="confirmDialog" role="presentation">
+    <div class="dialog" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h3 id="confirmTitle">放棄本次錄入？</h3>
+      <p>已填寫內容將不會保存。此為原型，不會寫入任何資料。</p>
+      <div class="dialog-actions">
+        <button class="btn btn-secondary" type="button" id="confirmCancel">繼續編輯</button>
+        <button class="btn btn-danger" type="button" id="confirmOk">放棄並關閉</button>
+      </div>
+    </div>
+  </div>
+
+  <details class="proto-panel" open>
+    <summary>⚠ 原型控制（非正式 CRM）</summary>
+    <div class="proto-body">
+      <p class="proto-note">僅用於演示。不登入、不呼叫 API、不寫入資料。</p>
+      <div class="proto-grid">
+        <label>主題
+          <select id="ctrlTheme"><option value="light">Light</option><option value="dark">Dark</option></select>
+        </label>
+        <label>視窗
+          <select id="ctrlViewport"><option value="desktop">Desktop</option><option value="tablet">Tablet</option><option value="mobile">Mobile</option></select>
+        </label>
+        <label>模式
+          <select id="ctrlMode"><option value="single">單筆</option><option value="batch">批量</option></select>
+        </label>
+        <label class="full">狀態場景
+          <select id="ctrlScene">
+            <option value="blank">空白</option>
+            <option value="filled">已填寫</option>
+            <option value="missing_name">姓名缺失</option>
+            <option value="missing_contact">電話與微信皆空</option>
+            <option value="bad_phone">電話格式錯誤</option>
+            <option value="short_project">需求業務不足4字</option>
+            <option value="submitting">正在提交</option>
+            <option value="success">成功</option>
+            <option value="duplicate">重複</option>
+            <option value="invalid">無效</option>
+            <option value="unknown">未知錯誤</option>
+            <option value="batch_results">批量結果</option>
+          </select>
+        </label>
+      </div>
+    </div>
+  </details>
+
+  <script>
+(function () {
+  "use strict";
+
+  var PROJECTS = [
+    "美國個人銀行開戶",
+    "美國企業銀行開戶",
+    "香港個人銀行開戶",
+    "香港公司銀行開戶",
+    "ITIN申請",
+    "海外身份規劃",
+    "香港身份",
+    "企業服務",
+    "其他"
+  ];
+  var PHONE_RE = /^1\d{10}$/;
+
+  function emptyRow() {
+    return {
+      id: "r-" + Math.random().toString(36).slice(2, 10),
+      customerName: "",
+      project: "",
+      projectOther: "",
+      phone: "",
+      wechatId: "",
+      followUp: "",
+      note: "",
+      noteOpen: false,
+      open: false,
+      status: "incomplete"
+    };
+  }
+
+  var state = {
+    open: false,
+    mode: "single",
+    view: "form",
+    keepProject: true,
+    submitting: false,
+    single: emptyRow(),
+    batch: [Object.assign(emptyRow(), { open: true })],
+    fieldErrors: {},
+    result: null,
+    batchResults: null,
+    batchResultsDetailOpen: false,
+    comboOpen: false,
+    comboFilter: "",
+    dirty: false
+  };
+
+  var els = {
+    overlay: document.getElementById("overlay"),
+    drawer: document.getElementById("drawer"),
+    body: document.getElementById("drawerBody"),
+    footer: document.getElementById("drawerFooter"),
+    toast: document.getElementById("toast"),
+    confirm: document.getElementById("confirmDialog"),
+    frameHint: document.getElementById("frameHint"),
+    tabSingle: document.getElementById("tabSingle"),
+    tabBatch: document.getElementById("tabBatch")
+  };
+
+  function projectValue(row) {
+    if (row.project === "其他") return (row.projectOther || "").trim();
+    return (row.project || "").trim();
+  }
+
+  function substantiveLen(s) {
+    return (s || "").replace(/[^A-Za-z0-9\u4e00-\u9fff]/g, "").length;
+  }
+
+  function validateRow(row) {
+    var errors = {};
+    if (!(row.customerName || "").trim()) errors.customerName = "請輸入客戶姓名";
+    var proj = projectValue(row);
+    if (!proj) errors.project = "請填寫需求業務／申請項目";
+    else if (substantiveLen(proj) < 4) errors.project = "需求業務／申請項目請至少輸入4個字";
+    var phone = (row.phone || "").trim();
+    var wechat = (row.wechatId || "").trim();
+    if (!phone && !wechat) errors.contact = "電話或微信至少填寫一項";
+    else if (phone && !PHONE_RE.test(phone)) errors.phone = "電話必須為1開頭的11位數字";
+    return errors;
+  }
+
+  function rowStatus(row) {
+    var e = validateRow(row);
+    if (Object.keys(e).length) {
+      if ((row.customerName || "").trim() || (row.phone || "").trim() || (row.wechatId || "").trim() || projectValue(row) || (row.followUp || "").trim()) {
+        return Object.keys(e).length ? "error" : "ready";
+      }
+      return "incomplete";
+    }
+    return "ready";
+  }
+
+  function badgeFor(status) {
+    var map = {
+      incomplete: ["未完成", "badge-neutral"],
+      ready: ["可提交", "badge-info"],
+      error: ["有錯誤", "badge-err"],
+      created: ["已建立", "badge-ok"],
+      duplicate: ["重複", "badge-warn"],
+      invalid: ["無效", "badge-err"],
+      failed: ["失敗", "badge-err"]
+    };
+    var m = map[status] || map.incomplete;
+    return '<span class="badge ' + m[1] + '">' + m[0] + "</span>";
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function showToast(msg) {
+    els.toast.textContent = msg;
+    els.toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(function () { els.toast.classList.remove("show"); }, 2200);
+  }
+
+  function openDrawer() {
+    state.open = true;
+    els.overlay.hidden = false;
+    requestAnimationFrame(function () {
+      els.overlay.classList.add("open");
+      els.drawer.classList.add("open");
+    });
+    els.drawer.setAttribute("aria-hidden", "false");
+    render();
+  }
+
+  function closeDrawerForce() {
+    state.open = false;
+    state.view = "form";
+    state.submitting = false;
+    state.result = null;
+    state.batchResults = null;
+    state.fieldErrors = {};
+    els.overlay.classList.remove("open");
+    els.drawer.classList.remove("open");
+    els.drawer.setAttribute("aria-hidden", "true");
+    setTimeout(function () { if (!state.open) els.overlay.hidden = true; }, 220);
+  }
+
+  function requestClose() {
+    if (state.view !== "form") {
+      closeDrawerForce();
+      return;
+    }
+    if (state.dirty) {
+      els.confirm.classList.add("open");
+      return;
+    }
+    closeDrawerForce();
+  }
+
+  function markDirty() { state.dirty = true; }
+
+  function renderPhoneField(row, errors, prefix) {
+    var id = prefix + "-phone";
+    var invalid = !!(errors.phone || errors.contact);
+    return (
+      '<div class="field">' +
+        '<label for="' + id + '">電話</label>' +
+        '<div class="phone-wrap' + (invalid ? " is-invalid" : "") + '">' +
+          '<div class="phone-prefix" aria-hidden="true">+86</div>' +
+          '<input class="input" id="' + id + '" type="tel" inputmode="numeric" maxlength="11" placeholder="請輸入11位手機號碼" value="' + escapeHtml(row.phone) + '" data-bind="' + prefix + ':phone" autocomplete="tel-national" />' +
+        "</div>" +
+        (errors.phone ? '<div class="error-text" id="' + id + '-err">' + escapeHtml(errors.phone) + "</div>" : "") +
+        (errors.contact && !errors.phone ? '<div class="error-text">' + escapeHtml(errors.contact) + "</div>" : "") +
+      "</div>"
+    );
+  }
+
+  function renderProjectField(row, errors, prefix) {
+    var id = prefix + "-project";
+    var showOther = row.project === "其他";
+    var list = PROJECTS.filter(function (p) {
+      if (!state.comboOpen || state.comboFilterTarget !== prefix) return true;
+      var q = (state.comboFilter || "").toLowerCase();
+      return !q || p.toLowerCase().indexOf(q) >= 0;
+    });
+    return (
+      '<div class="field">' +
+        '<label for="' + id + '">需求業務／申請項目</label>' +
+        '<div class="combo">' +
+          '<input class="input' + (errors.project ? " is-invalid" : "") + '" id="' + id + '" value="' + escapeHtml(row.project === "其他" ? (row.projectOther || "") : row.project) + '" placeholder="搜尋或選擇需求業務" data-bind="' + prefix + ':projectSearch" autocomplete="off" aria-autocomplete="list" aria-expanded="' + (state.comboOpen && state.comboFilterTarget === prefix) + '" />' +
+          '<div class="combo-list' + (state.comboOpen && state.comboFilterTarget === prefix ? " open" : "") + '" role="listbox">' +
+            list.map(function (p) {
+              return '<button type="button" class="combo-item" data-pick-project="' + prefix + ":" + escapeHtml(p) + '">' + escapeHtml(p) + "</button>";
+            }).join("") +
+          "</div>" +
+        "</div>" +
+        (showOther ? '<p class="hint">已選「其他」，請輸入自定義需求（至少4字）。</p>' : "") +
+        (errors.project ? '<div class="error-text">' + escapeHtml(errors.project) + "</div>" : "") +
+      "</div>"
+    );
+  }
+
+  function renderSingleForm() {
+    var row = state.single;
+    var errors = state.fieldErrors;
+    return (
+      '<form id="singleForm" novalidate>' +
+        '<div class="row-2">' +
+          '<div class="field"><label for="s-name">客戶姓名</label>' +
+            '<input class="input' + (errors.customerName ? " is-invalid" : "") + '" id="s-name" value="' + escapeHtml(row.customerName) + '" data-bind="single:customerName" />' +
+            (errors.customerName ? '<div class="error-text">' + escapeHtml(errors.customerName) + "</div>" : "") +
+          "</div>" +
+          renderProjectField(row, errors, "single") +
+        "</div>" +
+        '<div class="row-2">' +
+          renderPhoneField(row, errors, "single") +
+          '<div class="field"><label for="s-wechat">微信</label>' +
+            '<input class="input" id="s-wechat" value="' + escapeHtml(row.wechatId) + '" data-bind="single:wechatId" />' +
+          "</div>" +
+        "</div>" +
+        '<div class="field"><label for="s-follow">首次跟進內容</label>' +
+          '<textarea class="textarea" id="s-follow" data-bind="single:followUp">' + escapeHtml(row.followUp) + "</textarea>" +
+        "</div>" +
+        (row.noteOpen
+          ? '<div class="field"><label for="s-note">補充備註</label>' +
+              '<textarea class="textarea" id="s-note" data-bind="single:note">' + escapeHtml(row.note) + "</textarea>" +
+              '<button type="button" class="linkish" data-action="toggle-note-single">收起補充備註</button></div>'
+          : '<button type="button" class="linkish" data-action="toggle-note-single">＋ 添加補充備註</button>') +
+        '<div class="switch-row">' +
+          '<button type="button" class="switch' + (state.keepProject ? " on" : "") + '" data-action="toggle-keep" role="switch" aria-checked="' + state.keepProject + '"><span></span></button>' +
+          "<span>繼續錄入時保留需求業務</span>" +
+        "</div>" +
+        (state.submitting ? '<div class="loading-bar" aria-hidden="true"><i></i></div><p class="hint">正在提交…（原型模擬）</p>' : "") +
+      "</form>"
+    );
+  }
+
+  function renderBatchForm() {
+    var ready = state.batch.filter(function (r) { return rowStatus(r) === "ready"; }).length;
+    var cards = state.batch.map(function (row, idx) {
+      var st = rowStatus(row);
+      var errors = row.open ? validateRow(row) : {};
+      var contact = (row.phone || "").trim() || (row.wechatId || "").trim() || "—";
+      return (
+        '<div class="acc-card' + (row.open ? " open" : "") + (st === "error" ? " has-error" : "") + '" data-acc="' + row.id + '">' +
+          '<div class="acc-summary">' +
+            '<strong>#' + (idx + 1) + "</strong>" +
+            '<div class="meta"><div class="title">' + escapeHtml((row.customerName || "").trim() || "未命名客戶") + "</div>" +
+              '<div class="sub">' + escapeHtml(contact) + " · " + escapeHtml(projectValue(row) || "未填需求") + "</div></div>" +
+            badgeFor(st) +
+            '<button type="button" class="btn btn-secondary btn-sm" data-action="toggle-acc" data-id="' + row.id + '">' + (row.open ? "收起" : "展開") + "</button>" +
+            '<button type="button" class="btn btn-ghost btn-sm" data-action="delete-acc" data-id="' + row.id + '"' + (state.batch.length === 1 ? " disabled" : "") + ">刪除</button>" +
+          "</div>" +
+          '<div class="acc-body">' +
+            '<div class="field"><label>客戶姓名</label><input class="input' + (errors.customerName ? " is-invalid" : "") + '" value="' + escapeHtml(row.customerName) + '" data-bind="batch:' + row.id + ':customerName" />' +
+              (errors.customerName ? '<div class="error-text">' + escapeHtml(errors.customerName) + "</div>" : "") + "</div>" +
+            renderProjectField(row, errors, "batch:" + row.id) +
+            '<div class="row-2">' + renderPhoneField(row, errors, "batch:" + row.id) +
+              '<div class="field"><label>微信</label><input class="input" value="' + escapeHtml(row.wechatId) + '" data-bind="batch:' + row.id + ':wechatId" /></div></div>' +
+            '<div class="field"><label>首次跟進內容</label><textarea class="textarea" data-bind="batch:' + row.id + ':followUp">' + escapeHtml(row.followUp) + "</textarea></div>" +
+            (row.noteOpen
+              ? '<div class="field"><label>補充備註</label><textarea class="textarea" data-bind="batch:' + row.id + ':note">' + escapeHtml(row.note) + '</textarea><button type="button" class="linkish" data-action="toggle-note-batch" data-id="' + row.id + '">收起補充備註</button></div>'
+              : '<button type="button" class="linkish" data-action="toggle-note-batch" data-id="' + row.id + '">＋ 添加補充備註</button>') +
+          "</div>" +
+        "</div>"
+      );
+    }).join("");
+
+    return (
+      '<div class="batch-toolbar"><div class="left">已添加 ' + state.batch.length + " 位客戶（最多 20）</div>" +
+        '<div style="display:flex;gap:6px;flex-wrap:wrap">' +
+          '<button type="button" class="btn btn-secondary btn-sm" data-action="expand-all">全部展開</button>' +
+          '<button type="button" class="btn btn-secondary btn-sm" data-action="collapse-all">全部收起</button>' +
+          '<button type="button" class="btn btn-secondary btn-sm" data-action="add-row"' + (state.batch.length >= 20 ? " disabled" : "") + ">添加客戶</button>" +
+        "</div></div>" +
+      (state.batchBanner ? '<p class="error-text" role="alert">' + escapeHtml(state.batchBanner) + "</p>" : "") +
+      '<div class="accordion">' + cards + "</div>" +
+      (state.submitting ? '<div class="loading-bar" style="margin-top:12px"><i></i></div><p class="hint">正在提交 ' + ready + " 位…（原型模擬）</p>" : "")
+    );
+  }
+
+  function renderResult() {
+    var r = state.result;
+    if (!r) return "";
+    if (r.type === "success") {
+      return (
+        '<div class="result">' +
+          '<div class="result-icon ok" aria-hidden="true">✓</div>' +
+          "<h2>客戶已建立</h2>" +
+          "<p>已加入公共池 · 來源：公共池快速錄入</p>" +
+          '<div class="result-meta">' +
+            "<div><span>客戶編號</span><strong>EF000123</strong></div>" +
+            "<div><span>客戶姓名</span><strong>" + escapeHtml(r.name) + "</strong></div>" +
+            "<div><span>需求業務</span><strong>" + escapeHtml(r.project) + "</strong></div>" +
+          "</div>" +
+          '<div class="result-actions">' +
+            '<button type="button" class="btn btn-primary btn-block" data-action="continue-next">繼續錄入下一位</button>' +
+            '<button type="button" class="btn btn-secondary btn-block" data-action="view-pool">查看公共池</button>' +
+            '<button type="button" class="btn btn-ghost btn-block" data-action="close">關閉</button>' +
+          "</div>" +
+          '<p class="hint" style="margin-top:12px">正式實作：如需修改資料後重新提交，請建立新一批（新 submissionId）。</p>' +
+        "</div>"
+      );
+    }
+    if (r.type === "duplicate") {
+      return (
+        '<div class="result">' +
+          '<div class="result-icon warn" aria-hidden="true">!</div>' +
+          "<h2>未建立客戶</h2>" +
+          "<p>發現重複資料。此電話已存在於 CRM。</p>" +
+          '<div class="result-actions">' +
+            '<button type="button" class="btn btn-primary btn-block" data-action="back-edit">返回修改</button>' +
+            '<button type="button" class="btn btn-secondary btn-block" data-action="new-batch">建立新一批</button>' +
+            '<button type="button" class="btn btn-ghost btn-block" data-action="close">關閉</button>' +
+          "</div>" +
+          '<p class="hint" style="margin-top:12px">已完成的 submission 不可直接重試修改後的內容；建立新一批才會產生新的 submissionId。</p>' +
+        "</div>"
+      );
+    }
+    if (r.type === "invalid") {
+      return (
+        '<div class="result">' +
+          '<div class="result-icon err" aria-hidden="true">×</div>' +
+          "<h2>資料需要修改</h2>" +
+          "<p>" + escapeHtml(r.message || "請修正表單後再提交。") + "</p>" +
+          '<div class="result-actions">' +
+            '<button type="button" class="btn btn-primary btn-block" data-action="back-edit">返回修改</button>' +
+            '<button type="button" class="btn btn-ghost btn-block" data-action="close">關閉</button>' +
+          "</div>" +
+        "</div>"
+      );
+    }
+    return (
+      '<div class="result">' +
+        '<div class="result-icon err" aria-hidden="true">!</div>' +
+        "<h2>系統暫時無法完成</h2>" +
+        "<p>發生錯誤，請稍後再試。</p>" +
+        '<div class="result-actions">' +
+          '<button type="button" class="btn btn-primary btn-block" data-action="back-edit">返回修改</button>' +
+          '<button type="button" class="btn btn-secondary btn-block" data-action="back-edit">稍後重試</button>' +
+          '<button type="button" class="btn btn-ghost btn-block" data-action="close">關閉</button>' +
+        "</div>" +
+      "</div>"
+    );
+  }
+
+  function renderBatchResults() {
+    var s = state.batchResults;
+    if (!s) return "";
+    var detail = state.batchResultsDetailOpen
+      ? '<ul class="result-list">' +
+          s.rows.map(function (row, idx) {
+            return (
+              "<li><span>#" + (idx + 1) + " " + escapeHtml(row.name) +
+              (row.detail ? " · " + escapeHtml(row.detail) : "") +
+              "</span>" + badgeFor(row.status) + "</li>"
+            );
+          }).join("") +
+        "</ul>"
+      : '<p class="hint">點「查看詳情」展開每位客戶結果。</p>';
+    return (
+      '<div class="result">' +
+        "<h2>批量提交結果</h2>" +
+        '<div class="summary-grid">' +
+          '<div class="cell"><div class="n">' + s.total + '</div><div class="l">總數</div></div>' +
+          '<div class="cell"><div class="n">' + s.created + '</div><div class="l">已建立</div></div>' +
+          '<div class="cell"><div class="n">' + s.duplicates + '</div><div class="l">重複</div></div>' +
+          '<div class="cell"><div class="n">' + s.invalid + '</div><div class="l">無效</div></div>' +
+          '<div class="cell"><div class="n">' + s.failed + '</div><div class="l">失敗</div></div>' +
+        "</div>" +
+        detail +
+        '<div class="result-actions">' +
+          '<button type="button" class="btn btn-secondary btn-block" data-action="toggle-batch-detail">' +
+            (state.batchResultsDetailOpen ? "收起詳情" : "查看詳情") +
+          "</button>" +
+          '<button type="button" class="btn btn-secondary btn-block" data-action="view-pool">查看公共池</button>' +
+          '<button type="button" class="btn btn-primary btn-block" data-action="new-batch">建立新一批</button>' +
+          '<button type="button" class="btn btn-ghost btn-block" data-action="close">關閉</button>' +
+        "</div>" +
+        '<p class="hint" style="margin-top:12px">此批次已完成，不可直接再次提交。修改資料請建立新一批。</p>' +
+      "</div>"
+    );
+  }
+
+  function renderFooter() {
+    if (state.view !== "form") {
+      els.footer.innerHTML = "";
+      els.footer.style.display = "none";
+      return;
+    }
+    els.footer.style.display = "flex";
+    if (state.mode === "single") {
+      els.footer.innerHTML =
+        '<button type="button" class="btn btn-secondary" data-action="cancel">取消</button>' +
+        '<button type="button" class="btn btn-secondary grow" data-action="save-continue"' + (state.submitting ? " disabled" : "") + ">錄入並繼續</button>" +
+        '<button type="button" class="btn btn-primary grow" data-action="save-done"' + (state.submitting ? " disabled" : "") + ">" +
+          (state.submitting ? '<span class="spinner"></span> 提交中' : "完成錄入") +
+        "</button>";
+    } else {
+      var n = state.batch.length;
+      els.footer.innerHTML =
+        '<button type="button" class="btn btn-secondary" data-action="cancel">取消</button>' +
+        '<button type="button" class="btn btn-secondary" data-action="add-row"' + (n >= 20 ? " disabled" : "") + ">新增客戶</button>" +
+        '<button type="button" class="btn btn-primary grow" data-action="submit-batch"' + (state.submitting ? " disabled" : "") + ">提交 " + n + " 位客戶</button>";
+    }
+  }
+
+  function render() {
+    els.tabSingle.classList.toggle("active", state.mode === "single");
+    els.tabBatch.classList.toggle("active", state.mode === "batch");
+    if (state.view === "result") {
+      els.body.innerHTML = renderResult();
+    } else if (state.view === "batch_results") {
+      els.body.innerHTML = renderBatchResults();
+    } else if (state.mode === "batch") {
+      els.body.innerHTML = renderBatchForm();
+    } else {
+      els.body.innerHTML = renderSingleForm();
+    }
+    renderFooter();
+  }
+
+  function getRowByBind(bind) {
+    var parts = bind.split(":");
+    if (parts[0] === "single") return state.single;
+    if (parts[0] === "batch") {
+      return state.batch.find(function (r) { return r.id === parts[1]; });
+    }
+    return null;
+  }
+
+  function setField(bind, value) {
+    var parts = bind.split(":");
+    var row = getRowByBind(bind);
+    if (!row) return;
+    var field = parts[parts.length - 1];
+    if (field === "projectSearch") {
+      state.comboOpen = true;
+      state.comboFilterTarget = parts.slice(0, -1).join(":");
+      state.comboFilter = value;
+      if (row.project === "其他") row.projectOther = value;
+      else {
+        row.project = value;
+        row.projectOther = "";
+      }
+      markDirty();
+      render();
+      var el = document.querySelector('[data-bind="' + bind + '"]');
+      if (el) { el.focus(); el.setSelectionRange(value.length, value.length); }
+      return;
+    }
+    row[field] = value;
+    markDirty();
+    if (state.mode === "single") state.fieldErrors = {};
+    state.batchBanner = "";
+  }
+
+  function pickProject(target, name) {
+    var row;
+    if (target === "single") row = state.single;
+    else {
+      var id = target.split(":")[1];
+      row = state.batch.find(function (r) { return r.id === id; });
+    }
+    if (!row) return;
+    row.project = name;
+    if (name === "其他") row.projectOther = "";
+    else row.projectOther = "";
+    state.comboOpen = false;
+    state.comboFilter = "";
+    markDirty();
+    render();
+  }
+
+  function focusFirstError(errors, prefix) {
+    var order = ["customerName", "project", "phone", "contact"];
+    for (var i = 0; i < order.length; i++) {
+      if (!errors[order[i]]) continue;
+      var map = { customerName: "s-name", project: "single-project", phone: "single-phone", contact: "single-phone" };
+      if (prefix === "single") {
+        var el = document.getElementById(map[order[i]]);
+        if (el) el.focus();
+      }
+      return;
+    }
+  }
+
+  function clearSingleKeepProject() {
+    var keep = state.keepProject ? { project: state.single.project, projectOther: state.single.projectOther } : null;
+    state.single = emptyRow();
+    if (keep) {
+      state.single.project = keep.project;
+      state.single.projectOther = keep.projectOther;
+    }
+    state.fieldErrors = {};
+    state.dirty = false;
+    state.view = "form";
+    state.result = null;
+  }
+
+  function simulateSubmit(kind) {
+    var errors = validateRow(state.single);
+    if (Object.keys(errors).length) {
+      state.fieldErrors = errors;
+      state.view = "form";
+      render();
+      focusFirstError(errors, "single");
+      return;
+    }
+    state.submitting = true;
+    state.fieldErrors = {};
+    render();
+    setTimeout(function () {
+      state.submitting = false;
+      if (kind === "continue") {
+        showToast("已錄入（原型）");
+        clearSingleKeepProject();
+        render();
+        var nameEl = document.getElementById("s-name");
+        if (nameEl) nameEl.focus();
+        return;
+      }
+      state.view = "result";
+      state.result = {
+        type: "success",
+        name: state.single.customerName.trim(),
+        project: projectValue(state.single)
+      };
+      state.dirty = false;
+      render();
+    }, 650);
+  }
+
+  function simulateBatchSubmit() {
+    var firstErrId = null;
+    var errCount = 0;
+    state.batch.forEach(function (row) {
+      var e = validateRow(row);
+      if (Object.keys(e).length) {
+        errCount += 1;
+        if (!firstErrId) firstErrId = row.id;
+      }
+    });
+    if (errCount) {
+      state.batchBanner = "有 " + errCount + " 位需要修改後才能提交";
+      state.batch.forEach(function (r) { r.open = r.id === firstErrId; });
+      render();
+      return;
+    }
+    state.submitting = true;
+    state.batchBanner = "";
+    render();
+    setTimeout(function () {
+      state.submitting = false;
+      state.view = "batch_results";
+      state.batchResultsDetailOpen = false;
+      state.batchResults = {
+        total: state.batch.length,
+        created: Math.max(0, state.batch.length - 1),
+        duplicates: state.batch.length > 1 ? 1 : 0,
+        invalid: 0,
+        failed: 0,
+        rows: state.batch.map(function (r, i) {
+          var isDup = i === state.batch.length - 1 && state.batch.length > 1;
+          return {
+            name: r.customerName.trim() || ("客戶 #" + (i + 1)),
+            status: isDup ? "duplicate" : "created",
+            detail: isDup ? "電話重複" : ("EF" + String(100000 + i).slice(-6))
+          };
+        })
+      };
+      state.dirty = false;
+      render();
+    }, 700);
+  }
+
+  function applyScene(scene) {
+    state.view = "form";
+    state.submitting = false;
+    state.result = null;
+    state.batchResults = null;
+    state.fieldErrors = {};
+    state.batchBanner = "";
+    state.dirty = false;
+
+    if (scene === "batch_results") {
+      state.mode = "batch";
+      state.batch = [Object.assign(emptyRow(), { customerName: "張三", project: "美國個人銀行開戶", phone: "13800138000", open: false }),
+        Object.assign(emptyRow(), { customerName: "李四", project: "香港身份", phone: "13900139000", open: false })];
+      openDrawer();
+      state.view = "batch_results";
+      state.batchResultsDetailOpen = true;
+      state.batchResults = {
+        total: 2, created: 1, duplicates: 1, invalid: 0, failed: 0,
+        rows: [
+          { name: "張三", status: "created", detail: "EF000123" },
+          { name: "李四", status: "duplicate", detail: "電話重複" }
+        ]
+      };
+      render();
+      return;
+    }
+
+    if (["blank", "filled", "missing_name", "missing_contact", "bad_phone", "short_project", "submitting", "success", "duplicate", "invalid", "unknown"].indexOf(scene) >= 0) {
+      state.mode = "single";
+    }
+
+    var filled = {
+      customerName: "王小明",
+      project: "美國個人銀行開戶",
+      phone: "13800138000",
+      wechatId: "",
+      followUp: "電話溝通開戶需求",
+      note: "",
+      noteOpen: false
+    };
+
+    if (scene === "blank") state.single = emptyRow();
+    else if (scene === "filled") state.single = Object.assign(emptyRow(), filled);
+    else if (scene === "missing_name") {
+      state.single = Object.assign(emptyRow(), filled, { customerName: "" });
+      state.fieldErrors = { customerName: "請輸入客戶姓名" };
+    } else if (scene === "missing_contact") {
+      state.single = Object.assign(emptyRow(), filled, { phone: "", wechatId: "" });
+      state.fieldErrors = { contact: "電話或微信至少填寫一項" };
+    } else if (scene === "bad_phone") {
+      state.single = Object.assign(emptyRow(), filled, { phone: "1380013800" });
+      state.fieldErrors = { phone: "電話必須為1開頭的11位數字" };
+    } else if (scene === "short_project") {
+      state.single = Object.assign(emptyRow(), filled, { project: "測試", projectOther: "" });
+      state.fieldErrors = { project: "需求業務／申請項目請至少輸入4個字" };
+    } else if (scene === "submitting") {
+      state.single = Object.assign(emptyRow(), filled);
+      state.submitting = true;
+    } else if (scene === "success") {
+      state.single = Object.assign(emptyRow(), filled);
+      state.view = "result";
+      state.result = { type: "success", name: filled.customerName, project: filled.project };
+    } else if (scene === "duplicate") {
+      state.single = Object.assign(emptyRow(), filled);
+      state.view = "result";
+      state.result = { type: "duplicate" };
+    } else if (scene === "invalid") {
+      state.single = Object.assign(emptyRow(), filled, { project: "測試" });
+      state.view = "result";
+      state.result = { type: "invalid", message: "需求業務／申請項目請至少輸入4個字" };
+    } else if (scene === "unknown") {
+      state.single = Object.assign(emptyRow(), filled);
+      state.view = "result";
+      state.result = { type: "unknown" };
+    }
+
+    if (state.mode === "batch" && scene !== "batch_results") {
+      state.batch = [Object.assign(emptyRow(), { open: true })];
+    }
+
+    openDrawer();
+    render();
+  }
+
+  document.getElementById("openQuickEntry").addEventListener("click", function () {
+    state.mode = "single";
+    state.view = "form";
+    state.single = emptyRow();
+    state.fieldErrors = {};
+    state.dirty = false;
+    openDrawer();
+  });
+
+  els.overlay.addEventListener("click", requestClose);
+  document.getElementById("btnCloseX").addEventListener("click", requestClose);
+  document.getElementById("confirmCancel").addEventListener("click", function () {
+    els.confirm.classList.remove("open");
+  });
+  document.getElementById("confirmOk").addEventListener("click", function () {
+    els.confirm.classList.remove("open");
+    closeDrawerForce();
+  });
+
+  els.tabSingle.addEventListener("click", function () {
+    if (state.view !== "form") return;
+    state.mode = "single";
+    document.getElementById("ctrlMode").value = "single";
+    render();
+  });
+  els.tabBatch.addEventListener("click", function () {
+    if (state.view !== "form") return;
+    state.mode = "batch";
+    if (!state.batch.length) state.batch = [Object.assign(emptyRow(), { open: true })];
+    else if (!state.batch.some(function (r) { return r.open; })) state.batch[0].open = true;
+    document.getElementById("ctrlMode").value = "batch";
+    render();
+  });
+
+  document.addEventListener("click", function (e) {
+    var t = e.target.closest("[data-action],[data-pick-project]");
+    if (!t) {
+      if (!e.target.closest(".combo")) {
+        if (state.comboOpen) { state.comboOpen = false; render(); }
+      }
+      return;
+    }
+    if (t.getAttribute("data-pick-project")) {
+      var pp = t.getAttribute("data-pick-project").split(":");
+      var target = pp[0] === "batch" ? "batch:" + pp[1] : "single";
+      var name = pp[0] === "batch" ? pp.slice(2).join(":") : pp.slice(1).join(":");
+      pickProject(target, name);
+      return;
+    }
+    var action = t.getAttribute("data-action");
+    if (action === "cancel" || action === "close") requestClose();
+    else if (action === "save-continue") simulateSubmit("continue");
+    else if (action === "save-done") simulateSubmit("done");
+    else if (action === "submit-batch") simulateBatchSubmit();
+    else if (action === "toggle-keep") { state.keepProject = !state.keepProject; render(); }
+    else if (action === "toggle-note-single") { state.single.noteOpen = !state.single.noteOpen; render(); }
+    else if (action === "toggle-note-batch") {
+      var row = state.batch.find(function (r) { return r.id === t.getAttribute("data-id"); });
+      if (row) { row.noteOpen = !row.noteOpen; render(); }
+    } else if (action === "toggle-acc") {
+      state.batch.forEach(function (r) {
+        if (r.id === t.getAttribute("data-id")) r.open = !r.open;
+      });
+      render();
+    } else if (action === "delete-acc") {
+      if (state.batch.length <= 1) {
+        var only = state.batch[0];
+        var id = only.id;
+        state.batch[0] = Object.assign(emptyRow(), { id: id, open: true });
+      } else {
+        state.batch = state.batch.filter(function (r) { return r.id !== t.getAttribute("data-id"); });
+      }
+      markDirty();
+      render();
+    } else if (action === "add-row") {
+      if (state.batch.length >= 20) return;
+      state.batch.forEach(function (r) { r.open = false; });
+      state.batch.push(Object.assign(emptyRow(), { open: true }));
+      markDirty();
+      render();
+    } else if (action === "expand-all") { state.batch.forEach(function (r) { r.open = true; }); render(); }
+    else if (action === "collapse-all") { state.batch.forEach(function (r) { r.open = false; }); render(); }
+    else if (action === "continue-next") {
+      clearSingleKeepProject();
+      state.mode = "single";
+      render();
+      var n = document.getElementById("s-name");
+      if (n) n.focus();
+    } else if (action === "view-pool") {
+      closeDrawerForce();
+      showToast("已返回公共池（原型）");
+    } else if (action === "back-edit") {
+      state.view = "form";
+      if (state.result && state.result.type === "invalid") {
+        state.fieldErrors = validateRow(state.single);
+      }
+      render();
+      var focus = document.getElementById("s-name") || document.querySelector(".input.is-invalid");
+      if (focus) focus.focus();
+    } else if (action === "toggle-batch-detail") {
+      state.batchResultsDetailOpen = !state.batchResultsDetailOpen;
+      render();
+    } else if (action === "new-batch") {
+      state.view = "form";
+      state.single = emptyRow();
+      state.batch = [Object.assign(emptyRow(), { open: true })];
+      state.result = null;
+      state.batchResults = null;
+      state.batchResultsDetailOpen = false;
+      state.fieldErrors = {};
+      state.dirty = false;
+      showToast("已建立新一批（原型：新 submissionId）");
+      render();
+    }
+  });
+
+  document.addEventListener("input", function (e) {
+    var bind = e.target.getAttribute("data-bind");
+    if (!bind) return;
+    setField(bind, e.target.value);
+  });
+
+  document.addEventListener("keydown", function (e) {
+    if (!state.open) return;
+    if (e.key === "Escape") {
+      if (els.confirm.classList.contains("open")) {
+        els.confirm.classList.remove("open");
+        return;
+      }
+      requestClose();
+      return;
+    }
+    var isMeta = e.metaKey || e.ctrlKey;
+    // Plain Enter in textarea inserts newline (browser default). Submit only with ⌘／Ctrl+Enter.
+    if (isMeta && e.key === "Enter") {
+      e.preventDefault();
+      if (state.view !== "form" || state.submitting) return;
+      if (state.mode === "single") simulateSubmit("done");
+      else simulateBatchSubmit();
+    }
+  });
+
+  document.getElementById("ctrlTheme").addEventListener("change", function (e) {
+    document.documentElement.setAttribute("data-theme", e.target.value);
+  });
+  document.getElementById("ctrlViewport").addEventListener("change", function (e) {
+    document.documentElement.setAttribute("data-viewport", e.target.value);
+    els.frameHint.textContent = "Viewport: " + e.target.value.charAt(0).toUpperCase() + e.target.value.slice(1);
+  });
+  document.getElementById("ctrlMode").addEventListener("change", function (e) {
+    state.mode = e.target.value;
+    if (state.mode === "batch") {
+      if (!state.batch.length) state.batch = [Object.assign(emptyRow(), { open: true })];
+      else if (!state.batch.some(function (r) { return r.open; })) state.batch[0].open = true;
+    }
+    state.view = "form";
+    state.result = null;
+    state.batchResults = null;
+    if (state.open) render();
+  });
+  document.getElementById("ctrlScene").addEventListener("change", function (e) {
+    applyScene(e.target.value);
+  });
+
+  // Initial paint
+  render();
+})();
+  </script>
+</body>
+</html>
