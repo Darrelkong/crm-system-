@@ -683,3 +683,284 @@ export function resolveQuickEntryPanelMode(status: QuickEntryStatus): {
   if (!status.grantActive) return { mode: "verify" };
   return { mode: "form" };
 }
+
+/** Field errors for one row — shared by single and batch accordion. */
+export function getQuickEntryRowFieldErrors(
+  row: QuickEntryFormRow,
+): QuickEntryFieldErrors {
+  return validateOneQuickEntryRow(row);
+}
+
+export type QuickEntryCardBadge =
+  | "incomplete"
+  | "ready"
+  | "error"
+  | "submitting"
+  | "created"
+  | "duplicate"
+  | "invalid"
+  | "failed";
+
+export type QuickEntryCardSummary = {
+  nameEmpty: boolean;
+  nameText: string;
+  contactKind: "phone" | "wechat" | "empty";
+  contactText: string;
+  projectEmpty: boolean;
+  projectText: string;
+};
+
+export function buildQuickEntryCardSummary(
+  row: QuickEntryFormRow,
+): QuickEntryCardSummary {
+  const nameText = row.customerName.trim();
+  const phone = row.phone.trim();
+  const wechatId = row.wechatId.trim();
+  const projectText = row.requestedProjectName.trim();
+  let contactKind: QuickEntryCardSummary["contactKind"] = "empty";
+  let contactText = "";
+  if (phone) {
+    contactKind = "phone";
+    contactText = `${QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE}${phone}`;
+  } else if (wechatId) {
+    contactKind = "wechat";
+    contactText = wechatId;
+  }
+  return {
+    nameEmpty: !nameText,
+    nameText,
+    contactKind,
+    contactText,
+    projectEmpty: !projectText,
+    projectText,
+  };
+}
+
+export function deriveQuickEntryCardBadge(
+  row: QuickEntryFormRow,
+  options: {
+    submitting?: boolean;
+    hasFieldErrors?: boolean;
+    result?: QuickEntryRowResultView | null;
+  } = {},
+): QuickEntryCardBadge {
+  if (options.result) {
+    if (options.result.status === "created") return "created";
+    if (options.result.status === "duplicate") return "duplicate";
+    if (options.result.status === "invalid") return "invalid";
+    return "failed";
+  }
+  if (options.submitting) return "submitting";
+  if (options.hasFieldErrors) return "error";
+  const errors = validateOneQuickEntryRow(row);
+  if (Object.keys(errors).length === 0) return "ready";
+  return "incomplete";
+}
+
+export function initialAccordionOpenIds(
+  rows: QuickEntryFormRow[],
+): string[] {
+  const first = rows[0]?.clientRowId;
+  return first ? [first] : [];
+}
+
+export function firstErrorClientRowId(
+  fieldErrors: Record<string, QuickEntryFieldErrors>,
+  rowOrder: QuickEntryFormRow[],
+): string | null {
+  for (const row of rowOrder) {
+    if (fieldErrors[row.clientRowId] && Object.keys(fieldErrors[row.clientRowId]!).length > 0) {
+      return row.clientRowId;
+    }
+  }
+  const keys = Object.keys(fieldErrors);
+  return keys[0] ?? null;
+}
+
+export function countFieldErrorRows(
+  fieldErrors: Record<string, QuickEntryFieldErrors>,
+): number {
+  return Object.values(fieldErrors).filter((e) => Object.keys(e).length > 0)
+    .length;
+}
+
+export type QuickEntryModeSwitchReason =
+  | "direct"
+  | "single_to_batch_dirty"
+  | "batch_one_to_single"
+  | "batch_multi_to_single"
+  | "blocked_submitting";
+
+export type QuickEntryModeSwitchPlan =
+  | { action: "direct"; nextRows: QuickEntryFormRow[] }
+  | {
+      action: "confirm";
+      reason: Exclude<
+        QuickEntryModeSwitchReason,
+        "direct" | "blocked_submitting"
+      >;
+      dirtyCount: number;
+    }
+  | { action: "blocked_submitting" };
+
+export function planQuickEntryModeSwitch(
+  from: QuickEntryEntryMode,
+  to: QuickEntryEntryMode,
+  rows: QuickEntryFormRow[],
+  submitting: boolean,
+): QuickEntryModeSwitchPlan {
+  if (from === to) {
+    return { action: "direct", nextRows: rows };
+  }
+  if (submitting) return { action: "blocked_submitting" };
+
+  const dirtyRows = rows.filter(isQuickEntryRowDirty);
+  const dirtyCount = dirtyRows.length;
+
+  if (from === "single" && to === "batch") {
+    if (dirtyCount === 0) {
+      return {
+        action: "direct",
+        nextRows: rows.length > 0 ? rows : [createEmptyQuickEntryRow()],
+      };
+    }
+    return { action: "confirm", reason: "single_to_batch_dirty", dirtyCount };
+  }
+
+  if (from === "batch" && to === "single") {
+    if (dirtyCount === 0) {
+      return {
+        action: "direct",
+        nextRows: [rows[0] ? clearQuickEntryRow(rows[0]) : createEmptyQuickEntryRow()],
+      };
+    }
+    if (dirtyCount === 1 && rows.length === 1) {
+      return { action: "direct", nextRows: [rows[0]!] };
+    }
+    if (dirtyCount === 1 && rows.filter(isQuickEntryRowDirty).length === 1) {
+      const only = rows.find(isQuickEntryRowDirty)!;
+      return { action: "direct", nextRows: [only] };
+    }
+    return { action: "confirm", reason: "batch_multi_to_single", dirtyCount };
+  }
+
+  return { action: "direct", nextRows: rows };
+}
+
+export type QuickEntryModeSwitchChoice =
+  | "keep_first"
+  | "keep_as_batch_first"
+  | "discard"
+  | "cancel";
+
+export function applyQuickEntryModeSwitchChoice(
+  to: QuickEntryEntryMode,
+  reason: Exclude<QuickEntryModeSwitchReason, "direct" | "blocked_submitting">,
+  choice: QuickEntryModeSwitchChoice,
+  rows: QuickEntryFormRow[],
+): { entryMode: QuickEntryEntryMode; rows: QuickEntryFormRow[] } | null {
+  if (choice === "cancel") return null;
+
+  if (reason === "single_to_batch_dirty") {
+    if (choice === "keep_as_batch_first" || choice === "keep_first") {
+      return {
+        entryMode: "batch",
+        rows: rows[0] ? [rows[0]] : [createEmptyQuickEntryRow()],
+      };
+    }
+    if (choice === "discard") {
+      return { entryMode: "batch", rows: [createEmptyQuickEntryRow()] };
+    }
+  }
+
+  if (reason === "batch_multi_to_single" || reason === "batch_one_to_single") {
+    if (choice === "keep_first") {
+      return {
+        entryMode: "single",
+        rows: [rows[0] ?? createEmptyQuickEntryRow()],
+      };
+    }
+    if (choice === "discard") {
+      return { entryMode: "single", rows: [createEmptyQuickEntryRow()] };
+    }
+  }
+
+  return { entryMode: to, rows };
+}
+
+/** Clone rows with fresh clientRowIds for a new submission after return-to-edit. */
+export function cloneRowsWithNewClientRowIds(
+  rows: QuickEntryFormRow[],
+  randomUuid: () => string = () => crypto.randomUUID(),
+): QuickEntryFormRow[] {
+  return rows.map((row) => ({
+    ...row,
+    clientRowId: createQuickEntryClientRowId(randomUuid),
+    phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
+  }));
+}
+
+/** Keep only rows that were not successfully created (for retry after partial batch). */
+export function filterIncompleteRowsForRetry(
+  rows: QuickEntryFormRow[],
+  results: QuickEntryRowResultView[],
+): QuickEntryFormRow[] {
+  const byId = mapResultsByClientRowId(results);
+  return rows.filter((row) => {
+    const result = byId.get(row.clientRowId);
+    return !result || result.status !== "created";
+  });
+}
+
+export function prepareRetryBatchFromIncomplete(
+  rows: QuickEntryFormRow[],
+  results: QuickEntryRowResultView[],
+  randomUuid: () => string = () => crypto.randomUUID(),
+): { submissionId: string; rows: QuickEntryFormRow[] } {
+  const incomplete = filterIncompleteRowsForRetry(rows, results);
+  const source =
+    incomplete.length > 0 ? incomplete : [createEmptyQuickEntryRow(randomUuid)];
+  return {
+    submissionId: createQuickEntrySubmissionId(randomUuid),
+    rows: cloneRowsWithNewClientRowIds(source, randomUuid),
+  };
+}
+
+export type QuickEntryViewport = "mobile" | "tablet" | "desktop";
+
+/** Pure layout hints for Desktop / Tablet / Mobile shell structure. */
+export function resolveQuickEntryLayout(viewport: QuickEntryViewport): {
+  shell: "sheet" | "drawer";
+  panelWidthHint: string;
+  formColumns: 1 | 2;
+  accordionDefaultOpenCount: number;
+} {
+  if (viewport === "mobile") {
+    return {
+      shell: "sheet",
+      panelWidthHint: "100vw",
+      formColumns: 1,
+      accordionDefaultOpenCount: 1,
+    };
+  }
+  if (viewport === "tablet") {
+    return {
+      shell: "drawer",
+      panelWidthHint: "70vw-80vw",
+      formColumns: 2,
+      accordionDefaultOpenCount: 1,
+    };
+  }
+  return {
+    shell: "drawer",
+    panelWidthHint: "520px-600px",
+    formColumns: 2,
+    accordionDefaultOpenCount: 1,
+  };
+}
+
+export function shouldConfirmDeleteQuickEntryRow(
+  row: QuickEntryFormRow,
+): boolean {
+  return isQuickEntryRowDirty(row);
+}

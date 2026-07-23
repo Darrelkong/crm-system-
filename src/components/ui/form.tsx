@@ -10,6 +10,7 @@ export const Input = React.forwardRef<
 >(function Input({ className, ...props }, ref) {
   return <input ref={ref} className={cn(inputClass, className)} {...props} />;
 });
+Input.displayName = "Input";
 
 export const Textarea = React.forwardRef<
   HTMLTextAreaElement,
@@ -23,6 +24,7 @@ export const Textarea = React.forwardRef<
     />
   );
 });
+Textarea.displayName = "Textarea";
 
 export function Select({
   className,

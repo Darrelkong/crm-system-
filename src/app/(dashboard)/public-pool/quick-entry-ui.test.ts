@@ -7,17 +7,25 @@ import {
   QUICK_ENTRY_STATUS_API_PATH,
   QUICK_ENTRY_UI_MAX_ROWS,
   QUICK_ENTRY_VERIFY_API_PATH,
+  applyQuickEntryModeSwitchChoice,
   buildCustomersRequestBody,
+  buildQuickEntryCardSummary,
   buildVerifyCodeBody,
   canAddQuickEntryRow,
   canRemoveQuickEntryRow,
   clearQuickEntryRow,
+  cloneRowsWithNewClientRowIds,
+  countFieldErrorRows,
   createEmptyQuickEntryRow,
   createNewQuickEntryBatch,
   customersRequestBodyHasForbiddenKeys,
+  deriveQuickEntryCardBadge,
   deriveSingleEntryResultKind,
+  filterIncompleteRowsForRetry,
   filterProjectSuggestions,
+  firstErrorClientRowId,
   firstFieldErrorKey,
+  initialAccordionOpenIds,
   isQuickEntryBatchDirty,
   isSafeVerifyBody,
   mapResultsByClientRowId,
@@ -26,12 +34,17 @@ import {
   parseQuickEntryStatus,
   parseVerifySuccess,
   planAfterBatchFailure,
+  planQuickEntryModeSwitch,
   prepareContinueEntryRow,
+  prepareRetryBatchFromIncomplete,
+  resolveQuickEntryLayout,
   resolveQuickEntryPanelMode,
   resultsContainContactPii,
+  shouldConfirmDeleteQuickEntryRow,
   shouldShowQuickEntryEntry,
   validateQuickEntryFormRows,
 } from "./quick-entry-ui";
+import { Input, Textarea } from "@/components/ui/form";
 import en from "@/i18n/locales/en";
 import zhHans from "@/i18n/locales/zh-Hans";
 import zhHant from "@/i18n/locales/zh-Hant";
@@ -417,6 +430,27 @@ describe("quick entry UI wiring and security scans", () => {
     assert.ok(!panelSrc.includes("ModalOverlay onClose={submitting"));
   });
 
+  it("wires Phase C accordion, results, and mode-switch protection", () => {
+    const batchUiSrc = readFileSync(
+      new URL("./quick-entry-batch-ui.tsx", import.meta.url),
+      "utf8",
+    );
+    assert.match(panelSrc, /BatchAccordionForm/);
+    assert.match(panelSrc, /BatchResultsPanel/);
+    assert.match(panelSrc, /planQuickEntryModeSwitch/);
+    assert.match(panelSrc, /prepareRetryBatchFromIncomplete/);
+    assert.match(panelSrc, /handleReturnIncomplete/);
+    assert.match(panelSrc, /batchSubmitCount/);
+    assert.match(panelSrc, /batchNeedsFix/);
+    assert.match(panelSrc, /modeSwitchConfirm/);
+    assert.match(panelSrc, /deleteConfirmId/);
+    assert.match(batchUiSrc, /aria-expanded/);
+    assert.match(batchUiSrc, /BatchAccordionForm/);
+    assert.match(batchUiSrc, /resultViewDetails/);
+    assert.ok(!panelSrc.includes("function BatchEntryForm"));
+    assert.ok(!panelSrc.includes("function BatchResultsView"));
+  });
+
   it("keeps submissionId on retry helpers and clears verify code after success path", () => {
     assert.match(panelSrc, /createNewQuickEntryBatch/);
     assert.match(panelSrc, /setVerifyCode\(""\)/);
@@ -487,6 +521,253 @@ describe("quick entry V2 helpers", () => {
   });
 });
 
+describe("quick entry V2 Phase C batch accordion helpers", () => {
+  it("defaults accordion open to the first card only", () => {
+    const a = createEmptyQuickEntryRow(() => uuidA);
+    const b = createEmptyQuickEntryRow(() => uuidB);
+    assert.deepEqual(initialAccordionOpenIds([a, b]), [uuidA]);
+  });
+
+  it("builds card summary from name / phone / wechat / project", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    assert.equal(buildQuickEntryCardSummary(row).nameEmpty, true);
+    assert.equal(buildQuickEntryCardSummary(row).contactKind, "empty");
+    assert.equal(buildQuickEntryCardSummary(row).projectEmpty, true);
+    row.customerName = "张三";
+    row.phone = "13800138000";
+    row.requestedProjectName = "移民项目咨询";
+    const summary = buildQuickEntryCardSummary(row);
+    assert.equal(summary.nameEmpty, false);
+    assert.equal(summary.contactKind, "phone");
+    assert.equal(summary.contactText, "+8613800138000");
+    assert.equal(summary.projectEmpty, false);
+    row.phone = "";
+    row.wechatId = "wx_demo";
+    assert.equal(buildQuickEntryCardSummary(row).contactKind, "wechat");
+  });
+
+  it("derives card badges for incomplete / ready / error / results", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    assert.equal(deriveQuickEntryCardBadge(row), "incomplete");
+    row.customerName = "张三";
+    row.phone = "13800138000";
+    row.requestedProjectName = "移民项目咨询";
+    assert.equal(deriveQuickEntryCardBadge(row), "ready");
+    assert.equal(
+      deriveQuickEntryCardBadge(row, { hasFieldErrors: true }),
+      "error",
+    );
+    assert.equal(
+      deriveQuickEntryCardBadge(row, { submitting: true }),
+      "submitting",
+    );
+    assert.equal(
+      deriveQuickEntryCardBadge(row, {
+        result: {
+          clientRowId: uuidA,
+          status: "created",
+          customerId: "c",
+          customerCode: "EF1",
+          customerName: "张三",
+        },
+      }),
+      "created",
+    );
+    assert.equal(
+      deriveQuickEntryCardBadge(row, {
+        result: {
+          clientRowId: uuidA,
+          status: "duplicate",
+          errorCode: "QUICK_ENTRY_DUPLICATE_PHONE",
+          duplicateField: "phone",
+        },
+      }),
+      "duplicate",
+    );
+    assert.equal(
+      deriveQuickEntryCardBadge(row, {
+        result: {
+          clientRowId: uuidA,
+          status: "invalid",
+          errorCode: "QUICK_ENTRY_PROJECT_INVALID",
+        },
+      }),
+      "invalid",
+    );
+    assert.equal(
+      deriveQuickEntryCardBadge(row, {
+        result: {
+          clientRowId: uuidA,
+          status: "failed",
+          errorCode: "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
+        },
+      }),
+      "failed",
+    );
+  });
+
+  it("confirms delete only for dirty rows and keeps at least one card via remove helper", () => {
+    const blank = createEmptyQuickEntryRow(() => uuidA);
+    const dirty = {
+      ...createEmptyQuickEntryRow(() => uuidB),
+      customerName: "李四",
+    };
+    assert.equal(shouldConfirmDeleteQuickEntryRow(blank), false);
+    assert.equal(shouldConfirmDeleteQuickEntryRow(dirty), true);
+    assert.equal(canRemoveQuickEntryRow(1), false);
+  });
+
+  it("keeps clientRowId stable when cloning fields and allocates new ids for retry", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    row.customerName = "张三";
+    row.phone = "13800138000";
+    row.requestedProjectName = "移民项目咨询";
+    const patched = { ...row, wechatId: "wx" };
+    assert.equal(patched.clientRowId, uuidA);
+    let n = 0;
+    const ids = [
+      uuidB,
+      uuidC,
+      "44444444-4444-4444-8444-444444444444",
+      "55555555-5555-4555-8555-555555555555",
+    ];
+    const randomUuid = () => ids[n++]!;
+    const cloned = cloneRowsWithNewClientRowIds([row], randomUuid);
+    assert.equal(cloned[0]?.clientRowId, uuidB);
+    assert.equal(cloned[0]?.customerName, "张三");
+    assert.notEqual(cloned[0]?.clientRowId, uuidA);
+  });
+
+  it("finds first error card and counts field-error rows", () => {
+    const a = createEmptyQuickEntryRow(() => uuidA);
+    const b = createEmptyQuickEntryRow(() => uuidB);
+    const fieldErrors = {
+      [uuidB]: { customerName: "name_required" as const },
+      [uuidA]: { phone: "phone_invalid" as const },
+    };
+    assert.equal(firstErrorClientRowId(fieldErrors, [a, b]), uuidA);
+    assert.equal(countFieldErrorRows(fieldErrors), 2);
+  });
+
+  it("plans mode switches without silent multi-row loss", () => {
+    const dirtyA = {
+      ...createEmptyQuickEntryRow(() => uuidA),
+      customerName: "张三",
+      phone: "13800138000",
+      requestedProjectName: "移民项目咨询",
+    };
+    const dirtyB = {
+      ...createEmptyQuickEntryRow(() => uuidB),
+      customerName: "李四",
+      wechatId: "wx_b",
+      requestedProjectName: "移民项目咨询",
+    };
+    assert.equal(
+      planQuickEntryModeSwitch("single", "batch", [dirtyA], true).action,
+      "blocked_submitting",
+    );
+    assert.equal(
+      planQuickEntryModeSwitch("single", "batch", [dirtyA], false).action,
+      "confirm",
+    );
+    assert.equal(
+      planQuickEntryModeSwitch("batch", "single", [dirtyA], false).action,
+      "direct",
+    );
+    const multi = planQuickEntryModeSwitch(
+      "batch",
+      "single",
+      [dirtyA, dirtyB],
+      false,
+    );
+    assert.equal(multi.action, "confirm");
+    if (multi.action === "confirm") {
+      assert.equal(multi.reason, "batch_multi_to_single");
+    }
+    const kept = applyQuickEntryModeSwitchChoice(
+      "single",
+      "batch_multi_to_single",
+      "keep_first",
+      [dirtyA, dirtyB],
+    );
+    assert.equal(kept?.entryMode, "single");
+    assert.equal(kept?.rows.length, 1);
+    assert.equal(kept?.rows[0]?.clientRowId, uuidA);
+    const discarded = applyQuickEntryModeSwitchChoice(
+      "batch",
+      "single_to_batch_dirty",
+      "discard",
+      [dirtyA],
+    );
+    assert.equal(discarded?.entryMode, "batch");
+    assert.equal(discarded?.rows[0]?.customerName, "");
+  });
+
+  it("filters incomplete rows and prepares retry with new submissionId/clientRowIds", () => {
+    const created = {
+      ...createEmptyQuickEntryRow(() => uuidA),
+      customerName: "张三",
+      phone: "13800138000",
+      requestedProjectName: "移民项目咨询",
+    };
+    const dup = {
+      ...createEmptyQuickEntryRow(() => uuidB),
+      customerName: "李四",
+      phone: "13900139000",
+      requestedProjectName: "移民项目咨询",
+    };
+    const results = [
+      {
+        clientRowId: uuidA,
+        status: "created" as const,
+        customerId: "c1",
+        customerCode: "EF000001",
+        customerName: "张三",
+      },
+      {
+        clientRowId: uuidB,
+        status: "duplicate" as const,
+        errorCode: "QUICK_ENTRY_DUPLICATE_PHONE",
+        duplicateField: "phone" as const,
+      },
+    ];
+    const incomplete = filterIncompleteRowsForRetry([created, dup], results);
+    assert.equal(incomplete.length, 1);
+    assert.equal(incomplete[0]?.clientRowId, uuidB);
+    let n = 0;
+    const ids = [
+      uuidC,
+      "44444444-4444-4444-8444-444444444444",
+      "55555555-5555-4555-8555-555555555555",
+    ];
+    const randomUuid = () => ids[n++]!;
+    const prepared = prepareRetryBatchFromIncomplete(
+      [created, dup],
+      results,
+      randomUuid,
+    );
+    assert.equal(prepared.submissionId, uuidC);
+    assert.equal(prepared.rows.length, 1);
+    assert.equal(prepared.rows[0]?.customerName, "李四");
+    assert.notEqual(prepared.rows[0]?.clientRowId, uuidB);
+  });
+
+  it("resolves desktop/tablet/mobile layout structure hints", () => {
+    assert.deepEqual(resolveQuickEntryLayout("mobile").shell, "sheet");
+    assert.equal(resolveQuickEntryLayout("mobile").formColumns, 1);
+    assert.equal(resolveQuickEntryLayout("tablet").shell, "drawer");
+    assert.equal(resolveQuickEntryLayout("desktop").panelWidthHint, "520px-600px");
+    assert.equal(resolveQuickEntryLayout("desktop").accordionDefaultOpenCount, 1);
+  });
+});
+
+describe("quick entry form displayName", () => {
+  it("sets Input and Textarea displayName", () => {
+    assert.equal(Input.displayName, "Input");
+    assert.equal(Textarea.displayName, "Textarea");
+  });
+});
+
 describe("quick entry i18n keys", () => {
   it("has core keys in three locales", () => {
     assert.equal(en.publicPool.quickEntry.entryTitle, "Quick Customer Entry");
@@ -508,5 +789,33 @@ describe("quick entry i18n keys", () => {
     assert.ok(en.publicPool.quickEntry.validation.project_invalid.length > 0);
     assert.ok(zhHant.publicPool.quickEntry.saveContinue.length > 0);
     assert.ok(zhHans.publicPool.quickEntry.resultSuccessTitle.length > 0);
+  });
+
+  it("has Phase C batch keys aligned across locales", () => {
+    const keys = [
+      "batchAddedCount",
+      "batchExpandAll",
+      "batchCollapseAll",
+      "batchSubmitCount",
+      "batchNeedsFix",
+      "batchEmptyName",
+      "batchEmptyContact",
+      "batchEmptyProject",
+      "returnIncomplete",
+      "modeSwitchTitle",
+      "modeSwitchKeepFirst",
+      "modeSwitchKeepAsBatchFirst",
+      "modeSwitchDiscardAll",
+      "resultViewDetails",
+      "summaryTotal",
+    ] as const;
+    for (const key of keys) {
+      assert.ok(en.publicPool.quickEntry[key].length > 0, key);
+      assert.ok(zhHant.publicPool.quickEntry[key].length > 0, key);
+      assert.ok(zhHans.publicPool.quickEntry[key].length > 0, key);
+    }
+    assert.equal(en.publicPool.quickEntry.cardBadge.error, "Has errors");
+    assert.equal(zhHant.publicPool.quickEntry.cardBadge.error, "有錯誤");
+    assert.equal(zhHans.publicPool.quickEntry.cardBadge.error, "有错误");
   });
 });

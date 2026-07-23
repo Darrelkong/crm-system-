@@ -19,23 +19,33 @@ import { useTranslation } from "@/i18n/provider";
 import { cn } from "@/lib/cn";
 import { QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE } from "@/lib/public-pool/quick-entry-customer-validation";
 import {
+  BatchAccordionForm,
+  BatchResultsPanel,
+  batchResultsHasIncomplete,
+} from "./quick-entry-batch-ui";
+import {
   QUICK_ENTRY_CUSTOMERS_API_PATH,
   QUICK_ENTRY_PROJECT_SUGGESTIONS,
   QUICK_ENTRY_STATUS_API_PATH,
-  QUICK_ENTRY_UI_MAX_ROWS,
   QUICK_ENTRY_VERIFY_API_PATH,
+  applyQuickEntryModeSwitchChoice,
   buildCustomersRequestBody,
   buildVerifyCodeBody,
   canAddQuickEntryRow,
   canRemoveQuickEntryRow,
   clearQuickEntryRow,
+  countFieldErrorRows,
   createEmptyQuickEntryRow,
   createNewQuickEntryBatch,
   customersRequestBodyHasForbiddenKeys,
   deriveSingleEntryResultKind,
   filterProjectSuggestions,
+  filterIncompleteRowsForRetry,
+  firstErrorClientRowId,
   firstFieldErrorKey,
+  initialAccordionOpenIds,
   isQuickEntryBatchDirty,
+  isQuickEntryRowDirty,
   isSafeVerifyBody,
   mapResultsByClientRowId,
   parseBatchFailureResponse,
@@ -43,7 +53,9 @@ import {
   parseQuickEntryStatus,
   parseVerifySuccess,
   planAfterBatchFailure,
+  planQuickEntryModeSwitch,
   prepareContinueEntryRow,
+  prepareRetryBatchFromIncomplete,
   resolveQuickEntryPanelMode,
   shouldShowQuickEntryEntry,
   validateQuickEntryFormRows,
@@ -52,6 +64,8 @@ import {
   type QuickEntryFieldErrors,
   type QuickEntryFieldKey,
   type QuickEntryFormRow,
+  type QuickEntryModeSwitchChoice,
+  type QuickEntryModeSwitchReason,
   type QuickEntryRowResultView,
   type QuickEntryStatus,
 } from "./quick-entry-ui";
@@ -150,6 +164,17 @@ export function StaffQuickEntryPanel(_props: Props) {
   const [draftSnapshot, setDraftSnapshot] = useState<QuickEntryFormRow | null>(
     null,
   );
+  const [openCardIds, setOpenCardIds] = useState<string[]>([]);
+  const [noteOpenByRow, setNoteOpenByRow] = useState<Record<string, boolean>>(
+    {},
+  );
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [modeSwitchConfirm, setModeSwitchConfirm] = useState<{
+    to: QuickEntryEntryMode;
+    reason: Exclude<QuickEntryModeSwitchReason, "direct" | "blocked_submitting">;
+  } | null>(null);
+  const [resultDetailOpenIds, setResultDetailOpenIds] = useState<string[]>([]);
+  const [batchDraftRows, setBatchDraftRows] = useState<QuickEntryFormRow[]>([]);
 
   const submittingRef = useRef(false);
   const verifyingRef = useRef(false);
@@ -159,6 +184,8 @@ export function StaffQuickEntryPanel(_props: Props) {
     const batch = createNewQuickEntryBatch();
     setSubmissionId(batch.submissionId);
     setRows(batch.rows);
+    setOpenCardIds(initialAccordionOpenIds(batch.rows));
+    setNoteOpenByRow({});
     setRowErrors({});
     setFieldErrorsByRow({});
     setFormError(null);
@@ -169,6 +196,10 @@ export function StaffQuickEntryPanel(_props: Props) {
     setNoteOpen(false);
     setProjectComboOpen(false);
     setDraftSnapshot(null);
+    setBatchDraftRows([]);
+    setResultDetailOpenIds([]);
+    setDeleteConfirmId(null);
+    setModeSwitchConfirm(null);
   }, []);
 
   const loadStatus = useCallback(async () => {
@@ -204,6 +235,7 @@ export function StaffQuickEntryPanel(_props: Props) {
 
   function applyClientValidation(
     validation: ReturnType<typeof validateQuickEntryFormRows>,
+    rowOrder: QuickEntryFormRow[] = rows,
   ) {
     if (validation.ok) {
       setRowErrors({});
@@ -218,7 +250,16 @@ export function StaffQuickEntryPanel(_props: Props) {
     } else if (validation.formError === "duplicate_ids") {
       setFormError(t("publicPool.quickEntry.validation.duplicateIds"));
     } else {
-      setFormError(null);
+      const errorCount = countFieldErrorRows(validation.fieldErrors);
+      if (entryMode === "batch" && errorCount > 0) {
+        setFormError(
+          t("publicPool.quickEntry.batchNeedsFix", {
+            count: String(errorCount),
+          }),
+        );
+      } else {
+        setFormError(null);
+      }
     }
     const nextErrors: Record<string, string> = {};
     for (const [id, err] of Object.entries(validation.rowErrors)) {
@@ -226,8 +267,13 @@ export function StaffQuickEntryPanel(_props: Props) {
     }
     setRowErrors(nextErrors);
     setFieldErrorsByRow(validation.fieldErrors);
-    const firstRowId = Object.keys(validation.fieldErrors)[0];
+    const firstRowId = firstErrorClientRowId(validation.fieldErrors, rowOrder);
     if (firstRowId) {
+      if (entryMode === "batch") {
+        setOpenCardIds((prev) =>
+          prev.includes(firstRowId) ? prev : [...prev, firstRowId],
+        );
+      }
       focusField(
         firstRowId,
         firstFieldErrorKey(validation.fieldErrors[firstRowId]),
@@ -294,6 +340,8 @@ export function StaffQuickEntryPanel(_props: Props) {
     if (!batchResult) {
       setSubmissionId("");
       setRows([]);
+      setOpenCardIds([]);
+      setNoteOpenByRow({});
       setRowErrors({});
       setFieldErrorsByRow({});
       setFormError(null);
@@ -302,6 +350,10 @@ export function StaffQuickEntryPanel(_props: Props) {
       setProcessingRetryAfter(null);
       setNoteOpen(false);
       setDraftSnapshot(null);
+      setBatchDraftRows([]);
+      setResultDetailOpenIds([]);
+      setDeleteConfirmId(null);
+      setModeSwitchConfirm(null);
     }
   }
 
@@ -391,20 +443,83 @@ export function StaffQuickEntryPanel(_props: Props) {
 
   function handleAddRow() {
     if (submitting || !canAddQuickEntryRow(rows.length)) return;
-    setRows((prev) => [...prev, createEmptyQuickEntryRow()]);
+    const next = createEmptyQuickEntryRow();
+    setRows((prev) => [...prev, next]);
+    setOpenCardIds((prev) => [...prev, next.clientRowId]);
+    window.setTimeout(() => {
+      document.getElementById(`${next.clientRowId}-name`)?.focus();
+    }, 0);
   }
 
-  function handleRemoveRow(clientRowId: string) {
+  function removeRowById(clientRowId: string) {
+    const remaining = rows.filter((row) => row.clientRowId !== clientRowId);
+    if (remaining.length === 0) {
+      const blank = createEmptyQuickEntryRow();
+      setRows([blank]);
+      setOpenCardIds([blank.clientRowId]);
+    } else {
+      setRows(remaining);
+      setOpenCardIds((prev) => prev.filter((id) => id !== clientRowId));
+    }
+    setNoteOpenByRow((prev) => {
+      const next = { ...prev };
+      delete next[clientRowId];
+      return next;
+    });
+    setRowErrors((prev) => {
+      const next = { ...prev };
+      delete next[clientRowId];
+      return next;
+    });
+    setFieldErrorsByRow((prev) => {
+      const next = { ...prev };
+      delete next[clientRowId];
+      return next;
+    });
+  }
+
+  function requestRemoveRow(clientRowId: string) {
     if (submitting) return;
     if (!canRemoveQuickEntryRow(rows.length)) {
+      const row = rows.find((item) => item.clientRowId === clientRowId);
+      if (row && isQuickEntryRowDirty(row)) {
+        setDeleteConfirmId(clientRowId);
+        return;
+      }
       setRows((prev) =>
-        prev.map((row) =>
-          row.clientRowId === clientRowId ? clearQuickEntryRow(row) : row,
+        prev.map((item) =>
+          item.clientRowId === clientRowId ? clearQuickEntryRow(item) : item,
+        ),
+      );
+      setFieldErrorsByRow((prev) => {
+        if (!prev[clientRowId]) return prev;
+        const next = { ...prev };
+        delete next[clientRowId];
+        return next;
+      });
+      return;
+    }
+    const row = rows.find((item) => item.clientRowId === clientRowId);
+    if (row && isQuickEntryRowDirty(row)) {
+      setDeleteConfirmId(clientRowId);
+      return;
+    }
+    removeRowById(clientRowId);
+  }
+
+  function confirmRemoveRow() {
+    if (!deleteConfirmId || submitting) return;
+    const id = deleteConfirmId;
+    setDeleteConfirmId(null);
+    if (!canRemoveQuickEntryRow(rows.length)) {
+      setRows((prev) =>
+        prev.map((item) =>
+          item.clientRowId === id ? clearQuickEntryRow(item) : item,
         ),
       );
       return;
     }
-    setRows((prev) => prev.filter((row) => row.clientRowId !== clientRowId));
+    removeRowById(id);
   }
 
   function handleNewBatch() {
@@ -418,8 +533,11 @@ export function StaffQuickEntryPanel(_props: Props) {
     const nextRow = prepareContinueEntryRow(previousRow, keepProject);
     setSubmissionId(batch.submissionId);
     setRows([nextRow]);
+    setOpenCardIds([nextRow.clientRowId]);
     setBatchResult(null);
     setDraftSnapshot(null);
+    setBatchDraftRows([]);
+    setResultDetailOpenIds([]);
     setRowErrors({});
     setFieldErrorsByRow({});
     setFormError(null);
@@ -432,20 +550,127 @@ export function StaffQuickEntryPanel(_props: Props) {
     setTimeout(() => nameInputRef.current?.focus(), 0);
   }
 
-  function switchEntryMode(next: QuickEntryEntryMode) {
-    if (submitting || view !== "form") return;
-    if (next === "single" && rows.length > 1) {
-      setRows((prev) => (prev[0] ? [prev[0]] : [createEmptyQuickEntryRow()]));
-    }
-    if (next === "batch" && rows.length === 0) {
-      setRows([createEmptyQuickEntryRow()]);
-    }
-    setEntryMode(next);
+  function applyModeRows(
+    nextMode: QuickEntryEntryMode,
+    nextRows: QuickEntryFormRow[],
+  ) {
+    setEntryMode(nextMode);
+    setRows(nextRows);
+    setOpenCardIds(
+      nextMode === "batch"
+        ? initialAccordionOpenIds(nextRows)
+        : nextRows[0]
+          ? [nextRows[0].clientRowId]
+          : [],
+    );
     setFieldErrorsByRow({});
     setRowErrors({});
     setFormError(null);
     setBanner(null);
     setBannerTone(null);
+    setModeSwitchConfirm(null);
+  }
+
+  function switchEntryMode(next: QuickEntryEntryMode) {
+    if (view !== "form") return;
+    const plan = planQuickEntryModeSwitch(entryMode, next, rows, submitting);
+    if (plan.action === "blocked_submitting") return;
+    if (plan.action === "direct") {
+      applyModeRows(next, plan.nextRows);
+      return;
+    }
+    setModeSwitchConfirm({ to: next, reason: plan.reason });
+  }
+
+  function confirmModeSwitch(choice: QuickEntryModeSwitchChoice) {
+    if (!modeSwitchConfirm) return;
+    const applied = applyQuickEntryModeSwitchChoice(
+      modeSwitchConfirm.to,
+      modeSwitchConfirm.reason,
+      choice,
+      rows,
+    );
+    if (!applied) {
+      setModeSwitchConfirm(null);
+      return;
+    }
+    applyModeRows(applied.entryMode, applied.rows);
+  }
+
+  function handleReturnIncomplete() {
+    if (!batchResult || submitting) return;
+    const sourceRows = batchDraftRows.length > 0 ? batchDraftRows : rows;
+    const incomplete = filterIncompleteRowsForRetry(
+      sourceRows,
+      batchResult.results,
+    );
+    const prepared = prepareRetryBatchFromIncomplete(
+      sourceRows,
+      batchResult.results,
+    );
+    const resultsMap = mapResultsByClientRowId(batchResult.results);
+    const nextRowErrors: Record<string, string> = {};
+    incomplete.forEach((oldRow, index) => {
+      const newRow = prepared.rows[index];
+      if (!newRow) return;
+      const result = resultsMap.get(oldRow.clientRowId);
+      if (
+        result &&
+        (result.status === "duplicate" ||
+          result.status === "invalid" ||
+          result.status === "failed")
+      ) {
+        nextRowErrors[newRow.clientRowId] = errorMessageForCode(
+          t,
+          result.errorCode,
+        );
+      }
+    });
+    setSubmissionId(prepared.submissionId);
+    setRows(prepared.rows);
+    setOpenCardIds(initialAccordionOpenIds(prepared.rows));
+    setBatchResult(null);
+    setDraftSnapshot(null);
+    setBatchDraftRows([]);
+    setResultDetailOpenIds([]);
+    setEntryMode("batch");
+    setView("form");
+    setBanner(null);
+    setBannerTone(null);
+    setRowErrors(nextRowErrors);
+    const validation = validateQuickEntryFormRows(prepared.rows);
+    setFieldErrorsByRow(validation.ok ? {} : validation.fieldErrors);
+    if (!validation.ok) {
+      const errorCount = countFieldErrorRows(validation.fieldErrors);
+      setFormError(
+        t("publicPool.quickEntry.batchNeedsFix", {
+          count: String(errorCount),
+        }),
+      );
+      const firstId = firstErrorClientRowId(
+        validation.fieldErrors,
+        prepared.rows,
+      );
+      if (firstId) {
+        setOpenCardIds((prev) =>
+          prev.includes(firstId) ? prev : [...prev, firstId],
+        );
+        window.setTimeout(() => {
+          focusField(
+            firstId,
+            firstFieldErrorKey(validation.fieldErrors[firstId]),
+          );
+        }, 0);
+      }
+    } else {
+      setFormError(null);
+      window.setTimeout(() => {
+        const first = prepared.rows[0];
+        if (first) {
+          document.getElementById(`${first.clientRowId}-name`)?.focus();
+        }
+      }, 0);
+    }
   }
 
   async function handleSubmit(intent: SubmitIntent = "done") {
@@ -459,7 +684,7 @@ export function StaffQuickEntryPanel(_props: Props) {
       intent === "batch" || entryMode === "batch" ? rows : rows.slice(0, 1);
     const validation = validateQuickEntryFormRows(submitRows);
     if (!validation.ok) {
-      applyClientValidation(validation);
+      applyClientValidation(validation, submitRows);
       return;
     }
     setRowErrors({});
@@ -502,6 +727,8 @@ export function StaffQuickEntryPanel(_props: Props) {
         }
         setBatchResult(success);
         setDraftSnapshot(submitRows[0] ?? null);
+        setBatchDraftRows(submitRows);
+        setResultDetailOpenIds([]);
         setView("results");
         setBanner(
           success.replayed ? t("publicPool.quickEntry.replayNotice") : null,
@@ -692,7 +919,7 @@ export function StaffQuickEntryPanel(_props: Props) {
         </div>
       </div>
     ) : view === "form" && entryMode === "batch" ? (
-      <div className="flex w-full flex-wrap items-center gap-2">
+      <div className="qe-batch-footer flex w-full flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
         <Button
           type="button"
           variant="ghost"
@@ -701,36 +928,61 @@ export function StaffQuickEntryPanel(_props: Props) {
         >
           {t("publicPool.quickEntry.cancel")}
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          disabled={submitting || !canAddQuickEntryRow(rows.length)}
-          onClick={handleAddRow}
-        >
-          {t("publicPool.quickEntry.addRow", {
-            max: String(QUICK_ENTRY_UI_MAX_ROWS),
-          })}
-        </Button>
-        <Button
-          type="button"
-          className="ml-auto"
-          disabled={submitting}
-          onClick={() => void handleSubmit("batch")}
-        >
-          {submitting
-            ? t("publicPool.quickEntry.submitting")
-            : t("publicPool.quickEntry.submit")}
-        </Button>
-        {processingRetryAfter != null ? (
+        <div className="flex w-full flex-col gap-2 sm:ml-auto sm:w-auto sm:flex-row sm:flex-wrap">
           <Button
             type="button"
             variant="secondary"
+            disabled={submitting || !canAddQuickEntryRow(rows.length)}
+            onClick={handleAddRow}
+          >
+            {t("publicPool.quickEntry.batchAddCustomer")}
+          </Button>
+          <Button
+            type="button"
             disabled={submitting}
             onClick={() => void handleSubmit("batch")}
           >
-            {t("publicPool.quickEntry.retryLater")}
+            {submitting
+              ? t("publicPool.quickEntry.submitting")
+              : t("publicPool.quickEntry.batchSubmitCount", {
+                  count: String(rows.length),
+                })}
+          </Button>
+          {processingRetryAfter != null ? (
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={submitting}
+              onClick={() => void handleSubmit("batch")}
+            >
+              {t("publicPool.quickEntry.retryLater")}
+            </Button>
+          ) : null}
+        </div>
+      </div>
+    ) : view === "results" && batchResult && entryMode === "batch" ? (
+      <div className="qe-batch-footer flex w-full flex-col gap-2">
+        {batchResultsHasIncomplete(batchResult) ? (
+          <Button type="button" onClick={handleReturnIncomplete}>
+            {t("publicPool.quickEntry.returnIncomplete")}
           </Button>
         ) : null}
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => {
+            router.refresh();
+            closePanelForce();
+          }}
+        >
+          {t("publicPool.quickEntry.resultViewPool")}
+        </Button>
+        <Button type="button" onClick={handleNewBatch}>
+          {t("publicPool.quickEntry.newBatch")}
+        </Button>
+        <Button type="button" variant="ghost" onClick={closePanelForce}>
+          {t("publicPool.quickEntry.close")}
+        </Button>
       </div>
     ) : null;
 
@@ -854,18 +1106,30 @@ export function StaffQuickEntryPanel(_props: Props) {
           ) : null}
 
           {view === "form" && entryMode === "batch" && rows.length > 0 ? (
-            <BatchEntryForm
+            <BatchAccordionForm
               rows={rows}
+              openCardIds={openCardIds}
+              setOpenCardIds={setOpenCardIds}
+              fieldErrorsByRow={fieldErrorsByRow}
               rowErrors={rowErrors}
               formError={formError}
               submitting={submitting}
               updateRow={updateRow}
-              handleRemoveRow={handleRemoveRow}
+              onRequestDelete={requestRemoveRow}
+              onExpandAll={() =>
+                setOpenCardIds(rows.map((row) => row.clientRowId))
+              }
+              onCollapseAll={() => setOpenCardIds([])}
+              onAddRow={handleAddRow}
+              noteOpenByRow={noteOpenByRow}
+              setNoteOpenForRow={(id, open) =>
+                setNoteOpenByRow((prev) => ({ ...prev, [id]: open }))
+              }
               banner={banner}
               bannerTone={bannerTone}
               processingRetryAfter={processingRetryAfter}
-              handleSubmit={() => void handleSubmit("batch")}
-              handleNewBatch={handleNewBatch}
+              onRetry={() => void handleSubmit("batch")}
+              onNewBatch={handleNewBatch}
               t={t}
             />
           ) : null}
@@ -893,16 +1157,20 @@ export function StaffQuickEntryPanel(_props: Props) {
           ) : null}
 
           {view === "results" && batchResult && entryMode === "batch" ? (
-            <BatchResultsView
+            <BatchResultsPanel
               batchResult={batchResult}
-              rows={rows}
+              rows={batchDraftRows.length > 0 ? batchDraftRows : rows}
               resultsById={resultsById}
+              detailOpenIds={resultDetailOpenIds}
+              setDetailOpenIds={setResultDetailOpenIds}
+              onReturnIncomplete={handleReturnIncomplete}
               onNewBatch={handleNewBatch}
               onViewPool={() => {
                 router.refresh();
                 closePanelForce();
               }}
               onClose={closePanelForce}
+              showActions={false}
               t={t}
               mapError={(code) => errorMessageForCode(t, code)}
             />
@@ -941,6 +1209,77 @@ export function StaffQuickEntryPanel(_props: Props) {
           </ModalPanel>
         </ModalOverlay>
       ) : null}
+
+      {deleteConfirmId ? (
+        <ModalOverlay onClose={() => setDeleteConfirmId(null)}>
+          <ModalPanel className="sm:max-w-md">
+            <h3 className="text-lg font-medium text-[var(--color-crm-text)]">
+              {t("publicPool.quickEntry.batchDeleteConfirmTitle")}
+            </h3>
+            <p className="mt-2 text-sm text-[var(--color-crm-text-secondary)]">
+              {t("publicPool.quickEntry.batchDeleteConfirmDescription")}
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setDeleteConfirmId(null)}
+              >
+                {t("publicPool.quickEntry.batchDeleteCancel")}
+              </Button>
+              <Button type="button" variant="danger" onClick={confirmRemoveRow}>
+                {t("publicPool.quickEntry.batchDeleteConfirm")}
+              </Button>
+            </div>
+          </ModalPanel>
+        </ModalOverlay>
+      ) : null}
+
+      {modeSwitchConfirm ? (
+        <ModalOverlay onClose={() => setModeSwitchConfirm(null)}>
+          <ModalPanel className="sm:max-w-md">
+            <h3 className="text-lg font-medium text-[var(--color-crm-text)]">
+              {t("publicPool.quickEntry.modeSwitchTitle")}
+            </h3>
+            <p className="mt-2 text-sm text-[var(--color-crm-text-secondary)]">
+              {modeSwitchConfirm.reason === "single_to_batch_dirty"
+                ? t("publicPool.quickEntry.modeSwitchSingleToBatch")
+                : t("publicPool.quickEntry.modeSwitchBatchMultiToSingle")}
+            </p>
+            <div className="mt-5 flex flex-wrap justify-end gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => confirmModeSwitch("cancel")}
+              >
+                {t("publicPool.quickEntry.modeSwitchCancel")}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => confirmModeSwitch("discard")}
+              >
+                {t("publicPool.quickEntry.modeSwitchDiscardAll")}
+              </Button>
+              <Button
+                type="button"
+                onClick={() =>
+                  confirmModeSwitch(
+                    modeSwitchConfirm.reason === "single_to_batch_dirty"
+                      ? "keep_as_batch_first"
+                      : "keep_first",
+                  )
+                }
+              >
+                {modeSwitchConfirm.reason === "single_to_batch_dirty"
+                  ? t("publicPool.quickEntry.modeSwitchKeepAsBatchFirst")
+                  : t("publicPool.quickEntry.modeSwitchKeepFirst")}
+              </Button>
+            </div>
+          </ModalPanel>
+        </ModalOverlay>
+      ) : null}
+
     </>
   );
 }
@@ -1308,183 +1647,6 @@ function SingleEntryForm({
     </form>
   );
 }
-
-function BatchEntryForm({
-  rows,
-  rowErrors,
-  formError,
-  submitting,
-  updateRow,
-  handleRemoveRow,
-  banner,
-  bannerTone,
-  processingRetryAfter,
-  handleSubmit,
-  handleNewBatch,
-  t,
-}: {
-  rows: QuickEntryFormRow[];
-  rowErrors: Record<string, string>;
-  formError: string | null;
-  submitting: boolean;
-  updateRow: (id: string, patch: Partial<QuickEntryFormRow>) => void;
-  handleRemoveRow: (id: string) => void;
-  banner: string | null;
-  bannerTone: "error" | "info" | "success" | null;
-  processingRetryAfter: number | null;
-  handleSubmit: () => void;
-  handleNewBatch: () => void;
-  t: TFn;
-}) {
-  return (
-    <div className="space-y-4">
-      {formError ? (
-        <p className="text-sm text-red-600" role="alert">
-          {formError}
-        </p>
-      ) : null}
-      <ul className="space-y-4">
-        {rows.map((row, index) => (
-          <li
-            key={row.clientRowId}
-            className="rounded-xl border border-[var(--color-crm-border)] p-4"
-          >
-            <p className="mb-3 text-sm font-medium text-[var(--color-crm-text)]">
-              {t("publicPool.quickEntry.rowLabel", { n: String(index + 1) })}
-            </p>
-            <div className="grid gap-3">
-              <div>
-                <Label htmlFor={`${row.clientRowId}-name`}>
-                  {t("publicPool.quickEntry.fields.customerName")}
-                </Label>
-                <Input
-                  id={`${row.clientRowId}-name`}
-                  value={row.customerName}
-                  disabled={submitting}
-                  aria-invalid={Boolean(rowErrors[row.clientRowId])}
-                  onChange={(e) =>
-                    updateRow(row.clientRowId, { customerName: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor={`${row.clientRowId}-phone`}>
-                  {t("publicPool.quickEntry.fields.phone")}
-                </Label>
-                <PhoneField
-                  id={`${row.clientRowId}-phone`}
-                  value={row.phone}
-                  disabled={submitting}
-                  placeholder={t(
-                    "publicPool.quickEntry.fields.phonePlaceholder",
-                  )}
-                  onChange={(phone) => updateRow(row.clientRowId, { phone })}
-                />
-              </div>
-              <div>
-                <Label htmlFor={`${row.clientRowId}-wechat`}>
-                  {t("publicPool.quickEntry.fields.wechatId")}
-                </Label>
-                <Input
-                  id={`${row.clientRowId}-wechat`}
-                  value={row.wechatId}
-                  disabled={submitting}
-                  onChange={(e) =>
-                    updateRow(row.clientRowId, { wechatId: e.target.value })
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor={`${row.clientRowId}-project`}>
-                  {t("publicPool.quickEntry.fields.requestedProjectName")}
-                </Label>
-                <Input
-                  id={`${row.clientRowId}-project`}
-                  value={row.requestedProjectName}
-                  disabled={submitting}
-                  onChange={(e) =>
-                    updateRow(row.clientRowId, {
-                      requestedProjectName: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor={`${row.clientRowId}-followup`}>
-                  {t("publicPool.quickEntry.fields.initialFollowUpNote")}
-                </Label>
-                <Textarea
-                  id={`${row.clientRowId}-followup`}
-                  value={row.initialFollowUpNote}
-                  disabled={submitting}
-                  onChange={(e) =>
-                    updateRow(row.clientRowId, {
-                      initialFollowUpNote: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <Label htmlFor={`${row.clientRowId}-note`}>
-                  {t("publicPool.quickEntry.fields.supplementalNote")}
-                </Label>
-                <Textarea
-                  id={`${row.clientRowId}-note`}
-                  value={row.supplementalNote}
-                  disabled={submitting}
-                  onChange={(e) =>
-                    updateRow(row.clientRowId, {
-                      supplementalNote: e.target.value,
-                    })
-                  }
-                />
-              </div>
-              {rowErrors[row.clientRowId] ? (
-                <p className="text-sm text-red-600" role="alert">
-                  {rowErrors[row.clientRowId]}
-                </p>
-              ) : null}
-            </div>
-            <div className="mt-3">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={submitting}
-                onClick={() => handleRemoveRow(row.clientRowId)}
-              >
-                {canRemoveQuickEntryRow(rows.length)
-                  ? t("publicPool.quickEntry.removeRow")
-                  : t("publicPool.quickEntry.clearRow")}
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {banner && bannerTone === "error" && processingRetryAfter == null ? (
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={submitting}
-            onClick={handleSubmit}
-          >
-            {t("publicPool.quickEntry.retry")}
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            disabled={submitting}
-            onClick={handleNewBatch}
-          >
-            {t("publicPool.quickEntry.newBatch")}
-          </Button>
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function SingleResultView({
   kind,
   result,
@@ -1624,114 +1786,6 @@ function SingleResultView({
         </Button>
         <Button type="button" variant="secondary" onClick={onNewBatch}>
           {t("publicPool.quickEntry.newBatch")}
-        </Button>
-        <Button type="button" variant="ghost" onClick={onClose}>
-          {t("publicPool.quickEntry.close")}
-        </Button>
-      </div>
-    </div>
-  );
-}
-
-function BatchResultsView({
-  batchResult,
-  rows,
-  resultsById,
-  onNewBatch,
-  onViewPool,
-  onClose,
-  t,
-  mapError,
-}: {
-  batchResult: QuickEntryBatchSuccessView;
-  rows: QuickEntryFormRow[];
-  resultsById: Map<string, QuickEntryRowResultView> | null;
-  onNewBatch: () => void;
-  onViewPool: () => void;
-  onClose: () => void;
-  t: TFn;
-  mapError: (code: string) => string;
-}) {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg border border-[var(--color-crm-border)] bg-[var(--color-crm-bg-muted)] p-3 text-sm">
-        <p className="font-medium text-[var(--color-crm-text)]">
-          {t("publicPool.quickEntry.summaryTitle")}
-        </p>
-        <p className="mt-1 text-[var(--color-crm-text-secondary)]">
-          {t("publicPool.quickEntry.summaryLine", {
-            total: String(batchResult.summary.total),
-            created: String(batchResult.summary.created),
-            duplicates: String(batchResult.summary.duplicates),
-            invalid: String(batchResult.summary.invalid),
-            failed: String(batchResult.summary.failed),
-          })}
-        </p>
-        <p className="mt-2 text-xs text-[var(--color-crm-text-secondary)]">
-          {t("publicPool.quickEntry.reviseNeedsNewBatch")}
-        </p>
-      </div>
-      <ul className="space-y-3">
-        {rows.map((row, index) => {
-          const result = resultsById?.get(row.clientRowId) ?? null;
-          return (
-            <li
-              key={row.clientRowId}
-              className="rounded-xl border border-[var(--color-crm-border)] p-4"
-            >
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium text-[var(--color-crm-text)]">
-                  {t("publicPool.quickEntry.rowLabel", {
-                    n: String(index + 1),
-                  })}
-                </p>
-                {result ? (
-                  <Badge
-                    variant={
-                      result.status === "created"
-                        ? "success"
-                        : result.status === "duplicate"
-                          ? "warning"
-                          : "default"
-                    }
-                  >
-                    {t(`publicPool.quickEntry.status.${result.status}`)}
-                  </Badge>
-                ) : null}
-              </div>
-              <p className="text-sm text-[var(--color-crm-text)]">
-                {row.customerName || "—"}
-              </p>
-              {result?.status === "created" ? (
-                <p className="mt-1 text-sm text-[var(--color-crm-text-secondary)]">
-                  {t("publicPool.quickEntry.createdDetail", {
-                    code: result.customerCode,
-                    name: result.customerName,
-                  })}
-                </p>
-              ) : null}
-              {result?.status === "duplicate" ? (
-                <p className="mt-1 text-sm text-[var(--color-crm-text-secondary)]">
-                  {result.duplicateField === "wechatId"
-                    ? t("publicPool.quickEntry.duplicateWechat")
-                    : t("publicPool.quickEntry.duplicatePhone")}
-                </p>
-              ) : null}
-              {result?.status === "invalid" || result?.status === "failed" ? (
-                <p className="mt-1 text-sm text-red-600" role="alert">
-                  {mapError(result.errorCode)}
-                </p>
-              ) : null}
-            </li>
-          );
-        })}
-      </ul>
-      <div className="flex flex-col gap-2">
-        <Button type="button" onClick={onNewBatch}>
-          {t("publicPool.quickEntry.newBatch")}
-        </Button>
-        <Button type="button" variant="secondary" onClick={onViewPool}>
-          {t("publicPool.quickEntry.refreshPool")}
         </Button>
         <Button type="button" variant="ghost" onClick={onClose}>
           {t("publicPool.quickEntry.close")}
