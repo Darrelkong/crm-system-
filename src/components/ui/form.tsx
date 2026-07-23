@@ -1,26 +1,28 @@
+import * as React from "react";
 import { cn } from "@/lib/cn";
 
 const inputClass =
   "surface-input w-full px-3.5 py-2.5 text-sm crm-text placeholder:crm-text-muted";
 
-export function Input({
-  className,
-  ...props
-}: React.InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={cn(inputClass, className)} {...props} />;
-}
+export const Input = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(function Input({ className, ...props }, ref) {
+  return <input ref={ref} className={cn(inputClass, className)} {...props} />;
+});
 
-export function Textarea({
-  className,
-  ...props
-}: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
+export const Textarea = React.forwardRef<
+  HTMLTextAreaElement,
+  React.TextareaHTMLAttributes<HTMLTextAreaElement>
+>(function Textarea({ className, ...props }, ref) {
   return (
     <textarea
+      ref={ref}
       className={cn(inputClass, "min-h-[100px] resize-y", className)}
       {...props}
     />
   );
-}
+});
 
 export function Select({
   className,

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   QUICK_ENTRY_CUSTOMERS_API_PATH,
+  QUICK_ENTRY_PROJECT_SUGGESTIONS,
   QUICK_ENTRY_STATUS_API_PATH,
   QUICK_ENTRY_UI_MAX_ROWS,
   QUICK_ENTRY_VERIFY_API_PATH,
@@ -14,6 +15,10 @@ import {
   createEmptyQuickEntryRow,
   createNewQuickEntryBatch,
   customersRequestBodyHasForbiddenKeys,
+  deriveSingleEntryResultKind,
+  filterProjectSuggestions,
+  firstFieldErrorKey,
+  isQuickEntryBatchDirty,
   isSafeVerifyBody,
   mapResultsByClientRowId,
   parseBatchFailureResponse,
@@ -21,6 +26,7 @@ import {
   parseQuickEntryStatus,
   parseVerifySuccess,
   planAfterBatchFailure,
+  prepareContinueEntryRow,
   resolveQuickEntryPanelMode,
   resultsContainContactPii,
   shouldShowQuickEntryEntry,
@@ -155,15 +161,30 @@ describe("row limits and validation", () => {
     assert.equal(QUICK_ENTRY_UI_MAX_ROWS, 20);
   });
 
-  it("requires name, project, and phone or wechat", () => {
+  it("requires name, project (>=4 chars), and phone or wechat", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.customerName = "张三";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.requestedProjectName = "项目";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
+    row.requestedProjectName = "移民项目咨询";
+    assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.phone = "13800138000";
     assert.equal(validateQuickEntryFormRows([row]).ok, true);
+  });
+
+  it("returns field-level errors for single-entry UX", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    row.customerName = "";
+    row.requestedProjectName = "測試";
+    row.phone = "1380013800";
+    const result = validateQuickEntryFormRows([row]);
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.fieldErrors[uuidA]?.customerName, "name_required");
+    assert.equal(result.fieldErrors[uuidA]?.requestedProjectName, "project_invalid");
+    assert.equal(result.fieldErrors[uuidA]?.phone, "phone_invalid");
   });
 });
 
@@ -179,7 +200,7 @@ describe("request body security", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "张三";
     row.phone = "13800138000";
-    row.requestedProjectName = "项目A";
+    row.requestedProjectName = "移民项目咨询";
     const body = buildCustomersRequestBody(uuidB, [row]);
     assert.deepEqual(Object.keys(body).sort(), ["rows", "submissionId"]);
     assert.equal(body.rows[0]?.phoneCountryCode, "+86");
@@ -371,6 +392,8 @@ describe("quick entry UI wiring and security scans", () => {
   it("locks country code to +86 and maps known row errors", () => {
     assert.match(panelSrc, /QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE/);
     assert.match(panelSrc, /readOnly/);
+    assert.match(panelSrc, /qe-phone-wrap/);
+    assert.match(panelSrc, /qe-phone-prefix/);
     assert.match(panelSrc, /QUICK_ENTRY_PHONE_INVALID/);
     assert.match(panelSrc, /QUICK_ENTRY_PROJECT_INVALID/);
     assert.match(panelSrc, /QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID/);
@@ -379,10 +402,88 @@ describe("quick entry UI wiring and security scans", () => {
     assert.match(panelSrc, /maxLength=\{11\}/);
   });
 
+  it("uses drawer shell with single/batch modes and continue lifecycle", () => {
+    assert.match(panelSrc, /QuickEntryDrawer/);
+    assert.match(panelSrc, /modeSingle/);
+    assert.match(panelSrc, /modeBatch/);
+    assert.match(panelSrc, /saveContinue/);
+    assert.match(panelSrc, /saveDone/);
+    assert.match(panelSrc, /prepareContinueEntryRow/);
+    assert.match(panelSrc, /createNewQuickEntryBatch/);
+    assert.match(panelSrc, /handleBackToEdit/);
+    assert.match(panelSrc, /metaKey \|\| event\.ctrlKey/);
+    assert.match(panelSrc, /isQuickEntryBatchDirty/);
+    assert.match(panelSrc, /resultSuccessTitle/);
+    assert.ok(!panelSrc.includes("ModalOverlay onClose={submitting"));
+  });
+
   it("keeps submissionId on retry helpers and clears verify code after success path", () => {
     assert.match(panelSrc, /createNewQuickEntryBatch/);
     assert.match(panelSrc, /setVerifyCode\(""\)/);
     assert.match(panelSrc, /retry_same_submission|processingRetryAfter/);
+  });
+});
+
+describe("quick entry V2 helpers", () => {
+  it("prepareContinueEntryRow allocates new clientRowId and optional project keep", () => {
+    let n = 0;
+    const ids = [uuidA, uuidB];
+    const randomUuid = () => ids[n++]!;
+    const previous = createEmptyQuickEntryRow(() => "00000000-0000-4000-8000-000000000000");
+    previous.customerName = "张三";
+    previous.phone = "13800138000";
+    previous.requestedProjectName = "美国个人银行开户";
+    const kept = prepareContinueEntryRow(previous, true, randomUuid);
+    assert.equal(kept.clientRowId, uuidA);
+    assert.equal(kept.customerName, "");
+    assert.equal(kept.phone, "");
+    assert.equal(kept.requestedProjectName, "美国个人银行开户");
+    const cleared = prepareContinueEntryRow(previous, false, randomUuid);
+    assert.equal(cleared.clientRowId, uuidB);
+    assert.equal(cleared.requestedProjectName, "");
+  });
+
+  it("filters project suggestions and derives single result kinds", () => {
+    assert.ok(QUICK_ENTRY_PROJECT_SUGGESTIONS.includes("ITIN申請"));
+    assert.deepEqual(
+      filterProjectSuggestions("香港"),
+      QUICK_ENTRY_PROJECT_SUGGESTIONS.filter((s) => s.includes("香港")),
+    );
+    assert.equal(
+      deriveSingleEntryResultKind({
+        clientRowId: uuidA,
+        status: "created",
+        customerId: "c",
+        customerCode: "EF1",
+        customerName: "张三",
+      }),
+      "success",
+    );
+    assert.equal(
+      deriveSingleEntryResultKind({
+        clientRowId: uuidA,
+        status: "duplicate",
+        errorCode: "QUICK_ENTRY_DUPLICATE_PHONE",
+        duplicateField: "phone",
+      }),
+      "duplicate",
+    );
+    assert.equal(
+      firstFieldErrorKey({
+        phone: "phone_invalid",
+        customerName: "name_required",
+      }),
+      "customerName",
+    );
+    assert.equal(
+      isQuickEntryBatchDirty([
+        {
+          ...createEmptyQuickEntryRow(() => uuidA),
+          customerName: "x",
+        },
+      ]),
+      true,
+    );
   });
 });
 
@@ -401,5 +502,11 @@ describe("quick entry i18n keys", () => {
       zhHans.publicPool.quickEntry.errors.countryCodeInvalid.includes("+86"),
     );
     assert.ok(en.publicPool.quickEntry.reviseNeedsNewBatch.length > 0);
+    assert.equal(en.publicPool.quickEntry.modeSingle, "Single entry");
+    assert.equal(zhHant.publicPool.quickEntry.modeSingle, "單筆錄入");
+    assert.equal(zhHans.publicPool.quickEntry.modeSingle, "单笔录入");
+    assert.ok(en.publicPool.quickEntry.validation.project_invalid.length > 0);
+    assert.ok(zhHant.publicPool.quickEntry.saveContinue.length > 0);
+    assert.ok(zhHans.publicPool.quickEntry.resultSuccessTitle.length > 0);
   });
 });

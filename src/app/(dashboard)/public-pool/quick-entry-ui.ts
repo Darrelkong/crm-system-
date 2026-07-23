@@ -3,6 +3,7 @@
  * No React — fully unit-testable. Server remains the authority.
  */
 
+import { hasSubstantiveContent } from "@/lib/customers/validation";
 import {
   QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
   isValidQuickEntryCnPhone,
@@ -17,6 +18,21 @@ export const QUICK_ENTRY_CUSTOMERS_API_PATH =
   "/api/public-pool/quick-entry/customers" as const;
 
 export const QUICK_ENTRY_UI_MAX_ROWS = QUICK_ENTRY_BATCH_MAX_ROWS;
+
+/** Frontend convenience suggestions only — still submitted as a plain string. */
+export const QUICK_ENTRY_PROJECT_SUGGESTIONS = [
+  "美國個人銀行開戶",
+  "美國企業銀行開戶",
+  "香港個人銀行開戶",
+  "香港公司銀行開戶",
+  "ITIN申請",
+  "海外身份規劃",
+  "香港身份",
+  "企業服務",
+  "其他",
+] as const;
+
+export type QuickEntryEntryMode = "single" | "batch";
 
 export type QuickEntryStatus = {
   enabled: boolean;
@@ -90,16 +106,38 @@ export type QuickEntryBatchFailureView = {
 export type QuickEntryClientRowError =
   | "name_required"
   | "project_required"
+  | "project_invalid"
   | "contact_required"
   | "phone_invalid";
+
+export type QuickEntryFieldKey =
+  | "customerName"
+  | "requestedProjectName"
+  | "phone"
+  | "wechatId"
+  | "contact";
+
+export type QuickEntryFieldErrors = Partial<
+  Record<QuickEntryFieldKey, QuickEntryClientRowError>
+>;
 
 export type QuickEntryClientValidation =
   | { ok: true }
   | {
       ok: false;
       formError?: "empty" | "too_many" | "duplicate_ids";
+      /** First error per row (batch summary / backward compatible). */
       rowErrors: Record<string, QuickEntryClientRowError>;
+      /** Field-level errors keyed by clientRowId. */
+      fieldErrors: Record<string, QuickEntryFieldErrors>;
     };
+
+export type QuickEntrySingleResultKind =
+  | "success"
+  | "duplicate"
+  | "invalid"
+  | "failed"
+  | "mixed";
 
 const FORBIDDEN_BODY_KEYS = [
   "submissionDbId",
@@ -197,6 +235,105 @@ export function clearQuickEntryRow(
     initialFollowUpNote: "",
     supplementalNote: "",
   };
+}
+
+export function isQuickEntryRowDirty(row: QuickEntryFormRow): boolean {
+  return Boolean(
+    row.customerName.trim() ||
+      row.phone.trim() ||
+      row.wechatId.trim() ||
+      row.requestedProjectName.trim() ||
+      row.initialFollowUpNote.trim() ||
+      row.supplementalNote.trim(),
+  );
+}
+
+export function isQuickEntryBatchDirty(rows: QuickEntryFormRow[]): boolean {
+  return rows.some(isQuickEntryRowDirty);
+}
+
+/**
+ * Prepare the next single-entry draft after a successful "save and continue".
+ * Always allocates a new clientRowId; optionally keeps the project name.
+ */
+export function prepareContinueEntryRow(
+  previous: QuickEntryFormRow,
+  keepProject: boolean,
+  randomUuid: () => string = () => crypto.randomUUID(),
+): QuickEntryFormRow {
+  const next = createEmptyQuickEntryRow(randomUuid);
+  if (keepProject) {
+    next.requestedProjectName = previous.requestedProjectName;
+  }
+  return next;
+}
+
+export function filterProjectSuggestions(
+  query: string,
+  suggestions: readonly string[] = QUICK_ENTRY_PROJECT_SUGGESTIONS,
+): string[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...suggestions];
+  return suggestions.filter((item) => item.toLowerCase().includes(q));
+}
+
+export function deriveSingleEntryResultKind(
+  result: QuickEntryRowResultView | null | undefined,
+): QuickEntrySingleResultKind | null {
+  if (!result) return null;
+  if (result.status === "created") return "success";
+  if (result.status === "duplicate") return "duplicate";
+  if (result.status === "invalid") return "invalid";
+  return "failed";
+}
+
+const FIELD_ERROR_PRIORITY: QuickEntryFieldKey[] = [
+  "customerName",
+  "requestedProjectName",
+  "phone",
+  "contact",
+  "wechatId",
+];
+
+export function firstFieldErrorKey(
+  errors: QuickEntryFieldErrors | undefined,
+): QuickEntryFieldKey | null {
+  if (!errors) return null;
+  for (const key of FIELD_ERROR_PRIORITY) {
+    if (errors[key]) return key;
+  }
+  return null;
+}
+
+function validateOneQuickEntryRow(row: QuickEntryFormRow): QuickEntryFieldErrors {
+  const errors: QuickEntryFieldErrors = {};
+  if (!row.customerName.trim()) {
+    errors.customerName = "name_required";
+  }
+  const project = row.requestedProjectName.trim();
+  if (!project) {
+    errors.requestedProjectName = "project_required";
+  } else if (!hasSubstantiveContent(project, 4)) {
+    errors.requestedProjectName = "project_invalid";
+  }
+  const phone = row.phone.trim();
+  const wechatId = row.wechatId.trim();
+  if (!phone && !wechatId) {
+    errors.contact = "contact_required";
+  } else if (phone && !isValidQuickEntryCnPhone(phone)) {
+    errors.phone = "phone_invalid";
+  }
+  return errors;
+}
+
+function firstRowErrorFromFields(
+  errors: QuickEntryFieldErrors,
+): QuickEntryClientRowError | null {
+  for (const key of FIELD_ERROR_PRIORITY) {
+    const err = errors[key];
+    if (err) return err;
+  }
+  return null;
 }
 
 export function parseQuickEntryStatus(
@@ -335,38 +472,33 @@ export function validateQuickEntryFormRows(
   rows: QuickEntryFormRow[],
 ): QuickEntryClientValidation {
   if (rows.length === 0) {
-    return { ok: false, formError: "empty", rowErrors: {} };
+    return { ok: false, formError: "empty", rowErrors: {}, fieldErrors: {} };
   }
   if (rows.length > QUICK_ENTRY_UI_MAX_ROWS) {
-    return { ok: false, formError: "too_many", rowErrors: {} };
+    return { ok: false, formError: "too_many", rowErrors: {}, fieldErrors: {} };
   }
   const seen = new Set<string>();
   const rowErrors: Record<string, QuickEntryClientRowError> = {};
+  const fieldErrors: Record<string, QuickEntryFieldErrors> = {};
   for (const row of rows) {
     if (!row.clientRowId || seen.has(row.clientRowId)) {
-      return { ok: false, formError: "duplicate_ids", rowErrors: {} };
+      return {
+        ok: false,
+        formError: "duplicate_ids",
+        rowErrors: {},
+        fieldErrors: {},
+      };
     }
     seen.add(row.clientRowId);
-    if (!row.customerName.trim()) {
-      rowErrors[row.clientRowId] = "name_required";
-      continue;
-    }
-    if (!row.requestedProjectName.trim()) {
-      rowErrors[row.clientRowId] = "project_required";
-      continue;
-    }
-    const phone = row.phone.trim();
-    const wechatId = row.wechatId.trim();
-    if (!phone && !wechatId) {
-      rowErrors[row.clientRowId] = "contact_required";
-      continue;
-    }
-    if (phone && !isValidQuickEntryCnPhone(phone)) {
-      rowErrors[row.clientRowId] = "phone_invalid";
+    const fields = validateOneQuickEntryRow(row);
+    if (Object.keys(fields).length > 0) {
+      fieldErrors[row.clientRowId] = fields;
+      const first = firstRowErrorFromFields(fields);
+      if (first) rowErrors[row.clientRowId] = first;
     }
   }
   if (Object.keys(rowErrors).length > 0) {
-    return { ok: false, rowErrors };
+    return { ok: false, rowErrors, fieldErrors };
   }
   return { ok: true };
 }
