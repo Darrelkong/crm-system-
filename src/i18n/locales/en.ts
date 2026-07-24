@@ -672,7 +672,7 @@ const en = {
           "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
         manualRefreshDisabled: "Staff manual refresh is disabled by admin settings.",
         adminOnly: "Only administrators can refresh AI deep analysis.",
-        cooldown: "AI deep analysis was refreshed recently. Please try again later.",
+        cooldown: "This customer was analyzed just now. Please try again later.",
         permissionDenied: "Insufficient permissions for AI deep analysis.",
         cachedReadOnly: "Showing cached deep analysis. Regeneration is not available right now.",
         empty: "No deep analysis result yet.",
@@ -695,14 +695,14 @@ const en = {
       analysisFailed:
         "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
       refreshDenied: "Manual AI refresh is not allowed for your role.",
-      refreshCooldown: "AI analysis was refreshed recently. Please try again later.",
+      refreshCooldown: "This customer was analyzed just now. Please try again later.",
       refreshAdminOnly: "Only administrators can refresh AI insights.",
       refreshStaffDisabled: "Staff manual refresh is disabled by admin settings.",
       staffDeepAnalysisDisabled:
         "Customer AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
       dailyLimitReached:
         "You have reached today’s AI usage limit. Basic system analysis is still available.",
-      reservationConflict: "Please start a new AI deep-analysis request.",
+      reservationConflict: "This request could not start. Refresh the page and try again.",
       remainingToday:
         "{{count}} AI request(s) remaining today (shared)",
       refresh: "Regenerate deep analysis",

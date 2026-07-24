@@ -104,7 +104,7 @@ describe("refreshCustomerAiInsight cooldown", () => {
     await deleteTestInsight();
   });
 
-  it("rejects refresh within cooldown and does not call provider", async () => {
+  it("rejects refresh within cooldown for ready insight and does not call provider", async () => {
     await deleteTestInsight();
     const recentGeneratedAt = new Date().toISOString();
     await insertTestInsight(recentGeneratedAt, "cooldown-tracker-model");
@@ -123,6 +123,67 @@ describe("refreshCustomerAiInsight cooldown", () => {
     assert.equal(unchanged.generatedAt, recentGeneratedAt);
     assert.equal(unchanged.model, "cooldown-tracker-model");
 
+    await deleteTestInsight();
+  });
+
+  it("allows refresh when existing insight is failed with recent generatedAt", async () => {
+    await deleteTestInsight();
+    const recentGeneratedAt = new Date().toISOString();
+    await insertTestInsight(recentGeneratedAt, "failed-tracker-model");
+    await db
+      .update(schema.customerAiInsights)
+      .set({ status: "failed" })
+      .where(eq(schema.customerAiInsights.customerId, TEST_CUSTOMER_ID));
+
+    const result = await refreshCustomerAiInsight(db, adminUser, customer);
+    assert.equal(result.providerKind, "mock");
+    assert.notEqual(result.insight.generatedAt, recentGeneratedAt);
+    assert.equal(result.insight.status, "ready");
+
+    await deleteTestInsight();
+  });
+
+  it("allows refresh for a second customer while first is on cooldown", async () => {
+    await deleteTestInsight();
+    const otherCustomerId = SEED_IDS.customerStaffB;
+    await db
+      .delete(schema.customerAiInsights)
+      .where(eq(schema.customerAiInsights.customerId, otherCustomerId));
+
+    const recentGeneratedAt = new Date().toISOString();
+    await insertTestInsight(recentGeneratedAt, "cooldown-tracker-model");
+
+    await assert.rejects(
+      () => refreshCustomerAiInsight(db, adminUser, customer),
+      (error: unknown) => error instanceof AiRefreshCooldownError,
+    );
+
+    const [otherCustomer] = await db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, otherCustomerId))
+      .limit(1);
+    assert.ok(otherCustomer);
+
+    const otherResult = await refreshCustomerAiInsight(
+      db,
+      adminUser,
+      otherCustomer,
+    );
+    assert.equal(otherResult.providerKind, "mock");
+    assert.equal(otherResult.insight.customerId, otherCustomerId);
+
+    const firstUnchanged = await getCustomerAiInsightByCustomerId(
+      db,
+      TEST_CUSTOMER_ID,
+    );
+    assert.ok(firstUnchanged);
+    assert.equal(firstUnchanged.generatedAt, recentGeneratedAt);
+    assert.equal(firstUnchanged.model, "cooldown-tracker-model");
+
+    await db
+      .delete(schema.customerAiInsights)
+      .where(eq(schema.customerAiInsights.customerId, otherCustomerId));
     await deleteTestInsight();
   });
 

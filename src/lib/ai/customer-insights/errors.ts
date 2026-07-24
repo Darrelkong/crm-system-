@@ -56,7 +56,7 @@ export class AiRefreshDeniedError extends Error {
 export class AiRefreshCooldownError extends Error {
   readonly code: AiErrorCode = "AI_REFRESH_COOLDOWN";
 
-  constructor(message = "AI 分析刚刚已刷新，请稍后再试") {
+  constructor(message = "此客户刚完成分析，请稍后再试") {
     super(message);
     this.name = "AiRefreshCooldownError";
   }
