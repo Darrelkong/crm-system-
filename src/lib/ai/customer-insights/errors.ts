@@ -13,7 +13,9 @@ export type AiErrorCode =
   | "AI_PROVIDER_ERROR"
   | "AI_STAFF_DEEP_ANALYSIS_DISABLED"
   | "AI_STAFF_DAILY_LIMIT_REACHED"
-  | "AI_STAFF_RESERVATION_CONFLICT";
+  | "AI_STAFF_RESERVATION_CONFLICT"
+  | "AI_DEEP_ANALYSIS_MOCK_ONLY"
+  | "AI_DEEP_ANALYSIS_GLOBAL_DISABLED";
 
 export class AiConfigError extends Error {
   readonly code: AiErrorCode;
@@ -94,5 +96,23 @@ export class AiStaffReservationConflictError extends Error {
   constructor(message = "请重新发起 AI 深度分析") {
     super(message);
     this.name = "AiStaffReservationConflictError";
+  }
+}
+
+export class AiDeepAnalysisGlobalDisabledError extends Error {
+  readonly code: AiErrorCode = "AI_DEEP_ANALYSIS_GLOBAL_DISABLED";
+
+  constructor(message = "AI 深度分析目前未启用") {
+    super(message);
+    this.name = "AiDeepAnalysisGlobalDisabledError";
+  }
+}
+
+export class AiDeepAnalysisMockOnlyError extends Error {
+  readonly code: AiErrorCode = "AI_DEEP_ANALYSIS_MOCK_ONLY";
+
+  constructor(message = "AI 深度分析目前不可用") {
+    super(message);
+    this.name = "AiDeepAnalysisMockOnlyError";
   }
 }

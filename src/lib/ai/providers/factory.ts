@@ -1,6 +1,10 @@
 import { getAiApiKeyFromEnv } from "@/lib/ai/env";
 import { AiConfigError } from "@/lib/ai/customer-insights/errors";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
+import {
+  MOCK_CUSTOMER_INSIGHT_MODEL,
+  allowMockDeepInsightGeneration,
+} from "@/lib/ai/providers/mock-constants";
 import { mockCustomerInsightProvider } from "./mock";
 import { openAiCompatibleCustomerInsightProvider } from "./openai-compatible";
 import { googleGeminiCustomerInsightProvider } from "./google-gemini";
@@ -9,7 +13,7 @@ import type {
   ResolvedCustomerInsightProvider,
 } from "./types";
 
-const MOCK_MODEL = "mock-customer-insight-v1";
+export { MOCK_CUSTOMER_INSIGHT_MODEL, allowMockDeepInsightGeneration };
 
 export function resolveCustomerInsightProvider(
   settings: EffectiveAiSettings,
@@ -20,7 +24,7 @@ export function resolveCustomerInsightProvider(
   if (useMock) {
     return {
       kind: "mock",
-      model: MOCK_MODEL,
+      model: MOCK_CUSTOMER_INSIGHT_MODEL,
       config: null,
     };
   }

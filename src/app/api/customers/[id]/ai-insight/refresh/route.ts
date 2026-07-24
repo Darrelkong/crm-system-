@@ -20,6 +20,8 @@ import {
   AiStaffDailyLimitReachedError,
   AiStaffDeepAnalysisDisabledError,
   AiStaffReservationConflictError,
+  AiDeepAnalysisGlobalDisabledError,
+  AiDeepAnalysisMockOnlyError,
 } from "@/lib/ai/customer-insights/errors";
 import {
   getSafeAiRefreshErrorMessage,
@@ -30,6 +32,13 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
 import { getStaffAiUsageSummary } from "@/lib/ai/staff-usage/service";
+import {
+  isValidDeepInsight,
+  resolveDeepAnalysisAvailability,
+} from "@/lib/ai/deep-analysis/availability";
+import { isAiApiKeyConfigured } from "@/lib/ai/env";
+import { getBasicCustomerAnalysis } from "@/lib/ai/basic-analysis/service";
+import { isAiRefreshOnCooldown } from "@/lib/ai/customer-insights/cooldown";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -37,6 +46,8 @@ function aiErrorStatus(error: unknown): number | null {
   if (error instanceof AiConfigError) return 503;
   if (error instanceof AiRefreshDeniedError) return 403;
   if (error instanceof AiStaffDeepAnalysisDisabledError) return 403;
+  if (error instanceof AiDeepAnalysisGlobalDisabledError) return 403;
+  if (error instanceof AiDeepAnalysisMockOnlyError) return 503;
   if (error instanceof AiStaffDailyLimitReachedError) return 429;
   if (error instanceof AiStaffReservationConflictError) return 409;
   if (error instanceof AiRefreshCooldownError) return 429;
@@ -118,11 +129,36 @@ export async function POST(request: Request, context: RouteContext) {
           user.role === "staff"
             ? await getStaffAiUsageSummary(db, user, aiSettings)
             : null;
+        const deepAnalysis = isValidDeepInsight(currentInsight)
+          ? currentInsight
+          : null;
+        const deepAnalysisAvailability = resolveDeepAnalysisAvailability({
+          user,
+          settings: aiSettings,
+          staffUsage,
+          insight: currentInsight,
+          providerConfigured: isAiApiKeyConfigured(),
+          onCooldown: isAiRefreshOnCooldown(currentInsight),
+        });
+        let basicAnalysis = null;
+        try {
+          basicAnalysis = await getBasicCustomerAnalysis(db, customer);
+        } catch {
+          basicAnalysis = null;
+        }
         const body = {
           error: getSafeAiRefreshErrorMessage(code),
           errorCode: code,
-          insight: currentInsight,
-          display: getCustomerAiInsightDisplayMeta(user, aiSettings, staffUsage),
+          insight: deepAnalysis,
+          display: getCustomerAiInsightDisplayMeta(
+            user,
+            aiSettings,
+            staffUsage,
+            deepAnalysisAvailability,
+          ),
+          basicAnalysis,
+          deepAnalysis,
+          deepAnalysisAvailability,
         };
         return Response.json(body, { status });
       }
@@ -150,13 +186,34 @@ export async function POST(request: Request, context: RouteContext) {
       user.role === "staff"
         ? await getStaffAiUsageSummary(db, user, aiSettingsAfter)
         : null;
-    return Response.json({
+    const deepAnalysis = isValidDeepInsight(refreshResult.insight)
+      ? refreshResult.insight
+      : null;
+    const deepAnalysisAvailability = resolveDeepAnalysisAvailability({
+      user,
+      settings: aiSettingsAfter,
+      staffUsage: staffUsageAfter,
       insight: refreshResult.insight,
+      providerConfigured: isAiApiKeyConfigured(),
+      onCooldown: false,
+    });
+    let basicAnalysis = null;
+    try {
+      basicAnalysis = await getBasicCustomerAnalysis(db, customer);
+    } catch {
+      basicAnalysis = null;
+    }
+    return Response.json({
+      insight: deepAnalysis,
       display: getCustomerAiInsightDisplayMeta(
         user,
         aiSettingsAfter,
         staffUsageAfter,
+        deepAnalysisAvailability,
       ),
+      basicAnalysis,
+      deepAnalysis,
+      deepAnalysisAvailability,
     });
   } catch (error) {
     const status = aiErrorStatus(error);

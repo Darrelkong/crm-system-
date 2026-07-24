@@ -153,7 +153,7 @@ describe("staff AI display meta", () => {
     assert.equal(meta.refreshDisabledReason, "daily_limit_reached");
   });
 
-  it("allows staff mock path even when deep analysis disabled", () => {
+  it("blocks refresh when AI is globally disabled (no mock deep analysis)", () => {
     const meta = getCustomerAiInsightDisplayMeta(
       staffUser(),
       baseSettings({
@@ -170,8 +170,29 @@ describe("staff AI display meta", () => {
         denialReason: "global_disabled",
       },
     );
-    assert.equal(meta.canRefresh, true);
-    assert.equal(meta.refreshDisabledReason, null);
+    assert.equal(meta.canRefresh, false);
+    assert.equal(meta.refreshDisabledReason, "global_disabled");
+  });
+
+  it("blocks refresh when provider is mock in production paths", () => {
+    const meta = getCustomerAiInsightDisplayMeta(
+      staffUser(),
+      baseSettings({
+        aiEnabled: true,
+        aiProvider: "mock",
+        aiStaffDeepAnalysisEnabled: true,
+      }),
+      {
+        usageDate: "2026-07-20",
+        enabled: true,
+        dailyLimit: 3,
+        used: 0,
+        remaining: 3,
+        denialReason: null,
+      },
+    );
+    assert.equal(meta.canRefresh, false);
+    assert.equal(meta.refreshDisabledReason, "mock_only");
   });
 
   it("does not attach staffUsage for admin", () => {
@@ -212,11 +233,11 @@ describe("staff AI error mapping", () => {
     );
     assert.equal(
       getSafeAiRefreshErrorMessage("AI_STAFF_DEEP_ANALYSIS_DISABLED"),
-      "管理員目前未開放員工 AI 深度分析。",
+      "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。",
     );
     assert.equal(
       getSafeAiRefreshErrorMessage("AI_STAFF_DAILY_LIMIT_REACHED"),
-      "今日 AI 深度分析次數已用完。",
+      "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。",
     );
   });
 });

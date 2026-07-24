@@ -1,7 +1,8 @@
-import { addDays, formatISO } from "date-fns";
+import { MOCK_CUSTOMER_INSIGHT_MODEL } from "@/lib/ai/providers/mock-constants";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import type { CustomerInsightAIProvider } from "./types";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { addDays, formatISO } from "date-fns";
 
 function countValidFollowUps(context: CustomerInsightContext): number {
   return context.recentFollowUps.filter((row) => row.isValidFollowUp === 1).length;

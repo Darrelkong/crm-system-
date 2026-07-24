@@ -531,28 +531,152 @@ const zhHant: Messages = {
     timelineActor: "操作人：{{name}}",
     timelineSystem: "系統",
     nextFollowUpLabel: "下次跟進：",
+    analysisPanel: {
+      title: "客戶分析",
+      loading: "載入分析中…",
+      loadFailed: "無法載入分析",
+      reload: "重新載入",
+      restricted: "目前權限不足，無法查看客戶分析。",
+      basicFailed: "基礎系統分析暫時無法生成，下方深度分析如有結果仍可查看。",
+    },
+    basicAnalysis: {
+      title: "基礎系統分析",
+      description:
+        "根據 CRM 現有資料和規則生成，不使用外部 AI，也不消耗 AI 次數。",
+      sourceBadge: "系統規則",
+      generatedAt: "生成時間：{{time}}",
+      nextRecommendedAction: "下一個建議操作",
+      needsAttention: "需要關注",
+      noUrgentIssues: "目前沒有緊急事項",
+      missingInformation: "缺少客戶資料",
+      findingsTitle: "需處理項目",
+      positiveTitle: "正常項目",
+      emptyFindings: "目前沒有規則分析項目。",
+      summary: {
+        normal: "正常",
+        attention: "需要關注",
+        urgent: "優先處理",
+      },
+      fields: {
+        customerName: "客戶姓名",
+        contact: "電話或微信",
+        businessNeed: "業務需求",
+        salesStage: "目前階段",
+        followUp: "跟進",
+        nextFollowUp: "下一次跟進時間",
+        nextAction: "下一步行動",
+      },
+      findings: {
+        customerNameMissing: {
+          title: "缺少客戶姓名",
+          description: "客戶姓名欄位為空，建議先補齊資料再繼續跟進。",
+        },
+        contactMissing: {
+          title: "缺少有效聯絡方式",
+          description: "尚未記錄電話或微信，請至少補充一項聯絡方式。",
+        },
+        businessNeedMissing: {
+          title: "缺少業務需求",
+          description: "尚未記錄業務需求／意向項目。",
+        },
+        salesStageMissing: {
+          title: "請檢查目前階段",
+          description: "銷售階段尚未設定，請在 CRM 中確認目前階段。",
+        },
+        followUpNever: {
+          title: "從未記錄跟進",
+          description: "此客戶尚無任何跟進紀錄。",
+        },
+        followUpDaysSince: {
+          title: "距離上次跟進已過若干天",
+          description: "距離上次跟進已過 {{days}} 天。",
+        },
+        followUpOverdue: {
+          title: "下一次跟進已逾期",
+          description: "預定的下一次跟進已逾期 {{days}} 天（約 {{hours}} 小時）。",
+        },
+        nextFollowUpMissing: {
+          title: "缺少下一次跟進時間",
+          description: "此客戶尚未設定下一次跟進時間。",
+        },
+        nextActionMissing: {
+          title: "缺少下一步行動",
+          description: "最近一次跟進未記錄下一步行動。",
+        },
+        reclamationApproaching: {
+          title: "接近自動回收",
+          description:
+            "已 {{daysWithoutValid}} 天無有效跟進；自動回收門檻為 {{reclaimDays}} 天（剩餘約 {{daysLeft}} 天）。",
+        },
+      },
+      positive: {
+        contactPresent: "已有電話或微信聯絡方式",
+        businessNeedPresent: "已記錄業務需求",
+        recentFollowUp: "近期已有跟進紀錄",
+        nextFollowUpScheduled: "已安排下一次跟進時間",
+      },
+      actions: {
+        completeProfile: "補齊客戶資料",
+        completeBusinessNeed: "補充業務需求",
+        reviewStage: "檢查目前階段",
+        addFollowUp: "新增跟進",
+        addFollowUpOverdue: "完成逾期跟進",
+        setNextFollowUp: "設定下一次跟進時間",
+        setNextAction: "補充下一步行動",
+        reviewReclamation: "查看回收預警並完成跟進",
+      },
+    },
+    deepAnalysis: {
+      title: "AI 深度分析",
+      description: "外部 AI 分析。符合條件時的重新生成會消耗員工 AI 次數。",
+      cachedBadge: "已有快取深度分析",
+      cannotRegenerate: "目前不能重新生成",
+      empty: "尚無 AI 深度分析結果。",
+      status: {
+        available: "AI 深度分析可用。",
+        staffDisabled:
+          "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。",
+        limitReached:
+          "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。",
+        globalDisabled:
+          "AI 深度分析目前未啟用，當前顯示的是基礎系統分析。",
+        providerUnavailable:
+          "AI 深度分析暫時不可用，你仍可查看基礎系統分析。",
+        mockOnly:
+          "AI 深度分析暫時不可用，你仍可查看基礎系統分析。",
+        manualRefreshDisabled: "管理員已關閉 Staff 手動刷新。",
+        adminOnly: "僅管理員可重新生成 AI 深度分析。",
+        cooldown: "AI 深度分析剛剛已刷新，請稍後再試。",
+        permissionDenied: "權限不足，無法使用 AI 深度分析。",
+        cachedReadOnly: "顯示已有快取深度分析，目前不能重新生成。",
+        empty: "尚無深度分析結果。",
+      },
+    },
     aiInsight: {
-      title: "AI 意向分析",
+      title: "AI 深度分析",
       disclaimer:
         "AI 建議僅供內部參考，請員工人工判斷後再使用，不構成對客戶的任何承諾。",
       loading: "載入 AI 分析中…",
       empty: "暫無 AI 分析",
       restricted: "目前權限不足，無法查看 AI 洞察",
       notConfigured: "AI 尚未完成設定，請聯絡管理員。",
-      providerTemporarilyUnavailable: "AI 服務暫時不可用，請稍後再試。",
+      providerTemporarilyUnavailable:
+        "AI 深度分析暫時不可用，你仍可查看基礎系統分析。",
       rateLimited: "AI 服務目前請求較多，請稍後再試。",
       providerTimeout: "AI 分析逾時，請稍後再試。",
       providerResponseInvalid: "AI 回應格式異常，請稍後再試或聯絡管理員。",
-      analysisFailed: "AI 分析失敗，請稍後重試",
+      analysisFailed: "AI 深度分析暫時不可用，你仍可查看基礎系統分析。",
       refreshDenied: "目前設定不允許您手動刷新 AI 分析",
       refreshCooldown: "AI 分析剛剛已刷新，請稍後再試。",
       refreshAdminOnly: "僅管理員可重新分析",
       refreshStaffDisabled: "管理員已關閉 Staff 手動刷新",
-      staffDeepAnalysisDisabled: "管理員目前未開放員工 AI 深度分析。",
-      dailyLimitReached: "今日 AI 深度分析次數已用完。",
+      staffDeepAnalysisDisabled:
+        "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。",
+      dailyLimitReached:
+        "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。",
       reservationConflict: "請重新發起 AI 深度分析。",
       remainingToday: "今日剩餘 {{count}} 次 AI 深度分析",
-      refresh: "重新分析",
+      refresh: "重新生成深度分析",
       refreshing: "分析中…",
       loadFailed: "無法載入 AI 分析",
       refreshFailed: "重新分析失敗",

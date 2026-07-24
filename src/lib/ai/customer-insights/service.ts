@@ -2,15 +2,19 @@ import { eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
+  allowMockDeepInsightGeneration,
   getCustomerInsightProviderImpl,
   resolveCustomerInsightProvider,
 } from "@/lib/ai/providers/factory";
+import { isAiApiKeyConfigured } from "@/lib/ai/env";
 import { buildCustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { mapAiAnalysisErrorCode } from "@/lib/ai/customer-insights/error-mapping";
 import { isAiRefreshOnCooldown } from "@/lib/ai/customer-insights/cooldown";
 import {
   AiAnalysisError,
   AiConfigError,
+  AiDeepAnalysisGlobalDisabledError,
+  AiDeepAnalysisMockOnlyError,
   AiProviderError,
   AiRefreshCooldownError,
   AiRefreshDeniedError,
@@ -28,6 +32,13 @@ import {
   type StaffAiReservationResult,
   type StaffAiUsageSummary,
 } from "@/lib/ai/staff-usage/service";
+import { getBasicCustomerAnalysis } from "@/lib/ai/basic-analysis/service";
+import type { BasicCustomerAnalysis } from "@/lib/ai/basic-analysis/types";
+import {
+  isValidDeepInsight,
+  resolveDeepAnalysisAvailability,
+  type DeepAnalysisAvailability,
+} from "@/lib/ai/deep-analysis/availability";
 import { buildResolvedProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { computeCustomerInsightSourceHash } from "@/lib/ai/customer-insights/hash";
 import {
@@ -78,8 +89,21 @@ export type CustomerAiInsightDisplayMeta = {
     | "staff_disabled"
     | "staff_deep_analysis_disabled"
     | "daily_limit_reached"
+    | "global_disabled"
+    | "mock_only"
+    | "provider_unavailable"
+    | "cooldown"
     | null;
   staffUsage: StaffAiUsageSummary | null;
+};
+
+export type CustomerAiInsightBundle = {
+  /** @deprecated Prefer basicAnalysis + deepAnalysis; kept for older clients. */
+  insight: CustomerAiInsightView | null;
+  display: CustomerAiInsightDisplayMeta;
+  basicAnalysis: BasicCustomerAnalysis | null;
+  deepAnalysis: CustomerAiInsightView | null;
+  deepAnalysisAvailability: DeepAnalysisAvailability;
 };
 
 const FAILED_PLACEHOLDER: CustomerInsightOutput = {
@@ -134,11 +158,48 @@ export function formatCustomerAiInsight(row: CustomerAiInsight): CustomerAiInsig
   };
 }
 
+function refreshReasonFromAvailability(
+  reason: DeepAnalysisAvailability["reason"],
+): CustomerAiInsightDisplayMeta["refreshDisabledReason"] {
+  switch (reason) {
+    case "ADMIN_ONLY":
+      return "admin_only";
+    case "MANUAL_REFRESH_DISABLED":
+      return "staff_disabled";
+    case "STAFF_DISABLED":
+      return "staff_deep_analysis_disabled";
+    case "LIMIT_REACHED":
+      return "daily_limit_reached";
+    case "GLOBAL_DISABLED":
+      return "global_disabled";
+    case "MOCK_ONLY":
+      return "mock_only";
+    case "PROVIDER_UNAVAILABLE":
+      return "provider_unavailable";
+    case "COOLDOWN":
+      return "cooldown";
+    default:
+      return null;
+  }
+}
+
 export function getCustomerAiInsightDisplayMeta(
   user: User,
   settings: EffectiveAiSettings,
   staffUsage: StaffAiUsageSummary | null = null,
+  availability: DeepAnalysisAvailability | null = null,
 ): CustomerAiInsightDisplayMeta {
+  if (availability) {
+    return {
+      showDraftMessage: settings.aiShowDraftMessage,
+      canRefresh: availability.canGenerate,
+      refreshDisabledReason: availability.canGenerate
+        ? null
+        : refreshReasonFromAvailability(availability.reason),
+      staffUsage: user.role === "staff" ? staffUsage : null,
+    };
+  }
+
   let canRefresh =
     user.role === "admin" ||
     (!settings.aiAdminOnlyManualRefresh && settings.aiStaffManualRefreshEnabled);
@@ -146,22 +207,21 @@ export function getCustomerAiInsightDisplayMeta(
   let refreshDisabledReason: CustomerAiInsightDisplayMeta["refreshDisabledReason"] =
     null;
 
-  if (!canRefresh) {
+  if (!settings.aiEnabled) {
+    canRefresh = false;
+    refreshDisabledReason = "global_disabled";
+  } else if (settings.aiProvider === "mock") {
+    canRefresh = false;
+    refreshDisabledReason = "mock_only";
+  } else if (!canRefresh) {
     refreshDisabledReason = settings.aiAdminOnlyManualRefresh
       ? "admin_only"
       : "staff_disabled";
   } else if (user.role === "staff") {
-    const externalPath =
-      settings.aiEnabled && settings.aiProvider !== "mock";
-    if (externalPath && !settings.aiStaffDeepAnalysisEnabled) {
+    if (!settings.aiStaffDeepAnalysisEnabled) {
       canRefresh = false;
       refreshDisabledReason = "staff_deep_analysis_disabled";
-    } else if (
-      externalPath &&
-      settings.aiStaffDeepAnalysisEnabled &&
-      staffUsage &&
-      staffUsage.remaining <= 0
-    ) {
+    } else if (staffUsage && staffUsage.remaining <= 0) {
       canRefresh = false;
       refreshDisabledReason = "daily_limit_reached";
     }
@@ -346,6 +406,10 @@ export async function refreshCustomerAiInsight(
   const aiSettings = await getEffectiveAiSettings(db);
   assertCanRefreshCustomerAiInsight(user, aiSettings);
 
+  if (!aiSettings.aiEnabled && !allowMockDeepInsightGeneration()) {
+    throw new AiDeepAnalysisGlobalDisabledError();
+  }
+
   const existingInsight = await getCustomerAiInsightByCustomerId(db, customer.id);
   if (isAiRefreshOnCooldown(existingInsight)) {
     throw new AiRefreshCooldownError();
@@ -362,6 +426,11 @@ export async function refreshCustomerAiInsight(
 
   const sourceHash = await computeCustomerInsightSourceHash(context);
   const resolved = resolveCustomerInsightProvider(aiSettings);
+
+  if (resolved.kind === "mock" && !allowMockDeepInsightGeneration()) {
+    throw new AiDeepAnalysisMockOnlyError();
+  }
+
   const provider = getCustomerInsightProviderImpl(resolved);
 
   let reservation: StaffAiReservationResult | null = null;
@@ -513,12 +582,9 @@ export async function getCustomerAiInsightBundleForUser(
   user: User,
   customer: Customer,
   accessOptions?: CustomerAccessOptions,
-): Promise<{
-  insight: CustomerAiInsightView | null;
-  display: CustomerAiInsightDisplayMeta;
-}> {
+): Promise<CustomerAiInsightBundle> {
   const aiSettings = await getEffectiveAiSettings(db);
-  const insight = await getCustomerAiInsightForUser(
+  const storedInsight = await getCustomerAiInsightForUser(
     db,
     user,
     customer,
@@ -528,8 +594,41 @@ export async function getCustomerAiInsightBundleForUser(
     user.role === "staff"
       ? await getStaffAiUsageSummary(db, user, aiSettings)
       : null;
+
+  const deepAnalysis = isValidDeepInsight(storedInsight) ? storedInsight : null;
+  const onCooldown = isAiRefreshOnCooldown(storedInsight);
+  const deepAnalysisAvailability = resolveDeepAnalysisAvailability({
+    user,
+    settings: aiSettings,
+    staffUsage,
+    insight: storedInsight,
+    providerConfigured: isAiApiKeyConfigured(),
+    onCooldown,
+  });
+
+  let basicAnalysis: BasicCustomerAnalysis | null = null;
+  try {
+    basicAnalysis = await getBasicCustomerAnalysis(db, customer);
+  } catch (error) {
+    console.error("[basic-analysis] failed", {
+      customerId: customer.id,
+      message: error instanceof Error ? error.message : "unknown",
+    });
+    basicAnalysis = null;
+  }
+
+  const display = getCustomerAiInsightDisplayMeta(
+    user,
+    aiSettings,
+    staffUsage,
+    deepAnalysisAvailability,
+  );
+
   return {
-    insight,
-    display: getCustomerAiInsightDisplayMeta(user, aiSettings, staffUsage),
+    insight: deepAnalysis,
+    display,
+    basicAnalysis,
+    deepAnalysis,
+    deepAnalysisAvailability,
   };
 }

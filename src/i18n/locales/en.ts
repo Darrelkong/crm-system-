@@ -555,8 +555,131 @@ const en = {
     timelineActor: "By: {{name}}",
     timelineSystem: "System",
     nextFollowUpLabel: "Next follow-up:",
+    analysisPanel: {
+      title: "Customer analysis",
+      loading: "Loading analysis…",
+      loadFailed: "Failed to load analysis",
+      reload: "Reload",
+      restricted: "Insufficient permissions to view customer analysis.",
+      basicFailed: "Basic system analysis could not be generated. Deep analysis below may still be available.",
+    },
+    basicAnalysis: {
+      title: "Basic system analysis",
+      description:
+        "Generated from existing CRM data and rules. It does not call an external AI service or use your AI quota.",
+      sourceBadge: "System rules",
+      generatedAt: "Generated at {{time}}",
+      nextRecommendedAction: "Next recommended action",
+      needsAttention: "Needs attention",
+      noUrgentIssues: "No urgent issues found",
+      missingInformation: "Missing customer information",
+      findingsTitle: "Items to review",
+      positiveTitle: "In good shape",
+      emptyFindings: "No rule findings for this customer right now.",
+      summary: {
+        normal: "Normal",
+        attention: "Needs attention",
+        urgent: "Priority",
+      },
+      fields: {
+        customerName: "Customer name",
+        contact: "Phone or WeChat",
+        businessNeed: "Business need",
+        salesStage: "Sales stage",
+        followUp: "Follow-up",
+        nextFollowUp: "Next follow-up time",
+        nextAction: "Next action",
+      },
+      findings: {
+        customerNameMissing: {
+          title: "Customer name missing",
+          description: "The customer name field is empty. Complete the profile before continuing outreach.",
+        },
+        contactMissing: {
+          title: "No valid contact method",
+          description: "Neither phone nor WeChat is recorded. Add at least one contact method.",
+        },
+        businessNeedMissing: {
+          title: "Business need missing",
+          description: "No business need / requested project is recorded yet.",
+        },
+        salesStageMissing: {
+          title: "Review customer stage",
+          description: "Sales stage is not set. Confirm the current stage in CRM.",
+        },
+        followUpNever: {
+          title: "No follow-up recorded",
+          description: "This customer has no follow-up history yet.",
+        },
+        followUpDaysSince: {
+          title: "Days since last follow-up",
+          description: "{{days}} day(s) have passed since the last follow-up.",
+        },
+        followUpOverdue: {
+          title: "Follow-up overdue",
+          description:
+            "The scheduled next follow-up is overdue by {{days}} day(s) (about {{hours}} hour(s)).",
+        },
+        nextFollowUpMissing: {
+          title: "Next follow-up missing",
+          description: "No next follow-up time is set for this customer.",
+        },
+        nextActionMissing: {
+          title: "Next action missing",
+          description: "The latest follow-up has no next action recorded.",
+        },
+        reclamationApproaching: {
+          title: "Reclamation approaching",
+          description:
+            "{{daysWithoutValid}} day(s) without a valid follow-up; automatic reclaim is set to {{reclaimDays}} day(s) ({{daysLeft}} day(s) left).",
+        },
+      },
+      positive: {
+        contactPresent: "A phone or WeChat contact is on file",
+        businessNeedPresent: "Business need is recorded",
+        recentFollowUp: "A recent follow-up is on record",
+        nextFollowUpScheduled: "Next follow-up time is scheduled",
+      },
+      actions: {
+        completeProfile: "Complete customer profile",
+        completeBusinessNeed: "Add business need",
+        reviewStage: "Review customer stage",
+        addFollowUp: "Add a follow-up",
+        addFollowUpOverdue: "Complete the overdue follow-up",
+        setNextFollowUp: "Set next follow-up time",
+        setNextAction: "Set next action",
+        reviewReclamation: "Review reclamation warning and follow up",
+      },
+    },
+    deepAnalysis: {
+      title: "AI deep analysis",
+      description:
+        "External AI analysis. Generation uses staff AI quota when applicable.",
+      cachedBadge: "Cached deep analysis",
+      cannotRegenerate: "Cannot regenerate currently",
+      empty: "No AI deep analysis is available yet.",
+      status: {
+        available: "AI deep analysis is available.",
+        staffDisabled:
+          "AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
+        limitReached:
+          "You have reached today’s AI deep-analysis limit. Basic system analysis is still available.",
+        globalDisabled:
+          "AI deep analysis is currently disabled. Basic system analysis is shown instead.",
+        providerUnavailable:
+          "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
+        mockOnly:
+          "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
+        manualRefreshDisabled: "Staff manual refresh is disabled by admin settings.",
+        adminOnly: "Only administrators can refresh AI deep analysis.",
+        cooldown: "AI deep analysis was refreshed recently. Please try again later.",
+        permissionDenied: "Insufficient permissions for AI deep analysis.",
+        cachedReadOnly: "Showing cached deep analysis. Regeneration is not available right now.",
+        empty: "No deep analysis result yet.",
+      },
+    },
     aiInsight: {
-      title: "AI Intent Analysis",
+      title: "AI deep analysis",
       disclaimer:
         "AI suggestions are for internal reference only. Staff must apply their own judgment before use; they do not constitute any commitment to the client.",
       loading: "Loading AI analysis…",
@@ -564,23 +687,25 @@ const en = {
       restricted: "Insufficient permissions to view AI insights.",
       notConfigured: "AI is not fully configured. Please contact an administrator.",
       providerTemporarilyUnavailable:
-        "The AI service is temporarily unavailable. Please try again later.",
+        "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
       rateLimited: "The AI service is receiving too many requests. Please try again later.",
       providerTimeout: "AI analysis timed out. Please try again later.",
       providerResponseInvalid:
         "The AI response format was invalid. Please try again later or contact an administrator.",
-      analysisFailed: "AI analysis failed. Please try again later.",
+      analysisFailed:
+        "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
       refreshDenied: "Manual AI refresh is not allowed for your role.",
       refreshCooldown: "AI analysis was refreshed recently. Please try again later.",
       refreshAdminOnly: "Only administrators can refresh AI insights.",
       refreshStaffDisabled: "Staff manual refresh is disabled by admin settings.",
       staffDeepAnalysisDisabled:
-        "AI deep analysis is currently unavailable for staff.",
-      dailyLimitReached: "You have reached today’s AI deep-analysis limit.",
+        "AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
+      dailyLimitReached:
+        "You have reached today’s AI deep-analysis limit. Basic system analysis is still available.",
       reservationConflict: "Please start a new AI deep-analysis request.",
       remainingToday:
         "{{count}} AI deep-analysis request(s) remaining today",
-      refresh: "Re-analyze",
+      refresh: "Regenerate deep analysis",
       refreshing: "Analyzing…",
       loadFailed: "Failed to load AI analysis",
       refreshFailed: "Failed to refresh AI analysis",

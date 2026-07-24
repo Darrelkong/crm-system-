@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type {
   CustomerAiInsightDisplayMeta,
   CustomerAiInsightView,
 } from "@/lib/ai/customer-insights/service";
+import type { BasicCustomerAnalysis } from "@/lib/ai/basic-analysis/types";
+import type { DeepAnalysisAvailability } from "@/lib/ai/deep-analysis/availability";
+import {
+  basicAnalysisSummaryStatusKey,
+  deepAnalysisStatusMessageKey,
+} from "@/lib/ai/deep-analysis/ui-messages";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { CustomerAiInsightFeedback } from "@/components/customers/customer-ai-insight-feedback";
 import {
@@ -31,9 +37,18 @@ const CONFIDENCE_LEVEL_BADGE_CLASS: Record<AiConfidenceLevel, string> = {
   low: "bg-slate-100 text-slate-700 ring-1 ring-slate-200",
 };
 
+const SUMMARY_BADGE_CLASS: Record<string, string> = {
+  normal: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
+  attention: "bg-amber-50 text-amber-800 ring-1 ring-amber-200",
+  urgent: "bg-red-50 text-red-800 ring-1 ring-red-200",
+};
+
 type InsightBundle = {
   insight: CustomerAiInsightView | null;
   display: CustomerAiInsightDisplayMeta;
+  basicAnalysis: BasicCustomerAnalysis | null;
+  deepAnalysis: CustomerAiInsightView | null;
+  deepAnalysisAvailability: DeepAnalysisAvailability;
 };
 
 function formatDateTime(value: string | null): string | null {
@@ -106,9 +121,29 @@ function resolveRefreshErrorMessage(
       return t("customers.aiInsight.dailyLimitReached");
     case "AI_STAFF_RESERVATION_CONFLICT":
       return t("customers.aiInsight.reservationConflict");
+    case "AI_DEEP_ANALYSIS_GLOBAL_DISABLED":
+      return t("customers.deepAnalysis.status.globalDisabled");
+    case "AI_DEEP_ANALYSIS_MOCK_ONLY":
+      return t("customers.deepAnalysis.status.mockOnly");
     default:
       return t("customers.aiInsight.refreshFailed");
   }
+}
+
+function applyBundle(
+  bundle: InsightBundle,
+  setters: {
+    setInsight: (v: CustomerAiInsightView | null) => void;
+    setDisplay: (v: CustomerAiInsightDisplayMeta) => void;
+    setBasicAnalysis: (v: BasicCustomerAnalysis | null) => void;
+    setAvailability: (v: DeepAnalysisAvailability | null) => void;
+  },
+) {
+  const deep = bundle.deepAnalysis ?? bundle.insight;
+  setters.setInsight(deep);
+  setters.setDisplay(bundle.display);
+  setters.setBasicAnalysis(bundle.basicAnalysis ?? null);
+  setters.setAvailability(bundle.deepAnalysisAvailability ?? null);
 }
 
 export function CustomerAiInsightPanel({
@@ -120,9 +155,14 @@ export function CustomerAiInsightPanel({
 }) {
   const { t } = useCustomerLabels();
   const [insight, setInsight] = useState<CustomerAiInsightView | null>(null);
+  const [basicAnalysis, setBasicAnalysis] = useState<BasicCustomerAnalysis | null>(
+    null,
+  );
+  const [availability, setAvailability] =
+    useState<DeepAnalysisAvailability | null>(null);
   const [display, setDisplay] = useState<CustomerAiInsightDisplayMeta>({
     showDraftMessage: true,
-    canRefresh: true,
+    canRefresh: false,
     refreshDisabledReason: null,
     staffUsage: null,
   });
@@ -130,9 +170,12 @@ export function CustomerAiInsightPanel({
   const [refreshing, setRefreshing] = useState(false);
   const [restricted, setRestricted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadToken, setLoadToken] = useState(0);
 
-  useEffect(() => {
+  const loadBundle = useCallback(() => {
     let cancelled = false;
+    setLoading(true);
+    setError(null);
 
     void fetch(`/api/customers/${customerId}/ai-insight`)
       .then(async (response) => {
@@ -140,7 +183,7 @@ export function CustomerAiInsightPanel({
           return { restricted: true as const };
         }
         if (!response.ok) {
-          throw new Error(t("customers.aiInsight.loadFailed"));
+          throw new Error(t("customers.analysisPanel.loadFailed"));
         }
         return response.json() as Promise<InsightBundle>;
       })
@@ -149,15 +192,25 @@ export function CustomerAiInsightPanel({
         if ("restricted" in result && result.restricted) {
           setRestricted(true);
           setInsight(null);
+          setBasicAnalysis(null);
+          setAvailability(null);
           return;
         }
-        const bundle = result as InsightBundle;
-        setInsight(bundle.insight);
-        setDisplay(bundle.display);
+        setRestricted(false);
+        applyBundle(result as InsightBundle, {
+          setInsight,
+          setDisplay,
+          setBasicAnalysis,
+          setAvailability,
+        });
       })
       .catch((err) => {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : t("customers.aiInsight.loadFailed"));
+          setError(
+            err instanceof Error
+              ? err.message
+              : t("customers.analysisPanel.loadFailed"),
+          );
         }
       })
       .finally(() => {
@@ -171,36 +224,79 @@ export function CustomerAiInsightPanel({
     };
   }, [customerId, t]);
 
+  useEffect(() => {
+    return loadBundle();
+  }, [loadBundle, loadToken]);
+
   async function handleRefresh() {
+    if (!display.canRefresh) return;
     setRefreshing(true);
     setError(null);
-    // One key per user click so network retries reuse quota; a new click gets a new key.
     const reservationKey = crypto.randomUUID();
     try {
-      const response = await fetch(`/api/customers/${customerId}/ai-insight/refresh`, {
-        method: "POST",
-        headers: {
-          "Idempotency-Key": reservationKey,
+      const response = await fetch(
+        `/api/customers/${customerId}/ai-insight/refresh`,
+        {
+          method: "POST",
+          headers: {
+            "Idempotency-Key": reservationKey,
+          },
         },
-      });
+      );
       const data = (await response.json()) as InsightBundle & {
         error?: string;
         errorCode?: string;
       };
       if (!response.ok) {
         setError(resolveRefreshErrorMessage(t, data.errorCode));
-        if (data.insight) {
-          setInsight(data.insight);
-        }
-        if (data.display) {
-          setDisplay(data.display);
+        if (data.display || data.basicAnalysis !== undefined) {
+          applyBundle(
+            {
+              insight: data.insight ?? null,
+              display: data.display ?? display,
+              basicAnalysis:
+                data.basicAnalysis !== undefined
+                  ? data.basicAnalysis
+                  : basicAnalysis,
+              deepAnalysis: data.deepAnalysis ?? data.insight ?? null,
+              deepAnalysisAvailability:
+                data.deepAnalysisAvailability ??
+                availability ?? {
+                  canViewCached: !!data.insight,
+                  canGenerate: false,
+                  reason: "PROVIDER_UNAVAILABLE",
+                  remaining: null,
+                  dailyLimit: 3,
+                  usageDate: null,
+                  hasCachedInsight: !!data.insight,
+                  cachedIsMock: false,
+                },
+            },
+            {
+              setInsight,
+              setDisplay,
+              setBasicAnalysis,
+              setAvailability,
+            },
+          );
+        } else {
+          if (data.insight) setInsight(data.insight);
+          if (data.display) setDisplay(data.display);
         }
         return;
       }
-      setInsight(data.insight);
-      setDisplay(data.display);
+      applyBundle(data, {
+        setInsight,
+        setDisplay,
+        setBasicAnalysis,
+        setAvailability,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("customers.aiInsight.refreshFailed"));
+      setError(
+        err instanceof Error
+          ? err.message
+          : t("customers.aiInsight.refreshFailed"),
+      );
     } finally {
       setRefreshing(false);
     }
@@ -213,26 +309,18 @@ export function CustomerAiInsightPanel({
       ? intentLevelKey
       : t(`customers.aiInsight.intentLevels.${intentLevelKey}`);
 
-  const refreshDisabledHint =
-    display.refreshDisabledReason === "admin_only"
-      ? t("customers.aiInsight.refreshAdminOnly")
-      : display.refreshDisabledReason === "staff_disabled"
-        ? t("customers.aiInsight.refreshStaffDisabled")
-        : display.refreshDisabledReason === "staff_deep_analysis_disabled"
-          ? t("customers.aiInsight.staffDeepAnalysisDisabled")
-          : display.refreshDisabledReason === "daily_limit_reached"
-            ? t("customers.aiInsight.dailyLimitReached")
-            : null;
+  const statusReason = availability?.reason ?? null;
+  const deepStatusMessage =
+    statusReason && statusReason !== "AVAILABLE"
+      ? t(
+          deepAnalysisStatusMessageKey(statusReason, {
+            hasCachedInsight: !!availability?.hasCachedInsight,
+          }),
+        )
+      : null;
 
   const staffUsageStatus = (() => {
     if (isAdmin || !display.staffUsage) return null;
-    const reason = display.staffUsage.denialReason;
-    if (reason === "staff_deep_analysis_disabled") {
-      return t("customers.aiInsight.staffDeepAnalysisDisabled");
-    }
-    if (reason === "daily_limit_reached") {
-      return t("customers.aiInsight.dailyLimitReached");
-    }
     if (display.staffUsage.enabled) {
       return t("customers.aiInsight.remainingToday", {
         count: String(display.staffUsage.remaining),
@@ -241,17 +329,6 @@ export function CustomerAiInsightPanel({
     return null;
   })();
 
-  // Avoid duplicating the same amber hint when refresh is already blocked for the same reason.
-  const showRefreshDisabledHint =
-    !restricted &&
-    !display.canRefresh &&
-    !!refreshDisabledHint &&
-    !(
-      staffUsageStatus &&
-      (display.refreshDisabledReason === "staff_deep_analysis_disabled" ||
-        display.refreshDisabledReason === "daily_limit_reached")
-    );
-
   const showFailedBanner = insight?.status === "failed";
   const isFailedPlaceholder =
     insight?.status === "failed" &&
@@ -259,201 +336,396 @@ export function CustomerAiInsightPanel({
     insight.intentScore === 0;
   const showInsightContent =
     insight &&
-    (insight.status === "ready" || (insight.status === "failed" && !isFailedPlaceholder));
+    (insight.status === "ready" ||
+      (insight.status === "failed" && !isFailedPlaceholder));
 
   return (
     <Card className="mt-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className={cd.subsectionTitle}>{t("customers.aiInsight.title")}</h3>
-          <p className={`mt-1 text-xs ${cd.muted}`}>{t("customers.aiInsight.disclaimer")}</p>
+          <h3 className={cd.subsectionTitle}>
+            {t("customers.analysisPanel.title")}
+          </h3>
         </div>
-        {!restricted && display.canRefresh && (
+        {!restricted && !loading && error && (
           <button
             type="button"
-            onClick={() => void handleRefresh()}
-            disabled={loading || refreshing}
-            className="customer-detail-action-btn px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+            onClick={() => setLoadToken((n) => n + 1)}
+            className="customer-detail-action-btn px-3 py-1.5"
           >
-            {refreshing ? t("customers.aiInsight.refreshing") : t("customers.aiInsight.refresh")}
+            {t("customers.analysisPanel.reload")}
           </button>
         )}
       </div>
 
-      {showRefreshDisabledHint && (
-        <p className="mt-3 text-sm text-amber-700">{refreshDisabledHint}</p>
-      )}
-
-      {!restricted && staffUsageStatus && (
-        <p
-          className={`mt-3 text-sm ${
-            display.staffUsage?.denialReason
-              ? "text-amber-700"
-              : cd.muted
-          }`}
-        >
-          {staffUsageStatus}
-        </p>
-      )}
-
       {loading && (
-        <p className={`mt-4 text-sm ${cd.muted}`}>{t("customers.aiInsight.loading")}</p>
+        <p className={`mt-4 text-sm ${cd.muted}`}>
+          {t("customers.analysisPanel.loading")}
+        </p>
       )}
 
       {!loading && restricted && (
         <div className="mt-4 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <p className="text-sm text-amber-800">{t("customers.aiInsight.restricted")}</p>
+          <p className="text-sm text-amber-800">
+            {t("customers.analysisPanel.restricted")}
+          </p>
         </div>
       )}
 
-      {!loading && !restricted && error && (
+      {!loading && !restricted && error && !basicAnalysis && !insight && (
         <p className="mt-4 text-sm text-red-600">{error}</p>
       )}
 
-      {!loading && !restricted && !error && !insight && (
-        <div className="surface-muted mt-4 p-4 text-center">
-          <p className={`text-sm ${cd.muted}`}>{t("customers.aiInsight.empty")}</p>
-        </div>
-      )}
-
-      {!loading && !restricted && showFailedBanner && (
-        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-700">{t("customers.aiInsight.analysisFailed")}</p>
-        </div>
-      )}
-
-      {!loading && !restricted && showInsightContent && (
-        <div className="mt-4 space-y-4">
-          {insight.status === "ready" && (() => {
-            const confidenceLevel = resolveAiConfidenceLevel(insight.confidence);
-            return (
-              <div className="customer-detail-callout p-4">
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                  <h4 className="customer-detail-callout-title">
-                    {t("customers.aiInsight.confidenceAssessmentTitle")}
-                  </h4>
-                  <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${CONFIDENCE_LEVEL_BADGE_CLASS[confidenceLevel]}`}
-                  >
-                    {t(`customers.aiInsight.confidenceLevel.${confidenceLevel}`)}
-                  </span>
-                  <span className={`text-sm ${cd.value}`}>
-                    {t("customers.aiInsight.confidencePercent", {
-                      percent: String(formatConfidencePercent(insight.confidence)),
-                    })}
-                  </span>
-                </div>
-                <div className="mt-3">
-                  <p className={`text-xs font-medium ${cd.label}`}>
-                    {t("customers.aiInsight.confidenceReasoningLabel")}
-                  </p>
-                  <p className={`mt-1 whitespace-pre-wrap break-words text-sm ${cd.value}`}>
-                    {insight.reasoning}
-                  </p>
-                </div>
-                {confidenceLevel === "low" && (
-                  <p className="mt-3 text-sm text-amber-800">
-                    {t("customers.aiInsight.confidenceLowHint")}
-                  </p>
-                )}
+      {!loading && !restricted && (
+        <div className="mt-4 space-y-6">
+          {/* —— Basic system analysis —— */}
+          <section className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <h4 className={cd.subsectionTitle}>
+                  {t("customers.basicAnalysis.title")}
+                </h4>
+                <p className={`mt-1 text-xs ${cd.muted}`}>
+                  {t("customers.basicAnalysis.description")}
+                </p>
               </div>
-            );
-          })()}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <div>
-              <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.intentLevel")}</p>
-              <span
-                className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${INTENT_BADGE_CLASS[insight.intentLevel] ?? INTENT_BADGE_CLASS.unknown}`}
-              >
-                {intentLabel}
+              <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${cd.badgeNeutral}`}>
+                {t("customers.basicAnalysis.sourceBadge")}
               </span>
             </div>
-            <div>
-              <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.intentScore")}</p>
-              <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>{insight.intentScore}</p>
-            </div>
-            {insight.status !== "ready" && (
-              <div>
-                <p className={`text-xs font-medium ${cd.label}`}>{t("customers.aiInsight.confidence")}</p>
-                <p className={`mt-1 text-sm ${cd.value}`}>{formatConfidencePercent(insight.confidence)}%</p>
+
+            {!basicAnalysis ? (
+              <p className={`mt-3 text-sm ${cd.muted}`}>
+                {t("customers.analysisPanel.basicFailed")}
+              </p>
+            ) : (
+              <div className="mt-3 space-y-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span
+                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${SUMMARY_BADGE_CLASS[basicAnalysis.summaryStatus] ?? SUMMARY_BADGE_CLASS.normal}`}
+                  >
+                    {t(basicAnalysisSummaryStatusKey(basicAnalysis.summaryStatus))}
+                  </span>
+                  <span className={`text-xs ${cd.muted}`}>
+                    {basicAnalysis.summaryStatus === "normal"
+                      ? t("customers.basicAnalysis.noUrgentIssues")
+                      : t("customers.basicAnalysis.needsAttention")}
+                  </span>
+                </div>
+
+                {basicAnalysis.nextRecommendedAction && (
+                  <div className="customer-detail-callout p-3">
+                    <p className={`text-xs font-medium ${cd.label}`}>
+                      {t("customers.basicAnalysis.nextRecommendedAction")}
+                    </p>
+                    <p className={`mt-1 text-sm ${cd.value}`}>
+                      {t(basicAnalysis.nextRecommendedAction.labelKey)}
+                    </p>
+                  </div>
+                )}
+
+                {basicAnalysis.findings.length > 0 ? (
+                  <div>
+                    <h5 className={cd.sectionTitle}>
+                      {t("customers.basicAnalysis.findingsTitle")}
+                    </h5>
+                    <ul className="mt-2 space-y-3">
+                      {basicAnalysis.findings.map((finding) => (
+                        <li
+                          key={finding.code}
+                          className="rounded-md border border-slate-100 p-3 dark:border-slate-800"
+                        >
+                          <p className={`text-sm font-medium ${cd.strongValue}`}>
+                            {t(finding.titleKey)}
+                          </p>
+                          <p className={`mt-1 text-sm ${cd.value}`}>
+                            {t(finding.descriptionKey, finding.descriptionParams)}
+                          </p>
+                          <p className={`mt-2 text-xs ${cd.muted}`}>
+                            {t(finding.recommendedAction.labelKey)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className={`text-sm ${cd.muted}`}>
+                    {t("customers.basicAnalysis.emptyFindings")}
+                  </p>
+                )}
+
+                {basicAnalysis.missingData.length > 0 && (
+                  <div>
+                    <h5 className={cd.sectionTitle}>
+                      {t("customers.basicAnalysis.missingInformation")}
+                    </h5>
+                    <ul className="mt-2 space-y-1">
+                      {basicAnalysis.missingData.map((item) => (
+                        <li key={item.field} className={`text-sm ${cd.value}`}>
+                          {t(item.labelKey)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {basicAnalysis.positiveSignals.length > 0 && (
+                  <div>
+                    <h5 className={cd.sectionTitle}>
+                      {t("customers.basicAnalysis.positiveTitle")}
+                    </h5>
+                    <ul className="mt-2 space-y-1">
+                      {basicAnalysis.positiveSignals.map((signal) => (
+                        <li key={signal.code} className={`text-sm ${cd.muted}`}>
+                          {t(signal.titleKey)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                <p className={`text-xs ${cd.muted}`}>
+                  {t("customers.basicAnalysis.generatedAt", {
+                    time:
+                      formatDateTime(basicAnalysis.generatedAt) ??
+                      basicAnalysis.generatedAt,
+                  })}
+                </p>
               </div>
             )}
-          </div>
+          </section>
 
-          <div>
-            <h4 className={cd.sectionTitle}>
-              {t("customers.aiInsight.customerSummary")}
-            </h4>
-            <p className={`mt-2 text-sm ${cd.value}`}>{insight.customerSummary}</p>
-          </div>
-
-          <div>
-            <h4 className={cd.sectionTitle}>
-              {t("customers.aiInsight.currentSituation")}
-            </h4>
-            <p className={`mt-2 text-sm ${cd.value}`}>{insight.currentSituation}</p>
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-3">
-            <SignalList
-              title={t("customers.aiInsight.keySignals")}
-              items={insight.keySignals}
-              emptyText={t("customers.aiInsight.noKeySignals")}
-              variant="positive"
-            />
-            <SignalList
-              title={t("customers.aiInsight.riskFlags")}
-              items={insight.riskFlags}
-              emptyText={t("customers.aiInsight.noRiskFlags")}
-              variant="risk"
-            />
-            <SignalList
-              title={t("customers.aiInsight.missingInformation")}
-              items={insight.missingInformation}
-              emptyText={t("customers.aiInsight.noMissingInformation")}
-              variant="missing"
-            />
-          </div>
-
-          <div>
-            <h4 className={cd.sectionTitle}>
-              {t("customers.aiInsight.nextBestAction")}
-            </h4>
-            <p className={`mt-2 text-sm ${cd.value}`}>{insight.nextBestAction}</p>
-          </div>
-
-          {insight.suggestedFollowUpAt && (
-            <div>
-              <h4 className={cd.sectionTitle}>
-                {t("customers.aiInsight.suggestedFollowUpAt")}
-              </h4>
-              <p className={`mt-2 text-sm ${cd.value}`}>
-                {formatDateTime(insight.suggestedFollowUpAt)}
-              </p>
+          {/* —— AI deep analysis —— */}
+          <section className="rounded-lg border border-slate-200 p-4 dark:border-slate-700">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h4 className={cd.subsectionTitle}>
+                  {t("customers.deepAnalysis.title")}
+                </h4>
+                <p className={`mt-1 text-xs ${cd.muted}`}>
+                  {t("customers.deepAnalysis.description")}
+                </p>
+                <p className={`mt-1 text-xs ${cd.muted}`}>
+                  {t("customers.aiInsight.disclaimer")}
+                </p>
+              </div>
+              {display.canRefresh && (
+                <button
+                  type="button"
+                  onClick={() => void handleRefresh()}
+                  disabled={loading || refreshing}
+                  className="customer-detail-action-btn px-3 py-1.5 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {refreshing
+                    ? t("customers.aiInsight.refreshing")
+                    : t("customers.aiInsight.refresh")}
+                </button>
+              )}
             </div>
-          )}
 
-          {display.showDraftMessage && (
-            <div className={`customer-detail-callout p-3`}>
-              <h4 className="customer-detail-callout-title">
-                {t("customers.aiInsight.suggestedEmployeeMessage")}
-              </h4>
-              <p className={`mt-2 whitespace-pre-wrap text-sm ${cd.value}`}>
-                {insight.suggestedEmployeeMessage}
-              </p>
-            </div>
-          )}
+            {availability?.hasCachedInsight && !display.canRefresh && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-700 ring-1 ring-slate-200">
+                  {t("customers.deepAnalysis.cachedBadge")}
+                </span>
+                <span className={`text-xs ${cd.muted}`}>
+                  {t("customers.deepAnalysis.cannotRegenerate")}
+                </span>
+              </div>
+            )}
 
-          <p className={`text-xs ${cd.muted}`}>
-            {t("customers.aiInsight.generatedAt", {
-              time: formatDateTime(insight.generatedAt) ?? insight.generatedAt,
-            })}
-          </p>
+            {deepStatusMessage && (
+              <p className="mt-3 text-sm text-amber-700">{deepStatusMessage}</p>
+            )}
 
-          {isAdmin && insight.status === "ready" && (
-            <CustomerAiInsightFeedback customerId={customerId} insight={insight} />
-          )}
+            {!isAdmin && staffUsageStatus && (
+              <p className={`mt-2 text-sm ${cd.muted}`}>{staffUsageStatus}</p>
+            )}
+
+            {error && (
+              <p className="mt-3 text-sm text-red-600">{error}</p>
+            )}
+
+            {showFailedBanner && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-sm text-red-700">
+                  {t("customers.aiInsight.analysisFailed")}
+                </p>
+              </div>
+            )}
+
+            {!showInsightContent && !showFailedBanner && (
+              <div className="surface-muted mt-3 p-4 text-center">
+                <p className={`text-sm ${cd.muted}`}>
+                  {t("customers.deepAnalysis.empty")}
+                </p>
+              </div>
+            )}
+
+            {showInsightContent && (
+              <div className="mt-4 space-y-4">
+                {insight.status === "ready" &&
+                  (() => {
+                    const confidenceLevel = resolveAiConfidenceLevel(
+                      insight.confidence,
+                    );
+                    return (
+                      <div className="customer-detail-callout p-4">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+                          <h4 className="customer-detail-callout-title">
+                            {t("customers.aiInsight.confidenceAssessmentTitle")}
+                          </h4>
+                          <span
+                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${CONFIDENCE_LEVEL_BADGE_CLASS[confidenceLevel]}`}
+                          >
+                            {t(
+                              `customers.aiInsight.confidenceLevel.${confidenceLevel}`,
+                            )}
+                          </span>
+                          <span className={`text-sm ${cd.value}`}>
+                            {t("customers.aiInsight.confidencePercent", {
+                              percent: String(
+                                formatConfidencePercent(insight.confidence),
+                              ),
+                            })}
+                          </span>
+                        </div>
+                        <div className="mt-3">
+                          <p className={`text-xs font-medium ${cd.label}`}>
+                            {t("customers.aiInsight.confidenceReasoningLabel")}
+                          </p>
+                          <p
+                            className={`mt-1 whitespace-pre-wrap break-words text-sm ${cd.value}`}
+                          >
+                            {insight.reasoning}
+                          </p>
+                        </div>
+                        {confidenceLevel === "low" && (
+                          <p className="mt-3 text-sm text-amber-800">
+                            {t("customers.aiInsight.confidenceLowHint")}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <div>
+                    <p className={`text-xs font-medium ${cd.label}`}>
+                      {t("customers.aiInsight.intentLevel")}
+                    </p>
+                    <span
+                      className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${INTENT_BADGE_CLASS[insight.intentLevel] ?? INTENT_BADGE_CLASS.unknown}`}
+                    >
+                      {intentLabel}
+                    </span>
+                  </div>
+                  <div>
+                    <p className={`text-xs font-medium ${cd.label}`}>
+                      {t("customers.aiInsight.intentScore")}
+                    </p>
+                    <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>
+                      {insight.intentScore}
+                    </p>
+                  </div>
+                  {insight.status !== "ready" && (
+                    <div>
+                      <p className={`text-xs font-medium ${cd.label}`}>
+                        {t("customers.aiInsight.confidence")}
+                      </p>
+                      <p className={`mt-1 text-sm ${cd.value}`}>
+                        {formatConfidencePercent(insight.confidence)}%
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <h4 className={cd.sectionTitle}>
+                    {t("customers.aiInsight.customerSummary")}
+                  </h4>
+                  <p className={`mt-2 text-sm ${cd.value}`}>
+                    {insight.customerSummary}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className={cd.sectionTitle}>
+                    {t("customers.aiInsight.currentSituation")}
+                  </h4>
+                  <p className={`mt-2 text-sm ${cd.value}`}>
+                    {insight.currentSituation}
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <SignalList
+                    title={t("customers.aiInsight.keySignals")}
+                    items={insight.keySignals}
+                    emptyText={t("customers.aiInsight.noKeySignals")}
+                    variant="positive"
+                  />
+                  <SignalList
+                    title={t("customers.aiInsight.riskFlags")}
+                    items={insight.riskFlags}
+                    emptyText={t("customers.aiInsight.noRiskFlags")}
+                    variant="risk"
+                  />
+                  <SignalList
+                    title={t("customers.aiInsight.missingInformation")}
+                    items={insight.missingInformation}
+                    emptyText={t("customers.aiInsight.noMissingInformation")}
+                    variant="missing"
+                  />
+                </div>
+
+                <div>
+                  <h4 className={cd.sectionTitle}>
+                    {t("customers.aiInsight.nextBestAction")}
+                  </h4>
+                  <p className={`mt-2 text-sm ${cd.value}`}>
+                    {insight.nextBestAction}
+                  </p>
+                </div>
+
+                {insight.suggestedFollowUpAt && (
+                  <div>
+                    <h4 className={cd.sectionTitle}>
+                      {t("customers.aiInsight.suggestedFollowUpAt")}
+                    </h4>
+                    <p className={`mt-2 text-sm ${cd.value}`}>
+                      {formatDateTime(insight.suggestedFollowUpAt)}
+                    </p>
+                  </div>
+                )}
+
+                {display.showDraftMessage && (
+                  <div className="customer-detail-callout p-3">
+                    <h4 className="customer-detail-callout-title">
+                      {t("customers.aiInsight.suggestedEmployeeMessage")}
+                    </h4>
+                    <p className={`mt-2 whitespace-pre-wrap text-sm ${cd.value}`}>
+                      {insight.suggestedEmployeeMessage}
+                    </p>
+                  </div>
+                )}
+
+                <p className={`text-xs ${cd.muted}`}>
+                  {t("customers.aiInsight.generatedAt", {
+                    time:
+                      formatDateTime(insight.generatedAt) ?? insight.generatedAt,
+                  })}
+                </p>
+
+                {isAdmin && insight.status === "ready" && (
+                  <CustomerAiInsightFeedback
+                    customerId={customerId}
+                    insight={insight}
+                  />
+                )}
+              </div>
+            )}
+          </section>
         </div>
       )}
     </Card>

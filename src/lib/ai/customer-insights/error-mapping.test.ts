@@ -171,6 +171,8 @@ describe("getSafeAiRefreshErrorMessage", () => {
       "AI_STAFF_DEEP_ANALYSIS_DISABLED",
       "AI_STAFF_DAILY_LIMIT_REACHED",
       "AI_STAFF_RESERVATION_CONFLICT",
+      "AI_DEEP_ANALYSIS_GLOBAL_DISABLED",
+      "AI_DEEP_ANALYSIS_MOCK_ONLY",
     ] as const;
 
     for (const code of codes) {
