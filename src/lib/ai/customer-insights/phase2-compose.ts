@@ -15,6 +15,7 @@ import { buildFollowUpRecommendation } from "@/lib/ai/phase2/follow-up-recommend
 import { safeParsePhase2Insight } from "@/lib/ai/phase2/schema";
 import { scoreOpportunity } from "@/lib/ai/phase2/scoring";
 import { validateSuggestedEmployeeMessage } from "@/lib/ai/phase2/suggested-message";
+import { PHASE2_SAFE_SUGGESTED_MESSAGE_PLACEHOLDER } from "@/lib/ai/customer-insights/safe-suggested-message";
 import type {
   EvidenceReference,
   MissingInformationItem,
@@ -29,6 +30,21 @@ import type { Customer } from "../../../../drizzle/schema/customers";
 import type { EffectiveSettings } from "@/lib/settings/effective";
 import { calculateCustomerHeat } from "@/lib/customers/scoring/heat";
 import { getDaysWithoutValidFollowUp } from "@/lib/reclamation/days";
+
+export {
+  PHASE2_SAFE_SUGGESTED_MESSAGE_PLACEHOLDER,
+  isPhase2SafeSuggestedMessagePlaceholder,
+  isSafeSuggestedMessageAvailable,
+} from "@/lib/ai/customer-insights/safe-suggested-message";
+
+export function sanitizeSuggestedEmployeeMessageForPersist(
+  message: string,
+): string {
+  const messageCheck = validateSuggestedEmployeeMessage(message);
+  return messageCheck.ok
+    ? messageCheck.message
+    : PHASE2_SAFE_SUGGESTED_MESSAGE_PLACEHOLDER;
+}
 
 export type Phase2FailureCode =
   | "missing_signals"
@@ -276,15 +292,6 @@ function maskFactorEvidence<T extends { evidence: EvidenceReference[] }>(
     ...item,
     evidence: item.evidence.map((e) => maskValidatedEvidence(e)),
   };
-}
-
-export function sanitizeSuggestedEmployeeMessageForPersist(
-  message: string,
-): string {
-  const safeMessageFallback =
-    "（建议文案未通过合规校验，请自行撰写跟进内容。）";
-  const messageCheck = validateSuggestedEmployeeMessage(message);
-  return messageCheck.ok ? messageCheck.message : safeMessageFallback;
 }
 
 /**

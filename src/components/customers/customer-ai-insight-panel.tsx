@@ -15,6 +15,13 @@ import {
 } from "@/lib/ai/deep-analysis/ui-messages";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { CustomerAiInsightFeedback } from "@/components/customers/customer-ai-insight-feedback";
+import { AiInsightPhase2Sections } from "@/components/customers/ai-insight-phase2-sections";
+import { AiInsightSuggestedMessage } from "@/components/customers/ai-insight-suggested-message";
+import {
+  hasRenderablePhase2,
+  shouldDeemphasizeIntentScore,
+  shouldShowAdvancedUnavailableNotice,
+} from "@/components/customers/phase2-panel-display";
 import {
   formatConfidencePercent,
   resolveAiConfidenceLevel,
@@ -49,6 +56,9 @@ type InsightBundle = {
   basicAnalysis: BasicCustomerAnalysis | null;
   deepAnalysis: CustomerAiInsightView | null;
   deepAnalysisAvailability: DeepAnalysisAvailability;
+  /** Present on refresh responses only; optional for old GET / clients. */
+  phase2Generated?: boolean;
+  phase2UnavailableReason?: string | null;
 };
 
 function formatDateTime(value: string | null): string | null {
@@ -171,11 +181,14 @@ export function CustomerAiInsightPanel({
   const [restricted, setRestricted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loadToken, setLoadToken] = useState(0);
+  const [advancedUnavailableNotice, setAdvancedUnavailableNotice] =
+    useState(false);
 
   const loadBundle = useCallback(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setAdvancedUnavailableNotice(false);
 
     void fetch(`/api/customers/${customerId}/ai-insight`)
       .then(async (response) => {
@@ -232,6 +245,7 @@ export function CustomerAiInsightPanel({
     if (!display.canRefresh) return;
     setRefreshing(true);
     setError(null);
+    setAdvancedUnavailableNotice(false);
     const reservationKey = crypto.randomUUID();
     try {
       const response = await fetch(
@@ -291,6 +305,12 @@ export function CustomerAiInsightPanel({
         setBasicAnalysis,
         setAvailability,
       });
+      setAdvancedUnavailableNotice(
+        shouldShowAdvancedUnavailableNotice({
+          refreshSucceeded: true,
+          phase2Generated: data.phase2Generated,
+        }),
+      );
     } catch (err) {
       setError(
         err instanceof Error
@@ -342,6 +362,13 @@ export function CustomerAiInsightPanel({
     insight &&
     (insight.status === "ready" ||
       (insight.status === "failed" && !isFailedPlaceholder));
+  const phase2 = hasRenderablePhase2(insight?.phase2)
+    ? insight.phase2
+    : null;
+  const deemphasizeIntentScore = shouldDeemphasizeIntentScore(
+    phase2,
+    insight?.intentScore,
+  );
 
   return (
     <Card className="mt-6">
@@ -550,6 +577,12 @@ export function CustomerAiInsightPanel({
               <p className="mt-3 text-sm text-red-600">{error}</p>
             )}
 
+            {advancedUnavailableNotice && !error && (
+              <p className={`mt-3 text-sm ${cd.muted}`} role="status">
+                {t("customers.phase2.advancedUnavailable")}
+              </p>
+            )}
+
             {showFailedBanner && (
               <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-4">
                 <p className="text-sm text-red-700">
@@ -624,14 +657,16 @@ export function CustomerAiInsightPanel({
                       {intentLabel}
                     </span>
                   </div>
-                  <div>
-                    <p className={`text-xs font-medium ${cd.label}`}>
-                      {t("customers.aiInsight.intentScore")}
-                    </p>
-                    <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>
-                      {insight.intentScore}
-                    </p>
-                  </div>
+                  {!deemphasizeIntentScore && (
+                    <div>
+                      <p className={`text-xs font-medium ${cd.label}`}>
+                        {t("customers.aiInsight.intentScore")}
+                      </p>
+                      <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>
+                        {insight.intentScore}
+                      </p>
+                    </div>
+                  )}
                   {insight.status !== "ready" && (
                     <div>
                       <p className={`text-xs font-medium ${cd.label}`}>
@@ -703,16 +738,32 @@ export function CustomerAiInsightPanel({
                   </div>
                 )}
 
-                {display.showDraftMessage && (
-                  <div className="customer-detail-callout p-3">
-                    <h4 className="customer-detail-callout-title">
-                      {t("customers.aiInsight.suggestedEmployeeMessage")}
-                    </h4>
-                    <p className={`mt-2 whitespace-pre-wrap text-sm ${cd.value}`}>
-                      {insight.suggestedEmployeeMessage}
+                {phase2 && <AiInsightPhase2Sections t={t} phase2={phase2} />}
+
+                {deemphasizeIntentScore && (
+                  <details className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
+                    <summary className={`cursor-pointer text-xs ${cd.muted}`}>
+                      {t("customers.phase2.legacyIntentScore")}
+                    </summary>
+                    <p className={`mt-2 text-sm ${cd.value}`}>
+                      {insight.intentScore}
                     </p>
-                  </div>
+                  </details>
                 )}
+
+                {display.showDraftMessage && (
+                  <AiInsightSuggestedMessage
+                    t={t}
+                    customerId={customerId}
+                    insightId={insight.id}
+                    generatedAt={insight.generatedAt}
+                    sourceMessage={insight.suggestedEmployeeMessage}
+                  />
+                )}
+
+                <p className={`text-xs ${cd.muted}`}>
+                  {t("customers.phase2.noCrmAutoChanges")}
+                </p>
 
                 <p className={`text-xs ${cd.muted}`}>
                   {t("customers.aiInsight.generatedAt", {

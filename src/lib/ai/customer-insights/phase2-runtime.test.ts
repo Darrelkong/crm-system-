@@ -8,6 +8,10 @@ import {
   sanitizeSuggestedEmployeeMessageForPersist,
   serializePhase2Insight,
 } from "@/lib/ai/customer-insights/phase2-compose";
+import {
+  isPhase2SafeSuggestedMessagePlaceholder,
+  PHASE2_SAFE_SUGGESTED_MESSAGE_PLACEHOLDER,
+} from "@/lib/ai/customer-insights/safe-suggested-message";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { computeCustomerInsightSourceHash } from "@/lib/ai/customer-insights/hash";
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/ai/customer-insights/prompt-builder";
@@ -369,9 +373,10 @@ describe("phase2 source hash and prompt", () => {
     const bad = sanitizeSuggestedEmployeeMessageForPersist(
       "保证开户成功，请把电话 13800138000 发给客户。",
     );
+    assert.equal(bad, PHASE2_SAFE_SUGGESTED_MESSAGE_PLACEHOLDER);
+    assert.equal(isPhase2SafeSuggestedMessagePlaceholder(bad), true);
     assert.equal(bad.includes("保证"), false);
     assert.equal(bad.includes("13800138000"), false);
-    assert.match(bad, /合规校验/);
 
     const composed = composePhase2Insight({
       insightContext: insightContext(),
@@ -381,7 +386,10 @@ describe("phase2 source hash and prompt", () => {
       suggestedEmployeeMessage: "保证移民成功，一定能获批。",
     });
     assert.equal(composed.ok, false);
-    assert.equal(composed.suggestedEmployeeMessage.includes("保证"), false);
+    assert.equal(
+      composed.suggestedEmployeeMessage,
+      PHASE2_SAFE_SUGGESTED_MESSAGE_PLACEHOLDER,
+    );
     assert.equal(parseStoredPhase2Json(""), null);
     assert.equal(parseStoredPhase2Json("   "), null);
   });
