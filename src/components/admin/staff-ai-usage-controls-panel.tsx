@@ -130,6 +130,9 @@ export function StaffAiUsageControlsPanel({
           <Label htmlFor="ai_staff_daily_limit_mode">
             {t("aiSettings.staffDailyLimit")}
           </Label>
+          <p className="mt-1 text-xs text-slate-500">
+            {t("aiSettings.staffDailyLimitHint")}
+          </p>
           <Select
             id="ai_staff_daily_limit_mode"
             className="mt-1"

@@ -13,6 +13,7 @@ import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
 import { OnHoldApprovalSubmittedModal, OnHoldReasonModal } from "./on-hold-approval-pending-modal";
+import { FollowUpOrganizeControls } from "@/components/follow-ups/follow-up-organize-controls";
 
 type DuplicateMatch = {
   field: string;
@@ -409,6 +410,11 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
             value={form.notes}
             onChange={(e) => set("notes", e.target.value)}
             placeholder={t("customers.stageNotesPlaceholder")}
+          />
+          <FollowUpOrganizeControls
+            customerId={null}
+            value={form.notes}
+            onApply={(organizedText) => set("notes", organizedText)}
           />
           {fieldErrors.notes && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.notes}</p>

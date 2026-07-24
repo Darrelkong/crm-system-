@@ -2020,9 +2020,11 @@ const en = {
     adminOnlyManualRefresh: "Admin-only manual refresh",
     staffUsageControlsTitle: "Staff AI usage controls",
     staffUsageControlsHint:
-      "Controls whether staff can call external AI for deep analysis, and the daily limit per staff member.",
+      "Controls whether staff can call external AI, and the shared daily usage limit per staff member. AI deep analysis and AI follow-up organization share the same daily quota. Basic system analysis and basic cleanup do not use quota.",
     staffDeepAnalysisEnabled: "Allow staff to use AI deep analysis",
-    staffDailyLimit: "Daily AI deep-analysis limit per staff member",
+    staffDailyLimit: "Daily AI usage limit per staff member",
+    staffDailyLimitHint:
+      "AI deep analysis and AI follow-up organization each consume one request when successful.",
     dailyLimitTimes: "{{count}} request(s)",
     dailyLimitCustom: "Custom",
     dailyLimitCustomValue: "Custom daily limit",
@@ -2150,6 +2152,63 @@ const en = {
     autoCreateTask: "A follow-up task will be created automatically",
     noAddPermission: "Insufficient permissions",
     backToDetails: "Back to Client Details",
+  },
+  followUpOrganize: {
+    basicButton: "Basic cleanup",
+    aiButton: "AI organize",
+    basicHint: "Does not use AI quota",
+    aiHint: "Uses one AI request when successful",
+    remainingToday: "{{count}} AI request(s) remaining today (shared)",
+    originalText: "Original text",
+    organizedText: "Organized text",
+    extractedInformation: "Extracted information",
+    businessNeed: "Business need",
+    customerConcern: "Customer concern",
+    documentStatus: "Document status",
+    agreedFollowUpTime: "Agreed follow-up time",
+    suggestedNextAction: "Suggested next action",
+    useOrganizedResult: "Use organized result",
+    keepOriginal: "Keep original",
+    organizeAgain: "Organize again",
+    closePreview: "Close preview",
+    sourceBasic: "Basic cleanup",
+    sourceAi: "AI organize",
+    sourceMock: "Test mode",
+    previewTitle: "Follow-up organization preview",
+    noExtracted: "No important information extracted",
+    resultNotSavedYet: "Result is not saved yet. Review before using.",
+    originalPreserved: "Original text preserved",
+    organizing: "Organizing…",
+    availability: {
+      available: "AI organize is available",
+      staffDisabled:
+        "AI organize is not currently enabled for staff. Basic cleanup remains available.",
+      limitReached:
+        "You have reached today’s AI limit. Basic cleanup remains available.",
+      globalDisabled:
+        "AI organize is currently disabled. Basic cleanup remains available.",
+      providerUnavailable:
+        "AI organize is temporarily unavailable. Basic cleanup remains available.",
+      mockOnly:
+        "AI organize is temporarily unavailable. Basic cleanup remains available.",
+    },
+    warnings: {
+      textTooShort: "Input is too short",
+      nextActionMissing: "No clear next-action language detected",
+      ambiguousDate: "Ambiguous date/time — not converted to an exact time",
+      possibleFactAdded: "Possible added fact detected",
+      inputEmpty: "Please enter follow-up text",
+      inputTooLong: "Follow-up text is too long",
+      organizationFailed: "Organization failed",
+    },
+    errors: {
+      organizationFailed: "Organization failed",
+      network: "Network error",
+      idempotencyConflict:
+        "This organize request could not be replayed. Keep your original text and try again.",
+      previewStale:
+        "The original text changed after this preview. Organize again before using the result.",
+    },
   },
   followUpsPage: {
     title: "Follow-up Records",

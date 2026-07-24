@@ -8,7 +8,10 @@ import {
 } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
-export const AI_USAGE_OPERATION_TYPES = ["deep_analysis_refresh"] as const;
+export const AI_USAGE_OPERATION_TYPES = [
+  "deep_analysis_refresh",
+  "follow_up_organization",
+] as const;
 export type AiUsageOperationType = (typeof AI_USAGE_OPERATION_TYPES)[number];
 
 export const AI_USAGE_STATUSES = [

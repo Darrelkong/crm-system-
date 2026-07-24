@@ -527,4 +527,90 @@ describe("staff AI usage quota (D1)", () => {
       .limit(1);
     assert.equal(event?.customerId, orphanCustomerId);
   });
+
+  it("shares daily limit across deep_analysis_refresh and follow_up_organization", async () => {
+    await clearUsage(staffUser.id);
+    const now = new Date("2026-07-20T04:00:00.000Z");
+    const cfg = settings({ aiStaffDailyLimit: 1 });
+    const deep = await reserveStaffAiUsage(db, {
+      user: staffUser,
+      settings: cfg,
+      reservationKey: `test-deep-${crypto.randomUUID()}`,
+      customerId: SEED_IDS.customerStaffA,
+      providerKind: "google_gemini",
+      operationType: "deep_analysis_refresh",
+      now,
+    });
+    await completeStaffAiUsage(db, { ...deep, userId: staffUser.id }, now);
+
+    await assert.rejects(
+      () =>
+        reserveStaffAiUsage(db, {
+          user: staffUser,
+          settings: cfg,
+          reservationKey: `test-organize-${crypto.randomUUID()}`,
+          customerId: SEED_IDS.customerStaffA,
+          providerKind: "google_gemini",
+          operationType: "follow_up_organization",
+          now,
+        }),
+      (error: unknown) =>
+        error instanceof StaffAiQuotaError &&
+        error.code === "AI_STAFF_DAILY_LIMIT_REACHED",
+    );
+
+    const [event] = await db
+      .select()
+      .from(schema.aiUsageEvents)
+      .where(eq(schema.aiUsageEvents.id, deep.eventId))
+      .limit(1);
+    assert.equal(event?.operationType, "deep_analysis_refresh");
+  });
+
+  it("rejects reservation key reuse across operation or customer scope", async () => {
+    await clearUsage(staffUser.id);
+    const now = new Date("2026-07-20T04:00:00.000Z");
+    const key = `test-scope-bind-${crypto.randomUUID()}`;
+    await reserveStaffAiUsage(db, {
+      user: staffUser,
+      settings: settings(),
+      reservationKey: key,
+      customerId: SEED_IDS.customerStaffA,
+      providerKind: "google_gemini",
+      operationType: "deep_analysis_refresh",
+      now,
+    });
+
+    await assert.rejects(
+      () =>
+        reserveStaffAiUsage(db, {
+          user: staffUser,
+          settings: settings(),
+          reservationKey: key,
+          customerId: SEED_IDS.customerStaffA,
+          providerKind: "google_gemini",
+          operationType: "follow_up_organization",
+          now,
+        }),
+      (error: unknown) =>
+        error instanceof StaffAiQuotaError &&
+        error.code === "AI_STAFF_RESERVATION_CONFLICT",
+    );
+
+    await assert.rejects(
+      () =>
+        reserveStaffAiUsage(db, {
+          user: staffUser,
+          settings: settings(),
+          reservationKey: key,
+          customerId: null,
+          providerKind: "google_gemini",
+          operationType: "deep_analysis_refresh",
+          now,
+        }),
+      (error: unknown) =>
+        error instanceof StaffAiQuotaError &&
+        error.code === "AI_STAFF_RESERVATION_CONFLICT",
+    );
+  });
 });

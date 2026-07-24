@@ -1940,9 +1940,11 @@ const zhHant: Messages = {
     adminOnlyManualRefresh: "僅 Admin 可刷新",
     staffUsageControlsTitle: "員工 AI 使用控制",
     staffUsageControlsHint:
-      "控制員工是否可調用外部 AI 進行深度分析，以及每位員工的每日次數上限。",
+      "控制員工是否可調用外部 AI，以及每位員工的每日共用使用次數上限。AI 深度分析與 AI 智能整理共用每日額度；基礎系統分析與基礎整理不扣次數。",
     staffDeepAnalysisEnabled: "允許員工使用 AI 深度分析",
-    staffDailyLimit: "員工每日 AI 深度分析次數",
+    staffDailyLimit: "員工每日 AI 使用次數",
+    staffDailyLimitHint:
+      "AI 深度分析與 AI 智能整理成功各消耗一次。",
     dailyLimitTimes: "{{count}} 次",
     dailyLimitCustom: "自訂",
     dailyLimitCustomValue: "自訂每日次數",
@@ -2069,6 +2071,63 @@ const zhHant: Messages = {
     autoCreateTask: "填寫後將自動建立跟進任務",
     noAddPermission: "權限不足",
     backToDetails: "返回客戶詳情",
+  },
+  followUpOrganize: {
+    basicButton: "基礎整理",
+    aiButton: "AI 智能整理",
+    basicHint: "不消耗 AI 次數",
+    aiHint: "成功後使用一次 AI 請求",
+    remainingToday: "今日剩餘 {{count}} 次 AI 請求（共用）",
+    originalText: "原文",
+    organizedText: "整理後文字",
+    extractedInformation: "提取信息",
+    businessNeed: "業務需求",
+    customerConcern: "客戶顧慮",
+    documentStatus: "資料準備狀態",
+    agreedFollowUpTime: "約定跟進時間",
+    suggestedNextAction: "建議下一步行動",
+    useOrganizedResult: "使用整理結果",
+    keepOriginal: "保留原文",
+    organizeAgain: "重新整理",
+    closePreview: "關閉預覽",
+    sourceBasic: "基礎整理",
+    sourceAi: "AI 智能整理",
+    sourceMock: "測試模式",
+    previewTitle: "跟進備註整理預覽",
+    noExtracted: "未提取到重要資訊",
+    resultNotSavedYet: "結果尚未保存，請先審閱再使用。",
+    originalPreserved: "原文已保留",
+    organizing: "整理中…",
+    availability: {
+      available: "AI 智能整理可用",
+      staffDisabled:
+        "管理員目前未開放 AI 智能整理。你仍可使用基礎整理。",
+      limitReached:
+        "今日 AI 次數已用完。你仍可使用基礎整理。",
+      globalDisabled:
+        "AI 智能整理目前未啟用。你仍可使用基礎整理。",
+      providerUnavailable:
+        "AI 智能整理暫時不可用。你仍可使用基礎整理。",
+      mockOnly:
+        "AI 智能整理暫時不可用。你仍可使用基礎整理。",
+    },
+    warnings: {
+      textTooShort: "文字過短",
+      nextActionMissing: "未偵測到明確的下一步行動描述",
+      ambiguousDate: "時間表述模糊，未轉換為精確時間",
+      possibleFactAdded: "疑似新增事實",
+      inputEmpty: "請輸入跟進文字",
+      inputTooLong: "跟進文字過長",
+      organizationFailed: "整理失敗",
+    },
+    errors: {
+      organizationFailed: "整理失敗",
+      network: "網絡錯誤",
+      idempotencyConflict:
+        "此整理請求無法重放。原文已保留，請重新整理。",
+      previewStale:
+        "預覽產生後原文已變更。請重新整理後再使用結果。",
+    },
   },
   followUpsPage: {
     title: "跟進紀錄",

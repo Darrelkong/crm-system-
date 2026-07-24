@@ -4,6 +4,7 @@ import { schema } from "@/lib/db";
 import { formatHongKongDate } from "@/lib/timezone";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import type { User } from "../../../../drizzle/schema/users";
+import type { AiUsageOperationType } from "../../../../drizzle/schema/ai-usage";
 import type { AiProviderKind } from "@/lib/settings/ai-keys";
 
 /** Pending reservations older than this no longer consume quota. */
@@ -306,12 +307,14 @@ export async function reserveStaffAiUsage(
     user: User;
     settings: EffectiveAiSettings;
     reservationKey: string;
-    customerId: string;
+    customerId: string | null;
     providerKind: AiProviderKind;
+    operationType?: AiUsageOperationType;
     now?: Date;
   },
 ): Promise<StaffAiReservation> {
   const { user, settings, reservationKey, customerId, providerKind } = input;
+  const operationType = input.operationType ?? "deep_analysis_refresh";
   const now = input.now ?? new Date();
   const nowIso = now.toISOString();
   const usageDate = getHongKongUsageDate(now);
@@ -343,6 +346,18 @@ export async function reserveStaffAiUsage(
   if (existing[0]) {
     const row = existing[0];
     if (row.userId !== user.id) {
+      throw new StaffAiQuotaError(
+        "AI_STAFF_RESERVATION_CONFLICT",
+        "无效的用量保留键",
+      );
+    }
+    // Bind key to actor + operation + customer scope so the same key cannot
+    // be replayed across routes, customers, or operation types.
+    const rowCustomerId = row.customerId ?? null;
+    if (
+      row.operationType !== operationType ||
+      rowCustomerId !== customerId
+    ) {
       throw new StaffAiQuotaError(
         "AI_STAFF_RESERVATION_CONFLICT",
         "无效的用量保留键",
@@ -396,7 +411,7 @@ export async function reserveStaffAiUsage(
       id: eventId,
       userId: user.id,
       usageDate,
-      operationType: "deep_analysis_refresh",
+      operationType,
       status: "pending",
       reservationKey,
       customerId,

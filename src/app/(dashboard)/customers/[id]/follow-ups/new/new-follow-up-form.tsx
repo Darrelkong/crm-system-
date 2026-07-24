@@ -15,6 +15,7 @@ import {
 } from "@/lib/follow-ups/validation";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
+import { FollowUpOrganizeControls } from "@/components/follow-ups/follow-up-organize-controls";
 
 export function NewFollowUpForm({
   customerId,
@@ -187,6 +188,11 @@ export function NewFollowUpForm({
             value={form.summary}
             onChange={(e) => set("summary", e.target.value)}
             placeholder={t("followUps.notesPlaceholder")}
+          />
+          <FollowUpOrganizeControls
+            customerId={customerId}
+            value={form.summary}
+            onApply={(organizedText) => set("summary", organizedText)}
           />
           {fieldErrors.summary && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.summary}</p>
