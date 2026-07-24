@@ -9,7 +9,10 @@
  *
  * Must remain in sync with customerInsightOutputSchema + optional phase2Signals.
  */
-import { PHASE2_EXTRACTED_SIGNALS_JSON_SCHEMA } from "@/lib/ai/phase2/provider-json-schema";
+import {
+  PHASE2_EXTRACTED_SIGNALS_JSON_SCHEMA,
+  PHASE2_EXTRACTED_SIGNALS_NATIVE_RESPONSE_SCHEMA,
+} from "@/lib/ai/phase2/provider-json-schema";
 
 const BASE_PROPERTIES = {
   intentLevel: {
@@ -80,6 +83,8 @@ export const CUSTOMER_INSIGHT_JSON_SCHEMA = {
  * (responseMimeType: "application/json").
  *
  * Differs from CUSTOMER_INSIGHT_JSON_SCHEMA for OpenAPI 3.0 nullability.
+ * Must not use anyOf / type unions / additionalProperties — Gemini returns
+ * HTTP 400 INVALID_ARGUMENT when those appear in responseSchema.
  */
 export const CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA = {
   type: "object",
@@ -121,7 +126,7 @@ export const CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA = {
     reasoning: { type: "string" },
     phase2Signals: {
       nullable: true,
-      ...PHASE2_EXTRACTED_SIGNALS_JSON_SCHEMA,
+      ...PHASE2_EXTRACTED_SIGNALS_NATIVE_RESPONSE_SCHEMA,
     },
   },
   required: [...BASE_REQUIRED],

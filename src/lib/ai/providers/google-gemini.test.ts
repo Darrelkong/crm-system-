@@ -6,6 +6,7 @@ import {
   CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA,
   CUSTOMER_INSIGHT_JSON_SCHEMA,
 } from "@/lib/ai/customer-insights/json-schema";
+import { findGeminiUnsupportedSchemaPaths } from "@/lib/ai/phase2/provider-json-schema";
 import { customerInsightOutputSchema, safeParseCustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import {
@@ -745,6 +746,26 @@ describe("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA integrity", () => {
     const prop = CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties.suggestedFollowUpAt;
     assert.equal((prop as Record<string, unknown>).nullable, true);
     assert.equal(Array.isArray(prop.type), false);
+  });
+
+  it("native schema has no Gemini-unsupported keywords (anyOf / type unions / additionalProperties)", () => {
+    const unsupported = findGeminiUnsupportedSchemaPaths(
+      CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA,
+    );
+    assert.deepEqual(
+      unsupported,
+      [],
+      `Gemini-unsupported paths: ${unsupported.join(", ")}`,
+    );
+  });
+
+  it("native phase2Signals uses nullable object schema, not anyOf", () => {
+    const phase2 = CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties
+      .phase2Signals as Record<string, unknown>;
+    assert.equal(phase2.nullable, true);
+    assert.equal(phase2.type, "object");
+    assert.equal("anyOf" in phase2, false);
+    assert.equal("additionalProperties" in phase2, false);
   });
 });
 
