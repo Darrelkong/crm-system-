@@ -65,6 +65,7 @@ describe("mockCustomerInsightProvider", () => {
             channel: "wechat",
             outcome: "interested",
             summary: "客戶有興趣",
+            nextAction: null,
             customerIntent: "high",
             isValidFollowUp: 1,
             nextFollowUpAt: null,

@@ -49,6 +49,8 @@ export type CustomerInsightFollowUpContext = {
   channel: string;
   outcome: string;
   summary: string;
+  /** Staff next-action note; null when unset — never invent a placeholder. */
+  nextAction: string | null;
   customerIntent: string | null;
   isValidFollowUp: number;
   nextFollowUpAt: string | null;
@@ -113,6 +115,7 @@ export async function buildCustomerInsightContext(
       channel: schema.followUps.channel,
       outcome: schema.followUps.outcome,
       summary: schema.followUps.summary,
+      nextAction: schema.followUps.nextAction,
       customerIntent: schema.followUps.customerIntent,
       isValidFollowUp: schema.followUps.isValidFollowUp,
       nextFollowUpAt: schema.followUps.nextFollowUpAt,

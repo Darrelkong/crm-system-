@@ -176,6 +176,10 @@ export async function POST(request: Request, context: RouteContext) {
         metadata: buildCustomerAiInsightRefreshAuditMetadata(
           refreshResult.insight,
           refreshResult.providerKind,
+          {
+            phase2Generated: refreshResult.phase2Generated,
+            phase2UnavailableReason: refreshResult.phase2UnavailableReason,
+          },
         ),
       },
       db,
@@ -214,6 +218,8 @@ export async function POST(request: Request, context: RouteContext) {
       basicAnalysis,
       deepAnalysis,
       deepAnalysisAvailability,
+      phase2Generated: refreshResult.phase2Generated,
+      phase2UnavailableReason: refreshResult.phase2UnavailableReason,
     });
   } catch (error) {
     const status = aiErrorStatus(error);

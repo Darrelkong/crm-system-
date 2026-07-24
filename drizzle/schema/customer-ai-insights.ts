@@ -30,6 +30,8 @@ export const customerAiInsights = sqliteTable(
     model: text("model").notNull(),
     promptVersion: text("prompt_version").notNull(),
     sourceHash: text("source_hash").notNull(),
+    /** Server-composed Final Phase2Insight JSON; null for legacy / degraded rows. */
+    phase2Json: text("phase2_json"),
     status: text("status", { enum: CUSTOMER_AI_INSIGHT_STATUSES })
       .notNull()
       .default("ready"),

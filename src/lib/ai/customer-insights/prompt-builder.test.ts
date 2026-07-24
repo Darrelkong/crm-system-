@@ -35,6 +35,7 @@ function buildSampleContext(
         channel: "wechat",
         outcome: "interested",
         summary: "客戶表示下週再聯絡",
+        nextAction: null,
         customerIntent: "high",
         isValidFollowUp: 1,
         nextFollowUpAt: "2026-07-01T10:00:00.000Z",

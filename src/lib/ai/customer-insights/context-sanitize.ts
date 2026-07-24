@@ -5,6 +5,7 @@ import {
 } from "@/lib/ai/customer-insights/context-builder";
 import {
   AI_CONTEXT_FOLLOW_UP_INTENT_MAX_CHARS,
+  AI_CONTEXT_FOLLOW_UP_NEXT_ACTION_MAX_CHARS,
   AI_CONTEXT_FOLLOW_UP_SUMMARY_MAX_CHARS,
   AI_CONTEXT_NOTES_MAX_CHARS,
   AI_CONTEXT_SOURCE_REMARK_MAX_CHARS,
@@ -50,6 +51,10 @@ export function sanitizeCustomerInsightContextForProvider(
     recentFollowUps: context.recentFollowUps.map((followUp) => ({
       ...followUp,
       summary: truncateField(followUp.summary, AI_CONTEXT_FOLLOW_UP_SUMMARY_MAX_CHARS) ?? followUp.summary,
+      nextAction: truncateField(
+        followUp.nextAction,
+        AI_CONTEXT_FOLLOW_UP_NEXT_ACTION_MAX_CHARS,
+      ),
       customerIntent: truncateField(followUp.customerIntent, AI_CONTEXT_FOLLOW_UP_INTENT_MAX_CHARS),
     })),
   };

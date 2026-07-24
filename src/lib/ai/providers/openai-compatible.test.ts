@@ -583,10 +583,16 @@ describe("openAiCompatibleCustomerInsightProvider json_schema structured output"
     assert.deepEqual(schemaRequired, zodKeys);
   });
 
-  it("CUSTOMER_INSIGHT_JSON_SCHEMA properties keys match customerInsightOutputSchema keys", () => {
+  it("CUSTOMER_INSIGHT_JSON_SCHEMA properties are base keys plus optional phase2Signals", () => {
     const zodKeys = Object.keys(customerInsightOutputSchema.shape).sort();
     const schemaPropertyKeys = Object.keys(CUSTOMER_INSIGHT_JSON_SCHEMA.properties).sort();
-    assert.deepEqual(schemaPropertyKeys, zodKeys);
+    assert.deepEqual(schemaPropertyKeys, [...zodKeys, "phase2Signals"].sort());
+    assert.equal(
+      (CUSTOMER_INSIGHT_JSON_SCHEMA.required as readonly string[]).includes(
+        "phase2Signals",
+      ),
+      false,
+    );
   });
 
   it("json_schema parse failure does not fall back — only one HTTP call is made", async () => {

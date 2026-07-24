@@ -41,10 +41,17 @@ import {
 } from "@/lib/ai/deep-analysis/availability";
 import { buildResolvedProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { computeCustomerInsightSourceHash } from "@/lib/ai/customer-insights/hash";
+import { parseCombinedCustomerInsightProviderOutput } from "@/lib/ai/customer-insights/phase2-parse";
 import {
-  safeParseCustomerInsightOutput,
-  type CustomerInsightOutput,
-} from "@/lib/ai/customer-insights/schema";
+  composePhase2Insight,
+  parseStoredPhase2Json,
+  sanitizeSuggestedEmployeeMessageForPersist,
+  serializePhase2Insight,
+  type Phase2FailureCode,
+} from "@/lib/ai/customer-insights/phase2-compose";
+import type { CustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
+import type { Phase2Insight } from "@/lib/ai/phase2/types";
+import { getEffectiveSettings } from "@/lib/settings/effective";
 import type { Customer } from "../../../../drizzle/schema/customers";
 import type { User } from "../../../../drizzle/schema/users";
 import {
@@ -79,6 +86,8 @@ export type CustomerAiInsightView = {
   generatedAt: string;
   createdAt: string;
   updatedAt: string;
+  /** Final Phase2Insight when present; null for legacy / degraded rows. */
+  phase2: Phase2Insight | null;
 };
 
 export type CustomerAiInsightDisplayMeta = {
@@ -155,6 +164,7 @@ export function formatCustomerAiInsight(row: CustomerAiInsight): CustomerAiInsig
     generatedAt: row.generatedAt,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
+    phase2: parseStoredPhase2Json(row.phase2Json),
   };
 }
 
@@ -268,6 +278,8 @@ async function persistReadyInsight(
     model: string;
     promptVersion: string;
     sourceHash: string;
+    /** Final Phase2Insight JSON, or null to clear stale Phase 2. */
+    phase2Json: string | null;
   },
 ): Promise<CustomerAiInsightView> {
   const now = new Date().toISOString();
@@ -290,6 +302,7 @@ async function persistReadyInsight(
     model: meta.model,
     promptVersion: meta.promptVersion,
     sourceHash: meta.sourceHash,
+    phase2Json: meta.phase2Json,
     status: "ready" as const,
     generatedAt: now,
     updatedAt: now,
@@ -371,11 +384,17 @@ async function persistFailedInsight(
 export type CustomerAiInsightRefreshResult = {
   insight: CustomerAiInsightView;
   providerKind: AiProviderKind;
+  phase2Generated: boolean;
+  phase2UnavailableReason: Phase2FailureCode | null;
 };
 
 export function buildCustomerAiInsightRefreshAuditMetadata(
   insight: CustomerAiInsightView,
   providerKind: AiProviderKind,
+  phase2Meta?: {
+    phase2Generated: boolean;
+    phase2UnavailableReason: Phase2FailureCode | null;
+  },
 ) {
   return {
     customerId: insight.customerId,
@@ -384,6 +403,8 @@ export function buildCustomerAiInsightRefreshAuditMetadata(
     promptVersion: insight.promptVersion,
     status: insight.status,
     providerKind,
+    phase2Generated: phase2Meta?.phase2Generated ?? insight.phase2 != null,
+    phase2UnavailableReason: phase2Meta?.phase2UnavailableReason ?? null,
   };
 }
 
@@ -473,6 +494,8 @@ export async function refreshCustomerAiInsight(
       return {
         insight: existingReady,
         providerKind: resolved.kind,
+        phase2Generated: existingReady.phase2 != null,
+        phase2UnavailableReason: null,
       };
     }
   }
@@ -516,8 +539,11 @@ export async function refreshCustomerAiInsight(
     );
   }
 
-  const parsed = safeParseCustomerInsightOutput(rawOutput);
-  if (!parsed.success) {
+  // Mock / non-external providers must not fabricate Phase 2.
+  const skipPhase2 = resolved.kind === "mock";
+
+  const combined = parseCombinedCustomerInsightProviderOutput(rawOutput);
+  if (!combined.success) {
     if (reservation) {
       await failStaffAiUsage(db, reservation);
     }
@@ -537,12 +563,62 @@ export async function refreshCustomerAiInsight(
     );
   }
 
+  const parsedOutput = combined.output;
+
+  let phase2Json: string | null = null;
+  let phase2Generated = false;
+  let phase2UnavailableReason: Phase2FailureCode | null = null;
+  // Always sanitize suggested employee message before persist (never store non-compliant copy).
+  let outputForPersist: CustomerInsightOutput = {
+    ...parsedOutput,
+    suggestedEmployeeMessage: sanitizeSuggestedEmployeeMessageForPersist(
+      parsedOutput.suggestedEmployeeMessage,
+    ),
+  };
+
+  if (skipPhase2) {
+    phase2UnavailableReason = "missing_signals";
+  } else {
+    let effectiveSettings = null;
+    try {
+      effectiveSettings = await getEffectiveSettings(db);
+    } catch {
+      effectiveSettings = null;
+    }
+
+    const composed = composePhase2Insight({
+      insightContext: context,
+      signals: combined.phase2Signals,
+      signalsStatus: combined.phase2SignalsStatus,
+      baseMissingInformation: parsedOutput.missingInformation,
+      suggestedEmployeeMessage: parsedOutput.suggestedEmployeeMessage,
+      customer,
+      settings: effectiveSettings,
+    });
+
+    outputForPersist = {
+      ...parsedOutput,
+      suggestedEmployeeMessage: composed.suggestedEmployeeMessage,
+    };
+
+    if (composed.ok) {
+      phase2Json = serializePhase2Insight(composed.phase2);
+      phase2Generated = true;
+      phase2UnavailableReason = null;
+    } else {
+      phase2Json = null;
+      phase2Generated = false;
+      phase2UnavailableReason = composed.code;
+    }
+  }
+
   let insight;
   try {
-    insight = await persistReadyInsight(db, customer.id, parsed.data, {
+    insight = await persistReadyInsight(db, customer.id, outputForPersist, {
       model: resolved.model,
       promptVersion: aiSettings.aiPromptVersion,
       sourceHash,
+      phase2Json,
     });
   } catch (error) {
     // Valid provider output but no durable result for the user → do not keep succeeded count.
@@ -559,6 +635,8 @@ export async function refreshCustomerAiInsight(
   return {
     insight,
     providerKind: resolved.kind,
+    phase2Generated,
+    phase2UnavailableReason,
   };
 }
 

@@ -12,6 +12,9 @@ export const AI_CONTEXT_FOLLOW_UP_SUMMARY_MAX_CHARS = 1000;
 /** Maximum characters per follow-up customerIntent sent to the AI provider. */
 export const AI_CONTEXT_FOLLOW_UP_INTENT_MAX_CHARS = 500;
 
+/** Maximum characters per follow-up next_action sent to the AI provider. */
+export const AI_CONTEXT_FOLLOW_UP_NEXT_ACTION_MAX_CHARS = 500;
+
 /** Suffix appended to a field value that was truncated before sending to the AI provider. */
 export const AI_CONTEXT_TRUNCATION_SUFFIX = "…[truncated]";
 

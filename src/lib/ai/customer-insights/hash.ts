@@ -25,6 +25,7 @@ export async function computeCustomerInsightSourceHash(
       channel: row.channel,
       outcome: row.outcome,
       summary: row.summary,
+      nextAction: row.nextAction,
       customerIntent: row.customerIntent,
       isValidFollowUp: row.isValidFollowUp,
       nextFollowUpAt: row.nextFollowUpAt,

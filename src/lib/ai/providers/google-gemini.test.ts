@@ -729,10 +729,10 @@ describe("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA integrity", () => {
     assert.deepEqual(nativeRequired, zodKeys);
   });
 
-  it("native schema properties keys match customerInsightOutputSchema keys", () => {
+  it("native schema properties keys are base keys plus optional phase2Signals", () => {
     const zodKeys = Object.keys(customerInsightOutputSchema.shape).sort();
     const nativePropertyKeys = Object.keys(CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties).sort();
-    assert.deepEqual(nativePropertyKeys, zodKeys);
+    assert.deepEqual(nativePropertyKeys, [...zodKeys, "phase2Signals"].sort());
   });
 
   it("native schema and openai-compat schema share same required fields", () => {
