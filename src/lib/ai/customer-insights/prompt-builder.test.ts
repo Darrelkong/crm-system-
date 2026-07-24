@@ -91,6 +91,14 @@ describe("buildSystemPrompt", () => {
     assert.match(prompt, /Do not include markdown fences/);
     assert.match(prompt, /Do not include explanations before or after the JSON/);
   });
+
+  it("omits phase2Signals instructions when includePhase2Signals is false", () => {
+    const withPhase2 = buildSystemPrompt("en");
+    const withoutPhase2 = buildSystemPrompt("en", { includePhase2Signals: false });
+    assert.match(withPhase2, /phase2Signals/);
+    assert.doesNotMatch(withoutPhase2, /phase2Signals/);
+    assert.match(withoutPhase2, /Do not guarantee/);
+  });
 });
 
 describe("serializeCustomerInsightContext contactAvailability privacy", () => {

@@ -31,16 +31,27 @@ describe("Phase 2 provider JSON schema contracts", () => {
     assert.equal(phase2.anyOf?.length, 2);
   });
 
-  it("Gemini native Phase 2 schema has no unsupported keywords", () => {
+  it("Gemini native Phase 2 schema helper remains free of unsupported keywords", () => {
     assert.deepEqual(
       findGeminiUnsupportedSchemaPaths(
         PHASE2_EXTRACTED_SIGNALS_NATIVE_RESPONSE_SCHEMA,
       ),
       [],
     );
+  });
+
+  it("Production Gemini request schema is Base-12-only (no phase2Signals)", () => {
+    assert.equal(
+      "phase2Signals" in CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties,
+      false,
+    );
     assert.deepEqual(
       findGeminiUnsupportedSchemaPaths(CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA),
       [],
+    );
+    assert.deepEqual(
+      [...CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.required].sort(),
+      Object.keys(CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties).sort(),
     );
   });
 

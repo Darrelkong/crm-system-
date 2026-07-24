@@ -219,6 +219,10 @@ describe("googleGeminiCustomerInsightProvider request structure", () => {
       assert.ok(capturedBody !== null);
       const gc = (capturedBody as Record<string, unknown>).generationConfig as Record<string, unknown>;
       assert.deepEqual(gc.responseSchema, CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA);
+      const schemaProps = (gc.responseSchema as { properties?: Record<string, unknown> })
+        .properties;
+      assert.ok(schemaProps);
+      assert.equal("phase2Signals" in schemaProps, false);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -242,6 +246,7 @@ describe("googleGeminiCustomerInsightProvider request structure", () => {
       };
       assert.equal(typeof si.parts[0].text, "string");
       assert.ok(si.parts[0].text.length > 0);
+      assert.doesNotMatch(si.parts[0].text, /phase2Signals/);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -755,10 +760,10 @@ describe("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA integrity", () => {
     assert.deepEqual(nativeRequired, zodKeys);
   });
 
-  it("native schema properties keys are base keys plus optional phase2Signals", () => {
+  it("native schema properties keys match base customerInsightOutputSchema keys only", () => {
     const zodKeys = Object.keys(customerInsightOutputSchema.shape).sort();
     const nativePropertyKeys = Object.keys(CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties).sort();
-    assert.deepEqual(nativePropertyKeys, [...zodKeys, "phase2Signals"].sort());
+    assert.deepEqual(nativePropertyKeys, zodKeys);
   });
 
   it("native schema and openai-compat schema share same required fields", () => {
@@ -784,13 +789,12 @@ describe("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA integrity", () => {
     );
   });
 
-  it("native phase2Signals uses nullable object schema, not anyOf", () => {
-    const phase2 = CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties
-      .phase2Signals as Record<string, unknown>;
-    assert.equal(phase2.nullable, true);
-    assert.equal(phase2.type, "object");
-    assert.equal("anyOf" in phase2, false);
-    assert.equal("additionalProperties" in phase2, false);
+  it("native Gemini schema temporarily excludes phase2Signals (Base-12 compatibility)", () => {
+    assert.equal(
+      "phase2Signals" in CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties,
+      false,
+    );
+    assert.ok("phase2Signals" in CUSTOMER_INSIGHT_JSON_SCHEMA.properties);
   });
 });
 

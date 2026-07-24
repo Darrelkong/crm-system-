@@ -9,6 +9,7 @@ export type SafeGeminiHttpErrorDetails = {
   geminiErrorCode?: number;
   schemaKeywordHint?: string;
   schemaPathHint?: string;
+  unknownSchemaKeyword?: string;
 };
 
 const GEMINI_API_STATUS_RE = /^[A-Z][A-Z0-9_]{0,63}$/;
@@ -41,6 +42,8 @@ const SCHEMA_KEYWORD_ALLOWLIST = [
 const SCHEMA_PATH_RE =
   /(?:generation_config\.)?response_schema[\w.\[\]"'*]{0,180}/i;
 
+const UNKNOWN_NAME_RE = /Unknown name\s+"([^"]{1,80})"/i;
+
 function collectSchemaKeywordHint(message: string): string | undefined {
   const hits = new Set<string>();
   const lower = message.toLowerCase();
@@ -60,8 +63,52 @@ function collectSchemaPathHint(message: string): string | undefined {
   if (!match?.[0]) {
     return undefined;
   }
-  // Structural schema path only — strip quotes that might wrap fragments.
   return match[0].replace(/['"]/g, "").slice(0, 200);
+}
+
+function collectUnknownSchemaKeyword(message: string): string | undefined {
+  const match = message.match(UNKNOWN_NAME_RE);
+  const name = match?.[1]?.trim();
+  if (!name) {
+    return undefined;
+  }
+  return name.slice(0, 80);
+}
+
+function collectTextsFromGeminiError(error: Record<string, unknown>): string[] {
+  const texts: string[] = [];
+  if (typeof error.message === "string" && error.message.length > 0) {
+    texts.push(error.message);
+  }
+
+  const details = error.details;
+  if (!Array.isArray(details)) {
+    return texts;
+  }
+
+  for (const detail of details) {
+    if (!detail || typeof detail !== "object" || Array.isArray(detail)) {
+      continue;
+    }
+    const violations = (detail as { fieldViolations?: unknown }).fieldViolations;
+    if (!Array.isArray(violations)) {
+      continue;
+    }
+    for (const violation of violations) {
+      if (!violation || typeof violation !== "object" || Array.isArray(violation)) {
+        continue;
+      }
+      const record = violation as { field?: unknown; description?: unknown };
+      if (typeof record.field === "string" && record.field.length > 0) {
+        texts.push(record.field);
+      }
+      if (typeof record.description === "string" && record.description.length > 0) {
+        texts.push(record.description);
+      }
+    }
+  }
+
+  return texts;
 }
 
 /**
@@ -93,15 +140,27 @@ export function extractSafeGeminiHttpErrorDetails(
     details.geminiErrorCode = Math.trunc(record.code);
   }
 
-  if (typeof record.message === "string" && record.message.length > 0) {
-    const keywordHint = collectSchemaKeywordHint(record.message);
-    if (keywordHint) {
-      details.schemaKeywordHint = keywordHint;
-    }
-    const pathHint = collectSchemaPathHint(record.message);
-    if (pathHint) {
-      details.schemaPathHint = pathHint;
-    }
+  const texts = collectTextsFromGeminiError(record);
+  if (texts.length === 0) {
+    return details;
+  }
+
+  const combined = texts.join("\n");
+  const keywordHint = collectSchemaKeywordHint(combined);
+  if (keywordHint) {
+    details.schemaKeywordHint = keywordHint;
+  }
+  const pathHint =
+    texts.map(collectSchemaPathHint).find((value) => value !== undefined) ??
+    collectSchemaPathHint(combined);
+  if (pathHint) {
+    details.schemaPathHint = pathHint;
+  }
+  const unknownKeyword =
+    texts.map(collectUnknownSchemaKeyword).find((value) => value !== undefined) ??
+    collectUnknownSchemaKeyword(combined);
+  if (unknownKeyword) {
+    details.unknownSchemaKeyword = unknownKeyword;
   }
 
   return details;

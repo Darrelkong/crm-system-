@@ -9,10 +9,7 @@
  *
  * Must remain in sync with customerInsightOutputSchema + optional phase2Signals.
  */
-import {
-  PHASE2_EXTRACTED_SIGNALS_JSON_SCHEMA,
-  PHASE2_EXTRACTED_SIGNALS_NATIVE_RESPONSE_SCHEMA,
-} from "@/lib/ai/phase2/provider-json-schema";
+import { PHASE2_EXTRACTED_SIGNALS_JSON_SCHEMA } from "@/lib/ai/phase2/provider-json-schema";
 
 const BASE_PROPERTIES = {
   intentLevel: {
@@ -79,12 +76,15 @@ export const CUSTOMER_INSIGHT_JSON_SCHEMA = {
 } as const;
 
 /**
- * Native Gemini responseSchema for use with the generateContent API
- * (responseMimeType: "application/json").
+ * Native Gemini responseSchema for generateContent (responseMimeType JSON).
  *
- * Differs from CUSTOMER_INSIGHT_JSON_SCHEMA for OpenAPI 3.0 nullability.
- * Must not use anyOf / type unions / additionalProperties — Gemini returns
- * HTTP 400 INVALID_ARGUMENT when those appear in responseSchema.
+ * Production diagnostics (2026-07-24T16:56Z): Gemini returned INVALID_ARGUMENT
+ * with schemaKeywordHint=enum,maximum,minimum after Phase 2 nested signals were
+ * added. schemaPathHint was empty, so a field-precise nested fix was not possible.
+ *
+ * Temporary compatibility: Gemini native schema is Base 12 fields only (the
+ * pre-Phase-5C contract that previously succeeded). Phase 2 remains available on
+ * OpenAI-compatible json_schema; Gemini refreshes degrade to phase2=null.
  */
 export const CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA = {
   type: "object",
@@ -124,10 +124,6 @@ export const CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA = {
       maximum: 1,
     },
     reasoning: { type: "string" },
-    phase2Signals: {
-      nullable: true,
-      ...PHASE2_EXTRACTED_SIGNALS_NATIVE_RESPONSE_SCHEMA,
-    },
   },
   required: [...BASE_REQUIRED],
 } as const;

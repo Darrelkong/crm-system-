@@ -51,8 +51,12 @@ function buildPhase2ExtractionInstructions(): string {
   ].join("\n");
 }
 
-export function buildSystemPrompt(analysisLanguage: AiAnalysisLanguage): string {
+export function buildSystemPrompt(
+  analysisLanguage: AiAnalysisLanguage,
+  options?: { includePhase2Signals?: boolean },
+): string {
   const languageLabel = LANGUAGE_LABELS[analysisLanguage];
+  const includePhase2Signals = options?.includePhase2Signals !== false;
   return [
     buildFixedIndustrySystemInstructions(),
     "Your role is to help staff identify the next communication direction — not to make final commitments on behalf of the company.",
@@ -83,7 +87,7 @@ export function buildSystemPrompt(analysisLanguage: AiAnalysisLanguage): string 
     "- Do not infer nationality, region, or timezone from phone numbers or names.",
     "- Do not describe staff overdue follow-up as proof the customer will churn or has no interest.",
     "- If information is insufficient to assess a point, add it to missingInformation instead of guessing.",
-    buildPhase2ExtractionInstructions(),
+    ...(includePhase2Signals ? [buildPhase2ExtractionInstructions()] : []),
     "Contact availability rules:",
     "- contactAvailability shows whether contact information exists in the CRM; actual values are hidden for privacy.",
     "- Use contactAvailability as the source of truth for contact-method availability.",

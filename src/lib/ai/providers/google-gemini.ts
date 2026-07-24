@@ -341,7 +341,11 @@ async function requestStructuredJson(
   const contextLength = contextJson.length;
   const userPrompt = buildUserPrompt(settings.aiPromptTemplate, context);
   const promptLength = userPrompt.length;
-  const systemPrompt = buildSystemPrompt(settings.aiAnalysisLanguage);
+  const systemPrompt = buildSystemPrompt(settings.aiAnalysisLanguage, {
+    // Gemini native responseSchema is Base-12-only until Phase 2 signals are
+    // proven compatible; do not ask for phase2Signals in the same request.
+    includePhase2Signals: false,
+  });
 
   const startMs = Date.now();
   let responseInfo: GeminiResponseInfo | undefined;

@@ -43,6 +43,8 @@ export type AiProviderDiagnostics = {
   schemaKeywordHint?: string;
   /** Structural response_schema path fragment from Gemini error message. */
   schemaPathHint?: string;
+  /** Exact Unknown name "…" keyword when Gemini reports one. */
+  unknownSchemaKeyword?: string;
 };
 
 const SAFE_DIAGNOSTIC_KEYS = [
@@ -70,6 +72,7 @@ const SAFE_DIAGNOSTIC_KEYS = [
   "geminiErrorCode",
   "schemaKeywordHint",
   "schemaPathHint",
+  "unknownSchemaKeyword",
 ] as const satisfies ReadonlyArray<keyof AiProviderDiagnostics>;
 
 export function getRequestUrlDiagnostics(apiBaseUrl: string): {

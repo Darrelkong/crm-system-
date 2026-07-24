@@ -19,12 +19,43 @@ describe("extractSafeGeminiHttpErrorDetails", () => {
     assert.equal(details.failureStage, "provider_http");
     assert.equal(details.geminiApiStatus, "INVALID_ARGUMENT");
     assert.equal(details.geminiErrorCode, 400);
+    assert.equal(details.unknownSchemaKeyword, "nullable");
     assert.ok(details.schemaKeywordHint?.includes("nullable"));
     assert.ok(details.schemaKeywordHint?.includes("phase2Signals"));
     assert.ok(details.schemaKeywordHint?.includes("Unknown name"));
     assert.match(
       details.schemaPathHint ?? "",
       /generation_config\.response_schema\.properties\.phase2Signals/i,
+    );
+  });
+
+  it("reads fieldViolations when top-level message omits the path", () => {
+    const details = extractSafeGeminiHttpErrorDetails({
+      error: {
+        code: 400,
+        status: "INVALID_ARGUMENT",
+        message: "Request contains an invalid argument.",
+        details: [
+          {
+            "@type": "type.googleapis.com/google.rpc.BadRequest",
+            fieldViolations: [
+              {
+                field:
+                  "generation_config.response_schema.properties[12].value",
+                description:
+                  'Invalid JSON payload received. Unknown name "maxLength" at \'generation_config.response_schema.properties[12].value\'',
+              },
+            ],
+          },
+        ],
+      },
+    });
+
+    assert.equal(details.unknownSchemaKeyword, "maxLength");
+    assert.ok(details.schemaKeywordHint?.includes("maxLength"));
+    assert.match(
+      details.schemaPathHint ?? "",
+      /generation_config\.response_schema\.properties\[12\]\.value/i,
     );
   });
 
