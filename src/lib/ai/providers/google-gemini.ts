@@ -16,6 +16,7 @@ import {
 } from "@/lib/ai/customer-insights/prompt-builder";
 import { validateAiApiBaseUrl } from "@/lib/settings/ai-validation";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
+import { extractSafeGeminiHttpErrorDetails } from "./gemini-http-error";
 import type { CustomerInsightAIProvider, ProviderRuntimeConfig } from "./types";
 
 const PROVIDER_KIND = "google_gemini" as const;
@@ -300,7 +301,9 @@ async function postGenerateContent(
         }
 
         throw new AiProviderError(
-          buildGeminiDiagnostics(config, "provider_http_error", response.status),
+          buildGeminiDiagnostics(config, "provider_http_error", response.status, {
+            ...extractSafeGeminiHttpErrorDetails(data),
+          }),
         );
       }
 

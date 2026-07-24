@@ -33,6 +33,16 @@ export type AiProviderDiagnostics = {
   firstTextPartLength?: number;
   combinedTextLength?: number;
   finishReason?: string;
+  /** Safe failure-stage label for refresh troubleshooting (no PII). */
+  failureStage?: string;
+  /** Gemini error.status e.g. INVALID_ARGUMENT — never raw message body. */
+  geminiApiStatus?: string;
+  /** Gemini numeric error.code when present. */
+  geminiErrorCode?: number;
+  /** Allowlisted schema keyword hits from Gemini error message. */
+  schemaKeywordHint?: string;
+  /** Structural response_schema path fragment from Gemini error message. */
+  schemaPathHint?: string;
 };
 
 const SAFE_DIAGNOSTIC_KEYS = [
@@ -55,6 +65,11 @@ const SAFE_DIAGNOSTIC_KEYS = [
   "firstTextPartLength",
   "combinedTextLength",
   "finishReason",
+  "failureStage",
+  "geminiApiStatus",
+  "geminiErrorCode",
+  "schemaKeywordHint",
+  "schemaPathHint",
 ] as const satisfies ReadonlyArray<keyof AiProviderDiagnostics>;
 
 export function getRequestUrlDiagnostics(apiBaseUrl: string): {

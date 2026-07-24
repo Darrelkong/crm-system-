@@ -395,13 +395,38 @@ describe("googleGeminiCustomerInsightProvider error handling", () => {
 
   it("HTTP 400 → provider_http_error with httpStatus=400", async () => {
     const fetchMock = mock.fn(async () =>
-      Response.json({ error: { message: "bad request" } }, { status: 400 }),
+      Response.json(
+        {
+          error: {
+            code: 400,
+            status: "INVALID_ARGUMENT",
+            message:
+              'Invalid JSON payload received. Unknown name "nullable" at \'generation_config.response_schema.properties.phase2Signals\'',
+          },
+        },
+        { status: 400 },
+      ),
     );
 
     await expectProviderError(fetchMock as typeof fetch, (error) => {
       assert.equal(error.diagnostics?.providerErrorType, "provider_http_error");
       assert.equal(error.diagnostics?.httpStatus, 400);
+      assert.equal(error.diagnostics?.failureStage, "provider_http");
+      assert.equal(error.diagnostics?.geminiApiStatus, "INVALID_ARGUMENT");
+      assert.equal(error.diagnostics?.geminiErrorCode, 400);
+      assert.ok(error.diagnostics?.schemaKeywordHint?.includes("nullable"));
+      assert.match(
+        error.diagnostics?.schemaPathHint ?? "",
+        /response_schema\.properties\.phase2Signals/i,
+      );
       assertNoSecrets(JSON.stringify(error.diagnostics));
+      // Full Gemini message must not be stored; only allowlisted keyword tokens.
+      assert.equal(
+        JSON.stringify(error.diagnostics).includes(
+          "Invalid JSON payload received. Unknown name",
+        ),
+        false,
+      );
     });
 
     assert.equal(fetchMock.mock.calls.length, 1);
