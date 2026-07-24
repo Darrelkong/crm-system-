@@ -84,13 +84,29 @@ export async function updateAiSettings(
   }
 
   if (Object.keys(changed).length > 0) {
+    const staffUsageKeys = [
+      "ai_staff_deep_analysis_enabled",
+      "ai_staff_daily_limit",
+    ] as const;
+    const before: Partial<AiSettingsMap> = {};
+    const after: Partial<AiSettingsMap> = {};
+    for (const key of staffUsageKeys) {
+      if (key in changed) {
+        before[key] = current[key];
+        after[key] = changed[key];
+      }
+    }
+
     await writeAuditLog({
       userId: actor.id,
       action: "ai_settings.updated",
       entityType: "system_settings",
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent,
-      metadata: { changedKeys: Object.keys(changed) },
+      metadata: {
+        changedKeys: Object.keys(changed),
+        ...(Object.keys(before).length > 0 ? { before, after } : {}),
+      },
     });
   }
 

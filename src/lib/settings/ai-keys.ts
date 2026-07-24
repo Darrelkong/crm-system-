@@ -12,6 +12,8 @@ export const AI_SETTING_KEYS = [
   "ai_show_draft_message",
   "ai_staff_manual_refresh_enabled",
   "ai_admin_only_manual_refresh",
+  "ai_staff_deep_analysis_enabled",
+  "ai_staff_daily_limit",
 ] as const;
 
 export type AiSettingKey = (typeof AI_SETTING_KEYS)[number];
@@ -78,6 +80,8 @@ export const AI_SETTING_DEFAULTS: Record<AiSettingKey, string> = {
   ai_show_draft_message: "true",
   ai_staff_manual_refresh_enabled: "true",
   ai_admin_only_manual_refresh: "false",
+  ai_staff_deep_analysis_enabled: "false",
+  ai_staff_daily_limit: "3",
 };
 
 export const AI_SETTING_LABELS: Record<AiSettingKey, string> = {
@@ -94,6 +98,8 @@ export const AI_SETTING_LABELS: Record<AiSettingKey, string> = {
   ai_show_draft_message: "显示话术草稿",
   ai_staff_manual_refresh_enabled: "Staff 可手动刷新",
   ai_admin_only_manual_refresh: "仅 Admin 可刷新",
+  ai_staff_deep_analysis_enabled: "允许员工使用 AI 深度分析",
+  ai_staff_daily_limit: "员工每日 AI 深度分析次数",
 };
 
 export const AI_LIMITS = {
@@ -104,6 +110,9 @@ export const AI_LIMITS = {
   timeoutMsMin: 5000,
   timeoutMsMax: 60000,
   promptTemplateMaxLength: 12000,
+  staffDailyLimitMin: 1,
+  staffDailyLimitMax: 100,
+  staffDailyLimitPresets: [1, 3, 5, 10] as const,
 } as const;
 
 export function isAiSettingKey(key: string): key is AiSettingKey {

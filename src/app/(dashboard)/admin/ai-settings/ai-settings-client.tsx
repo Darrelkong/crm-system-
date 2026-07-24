@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
+import { StaffAiUsageControlsPanel } from "@/components/admin/staff-ai-usage-controls-panel";
 import { useTranslation } from "@/i18n/provider";
 import {
   AI_ANALYSIS_LANGUAGES,
@@ -58,7 +59,25 @@ export function AiSettingsClient({
     setSettings((current) => ({ ...current, [key]: value }));
   }
 
+  async function saveStaffControlsPatch(
+    patch: Record<string, string>,
+  ): Promise<boolean> {
+    const res = await fetch("/api/admin/ai-settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: patch }),
+    });
+    const data = (await res.json()) as ApiResponse;
+    if (!res.ok) {
+      return false;
+    }
+    setSettings(data.settings ?? { ...settings, ...patch });
+    setApiKeyConfigured(!!data.apiKeyConfigured);
+    return true;
+  }
+
   return (
+    <>
     <div className="surface-card p-6">
       <div className="mb-6 rounded-lg border border-[#C5DAF0] bg-[#E8F1FA] p-4 text-sm text-[#172033]">
         <p className="font-medium">{t("aiSettings.apiKeyHintTitle")}</p>
@@ -258,5 +277,12 @@ export function AiSettingsClient({
         {message && <p className="mt-2 text-sm text-[#6B7890]">{message}</p>}
       </div>
     </div>
+
+    <StaffAiUsageControlsPanel
+      initialEnabled={settings.ai_staff_deep_analysis_enabled ?? "false"}
+      initialDailyLimit={settings.ai_staff_daily_limit ?? "3"}
+      onSettingsPatch={saveStaffControlsPatch}
+    />
+    </>
   );
 }

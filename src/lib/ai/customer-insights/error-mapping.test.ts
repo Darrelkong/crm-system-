@@ -168,6 +168,9 @@ describe("getSafeAiRefreshErrorMessage", () => {
       "AI_ANALYSIS_FAILED",
       "AI_REFRESH_DENIED",
       "AI_REFRESH_COOLDOWN",
+      "AI_STAFF_DEEP_ANALYSIS_DISABLED",
+      "AI_STAFF_DAILY_LIMIT_REACHED",
+      "AI_STAFF_RESERVATION_CONFLICT",
     ] as const;
 
     for (const code of codes) {

@@ -1,5 +1,6 @@
 import type { Database } from "@/lib/db";
 import {
+  AI_LIMITS,
   AI_SETTING_DEFAULTS,
   isAiProvider,
   parseBooleanSetting,
@@ -24,6 +25,8 @@ export type EffectiveAiSettings = {
   aiShowDraftMessage: boolean;
   aiStaffManualRefreshEnabled: boolean;
   aiAdminOnlyManualRefresh: boolean;
+  aiStaffDeepAnalysisEnabled: boolean;
+  aiStaffDailyLimit: number;
 };
 
 function clampNumber(value: number, min: number, max: number, fallback: number): number {
@@ -44,6 +47,12 @@ export function parseEffectiveAiSettings(raw: AiSettingsMap): EffectiveAiSetting
     5000,
     60000,
     Number(AI_SETTING_DEFAULTS.ai_timeout_ms),
+  );
+  const staffDailyLimit = clampNumber(
+    Number(raw.ai_staff_daily_limit),
+    AI_LIMITS.staffDailyLimitMin,
+    AI_LIMITS.staffDailyLimitMax,
+    Number(AI_SETTING_DEFAULTS.ai_staff_daily_limit),
   );
 
   const normalizedRaw = normalizeAiApiBaseUrl(raw.ai_api_base_url);
@@ -73,6 +82,10 @@ export function parseEffectiveAiSettings(raw: AiSettingsMap): EffectiveAiSetting
     aiShowDraftMessage: parseBooleanSetting(raw.ai_show_draft_message),
     aiStaffManualRefreshEnabled: parseBooleanSetting(raw.ai_staff_manual_refresh_enabled),
     aiAdminOnlyManualRefresh: parseBooleanSetting(raw.ai_admin_only_manual_refresh),
+    aiStaffDeepAnalysisEnabled: parseBooleanSetting(
+      raw.ai_staff_deep_analysis_enabled,
+    ),
+    aiStaffDailyLimit: Math.round(staffDailyLimit),
   };
 }
 

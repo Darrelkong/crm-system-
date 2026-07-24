@@ -17,6 +17,9 @@ import {
   AiConfigError,
   AiRefreshCooldownError,
   AiRefreshDeniedError,
+  AiStaffDailyLimitReachedError,
+  AiStaffDeepAnalysisDisabledError,
+  AiStaffReservationConflictError,
 } from "@/lib/ai/customer-insights/errors";
 import {
   getSafeAiRefreshErrorMessage,
@@ -26,12 +29,16 @@ import { buildAiInsightRefreshFailedAuditMetadata } from "@/lib/ai/customer-insi
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
+import { getStaffAiUsageSummary } from "@/lib/ai/staff-usage/service";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
 function aiErrorStatus(error: unknown): number | null {
   if (error instanceof AiConfigError) return 503;
   if (error instanceof AiRefreshDeniedError) return 403;
+  if (error instanceof AiStaffDeepAnalysisDisabledError) return 403;
+  if (error instanceof AiStaffDailyLimitReachedError) return 429;
+  if (error instanceof AiStaffReservationConflictError) return 409;
   if (error instanceof AiRefreshCooldownError) return 429;
   if (error instanceof AiAnalysisError) return 422;
   return null;
@@ -72,12 +79,17 @@ export async function POST(request: Request, context: RouteContext) {
 
     let refreshResult;
     const aiSettings = await getEffectiveAiSettings(db);
+    const reservationKey =
+      request.headers.get("idempotency-key")?.trim() ||
+      request.headers.get("x-idempotency-key")?.trim() ||
+      undefined;
     try {
       refreshResult = await refreshCustomerAiInsight(
         db,
         user,
         customer,
         accessOptions,
+        { reservationKey },
       );
     } catch (error) {
       const status = aiErrorStatus(error);
@@ -102,11 +114,15 @@ export async function POST(request: Request, context: RouteContext) {
           );
         }
         const currentInsight = await getCustomerAiInsightByCustomerId(db, customer.id);
+        const staffUsage =
+          user.role === "staff"
+            ? await getStaffAiUsageSummary(db, user, aiSettings)
+            : null;
         const body = {
           error: getSafeAiRefreshErrorMessage(code),
           errorCode: code,
           insight: currentInsight,
-          display: getCustomerAiInsightDisplayMeta(user, aiSettings),
+          display: getCustomerAiInsightDisplayMeta(user, aiSettings, staffUsage),
         };
         return Response.json(body, { status });
       }
@@ -130,9 +146,17 @@ export async function POST(request: Request, context: RouteContext) {
     );
 
     const aiSettingsAfter = await getEffectiveAiSettings(db);
+    const staffUsageAfter =
+      user.role === "staff"
+        ? await getStaffAiUsageSummary(db, user, aiSettingsAfter)
+        : null;
     return Response.json({
       insight: refreshResult.insight,
-      display: getCustomerAiInsightDisplayMeta(user, aiSettingsAfter),
+      display: getCustomerAiInsightDisplayMeta(
+        user,
+        aiSettingsAfter,
+        staffUsageAfter,
+      ),
     });
   } catch (error) {
     const status = aiErrorStatus(error);

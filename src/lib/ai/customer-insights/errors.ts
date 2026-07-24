@@ -10,7 +10,10 @@ export type AiErrorCode =
   | "AI_PROVIDER_RESPONSE_INVALID"
   | "AI_REFRESH_DENIED"
   | "AI_REFRESH_COOLDOWN"
-  | "AI_PROVIDER_ERROR";
+  | "AI_PROVIDER_ERROR"
+  | "AI_STAFF_DEEP_ANALYSIS_DISABLED"
+  | "AI_STAFF_DAILY_LIMIT_REACHED"
+  | "AI_STAFF_RESERVATION_CONFLICT";
 
 export class AiConfigError extends Error {
   readonly code: AiErrorCode;
@@ -64,5 +67,32 @@ export class AiProviderError extends Error {
     super(message);
     this.name = "AiProviderError";
     this.diagnostics = diagnostics;
+  }
+}
+
+export class AiStaffDeepAnalysisDisabledError extends Error {
+  readonly code: AiErrorCode = "AI_STAFF_DEEP_ANALYSIS_DISABLED";
+
+  constructor(message = "管理员目前未开放员工 AI 深度分析") {
+    super(message);
+    this.name = "AiStaffDeepAnalysisDisabledError";
+  }
+}
+
+export class AiStaffDailyLimitReachedError extends Error {
+  readonly code: AiErrorCode = "AI_STAFF_DAILY_LIMIT_REACHED";
+
+  constructor(message = "今日 AI 深度分析次数已用完") {
+    super(message);
+    this.name = "AiStaffDailyLimitReachedError";
+  }
+}
+
+export class AiStaffReservationConflictError extends Error {
+  readonly code: AiErrorCode = "AI_STAFF_RESERVATION_CONFLICT";
+
+  constructor(message = "请重新发起 AI 深度分析") {
+    super(message);
+    this.name = "AiStaffReservationConflictError";
   }
 }

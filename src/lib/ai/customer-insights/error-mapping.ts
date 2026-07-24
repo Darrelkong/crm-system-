@@ -4,8 +4,12 @@ import {
   AiConfigError,
   AiRefreshCooldownError,
   AiRefreshDeniedError,
+  AiStaffDailyLimitReachedError,
+  AiStaffDeepAnalysisDisabledError,
+  AiStaffReservationConflictError,
   type AiErrorCode,
 } from "@/lib/ai/customer-insights/errors";
+import { StaffAiQuotaError } from "@/lib/ai/staff-usage/service";
 
 export type AiAnalysisErrorCode = Extract<
   AiErrorCode,
@@ -54,6 +58,20 @@ export function resolveAiRefreshErrorCode(error: unknown): AiErrorCode {
   if (error instanceof AiRefreshCooldownError) {
     return error.code;
   }
+  if (error instanceof AiStaffDeepAnalysisDisabledError) {
+    return error.code;
+  }
+  if (error instanceof AiStaffDailyLimitReachedError) {
+    return error.code;
+  }
+  if (error instanceof AiStaffReservationConflictError) {
+    return error.code;
+  }
+  if (error instanceof StaffAiQuotaError) {
+    return error.code === "AI_STAFF_RESERVATION_CONFLICT"
+      ? "AI_STAFF_RESERVATION_CONFLICT"
+      : error.code;
+  }
   if (error instanceof AiAnalysisError) {
     return error.code;
   }
@@ -78,6 +96,12 @@ export function getSafeAiRefreshErrorMessage(errorCode: AiErrorCode): string {
       return "目前設定不允許您手動刷新 AI 分析。";
     case "AI_REFRESH_COOLDOWN":
       return "AI 分析剛剛已刷新，請稍後再試。";
+    case "AI_STAFF_DEEP_ANALYSIS_DISABLED":
+      return "管理員目前未開放員工 AI 深度分析。";
+    case "AI_STAFF_DAILY_LIMIT_REACHED":
+      return "今日 AI 深度分析次數已用完。";
+    case "AI_STAFF_RESERVATION_CONFLICT":
+      return "請重新發起 AI 深度分析。";
     case "AI_ANALYSIS_FAILED":
     case "AI_PROVIDER_ERROR":
     default:

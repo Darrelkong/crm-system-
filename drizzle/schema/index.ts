@@ -21,5 +21,6 @@ export * from "./backup-jobs";
 export * from "./announcements";
 export * from "./customer-ai-insights";
 export * from "./ai-insight-feedback";
+export * from "./ai-usage";
 export * from "./customer-tags";
 export * from "./public-pool-quick-entry-submissions";

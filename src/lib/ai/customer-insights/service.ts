@@ -14,7 +14,20 @@ import {
   AiProviderError,
   AiRefreshCooldownError,
   AiRefreshDeniedError,
+  AiStaffDailyLimitReachedError,
+  AiStaffDeepAnalysisDisabledError,
+  AiStaffReservationConflictError,
 } from "@/lib/ai/customer-insights/errors";
+import {
+  isExternalAiProviderKind,
+  reserveStaffAiUsageForRefresh,
+  completeStaffAiUsage,
+  failStaffAiUsage,
+  getStaffAiUsageSummary,
+  StaffAiQuotaError,
+  type StaffAiReservationResult,
+  type StaffAiUsageSummary,
+} from "@/lib/ai/staff-usage/service";
 import { buildResolvedProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { computeCustomerInsightSourceHash } from "@/lib/ai/customer-insights/hash";
 import {
@@ -60,7 +73,13 @@ export type CustomerAiInsightView = {
 export type CustomerAiInsightDisplayMeta = {
   showDraftMessage: boolean;
   canRefresh: boolean;
-  refreshDisabledReason: "admin_only" | "staff_disabled" | null;
+  refreshDisabledReason:
+    | "admin_only"
+    | "staff_disabled"
+    | "staff_deep_analysis_disabled"
+    | "daily_limit_reached"
+    | null;
+  staffUsage: StaffAiUsageSummary | null;
 };
 
 const FAILED_PLACEHOLDER: CustomerInsightOutput = {
@@ -118,22 +137,41 @@ export function formatCustomerAiInsight(row: CustomerAiInsight): CustomerAiInsig
 export function getCustomerAiInsightDisplayMeta(
   user: User,
   settings: EffectiveAiSettings,
+  staffUsage: StaffAiUsageSummary | null = null,
 ): CustomerAiInsightDisplayMeta {
-  const canRefresh =
+  let canRefresh =
     user.role === "admin" ||
     (!settings.aiAdminOnlyManualRefresh && settings.aiStaffManualRefreshEnabled);
 
-  let refreshDisabledReason: CustomerAiInsightDisplayMeta["refreshDisabledReason"] = null;
+  let refreshDisabledReason: CustomerAiInsightDisplayMeta["refreshDisabledReason"] =
+    null;
+
   if (!canRefresh) {
     refreshDisabledReason = settings.aiAdminOnlyManualRefresh
       ? "admin_only"
       : "staff_disabled";
+  } else if (user.role === "staff") {
+    const externalPath =
+      settings.aiEnabled && settings.aiProvider !== "mock";
+    if (externalPath && !settings.aiStaffDeepAnalysisEnabled) {
+      canRefresh = false;
+      refreshDisabledReason = "staff_deep_analysis_disabled";
+    } else if (
+      externalPath &&
+      settings.aiStaffDeepAnalysisEnabled &&
+      staffUsage &&
+      staffUsage.remaining <= 0
+    ) {
+      canRefresh = false;
+      refreshDisabledReason = "daily_limit_reached";
+    }
   }
 
   return {
     showDraftMessage: settings.aiShowDraftMessage,
     canRefresh,
     refreshDisabledReason,
+    staffUsage: user.role === "staff" ? staffUsage : null,
   };
 }
 
@@ -294,6 +332,7 @@ export async function refreshCustomerAiInsight(
   user: User,
   customer: Customer,
   accessOptions?: CustomerAccessOptions,
+  options?: { reservationKey?: string },
 ): Promise<CustomerAiInsightRefreshResult> {
   const resolvedOptions =
     accessOptions ??
@@ -301,6 +340,7 @@ export async function refreshCustomerAiInsight(
       ? await resolveCustomerAccessOptions(db, user, customer.id)
       : {});
 
+  // Customer permission must pass before any quota reservation.
   assertCanViewCustomerAiInsight(user, customer, resolvedOptions);
 
   const aiSettings = await getEffectiveAiSettings(db);
@@ -324,6 +364,50 @@ export async function refreshCustomerAiInsight(
   const resolved = resolveCustomerInsightProvider(aiSettings);
   const provider = getCustomerInsightProviderImpl(resolved);
 
+  let reservation: StaffAiReservationResult | null = null;
+  const needsStaffQuota =
+    user.role === "staff" && isExternalAiProviderKind(resolved.kind);
+
+  if (needsStaffQuota && !aiSettings.aiStaffDeepAnalysisEnabled) {
+    throw new AiStaffDeepAnalysisDisabledError();
+  }
+
+  if (needsStaffQuota) {
+    try {
+      reservation = await reserveStaffAiUsageForRefresh(db, {
+        user,
+        settings: aiSettings,
+        reservationKey:
+          options?.reservationKey?.trim() ||
+          crypto.randomUUID(),
+        customerId: customer.id,
+        providerKind: resolved.kind,
+      });
+    } catch (error) {
+      if (error instanceof StaffAiQuotaError) {
+        if (error.code === "AI_STAFF_DEEP_ANALYSIS_DISABLED") {
+          throw new AiStaffDeepAnalysisDisabledError(error.message);
+        }
+        if (error.code === "AI_STAFF_RESERVATION_CONFLICT") {
+          throw new AiStaffReservationConflictError(error.message);
+        }
+        throw new AiStaffDailyLimitReachedError(error.message);
+      }
+      throw error;
+    }
+  }
+
+  // Idempotent replay of a completed reservation: return stored insight, no provider call.
+  if (reservation?.reused && reservation.status === "succeeded") {
+    const existingReady = await getCustomerAiInsightByCustomerId(db, customer.id);
+    if (existingReady && existingReady.status === "ready") {
+      return {
+        insight: existingReady,
+        providerKind: resolved.kind,
+      };
+    }
+  }
+
   // Cooldown guard: pre-write a failed record before the expensive provider call so
   // that a Worker CPU-limit kill (Error 1102) during the provider phase still sets
   // generatedAt, preventing an immediate retry that would repeat the same crash.
@@ -343,6 +427,9 @@ export async function refreshCustomerAiInsight(
       resolved.config ?? undefined,
     );
   } catch (error) {
+    if (reservation) {
+      await failStaffAiUsage(db, reservation);
+    }
     if (error instanceof AiConfigError) {
       throw error;
     }
@@ -362,6 +449,9 @@ export async function refreshCustomerAiInsight(
 
   const parsed = safeParseCustomerInsightOutput(rawOutput);
   if (!parsed.success) {
+    if (reservation) {
+      await failStaffAiUsage(db, reservation);
+    }
     const diagnostics = buildResolvedProviderDiagnostics(
       resolved,
       "schema_validation_failed",
@@ -378,12 +468,27 @@ export async function refreshCustomerAiInsight(
     );
   }
 
-  return {
-    insight: await persistReadyInsight(db, customer.id, parsed.data, {
+  let insight;
+  try {
+    insight = await persistReadyInsight(db, customer.id, parsed.data, {
       model: resolved.model,
       promptVersion: aiSettings.aiPromptVersion,
       sourceHash,
-    }),
+    });
+  } catch (error) {
+    // Valid provider output but no durable result for the user → do not keep succeeded count.
+    if (reservation) {
+      await failStaffAiUsage(db, reservation);
+    }
+    throw error;
+  }
+
+  if (reservation) {
+    await completeStaffAiUsage(db, reservation);
+  }
+
+  return {
+    insight,
     providerKind: resolved.kind,
   };
 }
@@ -419,8 +524,12 @@ export async function getCustomerAiInsightBundleForUser(
     customer,
     accessOptions,
   );
+  const staffUsage =
+    user.role === "staff"
+      ? await getStaffAiUsageSummary(db, user, aiSettings)
+      : null;
   return {
     insight,
-    display: getCustomerAiInsightDisplayMeta(user, aiSettings),
+    display: getCustomerAiInsightDisplayMeta(user, aiSettings, staffUsage),
   };
 }

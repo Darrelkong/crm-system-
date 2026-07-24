@@ -119,6 +119,7 @@ export function validateAiSettingValue(key: AiSettingKey, value: string): string
     case "ai_show_draft_message":
     case "ai_staff_manual_refresh_enabled":
     case "ai_admin_only_manual_refresh":
+    case "ai_staff_deep_analysis_enabled":
       return validateBoolean(key, trimmed);
     case "ai_provider":
       return isAiProvider(trimmed) ? null : `${key} 仅允许 mock、openai_compatible 或 google_gemini`;
@@ -152,6 +153,14 @@ export function validateAiSettingValue(key: AiSettingKey, value: string): string
         : `${key} 过长（最多 ${AI_LIMITS.promptTemplateMaxLength} 字符）`;
     case "ai_prompt_version":
       return trimmed.length <= 64 ? null : `${key} 过长`;
+    case "ai_staff_daily_limit":
+      return validateNumberInRange(
+        key,
+        trimmed,
+        AI_LIMITS.staffDailyLimitMin,
+        AI_LIMITS.staffDailyLimitMax,
+        true,
+      );
     default:
       return null;
   }

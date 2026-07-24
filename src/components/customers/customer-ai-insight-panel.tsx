@@ -100,6 +100,12 @@ function resolveRefreshErrorMessage(
       return t("customers.aiInsight.refreshDenied");
     case "AI_REFRESH_COOLDOWN":
       return t("customers.aiInsight.refreshCooldown");
+    case "AI_STAFF_DEEP_ANALYSIS_DISABLED":
+      return t("customers.aiInsight.staffDeepAnalysisDisabled");
+    case "AI_STAFF_DAILY_LIMIT_REACHED":
+      return t("customers.aiInsight.dailyLimitReached");
+    case "AI_STAFF_RESERVATION_CONFLICT":
+      return t("customers.aiInsight.reservationConflict");
     default:
       return t("customers.aiInsight.refreshFailed");
   }
@@ -118,6 +124,7 @@ export function CustomerAiInsightPanel({
     showDraftMessage: true,
     canRefresh: true,
     refreshDisabledReason: null,
+    staffUsage: null,
   });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -167,9 +174,14 @@ export function CustomerAiInsightPanel({
   async function handleRefresh() {
     setRefreshing(true);
     setError(null);
+    // One key per user click so network retries reuse quota; a new click gets a new key.
+    const reservationKey = crypto.randomUUID();
     try {
       const response = await fetch(`/api/customers/${customerId}/ai-insight/refresh`, {
         method: "POST",
+        headers: {
+          "Idempotency-Key": reservationKey,
+        },
       });
       const data = (await response.json()) as InsightBundle & {
         error?: string;
@@ -206,7 +218,39 @@ export function CustomerAiInsightPanel({
       ? t("customers.aiInsight.refreshAdminOnly")
       : display.refreshDisabledReason === "staff_disabled"
         ? t("customers.aiInsight.refreshStaffDisabled")
-        : null;
+        : display.refreshDisabledReason === "staff_deep_analysis_disabled"
+          ? t("customers.aiInsight.staffDeepAnalysisDisabled")
+          : display.refreshDisabledReason === "daily_limit_reached"
+            ? t("customers.aiInsight.dailyLimitReached")
+            : null;
+
+  const staffUsageStatus = (() => {
+    if (isAdmin || !display.staffUsage) return null;
+    const reason = display.staffUsage.denialReason;
+    if (reason === "staff_deep_analysis_disabled") {
+      return t("customers.aiInsight.staffDeepAnalysisDisabled");
+    }
+    if (reason === "daily_limit_reached") {
+      return t("customers.aiInsight.dailyLimitReached");
+    }
+    if (display.staffUsage.enabled) {
+      return t("customers.aiInsight.remainingToday", {
+        count: String(display.staffUsage.remaining),
+      });
+    }
+    return null;
+  })();
+
+  // Avoid duplicating the same amber hint when refresh is already blocked for the same reason.
+  const showRefreshDisabledHint =
+    !restricted &&
+    !display.canRefresh &&
+    !!refreshDisabledHint &&
+    !(
+      staffUsageStatus &&
+      (display.refreshDisabledReason === "staff_deep_analysis_disabled" ||
+        display.refreshDisabledReason === "daily_limit_reached")
+    );
 
   const showFailedBanner = insight?.status === "failed";
   const isFailedPlaceholder =
@@ -236,8 +280,20 @@ export function CustomerAiInsightPanel({
         )}
       </div>
 
-      {!restricted && !display.canRefresh && refreshDisabledHint && (
+      {showRefreshDisabledHint && (
         <p className="mt-3 text-sm text-amber-700">{refreshDisabledHint}</p>
+      )}
+
+      {!restricted && staffUsageStatus && (
+        <p
+          className={`mt-3 text-sm ${
+            display.staffUsage?.denialReason
+              ? "text-amber-700"
+              : cd.muted
+          }`}
+        >
+          {staffUsageStatus}
+        </p>
       )}
 
       {loading && (
