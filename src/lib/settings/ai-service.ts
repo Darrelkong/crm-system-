@@ -86,6 +86,7 @@ export async function updateAiSettings(
   if (Object.keys(changed).length > 0) {
     const staffUsageKeys = [
       "ai_staff_deep_analysis_enabled",
+      "ai_staff_follow_up_organization_enabled",
       "ai_staff_daily_limit",
     ] as const;
     const before: Partial<AiSettingsMap> = {};

@@ -661,9 +661,9 @@ const en = {
       status: {
         available: "AI deep analysis is available.",
         staffDisabled:
-          "AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
+          "Customer AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
         limitReached:
-          "You have reached today’s AI deep-analysis limit. Basic system analysis is still available.",
+          "You have reached today’s AI usage limit. Basic system analysis is still available.",
         globalDisabled:
           "AI deep analysis is currently disabled. Basic system analysis is shown instead.",
         providerUnavailable:
@@ -699,12 +699,12 @@ const en = {
       refreshAdminOnly: "Only administrators can refresh AI insights.",
       refreshStaffDisabled: "Staff manual refresh is disabled by admin settings.",
       staffDeepAnalysisDisabled:
-        "AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
+        "Customer AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
       dailyLimitReached:
-        "You have reached today’s AI deep-analysis limit. Basic system analysis is still available.",
+        "You have reached today’s AI usage limit. Basic system analysis is still available.",
       reservationConflict: "Please start a new AI deep-analysis request.",
       remainingToday:
-        "{{count}} AI deep-analysis request(s) remaining today",
+        "{{count}} AI request(s) remaining today (shared)",
       refresh: "Regenerate deep analysis",
       refreshing: "Analyzing…",
       loadFailed: "Failed to load AI analysis",
@@ -2018,13 +2018,19 @@ const en = {
     showDraftMessage: "Show draft message",
     staffManualRefreshEnabled: "Staff can manually refresh",
     adminOnlyManualRefresh: "Admin-only manual refresh",
-    staffUsageControlsTitle: "Staff AI usage controls",
+    staffUsageControlsTitle: "Staff AI feature controls",
     staffUsageControlsHint:
-      "Controls whether staff can call external AI, and the shared daily usage limit per staff member. AI deep analysis and AI follow-up organization share the same daily quota. Basic system analysis and basic cleanup do not use quota.",
-    staffDeepAnalysisEnabled: "Allow staff to use AI deep analysis",
+      "Independently control which external AI features staff may use, and the shared daily usage limit. Basic system analysis and basic cleanup remain available.",
+    staffDeepAnalysisEnabled: "Allow staff to use customer AI deep analysis",
+    staffDeepAnalysisEnabledHint:
+      "Controls AI deep analysis and regeneration in customer details. Basic system analysis remains available.",
+    staffFollowUpOrganizationEnabled:
+      "Allow staff to use AI follow-up organization",
+    staffFollowUpOrganizationEnabledHint:
+      "Controls AI organization for initial notes and new follow-ups. Basic cleanup remains available.",
     staffDailyLimit: "Daily AI usage limit per staff member",
     staffDailyLimitHint:
-      "AI deep analysis and AI follow-up organization each consume one request when successful.",
+      "Customer AI deep analysis and AI follow-up organization share this daily limit. Basic system analysis and basic cleanup do not use the quota.",
     dailyLimitTimes: "{{count}} request(s)",
     dailyLimitCustom: "Custom",
     dailyLimitCustomValue: "Custom daily limit",
@@ -2032,7 +2038,7 @@ const en = {
     usageResetsHongKong: "Usage resets daily at 00:00 Hong Kong time.",
     saveStaffControls: "Save staff AI controls",
     invalidDailyLimit: "Invalid daily limit",
-    todayUsageSummary: "Today’s usage summary",
+    todayUsageSummary: "Today’s staff AI usage",
     todaySuccessTotal: "Successful uses today",
     todayActiveStaffCount: "Staff who used AI today",
     usageDate: "Hong Kong usage date",
@@ -2182,9 +2188,9 @@ const en = {
     availability: {
       available: "AI organize is available",
       staffDisabled:
-        "AI organize is not currently enabled for staff. Basic cleanup remains available.",
+        "AI follow-up organization is not currently enabled for staff. Basic cleanup remains available.",
       limitReached:
-        "You have reached today’s AI limit. Basic cleanup remains available.",
+        "You have reached today’s AI usage limit. Basic cleanup remains available.",
       globalDisabled:
         "AI organize is currently disabled. Basic cleanup remains available.",
       providerUnavailable:

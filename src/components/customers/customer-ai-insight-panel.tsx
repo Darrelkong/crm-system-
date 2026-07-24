@@ -321,7 +321,11 @@ export function CustomerAiInsightPanel({
 
   const staffUsageStatus = (() => {
     if (isAdmin || !display.staffUsage) return null;
-    if (display.staffUsage.enabled) {
+    // `enabled` === any staff external-AI feature; not a deep-only gate.
+    if (
+      display.staffUsage.anyStaffAiFeatureEnabled ??
+      display.staffUsage.enabled
+    ) {
       return t("customers.aiInsight.remainingToday", {
         count: String(display.staffUsage.remaining),
       });

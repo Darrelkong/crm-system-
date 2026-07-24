@@ -26,6 +26,7 @@ export type EffectiveAiSettings = {
   aiStaffManualRefreshEnabled: boolean;
   aiAdminOnlyManualRefresh: boolean;
   aiStaffDeepAnalysisEnabled: boolean;
+  aiStaffFollowUpOrganizationEnabled: boolean;
   aiStaffDailyLimit: number;
 };
 
@@ -84,6 +85,9 @@ export function parseEffectiveAiSettings(raw: AiSettingsMap): EffectiveAiSetting
     aiAdminOnlyManualRefresh: parseBooleanSetting(raw.ai_admin_only_manual_refresh),
     aiStaffDeepAnalysisEnabled: parseBooleanSetting(
       raw.ai_staff_deep_analysis_enabled,
+    ),
+    aiStaffFollowUpOrganizationEnabled: parseBooleanSetting(
+      raw.ai_staff_follow_up_organization_enabled ?? "false",
     ),
     aiStaffDailyLimit: Math.round(staffDailyLimit),
   };

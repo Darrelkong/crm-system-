@@ -13,6 +13,7 @@ export const AI_SETTING_KEYS = [
   "ai_staff_manual_refresh_enabled",
   "ai_admin_only_manual_refresh",
   "ai_staff_deep_analysis_enabled",
+  "ai_staff_follow_up_organization_enabled",
   "ai_staff_daily_limit",
 ] as const;
 
@@ -81,6 +82,7 @@ export const AI_SETTING_DEFAULTS: Record<AiSettingKey, string> = {
   ai_staff_manual_refresh_enabled: "true",
   ai_admin_only_manual_refresh: "false",
   ai_staff_deep_analysis_enabled: "false",
+  ai_staff_follow_up_organization_enabled: "false",
   ai_staff_daily_limit: "3",
 };
 
@@ -98,8 +100,9 @@ export const AI_SETTING_LABELS: Record<AiSettingKey, string> = {
   ai_show_draft_message: "显示话术草稿",
   ai_staff_manual_refresh_enabled: "Staff 可手动刷新",
   ai_admin_only_manual_refresh: "仅 Admin 可刷新",
-  ai_staff_deep_analysis_enabled: "允许员工使用 AI 深度分析",
-  ai_staff_daily_limit: "员工每日 AI 深度分析次数",
+  ai_staff_deep_analysis_enabled: "允许员工使用客户 AI 深度分析",
+  ai_staff_follow_up_organization_enabled: "允许员工使用跟进 AI 智能整理",
+  ai_staff_daily_limit: "员工每日 AI 使用次数",
 };
 
 export const AI_LIMITS = {

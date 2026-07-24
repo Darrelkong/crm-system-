@@ -24,6 +24,7 @@ import {
   AiProviderError,
   AiStaffDailyLimitReachedError,
   AiStaffDeepAnalysisDisabledError,
+  AiStaffFollowUpOrganizationDisabledError,
   AiStaffReservationConflictError,
   AiRefreshDeniedError,
 } from "@/lib/ai/customer-insights/errors";
@@ -44,6 +45,7 @@ function organizeErrorStatus(error: unknown): number | null {
   if (error instanceof AiDeepAnalysisGlobalDisabledError) return 403;
   if (error instanceof AiDeepAnalysisMockOnlyError) return 503;
   if (error instanceof AiStaffDeepAnalysisDisabledError) return 403;
+  if (error instanceof AiStaffFollowUpOrganizationDisabledError) return 403;
   if (error instanceof AiStaffDailyLimitReachedError) return 429;
   if (error instanceof AiStaffReservationConflictError) return 409;
   if (error instanceof AiRefreshDeniedError) return 403;

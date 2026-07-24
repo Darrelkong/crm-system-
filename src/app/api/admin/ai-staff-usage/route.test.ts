@@ -26,12 +26,14 @@ const staffUser = {
 const sampleSettings = {
   aiEnabled: true,
   aiStaffDeepAnalysisEnabled: true,
+  aiStaffFollowUpOrganizationEnabled: true,
   aiStaffDailyLimit: 3,
 } as EffectiveAiSettings;
 
 const sampleStats: AdminStaffAiUsageStats = {
   usageDate: "2026-07-20",
   staffDeepAnalysisEnabled: true,
+  staffFollowUpOrganizationEnabled: true,
   dailyLimit: 3,
   todaySuccessTotal: 1,
   todayActiveStaffCount: 1,

@@ -32,6 +32,7 @@ function baseSettings(
     aiStaffManualRefreshEnabled: true,
     aiAdminOnlyManualRefresh: false,
     aiStaffDeepAnalysisEnabled: true,
+    aiStaffFollowUpOrganizationEnabled: true,
     aiStaffDailyLimit: 3,
     ...overrides,
   };

@@ -120,6 +120,7 @@ export function validateAiSettingValue(key: AiSettingKey, value: string): string
     case "ai_staff_manual_refresh_enabled":
     case "ai_admin_only_manual_refresh":
     case "ai_staff_deep_analysis_enabled":
+    case "ai_staff_follow_up_organization_enabled":
       return validateBoolean(key, trimmed);
     case "ai_provider":
       return isAiProvider(trimmed) ? null : `${key} 仅允许 mock、openai_compatible 或 google_gemini`;

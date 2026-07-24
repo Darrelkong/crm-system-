@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useId, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
@@ -18,6 +18,7 @@ type StaffUsageRow = {
 type StatsPayload = {
   usageDate: string;
   staffDeepAnalysisEnabled: boolean;
+  staffFollowUpOrganizationEnabled?: boolean;
   dailyLimit: number;
   todaySuccessTotal: number;
   todayActiveStaffCount: number;
@@ -27,19 +28,63 @@ type StatsPayload = {
 };
 
 type Props = {
-  initialEnabled: string;
+  initialDeepEnabled: string;
+  initialOrganizerEnabled: string;
   initialDailyLimit: string;
   onSettingsPatch: (patch: Record<string, string>) => Promise<boolean>;
 };
 
+function BooleanSwitch({
+  id,
+  checked,
+  onCheckedChange,
+  labelledBy,
+  describedBy,
+}: {
+  id: string;
+  checked: boolean;
+  onCheckedChange: (next: boolean) => void;
+  labelledBy: string;
+  describedBy: string;
+}) {
+  return (
+    <button
+      type="button"
+      id={id}
+      role="switch"
+      aria-checked={checked}
+      aria-labelledby={labelledBy}
+      aria-describedby={describedBy}
+      onClick={() => onCheckedChange(!checked)}
+      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${
+        checked ? "bg-[#2563EB]" : "bg-[#CBD5E1] dark:bg-[#3A4459]"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
 export function StaffAiUsageControlsPanel({
-  initialEnabled,
+  initialDeepEnabled,
+  initialOrganizerEnabled,
   initialDailyLimit,
   onSettingsPatch,
 }: Props) {
   const { t } = useTranslation();
-  const [enabled, setEnabled] = useState(
-    initialEnabled === "true" ? "true" : "false",
+  const deepLabelId = useId();
+  const deepHintId = useId();
+  const organizerLabelId = useId();
+  const organizerHintId = useId();
+  const [deepEnabled, setDeepEnabled] = useState(
+    initialDeepEnabled === "true",
+  );
+  const [organizerEnabled, setOrganizerEnabled] = useState(
+    initialOrganizerEnabled === "true",
   );
   const [limitMode, setLimitMode] = useState(() => {
     const n = Number(initialDailyLimit);
@@ -91,7 +136,10 @@ export function StaffAiUsageControlsPanel({
     }
 
     const ok = await onSettingsPatch({
-      ai_staff_deep_analysis_enabled: enabled,
+      ai_staff_deep_analysis_enabled: deepEnabled ? "true" : "false",
+      ai_staff_follow_up_organization_enabled: organizerEnabled
+        ? "true"
+        : "false",
       ai_staff_daily_limit: String(parsed),
     });
     setMessage(ok ? t("aiSettings.saveSuccess") : t("aiSettings.saveFailed"));
@@ -110,20 +158,57 @@ export function StaffAiUsageControlsPanel({
         {t("aiSettings.staffUsageControlsHint")}
       </p>
 
-      <div className="mt-4 grid max-w-2xl gap-4">
-        <div>
-          <Label htmlFor="ai_staff_deep_analysis_enabled">
-            {t("aiSettings.staffDeepAnalysisEnabled")}
-          </Label>
-          <Select
-            id="ai_staff_deep_analysis_enabled"
-            className="mt-1"
-            value={enabled}
-            onChange={(e) => setEnabled(e.target.value)}
-          >
-            <option value="true">{t("common.enabled")}</option>
-            <option value="false">{t("common.disabled")}</option>
-          </Select>
+      <div className="mt-4 grid max-w-2xl gap-5">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p
+              id={deepLabelId}
+              className="text-sm font-medium text-[#172033]"
+            >
+              {t("aiSettings.staffDeepAnalysisEnabled")}
+            </p>
+            <p id={deepHintId} className="mt-1 text-xs text-slate-500">
+              {t("aiSettings.staffDeepAnalysisEnabledHint")}
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <BooleanSwitch
+              id="ai_staff_deep_analysis_enabled"
+              checked={deepEnabled}
+              onCheckedChange={setDeepEnabled}
+              labelledBy={deepLabelId}
+              describedBy={deepHintId}
+            />
+            <p className="mt-1 text-xs text-[#6B7890]">
+              {deepEnabled ? t("common.enabled") : t("common.disabled")}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <p
+              id={organizerLabelId}
+              className="text-sm font-medium text-[#172033]"
+            >
+              {t("aiSettings.staffFollowUpOrganizationEnabled")}
+            </p>
+            <p id={organizerHintId} className="mt-1 text-xs text-slate-500">
+              {t("aiSettings.staffFollowUpOrganizationEnabledHint")}
+            </p>
+          </div>
+          <div className="flex-shrink-0">
+            <BooleanSwitch
+              id="ai_staff_follow_up_organization_enabled"
+              checked={organizerEnabled}
+              onCheckedChange={setOrganizerEnabled}
+              labelledBy={organizerLabelId}
+              describedBy={organizerHintId}
+            />
+            <p className="mt-1 text-xs text-[#6B7890]">
+              {organizerEnabled ? t("common.enabled") : t("common.disabled")}
+            </p>
+          </div>
         </div>
 
         <div>

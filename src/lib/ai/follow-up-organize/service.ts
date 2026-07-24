@@ -21,7 +21,7 @@ import {
   AiDeepAnalysisMockOnlyError,
   AiProviderError,
   AiStaffDailyLimitReachedError,
-  AiStaffDeepAnalysisDisabledError,
+  AiStaffFollowUpOrganizationDisabledError,
   AiStaffReservationConflictError,
 } from "@/lib/ai/customer-insights/errors";
 import { organizeFollowUpTextBasic } from "@/lib/ai/follow-up-organize/basic";
@@ -120,7 +120,7 @@ export async function getFollowUpOrganizeAvailability(
     return { ...base, canUseAi: false, reason: "PROVIDER_UNAVAILABLE" };
   }
   if (user.role === "staff") {
-    if (!settings.aiStaffDeepAnalysisEnabled) {
+    if (!settings.aiStaffFollowUpOrganizationEnabled) {
       return { ...base, canUseAi: false, reason: "STAFF_DISABLED" };
     }
     if (staffUsage && staffUsage.remaining <= 0) {
@@ -162,8 +162,8 @@ export async function organizeFollowUpForUser(
   const needsStaffQuota =
     user.role === "staff" && isExternalAiProviderKind(resolved.kind);
 
-  if (needsStaffQuota && !settings.aiStaffDeepAnalysisEnabled) {
-    throw new AiStaffDeepAnalysisDisabledError();
+  if (needsStaffQuota && !settings.aiStaffFollowUpOrganizationEnabled) {
+    throw new AiStaffFollowUpOrganizationDisabledError();
   }
 
   if (needsStaffQuota) {
@@ -180,8 +180,11 @@ export async function organizeFollowUpForUser(
       });
     } catch (error) {
       if (error instanceof StaffAiQuotaError) {
+        if (error.code === "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED") {
+          throw new AiStaffFollowUpOrganizationDisabledError(error.message);
+        }
         if (error.code === "AI_STAFF_DEEP_ANALYSIS_DISABLED") {
-          throw new AiStaffDeepAnalysisDisabledError(error.message);
+          throw new AiStaffFollowUpOrganizationDisabledError(error.message);
         }
         if (error.code === "AI_STAFF_RESERVATION_CONFLICT") {
           throw new AiStaffReservationConflictError(error.message);

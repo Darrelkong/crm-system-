@@ -635,9 +635,9 @@ const zhHant: Messages = {
       status: {
         available: "AI 深度分析可用。",
         staffDisabled:
-          "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。",
+          "管理員目前未開放客戶 AI 深度分析。你仍可使用基礎系統分析。",
         limitReached:
-          "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。",
+          "今日 AI 使用次數已用完。你仍可使用基礎系統分析。",
         globalDisabled:
           "AI 深度分析目前未啟用，當前顯示的是基礎系統分析。",
         providerUnavailable:
@@ -671,11 +671,11 @@ const zhHant: Messages = {
       refreshAdminOnly: "僅管理員可重新分析",
       refreshStaffDisabled: "管理員已關閉 Staff 手動刷新",
       staffDeepAnalysisDisabled:
-        "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。",
+        "管理員目前未開放客戶 AI 深度分析。你仍可使用基礎系統分析。",
       dailyLimitReached:
-        "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。",
+        "今日 AI 使用次數已用完。你仍可使用基礎系統分析。",
       reservationConflict: "請重新發起 AI 深度分析。",
-      remainingToday: "今日剩餘 {{count}} 次 AI 深度分析",
+      remainingToday: "今日剩餘 {{count}} 次 AI 使用（共用）",
       refresh: "重新生成深度分析",
       refreshing: "分析中…",
       loadFailed: "無法載入 AI 分析",
@@ -1938,13 +1938,18 @@ const zhHant: Messages = {
     showDraftMessage: "顯示話術草稿",
     staffManualRefreshEnabled: "Staff 可手動刷新",
     adminOnlyManualRefresh: "僅 Admin 可刷新",
-    staffUsageControlsTitle: "員工 AI 使用控制",
+    staffUsageControlsTitle: "員工 AI 功能控制",
     staffUsageControlsHint:
-      "控制員工是否可調用外部 AI，以及每位員工的每日共用使用次數上限。AI 深度分析與 AI 智能整理共用每日額度；基礎系統分析與基礎整理不扣次數。",
-    staffDeepAnalysisEnabled: "允許員工使用 AI 深度分析",
+      "分別控制員工可使用的外部 AI 功能，以及共用每日使用次數。基礎系統分析與基礎整理不受影響。",
+    staffDeepAnalysisEnabled: "允許員工使用客戶 AI 深度分析",
+    staffDeepAnalysisEnabledHint:
+      "控制客戶詳情中的 AI 深度分析及重新生成。基礎系統分析不受此開關影響。",
+    staffFollowUpOrganizationEnabled: "允許員工使用跟進 AI 智能整理",
+    staffFollowUpOrganizationEnabledHint:
+      "控制首次跟進備註及新增跟進中的 AI 智能整理。基礎整理不受此開關影響。",
     staffDailyLimit: "員工每日 AI 使用次數",
     staffDailyLimitHint:
-      "AI 深度分析與 AI 智能整理成功各消耗一次。",
+      "客戶 AI 深度分析與跟進 AI 智能整理共用此每日額度。基礎系統分析及基礎整理不消耗次數。",
     dailyLimitTimes: "{{count}} 次",
     dailyLimitCustom: "自訂",
     dailyLimitCustomValue: "自訂每日次數",
@@ -1952,7 +1957,7 @@ const zhHant: Messages = {
     usageResetsHongKong: "使用次數於每日香港時間 00:00 重新計算。",
     saveStaffControls: "保存員工 AI 控制",
     invalidDailyLimit: "每日次數無效",
-    todayUsageSummary: "今日使用摘要",
+    todayUsageSummary: "今日員工 AI 使用統計",
     todaySuccessTotal: "今日成功使用總次數",
     todayActiveStaffCount: "今日使用員工數",
     usageDate: "香港用量日期",
@@ -2101,9 +2106,9 @@ const zhHant: Messages = {
     availability: {
       available: "AI 智能整理可用",
       staffDisabled:
-        "管理員目前未開放 AI 智能整理。你仍可使用基礎整理。",
+        "管理員目前未開放跟進 AI 智能整理。你仍可使用基礎整理。",
       limitReached:
-        "今日 AI 次數已用完。你仍可使用基礎整理。",
+        "今日 AI 使用次數已用完。你仍可使用基礎整理。",
       globalDisabled:
         "AI 智能整理目前未啟用。你仍可使用基礎整理。",
       providerUnavailable:

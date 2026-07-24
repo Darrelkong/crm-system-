@@ -20,6 +20,7 @@ export type AdminStaffAiUsageRow = {
 export type AdminStaffAiUsageStats = {
   usageDate: string;
   staffDeepAnalysisEnabled: boolean;
+  staffFollowUpOrganizationEnabled: boolean;
   dailyLimit: number;
   todaySuccessTotal: number;
   todayActiveStaffCount: number;
@@ -39,7 +40,9 @@ export async function getAdminStaffAiUsageStats(
 ): Promise<AdminStaffAiUsageStats> {
   const usageDate = getHongKongUsageDate(now);
   const dailyLimit = settings.aiStaffDailyLimit;
-  const enabled = settings.aiStaffDeepAnalysisEnabled;
+  const anyStaffFeatureEnabled =
+    settings.aiStaffDeepAnalysisEnabled ||
+    settings.aiStaffFollowUpOrganizationEnabled;
 
   const [totalRow] = await db
     .select({
@@ -113,9 +116,11 @@ export async function getAdminStaffAiUsageStats(
 
   const staff: AdminStaffAiUsageRow[] = staffUsers.map((row) => {
     const used = row.succeededCount ?? 0;
-    const remaining = enabled ? computeRemaining(used, dailyLimit) : 0;
+    const remaining = anyStaffFeatureEnabled
+      ? computeRemaining(used, dailyLimit)
+      : 0;
     let status: AdminStaffAiUsageRow["status"] = "ok";
-    if (!enabled) status = "disabled";
+    if (!anyStaffFeatureEnabled) status = "disabled";
     else if (remaining <= 0) status = "limit_reached";
 
     return {
@@ -132,7 +137,9 @@ export async function getAdminStaffAiUsageStats(
 
   return {
     usageDate,
-    staffDeepAnalysisEnabled: enabled,
+    staffDeepAnalysisEnabled: settings.aiStaffDeepAnalysisEnabled,
+    staffFollowUpOrganizationEnabled:
+      settings.aiStaffFollowUpOrganizationEnabled,
     dailyLimit,
     todaySuccessTotal,
     todayActiveStaffCount: activeUsedRow?.value ?? 0,

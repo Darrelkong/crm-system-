@@ -17,13 +17,21 @@ export const STAFF_AI_ADMIN_STAFF_LIST_LIMIT = 200;
 
 export type StaffAiUsageDenialReason =
   | "global_disabled"
-  | "staff_deep_analysis_disabled"
   | "daily_limit_reached"
   | "provider_mock";
 
 export type StaffAiUsageSummary = {
   usageDate: string;
+  /**
+   * Shared-quota tracking is active for staff (global AI on, and at least one
+   * staff external-AI feature is enabled). Not a single-feature gate — use
+   * `deepAnalysisEnabled` / `followUpOrganizationEnabled` for those.
+   */
   enabled: boolean;
+  /** Alias semantics: enabled === anyStaffAiFeatureEnabled when global AI is on. */
+  anyStaffAiFeatureEnabled: boolean;
+  deepAnalysisEnabled: boolean;
+  followUpOrganizationEnabled: boolean;
   dailyLimit: number;
   used: number;
   remaining: number;
@@ -43,12 +51,14 @@ export type StaffAiReservation = {
 export class StaffAiQuotaError extends Error {
   readonly code:
     | "AI_STAFF_DEEP_ANALYSIS_DISABLED"
+    | "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED"
     | "AI_STAFF_DAILY_LIMIT_REACHED"
     | "AI_STAFF_RESERVATION_CONFLICT";
 
   constructor(
     code:
       | "AI_STAFF_DEEP_ANALYSIS_DISABLED"
+      | "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED"
       | "AI_STAFF_DAILY_LIMIT_REACHED"
       | "AI_STAFF_RESERVATION_CONFLICT",
     message: string,
@@ -188,11 +198,19 @@ export async function getStaffAiUsageSummary(
 ): Promise<StaffAiUsageSummary> {
   const usageDate = getHongKongUsageDate(now);
   const dailyLimit = settings.aiStaffDailyLimit;
+  const deepAnalysisEnabled = settings.aiStaffDeepAnalysisEnabled;
+  const followUpOrganizationEnabled =
+    settings.aiStaffFollowUpOrganizationEnabled;
+  const anyStaffAiFeatureEnabled =
+    deepAnalysisEnabled || followUpOrganizationEnabled;
 
   if (user.role === "admin") {
     return {
       usageDate,
       enabled: true,
+      anyStaffAiFeatureEnabled: true,
+      deepAnalysisEnabled: true,
+      followUpOrganizationEnabled: true,
       dailyLimit,
       used: 0,
       remaining: dailyLimit,
@@ -204,6 +222,9 @@ export async function getStaffAiUsageSummary(
     return {
       usageDate,
       enabled: false,
+      anyStaffAiFeatureEnabled: false,
+      deepAnalysisEnabled,
+      followUpOrganizationEnabled,
       dailyLimit,
       used: 0,
       remaining: 0,
@@ -211,18 +232,8 @@ export async function getStaffAiUsageSummary(
     };
   }
 
-  if (!settings.aiStaffDeepAnalysisEnabled) {
-    await expireStalePendingForUser(db, user.id, usageDate, now);
-    return {
-      usageDate,
-      enabled: false,
-      dailyLimit,
-      used: await getStaffSucceededUsageCount(db, user.id, usageDate),
-      remaining: 0,
-      denialReason: "staff_deep_analysis_disabled",
-    };
-  }
-
+  // Per-feature gates are enforced by callers (deep availability / organizer).
+  // Shared remaining is always computed while global AI is enabled.
   await expireStalePendingForUser(db, user.id, usageDate, now);
   const used = await getStaffSucceededUsageCount(db, user.id, usageDate);
   const reserved = await getStaffReservedUsageCount(db, user.id, usageDate);
@@ -231,7 +242,11 @@ export async function getStaffAiUsageSummary(
 
   return {
     usageDate,
-    enabled: true,
+    // `enabled` means any staff external-AI feature is on (not a single gate).
+    enabled: anyStaffAiFeatureEnabled,
+    anyStaffAiFeatureEnabled,
+    deepAnalysisEnabled,
+    followUpOrganizationEnabled,
     dailyLimit,
     used,
     remaining,
@@ -326,14 +341,21 @@ export async function reserveStaffAiUsage(
   if (!settings.aiEnabled || !isExternalAiProviderKind(providerKind)) {
     throw new StaffAiQuotaError(
       "AI_STAFF_DEEP_ANALYSIS_DISABLED",
-      "外部 AI 深度分析目前不可用",
+      "外部 AI 目前不可用",
     );
   }
 
-  if (!settings.aiStaffDeepAnalysisEnabled) {
+  if (operationType === "follow_up_organization") {
+    if (!settings.aiStaffFollowUpOrganizationEnabled) {
+      throw new StaffAiQuotaError(
+        "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED",
+        "管理员目前未开放员工跟进 AI 智能整理",
+      );
+    }
+  } else if (!settings.aiStaffDeepAnalysisEnabled) {
     throw new StaffAiQuotaError(
       "AI_STAFF_DEEP_ANALYSIS_DISABLED",
-      "管理员目前未开放员工 AI 深度分析",
+      "管理员目前未开放员工客户 AI 深度分析",
     );
   }
 
@@ -401,7 +423,7 @@ export async function reserveStaffAiUsage(
   if (!reserved) {
     throw new StaffAiQuotaError(
       "AI_STAFF_DAILY_LIMIT_REACHED",
-      "今日 AI 深度分析次数已用完",
+      "今日 AI 使用次数已用完",
     );
   }
 

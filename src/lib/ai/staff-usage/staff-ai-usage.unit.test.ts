@@ -37,6 +37,7 @@ function baseSettings(
     aiStaffManualRefreshEnabled: true,
     aiAdminOnlyManualRefresh: false,
     aiStaffDeepAnalysisEnabled: true,
+    aiStaffFollowUpOrganizationEnabled: true,
     aiStaffDailyLimit: 3,
     ...overrides,
   };
@@ -71,6 +72,23 @@ describe("staff AI settings validation", () => {
     );
     assert.equal(
       validateAiSettingValue("ai_staff_deep_analysis_enabled", "false"),
+      null,
+    );
+  });
+
+  it("accepts boolean staff follow-up organization flag", () => {
+    assert.equal(
+      validateAiSettingValue(
+        "ai_staff_follow_up_organization_enabled",
+        "true",
+      ),
+      null,
+    );
+    assert.equal(
+      validateAiSettingValue(
+        "ai_staff_follow_up_organization_enabled",
+        "false",
+      ),
       null,
     );
   });
@@ -125,15 +143,42 @@ describe("staff AI display meta", () => {
       baseSettings({ aiStaffDeepAnalysisEnabled: false }),
       {
         usageDate: "2026-07-20",
-        enabled: false,
+        enabled: true,
+        anyStaffAiFeatureEnabled: true,
+        deepAnalysisEnabled: false,
+        followUpOrganizationEnabled: true,
         dailyLimit: 3,
         used: 0,
-        remaining: 0,
-        denialReason: "staff_deep_analysis_disabled",
+        remaining: 3,
+        denialReason: null,
       },
     );
     assert.equal(meta.canRefresh, false);
     assert.equal(meta.refreshDisabledReason, "staff_deep_analysis_disabled");
+  });
+
+  it("allows remaining quota when deep analysis is off but organizer may be on", () => {
+    const meta = getCustomerAiInsightDisplayMeta(
+      staffUser(),
+      baseSettings({
+        aiStaffDeepAnalysisEnabled: false,
+        aiStaffFollowUpOrganizationEnabled: true,
+      }),
+      {
+        usageDate: "2026-07-20",
+        enabled: true,
+        anyStaffAiFeatureEnabled: true,
+        deepAnalysisEnabled: false,
+        followUpOrganizationEnabled: true,
+        dailyLimit: 3,
+        used: 1,
+        remaining: 2,
+        denialReason: null,
+      },
+    );
+    assert.equal(meta.canRefresh, false);
+    assert.equal(meta.refreshDisabledReason, "staff_deep_analysis_disabled");
+    assert.equal(meta.staffUsage?.remaining, 2);
   });
 
   it("blocks staff external refresh when daily limit reached", () => {
@@ -143,6 +188,9 @@ describe("staff AI display meta", () => {
       {
         usageDate: "2026-07-20",
         enabled: true,
+        anyStaffAiFeatureEnabled: true,
+        deepAnalysisEnabled: true,
+        followUpOrganizationEnabled: true,
         dailyLimit: 3,
         used: 3,
         remaining: 0,
@@ -164,6 +212,9 @@ describe("staff AI display meta", () => {
       {
         usageDate: "2026-07-20",
         enabled: false,
+        anyStaffAiFeatureEnabled: false,
+        deepAnalysisEnabled: false,
+        followUpOrganizationEnabled: false,
         dailyLimit: 3,
         used: 0,
         remaining: 0,
@@ -185,6 +236,9 @@ describe("staff AI display meta", () => {
       {
         usageDate: "2026-07-20",
         enabled: true,
+        anyStaffAiFeatureEnabled: true,
+        deepAnalysisEnabled: true,
+        followUpOrganizationEnabled: true,
         dailyLimit: 3,
         used: 0,
         remaining: 3,
@@ -202,6 +256,9 @@ describe("staff AI display meta", () => {
       {
         usageDate: "2026-07-20",
         enabled: true,
+        anyStaffAiFeatureEnabled: true,
+        deepAnalysisEnabled: true,
+        followUpOrganizationEnabled: true,
         dailyLimit: 3,
         used: 0,
         remaining: 3,
@@ -233,11 +290,15 @@ describe("staff AI error mapping", () => {
     );
     assert.equal(
       getSafeAiRefreshErrorMessage("AI_STAFF_DEEP_ANALYSIS_DISABLED"),
-      "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。",
+      "管理員目前未開放客戶 AI 深度分析。你仍可使用基礎系統分析。",
     );
     assert.equal(
       getSafeAiRefreshErrorMessage("AI_STAFF_DAILY_LIMIT_REACHED"),
-      "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。",
+      "今日 AI 使用次數已用完。",
+    );
+    assert.equal(
+      getSafeAiRefreshErrorMessage("AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED"),
+      "管理員目前未開放跟進 AI 智能整理。你仍可使用基礎整理。",
     );
   });
 });

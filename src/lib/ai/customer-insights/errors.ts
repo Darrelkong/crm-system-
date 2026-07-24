@@ -12,6 +12,7 @@ export type AiErrorCode =
   | "AI_REFRESH_COOLDOWN"
   | "AI_PROVIDER_ERROR"
   | "AI_STAFF_DEEP_ANALYSIS_DISABLED"
+  | "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED"
   | "AI_STAFF_DAILY_LIMIT_REACHED"
   | "AI_STAFF_RESERVATION_CONFLICT"
   | "AI_DEEP_ANALYSIS_MOCK_ONLY"
@@ -75,16 +76,25 @@ export class AiProviderError extends Error {
 export class AiStaffDeepAnalysisDisabledError extends Error {
   readonly code: AiErrorCode = "AI_STAFF_DEEP_ANALYSIS_DISABLED";
 
-  constructor(message = "管理员目前未开放员工 AI 深度分析") {
+  constructor(message = "管理员目前未开放客户 AI 深度分析") {
     super(message);
     this.name = "AiStaffDeepAnalysisDisabledError";
+  }
+}
+
+export class AiStaffFollowUpOrganizationDisabledError extends Error {
+  readonly code: AiErrorCode = "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED";
+
+  constructor(message = "管理员目前未开放跟进 AI 智能整理") {
+    super(message);
+    this.name = "AiStaffFollowUpOrganizationDisabledError";
   }
 }
 
 export class AiStaffDailyLimitReachedError extends Error {
   readonly code: AiErrorCode = "AI_STAFF_DAILY_LIMIT_REACHED";
 
-  constructor(message = "今日 AI 深度分析次数已用完") {
+  constructor(message = "今日 AI 使用次数已用完") {
     super(message);
     this.name = "AiStaffDailyLimitReachedError";
   }

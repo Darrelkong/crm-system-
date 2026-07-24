@@ -6,6 +6,7 @@ import {
   AiRefreshDeniedError,
   AiStaffDailyLimitReachedError,
   AiStaffDeepAnalysisDisabledError,
+  AiStaffFollowUpOrganizationDisabledError,
   AiStaffReservationConflictError,
   AiDeepAnalysisGlobalDisabledError,
   AiDeepAnalysisMockOnlyError,
@@ -63,6 +64,9 @@ export function resolveAiRefreshErrorCode(error: unknown): AiErrorCode {
   if (error instanceof AiStaffDeepAnalysisDisabledError) {
     return error.code;
   }
+  if (error instanceof AiStaffFollowUpOrganizationDisabledError) {
+    return error.code;
+  }
   if (error instanceof AiStaffDailyLimitReachedError) {
     return error.code;
   }
@@ -105,11 +109,13 @@ export function getSafeAiRefreshErrorMessage(errorCode: AiErrorCode): string {
     case "AI_REFRESH_COOLDOWN":
       return "AI 分析剛剛已刷新，請稍後再試。";
     case "AI_STAFF_DEEP_ANALYSIS_DISABLED":
-      return "管理員目前未開放 AI 深度分析。你仍可使用基礎系統分析。";
+      return "管理員目前未開放客戶 AI 深度分析。你仍可使用基礎系統分析。";
+    case "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED":
+      return "管理員目前未開放跟進 AI 智能整理。你仍可使用基礎整理。";
     case "AI_STAFF_DAILY_LIMIT_REACHED":
-      return "今日 AI 深度分析次數已用完，當前已為你提供基礎系統分析。";
+      return "今日 AI 使用次數已用完。";
     case "AI_STAFF_RESERVATION_CONFLICT":
-      return "請重新發起 AI 深度分析。";
+      return "請重新發起請求。";
     case "AI_DEEP_ANALYSIS_GLOBAL_DISABLED":
       return "AI 深度分析目前未啟用，當前顯示的是基礎系統分析。";
     case "AI_DEEP_ANALYSIS_MOCK_ONLY":

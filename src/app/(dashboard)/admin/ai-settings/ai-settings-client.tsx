@@ -279,7 +279,10 @@ export function AiSettingsClient({
     </div>
 
     <StaffAiUsageControlsPanel
-      initialEnabled={settings.ai_staff_deep_analysis_enabled ?? "false"}
+      initialDeepEnabled={settings.ai_staff_deep_analysis_enabled ?? "false"}
+      initialOrganizerEnabled={
+        settings.ai_staff_follow_up_organization_enabled ?? "false"
+      }
       initialDailyLimit={settings.ai_staff_daily_limit ?? "3"}
       onSettingsPatch={saveStaffControlsPatch}
     />

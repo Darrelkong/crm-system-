@@ -44,6 +44,7 @@ function settings(
     aiStaffManualRefreshEnabled: true,
     aiAdminOnlyManualRefresh: false,
     aiStaffDeepAnalysisEnabled: true,
+    aiStaffFollowUpOrganizationEnabled: true,
     aiStaffDailyLimit: 2,
     ...overrides,
   };
@@ -152,11 +153,67 @@ describe("staff AI usage quota (D1)", () => {
           reservationKey: `test-disabled-${crypto.randomUUID()}`,
           customerId: SEED_IDS.customerStaffA,
           providerKind: "google_gemini",
+          operationType: "deep_analysis_refresh",
         }),
       (error: unknown) =>
         error instanceof StaffAiQuotaError &&
         error.code === "AI_STAFF_DEEP_ANALYSIS_DISABLED",
     );
+  });
+
+  it("rejects organizer when follow-up organization disabled even if deep enabled", async () => {
+    await clearUsage(staffUser.id);
+    await assert.rejects(
+      () =>
+        reserveStaffAiUsage(db, {
+          user: staffUser,
+          settings: settings({
+            aiStaffDeepAnalysisEnabled: true,
+            aiStaffFollowUpOrganizationEnabled: false,
+          }),
+          reservationKey: `test-org-disabled-${crypto.randomUUID()}`,
+          customerId: SEED_IDS.customerStaffA,
+          providerKind: "google_gemini",
+          operationType: "follow_up_organization",
+        }),
+      (error: unknown) =>
+        error instanceof StaffAiQuotaError &&
+        error.code === "AI_STAFF_FOLLOW_UP_ORGANIZATION_DISABLED",
+    );
+  });
+
+  it("allows organizer reserve when organizer enabled and deep disabled", async () => {
+    await clearUsage(staffUser.id);
+    const now = new Date("2026-07-20T04:00:00.000Z");
+    const reservation = await reserveStaffAiUsage(db, {
+      user: staffUser,
+      settings: settings({
+        aiStaffDeepAnalysisEnabled: false,
+        aiStaffFollowUpOrganizationEnabled: true,
+      }),
+      reservationKey: `test-org-only-${crypto.randomUUID()}`,
+      customerId: null,
+      providerKind: "google_gemini",
+      operationType: "follow_up_organization",
+      now,
+    });
+    assert.equal(reservation.reused, false);
+
+    const summary = await getStaffAiUsageSummary(
+      db,
+      staffUser,
+      settings({
+        aiStaffDeepAnalysisEnabled: false,
+        aiStaffFollowUpOrganizationEnabled: true,
+      }),
+      now,
+    );
+    assert.equal(summary.enabled, true);
+    assert.equal(summary.anyStaffAiFeatureEnabled, true);
+    assert.equal(summary.deepAnalysisEnabled, false);
+    assert.equal(summary.followUpOrganizationEnabled, true);
+
+    await failStaffAiUsage(db, { ...reservation, userId: staffUser.id });
   });
 
   it("rejects when daily limit reached and enforces concurrency", async () => {
@@ -346,14 +403,21 @@ describe("staff AI usage quota (D1)", () => {
     );
     assert.equal(before, 1);
 
+    // Feature switches gate callers; quota summary still reports historical use.
     const summary = await getStaffAiUsageSummary(
       db,
       staffUser,
-      settings({ aiStaffDeepAnalysisEnabled: false }),
+      settings({
+        aiStaffDeepAnalysisEnabled: false,
+        aiStaffFollowUpOrganizationEnabled: false,
+      }),
       now,
     );
     assert.equal(summary.used, 1);
     assert.equal(summary.enabled, false);
+    assert.equal(summary.anyStaffAiFeatureEnabled, false);
+    assert.equal(summary.deepAnalysisEnabled, false);
+    assert.equal(summary.followUpOrganizationEnabled, false);
 
     const [event] = await db
       .select()
