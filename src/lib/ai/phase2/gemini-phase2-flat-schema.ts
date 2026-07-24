@@ -1,6 +1,6 @@
 /**
- * Candidate Gemini native responseSchema with flat Phase 2 rows (5C-G1).
- * NOT used by Production google-gemini runtime (still Base-12-only).
+ * Gemini native responseSchema with flat Phase 2 rows (5C-G1 / 5C-G2).
+ * Used by local google-gemini runtime (5C-G2). Production deploy may lag until 5C-G3.
  */
 import { CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA } from "@/lib/ai/customer-insights/json-schema";
 import {

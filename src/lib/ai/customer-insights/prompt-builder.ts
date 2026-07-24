@@ -1,6 +1,8 @@
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
 import { sanitizeCustomerInsightContextForProvider } from "@/lib/ai/customer-insights/context-sanitize";
+import type { AiProviderPhase2ContractMode } from "@/lib/ai/customer-insights/provider-contract-mode";
 import { buildFixedIndustrySystemInstructions } from "@/lib/ai/phase2/industry-rules";
+import { buildGeminiFlatPhase2Instructions } from "@/lib/ai/phase2/gemini-phase2-flat-prompt";
 import type { AiAnalysisLanguage } from "@/lib/settings/ai-keys";
 
 const LANGUAGE_LABELS: Record<AiAnalysisLanguage, string> = {
@@ -51,12 +53,37 @@ function buildPhase2ExtractionInstructions(): string {
   ].join("\n");
 }
 
+function resolvePhase2ContractMode(options?: {
+  phase2ContractMode?: AiProviderPhase2ContractMode;
+  /** @deprecated Prefer phase2ContractMode. Kept for OpenAI default (rich) callers. */
+  includePhase2Signals?: boolean;
+}): AiProviderPhase2ContractMode {
+  if (options?.phase2ContractMode) {
+    return options.phase2ContractMode;
+  }
+  // Legacy: omit options → rich (OpenAI-compatible). Explicit false → none.
+  if (options?.includePhase2Signals === false) {
+    return "none";
+  }
+  return "rich";
+}
+
 export function buildSystemPrompt(
   analysisLanguage: AiAnalysisLanguage,
-  options?: { includePhase2Signals?: boolean },
+  options?: {
+    phase2ContractMode?: AiProviderPhase2ContractMode;
+    /** @deprecated Prefer phase2ContractMode. */
+    includePhase2Signals?: boolean;
+  },
 ): string {
   const languageLabel = LANGUAGE_LABELS[analysisLanguage];
-  const includePhase2Signals = options?.includePhase2Signals !== false;
+  const phase2ContractMode = resolvePhase2ContractMode(options);
+  const phase2Instructions =
+    phase2ContractMode === "gemini_flat"
+      ? [buildGeminiFlatPhase2Instructions()]
+      : phase2ContractMode === "rich"
+        ? [buildPhase2ExtractionInstructions()]
+        : [];
   return [
     buildFixedIndustrySystemInstructions(),
     "Your role is to help staff identify the next communication direction — not to make final commitments on behalf of the company.",
@@ -87,7 +114,7 @@ export function buildSystemPrompt(
     "- Do not infer nationality, region, or timezone from phone numbers or names.",
     "- Do not describe staff overdue follow-up as proof the customer will churn or has no interest.",
     "- If information is insufficient to assess a point, add it to missingInformation instead of guessing.",
-    ...(includePhase2Signals ? [buildPhase2ExtractionInstructions()] : []),
+    ...phase2Instructions,
     "Contact availability rules:",
     "- contactAvailability shows whether contact information exists in the CRM; actual values are hidden for privacy.",
     "- Use contactAvailability as the source of truth for contact-method availability.",

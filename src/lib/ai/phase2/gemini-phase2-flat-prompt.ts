@@ -1,6 +1,6 @@
 /**
- * Gemini Flat Phase 2 prompt fragment (5C-G1 candidate).
- * Not wired into Production buildSystemPrompt / google-gemini runtime.
+ * Gemini Flat Phase 2 prompt fragment (5C-G1 / 5C-G2).
+ * Wired into local google-gemini runtime via phase2ContractMode=gemini_flat.
  */
 import {
   GEMINI_PHASE2_FLAT_BEHAVIOUR_RISK_CODES,

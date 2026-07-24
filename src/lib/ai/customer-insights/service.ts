@@ -42,6 +42,7 @@ import {
 import { buildResolvedProviderDiagnostics } from "@/lib/ai/customer-insights/diagnostics";
 import { computeCustomerInsightSourceHash } from "@/lib/ai/customer-insights/hash";
 import { parseCombinedCustomerInsightProviderOutput } from "@/lib/ai/customer-insights/phase2-parse";
+import { resolveAiProviderPhase2ContractMode } from "@/lib/ai/customer-insights/provider-contract-mode";
 import {
   composePhase2Insight,
   parseStoredPhase2Json,
@@ -270,7 +271,12 @@ export async function getCustomerAiInsightByCustomerId(
   return row ? formatCustomerAiInsight(row) : null;
 }
 
-async function persistReadyInsight(
+/**
+ * Ready upsert always writes `phase2Json` (including null) so a Base-only
+ * refresh clears any previously stored Phase 2 payload on the same row.
+ * @internal Exported for local D1 stale-clear tests.
+ */
+export async function persistReadyInsight(
   db: Database,
   customerId: string,
   output: CustomerInsightOutput,
@@ -541,8 +547,11 @@ export async function refreshCustomerAiInsight(
 
   // Mock / non-external providers must not fabricate Phase 2.
   const skipPhase2 = resolved.kind === "mock";
+  const phase2ContractMode = resolveAiProviderPhase2ContractMode(resolved.kind);
 
-  const combined = parseCombinedCustomerInsightProviderOutput(rawOutput);
+  const combined = parseCombinedCustomerInsightProviderOutput(rawOutput, {
+    phase2ContractMode: skipPhase2 ? "none" : phase2ContractMode,
+  });
   if (!combined.success) {
     if (reservation) {
       await failStaffAiUsage(db, reservation);

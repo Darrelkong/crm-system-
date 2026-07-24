@@ -4,7 +4,6 @@ import type {
   AiProviderErrorType,
 } from "@/lib/ai/customer-insights/diagnostics";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
-import { CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA } from "@/lib/ai/customer-insights/json-schema";
 import {
   AI_PROVIDER_MAX_RESPONSE_CHARS,
   AI_PROVIDER_SCANNER_MAX_CANDIDATES,
@@ -14,10 +13,15 @@ import {
   buildUserPrompt,
   serializeCustomerInsightContext,
 } from "@/lib/ai/customer-insights/prompt-builder";
+import { CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA } from "@/lib/ai/phase2/gemini-phase2-flat-schema";
 import { validateAiApiBaseUrl } from "@/lib/settings/ai-validation";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import { extractSafeGeminiHttpErrorDetails } from "./gemini-http-error";
 import type { CustomerInsightAIProvider, ProviderRuntimeConfig } from "./types";
+
+/** Local Gemini runtime responseSchema: Base-12 + required phase2SignalRows (5C-G2). */
+const GEMINI_RUNTIME_RESPONSE_SCHEMA =
+  CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA;
 
 const PROVIDER_KIND = "google_gemini" as const;
 
@@ -265,7 +269,7 @@ async function postGenerateContent(
     ],
     generationConfig: {
       responseMimeType: "application/json",
-      responseSchema: CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA,
+      responseSchema: GEMINI_RUNTIME_RESPONSE_SCHEMA,
       temperature: config.temperature,
       maxOutputTokens: config.maxTokens,
     },
@@ -342,9 +346,8 @@ async function requestStructuredJson(
   const userPrompt = buildUserPrompt(settings.aiPromptTemplate, context);
   const promptLength = userPrompt.length;
   const systemPrompt = buildSystemPrompt(settings.aiAnalysisLanguage, {
-    // Gemini native responseSchema is Base-12-only until Phase 2 signals are
-    // proven compatible; do not ask for phase2Signals in the same request.
-    includePhase2Signals: false,
+    // Gemini Flat Phase 2 (5C-G2): Base-12 + phase2SignalRows — not rich phase2Signals.
+    phase2ContractMode: "gemini_flat",
   });
 
   const startMs = Date.now();

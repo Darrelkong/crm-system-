@@ -1,11 +1,13 @@
 /**
- * Proves Production Gemini runtime request remains Base-12-only after 5C-G1
- * candidate files land (candidate must not be imported by google-gemini.ts).
+ * Local Gemini runtime uses Flat Phase 2 (5C-G2).
+ * Production deploy may still be Base-12-only until 5C-G3.
  */
 import assert from "node:assert/strict";
 import { describe, it, mock } from "node:test";
 import type { CustomerInsightContext } from "@/lib/ai/customer-insights/context-builder";
-import { CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA } from "@/lib/ai/customer-insights/json-schema";
+import { CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA } from "@/lib/ai/phase2/gemini-phase2-flat-schema";
+import { GEMINI_PHASE2_FLAT_CONTRACT_VERSION } from "@/lib/ai/phase2/gemini-phase2-flat-contract";
+import { findGeminiUnsupportedSchemaPaths } from "@/lib/ai/phase2/provider-json-schema";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import { googleGeminiCustomerInsightProvider } from "@/lib/ai/providers/google-gemini";
 
@@ -72,6 +74,7 @@ const validInsightPayload = {
   suggestedEmployeeMessage: "您好，想跟进一下资料准备情况。",
   confidence: 0.5,
   reasoning: "reason",
+  phase2SignalRows: [],
 };
 
 function parseRequestBody(init: RequestInit | undefined): Record<string, unknown> {
@@ -80,8 +83,8 @@ function parseRequestBody(init: RequestInit | undefined): Record<string, unknown
   return JSON.parse(body as string) as Record<string, unknown>;
 }
 
-describe("Production Gemini runtime remains Base-12-only", () => {
-  it("final request schema and prompt exclude Flat Phase 2 contract", async () => {
+describe("Local Gemini runtime uses Flat Phase 2 (5C-G2)", () => {
+  it("final request schema and prompt include Flat contract only", async () => {
     let captured: Record<string, unknown> | undefined;
     const fetchMock = mock.fn(async (_url: unknown, init: unknown) => {
       captured = parseRequestBody(init as RequestInit);
@@ -110,16 +113,21 @@ describe("Production Gemini runtime remains Base-12-only", () => {
       const gc = body.generationConfig as {
         responseSchema: Record<string, unknown>;
       };
-      assert.deepEqual(gc.responseSchema, CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA);
+      assert.deepEqual(
+        gc.responseSchema,
+        CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA,
+      );
       const props = gc.responseSchema.properties as Record<string, unknown>;
-      assert.equal("phase2SignalRows" in props, false);
+      assert.equal("phase2SignalRows" in props, true);
       assert.equal("phase2Signals" in props, false);
+      assert.deepEqual(findGeminiUnsupportedSchemaPaths(gc.responseSchema), []);
 
       const si = body.systemInstruction as {
         parts: Array<{ text: string }>;
       };
-      assert.doesNotMatch(si.parts[0]!.text, /phase2SignalRows/);
-      assert.doesNotMatch(si.parts[0]!.text, /gemini-phase2-flat-v1/);
+      assert.match(si.parts[0]!.text, /phase2SignalRows/);
+      assert.match(si.parts[0]!.text, new RegExp(GEMINI_PHASE2_FLAT_CONTRACT_VERSION));
+      assert.doesNotMatch(si.parts[0]!.text, /optional top-level key phase2Signals/);
       assert.equal(fetchMock.mock.calls.length, 1);
     } finally {
       globalThis.fetch = originalFetch;

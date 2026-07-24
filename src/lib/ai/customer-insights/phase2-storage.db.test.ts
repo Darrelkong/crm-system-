@@ -9,11 +9,12 @@ import { bindTestDatabase } from "@/lib/db";
 import {
   formatCustomerAiInsight,
   getCustomerAiInsightByCustomerId,
+  persistReadyInsight,
 } from "@/lib/ai/customer-insights/service";
 import { serializePhase2Insight } from "@/lib/ai/customer-insights/phase2-compose";
 import type { Phase2Insight } from "@/lib/ai/phase2/types";
 import { PHASE2_VERSION } from "@/lib/ai/phase2/types";
-
+import type { CustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
 const TEST_INSIGHT_ID = "ai999999-9999-9999-9999-999999999936";
 const TEST_CUSTOMER_ID = SEED_IDS.customerStaffA;
 
@@ -145,5 +146,72 @@ describe("phase2 insight storage (local D1)", () => {
       .limit(1);
     assert.ok(row);
     assert.equal(formatCustomerAiInsight(row).phase2, null);
+  });
+
+  it("persistReadyInsight with phase2Json=null clears stale Phase 2 on ready refresh", async () => {
+    await deleteTestInsight();
+    const now = "2026-07-20T11:00:00.000Z";
+    const baseOutput: CustomerInsightOutput = {
+      intentLevel: "medium",
+      intentScore: 55,
+      customerSummary: "ready full",
+      currentSituation: "ready full",
+      keySignals: ["signal"],
+      riskFlags: [],
+      missingInformation: [],
+      nextBestAction: "follow",
+      suggestedFollowUpAt: null,
+      suggestedEmployeeMessage: "您好，想确认一下资料准备进度。",
+      confidence: 0.6,
+      reasoning: "fixture",
+    };
+
+    await db.insert(schema.customerAiInsights).values({
+      id: TEST_INSIGHT_ID,
+      customerId: TEST_CUSTOMER_ID,
+      intentLevel: baseOutput.intentLevel,
+      intentScore: baseOutput.intentScore,
+      customerSummary: baseOutput.customerSummary,
+      currentSituation: baseOutput.currentSituation,
+      keySignalsJson: JSON.stringify(baseOutput.keySignals),
+      riskFlagsJson: "[]",
+      missingInformationJson: "[]",
+      nextBestAction: baseOutput.nextBestAction,
+      suggestedFollowUpAt: null,
+      suggestedEmployeeMessage: baseOutput.suggestedEmployeeMessage,
+      confidence: baseOutput.confidence,
+      reasoning: baseOutput.reasoning,
+      model: "test-model",
+      promptVersion: "phase-1d-v1",
+      sourceHash: "hash-full",
+      phase2Json: serializePhase2Insight(minimalPhase2()),
+      status: "ready",
+      generatedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const before = await getCustomerAiInsightByCustomerId(db, TEST_CUSTOMER_ID);
+    assert.ok(before?.phase2);
+
+    // Simulate Base-ready + Phase2-degraded refresh: upsert writes null.
+    const after = await persistReadyInsight(db, TEST_CUSTOMER_ID, baseOutput, {
+      model: "test-model",
+      promptVersion: "phase-1d-v1",
+      sourceHash: "hash-base-only",
+      phase2Json: null,
+    });
+    assert.equal(after.status, "ready");
+    assert.equal(after.phase2, null);
+    assert.equal(after.intentScore, 55);
+
+    const [raw] = await db
+      .select()
+      .from(schema.customerAiInsights)
+      .where(eq(schema.customerAiInsights.customerId, TEST_CUSTOMER_ID))
+      .limit(1);
+    assert.ok(raw);
+    assert.equal(raw.phase2Json, null);
+    assert.equal(raw.status, "ready");
   });
 });

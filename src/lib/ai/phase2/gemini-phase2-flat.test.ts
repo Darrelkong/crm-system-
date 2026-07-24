@@ -566,8 +566,8 @@ describe("OpenAI rich contract regression (unchanged)", () => {
   });
 });
 
-describe("Production Gemini Base-12 isolation (5C-G1)", () => {
-  it("production native schema does not include phase2SignalRows", () => {
+describe("Gemini Base-12 native schema constant (reference)", () => {
+  it("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA does not include phase2SignalRows", () => {
     assert.equal(
       "phase2SignalRows" in CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties,
       false,

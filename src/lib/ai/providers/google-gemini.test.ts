@@ -6,6 +6,8 @@ import {
   CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA,
   CUSTOMER_INSIGHT_JSON_SCHEMA,
 } from "@/lib/ai/customer-insights/json-schema";
+import { CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA } from "@/lib/ai/phase2/gemini-phase2-flat-schema";
+import { GEMINI_PHASE2_FLAT_CONTRACT_VERSION } from "@/lib/ai/phase2/gemini-phase2-flat-contract";
 import { findGeminiUnsupportedSchemaPaths } from "@/lib/ai/phase2/provider-json-schema";
 import { customerInsightOutputSchema, safeParseCustomerInsightOutput } from "@/lib/ai/customer-insights/schema";
 import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
@@ -218,12 +220,16 @@ describe("googleGeminiCustomerInsightProvider request structure", () => {
       await googleGeminiCustomerInsightProvider.analyzeCustomerInsight(context, settings, runtimeConfig);
       assert.ok(capturedBody !== null);
       const gc = (capturedBody as Record<string, unknown>).generationConfig as Record<string, unknown>;
-      assert.deepEqual(gc.responseSchema, CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA);
+      assert.deepEqual(gc.responseSchema, CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA);
       const schemaProps = (gc.responseSchema as { properties?: Record<string, unknown> })
         .properties;
       assert.ok(schemaProps);
       assert.equal("phase2Signals" in schemaProps, false);
-    } finally {
+      assert.equal("phase2SignalRows" in schemaProps, true);
+      assert.deepEqual(
+        findGeminiUnsupportedSchemaPaths(gc.responseSchema),
+        [],
+      );    } finally {
       globalThis.fetch = originalFetch;
     }
   });
@@ -247,7 +253,8 @@ describe("googleGeminiCustomerInsightProvider request structure", () => {
       assert.equal(typeof si.parts[0].text, "string");
       assert.ok(si.parts[0].text.length > 0);
       assert.doesNotMatch(si.parts[0].text, /phase2Signals/);
-    } finally {
+      assert.match(si.parts[0].text, /phase2SignalRows/);
+      assert.match(si.parts[0].text, new RegExp(GEMINI_PHASE2_FLAT_CONTRACT_VERSION));    } finally {
       globalThis.fetch = originalFetch;
     }
   });
@@ -789,12 +796,33 @@ describe("CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA integrity", () => {
     );
   });
 
-  it("native Gemini schema temporarily excludes phase2Signals (Base-12 compatibility)", () => {
+  it("native Gemini Base-12 schema constant still excludes phase2Signals (reference)", () => {
     assert.equal(
       "phase2Signals" in CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties,
       false,
     );
+    assert.equal(
+      "phase2SignalRows" in CUSTOMER_INSIGHT_NATIVE_RESPONSE_SCHEMA.properties,
+      false,
+    );
     assert.ok("phase2Signals" in CUSTOMER_INSIGHT_JSON_SCHEMA.properties);
+  });
+
+  it("local Gemini runtime Flat schema includes required phase2SignalRows", () => {
+    assert.ok(
+      "phase2SignalRows" in
+        CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA.properties,
+    );
+    assert.ok(
+      CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA.required.includes(
+        "phase2SignalRows",
+      ),
+    );
+    assert.equal(
+      "phase2Signals" in
+        CUSTOMER_INSIGHT_GEMINI_FLAT_CANDIDATE_RESPONSE_SCHEMA.properties,
+      false,
+    );
   });
 });
 
