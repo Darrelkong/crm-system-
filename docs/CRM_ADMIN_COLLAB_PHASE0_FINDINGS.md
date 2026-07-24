@@ -2,7 +2,7 @@
 
 **類型：** 只讀調查＋docs 校準定稿
 **日期：** 2026-07-24
-**最後修訂：** 2026-07-24（Finalize：證據邊界、PRE_LAUNCH／SYSTEM_MAP 漂移、Runbook）
+**最後修訂：** 2026-07-24（Purge DB：`npm run test:recycle-bin` 通過，關閉驗證缺口）
 **Repository 基線（調查時）：** `main` @ `386012293a70bf300199b09139947aeb4748f0a4`
 **Production Active Version（記錄用）：** `f9b2bfc6-6611-489b-85dc-8023d65b6e6c`
 **觀察期：** Worker 1102 — 見 [WORKER_1102_INCIDENT_2026-07-24.md](./WORKER_1102_INCIDENT_2026-07-24.md)
@@ -18,7 +18,7 @@
 
 | 調查 | 結論 | 優先級影響 |
 |------|------|------------|
-| 永久清除 | 刻意保留且目前查詢安全；**非**可見 orphan Bug | 原 **P1-7 → Closed**（待補 DB 整合測試為非阻止缺口） |
+| 永久清除 | 刻意保留且 Runtime／**本地 DB** 行為安全；**非**可見 orphan Bug | 原 **P1-7 → Closed**；`purge-relations` DB 驗證缺口**已關閉** |
 | 通知 fan-out | 部分覆蓋；多數協作事件無 fan-out | **P2** 體驗；不擴大通知量除非產品決策 |
 | PRE_LAUNCH B1 | 已於本 Finalize 修正為 Owner／Assignee 口徑 | **P2** 已處理（主驗收文件） |
 | Access Email | 登入時部分綁定；有受控例外與時間窗 | **P1 Candidate**（加固候選，**非**已確認越權） |
@@ -49,7 +49,7 @@
 | `docs/PRE_LAUNCH_PERMISSION_CHECKLIST.md` | 驗收清單（本 Finalize 已改） |
 | `docs/SYSTEM_MAP.md` | 系統地圖（本 Finalize 已改 purge 描述） |
 | 單元測試（調查輪執行通過） | filters／assignees／access-jwt／notification-href／recycle retention |
-| DB 測試 | `purge-relations.test.ts` **本輪未完成執行**（本機綁定掛起） |
+| DB 測試（2026-07-24 補跑） | `npm run test:recycle-bin`：**46 pass／0 fail**（含 `purge-relations.test.ts` 5 例）；本地 `getPlatformProxy`＋`CRM_ALLOW_TEST_DB_BIND=1`；**非** Production D1 |
 
 ---
 
@@ -82,21 +82,47 @@
 | `audit_logs` | 先寫後刪客戶 | N/A | 是 | Admin audit |
 | quick_entry submission rows | purge 未清 | 無 FK | 可能殘留 ID | 非客戶主列表 |
 
-### 3.3 證據邊界（必須保留）
+### 3.3 證據邊界與 DB 驗證結果
 
-- `purge-relations` DB 整合測試**本輪未完成執行**
-- 結論主要由 **Runtime、Schema、Migration 與既有測試程式**交叉支持
-- **不得**寫成「所有 Production／DB 行為已完整驗證」
-- 後續本地環境正常時補跑 `npm run test:recycle-bin`
-- 若補跑失敗，再重新評估風險分類
+**先前缺口：** Finalize 時 `purge-relations` 因本機 sandbox／wrangler log 寫入受限曾掛起，未完成執行。
 
-### 3.4 Purge 結論（定稿）
+**補跑結果（2026-07-24）：**
 
-現有 Runtime、Schema 與測試程式證據支持這是**刻意保留且目前查詢安全**的設計；本輪未完成 `purge-relations` DB 整合測試，因此仍保留一項**非阻止性**的驗證缺口。
+| 項 | 值 |
+|----|-----|
+| Command | `npm run test:recycle-bin` |
+| Exit Code | 0 |
+| Duration | ~19.4s |
+| Pass／Fail | **46／0**（unit 7＋DB suites 含 purge-relations 5） |
+| Environment | 本地 Wrangler `getPlatformProxy`；`CRM_ALLOW_TEST_DB_BIND=1`；**無** `--remote` |
+
+**已由 `purge-relations` A-G 案例確認（本地 DB，非 Production 歷史全量）：**
+
+1. Customer 被永久清除
+2. Assignees／follow_ups／contacts／field_change_logs／AI insights → 0 列（CASCADE）
+3. Open task → `cancelled`，列保留，`customer_id = null`
+4. Completed／已 cancelled task 列保留，`customer_id = null`
+5. Notification 列保留，`relatedEntityId` 仍為已刪 ID（刻意）
+6. Audit `customer.deleted.permanent` 保留
+7. Approvals／reclamation warning logs → 0（顯式刪除）
+
+Notification 失效連結行為另由 `notification-href.test.ts` 確認（missing customer → href null）。Transaction／batch 行為由 Runtime `executePermanentDeleteInBatch` 與上述整合測交叉支持。
+
+**仍不得宣稱：** 所有 Production 歷史資料已完整驗證。
+
+### 3.4 Purge 結論（定稿／缺口已關閉）
+
+現有 Runtime、Schema、測試程式與**已通過的本地 DB 整合測試**支持這是**刻意保留且 Runtime／DB 行為安全**的設計。
 
 | 原規劃項 | 定稿狀態 |
 |----------|----------|
-| P1-7｜待確認的資料一致性風險 | **Closed**｜現有證據支持刻意保留且 Runtime 安全；待補 DB 整合測試 |
+| P1-7｜待確認的資料一致性風險 | **Closed**｜刻意保留且 Runtime／DB 安全；**驗證缺口已關閉** |
+| 非阻止性 `purge-relations` 缺口 | **Closed**（2026-07-24 `npm run test:recycle-bin`） |
+
+- 無需 Migration
+- 無需 Production Backfill
+- 無需 Runtime 修復
+- 不阻擋 Admin 工作台 Phase 1（仍受 1102 觀察期約束）
 
 ---
 
@@ -236,13 +262,12 @@ Staff Dashboard「我的客戶」KPI 目前**僅計 Owner**（與列表含協作
 
 | 等級 | 領域 | 問題／結論 | 建議 |
 |------|------|------------|------|
-| Closed | Purge | 刻意保留；查詢安全；非可見 orphan Bug | 補跑 DB 測；已更新 SYSTEM_MAP |
+| Closed | Purge | 刻意保留；查詢安全；非可見 orphan Bug；**本地 DB 測通過** | 無需 Migration／Backfill／Runtime 修 |
 | P2 | 通知 | 協作可見性缺口 | 產品決策後再排；不擴大預設量 |
-| P2 | 文件 | PRE_LAUNCH B1 曾漂移 | **本 Finalize 已修** |
+| P2 | 文件 | PRE_LAUNCH B1 曾漂移 | Finalize 已修 |
 | P1 Candidate | Access | 登入綁定＋例外＋無持續 Session 綁定 | Runbook 優先；加固另開強模型專項 |
-| 資訊缺口 | 測試 | purge-relations 未跑通 | `npm run test:recycle-bin` |
 
-**無新確認 P0。**
+**無新確認 P0。Purge DB 驗證缺口已關閉。**
 
 ---
 
@@ -250,10 +275,11 @@ Staff Dashboard「我的客戶」KPI 目前**僅計 Owner**（與列表含協作
 
 | 資訊 | 影響 | 取得方式 |
 |------|------|----------|
-| purge-relations 執行綠燈 | 非阻止；失敗則重評 | 本地 D1 補跑 |
 | Production 權限 Smoke | 驗收 | 人工 checklist |
 | 通知產品決策（§4.3） | Phase 優先級 | 產品確認 |
 | Access↔CRM 正式站差集 | 營運 | 人工比對（不寫入真實 Email） |
+
+~~purge-relations 執行綠燈~~ → **已關閉**（2026-07-24 本地 `test:recycle-bin`）。
 
 ---
 
@@ -261,7 +287,7 @@ Staff Dashboard「我的客戶」KPI 目前**僅計 Owner**（與列表含協作
 
 | 原項 | 定稿 |
 |------|------|
-| P1-7 purge | **Closed**｜刻意保留且 Runtime 安全；待補 DB 整合測試 |
+| P1-7 purge | **Closed**｜刻意保留且 Runtime／DB 安全；驗證缺口已關閉 |
 | 通知 fan-out | **P2** |
 | PRE_LAUNCH B1 | **P2 已修正**（主文件） |
 | Access | **P1 Candidate**（非已確認越權） |
@@ -307,10 +333,10 @@ Staff Dashboard「我的客戶」KPI 目前**僅計 Owner**（與列表含協作
 
 ## 14. Testing Requirements
 
-- 已通過（調查輪）：`tsc --noEmit`；相關單元測
-- 待補：`npm run test:recycle-bin`（含 `purge-relations`）
+- 已通過：`tsc --noEmit`；`npm run test:recycle-bin`（46 pass，含 `purge-relations`）；`notification-href`＋recycle retention 單元
 - Phase 1 前：`/admin` CPU／wall 比較；不壓測 `/`
 - Production Smoke：人工；本輪不執行
+- **不得**將本地 DB 通過解讀為 Production 全庫已驗證
 
 ---
 
@@ -332,9 +358,10 @@ Staff Dashboard「我的客戶」KPI 目前**僅計 Owner**（與列表含協作
 - Notifications：`attachRelatedEntityMissingFlags`、`getNotificationHref`
 - Scope：`staffCustomerListPermissionWhere`、`assertCanEditCustomer`、`assertCanAddFollowUp`
 - Access：`evaluateAccessLoginEmailBinding`、`verifyCloudflareAccessJwt`
-- Tests：`purge-relations.test.ts`（存在；本輪未跑通）、`customers-assignees.test.ts`、`access-jwt.test.ts`、`notification-href.test.ts`
-- Docs 本 Finalize：`PRE_LAUNCH_PERMISSION_CHECKLIST.md`、`SYSTEM_MAP.md`
+- Tests：`purge-relations.test.ts`（**2026-07-24 通過**，於 `npm run test:recycle-bin`）、`customers-assignees.test.ts`、`access-jwt.test.ts`、`notification-href.test.ts`
+- Docs Finalize：`PRE_LAUNCH_PERMISSION_CHECKLIST.md`、`SYSTEM_MAP.md`
+- Docs Purge close：本文件 §3／§8／§9／§10／§14
 
 ---
 
-*End of Phase 0 findings (finalized).*
+*End of Phase 0 findings (finalized; purge DB gap closed).*
