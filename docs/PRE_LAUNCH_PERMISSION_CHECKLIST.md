@@ -54,11 +54,23 @@ curl -s -c /tmp/crm-staff-b.txt -X POST http://localhost:3000/api/auth/login \
 
 ## B. Staff 权限（应拒绝管理类操作）
 
+**客户可见范围（与 Runtime 一致，2026-07-24 修订）：**
+
+| 角色 | 私人列表 | 详情 | 新增跟进 | 主档编辑 | API |
+|------|----------|------|----------|----------|-----|
+| **Owner** | 可见 | 完整（无 EF／customerCode） | 允许 | 允许（敏感字段受 F-3 锁定） | 允许 scope 内操作 |
+| **Active Assignee／Collaborator** | 可见被分配客户 | 完整（无 EF／customerCode） | 允许 | **不允许**（以后端 `assertCanEditCustomer` 为准） | 列表／详情／跟进允许；编辑主档 **403** |
+| **非关联 Staff**（非 Owner 且非 Assignee） | 不可见 | 拒绝 | 拒绝 | 拒绝 | 页面或 API **403** |
+| **Public Pool（未领取）** | 不出现在私人客户列表 | 脱敏（masked） | 不允许 | 不允许 | 脱敏详情；领取后按私人客户 Owner 规则 |
+
+> 说明：Staff 私人客户列表 = `ownerId = 自己` **或** 自己为 `customer_assignees` 成员；**不得**理解为「仅 owner」。Staff Dashboard「我的客户」KPI 目前可能只计 Owner，与列表含协作客户不一致时分开记录，不作为越权失败。
+
 | # | 场景 | 操作 | HTTP / 页面预期 | 结果 |
 |---|------|------|-----------------|------|
-| B1 | 仅看自己客户 | `GET /api/customers`（Staff A） | 200，仅 owner=Staff A | ⬜ |
-| B2 | 不能看他人客户 | `GET /api/customers/:staffBCustomerId`（Staff A） | **403** | ⬜ |
-| B3 | 公共池脱敏 | `GET /api/customers/:poolCustomerId`（Staff B，非释放人） | 200，敏感字段脱敏 | ⬜ |
+| B1 | Staff A 是 Customer 1 **Owner** | 列表含 C1；详情 full；可跟进；可按权限改主档；`GET /api/customers` 含 C1 | 200；列表／详情／跟进成功；主档编辑依权限 | ⬜ |
+| B1b | Staff A 是 Customer 2 **Active Assignee／Collaborator**（Owner 为他人） | 列表含 C2；详情 full；可新增跟进；**不可**改主档；API 同左 | 200 读／跟进；主档编辑 **403** 或无编辑入口 | ⬜ |
+| B2 | Staff A 与 Customer 3 **无** Owner／Assignee 关系 | 列表不含 C3；详情／跟进／编辑均拒绝；`GET /api/customers/:c3` | **403**（或等价拒绝页） | ⬜ |
+| B3 | 公共池脱敏 | `GET /api/customers/:poolCustomerId` 或公共池页（Staff，未领取） | 200，敏感字段脱敏；非 full | ⬜ |
 | B4 | 不能导入 | 访问 `/import/customers` | **403** 或拒绝页 | ⬜ |
 | B5 | 不能导出 | 访问 `/export/customers` 或 `POST /api/export/customers` | **403** | ⬜ |
 | B6 | 不能备份 | 访问 `/admin/backups` | 重定向或 **403** | ⬜ |
