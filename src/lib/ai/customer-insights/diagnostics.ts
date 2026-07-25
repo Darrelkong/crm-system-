@@ -147,11 +147,26 @@ export function buildAiInsightRefreshFailedAuditMetadata(
   customerId: string,
   errorCode: AiErrorCode,
   error: unknown,
+  extras?: {
+    actorRole?: "admin" | "staff";
+    providerKind?: AiProviderKind;
+    contractMode?: "gemini_flat" | "rich" | "none" | "unknown";
+  },
 ): Record<string, string | number> {
   const metadata: Record<string, string | number> = {
     customerId,
     errorCode,
   };
+
+  if (extras?.actorRole) {
+    metadata.actorRole = extras.actorRole;
+  }
+  if (extras?.providerKind) {
+    metadata.providerKind = extras.providerKind;
+  }
+  if (extras?.contractMode) {
+    metadata.contractMode = extras.contractMode;
+  }
 
   if (error instanceof AiAnalysisError && error.diagnostics) {
     Object.assign(metadata, toSafeFailureAuditMetadata(error.diagnostics));

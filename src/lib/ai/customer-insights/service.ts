@@ -401,16 +401,23 @@ export function buildCustomerAiInsightRefreshAuditMetadata(
     phase2Generated: boolean;
     phase2UnavailableReason: Phase2FailureCode | null;
   },
+  actorRole?: "admin" | "staff",
 ) {
+  const contractMode = resolveAiProviderPhase2ContractMode(providerKind);
   return {
     customerId: insight.customerId,
     sourceHash: insight.sourceHash,
+    generatedAt: insight.generatedAt,
     model: insight.model,
     promptVersion: insight.promptVersion,
     status: insight.status,
+    finalStatus: insight.status,
     providerKind,
+    contractMode,
+    actorRole: actorRole ?? "unknown",
     phase2Generated: phase2Meta?.phase2Generated ?? insight.phase2 != null,
     phase2UnavailableReason: phase2Meta?.phase2UnavailableReason ?? null,
+    phase2Eligible: contractMode === "gemini_flat" || contractMode === "rich",
   };
 }
 

@@ -119,6 +119,9 @@ export async function POST(request: Request, context: RouteContext) {
                 customer.id,
                 code,
                 error,
+                {
+                  actorRole: user.role === "admin" ? "admin" : "staff",
+                },
               ),
             },
             db,
@@ -180,6 +183,7 @@ export async function POST(request: Request, context: RouteContext) {
             phase2Generated: refreshResult.phase2Generated,
             phase2UnavailableReason: refreshResult.phase2UnavailableReason,
           },
+          user.role === "admin" ? "admin" : "staff",
         ),
       },
       db,
