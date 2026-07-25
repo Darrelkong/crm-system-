@@ -14,7 +14,6 @@ import {
   deepAnalysisStatusMessageKey,
 } from "@/lib/ai/deep-analysis/ui-messages";
 import { formatHongKongDateTime } from "@/lib/timezone";
-import { CustomerAiInsightFeedback } from "@/components/customers/customer-ai-insight-feedback";
 import { AiInsightPhase2Sections } from "@/components/customers/ai-insight-phase2-sections";
 import { AiInsightSuggestedMessage } from "@/components/customers/ai-insight-suggested-message";
 import {
@@ -28,6 +27,12 @@ import {
   type AiConfidenceLevel,
 } from "@/lib/ai/customer-insights/confidence-display";
 import { ui } from "@/lib/ui/classes";
+import { isSafeSuggestedMessageAvailable } from "@/lib/ai/customer-insights/safe-suggested-message";
+import {
+  AiInsightFeedbackLoadError,
+  AiInsightFeedbackSectionControl,
+  useAiInsightComponentFeedbackPanel,
+} from "@/components/customers/ai-insight-component-feedback-host";
 
 const cd = ui.customerDetail;
 
@@ -369,6 +374,20 @@ export function CustomerAiInsightPanel({
     phase2,
     insight?.intentScore,
   );
+
+  const insightReady = !!insight && insight.status === "ready";
+  const componentFeedback = useAiInsightComponentFeedbackPanel({
+    customerId,
+    insightGeneratedAt: insightReady ? insight.generatedAt : null,
+    insightSourceHash: insightReady ? insight.sourceHash : null,
+    insightReady,
+    onReloadAnalysis: () => setLoadToken((n) => n + 1),
+  });
+
+  const showMessageSection =
+    !!insight &&
+    display.showDraftMessage &&
+    isSafeSuggestedMessageAvailable(insight.suggestedEmployeeMessage);
 
   return (
     <Card className="mt-6">
@@ -738,7 +757,22 @@ export function CustomerAiInsightPanel({
                   </div>
                 )}
 
-                {phase2 && <AiInsightPhase2Sections t={t} phase2={phase2} />}
+                <AiInsightFeedbackSectionControl
+                  api={componentFeedback}
+                  target="base_deep"
+                  sectionVisible={insight.status === "ready"}
+                />
+
+                {phase2 && (
+                  <>
+                    <AiInsightPhase2Sections t={t} phase2={phase2} />
+                    <AiInsightFeedbackSectionControl
+                      api={componentFeedback}
+                      target="phase2"
+                      sectionVisible={true}
+                    />
+                  </>
+                )}
 
                 {deemphasizeIntentScore && (
                   <details className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
@@ -752,14 +786,23 @@ export function CustomerAiInsightPanel({
                 )}
 
                 {display.showDraftMessage && (
-                  <AiInsightSuggestedMessage
-                    t={t}
-                    customerId={customerId}
-                    insightId={insight.id}
-                    generatedAt={insight.generatedAt}
-                    sourceMessage={insight.suggestedEmployeeMessage}
-                  />
+                  <>
+                    <AiInsightSuggestedMessage
+                      t={t}
+                      customerId={customerId}
+                      insightId={insight.id}
+                      generatedAt={insight.generatedAt}
+                      sourceMessage={insight.suggestedEmployeeMessage}
+                    />
+                    <AiInsightFeedbackSectionControl
+                      api={componentFeedback}
+                      target="suggested_message"
+                      sectionVisible={showMessageSection}
+                    />
+                  </>
                 )}
+
+                <AiInsightFeedbackLoadError api={componentFeedback} />
 
                 <p className={`text-xs ${cd.muted}`}>
                   {t("customers.phase2.noCrmAutoChanges")}
@@ -771,13 +814,6 @@ export function CustomerAiInsightPanel({
                       formatDateTime(insight.generatedAt) ?? insight.generatedAt,
                   })}
                 </p>
-
-                {isAdmin && insight.status === "ready" && (
-                  <CustomerAiInsightFeedback
-                    customerId={customerId}
-                    insight={insight}
-                  />
-                )}
               </div>
             )}
           </section>
