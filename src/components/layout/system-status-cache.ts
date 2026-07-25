@@ -35,7 +35,12 @@ export function statusCacheRemainingMs(now = Date.now()): number {
   return Math.max(0, STATUS_CACHE_TTL_MS - (now - _cache.fetchedAt));
 }
 
+/** Drop any cached badge status (e.g. stale offline before a live resume probe). */
+export function invalidateStatusCache(): void {
+  _cache = null;
+}
+
 /** Reset for testing. */
 export function clearStatusCacheForTest(): void {
-  _cache = null;
+  invalidateStatusCache();
 }

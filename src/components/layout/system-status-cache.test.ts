@@ -3,6 +3,7 @@ import { describe, it, beforeEach } from "node:test";
 import {
   clearStatusCacheForTest,
   getStatusCache,
+  invalidateStatusCache,
   setStatusCache,
   statusCacheRemainingMs,
 } from "./system-status-cache";
@@ -91,6 +92,17 @@ describe("system-status-cache", () => {
       assert.ok(remaining > 0);
       // Confirm getStatusCache agrees
       assert.equal(getStatusCache(now + 1_000), "online");
+    });
+  });
+
+  describe("invalidateStatusCache", () => {
+    it("clears a stale offline entry so resume cannot reuse it", () => {
+      const now = Date.now();
+      setStatusCache("offline", now);
+      assert.equal(getStatusCache(now + 1_000), "offline");
+      invalidateStatusCache();
+      assert.equal(getStatusCache(now + 1_000), null);
+      assert.equal(statusCacheRemainingMs(now + 1_000), 0);
     });
   });
 
