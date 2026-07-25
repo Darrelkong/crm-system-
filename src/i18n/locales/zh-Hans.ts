@@ -133,6 +133,7 @@ const zhHans: Messages = {
       "如果多次未重新登录，系统将重新进行安全验证。",
     accessReverifyRequired:
       "安全设置已更新，请重新完成验证后登录。",
+    watermarkConfidential: "最高保密 · 严禁泄露",
   },
   nav: {
     dashboard: "仪表盘",

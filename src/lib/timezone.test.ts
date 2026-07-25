@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   formatHongKongDate,
   formatHongKongDateTime,
+  formatHongKongDateTimeSeconds,
   formatHongKongTime,
 } from "./timezone";
 
@@ -11,6 +12,13 @@ describe("Hong Kong timezone formatting", () => {
     assert.equal(
       formatHongKongDateTime("2026-06-26T12:01:00Z"),
       "2026-06-26 20:01",
+    );
+  });
+
+  it("formats seconds with HKT suffix for watermarks", () => {
+    assert.equal(
+      formatHongKongDateTimeSeconds("2026-06-26T12:01:08Z"),
+      "2026-06-26 20:01:08 HKT",
     );
   });
 

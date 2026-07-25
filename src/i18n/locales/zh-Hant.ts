@@ -133,6 +133,7 @@ const zhHant: Messages = {
       "如果多次未重新登入，系統將重新進行安全驗證。",
     accessReverifyRequired:
       "安全設定已更新，請重新完成驗證後登入。",
+    watermarkConfidential: "最高保密 · 嚴禁洩露",
   },
   nav: {
     dashboard: "儀表盤",

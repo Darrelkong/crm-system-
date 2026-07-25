@@ -67,6 +67,24 @@ export function formatHongKongDateTime(
   return `${year}-${month}-${day} ${pad2(hour)}:${pad2(minute)}`;
 }
 
+/** `YYYY-MM-DD HH:mm:ss HKT` in Asia/Hong_Kong (watermark / audit displays). */
+export function formatHongKongDateTimeSeconds(
+  value: DateInput,
+  fallback = "—",
+): string {
+  const date = parseUtcDate(value);
+  if (!date) return fallback;
+
+  const year = getDatePart(date, { year: "numeric" }, "year");
+  const month = getDatePart(date, { month: "2-digit" }, "month");
+  const day = getDatePart(date, { day: "2-digit" }, "day");
+  const hour = getDatePart(date, { hour: "2-digit", hour12: false }, "hour");
+  const minute = getDatePart(date, { minute: "2-digit" }, "minute");
+  const second = getDatePart(date, { second: "2-digit" }, "second");
+
+  return `${year}-${month}-${day} ${pad2(hour)}:${pad2(minute)}:${pad2(second)} HKT`;
+}
+
 /** `YYYY-MM-DD` in Asia/Hong_Kong */
 export function formatHongKongDate(value: DateInput, fallback = "—"): string {
   const date = parseUtcDate(value);

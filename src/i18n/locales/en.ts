@@ -142,6 +142,7 @@ const en = {
       "If you do not sign in again after multiple attempts, security verification will restart.",
     accessReverifyRequired:
       "Security settings have changed. Please verify your access again before signing in.",
+    watermarkConfidential: "STRICTLY CONFIDENTIAL · DO NOT DISCLOSE",
   },
   nav: {
     dashboard: "Dashboard",
