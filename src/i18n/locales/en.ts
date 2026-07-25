@@ -2570,6 +2570,24 @@ const en = {
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data.",
     mergeCustomersDisabled:
       "Customer merge is not enabled yet. Please do not submit merge requests.",
+    aiFeedbackInsightNotFound: "No AI insight is available to rate.",
+    aiFeedbackInsightNotReady: "The current AI insight cannot be rated.",
+    aiFeedbackGenerationMismatch:
+      "The insight version changed. Please refresh and try again.",
+    aiFeedbackInvalidRequest: "Invalid feedback request.",
+    aiFeedbackInvalidTarget: "Invalid feedback target.",
+    aiFeedbackTargetNotAllowed:
+      "This target is not allowed for component feedback.",
+    aiFeedbackTargetNotEligible:
+      "This feedback target is not currently available.",
+    aiFeedbackInvalidRating: "Invalid feedback rating.",
+    aiFeedbackInvalidTags: "Invalid feedback tags.",
+    aiFeedbackCommentNotAllowed:
+      "Comments are not allowed on component feedback.",
+    aiFeedbackBodyTooLarge: "Request body is too large.",
+    aiFeedbackSnapshotUnavailable:
+      "Feedback snapshot could not be resolved. Please try again later.",
+    aiFeedbackWriteFailed: "Failed to save feedback.",
     serverError: "System error. Please try again later.",
     approvalNotFound: "Approval request not found.",
     approvalAlreadyProcessed: "This request has already been processed.",

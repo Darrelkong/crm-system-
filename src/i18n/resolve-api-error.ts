@@ -97,6 +97,19 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
   MERGE_CUSTOMERS_DISABLED: "errors.mergeCustomersDisabled",
   "permission.denied.customer_assignees_request": "errors.assigneeApprovalForbidden",
   "permission.denied.customer_assignees_request_admin": "errors.assigneeApprovalForbidden",
+  AI_FEEDBACK_INSIGHT_NOT_FOUND: "errors.aiFeedbackInsightNotFound",
+  AI_FEEDBACK_INSIGHT_NOT_READY: "errors.aiFeedbackInsightNotReady",
+  AI_FEEDBACK_GENERATION_MISMATCH: "errors.aiFeedbackGenerationMismatch",
+  AI_FEEDBACK_INVALID_REQUEST: "errors.aiFeedbackInvalidRequest",
+  AI_FEEDBACK_INVALID_TARGET: "errors.aiFeedbackInvalidTarget",
+  AI_FEEDBACK_TARGET_NOT_ALLOWED: "errors.aiFeedbackTargetNotAllowed",
+  AI_FEEDBACK_TARGET_NOT_ELIGIBLE: "errors.aiFeedbackTargetNotEligible",
+  AI_FEEDBACK_INVALID_RATING: "errors.aiFeedbackInvalidRating",
+  AI_FEEDBACK_INVALID_TAGS: "errors.aiFeedbackInvalidTags",
+  AI_FEEDBACK_COMMENT_NOT_ALLOWED: "errors.aiFeedbackCommentNotAllowed",
+  AI_FEEDBACK_BODY_TOO_LARGE: "errors.aiFeedbackBodyTooLarge",
+  AI_FEEDBACK_SNAPSHOT_UNAVAILABLE: "errors.aiFeedbackSnapshotUnavailable",
+  AI_FEEDBACK_WRITE_FAILED: "errors.aiFeedbackWriteFailed",
 };
 
 const FIELD_CODE_TO_KEY: Record<string, string> = {
