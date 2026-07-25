@@ -17,6 +17,7 @@ import {
   RESUME_REFRESH_TIMEOUT_MS,
   classifyResumeSessionProbe,
   createResumeRequestGate,
+  planBackgroundHealthPoll,
   resumeHealthUrl,
   resumeRetryDelayMs,
   shouldAcceptGeneration,
@@ -173,7 +174,11 @@ export function SystemStatusBadge({ className }: { className?: string }) {
   isRefreshPendingRef.current = isRefreshPending;
 
   const cachedOnMount = getStatusCache();
-  const [status, setStatus] = useState<SystemStatus>(cachedOnMount ?? "online");
+  // No reliable cache: start as checking (not optimistic green) until a probe finishes.
+  const [status, setStatus] = useState<SystemStatus>(
+    cachedOnMount ?? "checking",
+  );
+  const statusRef = useRef<SystemStatus>(cachedOnMount ?? "checking");
   const failureCountRef = useRef(0);
   const pollInFlightRef = useRef(false);
   const generationRef = useRef(0);
@@ -206,13 +211,14 @@ export function SystemStatusBadge({ className }: { className?: string }) {
     ) {
       if (cancelled) return;
       if (!shouldAcceptGeneration(generationRef.current, generation)) return;
+      statusRef.current = next;
       setStatus(next);
       if (cache) setStatusCache(cache);
     }
 
     /**
-     * Background health poll only — must not abort an in-flight resume, and must
-     * not flash "checking" on every 45s tick.
+     * Background health poll — may degrade online→offline, but must never
+     * alone upgrade offline/checking→online (that requires full resume).
      */
     async function pollHealthOnly() {
       if (pollInFlightRef.current) return;
@@ -225,17 +231,39 @@ export function SystemStatusBadge({ className }: { className?: string }) {
         if (cancelled) return;
         if (!shouldAcceptGeneration(generationRef.current, generation)) return;
 
-        if (result.ok) {
-          failureCountRef.current = 0;
-          applyStatus(generation, result.status, result.status);
-          return;
-        }
+        const consecutiveFailuresAfterThis = result.ok
+          ? 0
+          : failureCountRef.current + 1;
 
-        failureCountRef.current += 1;
-        if (failureCountRef.current >= OFFLINE_AFTER_CONSECUTIVE_FAILURES) {
-          applyStatus(generation, "offline", "offline");
-        } else {
-          applyStatus(generation, "checking");
+        const plan = planBackgroundHealthPoll({
+          currentStatus: statusRef.current,
+          healthOk: result.ok,
+          healthStatus: result.ok ? result.status : undefined,
+          resumeRunning: resumeGate.isRunning(),
+          consecutiveFailuresAfterThis,
+          offlineAfterConsecutiveFailures: OFFLINE_AFTER_CONSECUTIVE_FAILURES,
+        });
+
+        switch (plan.action) {
+          case "skip":
+            return;
+          case "keep":
+            failureCountRef.current = 0;
+            applyStatus(generation, plan.status, plan.status);
+            return;
+          case "request_resume":
+            failureCountRef.current = 0;
+            // Do not paint green from health-only; reuse the full resume entry.
+            requestResume();
+            return;
+          case "set_offline":
+            failureCountRef.current = consecutiveFailuresAfterThis;
+            applyStatus(generation, "offline", "offline");
+            return;
+          case "set_checking":
+            failureCountRef.current = consecutiveFailuresAfterThis;
+            applyStatus(generation, "checking");
+            return;
         }
       } finally {
         pollInFlightRef.current = false;

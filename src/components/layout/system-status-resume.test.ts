@@ -6,6 +6,7 @@ import {
   RESUME_REFRESH_TIMEOUT_MS,
   classifyResumeSessionProbe,
   createResumeRequestGate,
+  planBackgroundHealthPoll,
   resumeHealthUrl,
   resumeRetryDelayMs,
   shouldAcceptGeneration,
@@ -77,6 +78,175 @@ describe("system-status-resume", () => {
       assert.equal(resumeRetryDelayMs(1), 600);
       assert.equal(resumeRetryDelayMs(2), 1_500);
       assert.ok(resumeRetryDelayMs(1) < resumeRetryDelayMs(2));
+    });
+  });
+
+  describe("planBackgroundHealthPoll", () => {
+    const base = {
+      offlineAfterConsecutiveFailures: 2,
+      resumeRunning: false,
+    };
+
+    it("online + health success → keep online", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "online",
+          healthOk: true,
+          healthStatus: "online",
+          consecutiveFailuresAfterThis: 0,
+        }),
+        { action: "keep", status: "online" },
+      );
+    });
+
+    it("online + health success with degraded → keep degraded", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "online",
+          healthOk: true,
+          healthStatus: "degraded",
+          consecutiveFailuresAfterThis: 0,
+        }),
+        { action: "keep", status: "degraded" },
+      );
+    });
+
+    it("online + first health failure → set_checking", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "online",
+          healthOk: false,
+          consecutiveFailuresAfterThis: 1,
+        }),
+        { action: "set_checking" },
+      );
+    });
+
+    it("online + consecutive health failures → set_offline", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "online",
+          healthOk: false,
+          consecutiveFailuresAfterThis: 2,
+        }),
+        { action: "set_offline" },
+      );
+    });
+
+    it("offline + health success → request_resume (never direct online)", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "offline",
+          healthOk: true,
+          healthStatus: "online",
+          consecutiveFailuresAfterThis: 0,
+        }),
+        { action: "request_resume" },
+      );
+    });
+
+    it("offline + health failure → stay offline", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "offline",
+          healthOk: false,
+          consecutiveFailuresAfterThis: 3,
+        }),
+        { action: "set_offline" },
+      );
+    });
+
+    it("checking + health success while idle → request_resume not green", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "checking",
+          healthOk: true,
+          healthStatus: "online",
+          consecutiveFailuresAfterThis: 0,
+        }),
+        { action: "request_resume" },
+      );
+    });
+
+    it("checking + health success while resume running → skip", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "checking",
+          healthOk: true,
+          healthStatus: "online",
+          resumeRunning: true,
+          consecutiveFailuresAfterThis: 0,
+        }),
+        { action: "skip" },
+      );
+    });
+
+    it("checking + health failure below threshold → skip (do not override)", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "checking",
+          healthOk: false,
+          consecutiveFailuresAfterThis: 1,
+        }),
+        { action: "skip" },
+      );
+    });
+
+    it("checking + consecutive failures while idle → set_offline", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "checking",
+          healthOk: false,
+          consecutiveFailuresAfterThis: 2,
+        }),
+        { action: "set_offline" },
+      );
+    });
+
+    it("any status while resume running → skip", () => {
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "offline",
+          healthOk: true,
+          healthStatus: "online",
+          resumeRunning: true,
+          consecutiveFailuresAfterThis: 0,
+        }),
+        { action: "skip" },
+      );
+      assert.deepEqual(
+        planBackgroundHealthPoll({
+          ...base,
+          currentStatus: "online",
+          healthOk: false,
+          resumeRunning: true,
+          consecutiveFailuresAfterThis: 2,
+        }),
+        { action: "skip" },
+      );
+    });
+
+    it("resume failure path: offline then health success still cannot keep online", () => {
+      const plan = planBackgroundHealthPoll({
+        ...base,
+        currentStatus: "offline",
+        healthOk: true,
+        healthStatus: "online",
+        consecutiveFailuresAfterThis: 0,
+      });
+      assert.notEqual(plan.action, "keep");
+      assert.equal(plan.action, "request_resume");
     });
   });
 

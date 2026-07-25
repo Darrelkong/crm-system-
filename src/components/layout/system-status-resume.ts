@@ -22,6 +22,87 @@ export function shouldAcceptGeneration(
   return activeGeneration === resultGeneration;
 }
 
+/** Badge display statuses relevant to background health polling. */
+export type BackgroundPollStatus =
+  | "online"
+  | "checking"
+  | "degraded"
+  | "offline";
+
+export type BackgroundHealthPlan =
+  | { action: "skip" }
+  | { action: "keep"; status: "online" | "degraded" }
+  | { action: "set_offline" }
+  | { action: "set_checking" }
+  | { action: "request_resume" };
+
+/**
+ * Background /api/health poll may degrade (green→red) but must never alone
+ * upgrade offline/checking → online. Recovery requires a full resume.
+ */
+export function planBackgroundHealthPoll(input: {
+  currentStatus: BackgroundPollStatus;
+  healthOk: boolean;
+  healthStatus?: "online" | "degraded";
+  resumeRunning: boolean;
+  /** Failure count after applying this poll's failure (0 if healthOk). */
+  consecutiveFailuresAfterThis: number;
+  offlineAfterConsecutiveFailures: number;
+}): BackgroundHealthPlan {
+  if (input.resumeRunning) {
+    return { action: "skip" };
+  }
+
+  if (input.currentStatus === "checking") {
+    // Do not paint green from health-only; schedule full resume if idle.
+    if (input.healthOk) {
+      return { action: "request_resume" };
+    }
+    if (
+      input.consecutiveFailuresAfterThis >=
+      input.offlineAfterConsecutiveFailures
+    ) {
+      return { action: "set_offline" };
+    }
+    // Leave checking alone (e.g. first failure after online).
+    return { action: "skip" };
+  }
+
+  if (input.healthOk) {
+    if (
+      input.currentStatus === "online" ||
+      input.currentStatus === "degraded"
+    ) {
+      return {
+        action: "keep",
+        status: input.healthStatus ?? "online",
+      };
+    }
+    // offline → health recovered: full resume only, never direct green.
+    if (input.currentStatus === "offline") {
+      return { action: "request_resume" };
+    }
+    return { action: "skip" };
+  }
+
+  // health failed
+  if (input.currentStatus === "online" || input.currentStatus === "degraded") {
+    if (
+      input.consecutiveFailuresAfterThis >=
+      input.offlineAfterConsecutiveFailures
+    ) {
+      return { action: "set_offline" };
+    }
+    return { action: "set_checking" };
+  }
+
+  if (input.currentStatus === "offline") {
+    return { action: "set_offline" };
+  }
+
+  return { action: "skip" };
+}
+
 export type ResumeSessionProbe =
   | { kind: "ok" }
   | { kind: "session_end" }
