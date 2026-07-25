@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
@@ -6,6 +6,12 @@ import {
   type AiInsightFeedbackReasonTag,
 } from "../../../../drizzle/schema/ai-insight-feedback";
 import { parseReasonTagsFromJson } from "@/lib/ai/customer-insights/feedback-stats-parse";
+
+/** Legacy Admin stats must never include Phase 5D component rows. */
+const legacyOverallOnly = and(
+  eq(schema.aiInsightFeedback.feedbackTarget, "legacy_overall"),
+  isNotNull(schema.aiInsightFeedback.rating),
+);
 
 export type RatingDistribution = {
   "1": number;
@@ -144,10 +150,11 @@ export async function getAiInsightFeedbackStats(
       count: sql<number>`count(*)`.mapWith(Number),
     })
     .from(schema.aiInsightFeedback)
+    .where(legacyOverallOnly)
     .groupBy(schema.aiInsightFeedback.rating);
 
   for (const row of ratingRows) {
-    if (row.rating >= 1 && row.rating <= 5) {
+    if (row.rating != null && row.rating >= 1 && row.rating <= 5) {
       const key = String(row.rating) as keyof RatingDistribution;
       ratingDistribution[key] = row.count;
     }
@@ -157,7 +164,8 @@ export async function getAiInsightFeedbackStats(
 
   const reasonTagRows = await db
     .select({ reasonTagsJson: schema.aiInsightFeedback.reasonTagsJson })
-    .from(schema.aiInsightFeedback);
+    .from(schema.aiInsightFeedback)
+    .where(legacyOverallOnly);
 
   const reasonTagRankings = aggregateReasonTagRankings(
     reasonTagRows.map((row) => row.reasonTagsJson),
@@ -170,6 +178,7 @@ export async function getAiInsightFeedbackStats(
       averageRating: sql<number>`avg(${schema.aiInsightFeedback.rating})`.mapWith(Number),
     })
     .from(schema.aiInsightFeedback)
+    .where(legacyOverallOnly)
     .groupBy(schema.aiInsightFeedback.model)
     .orderBy(desc(sql`count(*)`));
 
@@ -186,6 +195,7 @@ export async function getAiInsightFeedbackStats(
       averageRating: sql<number>`avg(${schema.aiInsightFeedback.rating})`.mapWith(Number),
     })
     .from(schema.aiInsightFeedback)
+    .where(legacyOverallOnly)
     .groupBy(schema.aiInsightFeedback.promptVersion)
     .orderBy(desc(sql`count(*)`));
 
@@ -218,23 +228,26 @@ export async function getAiInsightFeedbackStats(
       eq(schema.aiInsightFeedback.customerId, schema.customers.id),
     )
     .leftJoin(schema.users, eq(schema.aiInsightFeedback.createdBy, schema.users.id))
+    .where(legacyOverallOnly)
     .orderBy(desc(schema.aiInsightFeedback.updatedAt))
     .limit(10);
 
-  const recent: AiInsightFeedbackRecentItem[] = recentRows.map((row) => ({
-    id: row.id,
-    customerId: row.customerId,
-    customerName: row.customerName,
-    rating: row.rating,
-    reasonTags: parseReasonTagsFromJson(row.reasonTagsJson),
-    model: row.model,
-    promptVersion: row.promptVersion,
-    insightGeneratedAt: row.insightGeneratedAt,
-    commentLength: row.comment?.length ?? 0,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-    createdByName: row.createdByName,
-  }));
+  const recent: AiInsightFeedbackRecentItem[] = recentRows
+    .filter((row) => row.rating != null)
+    .map((row) => ({
+      id: row.id,
+      customerId: row.customerId,
+      customerName: row.customerName,
+      rating: row.rating as number,
+      reasonTags: parseReasonTagsFromJson(row.reasonTagsJson),
+      model: row.model,
+      promptVersion: row.promptVersion,
+      insightGeneratedAt: row.insightGeneratedAt,
+      commentLength: row.comment?.length ?? 0,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+      createdByName: row.createdByName,
+    }));
 
   return {
     ok: true,

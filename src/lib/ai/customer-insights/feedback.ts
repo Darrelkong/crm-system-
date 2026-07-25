@@ -6,6 +6,7 @@ import {
   type AiInsightFeedback,
   type AiInsightFeedbackReasonTag,
 } from "../../../../drizzle/schema/ai-insight-feedback";
+import { buildAiInsightGenerationKey } from "@/lib/ai/customer-insights/feedback-generation-key";
 
 export const AI_INSIGHT_FEEDBACK_MAX_COMMENT_LENGTH = 500;
 
@@ -17,6 +18,7 @@ export type AiInsightFeedbackView = {
   model: string;
   promptVersion: string;
   sourceHash: string;
+  /** Legacy 1–5 rating. Component rows use ratingCode instead (API unchanged for Admin legacy). */
   rating: number;
   reasonTags: AiInsightFeedbackReasonTag[];
   comment: string | null;
@@ -34,6 +36,10 @@ export type AiInsightFeedbackInput = {
 };
 
 export function formatAiInsightFeedback(row: AiInsightFeedback): AiInsightFeedbackView {
+  if (row.rating == null) {
+    throw new Error("Legacy feedback formatter requires integer rating");
+  }
+
   let reasonTags: AiInsightFeedbackReasonTag[] = [];
   try {
     const parsed = JSON.parse(row.reasonTagsJson) as unknown;
@@ -120,6 +126,7 @@ export async function getAiInsightFeedbackForInsight(
       and(
         eq(schema.aiInsightFeedback.customerId, customerId),
         eq(schema.aiInsightFeedback.insightGeneratedAt, insightGeneratedAt),
+        eq(schema.aiInsightFeedback.feedbackTarget, "legacy_overall"),
       ),
     )
     .limit(1);
@@ -146,6 +153,12 @@ export async function upsertAiInsightFeedbackRow(
   const now = new Date().toISOString();
   const reasonTagsJson = JSON.stringify(params.reasonTags);
 
+  const generationKey = buildAiInsightGenerationKey({
+    aiInsightId: params.aiInsightId,
+    insightGeneratedAt: params.insightGeneratedAt,
+    sourceHash: params.sourceHash,
+  });
+
   if (params.existingId) {
     await db
       .update(schema.aiInsightFeedback)
@@ -157,6 +170,9 @@ export async function upsertAiInsightFeedbackRow(
         rating: params.rating,
         reasonTagsJson,
         comment: params.comment,
+        generationKey,
+        feedbackTarget: "legacy_overall",
+        ratingCode: null,
         updatedAt: now,
         updatedBy: params.actorId,
       })
@@ -189,6 +205,14 @@ export async function upsertAiInsightFeedbackRow(
     createdAt: now,
     updatedAt: now,
     updatedBy: null,
+    generationKey,
+    feedbackTarget: "legacy_overall",
+    ratingCode: null,
+    providerSnapshot: null,
+    contractModeSnapshot: null,
+    phase2GeneratedSnapshot: null,
+    actorRoleSnapshot: null,
+    degradationReasonSnapshot: null,
   });
 
   const created = await getAiInsightFeedbackForInsight(

@@ -12,6 +12,7 @@ import {
   getCustomerAiInsightFeedbackForAdmin,
   upsertCustomerAiInsightFeedbackForAdmin,
 } from "@/lib/ai/customer-insights/feedback-api";
+import { ensureAiInsightFeedbackPhase5dMigrationForTests } from "@/lib/ai/customer-insights/test-helpers/ensure-feedback-phase5d-migration";
 import { AuthError } from "@/lib/permissions/auth";
 import {
   getCustomerAiInsightByCustomerId,
@@ -72,12 +73,20 @@ async function insertReadyInsight(
 describe("AI insight feedback admin API", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getPlatformProxy<{
+      DB: {
+        prepare: (query: string) => {
+          first: <T>() => Promise<T | null>;
+          run: () => Promise<unknown>;
+        };
+      };
+    }>({
       configPath: "./wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     disposeProxy = proxy.dispose;
+    await ensureAiInsightFeedbackPhase5dMigrationForTests(proxy.env.DB);
 
     const [admin] = await db
       .select()

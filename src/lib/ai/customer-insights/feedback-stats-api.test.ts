@@ -8,6 +8,7 @@ import type { User } from "../../../../drizzle/schema/users";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
 import { getAiInsightFeedbackStatsForAdmin } from "@/lib/ai/customer-insights/feedback-stats-api";
+import { ensureAiInsightFeedbackPhase5dMigrationForTests } from "@/lib/ai/customer-insights/test-helpers/ensure-feedback-phase5d-migration";
 import { AuthError } from "@/lib/permissions/auth";
 
 const TEST_INSIGHT_ID = "ai999999-9999-9999-9999-999999999903";
@@ -100,18 +101,34 @@ async function insertFeedback(
     createdAt: options.updatedAt,
     updatedAt: options.updatedAt,
     updatedBy: SEED_IDS.admin,
+    generationKey: `${TEST_INSIGHT_ID}|${insightGeneratedAt}|stats-test-source-hash`,
+    feedbackTarget: "legacy_overall",
+    ratingCode: null,
+    providerSnapshot: null,
+    contractModeSnapshot: null,
+    phase2GeneratedSnapshot: null,
+    actorRoleSnapshot: null,
+    degradationReasonSnapshot: null,
   });
 }
 
 describe("AI insight feedback stats admin API", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getPlatformProxy<{
+      DB: {
+        prepare: (query: string) => {
+          first: <T>() => Promise<T | null>;
+          run: () => Promise<unknown>;
+        };
+      };
+    }>({
       configPath: "./wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     disposeProxy = proxy.dispose;
+    await ensureAiInsightFeedbackPhase5dMigrationForTests(proxy.env.DB);
 
     const [admin] = await db
       .select()
@@ -248,6 +265,92 @@ describe("AI insight feedback stats admin API", () => {
     assert.equal(result.recent[0]?.id, TEST_FEEDBACK_IDS[10]);
     assert.equal(result.recent[9]?.id, TEST_FEEDBACK_IDS[1]);
 
+    await deleteTestData();
+  });
+
+  it("excludes component feedback rows from legacy stats", async () => {
+    await deleteTestData();
+    await ensureTestInsight();
+
+    await insertFeedback(TEST_FEEDBACK_IDS[0], 5, {
+      reasonTagsJson: '["too_long"]',
+      updatedAt: "2026-07-08T13:00:00.000Z",
+    });
+
+    await db.insert(schema.aiInsightFeedback).values({
+      id: "fb-component-stats-isolation-1",
+      customerId: TEST_CUSTOMER_ID,
+      aiInsightId: TEST_INSIGHT_ID,
+      insightGeneratedAt: "2026-07-08T13:10:00.000Z",
+      model: "gemini-2.5-flash",
+      promptVersion: "phase-1d-v1",
+      sourceHash: "stats-test-source-hash",
+      rating: null,
+      reasonTagsJson: '["accurate_summary"]',
+      comment: null,
+      createdBy: SEED_IDS.admin,
+      createdAt: "2026-07-08T13:10:00.000Z",
+      updatedAt: "2026-07-08T13:10:00.000Z",
+      updatedBy: null,
+      generationKey: `${TEST_INSIGHT_ID}|2026-07-08T13:10:00.000Z|stats-test-source-hash`,
+      feedbackTarget: "base_deep",
+      ratingCode: "helpful",
+      providerSnapshot: "google_gemini",
+      contractModeSnapshot: "gemini_flat",
+      phase2GeneratedSnapshot: true,
+      actorRoleSnapshot: "admin",
+      degradationReasonSnapshot: null,
+    });
+    await db.insert(schema.aiInsightFeedback).values({
+      id: "fb-component-stats-isolation-2",
+      customerId: TEST_CUSTOMER_ID,
+      aiInsightId: TEST_INSIGHT_ID,
+      insightGeneratedAt: "2026-07-08T13:11:00.000Z",
+      model: "gemini-2.5-flash",
+      promptVersion: "phase-1d-v1",
+      sourceHash: "stats-test-source-hash",
+      rating: null,
+      reasonTagsJson: '["insufficient_data"]',
+      comment: null,
+      createdBy: SEED_IDS.admin,
+      createdAt: "2026-07-08T13:11:00.000Z",
+      updatedAt: "2026-07-08T13:11:00.000Z",
+      updatedBy: null,
+      generationKey: `${TEST_INSIGHT_ID}|2026-07-08T13:11:00.000Z|stats-test-source-hash`,
+      feedbackTarget: "phase2",
+      ratingCode: "not_helpful",
+      providerSnapshot: "google_gemini",
+      contractModeSnapshot: "gemini_flat",
+      phase2GeneratedSnapshot: true,
+      actorRoleSnapshot: "admin",
+      degradationReasonSnapshot: null,
+    });
+
+    const result = await getAiInsightFeedbackStatsForAdmin(db, adminUser);
+    assert.equal(result.summary.totalCount, 1);
+    assert.equal(result.summary.helpfulCount, 1);
+    assert.equal(result.summary.neutralCount, 0);
+    assert.equal(result.summary.notHelpfulCount, 0);
+    assert.equal(result.summary.averageRating, 5);
+    assert.equal(result.recent.length, 1);
+    assert.equal(result.recent[0]?.id, TEST_FEEDBACK_IDS[0]);
+    assert.equal(
+      result.reasonTagRankings.find((row) => row.tag === "too_long")?.count,
+      1,
+    );
+    assert.equal(
+      result.reasonTagRankings.find((row) => row.tag === "accurate_summary" as never),
+      undefined,
+    );
+
+    await db
+      .delete(schema.aiInsightFeedback)
+      .where(
+        inArray(schema.aiInsightFeedback.id, [
+          "fb-component-stats-isolation-1",
+          "fb-component-stats-isolation-2",
+        ]),
+      );
     await deleteTestData();
   });
 });
