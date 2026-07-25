@@ -5,25 +5,27 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "@/i18n/provider";
 import { cn } from "@/lib/cn";
 import {
-  getStatusCache,
-  invalidateStatusCache,
-  setStatusCache,
-  statusCacheRemainingMs,
-  type StableSystemStatus,
-} from "@/components/layout/system-status-cache";
-import {
+  HEARTBEAT_INTERVAL_MS,
   RESUME_DEBOUNCE_MS,
   RESUME_MAX_ATTEMPTS,
   RESUME_REFRESH_TIMEOUT_MS,
   classifyResumeSessionProbe,
   createResumeRequestGate,
   planBackgroundHealthPoll,
+  planHeartbeatTick,
+  planMountProbe,
   resumeHealthUrl,
   resumeRetryDelayMs,
   shouldAcceptGeneration,
   shouldRetryResumeAttempt,
   waitForRefreshTransition,
 } from "@/components/layout/system-status-resume";
+import {
+  getStatusCache,
+  setStatusCache,
+  statusCacheRemainingMs,
+  type StableSystemStatus,
+} from "@/components/layout/system-status-cache";
 import { useIdleExempt } from "@/components/auth/idle-exempt-context";
 import {
   addClickTimestamp,
@@ -284,9 +286,9 @@ export function SystemStatusBadge({ className }: { className?: string }) {
       const generation = generationRef.current;
       failureCountRef.current = 0;
 
-      // Drop stale offline/online badge cache so remounts cannot re-apply red
-      // from the previous 50s TTL while we are re-probing live.
-      invalidateStatusCache();
+      // Do not invalidate a prior successful online cache at start — cross-segment
+      // DashboardShell remounts must still read a reliable cache and avoid flashing
+      // checking. Checking is display-only until success/failure writes cache.
       applyStatus(generation, "checking");
 
       let sessionOk = false;
@@ -363,6 +365,7 @@ export function SystemStatusBadge({ className }: { className?: string }) {
 
       if (health.ok) {
         failureCountRef.current = 0;
+        // Full resume success: rewrite reliable short-TTL cache for remounts.
         applyStatus(generation, health.status, health.status);
         return;
       }
@@ -383,21 +386,41 @@ export function SystemStatusBadge({ className }: { className?: string }) {
       resumeGate.request(() => resumePage());
     };
 
-    // Offline (or empty) cache: resume immediately — do not wait out a stale red TTL.
+    // Mount / remount: fresh online cache → keep green; otherwise resume when visible.
     const cached = getStatusCache();
-    const remaining = statusCacheRemainingMs();
-    const initialDelay =
-      cached === "offline" || cached == null ? 0 : remaining > 0 ? remaining : 0;
+    const mountPlan = planMountProbe({
+      visibilityState: document.visibilityState,
+      cached,
+      cacheRemainingMs: statusCacheRemainingMs(),
+    });
 
-    const initial = window.setTimeout(() => {
-      if (cached === "offline" || cached == null) {
-        requestResume();
-      } else {
-        void pollHealthOnly();
-      }
-    }, initialDelay);
+    let initial: number | undefined;
+    if (mountPlan.action === "request_resume") {
+      requestResume();
+    } else if (mountPlan.action === "delay_health_poll") {
+      initial = window.setTimeout(
+        () => void pollHealthOnly(),
+        mountPlan.delayMs,
+      );
+    }
 
     const intervalId = window.setInterval(() => void pollHealthOnly(), POLL_INTERVAL_MS);
+
+    // Safari may freeze timers in background and skip visibility/pageshow.
+    // Local heartbeat detects a long wall-clock gap and schedules resume.
+    let lastHeartbeatAt = Date.now();
+    const heartbeatId = window.setInterval(() => {
+      const tick = planHeartbeatTick({
+        nowMs: Date.now(),
+        lastHeartbeatAt,
+        visibilityState: document.visibilityState,
+        resumeRunning: resumeGate.isRunning(),
+      });
+      lastHeartbeatAt = tick.nextHeartbeatAt;
+      if (tick.action === "request_resume") {
+        requestResume();
+      }
+    }, HEARTBEAT_INTERVAL_MS);
 
     const onVisibility = () => {
       if (document.visibilityState === "hidden") {
@@ -405,6 +428,7 @@ export function SystemStatusBadge({ className }: { className?: string }) {
         return;
       }
       if (document.visibilityState === "visible") {
+        lastHeartbeatAt = Date.now();
         requestResume();
       }
     };
@@ -412,6 +436,7 @@ export function SystemStatusBadge({ className }: { className?: string }) {
     const onPageShow = (event: PageTransitionEvent) => {
       // BFCache restore (persisted) and Safari returning from background.
       if (event.persisted || document.visibilityState === "visible") {
+        lastHeartbeatAt = Date.now();
         requestResume();
       }
     };
@@ -424,10 +449,12 @@ export function SystemStatusBadge({ className }: { className?: string }) {
       // Supplement for desktop: only after prior blur/hide, not ordinary in-page clicks.
       if (!awaitingForegroundResume) return;
       if (document.visibilityState !== "visible") return;
+      lastHeartbeatAt = Date.now();
       requestResume();
     };
 
     const onOnline = () => {
+      lastHeartbeatAt = Date.now();
       requestResume();
     };
 
@@ -441,8 +468,9 @@ export function SystemStatusBadge({ className }: { className?: string }) {
       cancelled = true;
       resumeGate.cancel();
       abortRef.current?.abort();
-      window.clearTimeout(initial);
+      if (initial != null) window.clearTimeout(initial);
       window.clearInterval(intervalId);
+      window.clearInterval(heartbeatId);
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("blur", onBlur);

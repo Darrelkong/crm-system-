@@ -15,6 +15,15 @@ export const RESUME_RETRY_DELAYS_MS = [0, 600, 1_500] as const;
 export const RESUME_REFRESH_TIMEOUT_MS = 12_000;
 export const RESUME_REFRESH_POLL_MS = 50;
 
+/** Local-only timer tick; does not hit the network by itself. */
+export const HEARTBEAT_INTERVAL_MS = 3_000;
+/**
+ * If the local timer was frozen (Safari background) long enough that the gap
+ * exceeds this threshold, schedule a full resume when visible again.
+ * Keep well below the 45s background health poll so recovery is not poll-bound.
+ */
+export const HEARTBEAT_RESUME_GAP_MS = 10_000;
+
 export function shouldAcceptGeneration(
   activeGeneration: number,
   resultGeneration: number,
@@ -101,6 +110,81 @@ export function planBackgroundHealthPoll(input: {
   }
 
   return { action: "skip" };
+}
+
+export type HeartbeatTickPlan = {
+  action: "none" | "request_resume";
+  nextHeartbeatAt: number;
+};
+
+/**
+ * Local elapsed-time detector for Safari timer freeze.
+ * Never performs network I/O — callers may requestResume when action says so.
+ */
+export function planHeartbeatTick(input: {
+  nowMs: number;
+  lastHeartbeatAt: number;
+  visibilityState: string;
+  resumeRunning: boolean;
+  gapThresholdMs?: number;
+}): HeartbeatTickPlan {
+  const nextHeartbeatAt = input.nowMs;
+  const gap = input.nowMs - input.lastHeartbeatAt;
+  const threshold = input.gapThresholdMs ?? HEARTBEAT_RESUME_GAP_MS;
+
+  if (input.resumeRunning) {
+    return { action: "none", nextHeartbeatAt };
+  }
+  if (input.visibilityState !== "visible") {
+    return { action: "none", nextHeartbeatAt };
+  }
+  if (gap >= threshold) {
+    return { action: "request_resume", nextHeartbeatAt };
+  }
+  return { action: "none", nextHeartbeatAt };
+}
+
+export type MountProbePlan =
+  | { action: "request_resume" }
+  | { action: "delay_health_poll"; delayMs: number }
+  | { action: "idle" };
+
+/**
+ * Decide what to do when SystemStatusBadge mounts (including cross-segment remount).
+ * Fresh online/degraded cache → keep UI green, only schedule health poll.
+ * Missing / expired / offline cache while visible → full resume (not 45s poll wait).
+ */
+export function planMountProbe(input: {
+  visibilityState: string;
+  cached: "online" | "degraded" | "offline" | null;
+  cacheRemainingMs: number;
+}): MountProbePlan {
+  const freshOk =
+    (input.cached === "online" || input.cached === "degraded") &&
+    input.cacheRemainingMs > 0;
+
+  if (freshOk) {
+    return {
+      action: "delay_health_poll",
+      delayMs: input.cacheRemainingMs,
+    };
+  }
+
+  if (input.visibilityState === "visible") {
+    return { action: "request_resume" };
+  }
+
+  return { action: "idle" };
+}
+
+/**
+ * Whether a completed resume outcome may write a stable status cache entry.
+ * "checking" must never be cached.
+ */
+export function mayWriteSuccessfulStatusCache(
+  status: "online" | "degraded" | "offline" | "checking",
+): status is "online" | "degraded" | "offline" {
+  return status === "online" || status === "degraded" || status === "offline";
 }
 
 export type ResumeSessionProbe =

@@ -1,18 +1,28 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  HEARTBEAT_INTERVAL_MS,
+  HEARTBEAT_RESUME_GAP_MS,
   RESUME_DEBOUNCE_MS,
   RESUME_MAX_ATTEMPTS,
   RESUME_REFRESH_TIMEOUT_MS,
   classifyResumeSessionProbe,
   createResumeRequestGate,
+  mayWriteSuccessfulStatusCache,
   planBackgroundHealthPoll,
+  planHeartbeatTick,
+  planMountProbe,
   resumeHealthUrl,
   resumeRetryDelayMs,
   shouldAcceptGeneration,
   shouldRetryResumeAttempt,
   waitForRefreshTransition,
 } from "./system-status-resume";
+import {
+  clearStatusCacheForTest,
+  getStatusCache,
+  setStatusCache,
+} from "./system-status-cache";
 
 describe("system-status-resume", () => {
   describe("shouldAcceptGeneration", () => {
@@ -250,6 +260,148 @@ describe("system-status-resume", () => {
     });
   });
 
+  describe("planHeartbeatTick", () => {
+    it("short gap while visible does not request resume", () => {
+      assert.deepEqual(
+        planHeartbeatTick({
+          nowMs: 10_000,
+          lastHeartbeatAt: 10_000 - 3_000,
+          visibilityState: "visible",
+          resumeRunning: false,
+        }),
+        { action: "none", nextHeartbeatAt: 10_000 },
+      );
+      assert.ok(HEARTBEAT_INTERVAL_MS < HEARTBEAT_RESUME_GAP_MS);
+    });
+
+    it("long gap while visible requests resume", () => {
+      assert.deepEqual(
+        planHeartbeatTick({
+          nowMs: 60_000,
+          lastHeartbeatAt: 60_000 - HEARTBEAT_RESUME_GAP_MS,
+          visibilityState: "visible",
+          resumeRunning: false,
+        }),
+        { action: "request_resume", nextHeartbeatAt: 60_000 },
+      );
+    });
+
+    it("long gap while hidden does not request resume", () => {
+      assert.deepEqual(
+        planHeartbeatTick({
+          nowMs: 60_000,
+          lastHeartbeatAt: 0,
+          visibilityState: "hidden",
+          resumeRunning: false,
+        }),
+        { action: "none", nextHeartbeatAt: 60_000 },
+      );
+    });
+
+    it("does not request resume while resume is already running", () => {
+      assert.deepEqual(
+        planHeartbeatTick({
+          nowMs: 60_000,
+          lastHeartbeatAt: 0,
+          visibilityState: "visible",
+          resumeRunning: true,
+        }),
+        { action: "none", nextHeartbeatAt: 60_000 },
+      );
+    });
+  });
+
+  describe("planMountProbe", () => {
+    it("fresh online cache → delay_health_poll (no immediate full resume)", () => {
+      assert.deepEqual(
+        planMountProbe({
+          visibilityState: "visible",
+          cached: "online",
+          cacheRemainingMs: 40_000,
+        }),
+        { action: "delay_health_poll", delayMs: 40_000 },
+      );
+    });
+
+    it("no cache and visible → request_resume", () => {
+      assert.deepEqual(
+        planMountProbe({
+          visibilityState: "visible",
+          cached: null,
+          cacheRemainingMs: 0,
+        }),
+        { action: "request_resume" },
+      );
+    });
+
+    it("expired cache remaining 0 and visible → request_resume", () => {
+      assert.deepEqual(
+        planMountProbe({
+          visibilityState: "visible",
+          cached: "online",
+          cacheRemainingMs: 0,
+        }),
+        { action: "request_resume" },
+      );
+    });
+
+    it("offline cache and visible → request_resume", () => {
+      assert.deepEqual(
+        planMountProbe({
+          visibilityState: "visible",
+          cached: "offline",
+          cacheRemainingMs: 20_000,
+        }),
+        { action: "request_resume" },
+      );
+    });
+
+    it("hidden without fresh cache → idle", () => {
+      assert.deepEqual(
+        planMountProbe({
+          visibilityState: "hidden",
+          cached: null,
+          cacheRemainingMs: 0,
+        }),
+        { action: "idle" },
+      );
+    });
+  });
+
+  describe("mayWriteSuccessfulStatusCache", () => {
+    it("allows online/degraded/offline and rejects checking", () => {
+      assert.equal(mayWriteSuccessfulStatusCache("online"), true);
+      assert.equal(mayWriteSuccessfulStatusCache("degraded"), true);
+      assert.equal(mayWriteSuccessfulStatusCache("offline"), true);
+      assert.equal(mayWriteSuccessfulStatusCache("checking"), false);
+    });
+  });
+
+  describe("resume success cache rewrite", () => {
+    it("writes online cache after success so remount can reuse it", () => {
+      clearStatusCacheForTest();
+      const now = Date.now();
+      // Simulate full resume success writing cache (not mid-checking).
+      assert.equal(mayWriteSuccessfulStatusCache("online"), true);
+      setStatusCache("online", now);
+      assert.equal(getStatusCache(now + 1_000), "online");
+      assert.deepEqual(
+        planMountProbe({
+          visibilityState: "visible",
+          cached: getStatusCache(now + 1_000),
+          cacheRemainingMs: 49_000,
+        }),
+        { action: "delay_health_poll", delayMs: 49_000 },
+      );
+    });
+
+    it("does not treat checking as a cacheable online success", () => {
+      clearStatusCacheForTest();
+      assert.equal(mayWriteSuccessfulStatusCache("checking"), false);
+      assert.equal(getStatusCache(), null);
+    });
+  });
+
   describe("createResumeRequestGate", () => {
     it("debounces multiple requests into one run", async () => {
       const timers = new Map<number, () => void>();
@@ -350,6 +502,46 @@ describe("system-status-resume", () => {
       assert.equal(timers.size, 1);
       gate.cancel();
       assert.equal(timers.size, 0);
+    });
+
+    it("coalesces heartbeat + visibility into a single resume run", async () => {
+      const timers = new Map<number, () => void>();
+      let nextId = 1;
+      let runs = 0;
+
+      const gate = createResumeRequestGate({
+        delayMs: RESUME_DEBOUNCE_MS,
+        schedule: (fn) => {
+          const id = nextId++;
+          timers.set(id, fn);
+          return id;
+        },
+        clear: (id) => {
+          timers.delete(id);
+        },
+      });
+
+      const requestResume = () => {
+        gate.request(async () => {
+          runs += 1;
+        });
+      };
+
+      // visibilitychange
+      requestResume();
+      // heartbeat long-gap in the same burst
+      const tick = planHeartbeatTick({
+        nowMs: 50_000,
+        lastHeartbeatAt: 0,
+        visibilityState: "visible",
+        resumeRunning: gate.isRunning(),
+      });
+      if (tick.action === "request_resume") requestResume();
+
+      assert.equal(timers.size, 1);
+      [...timers.values()][0]();
+      await Promise.resolve();
+      assert.equal(runs, 1);
     });
   });
 
