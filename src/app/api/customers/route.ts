@@ -156,6 +156,7 @@ export async function POST(request: Request) {
       requireSalesStage: true,
       allowedSourceKeys,
       userRole: user.role === "admin" ? "admin" : "staff",
+      enforceCreateNameStatusRules: true,
     });
     if (fieldErrors.length > 0) {
       await writeAuditLog({
@@ -265,10 +266,14 @@ export async function POST(request: Request) {
       status: "active",
     });
 
+    const nameStatus =
+      createInput.nameStatus === "pending" ? "pending" : "confirmed";
+
     const insertCustomerStmt = db.insert(schema.customers).values({
       id,
       customerCode,
       customerName: payload.customerName,
+      nameStatus,
       customerType: payload.customerType,
       phoneCountryCode: payload.phoneCountryCode,
       phone: payload.phone,
@@ -346,6 +351,7 @@ export async function POST(request: Request) {
           customerCode,
           approvalId,
           requestedSalesStage,
+          nameStatus,
         },
       });
 
@@ -372,6 +378,7 @@ export async function POST(request: Request) {
         customerCode,
         source: createInput.source,
         ownerId,
+        nameStatus,
       },
     });
 

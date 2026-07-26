@@ -105,6 +105,25 @@ describe("formatStaffPublicPoolCustomer", () => {
     assert.equal(view.lastFollowUpAt, "2026-07-07T09:00:00.000Z");
     assert.equal(view.canClaim, true);
   });
+
+  it("does not expose nameStatus or pending placeholder for unclaimed staff DTO", () => {
+    const view = formatStaffPublicPoolCustomer(
+      poolCustomer({
+        customerName: "X先生",
+        nameStatus: "pending",
+      }),
+      claimAllowed,
+      true,
+    );
+
+    assert.equal("nameStatus" in view, false);
+    assert.equal("name_status" in view, false);
+    assert.equal("customerName" in view, false);
+    assert.equal(JSON.stringify(view).includes("nameStatus"), false);
+    assert.equal(JSON.stringify(view).includes("name_status"), false);
+    assert.equal(JSON.stringify(view).includes("X先生"), false);
+    assert.equal(view.maskedName, "X**");
+  });
 });
 
 describe("formatAdminPublicPoolCustomer", () => {

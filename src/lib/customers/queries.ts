@@ -95,10 +95,22 @@ function escapeLikePattern(term: string): string {
   return term.replace(/[%_\\]/g, "\\$&");
 }
 
-function buildSearchWhere(term: string): SQL {
+/** Pending placeholders must not match via customer_name LIKE search. */
+export function customerNameIsSearchableByStatus(
+  nameStatus: string | null | undefined,
+): boolean {
+  return nameStatus === "confirmed";
+}
+
+/** Exported for unit tests — name match only when name_status is confirmed. */
+export function buildSearchWhere(term: string): SQL {
   const pattern = `%${escapeLikePattern(term)}%`;
   return or(
-    like(schema.customers.customerName, pattern),
+    and(
+      // Keep aligned with customerNameIsSearchableByStatus("confirmed").
+      eq(schema.customers.nameStatus, "confirmed"),
+      like(schema.customers.customerName, pattern),
+    ),
     like(schema.customers.phone, pattern),
     like(schema.customers.wechatId, pattern),
     like(schema.customers.email, pattern),

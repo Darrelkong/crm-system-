@@ -33,7 +33,8 @@ export function buildBasicAnalysisInput(
 
   return {
     nowIso: now.toISOString(),
-    customerName: customer.customerName,
+    customerName:
+      customer.nameStatus === "pending" ? null : customer.customerName,
     phone: customer.phone,
     wechatId: customer.wechatId,
     requestedProjectName: customer.requestedProjectName,

@@ -35,6 +35,9 @@ import {
   getIncompleteContactKind,
   type IncompleteContactKind,
 } from "@/lib/customers/incomplete-contact";
+import { PENDING_NAME_PLACEHOLDERS } from "@/lib/customers/name-status";
+import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
+import { useTranslation } from "@/i18n/provider";
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
@@ -73,6 +76,7 @@ export function NewCustomerForm({
 }) {
   const router = useRouter();
   const { t, salesStage, customerType, fieldLabel } = useCustomerLabels();
+  const { locale } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -298,6 +302,7 @@ export function NewCustomerForm({
     const validationErrors = validateCustomerInput(form, {
       requireSalesStage: true,
       allowedSourceKeys: tags.map((tag) => tag.tagKey),
+      enforceCreateNameStatusRules: true,
     });
     if (validationErrors.length > 0) {
       const errs: Record<string, string> = {};
@@ -357,7 +362,11 @@ export function NewCustomerForm({
         open={showCreateConfirmModal}
         submitting={submitting}
         data={{
-          customerName: form.customerName,
+          customerName: getCustomerDisplayName({
+            customerName: form.customerName,
+            nameStatus: form.nameStatus,
+            locale,
+          }),
           requestedProjectName: form.requestedProjectName,
           phoneCountryCode: form.phoneCountryCode,
           phone: form.phone,
@@ -475,14 +484,81 @@ export function NewCustomerForm({
           <Label htmlFor="customerName">
             {t("customers.clientName")} <span className="text-red-500">*</span>
           </Label>
-          <Input
-            id="customerName"
-            value={form.customerName}
-            onChange={(e) => set("customerName", e.target.value)}
-            placeholder={t("customers.clientName")}
-          />
+          <label className="mb-3 flex items-start gap-2 text-sm text-[#3A465C]">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form.nameStatus === "pending"}
+              onChange={(e) => {
+                if (e.target.checked) {
+                  setForm((prev) => ({
+                    ...prev,
+                    nameStatus: "pending",
+                    customerName: "",
+                  }));
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.customerName;
+                    delete next.nameStatus;
+                    return next;
+                  });
+                } else {
+                  setForm((prev) => ({
+                    ...prev,
+                    nameStatus: "confirmed",
+                    customerName: "",
+                  }));
+                  setFieldErrors((prev) => {
+                    const next = { ...prev };
+                    delete next.customerName;
+                    delete next.nameStatus;
+                    return next;
+                  });
+                }
+              }}
+            />
+            <span>{t("customers.nameUnknownToggle")}</span>
+          </label>
+          {form.nameStatus === "pending" ? (
+            <div className="flex flex-wrap gap-4" role="radiogroup" aria-label={t("customers.clientName")}>
+              {PENDING_NAME_PLACEHOLDERS.map((placeholder) => {
+                const label =
+                  locale === "en"
+                    ? placeholder === "X先生"
+                      ? t("customers.pendingNameMrEnLabel")
+                      : t("customers.pendingNameMsEnLabel")
+                    : placeholder === "X先生"
+                      ? t("customers.pendingNameMr")
+                      : t("customers.pendingNameMs");
+                return (
+                  <label
+                    key={placeholder}
+                    className="flex items-center gap-2 text-sm text-[#172033]"
+                  >
+                    <input
+                      type="radio"
+                      name="pendingNamePlaceholder"
+                      checked={form.customerName === placeholder}
+                      onChange={() => set("customerName", placeholder)}
+                    />
+                    {label}
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <Input
+              id="customerName"
+              value={form.customerName}
+              onChange={(e) => set("customerName", e.target.value)}
+              placeholder={t("customers.clientName")}
+            />
+          )}
           {fieldErrors.customerName && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.customerName}</p>
+          )}
+          {fieldErrors.nameStatus && (
+            <p className="mt-1 text-xs text-red-600">{fieldErrors.nameStatus}</p>
           )}
         </Field>
 

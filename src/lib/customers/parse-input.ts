@@ -1,12 +1,29 @@
 import type { CustomerInput } from "./validation";
+import {
+  isCustomerNameStatus,
+  type CustomerNameStatus,
+} from "./name-status";
 
 export function parseCustomerBody(
   body: Record<string, unknown>,
   options?: { forCreate?: boolean },
 ): CustomerInput {
+  let nameStatus: CustomerNameStatus | undefined;
+  if (options?.forCreate) {
+    if (body.nameStatus === undefined || body.nameStatus === null) {
+      nameStatus = "confirmed";
+    } else if (isCustomerNameStatus(body.nameStatus)) {
+      nameStatus = body.nameStatus;
+    } else {
+      // Preserve illegal value so validateCustomerInput can reject it.
+      nameStatus = body.nameStatus as CustomerNameStatus;
+    }
+  }
+
   return {
     customerName:
       typeof body.customerName === "string" ? body.customerName : "",
+    ...(options?.forCreate ? { nameStatus } : {}),
     customerType:
       typeof body.customerType === "string" ? body.customerType : "individual",
     phoneCountryCode:

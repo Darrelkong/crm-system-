@@ -30,6 +30,7 @@ const settings = {
 const context = {
   customerId: "customer-uuid",
   customerName: SENSITIVE_CUSTOMER_NAME,
+  nameStatus: "confirmed",
   customerType: "individual",
   salesStage: "lead",
   source: "web",

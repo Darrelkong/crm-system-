@@ -3,6 +3,9 @@
  * Never touches D1 / APIs. Keys are scoped by CRM user.id only.
  */
 
+import type { CustomerNameStatus } from "@/lib/customers/name-status";
+import { isPendingNamePlaceholder } from "@/lib/customers/name-status";
+
 export const CUSTOMER_CREATE_DRAFT_VERSION = 1 as const;
 export const CUSTOMER_CREATE_DRAFT_TTL_MS = 72 * 60 * 60 * 1000;
 export const CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS = 800;
@@ -14,6 +17,8 @@ export const CUSTOMER_CREATE_DRAFT_LAST_USER_KEY =
 
 export type CustomerCreateDraftFormData = {
   customerName: string;
+  /** confirmed | pending; omitted in legacy drafts → treated as confirmed. */
+  nameStatus: CustomerNameStatus;
   requestedProjectName: string;
   customerType: string;
   phoneCountryCode: string;
@@ -52,6 +57,7 @@ function readString(value: unknown, fallback = ""): string {
 export function createEmptyCustomerCreateFormData(): CustomerCreateDraftFormData {
   return {
     customerName: "",
+    nameStatus: "confirmed",
     requestedProjectName: "",
     customerType: "individual",
     phoneCountryCode: "+86",
@@ -106,19 +112,7 @@ export function parseCustomerCreateDraftPayload(
     return { ok: false, reason: "invalid" };
   }
 
-  const form: CustomerCreateDraftFormData = {
-    customerName: readString(raw.form.customerName),
-    requestedProjectName: readString(raw.form.requestedProjectName),
-    customerType: readString(raw.form.customerType, "individual"),
-    phoneCountryCode: readString(raw.form.phoneCountryCode, "+86"),
-    phone: readString(raw.form.phone),
-    wechatId: readString(raw.form.wechatId),
-    email: readString(raw.form.email),
-    source: readString(raw.form.source),
-    sourceRemark: readString(raw.form.sourceRemark),
-    salesStage: readString(raw.form.salesStage, "new_lead"),
-    notes: readString(raw.form.notes),
-  };
+  const form = normalizeCustomerCreateDraftForm(raw.form);
 
   return {
     ok: true,
@@ -128,6 +122,39 @@ export function parseCustomerCreateDraftPayload(
       savedAt,
       form,
     },
+  };
+}
+
+/** Legacy drafts without nameStatus default to confirmed; illegal pending pairs downgrade. */
+export function normalizeCustomerCreateDraftForm(
+  form: Record<string, unknown>,
+): CustomerCreateDraftFormData {
+  const customerName = readString(form.customerName);
+  const rawStatus = readString(form.nameStatus, "confirmed");
+
+  let nameStatus: CustomerNameStatus = "confirmed";
+  let resolvedName = customerName;
+
+  if (rawStatus === "pending" && isPendingNamePlaceholder(customerName)) {
+    nameStatus = "pending";
+  } else if (rawStatus === "pending") {
+    // Illegal pending placeholder → safe confirmed blank name.
+    resolvedName = "";
+  }
+
+  return {
+    customerName: resolvedName,
+    nameStatus,
+    requestedProjectName: readString(form.requestedProjectName),
+    customerType: readString(form.customerType, "individual"),
+    phoneCountryCode: readString(form.phoneCountryCode, "+86"),
+    phone: readString(form.phone),
+    wechatId: readString(form.wechatId),
+    email: readString(form.email),
+    source: readString(form.source),
+    sourceRemark: readString(form.sourceRemark),
+    salesStage: readString(form.salesStage, "new_lead"),
+    notes: readString(form.notes),
   };
 }
 

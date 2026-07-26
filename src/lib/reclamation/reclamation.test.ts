@@ -51,6 +51,7 @@ function buildCustomer(
     id: "test-customer-id",
     customerCode: null,
     customerName: "Test Customer",
+    nameStatus: "confirmed",
     customerType: "individual",
     phoneCountryCode: "+86",
     phone: "13800000000",

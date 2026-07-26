@@ -16,6 +16,8 @@ export const customers = sqliteTable(
     id: text("id").primaryKey(),
     customerCode: text("customer_code"),
     customerName: text("customer_name").notNull(),
+    /** confirmed = real name; pending = placeholder X先生 / X女士 (Phase 2B). */
+    nameStatus: text("name_status").notNull().default("confirmed"),
     customerType: text("customer_type").notNull().default("individual"),
     phoneCountryCode: text("phone_country_code").notNull().default("+86"),
     phone: text("phone"),

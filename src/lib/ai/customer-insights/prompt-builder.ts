@@ -18,6 +18,7 @@ export function serializeCustomerInsightContext(context: CustomerInsightContext)
     {
       customerId: sanitized.customerId,
       customerName: sanitized.customerName,
+      nameStatus: sanitized.nameStatus,
       customerType: sanitized.customerType,
       salesStage: sanitized.salesStage,
       source: sanitized.source,
@@ -45,6 +46,7 @@ function buildPhase2ExtractionInstructions(): string {
     "- Do NOT return a final opportunity score, weighted score, local confidence, trend, generatedAt, promptVersion, customerId, staffId, or usage metadata.",
     "- Every non-null signal must include concrete evidence excerpts that appear verbatim in the customer context.",
     "- Do not invent follow-up IDs, dates, phone numbers, emails, amounts, or names absent from context.",
+    "- When nameStatus is pending, customerName is null: do not address the customer as X先生/X女士 or invent a real name; use natural nameless forms (您/客户).",
     "- Do not invent pain points without evidence.",
     "- Do not guess timezones, best reply windows, or time-of-day reply patterns; timeWindow is never used.",
     "- If evidence is insufficient for a signal, return null for that signal or omit concrete conclusions.",

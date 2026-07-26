@@ -279,4 +279,79 @@ describe("customer-create-draft", () => {
     if (cleared.ok) assert.equal(cleared.value, null);
     assert.equal(loadCustomerCreateDraft("user-a", 2_000).ok, false);
   });
+
+  it("restores confirmed and pending nameStatus drafts", () => {
+    saveCustomerCreateDraft(
+      "user-a",
+      {
+        ...createEmptyCustomerCreateFormData(),
+        customerName: "王小明",
+        nameStatus: "confirmed",
+        phone: "13800138000",
+      },
+      1_000,
+    );
+    const confirmed = loadCustomerCreateDraft("user-a", 1_000);
+    assert.equal(confirmed.ok && confirmed.value.form.nameStatus, "confirmed");
+    assert.equal(confirmed.ok && confirmed.value.form.customerName, "王小明");
+
+    saveCustomerCreateDraft(
+      "user-a",
+      {
+        ...createEmptyCustomerCreateFormData(),
+        customerName: "X先生",
+        nameStatus: "pending",
+        phone: "13800138001",
+      },
+      2_000,
+    );
+    const pendingMr = loadCustomerCreateDraft("user-a", 2_000);
+    assert.equal(pendingMr.ok && pendingMr.value.form.nameStatus, "pending");
+    assert.equal(pendingMr.ok && pendingMr.value.form.customerName, "X先生");
+
+    saveCustomerCreateDraft(
+      "user-a",
+      {
+        ...createEmptyCustomerCreateFormData(),
+        customerName: "X女士",
+        nameStatus: "pending",
+        phone: "13800138002",
+      },
+      3_000,
+    );
+    const pendingMs = loadCustomerCreateDraft("user-a", 3_000);
+    assert.equal(pendingMs.ok && pendingMs.value.form.nameStatus, "pending");
+    assert.equal(pendingMs.ok && pendingMs.value.form.customerName, "X女士");
+  });
+
+  it("legacy draft without nameStatus defaults to confirmed on load", () => {
+    const legacy = {
+      version: CUSTOMER_CREATE_DRAFT_VERSION,
+      userId: "user-a",
+      savedAt: 1_000,
+      form: {
+        customerName: "舊草稿",
+        requestedProjectName: "項目",
+        customerType: "individual",
+        phoneCountryCode: "+86",
+        phone: "13800138000",
+        wechatId: "",
+        email: "",
+        source: "referral",
+        sourceRemark: "",
+        salesStage: "new_lead",
+        notes: "備註足夠長了吧",
+      },
+    };
+    localStorage.setItem(
+      "crm:customer-create-draft:v1:user-a",
+      JSON.stringify(legacy),
+    );
+    const loaded = loadCustomerCreateDraft("user-a", 1_000);
+    assert.equal(loaded.ok, true);
+    if (loaded.ok) {
+      assert.equal(loaded.value.form.nameStatus, "confirmed");
+      assert.equal(loaded.value.form.customerName, "舊草稿");
+    }
+  });
 });

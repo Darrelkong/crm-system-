@@ -127,6 +127,7 @@ export default async function CustomerDetailPage({ params }: Props) {
         id: view.id,
         customerCode: user.role === "admin" ? view.customerCode : undefined,
         customerName: view.customerName,
+        nameStatus: view.nameStatus,
         customerType: view.customerType,
         salesStage: view.salesStage,
         lifecycleStatus: customer.lifecycleStatus,

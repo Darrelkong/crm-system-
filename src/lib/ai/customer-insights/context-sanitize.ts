@@ -32,6 +32,7 @@ export function sanitizeCustomerInsightContextForProvider(
   return {
     customerId: context.customerId,
     customerName: context.customerName,
+    nameStatus: context.nameStatus,
     customerType: context.customerType,
     salesStage: context.salesStage,
     source: context.source,

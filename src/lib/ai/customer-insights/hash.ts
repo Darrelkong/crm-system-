@@ -9,6 +9,7 @@ export async function computeCustomerInsightSourceHash(
     customerId: context.customerId,
     customer: {
       customerName: context.customerName,
+      nameStatus: context.nameStatus,
       customerType: context.customerType,
       salesStage: context.salesStage,
       source: context.source,

@@ -30,6 +30,7 @@ import {
   Tr,
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
+import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
 import {
   getSalesStageBadgeClass,
@@ -75,6 +76,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     id: item.id,
     customerCode: item.customerCode,
     customerName: item.customerName,
+    nameStatus: item.nameStatus ?? "confirmed",
     ownerId: item.ownerId ?? null,
     ownerName: item.ownerName ?? null,
     assigneeNames: item.assigneeNames ?? [],
@@ -224,11 +226,16 @@ export function CustomersListClient({
   }
 
   function CustomerNameLink({ c }: { c: CustomerListRow }) {
+    const displayName = getCustomerDisplayName({
+      customerName: c.customerName,
+      nameStatus: c.nameStatus,
+      locale,
+    });
     return (
       <span className="inline-flex flex-col gap-0.5">
         <span className="inline-flex items-center gap-2">
           <Link href={`/customers/${c.id}`} className={ui.customerName}>
-            {c.customerName}
+            {displayName}
           </Link>
           {c.isPinned && <PinnedBadge />}
         </span>
@@ -292,7 +299,11 @@ export function CustomersListClient({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <p className={`truncate font-semibold ${ui.customerName}`}>
-                {c.customerName}
+                {getCustomerDisplayName({
+                  customerName: c.customerName,
+                  nameStatus: c.nameStatus,
+                  locale,
+                })}
               </p>
               {c.isPinned && <PinnedBadge />}
             </div>

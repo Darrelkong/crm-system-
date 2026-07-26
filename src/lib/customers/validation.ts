@@ -11,6 +11,11 @@ import {
 import {
   CUSTOMER_STATUSES,
 } from "../../../drizzle/schema/customers";
+import {
+  isCustomerNameStatus,
+  isPendingNamePlaceholder,
+  type CustomerNameStatus,
+} from "@/lib/customers/name-status";
 
 const CN_PHONE_RE = /^1\d{10}$/;
 const CHINESE_CHAR_RE = /[\u4e00-\u9fff]/g;
@@ -44,6 +49,8 @@ export function isValidCustomerName(name: string): boolean {
 
 export type CustomerInput = {
   customerName?: string;
+  /** Create-only; omit / confirmed = real name. Pending requires exact placeholder. */
+  nameStatus?: CustomerNameStatus;
   customerType?: string;
   phoneCountryCode?: string;
   phone?: string | null;
@@ -67,6 +74,8 @@ export type CustomerValidationContext = {
   allowedSourceKeys?: readonly string[];
   /** Require salesStage on create (not on update). */
   requireSalesStage?: boolean;
+  /** Apply create-time nameStatus / placeholder rules (POST create only). */
+  enforceCreateNameStatusRules?: boolean;
   userRole?: "admin" | "staff";
   /** Import and other flows that block closed_won / closed_lost for all roles. */
   disallowDirectTerminalSalesStages?: boolean;
@@ -176,7 +185,53 @@ export function validateCustomerInput(
   const errors: ValidationFieldError[] = [];
 
   const customerName = input.customerName?.trim() ?? "";
-  if (!customerName) {
+  const nameStatus: CustomerNameStatus =
+    input.nameStatus === "pending" ? "pending" : "confirmed";
+
+  if (context?.enforceCreateNameStatusRules) {
+    if (input.nameStatus !== undefined && !isCustomerNameStatus(input.nameStatus)) {
+      errors.push({
+        field: "nameStatus",
+        message: "姓名状态无效",
+        code: "INVALID_NAME_STATUS",
+      });
+    }
+
+    if (nameStatus === "pending") {
+      if (!customerName) {
+        errors.push({
+          field: "customerName",
+          message: "请选择 X先生 或 X女士",
+          code: "PENDING_NAME_REQUIRED",
+        });
+      } else if (!isPendingNamePlaceholder(customerName)) {
+        errors.push({
+          field: "customerName",
+          message: "待确认姓名只能选择 X先生 或 X女士",
+          code: "INVALID_PENDING_NAME_PLACEHOLDER",
+        });
+      }
+    } else if (!customerName) {
+      errors.push({
+        field: "customerName",
+        message: "客户名称必填",
+        code: "CUSTOMER_NAME_REQUIRED",
+      });
+    } else if (isPendingNamePlaceholder(customerName)) {
+      errors.push({
+        field: "customerName",
+        message: "请改用「暂时不知道客户真实姓名」建立待确认姓名",
+        code: "CONFIRMED_PLACEHOLDER_FORBIDDEN",
+      });
+    } else if (!isValidCustomerName(customerName)) {
+      errors.push({
+        field: "customerName",
+        message:
+          "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
+        code: "INVALID_CUSTOMER_NAME",
+      });
+    }
+  } else if (!customerName) {
     errors.push({
       field: "customerName",
       message: "客户名称必填",

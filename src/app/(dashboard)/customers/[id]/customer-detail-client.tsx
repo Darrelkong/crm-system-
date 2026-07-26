@@ -27,6 +27,7 @@ import type { TimelineItem } from "@/lib/customers/timeline/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { ui } from "@/lib/ui/classes";
 import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-stage-badges";
+import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 
 const cd = ui.customerDetail;
 
@@ -44,6 +45,7 @@ export type CustomerDetailView = {
   id: string;
   customerCode?: string | null;
   customerName: string;
+  nameStatus?: string;
   customerType: string;
   salesStage: string;
   lifecycleStatus?: string | null;
@@ -222,13 +224,26 @@ export function CustomerDetailClient({
     isArchived: view.isArchived,
   });
 
+  const displayName = getCustomerDisplayName({
+    customerName: view.customerName,
+    nameStatus: view.nameStatus,
+    locale,
+  });
+  const showNamePendingBadge =
+    view.nameStatus === "pending" && !view.isMasked;
+
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="page-title text-2xl sm:text-3xl">{view.customerName}</h2>
+            <h2 className="page-title text-2xl sm:text-3xl">{displayName}</h2>
             {view.isPinned && <PinnedBadge className="mt-1" />}
+            {showNamePendingBadge && (
+              <Badge className="mt-1 bg-transparent text-[#6B7890] ring-1 ring-[#D5DCEA]">
+                {t("customers.namePendingBadge")}
+              </Badge>
+            )}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <Badge>{status(view.status)}</Badge>
@@ -289,7 +304,7 @@ export function CustomerDetailClient({
             <dl>
               <DetailRow
                 label={t("customers.clientName")}
-                value={view.customerName}
+                value={displayName}
                 emphasis="strong"
               />
               {isAdmin && view.customerCode && (

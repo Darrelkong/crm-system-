@@ -58,7 +58,8 @@ export type CustomerInsightFollowUpContext = {
 
 export type CustomerInsightContext = {
   customerId: string;
-  customerName: string;
+  customerName: string | null;
+  nameStatus: "confirmed" | "pending";
   customerType: string;
   salesStage: string;
   source: string;
@@ -127,7 +128,9 @@ export async function buildCustomerInsightContext(
 
   return {
     customerId: customer.id,
-    customerName: customer.customerName,
+    customerName:
+      customer.nameStatus === "pending" ? null : customer.customerName,
+    nameStatus: customer.nameStatus === "pending" ? "pending" : "confirmed",
     customerType: customer.customerType,
     salesStage: customer.salesStage,
     source: customer.source,

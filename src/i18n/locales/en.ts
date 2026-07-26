@@ -311,6 +311,12 @@ const en = {
     addClient: "Add Client",
     editClient: "Edit Client",
     clientName: "Client Name",
+    nameUnknownToggle: "Customer’s real name is not yet known",
+    pendingNameMr: "X先生",
+    pendingNameMs: "X女士",
+    pendingNameMrEnLabel: "Mr. X",
+    pendingNameMsEnLabel: "Ms. X",
+    namePendingBadge: "Name Pending",
     uniqueIdentifier: "Unique identifier",
     projectName: "Project Name",
     filterCreatedBy: "Created by",
@@ -2757,6 +2763,12 @@ const en = {
     clientNameRequired: "Client name is required.",
     invalidCustomerName:
       "Please enter a valid client name. Chinese names must include at least 2 Chinese characters; English names must include at least 4 letters.",
+    invalidNameStatus: "Invalid name status.",
+    pendingNameRequired: "Please select Mr. X or Ms. X.",
+    invalidPendingNamePlaceholder:
+      "Pending names must be exactly X先生 or X女士.",
+    confirmedPlaceholderForbidden:
+      "Use “Customer’s real name is not yet known” to create a pending name.",
     requestedProjectNameRequired: "Requested project / service name is required.",
     invalidRequestedProjectName:
       "Project name must be at least 4 characters and cannot be symbols only.",

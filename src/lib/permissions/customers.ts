@@ -51,6 +51,7 @@ export type CustomerView = {
   id: string;
   customerCode?: string | null;
   customerName: string;
+  nameStatus: string;
   customerType: string;
   salesStage: string;
   source: string;
@@ -486,6 +487,7 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
   return {
     id: customer.id,
     customerName: customer.customerName,
+    nameStatus: customer.nameStatus ?? "confirmed",
     customerType: customer.customerType,
     salesStage: customer.salesStage,
     source: customer.source,
@@ -510,6 +512,7 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     id: customer.id,
     customerCode: customer.customerCode,
     customerName: customer.customerName,
+    nameStatus: customer.nameStatus ?? "confirmed",
     customerType: customer.customerType,
     salesStage: customer.salesStage,
     source: customer.source,

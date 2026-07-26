@@ -115,6 +115,10 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
 const FIELD_CODE_TO_KEY: Record<string, string> = {
   CUSTOMER_NAME_REQUIRED: "errors.clientNameRequired",
   INVALID_CUSTOMER_NAME: "errors.invalidCustomerName",
+  INVALID_NAME_STATUS: "errors.invalidNameStatus",
+  PENDING_NAME_REQUIRED: "errors.pendingNameRequired",
+  INVALID_PENDING_NAME_PLACEHOLDER: "errors.invalidPendingNamePlaceholder",
+  CONFIRMED_PLACEHOLDER_FORBIDDEN: "errors.confirmedPlaceholderForbidden",
   REQUESTED_PROJECT_NAME_REQUIRED: "errors.requestedProjectNameRequired",
   INVALID_REQUESTED_PROJECT_NAME: "errors.invalidRequestedProjectName",
   STAGE_NOTES_REQUIRED: "errors.stageNotesRequired",

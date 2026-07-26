@@ -92,7 +92,12 @@ export const mockCustomerInsightProvider: CustomerInsightAIProvider = {
 
     const suggestedFollowUpAt = buildSuggestedFollowUpAt(context);
 
-    const customerSummary = `${context.customerName}（${context.customerType === "company" ? "企業" : "個人"}客戶），目前處於 ${context.salesStage} 階段，來源為 ${context.source}。`;
+    const displayName =
+      context.nameStatus === "pending" || !context.customerName
+        ? "客戶"
+        : context.customerName;
+
+    const customerSummary = `${displayName}（${context.customerType === "company" ? "企業" : "個人"}客戶），目前處於 ${context.salesStage} 階段，來源為 ${context.source}${context.nameStatus === "pending" ? "；真實姓名待確認" : ""}。`;
 
     const currentSituation = latestFollowUp
       ? `最近一次跟進為 ${formatHongKongDateTime(latestFollowUp.followUpTime)}，渠道 ${latestFollowUp.channel}，結果 ${latestFollowUp.outcome}。`

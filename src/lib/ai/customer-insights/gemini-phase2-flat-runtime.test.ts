@@ -49,6 +49,7 @@ function insightContext(
   return {
     customerId: "c-g2",
     customerName: "测试客户",
+    nameStatus: "confirmed",
     customerType: "individual",
     salesStage: "qualified",
     source: "referral",

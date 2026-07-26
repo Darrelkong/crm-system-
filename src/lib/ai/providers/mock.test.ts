@@ -15,6 +15,7 @@ function buildContext(
   return {
     customerId: "customer-uuid",
     customerName: "測試客戶",
+    nameStatus: "confirmed",
     customerType: "individual",
     salesStage: "lead",
     source: "web",

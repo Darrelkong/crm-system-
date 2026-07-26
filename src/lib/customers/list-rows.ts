@@ -8,6 +8,7 @@ export type CustomerListRowData = {
   id: string;
   customerCode?: string | null;
   customerName: string;
+  nameStatus: string;
   ownerId: string | null;
   ownerName: string | null;
   assigneeNames: string[];
@@ -35,6 +36,7 @@ export function toCustomerListRow(
     id: customer.id,
     customerCode: customer.customerCode,
     customerName: customer.customerName,
+    nameStatus: customer.nameStatus ?? "confirmed",
     ownerId: customer.ownerId ?? null,
     ownerName,
     assigneeNames,
