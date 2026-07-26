@@ -202,10 +202,37 @@ describe("customer create Phase 1B mobile floating save", () => {
     assert.match(formSource, /type="submit"/);
   });
 
-  it("mobile save stays disabled while submitting and FAB hides with keyboard", () => {
+  it("mobile save stays disabled while submitting and FAB unmounts with keyboard", () => {
     assert.match(mobileActionsSource, /disabled=\{submitting\}/);
-    assert.match(mobileActionsSource, /hidden && "invisible"/);
     assert.match(formSource, /hidden=\{keyboardOpen\}/);
+    // Unmount (return null) — do not rely on invisible / opacity hit-testing quirks.
+    assert.match(mobileActionsSource, /if \(hidden\) \{\s*return null;/);
+    assert.doesNotMatch(mobileActionsSource, /&& ["']invisible["']/);
+    assert.doesNotMatch(mobileActionsSource, /className=\{?[^}]*\binvisible\b/);
+    assert.doesNotMatch(mobileActionsSource, /aria-hidden=\{hidden\}/);
+    assert.doesNotMatch(mobileActionsSource, /opacity-\d/);
+    // Hooks run before the early return (Rules of Hooks).
+    assert.match(
+      mobileActionsSource,
+      /const \{ t \} = useTranslation\(\);[\s\S]*if \(hidden\) \{\s*return null;/,
+    );
+    // Visible shell still click-through; visible button still receives clicks.
+    assert.match(mobileActionsSource, /pointer-events-none/);
+    assert.match(mobileActionsSource, /pointer-events-auto/);
+    // Single FAB region + single save control when rendered.
+    assert.equal(
+      (mobileActionsSource.match(/customer-create-mobile-actions/g) || [])
+        .length,
+      1,
+    );
+    assert.equal(
+      (mobileActionsSource.match(/customer-create-mobile-save/g) || []).length,
+      1,
+    );
+    assert.equal(
+      (formSource.match(/CustomerCreateMobileActions/g) || []).length,
+      2,
+    ); // import + JSX
   });
 
   it("floats above MobileBottomNav with gap and z-index below modals", () => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/cn";
 import { MOBILE_FLOATING_SAVE_BOTTOM } from "@/lib/customers/incomplete-contact";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
@@ -15,6 +14,9 @@ const SHOW_MOBILE_CANCEL_BUTTON = false;
  * Mobile-only floating Save control, stacked above MobileBottomNav (z-40).
  * Shell is visually transparent and does not intercept clicks outside the button.
  * Uses the same form submit via the `form` attribute.
+ *
+ * When the soft keyboard is open (`hidden`), unmount entirely so the FAB cannot
+ * remain hit-testable under a pointer-events-auto child.
  */
 export function CustomerCreateMobileActions({
   formId,
@@ -24,22 +26,22 @@ export function CustomerCreateMobileActions({
 }: {
   formId: string;
   submitting: boolean;
-  /** When soft keyboard is open, hide to avoid covering inputs. */
+  /** When soft keyboard is open, unmount to avoid covering / intercepting inputs. */
   hidden: boolean;
   onCancel: () => void;
 }) {
   const { t } = useTranslation();
 
+  if (hidden) {
+    return null;
+  }
+
   return (
     <div
-      className={cn(
-        "customer-create-mobile-actions pointer-events-none fixed inset-x-0 z-[45] flex justify-end px-4 md:hidden",
-        hidden && "invisible",
-      )}
+      className="customer-create-mobile-actions pointer-events-none fixed inset-x-0 z-[45] flex justify-end px-4 md:hidden"
       style={{ bottom: MOBILE_FLOATING_SAVE_BOTTOM }}
       role="region"
       aria-label={t("customers.mobileCreateActionsLabel")}
-      aria-hidden={hidden}
     >
       {SHOW_MOBILE_CANCEL_BUTTON ? (
         <Button
