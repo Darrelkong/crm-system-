@@ -2807,6 +2807,10 @@ const en = {
       "A collaborator update request is already pending approval.",
     assigneeApprovalForbidden: "You cannot submit a collaborator update request.",
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data.",
+    transferTargetRequired: "Please select a target team member",
+    transferTargetInvalid: "The selected target team member is invalid",
+    transferTargetSameAsOwner:
+      "The target team member cannot be the current owner",
     mergeCustomersDisabled:
       "Customer merge is not enabled yet. Please do not submit merge requests.",
     aiFeedbackInsightNotFound: "No AI insight is available to rate.",

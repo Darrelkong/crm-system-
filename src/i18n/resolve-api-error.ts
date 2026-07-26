@@ -212,6 +212,10 @@ const CHINESE_MESSAGE_TO_KEY: Record<string, string> = {
   "该申请已处理，不能重复审批": "errors.approvalAlreadyProcessed",
   "客户不在公共池": "errors.publicPoolClientNotFound",
   "该客户已被其他员工领取": "errors.publicPoolClientAlreadyClaimed",
+  "转移目标员工必填": "errors.transferTargetRequired",
+  "转移申请缺少目标员工": "errors.transferTargetRequired",
+  "目标员工无效": "errors.transferTargetInvalid",
+  "目标员工不能与当前负责人相同": "errors.transferTargetSameAsOwner",
   "不能通过普通编辑将状态设为公共池，请使用释放到公共池流程":
     "errors.publicPoolRequiresReleaseFlow",
   "无法领取该客户": "errors.cannotClaimClient",
