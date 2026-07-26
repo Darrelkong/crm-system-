@@ -1166,6 +1166,17 @@ html[data-theme="dark"] {
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.28);
 }
 
+/* New-customer mobile fixed actions (above MobileBottomNav; below modals z-50) */
+.customer-create-mobile-actions {
+  background: var(--color-crm-card);
+  border-top: 1px solid var(--color-crm-border);
+  box-shadow: 0 -4px 16px rgba(23, 32, 51, 0.06);
+}
+
+[data-theme="dark"] .customer-create-mobile-actions {
+  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.28);
+}
+
 [data-theme="dark"] .mobile-drawer-overlay {
   background: rgba(8, 11, 18, 0.62);
 }

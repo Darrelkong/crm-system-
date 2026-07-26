@@ -489,6 +489,15 @@ const en = {
     createConfirmWait: "Please wait {{seconds}} seconds before confirming.",
     createConfirmSubmit: "Confirm Create",
     createConfirmBack: "Go Back and Edit",
+    incompleteWechatTitle: "WeChat Not Provided",
+    incompleteWechatDescription:
+      "A phone number and WeChat should normally both be collected. Confirm that the customer has not currently provided WeChat before continuing.",
+    incompletePhoneTitle: "Phone Number Not Provided",
+    incompletePhoneDescription:
+      "A phone number and WeChat should normally both be collected. Confirm that the customer has not currently provided a phone number before continuing.",
+    incompleteContactBack: "Go Back",
+    incompleteContactContinue: "Confirm and Continue",
+    mobileCreateActionsLabel: "New client actions",
     saving: "Saving…",
     saveChanges: "Save Changes",
     saveSuccess: "Saved successfully",

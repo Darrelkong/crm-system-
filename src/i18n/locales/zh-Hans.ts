@@ -470,6 +470,15 @@ const zhHans: Messages = {
     createConfirmWait: "请等待 {{seconds}} 秒后确认",
     createConfirmSubmit: "确认新增",
     createConfirmBack: "返回修改",
+    incompleteWechatTitle: "微信号尚未填写",
+    incompleteWechatDescription:
+      "原则上应同时收集客户的手机号码和微信号。请确认客户目前确实未提供微信号，再继续保存。",
+    incompletePhoneTitle: "手机号码尚未填写",
+    incompletePhoneDescription:
+      "原则上应同时收集客户的手机号码和微信号。请确认客户目前确实未提供手机号码，再继续保存。",
+    incompleteContactBack: "返回补充",
+    incompleteContactContinue: "确认并继续",
+    mobileCreateActionsLabel: "新增客户操作",
     saving: "保存中…",
     saveChanges: "保存修改",
     saveSuccess: "保存成功",

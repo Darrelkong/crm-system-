@@ -470,6 +470,15 @@ const zhHant: Messages = {
     createConfirmWait: "請等待 {{seconds}} 秒後確認",
     createConfirmSubmit: "確認新增",
     createConfirmBack: "返回修改",
+    incompleteWechatTitle: "微信號尚未填寫",
+    incompleteWechatDescription:
+      "原則上應同時收集客戶的手機號碼和微信號。請確認客戶目前確實未提供微信號，再繼續儲存。",
+    incompletePhoneTitle: "手機號碼尚未填寫",
+    incompletePhoneDescription:
+      "原則上應同時收集客戶的手機號碼和微信號。請確認客戶目前確實未提供手機號碼，再繼續儲存。",
+    incompleteContactBack: "返回補充",
+    incompleteContactContinue: "確認並繼續",
+    mobileCreateActionsLabel: "新增客戶操作",
     saving: "儲存中…",
     saveChanges: "儲存修改",
     saveSuccess: "儲存成功",

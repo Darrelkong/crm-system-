@@ -22,8 +22,17 @@ import { createCustomerCreateDraftAutosave } from "@/lib/customers/customer-crea
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
+import { CustomerCreateMobileActions } from "./customer-create-mobile-actions";
+import { IncompleteContactConfirmModal } from "./incomplete-contact-confirm-modal";
 import { OnHoldApprovalSubmittedModal, OnHoldReasonModal } from "./on-hold-approval-pending-modal";
+import { useMobileKeyboardOpen } from "./use-mobile-keyboard-open";
 import { FollowUpOrganizeControls } from "@/components/follow-ups/follow-up-organize-controls";
+import {
+  getIncompleteContactKind,
+  type IncompleteContactKind,
+} from "@/lib/customers/incomplete-contact";
+
+const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
 type DuplicateMatch = {
   field: string;
@@ -65,6 +74,10 @@ export function NewCustomerForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
   const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
+  const [incompleteContactKind, setIncompleteContactKind] =
+    useState<IncompleteContactKind | null>(null);
+  const [showIncompleteContactModal, setShowIncompleteContactModal] =
+    useState(false);
   const [showOnHoldReasonModal, setShowOnHoldReasonModal] = useState(false);
   const [showOnHoldSubmittedModal, setShowOnHoldSubmittedModal] = useState(false);
   const [form, setForm] = useState<FormState>(() =>
@@ -87,6 +100,9 @@ export function NewCustomerForm({
       },
     }),
   );
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const wechatInputRef = useRef<HTMLInputElement>(null);
+  const keyboardOpen = useMobileKeyboardOpen();
 
   useEffect(() => {
     const autosave = draftAutosaveRef.current;
@@ -247,6 +263,9 @@ export function NewCustomerForm({
     if (submitting) {
       return;
     }
+    if (showIncompleteContactModal || showCreateConfirmModal) {
+      return;
+    }
 
     setFieldErrors({});
     setServerError(null);
@@ -263,6 +282,32 @@ export function NewCustomerForm({
       return;
     }
 
+    const incomplete = getIncompleteContactKind(form.phone, form.wechatId);
+    if (incomplete) {
+      setIncompleteContactKind(incomplete);
+      setShowIncompleteContactModal(true);
+      return;
+    }
+
+    setShowCreateConfirmModal(true);
+  }
+
+  function handleIncompleteContactBack() {
+    const kind = incompleteContactKind;
+    setShowIncompleteContactModal(false);
+    setIncompleteContactKind(null);
+    window.requestAnimationFrame(() => {
+      if (kind === "phone") {
+        phoneInputRef.current?.focus();
+      } else if (kind === "wechat") {
+        wechatInputRef.current?.focus();
+      }
+    });
+  }
+
+  function handleIncompleteContactContinue() {
+    setShowIncompleteContactModal(false);
+    setIncompleteContactKind(null);
     setShowCreateConfirmModal(true);
   }
 
@@ -296,6 +341,12 @@ export function NewCustomerForm({
         }}
         onBack={() => setShowCreateConfirmModal(false)}
         onConfirm={handleConfirmCreate}
+      />
+      <IncompleteContactConfirmModal
+        open={showIncompleteContactModal}
+        kind={incompleteContactKind}
+        onBack={handleIncompleteContactBack}
+        onContinue={handleIncompleteContactContinue}
       />
       <OnHoldReasonModal
         open={showOnHoldReasonModal}
@@ -332,7 +383,12 @@ export function NewCustomerForm({
           </ModalPanel>
         </ModalOverlay>
       ) : null}
-      <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
+      <form
+        id={NEW_CUSTOMER_FORM_ID}
+        onSubmit={handleSubmit}
+        noValidate
+        className="max-w-2xl max-md:pb-24"
+      >
       {serverError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-700">{serverError}</p>
@@ -455,6 +511,8 @@ export function NewCustomerForm({
               ))}
             </Select>
             <Input
+              id="customer-phone"
+              ref={phoneInputRef}
               className="min-w-0 w-full"
               value={form.phone}
               onChange={(e) => set("phone", e.target.value)}
@@ -467,6 +525,8 @@ export function NewCustomerForm({
           )}
           <div className="mt-2">
             <Input
+              id="customer-wechat"
+              ref={wechatInputRef}
               value={form.wechatId}
               onChange={(e) => set("wechatId", e.target.value)}
               placeholder={t("customers.wechatOptional")}
@@ -582,15 +642,25 @@ export function NewCustomerForm({
         </Field>
       </div>
 
-      <div className="mt-6 flex gap-3">
+      <div className="mt-6 hidden gap-3 md:flex">
         <Button type="submit" disabled={submitting}>
           {submitting ? t("customers.saving") : t("customers.saveClient")}
         </Button>
-        <Button type="button" variant="secondary" onClick={() => router.push("/customers")}>
+        <Button
+          type="button"
+          variant="secondary"
+          onClick={() => router.push("/customers")}
+        >
           {t("common.cancel")}
         </Button>
       </div>
     </form>
+      <CustomerCreateMobileActions
+        formId={NEW_CUSTOMER_FORM_ID}
+        submitting={submitting}
+        hidden={keyboardOpen}
+        onCancel={() => router.push("/customers")}
+      />
     </>
   );
 }
