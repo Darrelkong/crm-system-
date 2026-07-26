@@ -5,7 +5,7 @@ import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { NewCustomerForm } from "./new-customer-form";
 
 export default async function NewCustomerPage() {
-  await requireAuthCached();
+  const user = await requireAuthCached();
   const db = getDb();
   const tags = await listActiveCustomerTags(db);
 
@@ -16,6 +16,7 @@ export default async function NewCustomerPage() {
         descriptionKey="customers.newDescription"
       />
       <NewCustomerForm
+        userId={user.id}
         tags={tags.map((tag) => ({
           tagKey: tag.tagKey,
           label: tag.label,

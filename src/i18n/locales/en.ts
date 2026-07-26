@@ -445,23 +445,38 @@ const en = {
     newDescription: "Enter client details. Fields marked * are required.",
     editingDescription: "Editing: {{name}}",
     basicSection: "Basic Information",
-    sourceAndStage: "Source & Stage",
+    identityAndNeedsSection: "Identity and needs",
+    contactSection: "Contact details",
+    sourceAndStage: "Source and Communication",
     phoneWechatRequired: "Phone / WeChat",
     atLeastOne: "(at least one required)",
+    phoneWechatGuidance:
+      "Phone number and WeChat should normally both be collected. If one is genuinely unavailable, at least the other is required.",
     phonePlaceholder: "Phone number",
     wechatOptional: "WeChat ID (optional)",
     emailOptional: "Email (optional)",
+    emailRecommended: "Recommended",
     selectSource: "Select source",
     selectSalesStage: "Select sales stage",
     sourceDetailPlaceholder: "Describe the source",
     notesOptional: "Additional notes (optional)",
     requestedProjectName: "Requested Project / Service Name",
     requestedProjectNamePlaceholder: "Enter the project or service the client needs",
-    stageNotes: "Initial communication notes",
+    stageNotes: "Initial Communication",
     stageNotesPlaceholder:
-      "Please enter initial communication notes, at least 10 characters.",
+      "Record the customer’s current needs, purpose, main concerns, expected timeline, and next step. Minimum 10 characters.",
+    stageNotesHelper:
+      "Suggested: needs · purpose · concerns · timeline · next step",
     stageNotesRequired:
       "Please enter initial communication notes, at least 10 characters.",
+    draftSavedAt: "Draft auto-saved · {{time}}",
+    draftStorageUnavailable:
+      "This browser cannot auto-save drafts right now",
+    draftRestoreTitle: "Unfinished Customer Draft Found",
+    draftRestoreDescription:
+      "Customer information entered previously has not been formally saved. Would you like to continue?",
+    draftRestoreContinue: "Continue editing",
+    draftRestoreDiscard: "Discard draft",
     saveClient: "Save Client",
     createConfirmTitle: "Confirm New Client",
     createConfirmDescription:

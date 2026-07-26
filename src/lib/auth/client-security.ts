@@ -74,6 +74,15 @@ export async function clearSessionClientState(
   } catch {
     // ignore
   }
+
+  try {
+    const { clearCustomerCreateDraftForLastUser } = await import(
+      "@/lib/customers/customer-create-draft"
+    );
+    clearCustomerCreateDraftForLastUser();
+  } catch {
+    // Best-effort; draft module must not block logout.
+  }
 }
 
 export function redirectToLoginWithSessionEnd(reason: SessionEndReason): void {

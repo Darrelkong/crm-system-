@@ -1,14 +1,25 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { CUSTOMER_TYPES, CREATABLE_SALES_STAGES } from "@/lib/constants/customer-fields";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
 import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
+import {
+  CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS,
+  clearCustomerCreateDraft,
+  createEmptyCustomerCreateFormData,
+  formatDraftSavedClock,
+  isCustomerCreateDraftMeaningful,
+  loadCustomerCreateDraft,
+  saveCustomerCreateDraft,
+  type CustomerCreateDraftFormData,
+} from "@/lib/customers/customer-create-draft";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
@@ -24,7 +35,30 @@ type DuplicateMatch = {
 
 const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
 
-export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
+type FormState = CustomerCreateDraftFormData & {
+  customerType: CustomerType;
+  salesStage: SalesStage | "";
+};
+
+function toFormState(data: CustomerCreateDraftFormData): FormState {
+  return {
+    ...data,
+    customerType: (CUSTOMER_TYPES as readonly string[]).includes(data.customerType)
+      ? (data.customerType as CustomerType)
+      : "individual",
+    salesStage: data.salesStage
+      ? (data.salesStage as SalesStage | "")
+      : "new_lead",
+  };
+}
+
+export function NewCustomerForm({
+  tags,
+  userId,
+}: {
+  tags: CustomerTagOption[];
+  userId: string;
+}) {
   const router = useRouter();
   const { t, salesStage, customerType, fieldLabel } = useCustomerLabels();
   const [submitting, setSubmitting] = useState(false);
@@ -34,22 +68,67 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
   const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
   const [showOnHoldReasonModal, setShowOnHoldReasonModal] = useState(false);
   const [showOnHoldSubmittedModal, setShowOnHoldSubmittedModal] = useState(false);
+  const [form, setForm] = useState<FormState>(() =>
+    toFormState(createEmptyCustomerCreateFormData()),
+  );
+  const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
+  const [draftStorageUnavailable, setDraftStorageUnavailable] = useState(false);
+  const [showDraftRestoreModal, setShowDraftRestoreModal] = useState(false);
+  const [pendingDraft, setPendingDraft] =
+    useState<CustomerCreateDraftFormData | null>(null);
+  const draftReadyRef = useRef(false);
+  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const [form, setForm] = useState({
-    customerName: "",
-    customerType: "individual" as CustomerType,
-    phoneCountryCode: "+86",
-    phone: "",
-    wechatId: "",
-    email: "",
-    source: "",
-    sourceRemark: "",
-    requestedProjectName: "",
-    notes: "",
-    salesStage: "" as SalesStage | "",
-  });
+  useEffect(() => {
+    const loaded = loadCustomerCreateDraft(userId);
+    if (loaded.ok && isCustomerCreateDraftMeaningful(loaded.value.form)) {
+      setPendingDraft(loaded.value.form);
+      setShowDraftRestoreModal(true);
+      draftReadyRef.current = false;
+      return;
+    }
 
-  function set(field: string, value: string) {
+    if (loaded.ok && !isCustomerCreateDraftMeaningful(loaded.value.form)) {
+      clearCustomerCreateDraft(userId);
+    }
+
+    if (!loaded.ok && loaded.reason === "unavailable") {
+      setDraftStorageUnavailable(true);
+    }
+    draftReadyRef.current = true;
+  }, [userId]);
+
+  useEffect(() => {
+    if (!draftReadyRef.current || submitting) {
+      return;
+    }
+
+    if (draftTimerRef.current) {
+      clearTimeout(draftTimerRef.current);
+    }
+
+    draftTimerRef.current = setTimeout(() => {
+      const result = saveCustomerCreateDraft(userId, form);
+      if (result.ok) {
+        if (result.value) {
+          setDraftSavedAt(result.value.savedAt);
+        } else {
+          setDraftSavedAt(null);
+        }
+        setDraftStorageUnavailable(false);
+      } else if (result.reason === "unavailable") {
+        setDraftStorageUnavailable(true);
+      }
+    }, CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS);
+
+    return () => {
+      if (draftTimerRef.current) {
+        clearTimeout(draftTimerRef.current);
+      }
+    };
+  }, [form, userId, submitting]);
+
+  function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => {
       const next = { ...prev };
@@ -61,7 +140,30 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
     setDuplicates(null);
   }
 
+  function continueDraft() {
+    if (pendingDraft) {
+      setForm(toFormState(pendingDraft));
+      setDraftSavedAt(Date.now());
+    }
+    setPendingDraft(null);
+    setShowDraftRestoreModal(false);
+    draftReadyRef.current = true;
+  }
+
+  function discardDraft() {
+    clearCustomerCreateDraft(userId);
+    setForm(toFormState(createEmptyCustomerCreateFormData()));
+    setDraftSavedAt(null);
+    setPendingDraft(null);
+    setShowDraftRestoreModal(false);
+    draftReadyRef.current = true;
+  }
+
   async function submitCreate(onHoldReason?: string) {
+    if (submitting) {
+      return;
+    }
+
     setSubmitting(true);
     setFieldErrors({});
     setServerError(null);
@@ -90,6 +192,8 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
       };
 
       if (res.ok && data.pendingApproval) {
+        clearCustomerCreateDraft(userId);
+        setDraftSavedAt(null);
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
         setShowOnHoldSubmittedModal(true);
@@ -97,6 +201,8 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
       }
 
       if (res.ok && data.id) {
+        clearCustomerCreateDraft(userId);
+        setDraftSavedAt(null);
         router.push(`/customers/${data.id}`);
         return;
       }
@@ -136,6 +242,10 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (submitting) {
+      return;
+    }
+
     setFieldErrors({});
     setServerError(null);
     setDuplicates(null);
@@ -200,6 +310,26 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
           router.push("/customers");
         }}
       />
+      {showDraftRestoreModal ? (
+        <ModalOverlay>
+          <ModalPanel>
+            <h3 className="text-base font-semibold text-[#172033]">
+              {t("customers.draftRestoreTitle")}
+            </h3>
+            <p className="mt-2 text-sm text-[#6B7890]">
+              {t("customers.draftRestoreDescription")}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Button type="button" onClick={continueDraft}>
+                {t("customers.draftRestoreContinue")}
+              </Button>
+              <Button type="button" variant="secondary" onClick={discardDraft}>
+                {t("customers.draftRestoreDiscard")}
+              </Button>
+            </div>
+          </ModalPanel>
+        </ModalOverlay>
+      ) : null}
       <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
       {serverError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
@@ -228,10 +358,39 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
         </div>
       )}
 
+      {(draftSavedAt != null || draftStorageUnavailable) && (
+        <p className="mb-3 text-xs text-[#6B7890]" aria-live="polite">
+          {draftStorageUnavailable
+            ? t("customers.draftStorageUnavailable")
+            : t("customers.draftSavedAt", {
+                time: formatDraftSavedClock(draftSavedAt!),
+              })}
+        </p>
+      )}
+
       <div className="surface-card p-6">
         <h3 className="mb-4 text-base font-semibold text-[#172033]">
           {t("customers.basicSection")}
         </h3>
+
+        <h4 className="mb-3 text-sm font-medium text-[#3A465C]">
+          {t("customers.identityAndNeedsSection")}
+        </h4>
+
+        <Field>
+          <Label htmlFor="customerType">{t("customers.clientType")}</Label>
+          <Select
+            id="customerType"
+            value={form.customerType}
+            onChange={(e) => set("customerType", e.target.value)}
+          >
+            {CUSTOMER_TYPES.map((typeKey) => (
+              <option key={typeKey} value={typeKey}>
+                {customerType(typeKey)}
+              </option>
+            ))}
+          </Select>
+        </Field>
 
         <Field>
           <Label htmlFor="customerName">
@@ -266,20 +425,12 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
           )}
         </Field>
 
-        <Field>
-          <Label htmlFor="customerType">{t("customers.clientType")}</Label>
-          <Select
-            id="customerType"
-            value={form.customerType}
-            onChange={(e) => set("customerType", e.target.value)}
-          >
-            {CUSTOMER_TYPES.map((typeKey) => (
-              <option key={typeKey} value={typeKey}>
-                {customerType(typeKey)}
-              </option>
-            ))}
-          </Select>
-        </Field>
+        <h4 className="mb-3 mt-6 text-sm font-medium text-[#3A465C]">
+          {t("customers.contactSection")}
+        </h4>
+        <p className="mb-3 text-xs text-[#6B7890]">
+          {t("customers.phoneWechatGuidance")}
+        </p>
 
         <div className="mb-4">
           <Label>
@@ -322,7 +473,12 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
         </div>
 
         <Field>
-          <Label htmlFor="email">{t("customers.email")}</Label>
+          <Label htmlFor="email">
+            {t("customers.email")}{" "}
+            <span className="text-xs font-normal text-[#6B7890]">
+              {t("customers.emailRecommended")}
+            </span>
+          </Label>
           <Input
             id="email"
             type="email"
@@ -388,7 +544,6 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
             value={form.salesStage}
             onChange={(e) => set("salesStage", e.target.value)}
           >
-            <option value="">{t("customers.selectSalesStage")}</option>
             {CREATABLE_SALES_STAGES.map((s) => (
               <option key={s} value={s}>
                 {salesStage(s)}
@@ -411,6 +566,9 @@ export function NewCustomerForm({ tags }: { tags: CustomerTagOption[] }) {
             onChange={(e) => set("notes", e.target.value)}
             placeholder={t("customers.stageNotesPlaceholder")}
           />
+          <p className="mt-1 text-xs text-[#6B7890]">
+            {t("customers.stageNotesHelper")}
+          </p>
           <FollowUpOrganizeControls
             customerId={null}
             value={form.notes}

@@ -198,7 +198,7 @@ export function FollowUpOrganizeControls({
           type="button"
           disabled={!canBasic || loadingMode !== null}
           onClick={() => void runOrganize("basic")}
-          className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+          className="inline-flex items-center rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
         >
           {loadingMode === "basic"
             ? t("followUpOrganize.organizing")
@@ -208,27 +208,32 @@ export function FollowUpOrganizeControls({
           type="button"
           disabled={!canBasic || !canAi || loadingMode !== null}
           onClick={() => void runOrganize("ai")}
-          className="rounded-md border border-slate-200 bg-white px-2.5 py-1 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
+          className="inline-flex items-center gap-1 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 shadow-none disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200"
         >
+          <span aria-hidden="true" className="text-[11px] leading-none">
+            ✦
+          </span>
           {loadingMode === "ai"
             ? t("followUpOrganize.organizing")
             : t("followUpOrganize.aiButton")}
         </button>
-        <span className="text-[11px] text-slate-500">
-          {t("followUpOrganize.basicHint")}
-          {" · "}
-          {t("followUpOrganize.aiHint")}
-        </span>
+        {canAi ? (
+          <span className="text-[11px] text-[#6B7890]">
+            {t("followUpOrganize.basicHint")}
+            {" · "}
+            {t("followUpOrganize.aiHint")}
+          </span>
+        ) : null}
       </div>
 
       {availability && !availability.canUseAi && (
-        <p className="text-xs text-amber-700 dark:text-amber-300">
+        <p className="text-xs text-[#6B7890]">
           {t(availabilityMessageKey(availability.reason))}
         </p>
       )}
 
       {availability?.canUseAi && availability.remaining !== null && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-[#6B7890]">
           {t("followUpOrganize.remainingToday", {
             count: String(availability.remaining),
           })}
