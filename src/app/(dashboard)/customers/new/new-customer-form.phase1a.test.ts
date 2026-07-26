@@ -86,5 +86,8 @@ describe("customer create Phase 1A form defaults and i18n", () => {
     assert.equal(en.customers.stageNotes, "Initial Communication");
     assert.equal(zhHans.customers.stageNotes, "首次沟通情况");
     assert.equal(zhHant.customers.stageNotes, "首次溝通情況");
+    assert.match(en.customers.draftSavedAt, /Draft saved on this device/);
+    assert.match(zhHans.customers.draftSavedAt, /草稿已保存在此设备/);
+    assert.match(zhHant.customers.draftSavedAt, /草稿已保存在此設備/);
   });
 });

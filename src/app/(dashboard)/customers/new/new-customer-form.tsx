@@ -11,15 +11,14 @@ import type { CustomerTagOption } from "@/lib/customer-tags/types";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import {
-  CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS,
   clearCustomerCreateDraft,
   createEmptyCustomerCreateFormData,
   formatDraftSavedClock,
   isCustomerCreateDraftMeaningful,
   loadCustomerCreateDraft,
-  saveCustomerCreateDraft,
   type CustomerCreateDraftFormData,
 } from "@/lib/customers/customer-create-draft";
+import { createCustomerCreateDraftAutosave } from "@/lib/customers/customer-create-draft-autosave";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
@@ -76,15 +75,29 @@ export function NewCustomerForm({
   const [showDraftRestoreModal, setShowDraftRestoreModal] = useState(false);
   const [pendingDraft, setPendingDraft] =
     useState<CustomerCreateDraftFormData | null>(null);
-  const draftReadyRef = useRef(false);
-  const draftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draftAutosaveRef = useRef(
+    createCustomerCreateDraftAutosave({
+      onPersisted: (result) => {
+        if (result.ok) {
+          setDraftSavedAt(result.value ? result.value.savedAt : null);
+          setDraftStorageUnavailable(false);
+        } else if (result.reason === "unavailable") {
+          setDraftStorageUnavailable(true);
+        }
+      },
+    }),
+  );
 
   useEffect(() => {
+    const autosave = draftAutosaveRef.current;
+    autosave.cancelPending();
+    autosave.resetWriteBlock();
+
     const loaded = loadCustomerCreateDraft(userId);
     if (loaded.ok && isCustomerCreateDraftMeaningful(loaded.value.form)) {
       setPendingDraft(loaded.value.form);
       setShowDraftRestoreModal(true);
-      draftReadyRef.current = false;
+      autosave.setReady(false);
       return;
     }
 
@@ -95,38 +108,23 @@ export function NewCustomerForm({
     if (!loaded.ok && loaded.reason === "unavailable") {
       setDraftStorageUnavailable(true);
     }
-    draftReadyRef.current = true;
+    autosave.setReady(true);
   }, [userId]);
 
   useEffect(() => {
-    if (!draftReadyRef.current || submitting) {
-      return;
-    }
-
-    if (draftTimerRef.current) {
-      clearTimeout(draftTimerRef.current);
-    }
-
-    draftTimerRef.current = setTimeout(() => {
-      const result = saveCustomerCreateDraft(userId, form);
-      if (result.ok) {
-        if (result.value) {
-          setDraftSavedAt(result.value.savedAt);
-        } else {
-          setDraftSavedAt(null);
-        }
-        setDraftStorageUnavailable(false);
-      } else if (result.reason === "unavailable") {
-        setDraftStorageUnavailable(true);
-      }
-    }, CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS);
-
+    const autosave = draftAutosaveRef.current;
+    autosave.schedule(userId, form, submitting);
     return () => {
-      if (draftTimerRef.current) {
-        clearTimeout(draftTimerRef.current);
-      }
+      autosave.cancelPending();
     };
   }, [form, userId, submitting]);
+
+  useEffect(() => {
+    const autosave = draftAutosaveRef.current;
+    return () => {
+      autosave.dispose();
+    };
+  }, []);
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -147,16 +145,21 @@ export function NewCustomerForm({
     }
     setPendingDraft(null);
     setShowDraftRestoreModal(false);
-    draftReadyRef.current = true;
+    draftAutosaveRef.current.setReady(true);
   }
 
   function discardDraft() {
-    clearCustomerCreateDraft(userId);
+    draftAutosaveRef.current.discard(userId);
     setForm(toFormState(createEmptyCustomerCreateFormData()));
     setDraftSavedAt(null);
     setPendingDraft(null);
     setShowDraftRestoreModal(false);
-    draftReadyRef.current = true;
+  }
+
+  /** Accepted by the server: never write drafts again on this instance. */
+  function finalizeAcceptedSubmission(): void {
+    draftAutosaveRef.current.finalizeAccepted(userId);
+    setDraftSavedAt(null);
   }
 
   async function submitCreate(onHoldReason?: string) {
@@ -192,8 +195,7 @@ export function NewCustomerForm({
       };
 
       if (res.ok && data.pendingApproval) {
-        clearCustomerCreateDraft(userId);
-        setDraftSavedAt(null);
+        finalizeAcceptedSubmission();
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
         setShowOnHoldSubmittedModal(true);
@@ -201,8 +203,7 @@ export function NewCustomerForm({
       }
 
       if (res.ok && data.id) {
-        clearCustomerCreateDraft(userId);
-        setDraftSavedAt(null);
+        finalizeAcceptedSubmission();
         router.push(`/customers/${data.id}`);
         return;
       }
@@ -236,6 +237,7 @@ export function NewCustomerForm({
         setShowOnHoldReasonModal(true);
       }
     } finally {
+      // Restores UI; must not unblock draft writes after finalizeAccepted.
       setSubmitting(false);
     }
   }

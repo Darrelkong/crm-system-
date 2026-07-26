@@ -1,15 +1,23 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { afterEach, describe, it, mock } from "node:test";
 import {
   ACCESS_REVERIFY_LOGIN_PATH,
+  clearCustomerCreateDraftOnExplicitLogout,
+  clearSessionClientState,
   getAccessReverifyRedirectPath,
   parseBroadcastLogoutReason,
   parseSessionEndReason,
+  performSecurityLogout,
   sessionEndMessageKey,
   sessionEndShowsModal,
   shouldInspectSessionApiResponse,
 } from "@/lib/auth/client-security";
 import { CLOUDFLARE_ACCESS_LOGOUT_PATH } from "@/lib/auth/logout-redirect";
+import {
+  createEmptyCustomerCreateFormData,
+  loadCustomerCreateDraft,
+  saveCustomerCreateDraft,
+} from "@/lib/customers/customer-create-draft";
 
 describe("parseSessionEndReason", () => {
   it("maps SESSION_ACCESS_REVERIFY_REQUIRED to access_reverify", () => {
@@ -111,5 +119,125 @@ describe("shouldInspectSessionApiResponse", () => {
 
   it("ignores non-api URLs", () => {
     assert.equal(shouldInspectSessionApiResponse("/staff"), false);
+  });
+});
+
+describe("customer create draft vs session clear", () => {
+  class MemoryStorage implements Storage {
+    private store = new Map<string, string>();
+    get length(): number {
+      return this.store.size;
+    }
+    clear(): void {
+      this.store.clear();
+    }
+    getItem(key: string): string | null {
+      return this.store.has(key) ? this.store.get(key)! : null;
+    }
+    key(index: number): string | null {
+      return [...this.store.keys()][index] ?? null;
+    }
+    removeItem(key: string): void {
+      this.store.delete(key);
+    }
+    setItem(key: string, value: string): void {
+      this.store.set(key, value);
+    }
+  }
+
+  let previous: Storage | undefined;
+
+  afterEach(() => {
+    mock.restoreAll();
+    if (previous !== undefined) {
+      Object.defineProperty(globalThis, "localStorage", {
+        configurable: true,
+        value: previous,
+      });
+    }
+  });
+
+  function installLocalStorage() {
+    previous = globalThis.localStorage;
+    Object.defineProperty(globalThis, "localStorage", {
+      configurable: true,
+      value: new MemoryStorage(),
+    });
+  }
+
+  function seedDraft(userId: string) {
+    saveCustomerCreateDraft(userId, {
+      ...createEmptyCustomerCreateFormData(),
+      customerName: `Draft ${userId}`,
+      phone: "13800138000",
+      notes: "足夠長度的首次溝通備註內容",
+      source: "referral",
+    });
+  }
+
+  it("clearSessionClientState does not remove customer-create drafts", async () => {
+    installLocalStorage();
+    mock.method(globalThis, "fetch", async () => new Response("{}", { status: 200 }));
+    seedDraft("user-a");
+    localStorage.setItem("crm_locale", "zh-Hant");
+    localStorage.setItem("crm-login-theme", "dark");
+
+    await clearSessionClientState("expired");
+
+    assert.equal(loadCustomerCreateDraft("user-a").ok, true);
+    assert.equal(localStorage.getItem("crm_locale"), "zh-Hant");
+    assert.equal(localStorage.getItem("crm-login-theme"), "dark");
+  });
+
+  it("Access-reverify style clear keeps drafts (same as clearSessionClientState)", async () => {
+    installLocalStorage();
+    mock.method(globalThis, "fetch", async () => new Response("{}", { status: 200 }));
+    seedDraft("user-a");
+    await clearSessionClientState("expired");
+    assert.equal(loadCustomerCreateDraft("user-a").ok, true);
+  });
+
+  it("explicit logout clears only last saver draft, not other users or theme/locale", async () => {
+    installLocalStorage();
+    seedDraft("user-a");
+    seedDraft("user-b");
+    localStorage.setItem("crm_locale", "zh-Hant");
+    localStorage.setItem("crm-login-theme", "light");
+
+    await clearCustomerCreateDraftOnExplicitLogout();
+
+    assert.equal(loadCustomerCreateDraft("user-b").ok, false);
+    assert.equal(loadCustomerCreateDraft("user-a").ok, true);
+    assert.equal(localStorage.getItem("crm_locale"), "zh-Hant");
+    assert.equal(localStorage.getItem("crm-login-theme"), "light");
+  });
+
+  it("performSecurityLogout(manual) clears last draft; idle reason does not", async () => {
+    installLocalStorage();
+    mock.method(globalThis, "fetch", async () => new Response("{}", { status: 200 }));
+    const loc = { href: "http://localhost:3000/customers/new" };
+    const previousWindow = (globalThis as { window?: unknown }).window;
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: loc },
+    });
+
+    try {
+      seedDraft("user-a");
+      await performSecurityLogout("idle");
+      assert.equal(loadCustomerCreateDraft("user-a").ok, true);
+
+      await performSecurityLogout("manual");
+      assert.equal(loadCustomerCreateDraft("user-a").ok, false);
+    } finally {
+      if (previousWindow === undefined) {
+        Reflect.deleteProperty(globalThis, "window");
+      } else {
+        Object.defineProperty(globalThis, "window", {
+          configurable: true,
+          value: previousWindow,
+        });
+      }
+    }
   });
 });

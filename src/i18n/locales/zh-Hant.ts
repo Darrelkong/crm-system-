@@ -451,7 +451,7 @@ const zhHant: Messages = {
       "請記錄客戶目前需求、辦理目的、主要顧慮、預計時間及下一步安排，至少 10 個字。",
     stageNotesHelper: "建議包括：需求 · 目的 · 顧慮 · 時間 · 下一步",
     stageNotesRequired: "請填寫客戶首次溝通備註，至少 10 個字。",
-    draftSavedAt: "草稿已自動保存 · {{time}}",
+    draftSavedAt: "草稿已保存在此設備 · {{time}}",
     draftStorageUnavailable: "此瀏覽器目前無法自動保存草稿",
     draftRestoreTitle: "發現未完成的客戶草稿",
     draftRestoreDescription:

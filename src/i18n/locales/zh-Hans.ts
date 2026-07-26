@@ -451,7 +451,7 @@ const zhHans: Messages = {
       "请记录客户目前需求、办理目的、主要顾虑、预计时间及下一步安排，至少 10 个字。",
     stageNotesHelper: "建议包括：需求 · 目的 · 顾虑 · 时间 · 下一步",
     stageNotesRequired: "请填写客户首次沟通备注，至少 10 个字。",
-    draftSavedAt: "草稿已自动保存 · {{time}}",
+    draftSavedAt: "草稿已保存在此设备 · {{time}}",
     draftStorageUnavailable: "此浏览器目前无法自动保存草稿",
     draftRestoreTitle: "发现未完成的客户草稿",
     draftRestoreDescription:

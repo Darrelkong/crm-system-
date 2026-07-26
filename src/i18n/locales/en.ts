@@ -469,7 +469,7 @@ const en = {
       "Suggested: needs · purpose · concerns · timeline · next step",
     stageNotesRequired:
       "Please enter initial communication notes, at least 10 characters.",
-    draftSavedAt: "Draft auto-saved · {{time}}",
+    draftSavedAt: "Draft saved on this device · {{time}}",
     draftStorageUnavailable:
       "This browser cannot auto-save drafts right now",
     draftRestoreTitle: "Unfinished Customer Draft Found",

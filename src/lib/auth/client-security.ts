@@ -75,6 +75,14 @@ export async function clearSessionClientState(
     // ignore
   }
 
+  // Intentionally does NOT clear customer-create drafts.
+  // Access reverify / idle / session-end share this helper; drafts are
+  // userId-scoped with TTL and must survive reverify. Explicit CRM logout
+  // clears via clearCustomerCreateDraftOnExplicitLogout().
+}
+
+/** Only for user-initiated CRM sign-out (account menu / sign-out button). */
+export async function clearCustomerCreateDraftOnExplicitLogout(): Promise<void> {
   try {
     const { clearCustomerCreateDraftForLastUser } = await import(
       "@/lib/customers/customer-create-draft"
@@ -131,6 +139,9 @@ export async function performSecurityLogout(
   reason: SecurityLogoutReason = "manual",
 ): Promise<void> {
   await clearSessionClientState(reason);
+  if (reason === "manual") {
+    await clearCustomerCreateDraftOnExplicitLogout();
+  }
   window.location.href = getPostLogoutRedirectPath();
 }
 
