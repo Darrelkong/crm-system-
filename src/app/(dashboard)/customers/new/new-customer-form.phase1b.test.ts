@@ -182,6 +182,29 @@ describe("customer create Phase 1B mobile fixed actions", () => {
     assert.match(mobileActionsSource, /type="submit"/);
   });
 
+  it("mobile bar hides cancel and keeps a single left-aligned save control", () => {
+    assert.match(mobileActionsSource, /SHOW_MOBILE_CANCEL_BUTTON = false/);
+    assert.match(mobileActionsSource, /justify-start/);
+    assert.match(mobileActionsSource, /customer-create-mobile-save/);
+    assert.doesNotMatch(mobileActionsSource, /flex-1/);
+    assert.match(mobileActionsSource, /min-w-\[7\.5rem\]/);
+    assert.match(mobileActionsSource, /px-5/);
+    assert.match(mobileActionsSource, /min-h-10/);
+    assert.match(mobileActionsSource, /\bh-10\b/);
+    assert.match(mobileActionsSource, /size="sm"/);
+    // Cancel remains easy to restore and desktop cancel stays in the form.
+    assert.match(mobileActionsSource, /onClick=\{onCancel\}/);
+    assert.match(formSource, /hidden gap-3 md:flex/);
+    assert.match(formSource, /t\("common\.cancel"\)/);
+    assert.match(formSource, /type="submit"/);
+  });
+
+  it("mobile save stays disabled while submitting and bar hides with keyboard", () => {
+    assert.match(mobileActionsSource, /disabled=\{submitting\}/);
+    assert.match(mobileActionsSource, /hidden && "pointer-events-none invisible"/);
+    assert.match(formSource, /hidden=\{keyboardOpen\}/);
+  });
+
   it("stacks above MobileBottomNav with matching offset and z-index below modals", () => {
     assert.match(navSource, /z-40/);
     assert.match(navSource, /safe-area-inset-bottom/);
@@ -192,6 +215,10 @@ describe("customer create Phase 1B mobile fixed actions", () => {
     assert.match(globalsCss, /\.crm-security-watermark \{[\s\S]*?z-index:\s*55/);
     assert.match(globalsCss, /\.customer-create-mobile-actions/);
     assert.match(globalsCss, /\[data-theme="dark"\] \.customer-create-mobile-actions/);
+    assert.match(
+      globalsCss,
+      /\.customer-create-mobile-save\.primary-button/,
+    );
     const modalSource = readFileSync(
       join(process.cwd(), "src/components/ui/modal.tsx"),
       "utf8",
@@ -209,12 +236,26 @@ describe("customer create Phase 1B mobile fixed actions", () => {
   });
 
   it("adds mobile-only bottom padding so content clears the fixed bar", () => {
-    assert.match(formSource, /max-md:pb-24/);
+    assert.match(formSource, /max-md:pb-16/);
   });
 
   it("draft status stays in the form once (not duplicated in mobile actions)", () => {
     assert.match(formSource, /draftSavedAt/);
     assert.doesNotMatch(mobileActionsSource, /draftSavedAt/);
+  });
+});
+
+describe("customer create Phase 1B basic section headings", () => {
+  it("does not render identity-and-needs subtitle but keeps contact + fields", () => {
+    assert.doesNotMatch(formSource, /identityAndNeedsSection/);
+    assert.match(formSource, /customers\.basicSection/);
+    assert.match(formSource, /customers\.contactSection/);
+    assert.match(formSource, /id="customerType"/);
+    assert.match(formSource, /id="customerName"/);
+    assert.match(formSource, /id="requestedProjectName"/);
+    assert.match(formSource, /CreateCustomerConfirmModal/);
+    assert.match(formSource, /IncompleteContactConfirmModal|incomplete-contact/);
+    assert.match(formSource, /postCustomerCreateOnce|createCustomerCreateSubmitFlight/);
   });
 });
 

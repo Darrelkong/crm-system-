@@ -412,7 +412,7 @@ export function NewCustomerForm({
         id={NEW_CUSTOMER_FORM_ID}
         onSubmit={handleSubmit}
         noValidate
-        className="max-w-2xl max-md:pb-24"
+        className="max-w-2xl max-md:pb-16"
       >
       {serverError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
@@ -455,10 +455,6 @@ export function NewCustomerForm({
         <h3 className="mb-4 text-base font-semibold text-[#172033]">
           {t("customers.basicSection")}
         </h3>
-
-        <h4 className="mb-3 text-sm font-medium text-[#3A465C]">
-          {t("customers.identityAndNeedsSection")}
-        </h4>
 
         <Field>
           <Label htmlFor="customerType">{t("customers.clientType")}</Label>

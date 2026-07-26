@@ -1168,13 +1168,29 @@ html[data-theme="dark"] {
 
 /* New-customer mobile fixed actions (above MobileBottomNav; below modals z-60) */
 .customer-create-mobile-actions {
-  background: var(--color-crm-card);
-  border-top: 1px solid var(--color-crm-border);
-  box-shadow: 0 -4px 16px rgba(23, 32, 51, 0.06);
+  background: color-mix(in srgb, var(--color-crm-card) 92%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--color-crm-border) 70%, transparent);
+  box-shadow: 0 -2px 10px rgba(23, 32, 51, 0.04);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 
 [data-theme="dark"] .customer-create-mobile-actions {
-  box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.28);
+  background: color-mix(in srgb, var(--color-crm-card) 90%, transparent);
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
+}
+
+/* Compact save: translucent primary fill, opaque label (do not lower whole-button opacity). */
+.customer-create-mobile-actions .customer-create-mobile-save.primary-button {
+  background: color-mix(in srgb, var(--color-crm-primary) 92%, transparent);
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.customer-create-mobile-actions .customer-create-mobile-save.primary-button:hover {
+  background: color-mix(in srgb, var(--color-crm-primary-hover) 94%, transparent);
+  box-shadow: none;
+  transform: none;
 }
 
 [data-theme="dark"] .mobile-drawer-overlay {
