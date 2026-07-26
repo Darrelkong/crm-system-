@@ -76,8 +76,8 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
   first_contact_sla_hours: "首次联系 SLA（小时）",
   inactivity_logout_minutes: "无操作登出（分钟）",
   business_timezone: "业务时区",
-  device_authorization_enabled: "设备授权（启用后限制员工登录设备）",
-  device_authorization_limit_per_user: "每位员工最多授权设备数",
+  device_authorization_enabled: "设备授权（启用后限制团队成员登录设备）",
+  device_authorization_limit_per_user: "每位团队成员最多授权设备数",
   collaborative_dissolution_enabled: "共同负责自动解散（90 天未跟进）",
   global_idle_timeout_exempt_enabled: "免除 30 分钟无操作自动退出",
 };

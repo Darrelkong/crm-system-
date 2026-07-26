@@ -57,7 +57,7 @@ export const AUDIT_ACTION_LABELS: Record<string, string> = {
   "customer.claimed_from_pool": "客户已从公共池领取",
   "customer.auto_reclaimed_to_pool": "客户已自动回收到公共池",
   "customer.transferred": "客户已转移",
-  "customer.transferred.staff_deleted": "原负责员工已被删除，客户已自动转交给管理员",
+  "customer.transferred.staff_deleted": "原负责团队成员已被删除，客户已自动转交给管理员",
   "customer.closed_won.approved": "成交申请已通过",
   "customer.paid.approved": "客户已付款审批通过",
   "customer.lifecycle.completed": "客户已标记为已完结",

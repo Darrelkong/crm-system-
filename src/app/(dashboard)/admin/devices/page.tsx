@@ -8,7 +8,7 @@ export default function AdminDevicesPage() {
     <div>
       <PageIntro
         title="設備授權"
-        description="審核員工登入設備、批准或撤銷授權。每位員工預設最多 2 台已授權設備。"
+        description="審核團隊成員登入設備、批准或撤銷授權。每位團隊成員預設最多 2 台已授權設備。"
       />
       <DevicesClient />
     </div>

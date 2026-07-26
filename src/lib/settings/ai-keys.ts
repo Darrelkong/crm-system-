@@ -98,11 +98,11 @@ export const AI_SETTING_LABELS: Record<AiSettingKey, string> = {
   ai_prompt_template: "Prompt 模板",
   ai_prompt_version: "Prompt version",
   ai_show_draft_message: "显示话术草稿",
-  ai_staff_manual_refresh_enabled: "Staff 可手动刷新",
+  ai_staff_manual_refresh_enabled: "团队成员可手动刷新",
   ai_admin_only_manual_refresh: "仅 Admin 可刷新",
-  ai_staff_deep_analysis_enabled: "允许员工使用客户 AI 深度分析",
-  ai_staff_follow_up_organization_enabled: "允许员工使用跟进 AI 智能整理",
-  ai_staff_daily_limit: "员工每日 AI 使用次数",
+  ai_staff_deep_analysis_enabled: "允许团队成员使用客户 AI 深度分析",
+  ai_staff_follow_up_organization_enabled: "允许团队成员使用跟进 AI 智能整理",
+  ai_staff_daily_limit: "团队成员每日 AI 使用次数",
 };
 
 export const AI_LIMITS = {

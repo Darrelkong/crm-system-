@@ -8,7 +8,7 @@ export default function AdminUsersPage() {
     <div>
       <PageIntro
         title="用户管理"
-        description="创建员工账号、停用/启用、重置密码与解锁。仅管理员可访问。"
+        description="创建团队成员账号、停用/启用、重置密码与解锁。仅管理员可访问。"
       />
       <UsersClient />
     </div>

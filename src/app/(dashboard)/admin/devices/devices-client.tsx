@@ -99,7 +99,7 @@ export function DevicesClient() {
     const atLimit =
       summary != null && summary.approved_count >= summary.limit;
     const message = atLimit
-      ? `該員工已達設備上限（${summary.approved_count} / ${summary.limit}）。請先撤銷舊設備後再批准。仍要嘗試批准？`
+      ? `該團隊成員已達設備上限（${summary.approved_count} / ${summary.limit}）。請先撤銷舊設備後再批准。仍要嘗試批准？`
       : `批准 ${item.user_display_name} 的設備「${item.device_name ?? item.user_agent_summary ?? "未知"}」？`;
     void runAction(item.id, "approve", message);
   }
@@ -108,7 +108,7 @@ export function DevicesClient() {
     <div className="surface-card space-y-4 p-6">
       <div className="flex flex-wrap items-end gap-3">
         <div>
-          <Label htmlFor="filter-email">員工郵箱</Label>
+          <Label htmlFor="filter-email">團隊成員郵箱</Label>
           <Input
             id="filter-email"
             className="mt-1 w-56"
@@ -154,7 +154,7 @@ export function DevicesClient() {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="table-head border-b border-[#E3E8F0] text-[#6B7890]">
-                <th className="px-3 py-2">員工</th>
+                <th className="px-3 py-2">團隊成員</th>
                 <th className="px-3 py-2">設備</th>
                 <th className="px-3 py-2">瀏覽器 / 系統</th>
                 <th className="px-3 py-2">最近 IP</th>

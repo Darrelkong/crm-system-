@@ -575,7 +575,7 @@ export async function approveAuthorizedDevice(
     .limit(1);
   const user = targetUser[0];
   if (!user || user.role === "admin") {
-    throw new DeviceAdminError("invalid_target", "無效的員工設備");
+    throw new DeviceAdminError("invalid_target", "無效的團隊成員設備");
   }
 
   const limit = await getDeviceAuthorizationLimit(database);
@@ -583,7 +583,7 @@ export async function approveAuthorizedDevice(
   if (approvedCount >= limit) {
     throw new DeviceAdminError(
       "limit_reached",
-      `該員工已達設備上限（${limit} 台），請先撤銷舊設備`,
+      `該團隊成員已達設備上限（${limit} 台），請先撤銷舊設備`,
     );
   }
 

@@ -11,7 +11,7 @@ export type AnnouncementAudienceOption = (typeof ANNOUNCEMENT_AUDIENCES)[number]
 export const ANNOUNCEMENT_AUDIENCE_LABELS = {
   all: "所有人",
   admin: "仅管理员",
-  staff: "仅员工",
+  staff: "仅团队成员",
 } as const;
 
 export const ANNOUNCEMENT_STATUS_LABELS = {

@@ -1,6 +1,6 @@
 const en = {
   common: {
-    appName: "EchFront CRM",
+    appName: "ECHFRONT CRM",
     save: "Save",
     cancel: "Cancel",
     confirm: "Confirm",
@@ -39,7 +39,7 @@ const en = {
     updatedAt: "Updated",
     language: "Language",
     admin: "Admin",
-    staff: "Staff",
+    staff: "Team Member",
     active: "Active",
     disabled: "Disabled",
     enabled: "Enabled",
@@ -54,7 +54,7 @@ const en = {
     notes: "Notes",
     countryRegion: "Country / region",
     serviceType: "Service type",
-    assignedStaff: "Assigned staff",
+    assignedStaff: "Assigned Team Member",
     permission: "Permission",
     prevPage: "Previous",
     nextPage: "Next",
@@ -173,7 +173,7 @@ const en = {
     language: "Language",
     signOut: "Sign out",
     roleAdmin: "ADMIN",
-    roleStaff: "STAFF",
+    roleStaff: "TEAM MEMBER",
     help: "Help center",
     auditLogs: "Audit log",
     deviceAuthorization: "Device Authorization",
@@ -232,7 +232,7 @@ const en = {
     followUpsThisMonth: "Follow-ups this month",
     pendingApprovals: "Pending approvals",
     stageDistribution: "Customer stage distribution",
-    staffCustomerDistribution: "Staff customer distribution",
+    staffCustomerDistribution: "Team Member customer distribution",
     recentFollowUps: "Recent follow-ups",
     myTotalCustomers: "My total customers",
     myNewToday: "My new today",
@@ -245,7 +245,7 @@ const en = {
     noData: "No report data available yet.",
     noRecentFollowUps: "No recent follow-ups.",
     noStageData: "No customer stage data.",
-    noStaffDistribution: "No staff customer distribution data.",
+    noStaffDistribution: "No team member customer distribution data.",
     columnTime: "Time",
     columnCustomer: "Customer",
     columnChannel: "Channel",
@@ -288,7 +288,7 @@ const en = {
   },
   layout: {
     adminDashboard: "Admin workspace",
-    staffDashboard: "Staff workspace",
+    staffDashboard: "Team Member Workspace",
     greeting: "Hello, {{name}}",
     adminKpiDescription: "Admin performance overview",
     staffKpiDescription: "Your performance overview",
@@ -296,9 +296,9 @@ const en = {
     adminControlCenter: "Administrator Global Control Center",
   },
   brand: {
-    crmName: "EchFrontHK CRM",
+    crmName: "ECHFRONT CRM",
     portalSubtitle: "Secure Client Management Portal",
-    dashboardSubtitle: "EchFront CRM · Global Service Dashboard",
+    dashboardSubtitle: "ECHFRONT CRM · Global Service Dashboard",
   },
   customers: {
     management: "Client Management",
@@ -329,10 +329,10 @@ const en = {
     salesStage: "Sales Stage",
     heatLevel: "Client Priority",
     status: "Client Status",
-    owner: "Assigned Staff",
-    assignedStaff: "Assigned Staff",
+    owner: "Assigned Team Member",
+    assignedStaff: "Assigned Team Member",
     createdBy: "Created by",
-    unknownStaff: "Unknown staff",
+    unknownStaff: "Unknown team member",
     notes: "Notes",
     createdAt: "Created",
     updatedAt: "Updated",
@@ -348,7 +348,7 @@ const en = {
     newFollowUpDescription: "Record this client interaction",
     timeline: "Timeline",
     releaseToPool: "Release to Public Pool",
-    manageCollaborators: "Manage Responsible Staff",
+    manageCollaborators: "Manage Responsible Team Members",
     primaryOwner: "Primary Owner",
     collaborators: "Collaborators",
     selectCollaborators: "Select collaborators",
@@ -362,8 +362,8 @@ const en = {
     assigneeUpdateReasonPlaceholder: "Explain why collaborators should change",
     currentCollaborators: "Current collaborators",
     requestedCollaborators: "Requested collaborators",
-    addedCollaborators: "Added staff",
-    removedCollaborators: "Removed staff",
+    addedCollaborators: "Added team member",
+    removedCollaborators: "Removed team member",
     submitAssigneeApproval: "Submit for approval",
     unableToSubmitAssigneeApproval: "Unable to submit collaborator update request",
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data",
@@ -512,7 +512,7 @@ const en = {
     approvalReason: "Reason",
     approvalReasonPlaceholder: "Enter the reason for this request",
     transferTarget: "Transfer To",
-    selectStaff: "Select staff member",
+    selectStaff: "Select team member",
     relatedCustomerIds: "Related client IDs (comma-separated)",
     dealAmount: "Deal Amount",
     signingDate: "Signing Date",
@@ -655,14 +655,14 @@ const en = {
     deepAnalysis: {
       title: "AI deep analysis",
       description:
-        "External AI analysis. Generation uses staff AI quota when applicable.",
+        "External AI analysis. Generation uses team member AI quota when applicable.",
       cachedBadge: "Cached deep analysis",
       cannotRegenerate: "Cannot regenerate currently",
       empty: "No AI deep analysis is available yet.",
       status: {
         available: "AI deep analysis is available.",
         staffDisabled:
-          "Customer AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
+          "Customer AI deep analysis is not currently enabled for team members. Basic system analysis remains available.",
         limitReached:
           "You have reached today’s AI usage limit. Basic system analysis is still available.",
         globalDisabled:
@@ -671,7 +671,7 @@ const en = {
           "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
         mockOnly:
           "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
-        manualRefreshDisabled: "Staff manual refresh is disabled by admin settings.",
+        manualRefreshDisabled: "Team Member manual refresh is disabled by admin settings.",
         adminOnly: "Only administrators can refresh AI deep analysis.",
         cooldown: "This customer was analyzed just now. Please try again later.",
         permissionDenied: "Insufficient permissions for AI deep analysis.",
@@ -682,7 +682,7 @@ const en = {
     aiInsight: {
       title: "AI deep analysis",
       disclaimer:
-        "AI suggestions are for internal reference only. Staff must apply their own judgment before use; they do not constitute any commitment to the client.",
+        "AI suggestions are for internal reference only. Team Members must apply their own judgment before use; they do not constitute any commitment to the client.",
       loading: "Loading AI analysis…",
       empty: "No AI analysis yet",
       restricted: "Insufficient permissions to view AI insights.",
@@ -698,9 +698,9 @@ const en = {
       refreshDenied: "Manual AI refresh is not allowed for your role.",
       refreshCooldown: "This customer was analyzed just now. Please try again later.",
       refreshAdminOnly: "Only administrators can refresh AI insights.",
-      refreshStaffDisabled: "Staff manual refresh is disabled by admin settings.",
+      refreshStaffDisabled: "Team Member manual refresh is disabled by admin settings.",
       staffDeepAnalysisDisabled:
-        "Customer AI deep analysis is not currently enabled for staff. Basic system analysis remains available.",
+        "Customer AI deep analysis is not currently enabled for team members. Basic system analysis remains available.",
       dailyLimitReached:
         "You have reached today’s AI usage limit. Basic system analysis is still available.",
       reservationConflict: "This request could not start. Refresh the page and try again.",
@@ -730,7 +730,7 @@ const en = {
       missingInformation: "Missing information",
       nextBestAction: "Suggested next step",
       suggestedFollowUpAt: "Suggested follow-up time",
-      suggestedEmployeeMessage: "Draft message for staff",
+      suggestedEmployeeMessage: "Draft message for team members",
       noKeySignals: "No positive signals identified",
       noRiskFlags: "No risk alerts",
       noMissingInformation: "No missing information flagged",
@@ -745,7 +745,7 @@ const en = {
     phase2: {
       opportunityTitle: "Opportunity score",
       opportunityInsufficient: "There is not enough reliable information to calculate an opportunity score.",
-      opportunityDisclaimer: "This score helps staff decide next steps. It does not mean the customer will close.",
+      opportunityDisclaimer: "This score helps team members decide next steps. It does not mean the customer will close.",
       confidenceHint: "Confidence reflects how complete the available evidence is.",
       confidence: {
         high: "High",
@@ -930,7 +930,7 @@ const en = {
       closed_won: "Request close-won",
       second_conversion: "Request second conversion",
       create_on_hold_customer: "Request On-Hold Customer",
-      update_customer_assignees: "Update Responsible Staff",
+      update_customer_assignees: "Update Responsible Team Members",
       paid_customer: "Mark as Paid Request",
     },
   },
@@ -946,7 +946,7 @@ const en = {
     email: "Email",
     source: "Client source",
     sales_stage: "Sales stage",
-    owner_id: "Assigned staff",
+    owner_id: "Assigned Team Member",
     notes: "Notes",
     follow_up: "At least one follow-up record",
     next_follow_up_at: "Next follow-up time",
@@ -954,27 +954,27 @@ const en = {
   employees: {
     title: "User management",
     list: "User list",
-    addStaff: "Add staff",
+    addStaff: "Add team member",
     staffName: "Display name",
     staffEmail: "Work email",
     temporaryPassword: "Temporary password",
-    createStaff: "Create staff account",
+    createStaff: "Create team member account",
     resetPassword: "Reset password",
     newPassword: "New password",
     unlockAccount: "Unlock account",
     disableAccount: "Disable account",
-    disableStaff: "Disable staff",
+    disableStaff: "Disable team member",
     disableStaffHint:
-      "The staff member will not be able to sign in, and their clients will remain assigned to them.",
-    deleteStaff: "Delete staff",
+      "The team member will not be able to sign in, and their clients will remain assigned to them.",
+    deleteStaff: "Delete team member",
     deleteStaffHint:
-      "The staff member will not be able to sign in, and their clients will be transferred to you. History is preserved.",
+      "The team member will not be able to sign in, and their clients will be transferred to you. History is preserved.",
     deleteStaffConfirm:
-      "After deletion, this staff member cannot sign in and their clients will be transferred to you. All history will be preserved. Continue?",
-    deleteStaffModalTitle: "Confirm staff deletion",
-    deleteStaffModalIntro: "You are about to delete this staff member",
+      "After deletion, this team member cannot sign in and their clients will be transferred to you. All history will be preserved. Continue?",
+    deleteStaffModalTitle: "Confirm team member deletion",
+    deleteStaffModalIntro: "You are about to delete this team member",
     deleteStaffModalAfterDeleteTitle: "After deletion",
-    deleteStaffModalCannotLogin: "This staff member will no longer be able to sign in",
+    deleteStaffModalCannotLogin: "This team member will no longer be able to sign in",
     deleteStaffModalTransferTo: "Owned clients will be transferred to",
     deleteStaffModalRemoveCollaborators: "Collaborator relationships will be removed",
     deleteStaffModalHistoryPreserved:
@@ -987,22 +987,22 @@ const en = {
     deleteStaffModalIrreversible: "This action cannot be directly undone.",
     deleteStaffModalConfirm: "Confirm deletion",
     deleteStaffModalPreviewFailed: "Unable to load deletion impact preview",
-    staffDeleted: "Staff deleted. {{count}} client(s) transferred to you.",
+    staffDeleted: "Team Member deleted. {{count}} client(s) transferred to you.",
     staffDeletedNoCount:
-      "Staff deleted. Their clients have been transferred to the Admin account.",
+      "Team Member deleted. Their clients have been transferred to the Admin account.",
     staffDeletedWithCount:
-      "Staff deleted. {{count}} client(s) transferred to the Admin account.",
-    statsActiveEmployees: "Active employees",
-    statsDeletedEmployees: "Deleted employees",
+      "Team Member deleted. {{count}} client(s) transferred to the Admin account.",
+    statsActiveEmployees: "Active team members",
+    statsDeletedEmployees: "Deleted team members",
     statsAdminCount: "Admins",
-    statsStaffCount: "Staff",
-    statsCurrentEmployees: "Current Employees",
+    statsStaffCount: "Team Members",
+    statsCurrentEmployees: "Current Team Members",
     statsDisabled: "Disabled",
-    statsFormerEmployees: "Former staff",
-    statsTotalEmployees: "Total Employees",
-    formerEmployeesTitle: "Deleted employee records",
+    statsFormerEmployees: "Former team members",
+    statsTotalEmployees: "Total Team Members",
+    formerEmployeesTitle: "Deleted team member records",
     formerEmployeesDescription:
-      "Deleted staff accounts are listed below. After deletion, their clients were transferred to the Admin account and the former staff member can no longer sign in.",
+      "Deleted team member accounts are listed below. After deletion, their clients were transferred to the Admin account and the former team member can no longer sign in.",
     deletedAt: "Deleted at",
     deletedBy: "Deleted by",
     colTransferredCustomers: "Clients transferred",
@@ -1012,17 +1012,17 @@ const en = {
     customerTransferStatus: "Client transfer",
     customerTransferredToAdmin: "Transferred to Admin account",
     enableAccount: "Enable account",
-    staffCreated: "Staff account created",
+    staffCreated: "Team Member account created",
     passwordReset: "Password reset successfully",
     accountUnlocked: "Account unlocked",
     accountEnabled: "Account enabled",
     accountDisabled: "Account disabled",
     adminRole: "Administrator",
-    staffRole: "Staff",
+    staffRole: "Team Member",
     createFailed: "Failed to create account",
     operationFailed: "Operation failed",
-    listTitle: "Staff list",
-    newStaffAccountTitle: "New staff account",
+    listTitle: "Team Members list",
+    newStaffAccountTitle: "New team member account",
     confirmReset: "Confirm reset",
     failedAttempts: "Failed attempts",
     lockedUntil: "Locked until",
@@ -1259,7 +1259,7 @@ const en = {
     approvalRejectedWithComment:
       "Your {{approvalType}} request has been rejected. Admin note: {{adminComment}}",
     customerTransferredAway:
-      "Client \"{{customerName}}\" has been transferred to another staff member.",
+      "Client \"{{customerName}}\" has been transferred to another team member.",
     customerTransferredToYou:
       "Client \"{{customerName}}\" has been transferred to you.",
     closedWonApproved:
@@ -1296,7 +1296,7 @@ const en = {
     pendingApprovals: "Pending Approvals",
     todayFollowUps: "Today's Follow-ups",
     weekFollowUps: "This Week's Follow-ups",
-    staffMembers: "Staff Members",
+    staffMembers: "Team Members",
     publicPoolClients: "Public Pool Clients",
     recentClients: "Recent Clients",
     recentFollowUps: "Recent Follow-ups",
@@ -1328,9 +1328,9 @@ const en = {
     completenessBelow60: "Completeness < 60",
     customersBySource: "Clients by Source",
     customersBySalesStage: "Clients by Sales Stage",
-    staffClientRanking: "Staff Client Ranking",
-    staffFollowUpRanking: "Staff Follow-ups This Month",
-    columnStaff: "Staff",
+    staffClientRanking: "Team Member Client Ranking",
+    staffFollowUpRanking: "Team Member Follow-ups This Month",
+    columnStaff: "Team Member",
     columnClientCount: "Clients",
     columnFollowUpCount: "Follow-ups",
     myClients: "My Clients",
@@ -1411,7 +1411,7 @@ const en = {
     audience: {
       all: "Everyone",
       admin: "Administrators only",
-      staff: "Staff only",
+      staff: "Team Members only",
     },
     unread: "Unread",
     read: "Read",
@@ -1454,7 +1454,7 @@ const en = {
       "Learn how to manage clients, log follow-ups, use the public pool, and read AI insights in the CRM.",
     testingPhaseBadge: "Testing phase",
     adminOnlyBadge: "Admin only",
-    staffOnlyBadge: "Staff only",
+    staffOnlyBadge: "Team Members only",
     readOnlyNotice:
       "This page is for reference only. It does not change any system settings.",
     sections: {
@@ -1636,7 +1636,7 @@ const en = {
     subtitleAdmin:
       "Admins can view full details and claim clients (no claim limits)",
     subtitleStaff:
-      "Staff see masked details only; use random assignment to receive one customer",
+      "Team Member see masked details only; use random assignment to receive one customer",
     availableClients: "Available Clients",
     releaseToPool: "Release to Public Pool",
     claimClient: "Claim Client",
@@ -1650,7 +1650,7 @@ const en = {
     releaseFailed: "Failed to release client.",
     noClients: "No clients in the public pool.",
     alreadyClaimed:
-      "This client has already been claimed by another staff member.",
+      "This client has already been claimed by another team member.",
     backToList: "Back to Client List",
     clientName: "Client Name",
     clientSource: "Client Source",
@@ -1885,7 +1885,7 @@ const en = {
       "Manage customer rules, security policies, and feature entry points in one place. Some high-risk features show read-only status and report links only.",
     inactivityLogoutFixedHint: "This security policy is fixed at 30 minutes.",
     reclaimHelperText:
-      "Customers without valid follow-up for the configured number of days will be reclaimed to the public pool. The system will remind the responsible staff the configured number of days before reclamation.",
+      "Customers without valid follow-up for the configured number of days will be reclaimed to the public pool. The system will remind the responsible team members the configured number of days before reclamation.",
     loading: "Loading…",
     saving: "Saving…",
     save: "Save settings",
@@ -1895,9 +1895,9 @@ const en = {
     statusDisabled: "Disabled",
     badgeReadOnly: "Read-only",
     deviceAuthEnabledOn:
-      "Device authorization is enabled. New staff devices require admin approval.",
+      "Device authorization is enabled. New team member devices require admin approval.",
     deviceAuthEnabledOff:
-      "Device authorization is disabled. Staff login is not restricted by device.",
+      "Device authorization is disabled. Team Members login is not restricted by device.",
     globalIdleExemption: {
       title: "Exempt users from the 30-minute inactivity logout",
       description:
@@ -1922,7 +1922,7 @@ const en = {
     publicPoolQuickEntry: {
       title: "Public Pool Quick Entry",
       description:
-        "Allow staff to verify a quick-entry code and create customers directly in the public pool. Resetting the code invalidates all current grants.",
+        "Allow team members to verify a quick-entry code and create customers directly in the public pool. Resetting the code invalidates all current grants.",
       loading: "Loading…",
       saving: "Working…",
       setCode: "Set entry code",
@@ -1955,7 +1955,7 @@ const en = {
       saveFailed: "Unable to update quick-entry settings. Please try again.",
       disableConfirmTitle: "Disable public pool quick entry?",
       disableConfirmDescription:
-        "Staff will not be able to start new quick-entry submissions.\n\nRequests already in progress follow server rules and may finish. Existing grants become unusable for new requests.",
+        "Team Member will not be able to start new quick-entry submissions.\n\nRequests already in progress follow server rules and may finish. Existing grants become unusable for new requests.",
       disableConfirmSubmit: "Disable",
     },
     sections: {
@@ -1981,7 +1981,7 @@ const en = {
       security: {
         title: "Login & device security",
         description:
-          "Session timeout is fixed. Device authorization limits which devices staff may use to sign in.",
+          "Session timeout is fixed. Device authorization limits which devices team members may use to sign in.",
       },
       ai: {
         title: "AI customer insights",
@@ -1991,7 +1991,7 @@ const en = {
       announcements: {
         title: "Announcements & welcome",
         description:
-          "Published announcements appear on the staff welcome flow after login.",
+          "Published announcements appear on the team member welcome flow after login.",
       },
     },
     cards: {
@@ -2008,12 +2008,12 @@ const en = {
       },
       announcements: {
         title: "Announcement management",
-        description: "Create and publish announcements for staff and admins.",
+        description: "Create and publish announcements for team members and admins.",
         button: "Manage announcements",
       },
       devices: {
         title: "Authorized devices",
-        description: "Review and approve staff login devices.",
+        description: "Review and approve team member login devices.",
         button: "Manage devices",
       },
       securityPolicies: {
@@ -2040,7 +2040,7 @@ const en = {
       loginLockout: {
         title: "Failed login lockout",
         description:
-          "Staff accounts are locked automatically after {{count}} consecutive failed password attempts.",
+          "Team Member accounts are locked automatically after {{count}} consecutive failed password attempts.",
       },
       loginLockedBlocked: {
         title: "Locked accounts cannot sign in",
@@ -2055,7 +2055,7 @@ const en = {
       loginAdminUnlock: {
         title: "Administrator unlock required",
         description:
-          "Only administrators can unlock a locked staff account from User Management.",
+          "Only administrators can unlock a locked team member account from User Management.",
       },
       loginPasswordReset: {
         title: "Password reset restores access",
@@ -2073,14 +2073,14 @@ const en = {
           "Signing in on a new device revokes the previous session for the same account.",
       },
       sessionDeletedRevoked: {
-        title: "Deleted staff sessions revoked",
+        title: "Deleted team members sessions revoked",
         description:
-          "When a staff account is deleted, all of its active sessions are revoked immediately.",
+          "When a team member account is deleted, all of its active sessions are revoked immediately.",
       },
       sessionLockedRevoked: {
-        title: "Locked staff sessions revoked",
+        title: "Locked team members sessions revoked",
         description:
-          "When a staff account is locked, all of its active sessions are revoked immediately.",
+          "When a team member account is locked, all of its active sessions are revoked immediately.",
       },
       userAdminSelfDelete: {
         title: "Administrators cannot delete themselves",
@@ -2093,14 +2093,14 @@ const en = {
           "The system prevents deletion of the last remaining administrator account.",
       },
       userDeletedLogin: {
-        title: "Deleted staff cannot sign in",
+        title: "Deleted team members cannot sign in",
         description:
-          "Deleted staff accounts remain disabled and cannot sign in again.",
+          "Deleted team member accounts remain disabled and cannot sign in again.",
       },
       userCustomerTransfer: {
-        title: "Customer transfer on staff deletion",
+        title: "Customer transfer on team members deletion",
         description:
-          "When a staff member is deleted, their assigned customers are transferred to the administrator performing the deletion.",
+          "When a team member is deleted, their assigned customers are transferred to the administrator performing the deletion.",
       },
       customerRecycleBin: {
         title: "Soft delete to recycle bin",
@@ -2203,7 +2203,7 @@ const en = {
       actorRoles: {
         all: "All",
         admin: "Admin",
-        staff: "Staff",
+        staff: "Team Member",
         unknown: "Unknown",
       },
       feedbackTargets: {
@@ -2241,7 +2241,7 @@ const en = {
     },
     roles: {
       admin: "Admin attempts",
-      staff: "Staff attempts",
+      staff: "Team Member attempts",
       unknown: "Unknown role",
     },
     failures: {
@@ -2346,19 +2346,19 @@ const en = {
     promptTemplateHint: "Use {{context_json}} to inject customer context.",
     promptVersion: "Prompt version",
     showDraftMessage: "Show draft message",
-    staffManualRefreshEnabled: "Staff can manually refresh",
+    staffManualRefreshEnabled: "Team Member can manually refresh",
     adminOnlyManualRefresh: "Admin-only manual refresh",
-    staffUsageControlsTitle: "Staff AI feature controls",
+    staffUsageControlsTitle: "Team Member AI feature controls",
     staffUsageControlsHint:
-      "Independently control which external AI features staff may use, and the shared daily usage limit. Basic system analysis and basic cleanup remain available.",
-    staffDeepAnalysisEnabled: "Allow staff to use customer AI deep analysis",
+      "Independently control which external AI features team members may use, and the shared daily usage limit. Basic system analysis and basic cleanup remain available.",
+    staffDeepAnalysisEnabled: "Allow team members to use customer AI deep analysis",
     staffDeepAnalysisEnabledHint:
       "Controls AI deep analysis and regeneration in customer details. Basic system analysis remains available.",
     staffFollowUpOrganizationEnabled:
-      "Allow staff to use AI follow-up organization",
+      "Allow team members to use AI follow-up organization",
     staffFollowUpOrganizationEnabledHint:
       "Controls AI organization for initial notes and new follow-ups. Basic cleanup remains available.",
-    staffDailyLimit: "Daily AI usage limit per staff member",
+    staffDailyLimit: "Daily AI usage limit per team member",
     staffDailyLimitHint:
       "Customer AI deep analysis and AI follow-up organization share this daily limit. Basic system analysis and basic cleanup do not use the quota.",
     dailyLimitTimes: "{{count}} request(s)",
@@ -2366,23 +2366,23 @@ const en = {
     dailyLimitCustomValue: "Custom daily limit",
     dailyLimitRangeHint: "Enter an integer from {{min}} to {{max}}.",
     usageResetsHongKong: "Usage resets daily at 00:00 Hong Kong time.",
-    saveStaffControls: "Save staff AI controls",
+    saveStaffControls: "Save team member AI controls",
     invalidDailyLimit: "Invalid daily limit",
-    todayUsageSummary: "Today’s staff AI usage",
+    todayUsageSummary: "Today’s team member AI usage",
     todaySuccessTotal: "Successful uses today",
-    todayActiveStaffCount: "Staff who used AI today",
+    todayActiveStaffCount: "Team Members who used AI today",
     usageDate: "Hong Kong usage date",
-    staffName: "Staff",
+    staffName: "Team Member",
     usedToday: "Used today",
     remainingToday: "Remaining",
     usageStatus: "Status",
     statusOk: "Available",
     statusLimitReached: "Limit reached",
     statusDisabled: "Disabled",
-    noStaff: "No active staff accounts",
+    noStaff: "No active team member accounts",
     staffListTruncated:
-      "Showing the first {{limit}} active staff members. Totals above still cover all staff.",
-    staffUsageLoadFailed: "Failed to load staff AI usage",
+      "Showing the first {{limit}} active team members. Totals above still cover all team members.",
+    staffUsageLoadFailed: "Failed to load team member AI usage",
     save: "Save settings",
     saving: "Saving…",
     saveSuccess: "AI settings saved",
@@ -2518,7 +2518,7 @@ const en = {
     availability: {
       available: "AI organize is available",
       staffDisabled:
-        "AI follow-up organization is not currently enabled for staff. Basic cleanup remains available.",
+        "AI follow-up organization is not currently enabled for team members. Basic cleanup remains available.",
       limitReached:
         "You have reached today’s AI usage limit. Basic cleanup remains available.",
       globalDisabled:
@@ -2552,7 +2552,7 @@ const en = {
     staffDescription: "Your follow-up records across assigned clients.",
     time: "Follow-up time",
     customer: "Customer",
-    staff: "Staff",
+    staff: "Team Member",
     channel: "Channel",
     content: "Summary",
     nextStep: "Next step",
@@ -2564,9 +2564,9 @@ const en = {
     fromDate: "From date",
     toDate: "To date",
     channelFilter: "Channel",
-    staffFilter: "Staff",
+    staffFilter: "Team Member",
     allChannels: "All channels",
-    allStaff: "All staff",
+    allStaff: "All team members",
   },
   tagsStagesPage: {
     title: "Tags & Stages",
@@ -2783,7 +2783,7 @@ const en = {
     cannotEditPublicPool: "You cannot edit public pool clients.",
     cannotEditCustomer: "You cannot edit this client.",
     cannotChangeCustomerStatus:
-      "Staff cannot change client status through edit. Use release to pool or approval workflows instead.",
+      "Team Member cannot change client status through edit. Use release to pool or approval workflows instead.",
     customerSensitiveFieldsLocked:
       "Sensitive customer information can only be modified by an admin.",
     publicPoolRequiresReleaseFlow:
@@ -2796,8 +2796,8 @@ const en = {
     assigneeInvalidPayload: "Invalid collaborator selection.",
     assigneeOwnerNotAllowed: "The primary owner cannot be added as a collaborator.",
     assigneeAdminNotAllowed: "Administrators cannot be added as collaborators.",
-    assigneeInactiveUser: "Inactive or deleted staff cannot be added.",
-    assigneeUserNotFound: "The selected staff member was not found.",
+    assigneeInactiveUser: "Inactive or deleted team members cannot be added.",
+    assigneeUserNotFound: "The selected team member was not found.",
     customerAssigneesForbidden: "You cannot manage assignees for this client.",
     pendingOnHoldCreate:
       "This client is awaiting on-hold approval; assignees cannot be changed yet.",
@@ -2832,9 +2832,9 @@ const en = {
     approvalAlreadyProcessed: "This request has already been processed.",
     publicPoolClientNotFound: "Client is not in the public pool.",
     publicPoolClientAlreadyClaimed:
-      "This client has already been claimed by another staff member. Please refresh the public pool list.",
+      "This client has already been claimed by another team member. Please refresh the public pool list.",
     clientAlreadyClaimed:
-      "This client has already been claimed by another staff member.",
+      "This client has already been claimed by another team member.",
     importFileRequired: "Please upload a CSV file first.",
     importInvalidFileFormat: "Invalid file format.",
     importFailed: "Import failed.",
@@ -2848,15 +2848,15 @@ const en = {
       "Random assignment does not accept a selected customer or custom parameters.",
     invalidRequestBody:
       "The request format is invalid. Refresh the page and try again.",
-    randomClaimStaffOnly: "This feature is available to staff only.",
+    randomClaimStaffOnly: "This feature is available to team members only.",
     claimMethodNotAllowed:
-      "Staff cannot select a specific public-pool customer. Use random assignment instead.",
+      "Team Member cannot select a specific public-pool customer. Use random assignment instead.",
     publicPoolNoEligibleCustomer:
       "There are currently no eligible public-pool customers available.",
     publicPoolCandidateScanLimit:
       "The system could not safely complete the assignment. Try again later or contact an administrator if it continues.",
     publicPoolRandomClaimConflict:
-      "Another staff member claimed the available customer first. Try again shortly.",
+      "Another team member claimed the available customer first. Try again shortly.",
     missingJobId: "Missing job ID. Please run precheck first.",
     unauthorized: "Unauthorized.",
     notificationNotFound: "Notification not found.",
