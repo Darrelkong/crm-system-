@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,10 @@ import {
   validateFollowUpInput,
   type ValidationFieldError,
 } from "@/lib/follow-ups/validation";
+import {
+  createFollowUpSubmitFlight,
+  postFollowUpCreateOnce,
+} from "@/lib/follow-ups/follow-up-create-submit-flight";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { FollowUpOrganizeControls } from "@/components/follow-ups/follow-up-organize-controls";
@@ -26,6 +30,7 @@ export function NewFollowUpForm({
 }) {
   const router = useRouter();
   const { t, followUpChannel, followUpOutcome } = useCustomerLabels();
+  const submitFlightRef = useRef(createFollowUpSubmitFlight());
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -51,9 +56,13 @@ export function NewFollowUpForm({
     setServerError(null);
   }
 
+  function unlockSubmitFlight(): void {
+    submitFlightRef.current.release();
+    setSubmitting(false);
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setFieldErrors({});
     setServerError(null);
 
@@ -74,26 +83,40 @@ export function NewFollowUpForm({
         errs[fe.field] = resolveFieldError(t, fe);
       }
       setFieldErrors(errs);
-      setSubmitting(false);
       return;
     }
 
     const nextFollowUpAtIso = new Date(form.nextFollowUpAt).toISOString();
+    const body = {
+      channel: form.channel,
+      outcome: form.outcome,
+      summary: form.summary,
+      customerIntent: form.customerIntent.trim(),
+      nextFollowUpAt: nextFollowUpAtIso,
+      nextAction: form.nextAction,
+    };
+
+    const gated = await postFollowUpCreateOnce({
+      flight: submitFlightRef.current,
+      customerId,
+      body,
+      onAcquired: () => {
+        setSubmitting(true);
+      },
+    });
+
+    if (gated.status === "blocked") {
+      return;
+    }
+
+    if (gated.status === "network_error") {
+      setServerError(t("common.networkError"));
+      unlockSubmitFlight();
+      return;
+    }
 
     try {
-      const res = await fetch(`/api/customers/${customerId}/follow-ups`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          channel: form.channel,
-          outcome: form.outcome,
-          summary: form.summary,
-          customerIntent: form.customerIntent.trim(),
-          nextFollowUpAt: nextFollowUpAtIso,
-          nextAction: form.nextAction,
-        }),
-      });
-
+      const res = gated.response;
       const data = (await res.json()) as {
         ok?: boolean;
         error?: string;
@@ -102,6 +125,7 @@ export function NewFollowUpForm({
       };
 
       if (res.ok) {
+        // Success: keep flight locked and submitting until navigation finishes.
         router.push(`/customers/${customerId}`);
         return;
       }
@@ -112,14 +136,15 @@ export function NewFollowUpForm({
           errs[fe.field] = resolveFieldError(t, fe);
         }
         setFieldErrors(errs);
+        unlockSubmitFlight();
         return;
       }
 
       setServerError(resolveApiError(t, data));
+      unlockSubmitFlight();
     } catch {
       setServerError(t("common.networkError"));
-    } finally {
-      setSubmitting(false);
+      unlockSubmitFlight();
     }
   }
 
