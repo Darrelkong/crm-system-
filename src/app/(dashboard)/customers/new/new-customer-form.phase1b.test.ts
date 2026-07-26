@@ -8,6 +8,7 @@ import zhHant from "@/i18n/locales/zh-Hant";
 import {
   getIncompleteContactKind,
   MOBILE_BOTTOM_NAV_STACK_OFFSET,
+  MOBILE_FLOATING_SAVE_BOTTOM,
 } from "@/lib/customers/incomplete-contact";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { createEmptyCustomerCreateFormData } from "@/lib/customers/customer-create-draft";
@@ -169,22 +170,22 @@ describe("customer create Phase 1B incomplete contact flow", () => {
   });
 });
 
-describe("customer create Phase 1B mobile fixed actions", () => {
-  it("shows fixed actions only below md and hides inline actions on mobile", () => {
+describe("customer create Phase 1B mobile floating save", () => {
+  it("shows floating save only below md and hides inline actions on mobile", () => {
     assert.match(mobileActionsSource, /md:hidden/);
     assert.match(formSource, /hidden gap-3 md:flex/);
     assert.match(formSource, /CustomerCreateMobileActions/);
   });
 
-  it("fixed save uses form attribute for the same form id", () => {
+  it("floating save uses form attribute for the same form id", () => {
     assert.match(formSource, /id=\{NEW_CUSTOMER_FORM_ID\}/);
     assert.match(mobileActionsSource, /form=\{formId\}/);
     assert.match(mobileActionsSource, /type="submit"/);
   });
 
-  it("mobile bar hides cancel and keeps a single left-aligned save control", () => {
+  it("mobile FAB hides cancel and keeps a single right-aligned save control", () => {
     assert.match(mobileActionsSource, /SHOW_MOBILE_CANCEL_BUTTON = false/);
-    assert.match(mobileActionsSource, /justify-start/);
+    assert.match(mobileActionsSource, /justify-end/);
     assert.match(mobileActionsSource, /customer-create-mobile-save/);
     assert.doesNotMatch(mobileActionsSource, /flex-1/);
     assert.match(mobileActionsSource, /min-w-\[7\.5rem\]/);
@@ -192,6 +193,8 @@ describe("customer create Phase 1B mobile fixed actions", () => {
     assert.match(mobileActionsSource, /min-h-10/);
     assert.match(mobileActionsSource, /\bh-10\b/);
     assert.match(mobileActionsSource, /size="sm"/);
+    assert.match(mobileActionsSource, /pointer-events-none/);
+    assert.match(mobileActionsSource, /pointer-events-auto/);
     // Cancel remains easy to restore and desktop cancel stays in the form.
     assert.match(mobileActionsSource, /onClick=\{onCancel\}/);
     assert.match(formSource, /hidden gap-3 md:flex/);
@@ -199,22 +202,37 @@ describe("customer create Phase 1B mobile fixed actions", () => {
     assert.match(formSource, /type="submit"/);
   });
 
-  it("mobile save stays disabled while submitting and bar hides with keyboard", () => {
+  it("mobile save stays disabled while submitting and FAB hides with keyboard", () => {
     assert.match(mobileActionsSource, /disabled=\{submitting\}/);
-    assert.match(mobileActionsSource, /hidden && "pointer-events-none invisible"/);
+    assert.match(mobileActionsSource, /hidden && "invisible"/);
     assert.match(formSource, /hidden=\{keyboardOpen\}/);
   });
 
-  it("stacks above MobileBottomNav with matching offset and z-index below modals", () => {
+  it("floats above MobileBottomNav with gap and z-index below modals", () => {
     assert.match(navSource, /z-40/);
     assert.match(navSource, /safe-area-inset-bottom/);
     assert.match(mobileActionsSource, /z-\[45\]/);
+    assert.match(mobileActionsSource, /MOBILE_FLOATING_SAVE_BOTTOM/);
     assert.match(MOBILE_BOTTOM_NAV_STACK_OFFSET, /3\.625rem/);
     assert.match(MOBILE_BOTTOM_NAV_STACK_OFFSET, /safe-area-inset-bottom/);
+    assert.match(MOBILE_FLOATING_SAVE_BOTTOM, /3\.625rem/);
+    assert.match(MOBILE_FLOATING_SAVE_BOTTOM, /0\.75rem/);
+    assert.match(MOBILE_FLOATING_SAVE_BOTTOM, /safe-area-inset-bottom/);
     assert.match(globalsCss, /\.modal-overlay \{[\s\S]*?z-index:\s*60/);
     assert.match(globalsCss, /\.crm-security-watermark \{[\s\S]*?z-index:\s*55/);
     assert.match(globalsCss, /\.customer-create-mobile-actions/);
-    assert.match(globalsCss, /\[data-theme="dark"\] \.customer-create-mobile-actions/);
+    assert.match(
+      globalsCss,
+      /\.customer-create-mobile-actions \{[\s\S]*?background:\s*transparent/,
+    );
+    assert.doesNotMatch(
+      globalsCss,
+      /\.customer-create-mobile-actions \{[\s\S]*?border-top:/,
+    );
+    assert.doesNotMatch(
+      globalsCss,
+      /\.customer-create-mobile-actions \{[\s\S]*?backdrop-filter:/,
+    );
     assert.match(
       globalsCss,
       /\.customer-create-mobile-save\.primary-button/,
@@ -235,7 +253,7 @@ describe("customer create Phase 1B mobile fixed actions", () => {
     assert.match(onHoldSource, /ModalOverlay/);
   });
 
-  it("adds mobile-only bottom padding so content clears the fixed bar", () => {
+  it("keeps mobile-only bottom padding so last fields clear the FAB", () => {
     assert.match(formSource, /max-md:pb-16/);
   });
 

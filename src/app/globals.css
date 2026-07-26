@@ -1166,31 +1166,33 @@ html[data-theme="dark"] {
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.28);
 }
 
-/* New-customer mobile fixed actions (above MobileBottomNav; below modals z-60) */
+/* New-customer mobile floating save (above MobileBottomNav; below modals z-60).
+ * Positioning shell only — no bar chrome; clicks pass through empty space. */
 .customer-create-mobile-actions {
-  background: color-mix(in srgb, var(--color-crm-card) 92%, transparent);
-  border-top: 1px solid color-mix(in srgb, var(--color-crm-border) 70%, transparent);
-  box-shadow: 0 -2px 10px rgba(23, 32, 51, 0.04);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-[data-theme="dark"] .customer-create-mobile-actions {
-  background: color-mix(in srgb, var(--color-crm-card) 90%, transparent);
-  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.2);
-}
-
-/* Compact save: translucent primary fill, opaque label (do not lower whole-button opacity). */
+/* Compact save FAB: translucent primary fill, opaque label, light button-only shadow. */
 .customer-create-mobile-actions .customer-create-mobile-save.primary-button {
   background: color-mix(in srgb, var(--color-crm-primary) 92%, transparent);
   color: #ffffff;
-  box-shadow: none;
+  box-shadow: 0 2px 10px rgba(23, 32, 51, 0.14);
 }
 
 .customer-create-mobile-actions .customer-create-mobile-save.primary-button:hover {
   background: color-mix(in srgb, var(--color-crm-primary-hover) 94%, transparent);
-  box-shadow: none;
+  box-shadow: 0 3px 12px rgba(23, 32, 51, 0.18);
   transform: none;
+}
+
+[data-theme="dark"] .customer-create-mobile-actions .customer-create-mobile-save.primary-button {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .customer-create-mobile-actions .customer-create-mobile-save.primary-button:hover {
+  box-shadow: 0 3px 14px rgba(0, 0, 0, 0.4);
 }
 
 [data-theme="dark"] .mobile-drawer-overlay {

@@ -23,3 +23,10 @@ export function getIncompleteContactKind(
  */
 export const MOBILE_BOTTOM_NAV_STACK_OFFSET =
   "calc(3.625rem + max(0.5rem, env(safe-area-inset-bottom, 0px)))";
+
+/**
+ * Floating save FAB sits above MobileBottomNav with ~12px visual gap.
+ * Reuses the same nav stack base as {@link MOBILE_BOTTOM_NAV_STACK_OFFSET}.
+ */
+export const MOBILE_FLOATING_SAVE_BOTTOM =
+  "calc(3.625rem + max(0.5rem, env(safe-area-inset-bottom, 0px)) + 0.75rem)";
