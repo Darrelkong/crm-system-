@@ -127,14 +127,27 @@ describe("customer create Phase 1B incomplete contact flow", () => {
       formSource,
       /handleIncompleteContactContinue[\s\S]*setShowCreateConfirmModal\(true\)/,
     );
+    assert.match(formSource, /postCustomerCreateOnce/);
+    assert.match(formSource, /createCustomerCreateSubmitFlight/);
     assert.match(
       formSource,
-      /async function submitCreate[\s\S]*setSubmitting\(true\)/,
+      /onAcquired:[\s\S]*setSubmitting\(true\)/,
     );
     assert.doesNotMatch(
       formSource,
       /setShowIncompleteContactModal\(true\)[\s\S]{0,80}setSubmitting\(true\)/,
     );
+    // Confirm keeps modal open on normal create; only on_hold closes before reason modal.
+    const confirmFn = formSource.match(
+      /function handleConfirmCreate\(\) \{([\s\S]*?)\n  \}\n\n  return \(/,
+    )?.[1];
+    assert.ok(confirmFn);
+    assert.match(
+      confirmFn!,
+      /if \(form\.salesStage === "on_hold"\) \{[\s\S]*setShowCreateConfirmModal\(false\);[\s\S]*return;[\s\S]*\}[\s\S]*void submitCreate\(\)/,
+    );
+    const afterOnHold = confirmFn!.split('void submitCreate()')[0];
+    assert.ok(afterOnHold.includes('on_hold'));
   });
 
   it("does not persist incomplete modal state into draft helpers", () => {
@@ -175,9 +188,24 @@ describe("customer create Phase 1B mobile fixed actions", () => {
     assert.match(mobileActionsSource, /z-\[45\]/);
     assert.match(MOBILE_BOTTOM_NAV_STACK_OFFSET, /3\.625rem/);
     assert.match(MOBILE_BOTTOM_NAV_STACK_OFFSET, /safe-area-inset-bottom/);
-    assert.match(globalsCss, /\.modal-overlay \{[\s\S]*?z-index:\s*50/);
+    assert.match(globalsCss, /\.modal-overlay \{[\s\S]*?z-index:\s*60/);
+    assert.match(globalsCss, /\.crm-security-watermark \{[\s\S]*?z-index:\s*55/);
     assert.match(globalsCss, /\.customer-create-mobile-actions/);
     assert.match(globalsCss, /\[data-theme="dark"\] \.customer-create-mobile-actions/);
+    const modalSource = readFileSync(
+      join(process.cwd(), "src/components/ui/modal.tsx"),
+      "utf8",
+    );
+    assert.match(modalSource, /createPortal/);
+    assert.match(modalSource, /document\.body/);
+    const onHoldSource = readFileSync(
+      join(
+        process.cwd(),
+        "src/app/(dashboard)/customers/new/on-hold-approval-pending-modal.tsx",
+      ),
+      "utf8",
+    );
+    assert.match(onHoldSource, /ModalOverlay/);
   });
 
   it("adds mobile-only bottom padding so content clears the fixed bar", () => {

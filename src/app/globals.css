@@ -652,11 +652,11 @@ html[data-theme="dark"] {
   height: 100%;
 }
 
-/* ── Modals (solid panel) ── */
+/* ── Modals (solid panel; above security watermark z-index 55) ── */
 .modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 50;
+  z-index: 60;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1166,7 +1166,7 @@ html[data-theme="dark"] {
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.28);
 }
 
-/* New-customer mobile fixed actions (above MobileBottomNav; below modals z-50) */
+/* New-customer mobile fixed actions (above MobileBottomNav; below modals z-60) */
 .customer-create-mobile-actions {
   background: var(--color-crm-card);
   border-top: 1px solid var(--color-crm-border);

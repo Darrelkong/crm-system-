@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CircleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Field, Label, Textarea } from "@/components/ui/form";
+import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useTranslation } from "@/i18n/provider";
 import { ON_HOLD_REASON_MIN_LENGTH } from "@/lib/customers/on-hold-create-pending";
 
@@ -43,17 +44,8 @@ export function OnHoldReasonModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      aria-hidden="false"
-    >
-      <div
-        className="w-full max-w-md rounded-3xl border border-red-100 bg-white p-6 shadow-2xl sm:p-8"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="on-hold-reason-title"
-        aria-describedby="on-hold-reason-description"
-      >
+    <ModalOverlay onClose={submitting ? undefined : handleCancel}>
+      <ModalPanel className="max-w-md rounded-3xl border border-red-100 shadow-2xl sm:p-8">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
             <CircleAlert
@@ -111,8 +103,8 @@ export function OnHoldReasonModal({
               : t("customers.onHoldReasonSubmit")}
           </Button>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   );
 }
 
@@ -130,17 +122,8 @@ export function OnHoldApprovalSubmittedModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      aria-hidden="false"
-    >
-      <div
-        className="w-full max-w-md rounded-3xl border border-red-100 bg-white p-6 shadow-2xl sm:p-8"
-        role="alertdialog"
-        aria-modal="true"
-        aria-labelledby="on-hold-approval-submitted-title"
-        aria-describedby="on-hold-approval-submitted-message"
-      >
+    <ModalOverlay onClose={onClose}>
+      <ModalPanel className="max-w-md rounded-3xl border border-red-100 shadow-2xl sm:p-8">
         <div className="text-center">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-50">
             <CircleAlert
@@ -170,7 +153,7 @@ export function OnHoldApprovalSubmittedModal({
             </Button>
           </div>
         </div>
-      </div>
-    </div>
+      </ModalPanel>
+    </ModalOverlay>
   );
 }

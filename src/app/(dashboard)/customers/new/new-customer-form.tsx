@@ -19,6 +19,10 @@ import {
   type CustomerCreateDraftFormData,
 } from "@/lib/customers/customer-create-draft";
 import { createCustomerCreateDraftAutosave } from "@/lib/customers/customer-create-draft-autosave";
+import {
+  createCustomerCreateSubmitFlight,
+  postCustomerCreateOnce,
+} from "@/lib/customers/customer-create-submit-flight";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
@@ -100,6 +104,8 @@ export function NewCustomerForm({
       },
     }),
   );
+  /** Sync POST lock — must beat React submitting state for double-click. */
+  const submitFlightRef = useRef(createCustomerCreateSubmitFlight());
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const wechatInputRef = useRef<HTMLInputElement>(null);
   const keyboardOpen = useMobileKeyboardOpen();
@@ -178,25 +184,39 @@ export function NewCustomerForm({
     setDraftSavedAt(null);
   }
 
+  function unlockSubmitFlight(): void {
+    submitFlightRef.current.release();
+    setSubmitting(false);
+  }
+
   async function submitCreate(onHoldReason?: string) {
-    if (submitting) {
+    const body = onHoldReason ? { ...form, onHoldReason } : form;
+    const gated = await postCustomerCreateOnce({
+      flight: submitFlightRef.current,
+      body,
+      onAcquired: () => {
+        setSubmitting(true);
+        setFieldErrors({});
+        setServerError(null);
+        setDuplicates(null);
+      },
+    });
+
+    if (gated.status === "blocked") {
       return;
     }
 
-    setSubmitting(true);
-    setFieldErrors({});
-    setServerError(null);
-    setDuplicates(null);
+    if (gated.status === "network_error") {
+      setServerError(t("common.networkError"));
+      if (onHoldReason) {
+        setShowOnHoldReasonModal(true);
+      }
+      unlockSubmitFlight();
+      return;
+    }
 
     try {
-      const res = await fetch("/api/customers", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(
-          onHoldReason ? { ...form, onHoldReason } : form,
-        ),
-      });
-
+      const res = gated.response;
       const data = (await res.json()) as {
         ok?: boolean;
         id?: string;
@@ -211,6 +231,7 @@ export function NewCustomerForm({
       };
 
       if (res.ok && data.pendingApproval) {
+        // Success: keep flight locked; do not unlock after accepted submit.
         finalizeAcceptedSubmission();
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
@@ -220,6 +241,8 @@ export function NewCustomerForm({
 
       if (res.ok && data.id) {
         finalizeAcceptedSubmission();
+        setShowCreateConfirmModal(false);
+        setShowOnHoldReasonModal(false);
         router.push(`/customers/${data.id}`);
         return;
       }
@@ -231,6 +254,7 @@ export function NewCustomerForm({
         if (onHoldReason) {
           setShowOnHoldReasonModal(true);
         }
+        unlockSubmitFlight();
         return;
       }
 
@@ -240,6 +264,7 @@ export function NewCustomerForm({
         if (onHoldReason) {
           setShowOnHoldReasonModal(false);
         }
+        unlockSubmitFlight();
         return;
       }
 
@@ -247,20 +272,19 @@ export function NewCustomerForm({
       if (onHoldReason) {
         setShowOnHoldReasonModal(true);
       }
+      unlockSubmitFlight();
     } catch {
       setServerError(t("common.networkError"));
       if (onHoldReason) {
         setShowOnHoldReasonModal(true);
       }
-    } finally {
-      // Restores UI; must not unblock draft writes after finalizeAccepted.
-      setSubmitting(false);
+      unlockSubmitFlight();
     }
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (submitting) {
+    if (submitting || submitFlightRef.current.isInFlight()) {
       return;
     }
     if (showIncompleteContactModal || showCreateConfirmModal) {
@@ -312,13 +336,14 @@ export function NewCustomerForm({
   }
 
   function handleConfirmCreate() {
-    if (submitting) {
+    if (submitting || submitFlightRef.current.isInFlight()) {
       return;
     }
 
-    setShowCreateConfirmModal(false);
-
+    // Keep create-confirm open while submitting so the button shows loading.
+    // On-hold only switches modals — POST happens after reason submit.
     if (form.salesStage === "on_hold") {
+      setShowCreateConfirmModal(false);
       setShowOnHoldReasonModal(true);
       return;
     }
