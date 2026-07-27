@@ -35,6 +35,7 @@ export const ALLOWED_EXPORT_FIELDS = [
   "last_valid_follow_up_at",
   "next_follow_up_at",
   "notes",
+  "name_status",
 ] as const;
 
 export type AllowedExportField = (typeof ALLOWED_EXPORT_FIELDS)[number];

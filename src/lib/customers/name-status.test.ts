@@ -27,6 +27,7 @@ import "./search-like-escape.test";
 import "./customer-name-label.test";
 import "./pending-name-authorized-views.test";
 import "./pending-name-admin-views.test";
+import "../export/customers/optional-name-status.test";
 
 const newCustomerFormSource = readFileSync(
   join(process.cwd(), "src/app/(dashboard)/customers/new/new-customer-form.tsx"),

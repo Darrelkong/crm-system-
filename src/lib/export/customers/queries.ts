@@ -5,6 +5,7 @@ import type { ExportScope } from "@/lib/export/customers/constants";
 export type CustomerExportRow = {
   id: string;
   customer_name: string;
+  name_status: string;
   customer_type: string;
   phone_country_code: string;
   phone: string | null;
@@ -49,6 +50,7 @@ export async function listCustomersForExport(
     .select({
       id: schema.customers.id,
       customer_name: schema.customers.customerName,
+      name_status: schema.customers.nameStatus,
       customer_type: schema.customers.customerType,
       phone_country_code: schema.customers.phoneCountryCode,
       phone: schema.customers.phone,

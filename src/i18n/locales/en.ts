@@ -1157,6 +1157,9 @@ const en = {
     fieldsLabel: "Export fields",
     defaultFieldsHint:
       "Default field set ({{count}} columns, whitelist enforced)",
+    includeNameStatus: "Include name status",
+    includeNameStatusHint:
+      "Adds confirmed/pending without changing the existing fields.",
     confirmExport: "Confirm export",
   },
   import: {

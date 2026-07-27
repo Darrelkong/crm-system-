@@ -1119,6 +1119,9 @@ const zhHant: Messages = {
     },
     fieldsLabel: "匯出欄位",
     defaultFieldsHint: "使用預設欄位集（{{count}} 列，受白名單限制）",
+    includeNameStatus: "包含姓名狀態",
+    includeNameStatusHint:
+      "額外輸出 confirmed／pending，不影響原有欄位。",
     confirmExport: "確認匯出",
   },
   import: {

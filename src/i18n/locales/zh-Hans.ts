@@ -1118,6 +1118,9 @@ const zhHans: Messages = {
     },
     fieldsLabel: "导出字段",
     defaultFieldsHint: "使用默认字段集（{{count}} 列，受白名单限制）",
+    includeNameStatus: "包含姓名状态",
+    includeNameStatusHint:
+      "额外输出 confirmed／pending，不影响原有字段。",
     confirmExport: "确认导出",
   },
   import: {

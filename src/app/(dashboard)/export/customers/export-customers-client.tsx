@@ -16,6 +16,7 @@ export function ExportCustomersClient() {
   const { t } = useTranslation();
   const [scope, setScope] = useState<ExportScope>("all_active");
   const [includeSensitive, setIncludeSensitive] = useState(true);
+  const [includeNameStatus, setIncludeNameStatus] = useState(false);
   const [showRiskDialog, setShowRiskDialog] = useState(false);
   const [riskConfirmed, setRiskConfirmed] = useState(false);
 
@@ -29,11 +30,18 @@ export function ExportCustomersClient() {
     setShowRiskDialog(false);
   }, [scope, includeSensitive]);
 
+  function buildExportFields(): string[] {
+    if (!includeNameStatus) {
+      return [...DEFAULT_EXPORT_FIELDS];
+    }
+    return [...DEFAULT_EXPORT_FIELDS, "name_status"];
+  }
+
   function doExport() {
     const params = new URLSearchParams({
       scope,
       includeSensitive: String(includeSensitive),
-      fields: DEFAULT_EXPORT_FIELDS.join(","),
+      fields: buildExportFields().join(","),
     });
     window.location.href = `/api/export/customers?${params}`;
   }
@@ -76,6 +84,21 @@ export function ExportCustomersClient() {
             {t("export.includeSensitive")}
           </label>
           <p className="mt-1 text-xs text-[#6B7890]">{t("export.sensitiveHint")}</p>
+        </Field>
+
+        <Field>
+          <label className="flex cursor-pointer items-center gap-2 text-sm text-[#172033]">
+            <input
+              type="checkbox"
+              checked={includeNameStatus}
+              onChange={(e) => setIncludeNameStatus(e.target.checked)}
+              className="rounded border-[#E3E8F0]"
+            />
+            {t("export.includeNameStatus")}
+          </label>
+          <p className="mt-1 text-xs text-[#6B7890]">
+            {t("export.includeNameStatusHint")}
+          </p>
         </Field>
 
         <Field>
