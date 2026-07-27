@@ -28,7 +28,7 @@ import type { TimelineItem } from "@/lib/customers/timeline/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { ui } from "@/lib/ui/classes";
 import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-stage-badges";
-import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 
 const cd = ui.customerDetail;
 
@@ -227,26 +227,23 @@ export function CustomerDetailClient({
     isArchived: view.isArchived,
   });
 
-  const displayName = getCustomerDisplayName({
-    customerName: view.customerName,
-    nameStatus: view.nameStatus,
-    locale,
-  });
-  const showNamePendingBadge =
-    view.nameStatus === "pending" && !view.isMasked;
-
   return (
     <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="page-title text-2xl sm:text-3xl">{displayName}</h2>
+            <CustomerNameLabel
+              customerName={view.customerName}
+              nameStatus={view.nameStatus}
+              locale={locale}
+              pendingLabel={t("customers.namePendingBadge")}
+              showPendingBadge={!view.isMasked}
+              renderName={(displayName) => (
+                <h2 className="page-title text-2xl sm:text-3xl">{displayName}</h2>
+              )}
+              badgeClassName="mt-1"
+            />
             {view.isPinned && <PinnedBadge className="mt-1" />}
-            {showNamePendingBadge && (
-              <Badge className="mt-1 bg-transparent text-[#6B7890] ring-1 ring-[#D5DCEA]">
-                {t("customers.namePendingBadge")}
-              </Badge>
-            )}
             {showConfirmNameButton && (
               <div className="mt-1">
                 <ConfirmCustomerNameModal customerId={id} />
