@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import {
   CUSTOMER_NAME_STATUSES,
@@ -20,6 +22,11 @@ import type { EffectiveAiSettings } from "@/lib/settings/ai-effective";
 import en from "@/i18n/locales/en";
 import zhHans from "@/i18n/locales/zh-Hans";
 import zhHant from "@/i18n/locales/zh-Hant";
+
+const newCustomerFormSource = readFileSync(
+  join(process.cwd(), "src/app/(dashboard)/customers/new/new-customer-form.tsx"),
+  "utf8",
+);
 
 describe("customer name status helpers", () => {
   it("exposes confirmed and pending only", () => {
@@ -264,14 +271,65 @@ describe("i18n pending name keys", () => {
       assert.equal(typeof zhHans.customers[key], "string", `zh-Hans ${key}`);
       assert.equal(typeof zhHant.customers[key], "string", `zh-Hant ${key}`);
     }
-    assert.equal(zhHant.customers.nameUnknownToggle, "暫時不知道客戶真實姓名");
-    assert.equal(zhHans.customers.nameUnknownToggle, "暂时不知道客户真实姓名");
-    assert.equal(
-      en.customers.nameUnknownToggle,
-      "Customer’s real name is not yet known",
-    );
+    assert.equal(zhHant.customers.nameUnknownToggle, "暫時不知道姓名");
+    assert.equal(zhHans.customers.nameUnknownToggle, "暂时不知道姓名");
+    assert.equal(en.customers.nameUnknownToggle, "Name not known yet");
     assert.equal(en.customers.pendingNameMrEnLabel, "Mr. X");
     assert.equal(en.customers.pendingNameMsEnLabel, "Ms. X");
     assert.equal(zhHant.customers.namePendingBadge, "姓名待確認");
+  });
+});
+
+describe("pending name create form UI polish", () => {
+  it("keeps label and short toggle in a shared field header", () => {
+    assert.match(newCustomerFormSource, /justify-between/);
+    assert.match(newCustomerFormSource, /customers\.nameUnknownToggle/);
+    assert.match(newCustomerFormSource, /type="checkbox"/);
+  });
+
+  it("shows Input only when confirmed and segmented radios when pending", () => {
+    assert.match(newCustomerFormSource, /form\.nameStatus === "pending"/);
+    assert.match(newCustomerFormSource, /role="radiogroup"/);
+    assert.match(newCustomerFormSource, /grid grid-cols-2/);
+    assert.match(newCustomerFormSource, /surface-input/);
+    assert.match(newCustomerFormSource, /min-h-11/);
+    assert.match(newCustomerFormSource, /className="sr-only"/);
+    assert.match(newCustomerFormSource, /type="radio"/);
+    assert.match(
+      newCustomerFormSource,
+      /form\.nameStatus === "pending" \? \([\s\S]*radiogroup[\s\S]*\) : \([\s\S]*<Input/,
+    );
+  });
+
+  it("clears placeholder when toggling pending off and restores blank Input path", () => {
+    assert.match(
+      newCustomerFormSource,
+      /nameStatus:\s*"confirmed",\s*customerName:\s*""/,
+    );
+    assert.match(
+      newCustomerFormSource,
+      /nameStatus:\s*"pending",\s*customerName:\s*""/,
+    );
+  });
+
+  it("uses English labels but keeps canonical radio values", () => {
+    assert.match(newCustomerFormSource, /pendingNameMrEnLabel/);
+    assert.match(newCustomerFormSource, /pendingNameMsEnLabel/);
+    assert.match(newCustomerFormSource, /PENDING_NAME_PLACEHOLDERS\.map/);
+    assert.match(newCustomerFormSource, /value=\{placeholder\}/);
+    assert.deepEqual([...PENDING_NAME_PLACEHOLDERS], ["X先生", "X女士"]);
+  });
+
+  it("keeps accessibility wiring for segmented radios", () => {
+    assert.match(newCustomerFormSource, /htmlFor=\{optionId\}/);
+    assert.match(newCustomerFormSource, /id=\{optionId\}/);
+    assert.match(newCustomerFormSource, /pending-name-\$\{placeholder\}/);
+    assert.match(newCustomerFormSource, /aria-label=\{t\("customers\.clientName"\)\}/);
+  });
+
+  it("surfaces pending validation under the selector with error ring", () => {
+    assert.match(newCustomerFormSource, /fieldErrors\.customerName/);
+    assert.match(newCustomerFormSource, /fieldErrors\.nameStatus/);
+    assert.match(newCustomerFormSource, /ring-red-500/);
   });
 });

@@ -298,7 +298,7 @@ const zhHant: Messages = {
     addClient: "新增客戶",
     editClient: "編輯客戶",
     clientName: "客戶姓名",
-    nameUnknownToggle: "暫時不知道客戶真實姓名",
+    nameUnknownToggle: "暫時不知道姓名",
     pendingNameMr: "X先生",
     pendingNameMs: "X女士",
     pendingNameMrEnLabel: "Mr. X",

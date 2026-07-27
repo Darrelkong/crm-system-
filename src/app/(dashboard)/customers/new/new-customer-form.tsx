@@ -38,6 +38,7 @@ import {
 import { PENDING_NAME_PLACEHOLDERS } from "@/lib/customers/name-status";
 import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 import { useTranslation } from "@/i18n/provider";
+import { cn } from "@/lib/cn";
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
@@ -481,46 +482,68 @@ export function NewCustomerForm({
         </Field>
 
         <Field>
-          <Label htmlFor="customerName">
-            {t("customers.clientName")} <span className="text-red-500">*</span>
-          </Label>
-          <label className="mb-3 flex items-start gap-2 text-sm text-[#3A465C]">
-            <input
-              type="checkbox"
-              className="mt-0.5"
-              checked={form.nameStatus === "pending"}
-              onChange={(e) => {
-                if (e.target.checked) {
-                  setForm((prev) => ({
-                    ...prev,
-                    nameStatus: "pending",
-                    customerName: "",
-                  }));
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.customerName;
-                    delete next.nameStatus;
-                    return next;
-                  });
-                } else {
-                  setForm((prev) => ({
-                    ...prev,
-                    nameStatus: "confirmed",
-                    customerName: "",
-                  }));
-                  setFieldErrors((prev) => {
-                    const next = { ...prev };
-                    delete next.customerName;
-                    delete next.nameStatus;
-                    return next;
-                  });
-                }
-              }}
-            />
-            <span>{t("customers.nameUnknownToggle")}</span>
-          </label>
+          <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-3 gap-y-1.5">
+            {form.nameStatus === "pending" ? (
+              <span className="text-sm font-medium crm-text">
+                {t("customers.clientName")}{" "}
+                <span className="text-red-500">*</span>
+              </span>
+            ) : (
+              <Label htmlFor="customerName" className="mb-0">
+                {t("customers.clientName")}{" "}
+                <span className="text-red-500">*</span>
+              </Label>
+            )}
+            <label className="inline-flex max-w-full items-center gap-2 text-sm crm-text-secondary">
+              <input
+                type="checkbox"
+                className="size-4 shrink-0 rounded border-[var(--color-crm-border)] text-[var(--color-crm-primary)] accent-[var(--color-crm-primary)]"
+                checked={form.nameStatus === "pending"}
+                onChange={(e) => {
+                  if (e.target.checked) {
+                    setForm((prev) => ({
+                      ...prev,
+                      nameStatus: "pending",
+                      customerName: "",
+                    }));
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.customerName;
+                      delete next.nameStatus;
+                      return next;
+                    });
+                  } else {
+                    setForm((prev) => ({
+                      ...prev,
+                      nameStatus: "confirmed",
+                      customerName: "",
+                    }));
+                    setFieldErrors((prev) => {
+                      const next = { ...prev };
+                      delete next.customerName;
+                      delete next.nameStatus;
+                      return next;
+                    });
+                  }
+                }}
+              />
+              <span className="leading-snug">{t("customers.nameUnknownToggle")}</span>
+            </label>
+          </div>
           {form.nameStatus === "pending" ? (
-            <div className="flex flex-wrap gap-4" role="radiogroup" aria-label={t("customers.clientName")}>
+            <div
+              role="radiogroup"
+              aria-label={t("customers.clientName")}
+              aria-invalid={
+                Boolean(fieldErrors.customerName || fieldErrors.nameStatus) ||
+                undefined
+              }
+              className={cn(
+                "grid grid-cols-2 gap-2",
+                (fieldErrors.customerName || fieldErrors.nameStatus) &&
+                  "rounded-[var(--radius-crm)] ring-1 ring-red-500/70",
+              )}
+            >
               {PENDING_NAME_PLACEHOLDERS.map((placeholder) => {
                 const label =
                   locale === "en"
@@ -530,15 +553,26 @@ export function NewCustomerForm({
                     : placeholder === "X先生"
                       ? t("customers.pendingNameMr")
                       : t("customers.pendingNameMs");
+                const selected = form.customerName === placeholder;
+                const optionId = `pending-name-${placeholder}`;
                 return (
                   <label
                     key={placeholder}
-                    className="flex items-center gap-2 text-sm text-[#172033]"
+                    htmlFor={optionId}
+                    className={cn(
+                      "surface-input flex min-h-11 cursor-pointer items-center justify-center px-3 py-2.5 text-center text-sm transition-[border-color,background-color,box-shadow,font-weight]",
+                      selected
+                        ? "border-[var(--color-crm-primary)] bg-[var(--color-crm-primary-soft)] font-medium text-[var(--color-crm-primary-deep)] shadow-none"
+                        : "font-normal",
+                    )}
                   >
                     <input
+                      id={optionId}
                       type="radio"
                       name="pendingNamePlaceholder"
-                      checked={form.customerName === placeholder}
+                      className="sr-only"
+                      value={placeholder}
+                      checked={selected}
                       onChange={() => set("customerName", placeholder)}
                     />
                     {label}

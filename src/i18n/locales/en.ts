@@ -311,7 +311,7 @@ const en = {
     addClient: "Add Client",
     editClient: "Edit Client",
     clientName: "Client Name",
-    nameUnknownToggle: "Customer’s real name is not yet known",
+    nameUnknownToggle: "Name not known yet",
     pendingNameMr: "X先生",
     pendingNameMs: "X女士",
     pendingNameMrEnLabel: "Mr. X",
