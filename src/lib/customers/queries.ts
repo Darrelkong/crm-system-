@@ -1,4 +1,5 @@
-import { and, asc, eq, like, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, or, sql, type SQL } from "drizzle-orm";
+import type { AnyColumn } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
   adminCustomerListStatusWhere,
@@ -91,8 +92,21 @@ function buildPermissionWhere(
   return staffCustomerListPermissionWhere(user.id);
 }
 
-function escapeLikePattern(term: string): string {
+/** Escape character for customer search LIKE patterns (must match ESCAPE clause). */
+export const CUSTOMER_SEARCH_LIKE_ESCAPE = "\\" as const;
+
+/**
+ * Treat user search input as literal text inside a LIKE pattern.
+ * Escape `\`, `%`, and `_` so they are not wildcards / escape markers.
+ */
+export function escapeLikePattern(term: string): string {
   return term.replace(/[%_\\]/g, "\\$&");
+}
+
+/** Parameterized `column LIKE %term% ESCAPE '\'` for literal substring search. */
+export function escapedLike(column: AnyColumn, term: string): SQL {
+  const pattern = `%${escapeLikePattern(term)}%`;
+  return sql`${column} LIKE ${pattern} ESCAPE ${CUSTOMER_SEARCH_LIKE_ESCAPE}`;
 }
 
 /** Pending placeholders must not match via customer_name LIKE search. */
@@ -104,17 +118,16 @@ export function customerNameIsSearchableByStatus(
 
 /** Exported for unit tests — name match only when name_status is confirmed. */
 export function buildSearchWhere(term: string): SQL {
-  const pattern = `%${escapeLikePattern(term)}%`;
   return or(
     and(
       // Keep aligned with customerNameIsSearchableByStatus("confirmed").
       eq(schema.customers.nameStatus, "confirmed"),
-      like(schema.customers.customerName, pattern),
+      escapedLike(schema.customers.customerName, term),
     ),
-    like(schema.customers.phone, pattern),
-    like(schema.customers.wechatId, pattern),
-    like(schema.customers.email, pattern),
-    like(schema.customers.customerCode, pattern),
+    escapedLike(schema.customers.phone, term),
+    escapedLike(schema.customers.wechatId, term),
+    escapedLike(schema.customers.email, term),
+    escapedLike(schema.customers.customerCode, term),
   )!;
 }
 
