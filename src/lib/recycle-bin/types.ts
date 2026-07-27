@@ -2,6 +2,7 @@ export type RecycleBinCustomerView = {
   id: string;
   customer_code: string | null;
   customer_name: string;
+  name_status: string;
   phone: string | null;
   email: string | null;
   sales_stage: string;

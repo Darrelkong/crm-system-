@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CompletenessBadge } from "@/components/customers/customer-scores-cards";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +46,7 @@ export function PublicPoolClient({
   isAdmin: boolean;
 }) {
   const router = useRouter();
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { customerType, source, salesStage } = useCustomerLabels();
   const [items, setItems] = useState(initialItems);
   const [claimingId, setClaimingId] = useState<string | null>(null);
@@ -158,12 +159,20 @@ export function PublicPoolClient({
                     <Td>
                       {canLinkPublicPoolCustomerToDetail(adminView) &&
                       isAdminPublicPoolCustomerView(c) ? (
-                        <Link
-                          href={`/customers/${c.id}`}
-                          className="link-primary font-medium hover:underline"
-                        >
-                          {c.customerName || c.maskedName}
-                        </Link>
+                        <CustomerNameLabel
+                          customerName={c.customerName || c.maskedName}
+                          nameStatus={c.nameStatus}
+                          locale={locale}
+                          pendingLabel={t("customers.namePendingBadge")}
+                          renderName={(displayName) => (
+                            <Link
+                              href={`/customers/${c.id}`}
+                              className="link-primary font-medium hover:underline"
+                            >
+                              {displayName}
+                            </Link>
+                          )}
+                        />
                       ) : (
                         <span className="font-medium text-[#172033]">
                           {c.maskedName}

@@ -138,6 +138,7 @@ function poolCustomer(overrides: Partial<Customer> = {}): Customer {
     id: "pool-customer-001",
     customerCode: null,
     customerName: "張三三",
+    nameStatus: "confirmed",
     customerType: "individual",
     phoneCountryCode: "+86",
     phone: "13800138000",

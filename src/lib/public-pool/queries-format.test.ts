@@ -22,6 +22,7 @@ function poolCustomer(overrides: Partial<Customer> = {}): Customer {
     id: "pool-customer-001",
     customerCode: null,
     customerName: "張三三",
+    nameStatus: "confirmed",
     customerType: "individual",
     phoneCountryCode: "+86",
     phone: "13800138000",
@@ -136,6 +137,7 @@ describe("formatAdminPublicPoolCustomer", () => {
     );
 
     assert.equal(view.customerName, "張三三");
+    assert.equal(view.nameStatus, "confirmed");
     assert.equal(view.maskedName, "張**");
     assert.equal(view.poolReason, "自動回收到公共池：超過 7 天无有效跟进");
     assert.equal(view.poolReasonPreview, "自動回⋯");
@@ -147,6 +149,22 @@ describe("formatAdminPublicPoolCustomer", () => {
     assert.equal(view.accessLevel, "full");
     assert.equal(view.isMasked, false);
     assert.equal(isAdminPublicPoolCustomerView(view), true);
+  });
+
+  it("includes nameStatus for pending placeholder names", () => {
+    const view = formatAdminPublicPoolCustomer(
+      adminUser,
+      poolCustomer({
+        customerName: "X先生",
+        nameStatus: "pending",
+      }),
+      claimAllowed,
+      true,
+    );
+
+    assert.equal(view.customerName, "X先生");
+    assert.equal(view.nameStatus, "pending");
+    assert.equal(view.accessLevel, "full");
   });
 });
 
@@ -172,6 +190,7 @@ describe("formatPublicPoolCustomer role dispatch", () => {
     assert.equal(view.accessLevel, "full");
     assert.ok(isAdminPublicPoolCustomerView(view));
     assert.equal(view.customerName, "張三三");
+    assert.equal(view.nameStatus, "confirmed");
   });
 });
 

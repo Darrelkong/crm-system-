@@ -1,9 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { Badge, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageIntro } from "@/components/ui/page-intro";
+import { useTranslation } from "@/i18n/provider";
 import type { CollaborativeDissolutionDryRunResult } from "@/lib/reclamation/collaborative-dry-run";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -35,6 +37,7 @@ function SummaryCard({
 }
 
 export function CollaborativeDryRunClient() {
+  const { t, locale } = useTranslation();
   const [data, setData] = useState<CollaborativeDissolutionDryRunResult | null>(
     null,
   );
@@ -172,7 +175,13 @@ export function CollaborativeDryRunClient() {
                           {row.customerCode ?? "—"}
                         </td>
                         <td className="px-3 py-3 text-[#172033]">
-                          {row.customerName}
+                          <CustomerNameLabel
+                            customerName={row.customerName}
+                            nameStatus={row.nameStatus}
+                            locale={locale}
+                            pendingLabel={t("customers.namePendingBadge")}
+                            nameClassName="font-medium text-[#172033]"
+                          />
                         </td>
                         <td className="px-3 py-3 font-mono text-xs text-[#6B7890]">
                           {row.ownerId ?? "—"}

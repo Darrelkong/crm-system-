@@ -127,6 +127,7 @@ export type StaffPublicPoolCustomerView = PublicPoolListItemBase & {
 
 export type AdminPublicPoolCustomerView = PublicPoolListItemBase & {
   customerName: string;
+  nameStatus: string;
   poolReason: string | null;
   accessLevel: "full";
   isMasked: false;
@@ -260,6 +261,7 @@ export function formatAdminPublicPoolCustomer(
   return {
     ...shared,
     customerName: customer.customerName,
+    nameStatus: customer.nameStatus,
     poolReason: customer.poolReason ?? null,
     accessLevel: "full",
     isMasked: false,

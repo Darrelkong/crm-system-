@@ -51,6 +51,7 @@ export type AiInsightFeedbackRecentItem = {
   id: string;
   customerId: string;
   customerName: string | null;
+  nameStatus: string | null;
   rating: number;
   reasonTags: AiInsightFeedbackReasonTag[];
   model: string;
@@ -212,6 +213,7 @@ export async function getAiInsightFeedbackStats(
       id: schema.aiInsightFeedback.id,
       customerId: schema.aiInsightFeedback.customerId,
       customerName: schema.customers.customerName,
+      nameStatus: schema.customers.nameStatus,
       rating: schema.aiInsightFeedback.rating,
       reasonTagsJson: schema.aiInsightFeedback.reasonTagsJson,
       model: schema.aiInsightFeedback.model,
@@ -238,6 +240,7 @@ export async function getAiInsightFeedbackStats(
       id: row.id,
       customerId: row.customerId,
       customerName: row.customerName,
+      nameStatus: row.nameStatus,
       rating: row.rating as number,
       reasonTags: parseReasonTagsFromJson(row.reasonTagsJson),
       model: row.model,

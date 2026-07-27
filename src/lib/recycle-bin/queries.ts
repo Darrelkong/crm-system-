@@ -45,6 +45,7 @@ export async function listRecycleBinCustomers(): Promise<RecycleBinCustomerView[
     id: row.id,
     customer_code: row.customerCode,
     customer_name: row.customerName,
+    name_status: row.nameStatus,
     phone: row.phone,
     email: row.email,
     sales_stage: row.salesStage,

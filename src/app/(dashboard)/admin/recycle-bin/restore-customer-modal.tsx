@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useTranslation } from "@/i18n/provider";
@@ -13,7 +14,7 @@ type Props = {
   onRestored: () => void;
 };
 
-function DetailRow({ label, value }: { label: string; value: string }) {
+function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="grid gap-1 sm:grid-cols-[7rem_1fr] sm:gap-3">
       <dt className="text-[#6B7890]">{label}</dt>
@@ -27,7 +28,7 @@ export function RestoreCustomerModal({
   onClose,
   onRestored,
 }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +67,15 @@ export function RestoreCustomerModal({
           <dl className="grid gap-2 rounded-xl bg-[#F7FAFD] p-4">
             <DetailRow
               label={t("recycleBin.colCustomerName")}
-              value={customer.customer_name}
+              value={
+                <CustomerNameLabel
+                  customerName={customer.customer_name}
+                  nameStatus={customer.name_status}
+                  locale={locale}
+                  pendingLabel={t("customers.namePendingBadge")}
+                  nameClassName="font-medium text-[#172033]"
+                />
+              }
             />
             <DetailRow
               label={t("recycleBin.colCustomerCode")}

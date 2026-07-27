@@ -311,6 +311,10 @@ describe("collaborative dissolution dry-run (DB)", () => {
     assert.ok(candidate);
     assert.equal(candidate.daysWithoutValidFollowUp, 90);
     assert.equal(candidate.collaboratorCount, 2);
+    assert.equal(typeof candidate.nameStatus, "string");
+    assert.ok(
+      candidate.nameStatus === "confirmed" || candidate.nameStatus === "pending",
+    );
   });
 
   it("uses lastValidFollowUpAt when newer than createdAt", async () => {

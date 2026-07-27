@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
@@ -27,7 +28,7 @@ function formatRemainingDays(
 }
 
 export function RecycleBinClient() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [items, setItems] = useState<RecycleBinCustomerView[]>([]);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
@@ -140,7 +141,13 @@ export function RecycleBinClient() {
                         {row.customer_code ?? "—"}
                       </td>
                       <td className="px-3 py-2 font-medium text-[#172033]">
-                        {row.customer_name}
+                        <CustomerNameLabel
+                          customerName={row.customer_name}
+                          nameStatus={row.name_status}
+                          locale={locale}
+                          pendingLabel={t("customers.namePendingBadge")}
+                          nameClassName="font-medium text-[#172033]"
+                        />
                       </td>
                       <td className="px-3 py-2">{formatContact(row)}</td>
                       <td className="px-3 py-2">

@@ -16,6 +16,7 @@ export const COLLABORATIVE_DISSOLUTION_THRESHOLD_DAYS = 90;
 export type CollaborativeDissolutionDryRunCandidate = {
   customerId: string;
   customerName: string;
+  nameStatus: string;
   customerCode: string | null;
   ownerId: string | null;
   createdBy: string;
@@ -35,6 +36,7 @@ export type CollaborativeDissolutionDryRunResult = {
 type DryRunCustomerRow = {
   id: string;
   customerName: string;
+  nameStatus: string;
   customerCode: string | null;
   ownerId: string | null;
   createdBy: string;
@@ -66,6 +68,7 @@ export async function getCollaborativeDissolutionDryRun(
     .select({
       id: schema.customers.id,
       customerName: schema.customers.customerName,
+      nameStatus: schema.customers.nameStatus,
       customerCode: schema.customers.customerCode,
       ownerId: schema.customers.ownerId,
       createdBy: schema.customers.createdBy,
@@ -108,6 +111,7 @@ export async function getCollaborativeDissolutionDryRun(
     preliminaryCandidates.push({
       customerId: customer.id,
       customerName: customer.customerName,
+      nameStatus: customer.nameStatus,
       customerCode: customer.customerCode,
       ownerId: customer.ownerId,
       createdBy: customer.createdBy,

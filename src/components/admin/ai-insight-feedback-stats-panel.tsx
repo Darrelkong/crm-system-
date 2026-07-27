@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { useTranslation } from "@/i18n/provider";
 import type { AiInsightFeedbackStatsResponse } from "@/lib/ai/customer-insights/feedback-stats";
 import type { AiInsightFeedbackReasonTag } from "../../../drizzle/schema/ai-insight-feedback";
@@ -55,7 +56,7 @@ function StatsTable({
 }
 
 export function AiInsightFeedbackStatsPanel() {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [stats, setStats] = useState<AiInsightFeedbackStatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -214,12 +215,20 @@ export function AiInsightFeedbackStatsPanel() {
               ]}
               rows={stats.recent.map((row) => [
                 row.customerName ? (
-                  <Link
-                    href={`/customers/${row.customerId}`}
-                    className="text-[#2F6FB3] hover:underline"
-                  >
-                    {row.customerName}
-                  </Link>
+                  <CustomerNameLabel
+                    customerName={row.customerName}
+                    nameStatus={row.nameStatus}
+                    locale={locale}
+                    pendingLabel={t("customers.namePendingBadge")}
+                    renderName={(displayName) => (
+                      <Link
+                        href={`/customers/${row.customerId}`}
+                        className="text-[#2F6FB3] hover:underline"
+                      >
+                        {displayName}
+                      </Link>
+                    )}
+                  />
                 ) : (
                   row.customerId
                 ),
