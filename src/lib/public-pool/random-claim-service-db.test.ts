@@ -355,6 +355,7 @@ describe("claimRandomCustomerFromPoolForStaff", () => {
       assert.equal(result.customerId, IDS.poolA);
       assert.equal(result.customerName, customer.customerName);
       assert.equal(result.customerCode, customer.customerCode);
+      assert.equal(result.nameStatus, customer.nameStatus);
       assert.ok(result.taskId);
       assert.equal(JSON.stringify(result).includes("secret"), false);
       assert.equal(JSON.stringify(result).includes("138"), false);

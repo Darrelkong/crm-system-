@@ -78,6 +78,7 @@ function makeDeps(overrides: {
           customerId: "cust-1",
           customerCode: "C-001",
           customerName: "Test Customer",
+          nameStatus: "confirmed",
           taskId: "task-1",
         }
       );
@@ -158,6 +159,7 @@ describe("POST /api/public-pool/claim-random route handler", () => {
         customerId: "cust-1",
         customerCode: "C-001",
         customerName: "Test Customer",
+        nameStatus: "confirmed",
         taskId: "task-1",
       },
     });
@@ -168,6 +170,7 @@ describe("POST /api/public-pool/claim-random route handler", () => {
       "customerCode",
       "customerId",
       "customerName",
+      "nameStatus",
       "ok",
       "taskId",
     ]);
@@ -175,6 +178,7 @@ describe("POST /api/public-pool/claim-random route handler", () => {
     assert.equal(json.customerId, "cust-1");
     assert.equal(json.customerCode, "C-001");
     assert.equal(json.customerName, "Test Customer");
+    assert.equal(json.nameStatus, "confirmed");
     assert.equal(json.taskId, "task-1");
     assert.equal("phone" in json, false);
     assert.equal("email" in json, false);

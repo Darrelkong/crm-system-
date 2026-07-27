@@ -35,6 +35,7 @@ export type ClaimRandomCustomerSuccess = {
   customerId: string;
   customerCode: string | null;
   customerName: string;
+  nameStatus: string;
   taskId: string;
 };
 
@@ -244,6 +245,7 @@ export async function claimRandomCustomerFromPoolForStaff(
         customerId: customer.id,
         customerCode: customer.customerCode,
         customerName: customer.customerName,
+        nameStatus: customer.nameStatus,
         taskId: claimResult.taskId,
       };
     }

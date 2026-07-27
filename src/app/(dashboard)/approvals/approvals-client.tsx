@@ -14,6 +14,7 @@ import { resolveApiError } from "@/i18n/resolve-api-error";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { CreateOnHoldCustomerApprovalDetail } from "@/components/approvals/create-on-hold-customer-detail";
 import { UpdateCustomerAssigneesApprovalDetail } from "@/components/approvals/update-customer-assignees-detail";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
@@ -23,7 +24,7 @@ type Props = {
 const STATUS_FILTERS = ["pending", "approved", "rejected", "all"] as const;
 
 export function ApprovalsClient({ isAdmin }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { approvalType, approvalStatus } = useCustomerLabels();
   const [items, setItems] = useState<ApprovalListItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">("pending");
@@ -146,15 +147,31 @@ export function ApprovalsClient({ isAdmin }: Props) {
               <p className="mt-1 text-sm text-[#172033]">
                 {t("approvals.customer")}：
                 {item.requestType === "create_on_hold_customer" ? (
-                  <span className="font-medium">{item.customerName}</span>
+                  <CustomerNameLabel
+                    className="ml-1 align-middle font-medium"
+                    customerName={item.customerName}
+                    nameStatus={item.nameStatus}
+                    locale={locale}
+                    pendingLabel={t("customers.namePendingBadge")}
+                    nameClassName="font-medium"
+                  />
                 ) : (
-                  <Link
-                    href={`/customers/${item.customerId}`}
-                    className="text-[#2F6FB3] hover:underline"
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    {item.customerName}
-                  </Link>
+                  <CustomerNameLabel
+                    className="ml-1 align-middle"
+                    customerName={item.customerName}
+                    nameStatus={item.nameStatus}
+                    locale={locale}
+                    pendingLabel={t("customers.namePendingBadge")}
+                    renderName={(displayName) => (
+                      <Link
+                        href={`/customers/${item.customerId}`}
+                        className="text-[#2F6FB3] hover:underline"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {displayName}
+                      </Link>
+                    )}
+                  />
                 )}
               </p>
               <p className="mt-1 text-xs text-[#6B7890]">
@@ -184,7 +201,14 @@ export function ApprovalsClient({ isAdmin }: Props) {
               )}
               <div>
                 <dt className="text-[#6B7890]">{t("approvals.customer")}</dt>
-                <dd>{selected.customerName}</dd>
+                <dd>
+                  <CustomerNameLabel
+                    customerName={selected.customerName}
+                    nameStatus={selected.nameStatus}
+                    locale={locale}
+                    pendingLabel={t("customers.namePendingBadge")}
+                  />
+                </dd>
               </div>
               <div>
                 <dt className="text-[#6B7890]">{t("approvals.requestedBy")}</dt>
@@ -213,6 +237,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 <CreateOnHoldCustomerApprovalDetail
                   reason={selected.reason}
                   payload={selected.payload}
+                  nameStatus={selected.nameStatus}
                 />
               ) : selected.requestType === "update_customer_assignees" ? (
                 <UpdateCustomerAssigneesApprovalDetail

@@ -84,6 +84,7 @@ export async function handleClaimRandomPost(
       customerId: result.customerId,
       customerCode: result.customerCode,
       customerName: result.customerName,
+      nameStatus: result.nameStatus,
       taskId: result.taskId,
     });
   } catch (error) {

@@ -156,6 +156,7 @@ describe("random claim success parse", () => {
       customerId: "c1",
       customerCode: "C-1",
       customerName: "Alice",
+      nameStatus: "confirmed",
       taskId: "t1",
       phone: "should-be-ignored",
     });
@@ -163,8 +164,21 @@ describe("random claim success parse", () => {
     assert.equal(parsed!.customerId, "c1");
     assert.equal(parsed!.customerCode, "C-1");
     assert.equal(parsed!.customerName, "Alice");
+    assert.equal(parsed!.nameStatus, "confirmed");
     assert.equal(parsed!.taskId, "t1");
     assert.equal("phone" in parsed!, false);
+  });
+
+  it("requires nameStatus on success payload", () => {
+    assert.equal(
+      parseRandomClaimSuccessBody({
+        ok: true,
+        customerId: "c1",
+        customerName: "Alice",
+        taskId: "t1",
+      }),
+      null,
+    );
   });
 
   it("rejects non-ok or incomplete bodies", () => {
@@ -174,6 +188,7 @@ describe("random claim success parse", () => {
         ok: true,
         customerId: "c1",
         customerName: "A",
+        nameStatus: "confirmed",
       }),
       null,
     );

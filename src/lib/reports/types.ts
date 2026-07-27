@@ -19,6 +19,7 @@ export type RecentFollowUpRow = {
   id: string;
   customerId: string;
   customerName: string;
+  nameStatus: string;
   userId: string;
   userName: string;
   followUpTime: string;

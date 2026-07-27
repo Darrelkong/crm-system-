@@ -309,7 +309,16 @@ export function CustomerDetailClient({
             <dl>
               <DetailRow
                 label={t("customers.clientName")}
-                value={displayName}
+                action={
+                  <CustomerNameLabel
+                    customerName={view.customerName}
+                    nameStatus={view.nameStatus}
+                    locale={locale}
+                    pendingLabel={t("customers.namePendingBadge")}
+                    showPendingBadge={false}
+                    nameClassName={cd.strongValue}
+                  />
+                }
                 emphasis="strong"
               />
               {isAdmin && view.customerCode && (

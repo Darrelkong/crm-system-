@@ -10,6 +10,7 @@ export type ApprovalListItem = {
   status: ApprovalStatus;
   customerId: string;
   customerName: string;
+  nameStatus: string;
   requestedBy: string;
   requestedByName: string;
   targetUserId: string | null;
@@ -115,6 +116,7 @@ export async function listApprovalsForUser(
     .select({
       approval: schema.approvals,
       customerName: schema.customers.customerName,
+      nameStatus: schema.customers.nameStatus,
       requestedByName: schema.users.displayName,
     })
     .from(schema.approvals)
@@ -163,6 +165,7 @@ export async function listApprovalsForUser(
     status: row.approval.status,
     customerId: row.approval.customerId,
     customerName: row.customerName,
+    nameStatus: row.nameStatus,
     requestedBy: row.approval.requestedBy,
     requestedByName: row.requestedByName,
     targetUserId: row.approval.targetUserId,

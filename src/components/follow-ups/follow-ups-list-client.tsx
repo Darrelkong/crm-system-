@@ -9,6 +9,7 @@ import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { FollowUpListItem } from "@/lib/follow-ups/types";
 import { formatHongKongDate, formatHongKongDateTime } from "@/lib/timezone";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 
 const linkClass = "text-[#2F6FB3] hover:text-[#1F4E79] hover:underline";
@@ -81,11 +82,6 @@ function FollowUpRowContent({
   t: (key: string) => string;
   locale: string;
 }) {
-  const displayName = getCustomerDisplayName({
-    customerName: item.customerName,
-    nameStatus: item.nameStatus,
-    locale,
-  });
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 text-xs text-[#6B7890]">
@@ -99,9 +95,20 @@ function FollowUpRowContent({
         )}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <Link href={`/customers/${item.customerId}`} className={`text-sm font-medium ${linkClass}`}>
-          {displayName}
-        </Link>
+        <CustomerNameLabel
+          customerName={item.customerName}
+          nameStatus={item.nameStatus}
+          locale={locale}
+          pendingLabel={t("customers.namePendingBadge")}
+          renderName={(displayName) => (
+            <Link
+              href={`/customers/${item.customerId}`}
+              className={`text-sm font-medium ${linkClass}`}
+            >
+              {displayName}
+            </Link>
+          )}
+        />
         <Badge>{salesStage(item.customerSalesStage)}</Badge>
         <Badge variant="accent">{status(item.customerStatus)}</Badge>
       </div>
@@ -324,16 +331,20 @@ export function FollowUpsListClient({
                       {formatHongKongDateTime(item.followUpTime)}
                     </td>
                     <td className="px-4 py-3">
-                      <Link
-                        href={`/customers/${item.customerId}`}
-                        className={`font-medium ${linkClass}`}
-                      >
-                        {getCustomerDisplayName({
-                          customerName: item.customerName,
-                          nameStatus: item.nameStatus,
-                          locale,
-                        })}
-                      </Link>
+                      <CustomerNameLabel
+                        customerName={item.customerName}
+                        nameStatus={item.nameStatus}
+                        locale={locale}
+                        pendingLabel={t("customers.namePendingBadge")}
+                        renderName={(displayName) => (
+                          <Link
+                            href={`/customers/${item.customerId}`}
+                            className={`font-medium ${linkClass}`}
+                          >
+                            {displayName}
+                          </Link>
+                        )}
+                      />
                     </td>
                     {showStaff && (
                       <td className="px-4 py-3 text-[#172033]">{item.userName}</td>

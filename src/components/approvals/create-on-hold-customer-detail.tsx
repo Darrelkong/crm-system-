@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import {
@@ -11,6 +12,8 @@ import {
 type Props = {
   reason: string;
   payload: Record<string, unknown> | null;
+  /** Customer row nameStatus from the authorized approval DTO. */
+  nameStatus?: string | null;
 };
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -22,8 +25,12 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function CreateOnHoldCustomerApprovalDetail({ reason, payload }: Props) {
-  const { t } = useTranslation();
+export function CreateOnHoldCustomerApprovalDetail({
+  reason,
+  payload,
+  nameStatus,
+}: Props) {
+  const { t, locale } = useTranslation();
   const { approvalType, salesStage, customerType, source } = useCustomerLabels();
   const data = parseOnHoldCreateApprovalPayload(payload);
   const onHoldReason =
@@ -44,10 +51,21 @@ export function CreateOnHoldCustomerApprovalDetail({ reason, payload }: Props) {
         label={t("approvals.onHoldCreateTargetStage")}
         value={salesStage(targetStage)}
       />
-      <DetailRow
-        label={t("customers.clientName")}
-        value={displayOrDash(data.customerName)}
-      />
+      <div>
+        <dt className="text-[#6B7890]">{t("customers.clientName")}</dt>
+        <dd className="text-[#172033]">
+          {data.customerName ? (
+            <CustomerNameLabel
+              customerName={data.customerName}
+              nameStatus={nameStatus}
+              locale={locale}
+              pendingLabel={t("customers.namePendingBadge")}
+            />
+          ) : (
+            "—"
+          )}
+        </dd>
+      </div>
       <DetailRow
         label={t("customers.clientType")}
         value={data.customerType ? customerType(data.customerType) : "—"}

@@ -29,6 +29,7 @@ export type RandomClaimSuccessPayload = {
   customerId: string;
   customerCode: string | null;
   customerName: string;
+  nameStatus: string;
   taskId: string;
 };
 
@@ -105,6 +106,7 @@ export function parseRandomClaimSuccessBody(
   if (row.ok !== true) return null;
   if (typeof row.customerId !== "string" || !row.customerId) return null;
   if (typeof row.customerName !== "string") return null;
+  if (typeof row.nameStatus !== "string" || !row.nameStatus) return null;
   if (typeof row.taskId !== "string" || !row.taskId) return null;
   const customerCode =
     row.customerCode === null || typeof row.customerCode === "string"
@@ -115,6 +117,7 @@ export function parseRandomClaimSuccessBody(
     customerId: row.customerId,
     customerCode,
     customerName: row.customerName,
+    nameStatus: row.nameStatus,
     taskId: row.taskId,
   };
 }

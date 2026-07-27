@@ -24,6 +24,8 @@ import zhHans from "@/i18n/locales/zh-Hans";
 import zhHant from "@/i18n/locales/zh-Hant";
 import "./confirm-name.test";
 import "./search-like-escape.test";
+import "./customer-name-label.test";
+import "./pending-name-authorized-views.test";
 
 const newCustomerFormSource = readFileSync(
   join(process.cwd(), "src/app/(dashboard)/customers/new/new-customer-form.tsx"),

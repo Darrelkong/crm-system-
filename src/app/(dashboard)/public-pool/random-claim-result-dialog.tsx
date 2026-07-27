@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useTranslation } from "@/i18n/provider";
@@ -15,7 +16,7 @@ type Props = {
 };
 
 export function RandomClaimResultDialog({ result, onClose }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -45,7 +46,15 @@ export function RandomClaimResultDialog({ result, onClose }: Props) {
             <dt className="text-xs text-[#6B7890]">
               {t("publicPool.randomClaimCustomerLabel")}
             </dt>
-            <dd className="font-medium text-[#172033]">{result.customerName}</dd>
+            <dd className="font-medium text-[#172033]">
+              <CustomerNameLabel
+                customerName={result.customerName}
+                nameStatus={result.nameStatus}
+                locale={locale}
+                pendingLabel={t("customers.namePendingBadge")}
+                nameClassName="font-medium text-[#172033]"
+              />
+            </dd>
           </div>
           {result.customerCode ? (
             <div>

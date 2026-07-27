@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { Badge } from "@/components/ui/card";
 import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
@@ -16,7 +17,7 @@ export function RecentFollowUpsList({
   items: RecentFollowUpRow[];
   showStaffName?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { followUpChannel, followUpOutcome } = useCustomerLabels();
 
   if (items.length === 0) {
@@ -59,12 +60,20 @@ export function RecentFollowUpsList({
                 {formatHongKongDateTime(item.followUpTime)}
               </td>
               <td className="py-3 pr-3">
-                <Link
-                  href={`/customers/${item.customerId}`}
-                  className={`font-medium ${linkClass}`}
-                >
-                  {item.customerName}
-                </Link>
+                <CustomerNameLabel
+                  customerName={item.customerName}
+                  nameStatus={item.nameStatus}
+                  locale={locale}
+                  pendingLabel={t("customers.namePendingBadge")}
+                  renderName={(displayName) => (
+                    <Link
+                      href={`/customers/${item.customerId}`}
+                      className={`font-medium ${linkClass}`}
+                    >
+                      {displayName}
+                    </Link>
+                  )}
+                />
               </td>
               {showStaffName && (
                 <td className="py-3 pr-3 text-[#172033]">{item.userName}</td>

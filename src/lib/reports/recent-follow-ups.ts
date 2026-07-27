@@ -10,6 +10,7 @@ function mapRecentFollowUpRow(
     id: string;
     customerId: string;
     customerName: string;
+    nameStatus: string;
     userId: string;
     userName: string;
     followUpTime: string;
@@ -23,6 +24,7 @@ function mapRecentFollowUpRow(
     id: row.id,
     customerId: row.customerId,
     customerName: row.customerName,
+    nameStatus: row.nameStatus,
     userId: row.userId,
     userName: row.userName,
     followUpTime: row.followUpTime,
@@ -33,23 +35,26 @@ function mapRecentFollowUpRow(
   };
 }
 
+const recentFollowUpSelect = {
+  id: schema.followUps.id,
+  customerId: schema.followUps.customerId,
+  customerName: schema.customers.customerName,
+  nameStatus: schema.customers.nameStatus,
+  userId: schema.followUps.userId,
+  userName: schema.users.displayName,
+  followUpTime: schema.followUps.followUpTime,
+  channel: schema.followUps.channel,
+  outcome: schema.followUps.outcome,
+  summary: schema.followUps.summary,
+  isValidFollowUp: schema.followUps.isValidFollowUp,
+};
+
 export async function listRecentFollowUpsForAdmin(
   db: Database,
   limit = RECENT_FOLLOW_UP_LIMIT,
 ): Promise<RecentFollowUpRow[]> {
   const rows = await db
-    .select({
-      id: schema.followUps.id,
-      customerId: schema.followUps.customerId,
-      customerName: schema.customers.customerName,
-      userId: schema.followUps.userId,
-      userName: schema.users.displayName,
-      followUpTime: schema.followUps.followUpTime,
-      channel: schema.followUps.channel,
-      outcome: schema.followUps.outcome,
-      summary: schema.followUps.summary,
-      isValidFollowUp: schema.followUps.isValidFollowUp,
-    })
+    .select(recentFollowUpSelect)
     .from(schema.followUps)
     .innerJoin(
       schema.customers,
@@ -68,18 +73,7 @@ export async function listRecentFollowUpsForStaff(
   limit = RECENT_FOLLOW_UP_LIMIT,
 ): Promise<RecentFollowUpRow[]> {
   const rows = await db
-    .select({
-      id: schema.followUps.id,
-      customerId: schema.followUps.customerId,
-      customerName: schema.customers.customerName,
-      userId: schema.followUps.userId,
-      userName: schema.users.displayName,
-      followUpTime: schema.followUps.followUpTime,
-      channel: schema.followUps.channel,
-      outcome: schema.followUps.outcome,
-      summary: schema.followUps.summary,
-      isValidFollowUp: schema.followUps.isValidFollowUp,
-    })
+    .select(recentFollowUpSelect)
     .from(schema.followUps)
     .innerJoin(
       schema.customers,

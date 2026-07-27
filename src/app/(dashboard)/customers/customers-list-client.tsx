@@ -30,7 +30,7 @@ import {
   Tr,
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
-import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
+import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
 import {
   getSalesStageBadgeClass,
@@ -226,17 +226,20 @@ export function CustomersListClient({
   }
 
   function CustomerNameLink({ c }: { c: CustomerListRow }) {
-    const displayName = getCustomerDisplayName({
-      customerName: c.customerName,
-      nameStatus: c.nameStatus,
-      locale,
-    });
     return (
       <span className="inline-flex flex-col gap-0.5">
         <span className="inline-flex items-center gap-2">
-          <Link href={`/customers/${c.id}`} className={ui.customerName}>
-            {displayName}
-          </Link>
+          <CustomerNameLabel
+            customerName={c.customerName}
+            nameStatus={c.nameStatus}
+            locale={locale}
+            pendingLabel={tCommon("customers.namePendingBadge")}
+            renderName={(displayName) => (
+              <Link href={`/customers/${c.id}`} className={ui.customerName}>
+                {displayName}
+              </Link>
+            )}
+          />
           {c.isPinned && <PinnedBadge />}
         </span>
         {isAdmin && c.customerCode && (
@@ -298,13 +301,13 @@ export function CustomersListClient({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <p className={`truncate font-semibold ${ui.customerName}`}>
-                {getCustomerDisplayName({
-                  customerName: c.customerName,
-                  nameStatus: c.nameStatus,
-                  locale,
-                })}
-              </p>
+              <CustomerNameLabel
+                customerName={c.customerName}
+                nameStatus={c.nameStatus}
+                locale={locale}
+                pendingLabel={tCommon("customers.namePendingBadge")}
+                nameClassName={`truncate font-semibold ${ui.customerName}`}
+              />
               {c.isPinned && <PinnedBadge />}
             </div>
             {isAdmin && c.customerCode && (
