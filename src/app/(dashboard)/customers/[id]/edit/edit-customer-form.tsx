@@ -20,14 +20,22 @@ import {
   validatePaidCustomerFormClient,
 } from "@/lib/approvals/paid-customer-payload";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { useTranslation } from "@/i18n/provider";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { ui } from "@/lib/ui/classes";
+import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 
 type DuplicateMatch = {
   field: string;
   customer:
     | { isMasked: true }
-    | { isMasked: false; id: string; customerName: string; status: string };
+    | {
+        isMasked: false;
+        id: string;
+        customerName: string;
+        nameStatus?: string;
+        status: string;
+      };
 };
 
 const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
@@ -78,6 +86,7 @@ export function EditCustomerForm({
 }) {
   const router = useRouter();
   const { t, salesStage, customerType, status, fieldLabel } = useCustomerLabels();
+  const { locale } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -287,7 +296,11 @@ export function EditCustomerForm({
                       href={`/customers/${d.customer.id}`}
                       className="ml-1 font-medium underline hover:text-red-800"
                     >
-                      {d.customer.customerName}
+                      {getCustomerDisplayName({
+                        customerName: d.customer.customerName,
+                        nameStatus: d.customer.nameStatus,
+                        locale,
+                      })}
                     </a>
                   )}
                 </li>

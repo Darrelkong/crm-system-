@@ -20,6 +20,7 @@ const FINDING_PRIORITY: BasicAnalysisFindingCode[] = [
   "BUSINESS_NEED_MISSING",
   "CONTACT_MISSING",
   "CUSTOMER_NAME_MISSING",
+  "CUSTOMER_NAME_PENDING",
   "NEXT_FOLLOW_UP_MISSING",
   "SALES_STAGE_MISSING",
 ];
@@ -92,7 +93,20 @@ export function buildBasicCustomerAnalysis(
   const missingData: BasicCustomerAnalysis["missingData"] = [];
   const positiveSignals: BasicCustomerAnalysis["positiveSignals"] = [];
 
-  if (!hasText(input.customerName)) {
+  if (input.nameStatus === "pending") {
+    findings.push({
+      code: "CUSTOMER_NAME_PENDING",
+      severity: "info",
+      titleKey: "customers.basicAnalysis.findings.customerNamePending.title",
+      descriptionKey:
+        "customers.basicAnalysis.findings.customerNamePending.description",
+      evidence: { field: "customerName", value: null },
+      recommendedAction: {
+        type: "COMPLETE_PROFILE",
+        labelKey: "customers.basicAnalysis.actions.completeProfile",
+      },
+    });
+  } else if (!hasText(input.customerName)) {
     missingData.push({
       field: "customerName",
       labelKey: "customers.basicAnalysis.fields.customerName",

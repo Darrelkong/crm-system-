@@ -10,9 +10,9 @@ import {
   PermissionError,
 } from "@/lib/permissions/customers";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
-import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { EditCustomerForm } from "./edit-customer-form";
+import { EditCustomerPageHeader } from "./edit-customer-page-header";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
 import type { CustomerTagOption } from "@/lib/customer-tags/types";
 
@@ -91,10 +91,9 @@ export default async function EditCustomerPage({ params }: Props) {
 
   return (
     <div>
-      <TranslatedPageHeader
-        titleKey="customers.editClient"
-        descriptionKey="customers.editingDescription"
-        descriptionParams={{ name: customer.customerName }}
+      <EditCustomerPageHeader
+        customerName={customer.customerName}
+        nameStatus={customer.nameStatus}
       />
       <EditCustomerForm
         canEditStatus={user.role === "admin"}

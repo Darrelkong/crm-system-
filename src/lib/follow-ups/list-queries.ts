@@ -9,6 +9,7 @@ function mapRow(row: {
   id: string;
   customerId: string;
   customerName: string;
+  nameStatus: string;
   userId: string;
   userName: string;
   followUpTime: string;
@@ -25,6 +26,7 @@ function mapRow(row: {
     id: row.id,
     customerId: row.customerId,
     customerName: row.customerName,
+    nameStatus: row.nameStatus,
     userId: row.userId,
     userName: row.userName,
     followUpTime: row.followUpTime,
@@ -43,6 +45,7 @@ const listSelect = {
   id: schema.followUps.id,
   customerId: schema.followUps.customerId,
   customerName: schema.customers.customerName,
+  nameStatus: schema.customers.nameStatus,
   userId: schema.followUps.userId,
   userName: schema.users.displayName,
   followUpTime: schema.followUps.followUpTime,

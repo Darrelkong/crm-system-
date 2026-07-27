@@ -18,18 +18,28 @@ import {
   postFollowUpCreateOnce,
 } from "@/lib/follow-ups/follow-up-create-submit-flight";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
+import { useTranslation } from "@/i18n/provider";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { FollowUpOrganizeControls } from "@/components/follow-ups/follow-up-organize-controls";
+import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 
 export function NewFollowUpForm({
   customerId,
   customerName,
+  nameStatus,
 }: {
   customerId: string;
   customerName: string;
+  nameStatus?: string;
 }) {
   const router = useRouter();
   const { t, followUpChannel, followUpOutcome } = useCustomerLabels();
+  const { locale } = useTranslation();
+  const displayName = getCustomerDisplayName({
+    customerName,
+    nameStatus,
+    locale,
+  });
   const submitFlightRef = useRef(createFollowUpSubmitFlight());
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -151,7 +161,7 @@ export function NewFollowUpForm({
   return (
     <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
       <p className="mb-4 text-sm text-[#6B7890]">
-        {t("followUps.addFollowUpFor", { name: customerName })}
+        {t("followUps.addFollowUpFor", { name: displayName })}
       </p>
 
       {serverError && (

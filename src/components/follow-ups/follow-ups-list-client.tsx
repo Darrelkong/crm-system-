@@ -9,6 +9,7 @@ import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { FollowUpListItem } from "@/lib/follow-ups/types";
 import { formatHongKongDate, formatHongKongDateTime } from "@/lib/timezone";
+import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 
 const linkClass = "text-[#2F6FB3] hover:text-[#1F4E79] hover:underline";
 
@@ -20,12 +21,24 @@ type Filters = {
   toDate: string;
 };
 
-function applyFilters(items: FollowUpListItem[], filters: Filters): FollowUpListItem[] {
+function applyFilters(
+  items: FollowUpListItem[],
+  filters: Filters,
+  locale: string,
+): FollowUpListItem[] {
   const search = filters.search.trim().toLowerCase();
 
   return items.filter((item) => {
-    if (search && !item.customerName.toLowerCase().includes(search)) {
-      return false;
+    if (search) {
+      const displayName = getCustomerDisplayName({
+        customerName: item.customerName,
+        nameStatus: item.nameStatus,
+        locale,
+      }).toLowerCase();
+      const rawName = item.customerName.toLowerCase();
+      if (!displayName.includes(search) && !rawName.includes(search)) {
+        return false;
+      }
     }
     if (filters.staffUserId && item.userId !== filters.staffUserId) {
       return false;
@@ -57,6 +70,7 @@ function FollowUpRowContent({
   salesStage,
   status,
   t,
+  locale,
 }: {
   item: FollowUpListItem;
   showStaff: boolean;
@@ -65,7 +79,13 @@ function FollowUpRowContent({
   salesStage: (key: string) => string;
   status: (key: string) => string;
   t: (key: string) => string;
+  locale: string;
 }) {
+  const displayName = getCustomerDisplayName({
+    customerName: item.customerName,
+    nameStatus: item.nameStatus,
+    locale,
+  });
   return (
     <>
       <div className="flex flex-wrap items-center gap-2 text-xs text-[#6B7890]">
@@ -80,7 +100,7 @@ function FollowUpRowContent({
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <Link href={`/customers/${item.customerId}`} className={`text-sm font-medium ${linkClass}`}>
-          {item.customerName}
+          {displayName}
         </Link>
         <Badge>{salesStage(item.customerSalesStage)}</Badge>
         <Badge variant="accent">{status(item.customerStatus)}</Badge>
@@ -121,7 +141,7 @@ export function FollowUpsListClient({
   items: FollowUpListItem[];
   role: "admin" | "staff";
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const { followUpChannel, followUpOutcome, salesStage, status } =
     useCustomerLabels();
   const showStaff = role === "admin";
@@ -148,8 +168,8 @@ export function FollowUpsListClient({
   }, [items]);
 
   const filteredItems = useMemo(
-    () => applyFilters(items, filters),
-    [items, filters],
+    () => applyFilters(items, filters, locale),
+    [items, filters, locale],
   );
 
   return (
@@ -259,6 +279,7 @@ export function FollowUpsListClient({
                   salesStage={salesStage}
                   status={status}
                   t={t}
+                  locale={locale}
                 />
               </Card>
             ))}
@@ -307,7 +328,11 @@ export function FollowUpsListClient({
                         href={`/customers/${item.customerId}`}
                         className={`font-medium ${linkClass}`}
                       >
-                        {item.customerName}
+                        {getCustomerDisplayName({
+                          customerName: item.customerName,
+                          nameStatus: item.nameStatus,
+                          locale,
+                        })}
                       </Link>
                     </td>
                     {showStaff && (

@@ -304,6 +304,13 @@ const zhHant: Messages = {
     pendingNameMrEnLabel: "Mr. X",
     pendingNameMsEnLabel: "Ms. X",
     namePendingBadge: "姓名待確認",
+    confirmRealName: "確認真實姓名",
+    confirmRealNameConfirm: "確認",
+    confirmNamePlaceholder: "請輸入客戶真實姓名",
+    confirmNameRequired: "請輸入客戶真實姓名",
+    confirmNameInvalid: "請輸入有效的客戶真實姓名",
+    confirmNameConflict: "姓名可能已被其他人確認，請重新整理客戶資料",
+    confirmNameSuccess: "姓名確認成功",
     uniqueIdentifier: "唯一識別代碼",
     projectName: "項目名稱",
     filterCreatedBy: "創建團隊成員",
@@ -600,6 +607,10 @@ const zhHant: Messages = {
         customerNameMissing: {
           title: "缺少客戶姓名",
           description: "客戶姓名欄位為空，建議先補齊資料再繼續跟進。",
+        },
+        customerNamePending: {
+          title: "姓名待確認",
+          description: "客戶目前使用待確認姓名，確認真實姓名後即可完整建檔。",
         },
         contactMissing: {
           title: "缺少有效聯絡方式",
@@ -2588,6 +2599,7 @@ const zhHant: Messages = {
     customerClosedWonApproved: "成交申請已通過",
     customerPaidApproved: "客戶已付款審批通過",
     customerLifecycleCompleted: "客戶已標記為已完結",
+    customerNameConfirmed: "客戶姓名已由待確認更新為真實姓名",
     customerOnHoldCreateApproved: "管理員批准擱置申請",
     onHoldCreateApproved:
       "申請人：{{requestedByName}} · 擱置理由：{{onHoldReason}}",

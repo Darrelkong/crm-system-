@@ -58,4 +58,15 @@ describe("CUSTOMER_TIMELINE_AUDIT_ACTIONS (CUSTOMER-FLOW-SAFETY-1)", () => {
       "客户已标记为已完结",
     );
   });
+
+  it("includes customer.name.confirmed for pending name confirmation timeline", () => {
+    assert.equal(
+      CUSTOMER_TIMELINE_AUDIT_ACTIONS.has("customer.name.confirmed"),
+      true,
+    );
+    assert.equal(
+      AUDIT_ACTION_LABELS["customer.name.confirmed"],
+      "客户姓名已由待确认更新为真实姓名",
+    );
+  });
 });

@@ -31,6 +31,7 @@ const AUDIT_ACTION_MESSAGE_KEYS: Record<string, string> = {
   "customer.closed_won.approved": "customerClosedWonApproved",
   "customer.paid.approved": "customerPaidApproved",
   "customer.lifecycle.completed": "customerLifecycleCompleted",
+  "customer.name.confirmed": "customerNameConfirmed",
   "customer.on_hold_create.approved": "customerOnHoldCreateApproved",
   "customer.on_hold_create.rejected": "customerOnHoldCreateRejected",
   "customer.deleted.soft": "customerSoftDeleted",
@@ -516,6 +517,32 @@ export async function getCustomerTimeline(
 
   for (const row of fieldChanges) {
     items.push(buildFieldChangeItem(row, actorMap, visibility));
+  }
+
+  // Prefer dedicated confirm-name audit over the paired customer_name field_change row.
+  const nameConfirmedAt = new Set(
+    items
+      .filter(
+        (item) =>
+          item.type === "audit" &&
+          item.metadata?.action === "customer.name.confirmed",
+      )
+      .map((item) => item.occurredAt),
+  );
+  if (nameConfirmedAt.size > 0) {
+    const filtered = items.filter((item) => {
+      if (item.type !== "field_change") return true;
+      if (item.metadata?.field_name !== "customer_name") return true;
+      for (const occurredAt of nameConfirmedAt) {
+        const delta = Math.abs(
+          new Date(item.occurredAt).getTime() - new Date(occurredAt).getTime(),
+        );
+        if (delta <= 5000) return false;
+      }
+      return true;
+    });
+    items.length = 0;
+    items.push(...filtered);
   }
 
   for (const row of followUps) {

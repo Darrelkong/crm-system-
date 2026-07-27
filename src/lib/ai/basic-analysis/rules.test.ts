@@ -16,6 +16,7 @@ function baseInput(
   return {
     nowIso: "2026-07-20T04:00:00.000Z", // 12:00 HKT
     customerName: "Ada",
+    nameStatus: "confirmed",
     phone: "+85211112222",
     wechatId: null,
     requestedProjectName: "Office fit-out",
@@ -76,6 +77,41 @@ describe("buildBasicCustomerAnalysis", () => {
     assert.ok(result.positiveSignals.length > 0);
     assert.equal(result.nextRecommendedAction, null);
     assert.deepEqual(basicAnalysisContainsForbiddenKeys(result), []);
+  });
+
+  it("treats pending name as neutral info, not missing name", () => {
+    const result = buildBasicCustomerAnalysis(
+      baseInput({
+        customerName: null,
+        nameStatus: "pending",
+      }),
+    );
+    assert.equal(
+      result.findings.some((f) => f.code === "CUSTOMER_NAME_MISSING"),
+      false,
+    );
+    assert.equal(
+      result.findings.some((f) => f.code === "CUSTOMER_NAME_PENDING"),
+      true,
+    );
+    assert.equal(
+      result.missingData.some((m) => m.field === "customerName"),
+      false,
+    );
+    assert.equal(result.summaryStatus, "normal");
+  });
+
+  it("still flags confirmed customers with missing name", () => {
+    const result = buildBasicCustomerAnalysis(
+      baseInput({
+        customerName: null,
+        nameStatus: "confirmed",
+      }),
+    );
+    assert.equal(
+      result.findings.some((f) => f.code === "CUSTOMER_NAME_MISSING"),
+      true,
+    );
   });
 
   it("does not invent a 7-day follow-up risk threshold", () => {

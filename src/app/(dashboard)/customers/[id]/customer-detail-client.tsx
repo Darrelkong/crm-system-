@@ -15,6 +15,7 @@ import { ManageAssigneesButton } from "@/components/customers/manage-assignees-m
 import { RequestAssigneesButton } from "@/components/customers/request-assignees-modal";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { CustomerLifecycleCompleteModal } from "@/components/customers/customer-lifecycle-complete-modal";
+import { ConfirmCustomerNameModal } from "@/components/customers/confirm-customer-name-modal";
 import { CustomerScoresCards } from "@/components/customers/customer-scores-cards";
 import { CustomerTimelineView } from "@/components/customers/customer-timeline-view";
 import { CustomerAiInsightPanel } from "@/components/customers/customer-ai-insight-panel";
@@ -90,6 +91,7 @@ type Props = {
   showFollowUpButton: boolean;
   showApprovalButton: boolean;
   showLifecycleCompleteButton: boolean;
+  showConfirmNameButton: boolean;
   showManageAssigneesButton: boolean;
   showRequestAssigneesButton: boolean;
 };
@@ -188,6 +190,7 @@ export function CustomerDetailClient({
   showFollowUpButton,
   showApprovalButton,
   showLifecycleCompleteButton,
+  showConfirmNameButton,
   showManageAssigneesButton,
   showRequestAssigneesButton,
 }: Props) {
@@ -243,6 +246,11 @@ export function CustomerDetailClient({
               <Badge className="mt-1 bg-transparent text-[#6B7890] ring-1 ring-[#D5DCEA]">
                 {t("customers.namePendingBadge")}
               </Badge>
+            )}
+            {showConfirmNameButton && (
+              <div className="mt-1">
+                <ConfirmCustomerNameModal customerId={id} />
+              </div>
             )}
           </div>
           <div className="mt-2 flex flex-wrap items-center gap-2">

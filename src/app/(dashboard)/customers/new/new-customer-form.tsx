@@ -46,7 +46,13 @@ type DuplicateMatch = {
   field: string;
   customer:
     | { isMasked: true }
-    | { isMasked: false; id: string; customerName: string; status: string };
+    | {
+        isMasked: false;
+        id: string;
+        customerName: string;
+        nameStatus?: string;
+        status: string;
+      };
 };
 
 const COUNTRY_CODES = ["+86", "+852", "+853", "+886", "+1", "+44", "+81"];
@@ -441,7 +447,11 @@ export function NewCustomerForm({
                       href={`/customers/${d.customer.id}`}
                       className="ml-1 font-medium underline hover:text-red-800"
                     >
-                      {d.customer.customerName}
+                      {getCustomerDisplayName({
+                        customerName: d.customer.customerName,
+                        nameStatus: d.customer.nameStatus,
+                        locale,
+                      })}
                     </a>
                   )}
                 </li>

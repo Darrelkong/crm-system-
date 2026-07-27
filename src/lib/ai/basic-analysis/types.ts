@@ -11,6 +11,7 @@ export type BasicAnalysisFindingCode =
   | "NEXT_FOLLOW_UP_MISSING"
   | "CONTACT_MISSING"
   | "CUSTOMER_NAME_MISSING"
+  | "CUSTOMER_NAME_PENDING"
   | "BUSINESS_NEED_MISSING"
   | "NEXT_ACTION_MISSING"
   | "RECLAMATION_APPROACHING"
@@ -63,6 +64,8 @@ export type BasicCustomerAnalysis = {
 export type BasicAnalysisInput = {
   nowIso: string;
   customerName: string | null;
+  /** When pending, customerName is null and name is not treated as missing. */
+  nameStatus: "confirmed" | "pending";
   phone: string | null;
   wechatId: string | null;
   requestedProjectName: string | null;

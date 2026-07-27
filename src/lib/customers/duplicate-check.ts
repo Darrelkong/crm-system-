@@ -12,6 +12,7 @@ export type FullDuplicateMatch = {
     isMasked: false;
     id: string;
     customerName: string;
+    nameStatus: string;
     status: string;
     phone?: string | null;
     wechatId?: string | null;
@@ -88,6 +89,7 @@ export async function checkCustomerDuplicates(
         isMasked: false,
         id: customer.id,
         customerName: customer.customerName,
+        nameStatus: customer.nameStatus,
         status: customer.status,
         phone: customer.phone,
         wechatId: customer.wechatId,

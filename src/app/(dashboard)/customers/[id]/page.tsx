@@ -13,6 +13,7 @@ import {
   canRequestCustomerAssigneeUpdate,
   isStaffUnclaimedPublicPoolCustomer,
 } from "@/lib/permissions/customers";
+import { canConfirmPendingCustomerName } from "@/lib/customers/confirm-name";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
 import { resolveCustomerUserLabels, resolveCustomerAssigneeNames } from "@/lib/customers/user-labels";
@@ -107,6 +108,11 @@ export default async function CustomerDetailPage({ params }: Props) {
     customer.status !== "archived" &&
     customer.status !== "public_pool" &&
     !customer.deletedAt;
+  const showConfirmNameButton = await canConfirmPendingCustomerName(
+    db,
+    user,
+    customer,
+  );
 
   let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
   try {
@@ -176,6 +182,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       showFollowUpButton={showFollowUpButton}
       showApprovalButton={showApprovalButton}
       showLifecycleCompleteButton={showLifecycleCompleteButton}
+      showConfirmNameButton={showConfirmNameButton}
       showManageAssigneesButton={showManageAssigneesButton}
       showRequestAssigneesButton={showRequestAssigneesButton}
     />

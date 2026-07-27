@@ -81,7 +81,11 @@ export default async function NewFollowUpPage({ params }: Props) {
         titleKey="followUps.addFollowUp"
         descriptionKey="followUps.addFollowUpDescription"
       />
-      <NewFollowUpForm customerId={id} customerName={customer.customerName} />
+      <NewFollowUpForm
+        customerId={id}
+        customerName={customer.customerName}
+        nameStatus={customer.nameStatus}
+      />
     </div>
   );
 }

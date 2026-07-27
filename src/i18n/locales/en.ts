@@ -317,6 +317,14 @@ const en = {
     pendingNameMrEnLabel: "Mr. X",
     pendingNameMsEnLabel: "Ms. X",
     namePendingBadge: "Name Pending",
+    confirmRealName: "Confirm real name",
+    confirmRealNameConfirm: "Confirm",
+    confirmNamePlaceholder: "Enter the customer’s real name",
+    confirmNameRequired: "Please enter the customer’s real name",
+    confirmNameInvalid: "Please enter a valid real customer name",
+    confirmNameConflict:
+      "The name may already have been confirmed by someone else. Please refresh the customer record.",
+    confirmNameSuccess: "Customer name confirmed",
     uniqueIdentifier: "Unique identifier",
     projectName: "Project Name",
     filterCreatedBy: "Created by",
@@ -625,6 +633,11 @@ const en = {
         customerNameMissing: {
           title: "Customer name missing",
           description: "The customer name field is empty. Complete the profile before continuing outreach.",
+        },
+        customerNamePending: {
+          title: "Name pending",
+          description:
+            "This customer is using a pending name placeholder. Confirm the real name when available.",
         },
         contactMissing: {
           title: "No valid contact method",
@@ -2682,6 +2695,7 @@ const en = {
     customerClosedWonApproved: "Close-won approved",
     customerPaidApproved: "Paid customer approval approved",
     customerLifecycleCompleted: "Customer marked as completed",
+    customerNameConfirmed: "Customer name confirmed",
     customerOnHoldCreateApproved: "On-hold request approved",
     onHoldCreateApproved:
       "Requested by: {{requestedByName}} · On-hold reason: {{onHoldReason}}",
