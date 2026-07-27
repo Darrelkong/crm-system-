@@ -1895,6 +1895,10 @@ const en = {
         tooMany: "A batch can include at most 20 rows.",
         duplicateIds: "Each row needs a unique client row id.",
         name_required: "Please enter the customer name.",
+        name_invalid:
+          "Chinese names must be 2–5 Chinese characters. English names may only include letters, spaces, hyphens, or apostrophes — no digits, mixed scripts, or other symbols.",
+        name_placeholder_forbidden:
+          "X先生 / X女士 cannot be used as a confirmed name. Please use the full new-customer flow instead.",
         project_required: "Requested project is required.",
         project_invalid:
           "Requested project / business must be at least 4 characters.",
@@ -1909,7 +1913,10 @@ const en = {
         codeFormat: "The quick-entry code format is invalid.",
         locked: "Quick entry is temporarily locked.",
         nameRequired: "Please enter the customer name.",
-        nameInvalid: "Customer name is invalid.",
+        nameInvalid:
+          "Chinese names must be 2–5 Chinese characters. English names may only include letters, spaces, hyphens, or apostrophes — no digits, mixed scripts, or other symbols.",
+        namePlaceholderForbidden:
+          "X先生 / X女士 cannot be used as a confirmed name. Please use the full new-customer flow instead.",
         contactRequired: "Enter at least a phone number or WeChat ID.",
         phoneInvalid:
           "The phone number must be 11 digits and start with 1.",

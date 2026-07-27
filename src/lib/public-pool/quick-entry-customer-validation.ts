@@ -1,6 +1,7 @@
+import { isPendingNamePlaceholder } from "@/lib/customers/name-status";
 import {
+  countLatinLetters,
   hasSubstantiveContent,
-  isValidCustomerName,
 } from "@/lib/customers/validation";
 
 /** Mainland China mobile: ASCII digits only, starts with 1, exactly 11 digits. */
@@ -13,9 +14,20 @@ export const QUICK_ENTRY_WECHAT_MAX_LENGTH = 64;
 export const QUICK_ENTRY_NAME_MAX_LENGTH = 200;
 export const QUICK_ENTRY_PROJECT_MAX_LENGTH = 200;
 
+/** Pure CJK unified ideographs, length 2–5 (Quick Entry confirmed names only). */
+const QUICK_ENTRY_PURE_CHINESE_NAME_RE = /^[\u4e00-\u9fff]{2,5}$/;
+/**
+ * English confirmed names: letters with optional single spaces, hyphens, or
+ * apostrophes between letter groups (e.g. John Smith, Mary-Jane, O'Connor).
+ */
+const QUICK_ENTRY_ENGLISH_NAME_RE =
+  /^[A-Za-z]+(?:[ '\-][A-Za-z]+)*$/;
+
 export const QUICK_ENTRY_CUSTOMER_ERROR_CODES = {
   CUSTOMER_NAME_REQUIRED: "QUICK_ENTRY_CUSTOMER_NAME_REQUIRED",
   CUSTOMER_NAME_INVALID: "QUICK_ENTRY_CUSTOMER_NAME_INVALID",
+  CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN:
+    "QUICK_ENTRY_CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN",
   CONTACT_REQUIRED: "QUICK_ENTRY_CONTACT_REQUIRED",
   PHONE_INVALID: "QUICK_ENTRY_PHONE_INVALID",
   PHONE_COUNTRY_CODE_INVALID: "QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID",
@@ -25,6 +37,21 @@ export const QUICK_ENTRY_CUSTOMER_ERROR_CODES = {
   NOTE_TOO_LONG: "QUICK_ENTRY_NOTE_TOO_LONG",
   VALIDATION_FAILED: "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
 } as const;
+
+/**
+ * Quick Entry confirmed-name format (does not treat pending placeholders).
+ * Callers must reject placeholders via `isPendingNamePlaceholder` first.
+ */
+export function isValidQuickEntryCustomerName(name: string): boolean {
+  const trimmed = name.trim();
+  if (!trimmed) return false;
+  if (QUICK_ENTRY_PURE_CHINESE_NAME_RE.test(trimmed)) return true;
+  // Any remaining Chinese → wrong length, mixed script, or punctuation.
+  if (/[\u4e00-\u9fff]/.test(trimmed)) return false;
+  if (/\d/.test(trimmed)) return false;
+  if (!QUICK_ENTRY_ENGLISH_NAME_RE.test(trimmed)) return false;
+  return countLatinLetters(trimmed) >= 4;
+}
 
 export type QuickEntryCustomerInput = {
   customerName: string;
@@ -264,15 +291,22 @@ export function validateQuickEntryCustomerInput(
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_REQUIRED,
       message: "客户名称必填",
     });
+  } else if (isPendingNamePlaceholder(canonical.customerName)) {
+    errors.push({
+      field: "customerName",
+      errorCode:
+        QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN,
+      message: "X先生／X女士不能作为已确认姓名，请使用完整新增客户流程",
+    });
   } else if (
     canonical.customerName.length > QUICK_ENTRY_NAME_MAX_LENGTH ||
-    !isValidCustomerName(canonical.customerName)
+    !isValidQuickEntryCustomerName(canonical.customerName)
   ) {
     errors.push({
       field: "customerName",
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
       message:
-        "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
+        "中文姓名须为 2～5 个中文字；英文姓名仅可含字母、空格、连字号或撇号，且不得含数字、中英混合或其他符号",
     });
   }
 

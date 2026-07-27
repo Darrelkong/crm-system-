@@ -97,6 +97,8 @@ function errorMessageForCode(
       "publicPool.quickEntry.errors.nameRequired",
     QUICK_ENTRY_CUSTOMER_NAME_INVALID:
       "publicPool.quickEntry.errors.nameInvalid",
+    QUICK_ENTRY_CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN:
+      "publicPool.quickEntry.errors.namePlaceholderForbidden",
     QUICK_ENTRY_CONTACT_REQUIRED: "publicPool.quickEntry.errors.contactRequired",
     QUICK_ENTRY_PHONE_INVALID: "publicPool.quickEntry.errors.phoneInvalid",
     QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID:

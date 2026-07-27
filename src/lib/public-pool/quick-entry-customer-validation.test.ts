@@ -1,16 +1,143 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import en from "@/i18n/locales/en";
+import zhHans from "@/i18n/locales/zh-Hans";
+import zhHant from "@/i18n/locales/zh-Hant";
+import { prepareDirectPublicPoolCustomerCreation } from "@/lib/public-pool/quick-entry-customer-service";
 import {
   QUICK_ENTRY_CUSTOMER_ERROR_CODES,
   QUICK_ENTRY_NOTE_MAX_LENGTH,
+  isValidQuickEntryCustomerName,
   validateQuickEntryCustomerInput,
 } from "@/lib/public-pool/quick-entry-customer-validation";
+import type { User } from "../../../drizzle/schema/users";
 
 const validBase = {
   customerName: "张三",
   phone: "13800138000",
   requestedProjectName: "移民项目咨询",
 };
+
+const staffActor = {
+  id: "11111111-1111-1111-1111-111111111102",
+  role: "staff",
+  isActive: 1,
+  deletedAt: null,
+  mustChangePassword: 0,
+} as User;
+
+describe("isValidQuickEntryCustomerName", () => {
+  it("accepts Chinese names of length 2–5", () => {
+    for (const name of ["王明", "王小明", "歐陽娜娜", "阿布都熱依"]) {
+      assert.equal(isValidQuickEntryCustomerName(name), true, name);
+    }
+  });
+
+  it("rejects Chinese names outside 2–5 or with extras", () => {
+    for (const name of [
+      "王",
+      "王小明明明明",
+      "王小明123",
+      "王 John",
+      "王 小明",
+      "王小明！",
+      "12345",
+      "王Ming",
+      "John 王",
+    ]) {
+      assert.equal(isValidQuickEntryCustomerName(name), false, name);
+    }
+  });
+
+  it("accepts English names with spaces, hyphens, and apostrophes", () => {
+    for (const name of [
+      "John Smith",
+      "Michael Chan",
+      "Mary-Jane Lee",
+      "O'Connor",
+    ]) {
+      assert.equal(isValidQuickEntryCustomerName(name), true, name);
+    }
+  });
+
+  it("rejects English names with digits, Chinese, or other symbols", () => {
+    for (const name of [
+      "John2",
+      "John Smith!",
+      "John_Smith",
+      "   ",
+      "---",
+      "'''",
+      "Mr. X",
+      "Ms. X",
+    ]) {
+      assert.equal(isValidQuickEntryCustomerName(name), false, name);
+    }
+  });
+});
+
+describe("validateQuickEntryCustomerInput name rules", () => {
+  it("accepts valid Chinese and English names", () => {
+    for (const customerName of [
+      "王明",
+      "王小明",
+      "歐陽娜娜",
+      "阿布都熱依",
+      "John Smith",
+      "Mary-Jane Lee",
+      "O'Connor",
+    ]) {
+      const result = validateQuickEntryCustomerInput({
+        ...validBase,
+        customerName,
+      });
+      assert.equal(result.ok, true, customerName);
+    }
+  });
+
+  it("rejects pending placeholders X先生 / X女士", () => {
+    for (const customerName of ["X先生", "X女士"]) {
+      const result = validateQuickEntryCustomerInput({
+        ...validBase,
+        customerName,
+      });
+      assert.equal(result.ok, false, customerName);
+      if (!result.ok) {
+        assert.equal(
+          result.errors[0]?.errorCode,
+          QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN,
+          customerName,
+        );
+      }
+    }
+  });
+
+  it("rejects invalid Chinese / mixed / symbol names", () => {
+    for (const customerName of [
+      "王",
+      "王小明明明明",
+      "王小明123",
+      "王 John",
+      "王 小明",
+      "王小明！",
+      "John2",
+      "John 王",
+    ]) {
+      const result = validateQuickEntryCustomerInput({
+        ...validBase,
+        customerName,
+      });
+      assert.equal(result.ok, false, customerName);
+      if (!result.ok) {
+        assert.equal(
+          result.errors[0]?.errorCode,
+          QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
+          customerName,
+        );
+      }
+    }
+  });
+});
 
 describe("validateQuickEntryCustomerInput", () => {
   it("accepts phone only", () => {
@@ -178,7 +305,8 @@ describe("validateQuickEntryCustomerInput", () => {
       if (!result.ok) {
         assert.ok(
           result.errors.some(
-            (e) => e.errorCode === QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
+            (e) =>
+              e.errorCode === QUICK_ENTRY_CUSTOMER_ERROR_CODES.PHONE_INVALID,
           ),
           phone,
         );
@@ -275,5 +403,61 @@ describe("validateQuickEntryCustomerInput", () => {
   it("rejects non-object input", () => {
     assert.equal(validateQuickEntryCustomerInput(null).ok, false);
     assert.equal(validateQuickEntryCustomerInput(["x"]).ok, false);
+  });
+});
+
+describe("prepareDirectPublicPoolCustomerCreation name gate", () => {
+  it("rejects illegal names before insert (no customer created)", async () => {
+    for (const customerName of ["X先生", "王", "王 John", "John2"]) {
+      const result = await prepareDirectPublicPoolCustomerCreation({
+        actor: staffActor,
+        customer: {
+          customerName,
+          phone: "13800138000",
+          requestedProjectName: "移民项目咨询",
+        },
+      });
+      assert.equal(result.kind, "invalid", customerName);
+      assert.equal("customerId" in result, false, customerName);
+      assert.equal("statements" in result, false, customerName);
+    }
+  });
+});
+
+describe("quick-entry name i18n parity", () => {
+  it("keeps validation and API error copy aligned across locales", () => {
+    assert.ok(
+      zhHant.publicPool.quickEntry.validation.name_invalid.includes("2～5"),
+    );
+    assert.ok(
+      zhHans.publicPool.quickEntry.validation.name_invalid.includes("2～5"),
+    );
+    assert.ok(
+      en.publicPool.quickEntry.validation.name_invalid.includes("2–5"),
+    );
+    assert.match(
+      zhHant.publicPool.quickEntry.validation.name_placeholder_forbidden,
+      /X先生/,
+    );
+    assert.match(
+      zhHans.publicPool.quickEntry.validation.name_placeholder_forbidden,
+      /X先生/,
+    );
+    assert.match(
+      en.publicPool.quickEntry.validation.name_placeholder_forbidden,
+      /X先生/,
+    );
+    assert.equal(
+      zhHant.publicPool.quickEntry.errors.namePlaceholderForbidden,
+      zhHant.publicPool.quickEntry.validation.name_placeholder_forbidden,
+    );
+    assert.equal(
+      zhHans.publicPool.quickEntry.errors.namePlaceholderForbidden,
+      zhHans.publicPool.quickEntry.validation.name_placeholder_forbidden,
+    );
+    assert.equal(
+      en.publicPool.quickEntry.errors.namePlaceholderForbidden,
+      en.publicPool.quickEntry.validation.name_placeholder_forbidden,
+    );
   });
 });

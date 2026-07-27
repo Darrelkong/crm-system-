@@ -187,6 +187,32 @@ describe("row limits and validation", () => {
     assert.equal(validateQuickEntryFormRows([row]).ok, true);
   });
 
+  it("rejects pending placeholders and invalid name formats", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    row.requestedProjectName = "移民项目咨询";
+    row.phone = "13800138000";
+
+    row.customerName = "X先生";
+    let result = validateQuickEntryFormRows([row]);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(
+        result.fieldErrors[uuidA]?.customerName,
+        "name_placeholder_forbidden",
+      );
+    }
+
+    row.customerName = "王";
+    result = validateQuickEntryFormRows([row]);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(result.fieldErrors[uuidA]?.customerName, "name_invalid");
+    }
+
+    row.customerName = "John Smith";
+    assert.equal(validateQuickEntryFormRows([row]).ok, true);
+  });
+
   it("returns field-level errors for single-entry UX", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "";

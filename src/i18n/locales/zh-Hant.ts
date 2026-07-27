@@ -1837,6 +1837,10 @@ const zhHant: Messages = {
         tooMany: "每批最多 20 行。",
         duplicateIds: "每一行需要唯一的列識別碼。",
         name_required: "請輸入客戶姓名",
+        name_invalid:
+          "中文姓名須為 2～5 個中文字；英文姓名僅可含字母、空格、連字號或撇號，且不得含數字、中英混合或其他符號。",
+        name_placeholder_forbidden:
+          "X先生／X女士不能作為已確認姓名，請使用完整新增客戶流程。",
         project_required: "請填寫需求業務／申請項目。",
         project_invalid: "需求業務／申請項目請至少輸入4個字",
         contact_required: "電話或微信至少填寫一項",
@@ -1849,7 +1853,10 @@ const zhHant: Messages = {
         codeFormat: "錄入碼格式無效。",
         locked: "快速錄入暫時鎖定。",
         nameRequired: "請輸入客戶姓名",
-        nameInvalid: "客戶姓名無效。",
+        nameInvalid:
+          "中文姓名須為 2～5 個中文字；英文姓名僅可含字母、空格、連字號或撇號，且不得含數字、中英混合或其他符號。",
+        namePlaceholderForbidden:
+          "X先生／X女士不能作為已確認姓名，請使用完整新增客戶流程。",
         contactRequired: "電話或微信至少填寫一項",
         phoneInvalid: "電話必須為1開頭的11位數字",
         countryCodeInvalid: "國家區號只支持 +86",

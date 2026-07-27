@@ -1836,6 +1836,10 @@ const zhHans: Messages = {
         tooMany: "每批最多 20 行。",
         duplicateIds: "每一行需要唯一的列识别码。",
         name_required: "请输入客户姓名",
+        name_invalid:
+          "中文姓名须为 2～5 个中文字；英文姓名仅可含字母、空格、连字号或撇号，且不得含数字、中英混合或其他符号。",
+        name_placeholder_forbidden:
+          "X先生／X女士不能作为已确认姓名，请使用完整新增客户流程。",
         project_required: "请填写需求业务／申请项目。",
         project_invalid: "需求业务／申请项目请至少输入4个字",
         contact_required: "电话或微信至少填写一项",
@@ -1848,7 +1852,10 @@ const zhHans: Messages = {
         codeFormat: "录入码格式无效。",
         locked: "快速录入暂时锁定。",
         nameRequired: "请输入客户姓名",
-        nameInvalid: "客户姓名无效。",
+        nameInvalid:
+          "中文姓名须为 2～5 个中文字；英文姓名仅可含字母、空格、连字号或撇号，且不得含数字、中英混合或其他符号。",
+        namePlaceholderForbidden:
+          "X先生／X女士不能作为已确认姓名，请使用完整新增客户流程。",
         contactRequired: "电话或微信至少填写一项",
         phoneInvalid: "电话必须为1开头的11位数字",
         countryCodeInvalid: "国家区号仅支持 +86",

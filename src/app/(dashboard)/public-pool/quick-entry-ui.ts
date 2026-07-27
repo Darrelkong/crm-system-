@@ -3,10 +3,12 @@
  * No React — fully unit-testable. Server remains the authority.
  */
 
+import { isPendingNamePlaceholder } from "@/lib/customers/name-status";
 import { hasSubstantiveContent } from "@/lib/customers/validation";
 import {
   QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
   isValidQuickEntryCnPhone,
+  isValidQuickEntryCustomerName,
 } from "@/lib/public-pool/quick-entry-customer-validation";
 import { QUICK_ENTRY_BATCH_MAX_ROWS } from "@/lib/public-pool/quick-entry-submission-constants";
 
@@ -105,6 +107,8 @@ export type QuickEntryBatchFailureView = {
 
 export type QuickEntryClientRowError =
   | "name_required"
+  | "name_invalid"
+  | "name_placeholder_forbidden"
   | "project_required"
   | "project_invalid"
   | "contact_required"
@@ -307,8 +311,13 @@ export function firstFieldErrorKey(
 
 function validateOneQuickEntryRow(row: QuickEntryFormRow): QuickEntryFieldErrors {
   const errors: QuickEntryFieldErrors = {};
-  if (!row.customerName.trim()) {
+  const customerName = row.customerName.trim();
+  if (!customerName) {
     errors.customerName = "name_required";
+  } else if (isPendingNamePlaceholder(customerName)) {
+    errors.customerName = "name_placeholder_forbidden";
+  } else if (!isValidQuickEntryCustomerName(customerName)) {
+    errors.customerName = "name_invalid";
   }
   const project = row.requestedProjectName.trim();
   if (!project) {
