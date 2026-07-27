@@ -316,7 +316,7 @@ const en = {
     pendingNameMs: "X女士",
     pendingNameMrEnLabel: "Mr. X",
     pendingNameMsEnLabel: "Ms. X",
-    namePendingBadge: "Name Pending",
+    namePendingBadge: "Name pending confirmation",
     confirmRealName: "Confirm real name",
     confirmRealNameConfirm: "Confirm",
     confirmNamePlaceholder: "Enter the customer’s real name",

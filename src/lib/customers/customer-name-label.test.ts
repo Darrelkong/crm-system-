@@ -104,7 +104,7 @@ describe("namePendingBadge i18n parity", () => {
   it("keeps localized pending badge copy in all locales", () => {
     assert.equal(zhHant.customers.namePendingBadge, "姓名待確認");
     assert.equal(zhHans.customers.namePendingBadge, "姓名待确认");
-    assert.equal(en.customers.namePendingBadge, "Name Pending");
+    assert.equal(en.customers.namePendingBadge, "Name pending confirmation");
   });
 });
 
