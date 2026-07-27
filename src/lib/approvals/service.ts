@@ -4,6 +4,7 @@ import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { writeFieldChangeLogEntry } from "@/lib/customers/field-change-log";
 import { createNotification } from "@/lib/notifications/service";
+import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
 import type { Approval } from "../../../drizzle/schema/approvals";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -67,7 +68,7 @@ async function notifyAdminsPending(
       titleKey: "notificationTypes.approval_pending",
       messageKey: "notificationMessages.approvalPendingAdmin",
       messageParams: {
-        customerName: customer.customerName,
+        ...customerNameNotificationParams(customer),
         approvalType: approval.requestType,
       },
       relatedEntityType: "approval",
@@ -263,7 +264,7 @@ async function executeApprovedAction(
           type: "customer.transferred",
           titleKey: "notificationTypes.customer_transferred",
           messageKey: "notificationMessages.customerTransferredAway",
-          messageParams: { customerName: customer.customerName },
+          messageParams: customerNameNotificationParams(customer),
           relatedEntityType: "customer",
           relatedEntityId: customer.id,
         });
@@ -292,7 +293,7 @@ async function executeApprovedAction(
         type: "customer.transferred",
         titleKey: "notificationTypes.customer_transferred",
         messageKey: "notificationMessages.customerTransferredToYou",
-        messageParams: { customerName: customer.customerName },
+        messageParams: customerNameNotificationParams(customer),
         relatedEntityType: "customer",
         relatedEntityId: customer.id,
       });
@@ -356,7 +357,7 @@ async function executeApprovedAction(
         type: "customer.closed_won.approved",
         titleKey: "notificationTypes.customer_closed_won_approved",
         messageKey: "notificationMessages.closedWonApproved",
-        messageParams: { customerName: customer.customerName },
+        messageParams: customerNameNotificationParams(customer),
         relatedEntityType: "customer",
         relatedEntityId: customer.id,
       });

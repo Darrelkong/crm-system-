@@ -60,17 +60,18 @@ function safeResolveTitle(
 
 function safeResolveMessage(
   t: ReturnType<typeof useTranslation>["t"],
+  locale: string,
   item: NotificationListItem,
 ): string {
   try {
-    return resolveNotificationMessage(t, item) || "";
+    return resolveNotificationMessage(t, item, { locale }) || "";
   } catch {
     return item.message ?? "";
   }
 }
 
 export function NotificationsClient({ userRole }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [items, setItems] = useState<NotificationListItem[]>([]);
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -221,7 +222,7 @@ export function NotificationsClient({ userRole }: Props) {
                       {safeResolveTitle(t, item)}
                     </p>
                     <p className="mt-1 text-sm leading-relaxed text-[#3D4A5C]">
-                      {safeResolveMessage(t, item)}
+                      {safeResolveMessage(t, locale, item)}
                     </p>
                     <p className="mt-2 text-xs text-[#6B7890]">
                       {formatCreatedAt(item.created_at)}

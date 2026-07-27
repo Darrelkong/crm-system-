@@ -3,6 +3,7 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { createNotification } from "@/lib/notifications/service";
+import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
 import type { Customer } from "../../../drizzle/schema/customers";
 import {
   AUTO_RECLAIM_POOL_REASON_PREFIX,
@@ -172,7 +173,7 @@ async function sendReclaimWarning(
     titleKey: "notificationTypes.auto_reclaim_warning_day_6",
     messageKey: "notificationMessages.autoReclaimWarning",
     messageParams: {
-      customerName: customer.customerName,
+      ...customerNameNotificationParams(customer),
       days: String(days),
       reclaimDays: String(settings.automaticReclaimDays),
       daysBefore: String(settings.reclaimWarningDaysBefore),
@@ -262,7 +263,7 @@ async function autoReclaimCustomer(
       titleKey: "notificationTypes.customer_auto_reclaimed",
       messageKey: "notificationMessages.customerAutoReclaimed",
       messageParams: {
-        customerName: customer.customerName,
+        ...customerNameNotificationParams(customer),
         days: String(settings.automaticReclaimDays),
       },
       relatedEntityType: "customer",

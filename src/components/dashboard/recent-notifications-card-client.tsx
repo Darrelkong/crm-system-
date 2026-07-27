@@ -42,17 +42,18 @@ function safeResolveTitle(
 
 function safeResolveMessage(
   t: ReturnType<typeof useTranslation>["t"],
+  locale: string,
   item: NotificationListItem,
 ): string {
   try {
-    return resolveNotificationMessage(t, item) || "";
+    return resolveNotificationMessage(t, item, { locale }) || "";
   } catch {
     return item.message ?? "";
   }
 }
 
 export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
 
   const sortedItems = useMemo(
     () =>
@@ -103,7 +104,7 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
                   {safeResolveTitle(t, item)}
                 </p>
                 <p className="mt-0.5 line-clamp-2 text-xs crm-text-secondary">
-                  {safeResolveMessage(t, item)}
+                  {safeResolveMessage(t, locale, item)}
                 </p>
                 <p className="mt-1 text-xs crm-text-secondary">
                   {formatCreatedAt(item.created_at)}

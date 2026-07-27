@@ -5,6 +5,8 @@ import type { CompleteCustomerLifecycleResult } from "@/lib/customers/lifecycle-
 import { CUSTOMER_LIFECYCLE_COMPLETED } from "@/lib/customers/lifecycle-complete";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { safelyNotifyPendingSecondConversionAfterLifecycleComplete } from "./pending-second-conversion";
+import "./customer-name.test";
+import "./pending-name-params.test";
 
 const customer = {
   id: "33333333-3333-3333-3333-333333333301",

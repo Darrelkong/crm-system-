@@ -7,6 +7,7 @@ import type { CompleteCustomerLifecycleResult } from "@/lib/customers/lifecycle-
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { createNotification } from "./service";
+import { customerNameNotificationParams } from "./customer-name";
 
 export const PENDING_SECOND_CONVERSION_NOTIFICATION_TYPE =
   "customer.pending_second_conversion" satisfies NotificationType;
@@ -14,6 +15,7 @@ export const PENDING_SECOND_CONVERSION_NOTIFICATION_TYPE =
 export type NotifyPendingSecondConversionInput = {
   id: string;
   customerName: string;
+  nameStatus?: string | null;
   lifecycleStatus?: string | null;
   status: string;
   ownerId?: string | null;
@@ -127,7 +129,10 @@ export async function notifyPendingSecondConversionIfEligible(
       type: PENDING_SECOND_CONVERSION_NOTIFICATION_TYPE,
       titleKey: "notificationTypes.customer_pending_second_conversion",
       messageKey: "notificationMessages.pendingSecondConversion",
-      messageParams: { customerName: input.customerName },
+      messageParams: customerNameNotificationParams({
+        customerName: input.customerName,
+        nameStatus: input.nameStatus,
+      }),
       relatedEntityType: "customer",
       relatedEntityId: input.id,
     });
@@ -145,6 +150,7 @@ function toNotifyInput(
   return {
     id: customer.id,
     customerName: customer.customerName,
+    nameStatus: customer.nameStatus,
     lifecycleStatus: result.lifecycleStatus,
     status: result.status,
     ownerId: customer.ownerId,

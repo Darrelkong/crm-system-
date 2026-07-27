@@ -28,6 +28,7 @@ import {
 } from "@/lib/permissions/customers";
 import { findPendingApproval } from "@/lib/approvals/queries";
 import { createNotification } from "@/lib/notifications/service";
+import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
 import { listActiveAdminUsers } from "@/lib/users/queries";
 import { APPROVAL_AUDIT_ACTIONS } from "@/lib/approvals/constants";
 import { getUserById } from "@/lib/users/queries";
@@ -136,7 +137,7 @@ async function notifyAdminsAssigneePending(
       titleKey: "notificationTypes.approval_pending",
       messageKey: "notificationMessages.approvalPendingAdmin",
       messageParams: {
-        customerName: customer.customerName,
+        ...customerNameNotificationParams(customer),
         approvalType: "update_customer_assignees",
       },
       relatedEntityType: "approval",
