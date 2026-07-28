@@ -145,9 +145,17 @@ export async function loadSecondaryContactsForCustomer(
  *   uq_customer_contact_identifiers_customer_type_value
  *   (customer_id, contact_type, normalized_value)
  *
- * Future 0042 global unique (not created yet) is expected to mention
- * contact_type + normalized_value WITHOUT customer_id, or a dedicated
- * global index name.
+ * 0042 global unique:
+ *   uq_customer_contact_identifiers_type_value
+ *   (contact_type, normalized_value)
+ *
+ * Observed node:sqlite / D1 message for 0042 violations:
+ *   "UNIQUE constraint failed: customer_contact_identifiers.contact_type,
+ *    customer_contact_identifiers.normalized_value"
+ * Index name is often omitted; normalized_value PII is not embedded in the
+ * message (column names only). After 0042, same-customer duplicate inserts
+ * typically surface with the global column signature (global subsumes
+ * per-customer for the same type+value pair).
  *
  * Does not parse PII from error text.
  */
@@ -172,22 +180,10 @@ export function classifyContactIdentifierUniqueConstraintError(
     return null;
   }
 
-  const mentionsIdentifiersTable =
-    lower.includes("customer_contact_identifiers") ||
-    lower.includes("uq_customer_contact_identifiers");
-
-  // Explicit per-customer index / composite including customer_id.
-  if (
-    lower.includes("uq_customer_contact_identifiers_customer_type_value") ||
-    (mentionsIdentifiersTable &&
-      lower.includes("customer_id") &&
-      lower.includes("contact_type") &&
-      lower.includes("normalized_value"))
-  ) {
+  // Prefer explicit index names when present.
+  if (lower.includes("uq_customer_contact_identifiers_customer_type_value")) {
     return "per_customer";
   }
-
-  // Future / explicit global index names.
   if (
     lower.includes("uq_customer_contact_identifiers_type_value") ||
     lower.includes("uq_customer_contact_identifiers_global")
@@ -195,9 +191,26 @@ export function classifyContactIdentifierUniqueConstraintError(
     return "global";
   }
 
+  const mentionsIdentifiersTable =
+    lower.includes("customer_contact_identifiers") ||
+    lower.includes("uq_customer_contact_identifiers");
+
+  if (!mentionsIdentifiersTable) {
+    // Other tables (assignees, customer_code, submission rows, …) — ignore.
+    return null;
+  }
+
+  // Explicit per-customer composite including customer_id.
+  if (
+    lower.includes("customer_id") &&
+    lower.includes("contact_type") &&
+    lower.includes("normalized_value")
+  ) {
+    return "per_customer";
+  }
+
   // Global composite: contact_type + normalized_value, no customer_id column.
   if (
-    mentionsIdentifiersTable &&
     lower.includes("contact_type") &&
     lower.includes("normalized_value") &&
     !lower.includes("customer_id")

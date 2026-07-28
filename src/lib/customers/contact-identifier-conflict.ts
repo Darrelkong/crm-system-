@@ -1,9 +1,9 @@
 /**
- * Map future (0042+) global identifier unique-constraint failures to Phase 1
- * duplicate 409. Does not parse PII from SQLite error text — re-runs
- * checkCustomerDuplicates instead.
+ * Map 0042 global identifier unique-constraint failures to Phase 1 duplicate 409.
+ * Does not parse PII from SQLite error text — re-runs checkCustomerDuplicates instead.
  *
- * 0041 per-customer unique failures are NOT mapped to cross-customer duplicates.
+ * 0041 per-customer unique failures are NOT mapped to cross-customer duplicates
+ * when the error signature still includes customer_id / per-customer index name.
  */
 
 import type { User } from "../../../drizzle/schema/users";

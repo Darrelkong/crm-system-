@@ -11,7 +11,8 @@ export type ContactIdentifierType = (typeof CONTACT_IDENTIFIER_TYPES)[number];
 
 /**
  * D2 model: one row per customer × contact_type × normalized_value.
- * 0041 has per-customer unique only. Global unique is deferred to 0042.
+ * 0041: per-customer unique (customer_id, contact_type, normalized_value).
+ * 0042: global unique (contact_type, normalized_value).
  */
 export const customerContactIdentifiers = sqliteTable(
   "customer_contact_identifiers",
@@ -30,6 +31,10 @@ export const customerContactIdentifiers = sqliteTable(
   (table) => [
     uniqueIndex("uq_customer_contact_identifiers_customer_type_value").on(
       table.customerId,
+      table.contactType,
+      table.normalizedValue,
+    ),
+    uniqueIndex("uq_customer_contact_identifiers_type_value").on(
       table.contactType,
       table.normalizedValue,
     ),
