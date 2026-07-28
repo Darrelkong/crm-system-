@@ -20,6 +20,7 @@ const NEW_BACKUP_TABLES = [
   "announcements",
   "customer_code_counter",
   "login_ip_email_restrictions",
+  "customer_contact_identifiers",
 ] as const;
 
 const CORE_BACKUP_TABLES = [

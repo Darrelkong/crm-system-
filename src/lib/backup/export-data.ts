@@ -45,6 +45,9 @@ export async function collectBackupTableData(
 
   const customers = await db.select().from(schema.customers);
   const customerContacts = await db.select().from(schema.customerContacts);
+  const customerContactIdentifiers = await db
+    .select()
+    .from(schema.customerContactIdentifiers);
   const customerAssignees = await db.select().from(schema.customerAssignees);
   const customerTags = await db.select().from(schema.customerTags);
   const customerAiInsights = await db.select().from(schema.customerAiInsights);
@@ -78,6 +81,9 @@ export async function collectBackupTableData(
     users: users.map((r) => toSnakeRow(r as Row, BACKUP_EXCLUDED_FIELDS.users)),
     customers: customers.map((r) => toSnakeRow(r as Row)),
     customer_contacts: customerContacts.map((r) => toSnakeRow(r as Row)),
+    customer_contact_identifiers: customerContactIdentifiers.map((r) =>
+      toSnakeRow(r as Row),
+    ),
     customer_assignees: customerAssignees.map((r) => toSnakeRow(r as Row)),
     customer_tags: customerTags.map((r) => toSnakeRow(r as Row)),
     customer_ai_insights: customerAiInsights.map((r) => toSnakeRow(r as Row)),

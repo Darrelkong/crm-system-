@@ -4,6 +4,8 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { buildInsertPrimaryAssigneeStatement } from "@/lib/customers/primary-assignee";
+import { buildReplaceCustomerIdentifierStatements } from "@/lib/customers/contact-identifiers";
+import { resolveIdentifierConstraintAsDuplicates } from "@/lib/customers/contact-identifier-conflict";
 import {
   assertCommitableImportJob,
   ImportJobGuardError,
@@ -127,11 +129,40 @@ export async function commitCustomerImport(
         now,
       });
 
-      await db.batch(
-        [insertCustomerStmt, insertPrimaryAssigneeStmt] as unknown as Parameters<
-          Database["batch"]
-        >[0],
-      );
+      const identifierSync = buildReplaceCustomerIdentifierStatements(db, {
+        customerId: id,
+        phoneCountryCode: payload.phoneCountryCode,
+        phone: payload.phone,
+        wechatId: payload.wechatId,
+        email: payload.email,
+        secondaryContacts: [],
+        now,
+      });
+
+      try {
+        await db.batch(
+          [
+            insertCustomerStmt,
+            insertPrimaryAssigneeStmt,
+            ...identifierSync.statements,
+          ] as unknown as Parameters<Database["batch"]>[0],
+        );
+      } catch (batchError) {
+        const mapped = await resolveIdentifierConstraintAsDuplicates(
+          batchError,
+          {
+            phoneCountryCode: payload.phoneCountryCode,
+            phone: payload.phone,
+            wechatId: payload.wechatId,
+            email: payload.email,
+          },
+          user,
+        );
+        if (mapped) {
+          throw new Error("DUPLICATE_CUSTOMER_IDENTIFIER_CONSTRAINT");
+        }
+        throw batchError;
+      }
 
       createdCustomerIds.push(id);
 

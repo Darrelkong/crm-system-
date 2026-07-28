@@ -14,6 +14,8 @@ import {
   prepareDirectPublicPoolCustomerCreation,
   QUICK_ENTRY_SERVICE_ERROR_CODES,
 } from "@/lib/public-pool/quick-entry-customer-service";
+import { isGlobalContactIdentifierUniqueConstraintError } from "@/lib/customers/contact-identifiers";
+import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
 import {
   normalizeQuickEntryCustomerInput,
   validateQuickEntryCustomerInput,
@@ -529,6 +531,48 @@ export async function processQuickEntryCustomerSubmission(input: {
     } catch (err) {
       if (err instanceof QuickEntrySubmissionError) {
         return mapSubmissionError(err);
+      }
+      if (
+        isGlobalContactIdentifierUniqueConstraintError(err) &&
+        plan?.kind === "eligible"
+      ) {
+        const matches = await checkCustomerDuplicates(
+          {
+            phoneCountryCode: plan.normalizedCustomer.phoneCountryCode,
+            phone: plan.normalizedCustomer.phone,
+            wechatId: plan.normalizedCustomer.wechatId,
+            email: plan.normalizedCustomer.email ?? null,
+          },
+          input.actor,
+        );
+        const first = matches[0];
+        const duplicateField = first?.matchedField ?? "phone";
+        const errorCode =
+          duplicateField === "wechatId"
+            ? QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_WECHAT
+            : duplicateField === "email"
+              ? QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_EMAIL
+              : QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_PHONE;
+        await database.batch([
+          buildInsertQuickEntrySubmissionRowForLeaseStatement(database, {
+            actorUserId: input.actor.id,
+            submissionId: submissionId.value,
+            expectedProcessingStartedAt: leaseToken,
+            clientRowId: plan.clientRowId,
+            rowIndex,
+            status: QUICK_ENTRY_ROW_STATUS_DUPLICATE,
+            errorCode,
+            duplicateField,
+            now,
+          }),
+        ] as unknown as Parameters<Database["batch"]>[0]);
+        resultsByIndex.set(rowIndex, {
+          clientRowId: plan.clientRowId,
+          status: "duplicate",
+          errorCode,
+          duplicateField,
+        });
+        continue;
       }
       // System / infrastructure — abort without writing failed terminal row.
       throw err;

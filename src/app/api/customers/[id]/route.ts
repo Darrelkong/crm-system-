@@ -23,6 +23,14 @@ import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
 import {
+  buildReplaceCustomerIdentifierStatements,
+  loadSecondaryContactsForCustomer,
+} from "@/lib/customers/contact-identifiers";
+import {
+  duplicateCustomerConflictResponse,
+  resolveIdentifierConstraintAsDuplicates,
+} from "@/lib/customers/contact-identifier-conflict";
+import {
   buildCustomerUpdatePayload,
   writeFieldChangeLogs,
 } from "@/lib/customers/field-change-log";
@@ -273,9 +281,69 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const secondaryContacts = await loadSecondaryContactsForCustomer(db, id);
     const now = new Date().toISOString();
     const isArchiving =
       updateStatus === "archived" && existing.status !== "archived";
+
+    const customerUpdateValues = {
+      customerName: payload.customerName,
+      customerType: payload.customerType,
+      phoneCountryCode: payload.phoneCountryCode,
+      phone: payload.phone,
+      wechatId: payload.wechatId,
+      email: payload.email,
+      source: payload.source,
+      sourceRemark: payload.sourceRemark,
+      requestedProjectCode: payload.requestedProjectCode,
+      requestedProjectName: payload.requestedProjectName,
+      notes: payload.notes,
+      salesStage: payload.salesStage,
+      status: payload.status,
+      updatedBy: user.id,
+      updatedAt: now,
+    };
+
+    const identifierSync = buildReplaceCustomerIdentifierStatements(db, {
+      customerId: id,
+      phoneCountryCode: payload.phoneCountryCode,
+      phone: payload.phone,
+      wechatId: payload.wechatId,
+      email: payload.email,
+      secondaryContacts,
+      now,
+    });
+
+    async function persistCustomerAndIdentifiers() {
+      const updateStmt = db
+        .update(schema.customers)
+        .set(customerUpdateValues)
+        .where(eq(schema.customers.id, id));
+      try {
+        await db.batch(
+          [updateStmt, ...identifierSync.statements] as unknown as Parameters<
+            typeof db.batch
+          >[0],
+        );
+      } catch (batchError) {
+        const mapped = await resolveIdentifierConstraintAsDuplicates(
+          batchError,
+          {
+            phoneCountryCode: payload.phoneCountryCode,
+            phone: payload.phone,
+            wechatId: payload.wechatId,
+            email: payload.email,
+          },
+          user,
+          id,
+        );
+        if (mapped) {
+          return { kind: "duplicate" as const, duplicates: mapped.duplicates };
+        }
+        throw batchError;
+      }
+      return { kind: "ok" as const };
+    }
 
     if (isArchiving) {
       await archiveCustomerToRecycleBin(db, {
@@ -302,26 +370,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         user.id,
       );
 
-      await db
-        .update(schema.customers)
-        .set({
-          customerName: payload.customerName,
-          customerType: payload.customerType,
-          phoneCountryCode: payload.phoneCountryCode,
-          phone: payload.phone,
-          wechatId: payload.wechatId,
-          email: payload.email,
-          source: payload.source,
-          sourceRemark: payload.sourceRemark,
-          requestedProjectCode: payload.requestedProjectCode,
-          requestedProjectName: payload.requestedProjectName,
-          notes: payload.notes,
-          salesStage: payload.salesStage,
-          status: payload.status,
-          updatedBy: user.id,
-          updatedAt: now,
-        })
-        .where(eq(schema.customers.id, id));
+      const persistResult = await persistCustomerAndIdentifiers();
+      if (persistResult.kind === "duplicate") {
+        return duplicateCustomerConflictResponse(persistResult.duplicates);
+      }
 
       const changedFields = [
         "status",
@@ -357,26 +409,10 @@ export async function PATCH(request: Request, context: RouteContext) {
       user.id,
     );
 
-    await db
-      .update(schema.customers)
-      .set({
-        customerName: payload.customerName,
-        customerType: payload.customerType,
-        phoneCountryCode: payload.phoneCountryCode,
-        phone: payload.phone,
-        wechatId: payload.wechatId,
-        email: payload.email,
-        source: payload.source,
-        sourceRemark: payload.sourceRemark,
-        requestedProjectCode: payload.requestedProjectCode,
-        requestedProjectName: payload.requestedProjectName,
-        notes: payload.notes,
-        salesStage: payload.salesStage,
-        status: payload.status,
-        updatedBy: user.id,
-        updatedAt: now,
-      })
-      .where(eq(schema.customers.id, id));
+    const persistResult = await persistCustomerAndIdentifiers();
+    if (persistResult.kind === "duplicate") {
+      return duplicateCustomerConflictResponse(persistResult.duplicates);
+    }
 
     await writeAuditLog({
       userId: user.id,

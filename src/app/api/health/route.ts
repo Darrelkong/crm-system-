@@ -4,7 +4,8 @@ import { sql } from "drizzle-orm";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 import { getDb } from "@/lib/db";
 
-const EXPECTED_TABLES = [
+/** Always required foundation tables. */
+const CORE_EXPECTED_TABLES = [
   "users",
   "sessions",
   "customers",
@@ -14,6 +15,17 @@ const EXPECTED_TABLES = [
   "audit_logs",
   "login_logs",
   "system_settings",
+] as const;
+
+/**
+ * Tables required only after their introducing migration is present.
+ * Avoids noisy failures on local DBs that have not yet applied 0041.
+ */
+const MIGRATION_GATED_TABLES = [
+  {
+    table: "customer_contact_identifiers",
+    migrationNamePrefix: "0041_create_customer_contact_identifiers",
+  },
 ] as const;
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -33,9 +45,34 @@ export async function GET() {
     ).all();
 
     const tables = (results as { name: string }[]).map((row) => row.name);
-    const missingTables = EXPECTED_TABLES.filter(
-      (table) => !tables.includes(table),
+    const tableSet = new Set(tables);
+
+    const missingTables: string[] = CORE_EXPECTED_TABLES.filter(
+      (table) => !tableSet.has(table),
     );
+
+    let appliedMigrations: string[] = [];
+    if (tableSet.has("d1_migrations")) {
+      const migrationRows = await env.DB.prepare(
+        `SELECT name FROM d1_migrations`,
+      ).all();
+      appliedMigrations = (
+        (migrationRows.results as { name: string }[] | undefined) ?? []
+      ).map((row) => row.name);
+    }
+
+    for (const gated of MIGRATION_GATED_TABLES) {
+      const migrationApplied = appliedMigrations.some((name) =>
+        name.startsWith(gated.migrationNamePrefix),
+      );
+      // Production deploy is ordered after 0041; require table whenever
+      // migration is recorded OR (in production) always once core is healthy.
+      if (migrationApplied || isProduction) {
+        if (!tableSet.has(gated.table)) {
+          missingTables.push(gated.table);
+        }
+      }
+    }
 
     if (isProduction) {
       if (missingTables.length > 0) {

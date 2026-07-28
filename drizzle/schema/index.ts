@@ -5,6 +5,7 @@ export * from "./customers";
 export * from "./customer-assignees";
 export * from "./customer-code-counter";
 export * from "./customer-contacts";
+export * from "./customer-contact-identifiers";
 export * from "./follow-ups";
 export * from "./tasks";
 export * from "./audit-logs";

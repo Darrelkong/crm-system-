@@ -2,6 +2,10 @@ import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
+import {
+  buildReplaceCustomerIdentifierStatements,
+  isGlobalContactIdentifierUniqueConstraintError,
+} from "@/lib/customers/contact-identifiers";
 import { userMustChangePassword } from "@/lib/auth/change-password";
 import { PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY } from "@/lib/constants/customer-sources";
 import {
@@ -211,12 +215,26 @@ export async function prepareDirectPublicPoolCustomerCreation(input: {
     createdAt: now,
   });
 
+  const identifierSync = buildReplaceCustomerIdentifierStatements(database, {
+    customerId,
+    phoneCountryCode: normalized.phoneCountryCode,
+    phone: normalized.phone,
+    wechatId: normalized.wechatId,
+    email: normalized.email,
+    secondaryContacts: [],
+    now,
+  });
+
   return {
     kind: "ready",
     customerId,
     customerCode,
     customerName: normalized.customerName,
-    statements: [insertCustomer, insertAudit],
+    statements: [
+      insertCustomer,
+      insertAudit,
+      ...identifierSync.statements,
+    ],
   };
 }
 
@@ -254,9 +272,36 @@ export async function createCustomerDirectlyInPublicPool(input: {
   }
 
   const database = input.db ?? getDb();
-  await database.batch(
-    prepared.statements as unknown as Parameters<Database["batch"]>[0],
-  );
+  try {
+    await database.batch(
+      prepared.statements as unknown as Parameters<Database["batch"]>[0],
+    );
+  } catch (batchError) {
+    if (isGlobalContactIdentifierUniqueConstraintError(batchError)) {
+      const validated = validateQuickEntryCustomerInput(input.customer);
+      if (validated.ok) {
+        const dup = await findSafeDuplicate(validated.value, input.actor);
+        if (dup) {
+          return {
+            ok: false,
+            errorCode: dup.errorCode,
+            message: dup.message,
+            field: dup.field,
+            duplicate: true,
+            duplicateField: dup.duplicateField,
+          };
+        }
+      }
+      return {
+        ok: false,
+        errorCode: QUICK_ENTRY_SERVICE_ERROR_CODES.POSSIBLE_DUPLICATE,
+        message: "可能存在重复客户",
+        duplicate: true,
+        duplicateField: "phone",
+      };
+    }
+    throw batchError;
+  }
 
   return {
     ok: true,

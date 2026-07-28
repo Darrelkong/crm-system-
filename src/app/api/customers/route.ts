@@ -6,6 +6,11 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
+import { buildReplaceCustomerIdentifierStatements } from "@/lib/customers/contact-identifiers";
+import {
+  duplicateCustomerConflictResponse,
+  resolveIdentifierConstraintAsDuplicates,
+} from "@/lib/customers/contact-identifier-conflict";
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import {
   listCustomersForUser,
@@ -326,11 +331,40 @@ export async function POST(request: Request) {
       now,
     });
 
-    await db.batch(
-      [insertCustomerStmt, insertPrimaryAssigneeStmt] as unknown as Parameters<
-        typeof db.batch
-      >[0],
-    );
+    const identifierSync = buildReplaceCustomerIdentifierStatements(db, {
+      customerId: id,
+      phoneCountryCode: payload.phoneCountryCode,
+      phone: payload.phone,
+      wechatId: payload.wechatId,
+      email: payload.email,
+      secondaryContacts: [],
+      now,
+    });
+
+    try {
+      await db.batch(
+        [
+          insertCustomerStmt,
+          insertPrimaryAssigneeStmt,
+          ...identifierSync.statements,
+        ] as unknown as Parameters<typeof db.batch>[0],
+      );
+    } catch (batchError) {
+      const mapped = await resolveIdentifierConstraintAsDuplicates(
+        batchError,
+        {
+          phoneCountryCode: payload.phoneCountryCode,
+          phone: payload.phone,
+          wechatId: payload.wechatId,
+          email: payload.email,
+        },
+        user,
+      );
+      if (mapped) {
+        return duplicateCustomerConflictResponse(mapped.duplicates);
+      }
+      throw batchError;
+    }
 
     if (pendingOnHoldApproval) {
       const customer = await getCustomerById(id);

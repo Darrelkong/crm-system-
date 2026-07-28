@@ -9,6 +9,7 @@ export const BACKUP_TABLE_NAMES = [
   "users",
   "customers",
   "customer_contacts",
+  "customer_contact_identifiers",
   "customer_assignees",
   "customer_tags",
   "customer_ai_insights",
