@@ -33,6 +33,7 @@ export type RequestedProjectSelectorProps = {
   valueName: string;
   disabled?: boolean;
   placeholder: string;
+  selectServiceTitle: string;
   selectCountryTitle: string;
   searchPlaceholder: string;
   backLabel: string;
@@ -64,6 +65,7 @@ export function RequestedProjectSelector({
   valueName,
   disabled,
   placeholder,
+  selectServiceTitle,
   selectCountryTitle,
   searchPlaceholder,
   backLabel,
@@ -247,8 +249,13 @@ export function RequestedProjectSelector({
     }
   };
 
+  const selectedGroupCode = useMemo(() => {
+    if (!valueCode) return null;
+    return getRequestedProjectItem(valueCode)?.groupCode ?? null;
+  }, [valueCode]);
+
   const headerTitle = (() => {
-    if (desktop) return selectCountryTitle;
+    if (desktop) return selectServiceTitle;
     if (step === "items" && activeGroup) {
       const g = getRequestedProjectGroup(activeGroup);
       return g ? groupLabel(g) : selectCountryTitle;
@@ -277,9 +284,9 @@ export function RequestedProjectSelector({
           onClick={() => commitItem(item)}
         >
           <span className="min-w-0 flex-1 text-left">
-            <span className="block truncate">{itemLabel(item)}</span>
+            <span className="project-selector-label block">{itemLabel(item)}</span>
             {withBreadcrumb ? (
-              <span className="block truncate text-xs crm-text-muted">
+              <span className="project-selector-label block text-xs crm-text-muted">
                 {groupLabel(group)} · {itemLabel(item)}
               </span>
             ) : null}
@@ -292,9 +299,7 @@ export function RequestedProjectSelector({
 
   const panel = (
     <div
-      className={cn(
-        desktop ? "project-selector-modal" : "project-selector-sheet",
-      )}
+      className="project-selector-dialog"
       role="dialog"
       aria-modal="true"
       aria-labelledby={titleId}
@@ -362,7 +367,7 @@ export function RequestedProjectSelector({
                       setHighlight(0);
                     }}
                   >
-                    <span className="min-w-0 flex-1 truncate text-left">
+                    <span className="project-selector-label truncate">
                       {groupLabel(group)}
                     </span>
                     <span className="project-selector-chevron" aria-hidden>
@@ -394,20 +399,25 @@ export function RequestedProjectSelector({
       ) : (
         <div className="project-selector-mobile-body">
           {step === "groups" && !query.trim() ? (
-            <ul role="listbox">
+            <ul
+              key="groups"
+              className="project-selector-mobile-pane"
+              role="listbox"
+            >
               {REQUESTED_PROJECT_GROUPS.map((group, index) => (
                 <li key={group.groupCode}>
                   <button
                     type="button"
                     role="option"
-                    aria-selected={false}
+                    aria-selected={selectedGroupCode === group.groupCode}
                     className={cn(
                       "project-selector-row",
                       highlight === index && "is-highlight",
+                      selectedGroupCode === group.groupCode && "is-active",
                     )}
                     onClick={() => enterGroup(group)}
                   >
-                    <span className="min-w-0 flex-1 truncate text-left">
+                    <span className="project-selector-label truncate">
                       {groupLabel(group)}
                     </span>
                     <span className="project-selector-chevron" aria-hidden>
@@ -420,7 +430,11 @@ export function RequestedProjectSelector({
           ) : null}
 
           {step === "groups" && query.trim() ? (
-            <ul role="listbox">
+            <ul
+              key="group-search"
+              className="project-selector-mobile-pane"
+              role="listbox"
+            >
               {globalHits.map((hit, index) =>
                 renderItemButton(hit.item, index, true),
               )}
@@ -428,7 +442,11 @@ export function RequestedProjectSelector({
           ) : null}
 
           {step === "items" ? (
-            <ul role="listbox">
+            <ul
+              key={`items-${activeGroup ?? "none"}`}
+              className="project-selector-mobile-pane"
+              role="listbox"
+            >
               {level2Items.map((item, index) =>
                 renderItemButton(item, index, Boolean(query.trim())),
               )}

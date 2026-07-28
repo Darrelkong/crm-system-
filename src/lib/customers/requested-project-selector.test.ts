@@ -283,10 +283,29 @@ describe("selector UX contracts (source)", () => {
 
   it("supports desktop dual pane and keyboard Esc / arrows / Enter", () => {
     assert.match(source, /project-selector-dual/);
+    assert.match(source, /project-selector-dialog/);
     assert.match(source, /ArrowDown/);
     assert.match(source, /ArrowUp/);
     assert.match(source, /Enter/);
     assert.match(source, /Escape/);
+  });
+
+  it("uses centered dialog layout classes (not bottom sheet)", () => {
+    const css = readFileSync(
+      join(process.cwd(), "src/app/globals.css"),
+      "utf8",
+    );
+    const start = css.indexOf("/* ── Requested project country/region selector");
+    const end = css.indexOf("/* ── Quick Entry V2 Drawer", start);
+    const section = css.slice(start, end === -1 ? undefined : end);
+    assert.match(section, /\.project-selector-dialog/);
+    assert.match(section, /clamp\(280px,\s*calc\(100vw - 72px\),\s*330px\)/);
+    assert.match(section, /max-height:\s*min\(72dvh,\s*560px\)/);
+    assert.match(section, /@media \(max-width: 767px\)/);
+    assert.match(css, /width:\s*min\(680px/);
+    assert.doesNotMatch(section, /\.project-selector-sheet\s*\{/);
+    assert.doesNotMatch(section, /\.project-selector-dialog[^{]*\{[^}]*bottom:\s*0/);
+    assert.match(section, /place-items:\s*center/);
   });
 
   it("global search results include group breadcrumb pattern", () => {

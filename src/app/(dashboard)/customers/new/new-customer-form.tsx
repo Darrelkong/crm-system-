@@ -634,6 +634,7 @@ export function NewCustomerForm({
             valueCode={form.requestedProjectCode || null}
             valueName={form.requestedProjectName}
             placeholder={t("customers.requestedProjectNamePlaceholder")}
+            selectServiceTitle={t("customers.requestedProjectSelectService")}
             selectCountryTitle={t("customers.requestedProjectSelectCountry")}
             searchPlaceholder={t("customers.requestedProjectSearchPlaceholder")}
             backLabel={t("common.back")}
