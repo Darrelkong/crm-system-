@@ -56,6 +56,7 @@ import {
   planQuickEntryModeSwitch,
   prepareContinueEntryRow,
   prepareRetryBatchFromIncomplete,
+  quickEntryDuplicateFieldMessageKey,
   resolveQuickEntryPanelMode,
   shouldShowQuickEntryEntry,
   validateQuickEntryFormRows,
@@ -111,6 +112,7 @@ function errorMessageForCode(
       "publicPool.quickEntry.errors.generic",
     QUICK_ENTRY_DUPLICATE_PHONE: "publicPool.quickEntry.duplicatePhone",
     QUICK_ENTRY_DUPLICATE_WECHAT: "publicPool.quickEntry.duplicateWechat",
+    QUICK_ENTRY_DUPLICATE_EMAIL: "publicPool.quickEntry.duplicateEmail",
   };
   return t(mapped[errorCode] ?? "publicPool.quickEntry.errors.generic");
 }
@@ -1723,9 +1725,7 @@ function SingleResultView({
           {t("publicPool.quickEntry.resultDuplicateHeading")}
         </p>
         <p className="text-sm text-[var(--color-crm-text-secondary)]" role="status">
-          {result.duplicateField === "wechatId"
-            ? t("publicPool.quickEntry.duplicateWechat")
-            : t("publicPool.quickEntry.duplicatePhone")}
+          {t(quickEntryDuplicateFieldMessageKey(result.duplicateField))}
         </p>
         <p className="text-xs text-[var(--color-crm-text-secondary)]">
           {t("publicPool.quickEntry.reviseNeedsNewBatch")}

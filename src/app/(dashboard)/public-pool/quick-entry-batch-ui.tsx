@@ -12,6 +12,7 @@ import {
   canRemoveQuickEntryRow,
   deriveQuickEntryCardBadge,
   filterProjectSuggestions,
+  quickEntryDuplicateFieldMessageKey,
   type QuickEntryBatchSuccessView,
   type QuickEntryCardBadge,
   type QuickEntryFieldErrors,
@@ -638,9 +639,11 @@ export function BatchResultsPanel({
                   ) : null}
                   {result?.status === "duplicate" ? (
                     <p className="mt-1 text-sm text-[var(--color-crm-text-secondary)]">
-                      {result.duplicateField === "wechatId"
-                        ? t("publicPool.quickEntry.duplicateWechat")
-                        : t("publicPool.quickEntry.duplicatePhone")}
+                      {t(
+                        quickEntryDuplicateFieldMessageKey(
+                          result.duplicateField,
+                        ),
+                      )}
                     </p>
                   ) : null}
                   {result?.status === "invalid" || result?.status === "failed" ? (
@@ -675,9 +678,11 @@ export function BatchResultsPanel({
                   ) : null}
                   {result?.status === "duplicate" ? (
                     <p>
-                      {result.duplicateField === "wechatId"
-                        ? t("publicPool.quickEntry.duplicateWechat")
-                        : t("publicPool.quickEntry.duplicatePhone")}
+                      {t(
+                        quickEntryDuplicateFieldMessageKey(
+                          result.duplicateField,
+                        ),
+                      )}
                     </p>
                   ) : null}
                   {result?.status === "invalid" || result?.status === "failed" ? (

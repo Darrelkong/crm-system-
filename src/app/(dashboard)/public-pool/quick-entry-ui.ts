@@ -69,7 +69,7 @@ export type QuickEntryRowResultView =
       clientRowId: string;
       status: "duplicate";
       errorCode: string;
-      duplicateField: "phone" | "wechatId";
+      duplicateField: QuickEntryDuplicateFieldView;
     }
   | {
       clientRowId: string;
@@ -104,6 +104,45 @@ export type QuickEntryBatchFailureView = {
   message: string;
   retryAfterSeconds?: number;
 };
+
+/** Normalized duplicate-field for batch result display (never exposes contact values). */
+export type QuickEntryDuplicateFieldView =
+  | "phone"
+  | "wechatId"
+  | "email"
+  | "unknown";
+
+export function normalizeQuickEntryDuplicateFieldView(
+  value: unknown,
+): QuickEntryDuplicateFieldView {
+  if (value === "phone" || value === "wechatId" || value === "email") {
+    return value;
+  }
+  return "unknown";
+}
+
+/**
+ * i18n key for duplicate-field messaging.
+ * Exhaustive for known fields; unknown falls back to a generic contact duplicate.
+ */
+export function quickEntryDuplicateFieldMessageKey(
+  field: QuickEntryDuplicateFieldView,
+):
+  | "publicPool.quickEntry.duplicatePhone"
+  | "publicPool.quickEntry.duplicateWechat"
+  | "publicPool.quickEntry.duplicateEmail"
+  | "publicPool.quickEntry.duplicateContact" {
+  switch (field) {
+    case "phone":
+      return "publicPool.quickEntry.duplicatePhone";
+    case "wechatId":
+      return "publicPool.quickEntry.duplicateWechat";
+    case "email":
+      return "publicPool.quickEntry.duplicateEmail";
+    case "unknown":
+      return "publicPool.quickEntry.duplicateContact";
+  }
+}
 
 export type QuickEntryClientRowError =
   | "name_required"
@@ -536,13 +575,11 @@ function parseRowResult(value: unknown): QuickEntryRowResultView | null {
   }
   if (r.status === "duplicate") {
     if (typeof r.errorCode !== "string") return null;
-    const duplicateField =
-      r.duplicateField === "wechatId" ? "wechatId" : "phone";
     return {
       clientRowId: r.clientRowId,
       status: "duplicate",
       errorCode: r.errorCode,
-      duplicateField,
+      duplicateField: normalizeQuickEntryDuplicateFieldView(r.duplicateField),
     };
   }
   if (r.status === "invalid" || r.status === "failed") {

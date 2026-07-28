@@ -1836,6 +1836,8 @@ const zhHans: Messages = {
       createdDetail: "{{name}} · {{code}}",
       duplicatePhone: "此电话已存在于CRM",
       duplicateWechat: "此微信已存在于CRM",
+      duplicateEmail: "此邮箱已存在于CRM",
+      duplicateContact: "此联络资料已存在于CRM",
       status: {
         created: "已建立",
         duplicate: "重复",

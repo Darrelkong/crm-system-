@@ -1894,6 +1894,8 @@ const en = {
       createdDetail: "{{name}} · {{code}}",
       duplicatePhone: "Duplicate phone number in the public pool.",
       duplicateWechat: "Duplicate WeChat ID in the public pool.",
+      duplicateEmail: "Duplicate email in the public pool.",
+      duplicateContact: "Duplicate contact details in the public pool.",
       status: {
         created: "Created",
         duplicate: "Duplicate",

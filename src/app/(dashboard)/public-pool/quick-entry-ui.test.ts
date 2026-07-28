@@ -37,6 +37,8 @@ import {
   planQuickEntryModeSwitch,
   prepareContinueEntryRow,
   prepareRetryBatchFromIncomplete,
+  normalizeQuickEntryDuplicateFieldView,
+  quickEntryDuplicateFieldMessageKey,
   resolveQuickEntryLayout,
   resolveQuickEntryPanelMode,
   resultsContainContactPii,
@@ -843,5 +845,80 @@ describe("quick entry i18n keys", () => {
     assert.equal(en.publicPool.quickEntry.cardBadge.error, "Has errors");
     assert.equal(zhHant.publicPool.quickEntry.cardBadge.error, "有錯誤");
     assert.equal(zhHans.publicPool.quickEntry.cardBadge.error, "有错误");
+  });
+});
+
+describe("quick entry duplicate field display mapping", () => {
+  it("normalizes phone / wechatId / email and unknown safely", () => {
+    assert.equal(normalizeQuickEntryDuplicateFieldView("phone"), "phone");
+    assert.equal(normalizeQuickEntryDuplicateFieldView("wechatId"), "wechatId");
+    assert.equal(normalizeQuickEntryDuplicateFieldView("email"), "email");
+    assert.equal(normalizeQuickEntryDuplicateFieldView("whatsapp"), "unknown");
+    assert.equal(normalizeQuickEntryDuplicateFieldView(null), "unknown");
+  });
+
+  it("maps each field to a distinct message key without PII", () => {
+    assert.equal(
+      quickEntryDuplicateFieldMessageKey("phone"),
+      "publicPool.quickEntry.duplicatePhone",
+    );
+    assert.equal(
+      quickEntryDuplicateFieldMessageKey("wechatId"),
+      "publicPool.quickEntry.duplicateWechat",
+    );
+    assert.equal(
+      quickEntryDuplicateFieldMessageKey("email"),
+      "publicPool.quickEntry.duplicateEmail",
+    );
+    assert.equal(
+      quickEntryDuplicateFieldMessageKey("unknown"),
+      "publicPool.quickEntry.duplicateContact",
+    );
+  });
+
+  it("parses email duplicate from batch success without collapsing to phone", () => {
+    const success = parseBatchSuccessResponse(
+      {
+        ok: true,
+        submissionId: uuidA,
+        replayed: false,
+        summary: {
+          total: 1,
+          created: 0,
+          duplicates: 1,
+          invalid: 0,
+          failed: 0,
+        },
+        results: [
+          {
+            clientRowId: uuidB,
+            status: "duplicate",
+            errorCode: "QUICK_ENTRY_DUPLICATE_EMAIL",
+            duplicateField: "email",
+          },
+        ],
+      },
+      true,
+    );
+    assert.ok(success);
+    assert.equal(success.results[0]?.status, "duplicate");
+    if (success.results[0]?.status === "duplicate") {
+      assert.equal(success.results[0].duplicateField, "email");
+    }
+  });
+
+  it("keeps phone and wechatId display keys distinct across locales", () => {
+    assert.ok(en.publicPool.quickEntry.duplicateEmail.length > 0);
+    assert.ok(zhHant.publicPool.quickEntry.duplicateEmail.length > 0);
+    assert.ok(zhHans.publicPool.quickEntry.duplicateEmail.length > 0);
+    assert.ok(en.publicPool.quickEntry.duplicateContact.length > 0);
+    assert.notEqual(
+      en.publicPool.quickEntry.duplicateEmail,
+      en.publicPool.quickEntry.duplicatePhone,
+    );
+    assert.notEqual(
+      en.publicPool.quickEntry.duplicateEmail,
+      en.publicPool.quickEntry.duplicateWechat,
+    );
   });
 });
