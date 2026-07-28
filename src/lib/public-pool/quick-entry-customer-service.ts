@@ -19,6 +19,7 @@ export const QUICK_ENTRY_SERVICE_ERROR_CODES = {
   ACTOR_INVALID: "QUICK_ENTRY_ACTOR_INVALID",
   DUPLICATE_PHONE: "QUICK_ENTRY_DUPLICATE_PHONE",
   DUPLICATE_WECHAT: "QUICK_ENTRY_DUPLICATE_WECHAT",
+  DUPLICATE_EMAIL: "QUICK_ENTRY_DUPLICATE_EMAIL",
   POSSIBLE_DUPLICATE: "QUICK_ENTRY_POSSIBLE_DUPLICATE",
 } as const;
 
@@ -161,7 +162,7 @@ export async function prepareDirectPublicPoolCustomerCreation(input: {
     phoneCountryCode: normalized.phoneCountryCode,
     phone: normalized.phone,
     wechatId: normalized.wechatId,
-    email: null,
+    email: normalized.email,
     source: PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY,
     sourceRemark: normalized.sourceRemark,
     requestedProjectName: normalized.requestedProjectName,
@@ -271,9 +272,10 @@ async function findSafeDuplicate(
 ): Promise<QuickEntryCreateFailure | null> {
   const matches = await checkCustomerDuplicates(
     {
+      phoneCountryCode: normalized.phoneCountryCode,
       phone: normalized.phone,
       wechatId: normalized.wechatId,
-      email: null,
+      email: normalized.email ?? null,
     },
     actor,
   );
@@ -300,6 +302,18 @@ async function findSafeDuplicate(
       field: "wechatId",
       duplicate: true,
       duplicateField: "wechatId",
+    };
+  }
+
+  const emailMatch = matches.find((m) => m.field === "email");
+  if (emailMatch) {
+    return {
+      ok: false,
+      errorCode: QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_EMAIL,
+      message: "邮箱与现有客户重复",
+      field: "email",
+      duplicate: true,
+      duplicateField: "email",
     };
   }
 

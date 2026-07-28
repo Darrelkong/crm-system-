@@ -161,7 +161,8 @@ function assertTerminalRowFields(input: {
     }
     if (
       input.duplicateField !== "phone" &&
-      input.duplicateField !== "wechatId"
+      input.duplicateField !== "wechatId" &&
+      input.duplicateField !== "email"
     ) {
       throw new QuickEntrySubmissionError(
         QUICK_ENTRY_SUBMISSION_ERROR_CODES.ROW_PAYLOAD_INVALID,

@@ -180,23 +180,23 @@ export async function POST(request: Request) {
         : user.id;
 
     const duplicates = await checkCustomerDuplicates(
-      { phone: createInput.phone, wechatId: createInput.wechatId, email: createInput.email },
+      {
+        phoneCountryCode: createInput.phoneCountryCode,
+        phone: createInput.phone,
+        wechatId: createInput.wechatId,
+        email: createInput.email,
+      },
       user,
     );
 
     if (duplicates.length > 0) {
-      await writeAuditLog({
-        userId: user.id,
-        action: "customer.create_failed.duplicate",
-        ipAddress,
-        userAgent,
-        metadata: { fields: duplicates.map((d) => d.field) },
-      });
+      // Phase 1: duplicate 409 must not write CRM audit / customer / approval data.
       return Response.json(
         {
           error: "存在重复客户",
           errorCode: "DUPLICATE_CUSTOMER",
           code: "duplicate_customer",
+          duplicate: true,
           duplicates,
         },
         { status: 409 },

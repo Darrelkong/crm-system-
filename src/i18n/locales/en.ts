@@ -522,10 +522,12 @@ const en = {
     saveSuccess: "Saved successfully",
     saveFailed: "Failed to save. Please try again later.",
     duplicateFound: "Duplicate client detected. Please review the following:",
-    fieldExists: "{{field}} already exists:",
+    fieldExists: "{{field}} is a duplicate",
+    duplicateAuthorizedSummary: "{{code}}｜{{name}}｜{{stage}}",
+    viewExistingClient: "View existing client",
     maskedNoDetail: "(masked client — details unavailable)",
     maskedDuplicateHint:
-      "This field may match an existing record. Please contact an administrator.",
+      "A client with the same contact details already exists. Based on your permissions, details cannot be shown. Please contact an Admin to verify.",
     heatDescription:
       "Calculated from valid follow-ups, sales stage, next follow-up, and auto-reclaim rules.",
     completenessPoints: "{{score}} pts",

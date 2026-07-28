@@ -11,6 +11,7 @@ export type QuickEntryBatchCustomerRowInput = {
   phone?: string | null;
   phoneCountryCode?: string | null;
   wechatId?: string | null;
+  email?: string | null;
   requestedProjectName: string;
   initialFollowUpNote?: string | null;
   supplementalNote?: string | null;

@@ -284,13 +284,14 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
   });
 
   it("allocates distinct EF codes under concurrency", async () => {
+    const names = ["并发甲", "并发乙", "并发丙", "并发丁", "并发戊"] as const;
     const results = await Promise.all(
-      [1, 2, 3, 4, 5].map((n) =>
+      names.map((customerName, i) =>
         createCustomerDirectlyInPublicPool({
           actor: staffUser,
           customer: {
-            customerName: `并发生成${n}`,
-            phone: `13910003${String(n).padStart(3, "0")}`,
+            customerName,
+            phone: `13910003${String(i + 1).padStart(3, "0")}`,
             requestedProjectName: "新西兰移民项目",
           },
           db,

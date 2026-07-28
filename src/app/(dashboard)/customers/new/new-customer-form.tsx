@@ -51,14 +51,16 @@ const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
 type DuplicateMatch = {
   field: string;
+  matchedField?: string;
   customer:
     | { isMasked: true }
     | {
         isMasked: false;
         id: string;
-        customerName: string;
-        nameStatus?: string;
-        status: string;
+        customerCode?: string | null;
+        displayName: string;
+        salesStage: string;
+        href: string;
       };
 };
 
@@ -454,22 +456,29 @@ export function NewCustomerForm({
             <ul className="mt-2 space-y-1">
               {duplicates.map((d, i) => (
                 <li key={i} className="text-sm text-red-600">
-                  {t("customers.fieldExists", { field: fieldLabel(d.field) })}
+                  {t("customers.fieldExists", {
+                    field: fieldLabel(d.matchedField ?? d.field),
+                  })}
                   {d.customer.isMasked ? (
                     <span className="ml-1">
                       {t("customers.maskedDuplicateHint")}
                     </span>
                   ) : (
-                    <a
-                      href={`/customers/${d.customer.id}`}
-                      className="ml-1 font-medium underline hover:text-red-800"
-                    >
-                      {getCustomerDisplayName({
-                        customerName: d.customer.customerName,
-                        nameStatus: d.customer.nameStatus,
-                        locale,
-                      })}
-                    </a>
+                    <>
+                      <span className="ml-1">
+                        {t("customers.duplicateAuthorizedSummary", {
+                          code: d.customer.customerCode || "—",
+                          name: d.customer.displayName,
+                          stage: salesStage(d.customer.salesStage),
+                        })}
+                      </span>
+                      <a
+                        href={d.customer.href}
+                        className="ml-1 font-medium underline hover:text-red-800"
+                      >
+                        {t("customers.viewExistingClient")}
+                      </a>
+                    </>
                   )}
                 </li>
               ))}

@@ -171,6 +171,7 @@ function buildCanonicalRows(
       phone: row.phone,
       phoneCountryCode: row.phoneCountryCode,
       wechatId: row.wechatId,
+      email: row.email,
       requestedProjectName: row.requestedProjectName,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,
@@ -307,6 +308,7 @@ export async function processQuickEntryCustomerSubmission(input: {
       phone: row.phone,
       phoneCountryCode: row.phoneCountryCode,
       wechatId: row.wechatId,
+      email: row.email ?? null,
       requestedProjectName: row.requestedProjectName,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,
@@ -319,6 +321,7 @@ export async function processQuickEntryCustomerSubmission(input: {
         phone: row.phone,
         phoneCountryCode: row.phoneCountryCode,
         wechatId: row.wechatId,
+        email: row.email ?? null,
         requestedProjectName: row.requestedProjectName,
         initialFollowUpNote: row.initialFollowUpNote,
         supplementalNote: row.supplementalNote,
@@ -472,8 +475,7 @@ export async function processQuickEntryCustomerSubmission(input: {
       }
 
       if (prepared.kind === "duplicate") {
-        const duplicateField =
-          prepared.duplicateField === "wechatId" ? "wechatId" : "phone";
+        const duplicateField = prepared.duplicateField;
         await database.batch([
           buildInsertQuickEntrySubmissionRowForLeaseStatement(database, {
             actorUserId: input.actor.id,

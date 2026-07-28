@@ -23,7 +23,11 @@ export const QUICK_ENTRY_SUBMISSION_ROW_STATUSES = [
 export type QuickEntrySubmissionRowStatus =
   (typeof QUICK_ENTRY_SUBMISSION_ROW_STATUSES)[number];
 
-export const QUICK_ENTRY_DUPLICATE_FIELDS = ["phone", "wechatId"] as const;
+export const QUICK_ENTRY_DUPLICATE_FIELDS = [
+  "phone",
+  "wechatId",
+  "email",
+] as const;
 export type QuickEntryDuplicateField =
   (typeof QUICK_ENTRY_DUPLICATE_FIELDS)[number];
 

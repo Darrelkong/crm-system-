@@ -159,7 +159,7 @@ describe("classifyQuickEntryBatchRows", () => {
     }
   });
 
-  it("invalid first row does not claim winner; wechat is case-sensitive", () => {
+  it("invalid first row does not claim winner; wechat is case-insensitive", () => {
     const invalid = {
       rowIndex: 0,
       clientRowId: "bad",
@@ -183,7 +183,10 @@ describe("classifyQuickEntryBatchRows", () => {
     const classified = classifyQuickEntryBatchRows(rows);
     assert.equal(classified[0]?.kind, "invalid");
     assert.equal(classified[1]?.kind, "eligible");
-    assert.equal(classified[2]?.kind, "eligible");
+    assert.equal(classified[2]?.kind, "duplicate");
+    if (classified[2]?.kind === "duplicate") {
+      assert.equal(classified[2].duplicateField, "wechatId");
+    }
   });
 
   it("same winner both fields prefers phone; earlier winner wins cross-field", () => {

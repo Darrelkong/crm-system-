@@ -249,26 +249,24 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
 
     const duplicates = await checkCustomerDuplicates(
-      { phone: payload.phone, wechatId: payload.wechatId, email: payload.email },
+      {
+        phoneCountryCode: payload.phoneCountryCode,
+        phone: payload.phone,
+        wechatId: payload.wechatId,
+        email: payload.email,
+      },
       user,
       id,
     );
 
     if (duplicates.length > 0) {
-      await writeAuditLog({
-        userId: user.id,
-        action: "customer.update_failed.duplicate",
-        entityType: "customer",
-        entityId: id,
-        ipAddress,
-        userAgent,
-        metadata: { fields: duplicates.map((d) => d.field) },
-      });
+      // Phase 1: duplicate 409 must not write CRM audit or persist the update.
       return Response.json(
         {
           error: "存在重复客户",
           errorCode: "DUPLICATE_CUSTOMER",
           code: "duplicate_customer",
+          duplicate: true,
           duplicates,
         },
         { status: 409 },

@@ -58,6 +58,8 @@ export type QuickEntryCustomerInput = {
   phone?: string | null;
   phoneCountryCode?: string | null;
   wechatId?: string | null;
+  /** Optional; checked for duplicates when present. Not shown in QE UI yet. */
+  email?: string | null;
   requestedProjectName: string;
   initialFollowUpNote?: string | null;
   supplementalNote?: string | null;
@@ -72,6 +74,7 @@ export type QuickEntryCanonicalCustomerFields = {
   phone: string | null;
   phoneCountryCode: string;
   wechatId: string | null;
+  email: string | null;
   requestedProjectName: string;
   initialFollowUpNote: string | null;
   supplementalNote: string | null;
@@ -82,6 +85,7 @@ export type QuickEntryCustomerNormalized = {
   phone: string | null;
   phoneCountryCode: string;
   wechatId: string | null;
+  email: string | null;
   requestedProjectName: string;
   /** Maps to customers.notes */
   notes: string | null;
@@ -125,6 +129,11 @@ export function normalizeQuickEntryCustomerInput(
       ? asTrimmedNullable(input.wechatId)
       : null;
 
+  const email =
+    typeof input.email === "string" || input.email == null
+      ? asTrimmedNullable(input.email)
+      : null;
+
   const ccRaw =
     typeof input.phoneCountryCode === "string" || input.phoneCountryCode == null
       ? asTrimmedNullable(input.phoneCountryCode)
@@ -153,6 +162,7 @@ export function normalizeQuickEntryCustomerInput(
     phone,
     phoneCountryCode,
     wechatId,
+    email,
     requestedProjectName,
     initialFollowUpNote,
     supplementalNote,
@@ -167,6 +177,7 @@ export function canonicalToNormalizedCustomer(
     phone: canonical.phone,
     phoneCountryCode: canonical.phoneCountryCode,
     wechatId: canonical.wechatId,
+    email: canonical.email,
     requestedProjectName: canonical.requestedProjectName,
     notes: canonical.initialFollowUpNote,
     sourceRemark: canonical.supplementalNote,
@@ -266,6 +277,10 @@ export function validateQuickEntryCustomerInput(
     wechatId:
       typeof record.wechatId === "string" || record.wechatId == null
         ? (record.wechatId as string | null | undefined)
+        : null,
+    email:
+      typeof record.email === "string" || record.email == null
+        ? (record.email as string | null | undefined)
         : null,
     requestedProjectName:
       typeof record.requestedProjectName === "string"

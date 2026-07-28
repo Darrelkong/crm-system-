@@ -1,7 +1,12 @@
-import { inArray, or } from "drizzle-orm";
+import { isNotNull, or, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import type { DuplicateField } from "@/lib/customers/duplicate-check";
+import {
+  normalizeCustomerEmail,
+  normalizeCustomerPhone,
+  normalizeCustomerWechat,
+} from "@/lib/customers/contact-normalization";
 import {
   isEmptyImportRow,
   parseCustomerImportCsv,
@@ -42,7 +47,8 @@ function toParsedRow(
     raw,
     customerName: raw.customer_name.trim(),
     customerType: raw.customer_type.trim() || IMPORT_DEFAULTS.customerType,
-    phoneCountryCode: raw.phone_country_code.trim() || IMPORT_DEFAULTS.phoneCountryCode,
+    phoneCountryCode:
+      raw.phone_country_code.trim() || IMPORT_DEFAULTS.phoneCountryCode,
     phone: raw.phone.trim() || null,
     wechatId: raw.wechat_id.trim() || null,
     email: raw.email.trim() || null,
@@ -78,63 +84,150 @@ type DbCustomerMatch = {
   id: string;
   customerName: string;
   status: string;
+  phoneCountryCode: string;
   phone: string | null;
   wechatId: string | null;
   email: string | null;
 };
 
-async function loadExistingCustomers(
-  phones: string[],
-  wechatIds: string[],
-  emails: string[],
-): Promise<DbCustomerMatch[]> {
-  const conditions = [];
-  if (phones.length > 0) {
-    conditions.push(inArray(schema.customers.phone, phones));
-  }
-  if (wechatIds.length > 0) {
-    conditions.push(inArray(schema.customers.wechatId, wechatIds));
-  }
-  if (emails.length > 0) {
-    conditions.push(inArray(schema.customers.email, emails));
-  }
-  if (conditions.length === 0) return [];
+type DbContactMatch = {
+  customerId: string;
+  phone: string | null;
+  wechatId: string | null;
+  email: string | null;
+};
 
+/**
+ * Load candidate customers + secondary contacts for import duplicate checks.
+ * Includes archived rows. Matching uses normalize helpers.
+ */
+async function loadExistingContactUniverse(options: {
+  hasPhone: boolean;
+  hasWechat: boolean;
+  hasEmail: boolean;
+}): Promise<{ customers: DbCustomerMatch[]; contacts: DbContactMatch[] }> {
   const db = getDb();
-  return db
-    .select({
-      id: schema.customers.id,
-      customerName: schema.customers.customerName,
-      status: schema.customers.status,
-      phone: schema.customers.phone,
-      wechatId: schema.customers.wechatId,
-      email: schema.customers.email,
-    })
-    .from(schema.customers)
-    .where(or(...conditions));
+  const customerConditions = [];
+  if (options.hasPhone) {
+    customerConditions.push(isNotNull(schema.customers.phone));
+  }
+  if (options.hasWechat) {
+    customerConditions.push(isNotNull(schema.customers.wechatId));
+  }
+  if (options.hasEmail) {
+    customerConditions.push(isNotNull(schema.customers.email));
+  }
+
+  const customers: DbCustomerMatch[] =
+    customerConditions.length === 0
+      ? []
+      : await db
+          .select({
+            id: schema.customers.id,
+            customerName: schema.customers.customerName,
+            status: schema.customers.status,
+            phoneCountryCode: schema.customers.phoneCountryCode,
+            phone: schema.customers.phone,
+            wechatId: schema.customers.wechatId,
+            email: schema.customers.email,
+          })
+          .from(schema.customers)
+          .where(or(...customerConditions));
+
+  const contactConditions = [];
+  if (options.hasPhone) {
+    contactConditions.push(isNotNull(schema.customerContacts.phone));
+  }
+  if (options.hasWechat) {
+    contactConditions.push(isNotNull(schema.customerContacts.wechatId));
+  }
+  if (options.hasEmail) {
+    contactConditions.push(isNotNull(schema.customerContacts.email));
+  }
+
+  const contacts: DbContactMatch[] =
+    contactConditions.length === 0
+      ? []
+      : await db
+          .select({
+            customerId: schema.customerContacts.customerId,
+            phone: schema.customerContacts.phone,
+            wechatId: schema.customerContacts.wechatId,
+            email: schema.customerContacts.email,
+          })
+          .from(schema.customerContacts)
+          .where(or(...contactConditions));
+
+  const missingIds = [
+    ...new Set(
+      contacts
+        .map((c) => c.customerId)
+        .filter((id) => !customers.some((row) => row.id === id)),
+    ),
+  ];
+  if (missingIds.length > 0) {
+    const extras = await db
+      .select({
+        id: schema.customers.id,
+        customerName: schema.customers.customerName,
+        status: schema.customers.status,
+        phoneCountryCode: schema.customers.phoneCountryCode,
+        phone: schema.customers.phone,
+        wechatId: schema.customers.wechatId,
+        email: schema.customers.email,
+      })
+      .from(schema.customers)
+      .where(or(...missingIds.map((id) => eq(schema.customers.id, id))));
+    customers.push(...extras);
+  }
+
+  return { customers, contacts };
 }
 
 function findDbDuplicate(
   row: ParsedImportRow,
-  existing: DbCustomerMatch[],
+  existingCustomers: DbCustomerMatch[],
+  existingContacts: DbContactMatch[],
 ): { field: DuplicateField; customer: DbCustomerMatch } | null {
-  const phone = row.phone?.trim() || null;
-  const wechatId = row.wechatId?.trim() || null;
-  const email = row.email?.trim().toLowerCase() || null;
+  const phoneId = normalizeCustomerPhone(row.phoneCountryCode, row.phone);
+  const wechatId = normalizeCustomerWechat(row.wechatId);
+  const email = normalizeCustomerEmail(row.email);
 
-  for (const customer of existing) {
-    if (customer.status === "archived") continue;
-
-    if (phone && customer.phone === phone) {
+  for (const customer of existingCustomers) {
+    if (
+      phoneId &&
+      normalizeCustomerPhone(customer.phoneCountryCode, customer.phone) ===
+        phoneId
+    ) {
       return { field: "phone", customer };
     }
-    if (wechatId && customer.wechatId === wechatId) {
+    if (wechatId && normalizeCustomerWechat(customer.wechatId) === wechatId) {
       return { field: "wechatId", customer };
     }
-    if (email && customer.email?.toLowerCase() === email) {
+    if (email && normalizeCustomerEmail(customer.email) === email) {
       return { field: "email", customer };
     }
   }
+
+  const byId = new Map(existingCustomers.map((c) => [c.id, c]));
+  for (const contact of existingContacts) {
+    const customer = byId.get(contact.customerId);
+    if (!customer) continue;
+    if (
+      phoneId &&
+      normalizeCustomerPhone(customer.phoneCountryCode, contact.phone) ===
+        phoneId
+    ) {
+      return { field: "phone", customer };
+    }
+    if (wechatId && normalizeCustomerWechat(contact.wechatId) === wechatId) {
+      return { field: "wechatId", customer };
+    }
+    if (email && normalizeCustomerEmail(contact.email) === email) {
+      return { field: "email", customer };
+    }
+  }
+
   return null;
 }
 
@@ -201,32 +294,32 @@ export async function precheckCustomerImport(
   const emailsInCsv = new Map<string, number[]>();
 
   for (const row of parsedRows) {
-    if (row.phone) {
-      const list = phonesInCsv.get(row.phone) ?? [];
+    const phoneKey = normalizeCustomerPhone(row.phoneCountryCode, row.phone);
+    if (phoneKey) {
+      const list = phonesInCsv.get(phoneKey) ?? [];
       list.push(row.rowNumber);
-      phonesInCsv.set(row.phone, list);
+      phonesInCsv.set(phoneKey, list);
     }
-    if (row.wechatId) {
-      const list = wechatsInCsv.get(row.wechatId) ?? [];
+    const wechatKey = normalizeCustomerWechat(row.wechatId);
+    if (wechatKey) {
+      const list = wechatsInCsv.get(wechatKey) ?? [];
       list.push(row.rowNumber);
-      wechatsInCsv.set(row.wechatId, list);
+      wechatsInCsv.set(wechatKey, list);
     }
-    if (row.email) {
-      const normalized = row.email.toLowerCase();
-      const list = emailsInCsv.get(normalized) ?? [];
+    const emailKey = normalizeCustomerEmail(row.email);
+    if (emailKey) {
+      const list = emailsInCsv.get(emailKey) ?? [];
       list.push(row.rowNumber);
-      emailsInCsv.set(normalized, list);
+      emailsInCsv.set(emailKey, list);
     }
   }
 
-  const phonesToCheck = [...phonesInCsv.keys()];
-  const wechatsToCheck = [...wechatsInCsv.keys()];
-  const emailsToCheck = [...emailsInCsv.keys()];
-  const existingCustomers = await loadExistingCustomers(
-    phonesToCheck,
-    wechatsToCheck,
-    emailsToCheck,
-  );
+  const { customers: existingCustomers, contacts: existingContacts } =
+    await loadExistingContactUniverse({
+      hasPhone: phonesInCsv.size > 0,
+      hasWechat: wechatsInCsv.size > 0,
+      hasEmail: emailsInCsv.size > 0,
+    });
 
   const rowErrors = new Map<number, ImportIssue[]>();
   const rowWarnings = new Map<number, ImportIssue[]>();
@@ -259,48 +352,22 @@ export async function precheckCustomerImport(
     };
 
     const fieldErrors = validateCustomerInput(input, {
-      disallowDirectTerminalSalesStages: true,
+      requireSalesStage: true,
     });
     for (const fe of fieldErrors) {
       const csvField =
         Object.entries(CSV_FIELD_TO_INPUT).find(([, v]) => v === fe.field)?.[0] ??
         fe.field;
-      let code = validationCode(fe.field);
-      if (fe.code === "SALES_STAGE_DIRECT_TERMINAL_BLOCKED") {
-        code = "direct_terminal_sales_stage_blocked";
-      }
-      if (fe.field === "phone" && fe.message.includes("11 位")) {
-        code = "invalid_phone";
-      }
-      if (fe.field === "phone" && fe.message.includes("至少")) {
-        code = "missing_contact";
-      }
       addError({
         rowNumber: row.rowNumber,
         field: csvField,
-        code,
+        code: validationCode(fe.field),
         message: validationMessage(fe.field, fe.message),
-        value: String(row.raw[csvField as ImportCsvColumn] ?? ""),
+        value: row.raw[csvField as ImportCsvColumn] ?? undefined,
       });
     }
 
-    if (!row.raw.customer_type.trim()) {
-      addWarning({
-        rowNumber: row.rowNumber,
-        field: "customer_type",
-        code: "default_customer_type",
-        message: IMPORT_DEFAULT_WARNINGS.customerType,
-      });
-    }
-    if (!row.raw.sales_stage.trim()) {
-      addWarning({
-        rowNumber: row.rowNumber,
-        field: "sales_stage",
-        code: "default_sales_stage",
-        message: IMPORT_DEFAULT_WARNINGS.salesStage,
-      });
-    }
-    if (!row.raw.phone_country_code.trim()) {
+    if (!row.raw.phone_country_code.trim() && row.phone) {
       addWarning({
         rowNumber: row.rowNumber,
         field: "phone_country_code",
@@ -309,43 +376,46 @@ export async function precheckCustomerImport(
       });
     }
 
-    if (row.phone && (phonesInCsv.get(row.phone)?.length ?? 0) > 1) {
+    const phoneKey = normalizeCustomerPhone(row.phoneCountryCode, row.phone);
+    if (phoneKey && (phonesInCsv.get(phoneKey)?.length ?? 0) > 1) {
       addError({
         rowNumber: row.rowNumber,
         field: "phone",
         code: duplicateCode("phone", "csv"),
-        message: duplicateMessage("phone", "csv", row.phone),
-        value: row.phone,
+        message: duplicateMessage("phone", "csv", row.phone ?? phoneKey),
+        value: row.phone ?? undefined,
       });
     }
-    if (row.wechatId && (wechatsInCsv.get(row.wechatId)?.length ?? 0) > 1) {
+
+    const wechatKey = normalizeCustomerWechat(row.wechatId);
+    if (wechatKey && (wechatsInCsv.get(wechatKey)?.length ?? 0) > 1) {
       addError({
         rowNumber: row.rowNumber,
         field: "wechat_id",
         code: duplicateCode("wechatId", "csv"),
-        message: duplicateMessage("wechatId", "csv", row.wechatId),
-        value: row.wechatId,
+        message: duplicateMessage(
+          "wechatId",
+          "csv",
+          row.wechatId ?? wechatKey,
+        ),
+        value: row.wechatId ?? undefined,
       });
     }
-    if (row.email) {
-      const normalized = row.email.toLowerCase();
-      if ((emailsInCsv.get(normalized)?.length ?? 0) > 1) {
-        addError({
-          rowNumber: row.rowNumber,
-          field: "email",
-          code: duplicateCode("email", "csv"),
-          message: duplicateMessage("email", "csv", row.email),
-          value: row.email,
-        });
-      }
+
+    const emailKey = normalizeCustomerEmail(row.email);
+    if (emailKey && (emailsInCsv.get(emailKey)?.length ?? 0) > 1) {
+      addError({
+        rowNumber: row.rowNumber,
+        field: "email",
+        code: duplicateCode("email", "csv"),
+        message: duplicateMessage("email", "csv", row.email ?? emailKey),
+        value: row.email ?? undefined,
+      });
     }
 
-    const dbDup = findDbDuplicate(row, existingCustomers);
+    const dbDup = findDbDuplicate(row, existingCustomers, existingContacts);
     if (dbDup) {
-      const csvField =
-        dbDup.field === "wechatId"
-          ? "wechat_id"
-          : dbDup.field;
+      const csvField = dbDup.field === "wechatId" ? "wechat_id" : dbDup.field;
       const value =
         dbDup.field === "phone"
           ? row.phone!
@@ -378,7 +448,6 @@ export async function precheckCustomerImport(
       .map((e) => e.rowNumber),
   ).size;
 
-  /** Rows without errors are importable; warnings do not reduce this count. */
   const validRows = parsedRows.filter(
     (r) => !errorRowNumbers.has(r.rowNumber),
   ).length;

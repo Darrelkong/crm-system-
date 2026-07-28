@@ -4,6 +4,11 @@ import {
   QUICK_ENTRY_SERVICE_ERROR_CODES,
 } from "@/lib/public-pool/quick-entry-customer-service";
 import type { QuickEntryBatchClassifiedRow } from "@/lib/public-pool/quick-entry-batch-types";
+import {
+  normalizeCustomerEmail,
+  normalizeCustomerPhone,
+  normalizeCustomerWechat,
+} from "@/lib/customers/contact-normalization";
 
 export type BatchClassificationInputRow = {
   rowIndex: number;
@@ -14,8 +19,8 @@ export type BatchClassificationInputRow = {
 
 /**
  * Deterministic in-batch contact duplicate classification.
- * Only validated-ok rows participate as contact winners.
- * Invalid rows do not claim phone/wechat winners.
+ * Uses the same normalize keys as checkCustomerDuplicates.
+ * Invalid rows do not claim phone/wechat/email winners.
  * Duplicate rows do not register additional contacts into seen maps.
  */
 export function classifyQuickEntryBatchRows(
@@ -24,6 +29,7 @@ export function classifyQuickEntryBatchRows(
   const ordered = [...rows].sort((a, b) => a.rowIndex - b.rowIndex);
   const phoneWinners = new Map<string, number>();
   const wechatWinners = new Map<string, number>();
+  const emailWinners = new Map<string, number>();
   const out: QuickEntryBatchClassifiedRow[] = [];
 
   for (const row of ordered) {
@@ -40,15 +46,22 @@ export function classifyQuickEntryBatchRows(
     }
 
     const canonical = row.canonical;
-    const phoneHit =
-      canonical.phone != null ? phoneWinners.get(canonical.phone) : undefined;
-    const wechatHit =
-      canonical.wechatId != null
-        ? wechatWinners.get(canonical.wechatId)
-        : undefined;
+    const phoneKey = normalizeCustomerPhone(
+      canonical.phoneCountryCode,
+      canonical.phone,
+    );
+    const wechatKey = normalizeCustomerWechat(canonical.wechatId);
+    const emailKey = normalizeCustomerEmail(canonical.email);
 
-    if (phoneHit != null || wechatHit != null) {
-      const duplicateField = pickDuplicateField(phoneHit, wechatHit);
+    const phoneHit =
+      phoneKey != null ? phoneWinners.get(phoneKey) : undefined;
+    const wechatHit =
+      wechatKey != null ? wechatWinners.get(wechatKey) : undefined;
+    const emailHit =
+      emailKey != null ? emailWinners.get(emailKey) : undefined;
+
+    if (phoneHit != null || wechatHit != null || emailHit != null) {
+      const duplicateField = pickDuplicateField(phoneHit, wechatHit, emailHit);
       out.push({
         kind: "duplicate",
         rowIndex: row.rowIndex,
@@ -56,17 +69,22 @@ export function classifyQuickEntryBatchRows(
         errorCode:
           duplicateField === "phone"
             ? QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_PHONE
-            : QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_WECHAT,
+            : duplicateField === "wechatId"
+              ? QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_WECHAT
+              : QUICK_ENTRY_SERVICE_ERROR_CODES.DUPLICATE_EMAIL,
         duplicateField,
       });
       continue;
     }
 
-    if (canonical.phone) {
-      phoneWinners.set(canonical.phone, row.rowIndex);
+    if (phoneKey) {
+      phoneWinners.set(phoneKey, row.rowIndex);
     }
-    if (canonical.wechatId) {
-      wechatWinners.set(canonical.wechatId, row.rowIndex);
+    if (wechatKey) {
+      wechatWinners.set(wechatKey, row.rowIndex);
+    }
+    if (emailKey) {
+      emailWinners.set(emailKey, row.rowIndex);
     }
 
     out.push({
@@ -83,11 +101,13 @@ export function classifyQuickEntryBatchRows(
 function pickDuplicateField(
   phoneHit: number | undefined,
   wechatHit: number | undefined,
-): "phone" | "wechatId" {
-  if (phoneHit != null && wechatHit != null) {
-    if (phoneHit === wechatHit) return "phone";
-    return phoneHit < wechatHit ? "phone" : "wechatId";
-  }
-  if (phoneHit != null) return "phone";
-  return "wechatId";
+  emailHit: number | undefined,
+): "phone" | "wechatId" | "email" {
+  const hits: Array<{ field: "phone" | "wechatId" | "email"; index: number }> =
+    [];
+  if (phoneHit != null) hits.push({ field: "phone", index: phoneHit });
+  if (wechatHit != null) hits.push({ field: "wechatId", index: wechatHit });
+  if (emailHit != null) hits.push({ field: "email", index: emailHit });
+  hits.sort((a, b) => a.index - b.index || a.field.localeCompare(b.field));
+  return hits[0]?.field ?? "phone";
 }

@@ -1,27 +1,33 @@
-import { or, eq } from "drizzle-orm";
+import { or, isNotNull, eq, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getCustomerAccessLevel } from "@/lib/permissions/customers";
 import { isCustomerAssignee } from "@/lib/customers/assignees";
+import {
+  normalizeCustomerEmail,
+  normalizeCustomerPhone,
+  normalizeCustomerWechat,
+} from "@/lib/customers/contact-normalization";
 import type { User } from "../../../drizzle/schema/users";
+import type { Customer } from "../../../drizzle/schema/customers";
 
 export type DuplicateField = "phone" | "wechatId" | "email";
 
 export type FullDuplicateMatch = {
   field: DuplicateField;
+  matchedField: DuplicateField;
   customer: {
     isMasked: false;
     id: string;
-    customerName: string;
-    nameStatus: string;
-    status: string;
-    phone?: string | null;
-    wechatId?: string | null;
-    email?: string | null;
+    customerCode: string | null;
+    displayName: string;
+    salesStage: string;
+    href: string;
   };
 };
 
 export type MaskedDuplicateMatch = {
   field: DuplicateField;
+  matchedField: DuplicateField;
   customer: {
     isMasked: true;
   };
@@ -29,73 +35,220 @@ export type MaskedDuplicateMatch = {
 
 export type DuplicateMatch = FullDuplicateMatch | MaskedDuplicateMatch;
 
-type CheckInput = {
+export type CheckCustomerDuplicatesInput = {
+  phoneCountryCode?: string | null;
   phone?: string | null;
   wechatId?: string | null;
   email?: string | null;
 };
 
+function toAuthorizedMatch(
+  field: DuplicateField,
+  customer: Customer,
+): FullDuplicateMatch {
+  return {
+    field,
+    matchedField: field,
+    customer: {
+      isMasked: false,
+      id: customer.id,
+      customerCode: customer.customerCode ?? null,
+      displayName: customer.customerName,
+      salesStage: customer.salesStage,
+      href: `/customers/${customer.id}`,
+    },
+  };
+}
+
+function toMaskedMatch(field: DuplicateField): MaskedDuplicateMatch {
+  return {
+    field,
+    matchedField: field,
+    customer: { isMasked: true },
+  };
+}
+
+async function resolveMatch(
+  field: DuplicateField,
+  customer: Customer,
+  currentUser: User,
+  db: ReturnType<typeof getDb>,
+): Promise<DuplicateMatch> {
+  const isAssignee =
+    currentUser.role === "staff"
+      ? await isCustomerAssignee(db, customer.id, currentUser.id)
+      : false;
+  const level = getCustomerAccessLevel(currentUser, customer, {
+    isAssignee,
+  });
+  if (level !== "full") {
+    return toMaskedMatch(field);
+  }
+  return toAuthorizedMatch(field, customer);
+}
+
+/**
+ * Authoritative duplicate check across customers + customer_contacts.
+ * Includes archived / recycle-bin / rejected on-hold rows (any remaining row).
+ * Does not skip by status. Edit via excludeId skips that customer and its contacts.
+ */
 export async function checkCustomerDuplicates(
-  input: CheckInput,
+  input: CheckCustomerDuplicatesInput,
   currentUser: User,
   excludeId?: string,
 ): Promise<DuplicateMatch[]> {
   const db = getDb();
-  const phone = input.phone?.trim() || null;
-  const wechatId = input.wechatId?.trim() || null;
-  const email = input.email?.trim().toLowerCase() || null;
 
-  const conditions = [];
-  if (phone) conditions.push(eq(schema.customers.phone, phone));
-  if (wechatId) conditions.push(eq(schema.customers.wechatId, wechatId));
-  if (email) conditions.push(eq(schema.customers.email, email));
+  const phoneIdentity = normalizeCustomerPhone(
+    input.phoneCountryCode,
+    input.phone,
+  );
+  const wechatNorm = normalizeCustomerWechat(input.wechatId);
+  const emailNorm = normalizeCustomerEmail(input.email);
 
-  if (conditions.length === 0) return [];
+  if (!phoneIdentity && !wechatNorm && !emailNorm) {
+    return [];
+  }
 
-  const rows = await db
-    .select()
-    .from(schema.customers)
-    .where(or(...conditions));
+  const customerConditions = [];
+  if (phoneIdentity) {
+    customerConditions.push(isNotNull(schema.customers.phone));
+  }
+  if (wechatNorm) {
+    customerConditions.push(
+      sql`lower(${schema.customers.wechatId}) = ${wechatNorm}`,
+    );
+  }
+  if (emailNorm) {
+    customerConditions.push(
+      sql`lower(${schema.customers.email}) = ${emailNorm}`,
+    );
+  }
 
+  const customerRows =
+    customerConditions.length === 0
+      ? []
+      : await db
+          .select()
+          .from(schema.customers)
+          .where(or(...customerConditions));
+
+  const contactConditions = [];
+  if (phoneIdentity) {
+    contactConditions.push(isNotNull(schema.customerContacts.phone));
+  }
+  if (wechatNorm) {
+    contactConditions.push(
+      sql`lower(${schema.customerContacts.wechatId}) = ${wechatNorm}`,
+    );
+  }
+  if (emailNorm) {
+    contactConditions.push(
+      sql`lower(${schema.customerContacts.email}) = ${emailNorm}`,
+    );
+  }
+
+  const contactRows =
+    contactConditions.length === 0
+      ? []
+      : await db
+          .select({
+            contactId: schema.customerContacts.id,
+            customerId: schema.customerContacts.customerId,
+            phone: schema.customerContacts.phone,
+            wechatId: schema.customerContacts.wechatId,
+            email: schema.customerContacts.email,
+          })
+          .from(schema.customerContacts)
+          .where(or(...contactConditions));
+
+  const customerIdsFromContacts = [
+    ...new Set(
+      contactRows
+        .map((r) => r.customerId)
+        .filter((id) => !(excludeId && id === excludeId)),
+    ),
+  ];
+
+  const contactCustomerById = new Map<string, Customer>();
+  if (customerIdsFromContacts.length > 0) {
+    const extra = await db
+      .select()
+      .from(schema.customers)
+      .where(
+        or(
+          ...customerIdsFromContacts.map((id) =>
+            eq(schema.customers.id, id),
+          ),
+        ),
+      );
+    for (const row of extra) {
+      contactCustomerById.set(row.id, row);
+    }
+  }
+
+  const seen = new Set<string>();
   const matches: DuplicateMatch[] = [];
 
-  for (const customer of rows) {
-    if (customer.status === "archived") continue;
+  async function pushUnique(field: DuplicateField, customer: Customer) {
+    if (excludeId && customer.id === excludeId) return;
+    const key = `${customer.id}:${field}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    matches.push(await resolveMatch(field, customer, currentUser, db));
+  }
+
+  for (const customer of customerRows) {
     if (excludeId && customer.id === excludeId) continue;
 
-    let field: DuplicateField | null = null;
-    if (phone && customer.phone === phone) field = "phone";
-    else if (wechatId && customer.wechatId === wechatId) field = "wechatId";
-    else if (email && customer.email === email) field = "email";
-    if (!field) continue;
-
-    const isAssignee =
-      currentUser.role === "staff"
-        ? await isCustomerAssignee(db, customer.id, currentUser.id)
-        : false;
-    const level = getCustomerAccessLevel(currentUser, customer, {
-      isAssignee,
-    });
-    if (level !== "full") {
-      // Opaque masked match: only the input field is revealed, never any
-      // customer-identifying data (id/name/status/contacts/pool membership).
-      matches.push({ field, customer: { isMasked: true } });
-      continue;
+    if (
+      phoneIdentity &&
+      normalizeCustomerPhone(customer.phoneCountryCode, customer.phone) ===
+        phoneIdentity
+    ) {
+      await pushUnique("phone", customer);
     }
+    if (
+      wechatNorm &&
+      normalizeCustomerWechat(customer.wechatId) === wechatNorm
+    ) {
+      await pushUnique("wechatId", customer);
+    }
+    if (
+      emailNorm &&
+      normalizeCustomerEmail(customer.email) === emailNorm
+    ) {
+      await pushUnique("email", customer);
+    }
+  }
 
-    matches.push({
-      field,
-      customer: {
-        isMasked: false,
-        id: customer.id,
-        customerName: customer.customerName,
-        nameStatus: customer.nameStatus,
-        status: customer.status,
-        phone: customer.phone,
-        wechatId: customer.wechatId,
-        email: customer.email,
-      },
-    });
+  for (const contact of contactRows) {
+    if (excludeId && contact.customerId === excludeId) continue;
+    const customer =
+      contactCustomerById.get(contact.customerId) ??
+      customerRows.find((c) => c.id === contact.customerId);
+    if (!customer) continue;
+
+    // Secondary phones inherit the parent customer's country code (contacts have no CC column).
+    if (
+      phoneIdentity &&
+      normalizeCustomerPhone(customer.phoneCountryCode, contact.phone) ===
+        phoneIdentity
+    ) {
+      await pushUnique("phone", customer);
+    }
+    if (
+      wechatNorm &&
+      normalizeCustomerWechat(contact.wechatId) === wechatNorm
+    ) {
+      await pushUnique("wechatId", customer);
+    }
+    if (
+      emailNorm &&
+      normalizeCustomerEmail(contact.email) === emailNorm
+    ) {
+      await pushUnique("email", customer);
+    }
   }
 
   return matches;
