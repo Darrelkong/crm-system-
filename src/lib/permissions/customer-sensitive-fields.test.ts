@@ -81,6 +81,7 @@ function payloadFromCustomer(
     email: customer.email,
     source: customer.source,
     sourceRemark: customer.sourceRemark,
+    requestedProjectCode: customer.requestedProjectCode ?? null,
     requestedProjectName: customer.requestedProjectName,
     notes: customer.notes,
     salesStage: customer.salesStage,

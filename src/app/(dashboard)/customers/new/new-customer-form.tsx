@@ -39,6 +39,13 @@ import { PENDING_NAME_PLACEHOLDERS } from "@/lib/customers/name-status";
 import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 import { useTranslation } from "@/i18n/provider";
 import { cn } from "@/lib/cn";
+import { RequestedProjectSelector } from "@/components/customers/requested-project-selector";
+import {
+  getRequestedProjectItem,
+  isRequestedProjectOtherCode,
+  REQUESTED_PROJECT_OTHER_CODE,
+} from "@/lib/constants/requested-projects";
+import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
@@ -306,11 +313,17 @@ export function NewCustomerForm({
     setServerError(null);
     setDuplicates(null);
 
-    const validationErrors = validateCustomerInput(form, {
-      requireSalesStage: true,
-      allowedSourceKeys: tags.map((tag) => tag.tagKey),
-      enforceCreateNameStatusRules: true,
-    });
+    const validationErrors = validateCustomerInput(
+      {
+        ...form,
+        requestedProjectCode: form.requestedProjectCode || null,
+      },
+      {
+        requireSalesStage: true,
+        allowedSourceKeys: tags.map((tag) => tag.tagKey),
+        enforceCreateNameStatusRules: true,
+      },
+    );
     if (validationErrors.length > 0) {
       const errs: Record<string, string> = {};
       for (const fe of validationErrors) errs[fe.field] = resolveFieldError(t, fe);
@@ -374,7 +387,11 @@ export function NewCustomerForm({
             nameStatus: form.nameStatus,
             locale,
           }),
-          requestedProjectName: form.requestedProjectName,
+          requestedProjectName: resolveRequestedProjectDisplayName({
+            requestedProjectCode: form.requestedProjectCode || null,
+            requestedProjectName: form.requestedProjectName,
+            locale,
+          }),
           phoneCountryCode: form.phoneCountryCode,
           phone: form.phone,
           wechatId: form.wechatId,
@@ -611,18 +628,73 @@ export function NewCustomerForm({
             {t("customers.requestedProjectName")}{" "}
             <span className="text-red-500">*</span>
           </Label>
-          <Input
+          <RequestedProjectSelector
             id="requestedProjectName"
-            value={form.requestedProjectName}
-            onChange={(e) => set("requestedProjectName", e.target.value)}
+            locale={locale}
+            valueCode={form.requestedProjectCode || null}
+            valueName={form.requestedProjectName}
             placeholder={t("customers.requestedProjectNamePlaceholder")}
+            selectCountryTitle={t("customers.requestedProjectSelectCountry")}
+            searchPlaceholder={t("customers.requestedProjectSearchPlaceholder")}
+            backLabel={t("common.back")}
+            closeLabel={t("common.close")}
+            onSelect={({ code }) => {
+              if (isRequestedProjectOtherCode(code)) {
+                setForm((prev) => ({
+                  ...prev,
+                  requestedProjectCode: REQUESTED_PROJECT_OTHER_CODE,
+                  requestedProjectName: prev.requestedProjectCode === REQUESTED_PROJECT_OTHER_CODE
+                    ? prev.requestedProjectName
+                    : "",
+                }));
+              } else {
+                const item = getRequestedProjectItem(code);
+                setForm((prev) => ({
+                  ...prev,
+                  requestedProjectCode: code,
+                  requestedProjectName: item?.canonicalZhHans ?? "",
+                }));
+              }
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                delete next.requestedProjectCode;
+                delete next.requestedProjectName;
+                return next;
+              });
+            }}
           />
-          {fieldErrors.requestedProjectName && (
+          {fieldErrors.requestedProjectCode && (
+            <p className="mt-1 text-xs text-red-600">
+              {fieldErrors.requestedProjectCode}
+            </p>
+          )}
+          {fieldErrors.requestedProjectName &&
+            !isRequestedProjectOtherCode(form.requestedProjectCode) && (
             <p className="mt-1 text-xs text-red-600">
               {fieldErrors.requestedProjectName}
             </p>
           )}
         </Field>
+
+        {isRequestedProjectOtherCode(form.requestedProjectCode) ? (
+          <Field>
+            <Label htmlFor="requestedProjectOtherName">
+              {t("customers.requestedProjectOtherName")}{" "}
+              <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="requestedProjectOtherName"
+              value={form.requestedProjectName}
+              onChange={(e) => set("requestedProjectName", e.target.value)}
+              placeholder={t("customers.requestedProjectOtherNamePlaceholder")}
+            />
+            {fieldErrors.requestedProjectName && (
+              <p className="mt-1 text-xs text-red-600">
+                {fieldErrors.requestedProjectName}
+              </p>
+            )}
+          </Field>
+        ) : null}
 
         <h4 className="mb-3 mt-6 text-sm font-medium text-[#3A465C]">
           {t("customers.contactSection")}

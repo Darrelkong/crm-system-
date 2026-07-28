@@ -32,6 +32,7 @@ import {
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
+import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 import {
   getSalesStageBadgeClass,
   resolveSalesStageListDisplay,
@@ -80,6 +81,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     ownerId: item.ownerId ?? null,
     ownerName: item.ownerName ?? null,
     assigneeNames: item.assigneeNames ?? [],
+    requestedProjectCode: item.requestedProjectCode,
     requestedProjectName: item.requestedProjectName,
     salesStage: item.salesStage,
     lifecycleStatus: item.lifecycleStatus ?? null,
@@ -249,7 +251,12 @@ export function CustomersListClient({
     );
   }
 
-  function ProjectNameCell({ name }: { name?: string | null }) {
+  function ProjectNameCell({ c }: { c: CustomerListRow }) {
+    const name = resolveRequestedProjectDisplayName({
+      requestedProjectCode: c.requestedProjectCode,
+      requestedProjectName: c.requestedProjectName,
+      locale,
+    });
     const { display, title } = formatProjectNameForList(name);
     return (
       <span className="crm-text" title={title}>
@@ -290,7 +297,13 @@ export function CustomersListClient({
   }
 
   function CustomerMobileCard({ c }: { c: CustomerListRow }) {
-    const project = formatProjectNameForList(c.requestedProjectName);
+    const project = formatProjectNameForList(
+      resolveRequestedProjectDisplayName({
+        requestedProjectCode: c.requestedProjectCode,
+        requestedProjectName: c.requestedProjectName,
+        locale,
+      }),
+    );
     const staff = assignedStaffDisplay(c);
 
     return (
@@ -471,7 +484,7 @@ export function CustomersListClient({
                       <AssignedStaffCell c={c} />
                     </Td>
                     <Td>
-                      <ProjectNameCell name={c.requestedProjectName} />
+                      <ProjectNameCell c={c} />
                     </Td>
                     <Td>
                       <SalesStageCell c={c} />

@@ -11,6 +11,7 @@ const BASE_INPUT = {
   email: "",
   source: "referral",
   sourceRemark: "",
+  requestedProjectCode: "hk_bank_account",
   requestedProjectName: "网站开发项目",
   notes: "客户当前处于初步沟通阶段，需要进一步跟进确认需求。",
   salesStage: "new_lead",

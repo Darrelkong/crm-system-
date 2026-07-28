@@ -35,6 +35,7 @@ import {
   resolvePersistedSalesStageForCreate,
   validateOnHoldReason,
 } from "@/lib/customers/on-hold-create-pending";
+import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
 import {
   createApprovalRequest,
   approvalErrorResponse,
@@ -251,6 +252,29 @@ export async function POST(request: Request) {
       requestedSalesStage,
     );
 
+    const projectResolved = resolveRequestedProjectForPersist({
+      requestedProjectCode: createInput.requestedProjectCode,
+      requestedProjectName: createInput.requestedProjectName,
+      mode: "create",
+    });
+    if (!projectResolved.ok) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.create_failed.validation",
+        ipAddress,
+        userAgent,
+        metadata: { fieldErrors: projectResolved.fieldErrors },
+      });
+      return Response.json(
+        {
+          error: "输入校验失败",
+          errorCode: "VALIDATION_FAILED",
+          fieldErrors: projectResolved.fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+
     const payload = buildCustomerUpdatePayload({
       customerName: createInput.customerName!,
       customerType: createInput.customerType!,
@@ -260,7 +284,8 @@ export async function POST(request: Request) {
       email: createInput.email ?? null,
       source: createInput.source!,
       sourceRemark: createInput.sourceRemark ?? null,
-      requestedProjectName: createInput.requestedProjectName ?? null,
+      requestedProjectCode: projectResolved.value.requestedProjectCode,
+      requestedProjectName: projectResolved.value.requestedProjectName,
       notes: createInput.notes ?? null,
       salesStage: persistedSalesStage,
       status: "active",
@@ -281,6 +306,7 @@ export async function POST(request: Request) {
       email: payload.email,
       source: payload.source,
       sourceRemark: payload.sourceRemark,
+      requestedProjectCode: payload.requestedProjectCode,
       requestedProjectName: payload.requestedProjectName,
       notes: payload.notes,
       salesStage: payload.salesStage,
@@ -332,7 +358,8 @@ export async function POST(request: Request) {
             email: createInput.email,
             source: createInput.source!,
             sourceRemark: createInput.sourceRemark,
-            requestedProjectName: createInput.requestedProjectName,
+            requestedProjectCode: projectResolved.value.requestedProjectCode,
+            requestedProjectName: projectResolved.value.requestedProjectName,
             notes: createInput.notes,
           }),
         },

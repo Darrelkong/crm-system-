@@ -69,6 +69,7 @@ export type CustomerView = {
   wechatId?: string | null;
   email?: string | null;
   sourceRemark?: string | null;
+  requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   notes?: string | null;
   releaserUserId?: string | null;
@@ -228,6 +229,7 @@ const STAFF_LOCKED_SENSITIVE_FIELDS = [
   "customerName",
   "customerType",
   "source",
+  "requestedProjectCode",
   "requestedProjectName",
   "phoneCountryCode",
   "phone",
@@ -260,7 +262,8 @@ function normalizeSensitiveFieldForCompare(
     field === "phone" ||
     field === "wechatId" ||
     field === "notes" ||
-    field === "requestedProjectName"
+    field === "requestedProjectName" ||
+    field === "requestedProjectCode"
   ) {
     const normalized = value.trim();
     return normalized === "" ? null : normalized;
@@ -501,6 +504,7 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
     updatedBy: customer.updatedBy,
     createdAt: customer.createdAt,
     updatedAt: customer.updatedAt,
+    requestedProjectCode: customer.requestedProjectCode,
     requestedProjectName: customer.requestedProjectName,
     lifecycleStatus: customer.lifecycleStatus,
     ...getCustomerFollowUpMeta(customer),
@@ -527,6 +531,7 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     wechatId: customer.wechatId,
     email: customer.email,
     sourceRemark: customer.sourceRemark,
+    requestedProjectCode: customer.requestedProjectCode,
     requestedProjectName: customer.requestedProjectName,
     notes: customer.notes,
     releaserUserId: customer.releaserUserId,

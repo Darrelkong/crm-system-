@@ -19,6 +19,7 @@ export type CustomerCreateDraftFormData = {
   customerName: string;
   /** confirmed | pending; omitted in legacy drafts → treated as confirmed. */
   nameStatus: CustomerNameStatus;
+  requestedProjectCode: string;
   requestedProjectName: string;
   customerType: string;
   phoneCountryCode: string;
@@ -58,6 +59,7 @@ export function createEmptyCustomerCreateFormData(): CustomerCreateDraftFormData
   return {
     customerName: "",
     nameStatus: "confirmed",
+    requestedProjectCode: "",
     requestedProjectName: "",
     customerType: "individual",
     phoneCountryCode: "+86",
@@ -145,6 +147,7 @@ export function normalizeCustomerCreateDraftForm(
   return {
     customerName: resolvedName,
     nameStatus,
+    requestedProjectCode: readString(form.requestedProjectCode),
     requestedProjectName: readString(form.requestedProjectName),
     customerType: readString(form.customerType, "individual"),
     phoneCountryCode: readString(form.phoneCountryCode, "+86"),

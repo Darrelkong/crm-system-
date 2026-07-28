@@ -10,6 +10,7 @@ const TRACKED_FIELDS = [
   { key: "email" as const, fieldName: "email" },
   { key: "source" as const, fieldName: "source" },
   { key: "sourceRemark" as const, fieldName: "source_remark" },
+  { key: "requestedProjectCode" as const, fieldName: "requested_project_code" },
   { key: "requestedProjectName" as const, fieldName: "requested_project_name" },
   { key: "salesStage" as const, fieldName: "sales_stage" },
   { key: "status" as const, fieldName: "status" },
@@ -38,6 +39,7 @@ export function buildCustomerUpdatePayload(
     email: string | null;
     source: string;
     sourceRemark: string | null;
+    requestedProjectCode?: string | null;
     requestedProjectName: string | null;
     notes: string | null;
     salesStage: string;
@@ -53,6 +55,7 @@ export function buildCustomerUpdatePayload(
     email: input.email?.trim().toLowerCase() || null,
     source: input.source,
     sourceRemark: normalizeValue(input.sourceRemark),
+    requestedProjectCode: normalizeValue(input.requestedProjectCode),
     requestedProjectName: normalizeValue(input.requestedProjectName),
     notes: normalizeValue(input.notes),
     salesStage: input.salesStage,

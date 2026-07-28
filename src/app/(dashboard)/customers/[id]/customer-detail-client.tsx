@@ -29,6 +29,7 @@ import { formatHongKongDateTime } from "@/lib/timezone";
 import { ui } from "@/lib/ui/classes";
 import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-stage-badges";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
+import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 
 const cd = ui.customerDetail;
 
@@ -61,6 +62,7 @@ export type CustomerDetailView = {
   wechatId?: string | null;
   email?: string | null;
   sourceRemark?: string | null;
+  requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   notes?: string | null;
   ownerId?: string | null;
@@ -346,7 +348,11 @@ export function CustomerDetailClient({
               {!view.isMasked && (
                 <DetailRow
                   label={t("customers.requestedProjectName")}
-                  value={view.requestedProjectName}
+                  value={resolveRequestedProjectDisplayName({
+                    requestedProjectCode: view.requestedProjectCode,
+                    requestedProjectName: view.requestedProjectName,
+                    locale,
+                  })}
                   emphasis="strong"
                 />
               )}

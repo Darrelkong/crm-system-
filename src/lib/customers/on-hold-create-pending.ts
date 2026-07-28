@@ -50,6 +50,7 @@ export type OnHoldCreateApprovalPayloadInput = {
   email?: string | null;
   source: string;
   sourceRemark?: string | null;
+  requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   notes?: string | null;
 };
@@ -69,6 +70,7 @@ export function buildOnHoldCreateApprovalPayload(
     email: input.email ?? null,
     source: input.source,
     sourceRemark: input.sourceRemark ?? null,
+    requestedProjectCode: input.requestedProjectCode ?? null,
     requestedProjectName: input.requestedProjectName ?? null,
     notes: input.notes ?? null,
   };
@@ -86,6 +88,7 @@ export type ParsedOnHoldCreateApprovalPayload = {
   email: string | null;
   source: string | null;
   sourceRemark: string | null;
+  requestedProjectCode: string | null;
   requestedProjectName: string | null;
   notes: string | null;
 };
@@ -114,6 +117,10 @@ export function parseOnHoldCreateApprovalPayload(
     email: typeof p.email === "string" ? p.email : null,
     source: typeof p.source === "string" ? p.source : null,
     sourceRemark: typeof p.sourceRemark === "string" ? p.sourceRemark : null,
+    requestedProjectCode:
+      typeof p.requestedProjectCode === "string"
+        ? p.requestedProjectCode
+        : null,
     requestedProjectName:
       typeof p.requestedProjectName === "string" ? p.requestedProjectName : null,
     notes: typeof p.notes === "string" ? p.notes : null,

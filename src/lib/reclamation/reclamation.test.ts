@@ -91,6 +91,7 @@ function buildCustomer(
     createdAt,
     updatedAt: createdAt,
     ...rest,
+    requestedProjectCode: rest.requestedProjectCode ?? null,
   };
 }
 

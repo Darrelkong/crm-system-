@@ -674,6 +674,173 @@ html[data-theme="dark"] {
   width: 100%;
 }
 
+/* ── Requested project country/region selector ── */
+.project-selector-root {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+
+.project-selector-overlay {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: rgba(23, 32, 51, 0.45);
+  cursor: pointer;
+}
+
+.project-selector-sheet {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: min(88vh, 640px);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-crm-card);
+  border-radius: var(--radius-crm-xl) var(--radius-crm-xl) 0 0;
+  border: 1px solid var(--color-crm-border);
+  box-shadow: var(--shadow-crm-modal);
+  overflow: hidden;
+}
+
+.project-selector-modal {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(720px, calc(100vw - 2rem));
+  max-height: min(80vh, 560px);
+  display: flex;
+  flex-direction: column;
+  background: var(--color-crm-card);
+  border-radius: var(--radius-crm-xl);
+  border: 1px solid var(--color-crm-border);
+  box-shadow: var(--shadow-crm-modal);
+  overflow: hidden;
+}
+
+.project-selector-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.875rem 1rem;
+  border-bottom: 1px solid var(--color-crm-border);
+  flex-shrink: 0;
+}
+
+.project-selector-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--color-crm-text);
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-selector-back,
+.project-selector-close {
+  flex-shrink: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 0;
+  border-radius: var(--radius-crm);
+  background: transparent;
+  color: var(--color-crm-text);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.project-selector-back-spacer {
+  width: 2rem;
+  flex-shrink: 0;
+}
+
+.project-selector-search {
+  padding: 0.75rem 1rem;
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--color-crm-border);
+}
+
+.project-selector-dual {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.project-selector-col {
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  list-style: none;
+  margin: 0;
+  padding: 0.25rem;
+}
+
+.project-selector-groups {
+  border-right: 1px solid var(--color-crm-border);
+}
+
+.project-selector-mobile-body {
+  flex: 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 0.25rem;
+}
+
+.project-selector-mobile-body ul,
+.project-selector-col ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.project-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 44px;
+  padding: 0.625rem 0.75rem;
+  border: 0;
+  border-radius: calc(var(--radius-crm) - 2px);
+  background: transparent;
+  color: var(--color-crm-text);
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.project-selector-row.is-active,
+.project-selector-row.is-highlight,
+.project-selector-row:hover {
+  background: var(--color-crm-surface-muted, rgba(31, 78, 121, 0.08));
+}
+
+.project-selector-row.is-selected {
+  font-weight: 600;
+}
+
+.project-selector-chevron {
+  color: var(--color-crm-text-muted, #6b7890);
+  font-size: 1.125rem;
+  line-height: 1;
+}
+
+.project-selector-check {
+  color: var(--color-crm-primary, #1f4e79);
+  font-weight: 700;
+}
+
 /* ── Quick Entry V2 Drawer / Sheet ── */
 .qe-drawer-root {
   position: fixed;

@@ -34,6 +34,12 @@ export function parseCustomerBody(
     source: typeof body.source === "string" ? body.source : "",
     sourceRemark:
       typeof body.sourceRemark === "string" ? body.sourceRemark : null,
+    requestedProjectCode:
+      body.requestedProjectCode === null
+        ? null
+        : typeof body.requestedProjectCode === "string"
+          ? body.requestedProjectCode
+          : undefined,
     requestedProjectName:
       typeof body.requestedProjectName === "string"
         ? body.requestedProjectName

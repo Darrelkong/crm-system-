@@ -16,6 +16,7 @@ import {
   isPendingNamePlaceholder,
   type CustomerNameStatus,
 } from "@/lib/customers/name-status";
+import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
 
 const CN_PHONE_RE = /^1\d{10}$/;
 const CHINESE_CHAR_RE = /[\u4e00-\u9fff]/g;
@@ -58,6 +59,7 @@ export type CustomerInput = {
   email?: string | null;
   source?: string;
   sourceRemark?: string | null;
+  requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   notes?: string | null;
   salesStage?: string;
@@ -79,6 +81,8 @@ export type CustomerValidationContext = {
   userRole?: "admin" | "staff";
   /** Import and other flows that block closed_won / closed_lost for all roles. */
   disallowDirectTerminalSalesStages?: boolean;
+  existingRequestedProjectCode?: string | null;
+  existingRequestedProjectName?: string | null;
 };
 
 const DIRECT_TERMINAL_SALES_STAGE_MESSAGE =
@@ -246,19 +250,15 @@ export function validateCustomerInput(
     });
   }
 
-  const requestedProjectName = input.requestedProjectName?.trim() ?? "";
-  if (!requestedProjectName) {
-    errors.push({
-      field: "requestedProjectName",
-      message: "客户需要的项目名称必填",
-      code: "REQUESTED_PROJECT_NAME_REQUIRED",
-    });
-  } else if (!hasSubstantiveContent(requestedProjectName, 4)) {
-    errors.push({
-      field: "requestedProjectName",
-      message: "项目名称至少 4 个字，且不能只填符号",
-      code: "INVALID_REQUESTED_PROJECT_NAME",
-    });
+  const projectResult = resolveRequestedProjectForPersist({
+    requestedProjectCode: input.requestedProjectCode,
+    requestedProjectName: input.requestedProjectName,
+    mode: context?.isUpdate ? "update" : "create",
+    existingCode: context?.existingRequestedProjectCode ?? null,
+    existingName: context?.existingRequestedProjectName ?? null,
+  });
+  if (!projectResult.ok) {
+    errors.push(...projectResult.fieldErrors);
   }
 
   const phone = input.phone?.trim() ?? "";

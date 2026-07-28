@@ -26,6 +26,8 @@ export const customers = sqliteTable(
     source: text("source").notNull(),
     sourceRemark: text("source_remark"),
     requestedProjectName: text("requested_project_name"),
+    /** Catalog code; null = legacy free-text name only. Group derived from catalog. */
+    requestedProjectCode: text("requested_project_code"),
     notes: text("notes"),
     salesStage: text("sales_stage").notNull().default("new_lead"),
     ownerId: text("owner_id").references(() => users.id),

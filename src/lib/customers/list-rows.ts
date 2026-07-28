@@ -12,6 +12,7 @@ export type CustomerListRowData = {
   ownerId: string | null;
   ownerName: string | null;
   assigneeNames: string[];
+  requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   salesStage: string;
   lifecycleStatus?: string | null;
@@ -40,6 +41,7 @@ export function toCustomerListRow(
     ownerId: customer.ownerId ?? null,
     ownerName,
     assigneeNames,
+    requestedProjectCode: customer.requestedProjectCode,
     requestedProjectName: customer.requestedProjectName,
     salesStage: customer.salesStage,
     lifecycleStatus: customer.lifecycleStatus ?? null,

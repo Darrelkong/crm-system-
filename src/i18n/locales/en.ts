@@ -475,7 +475,11 @@ const en = {
     sourceDetailPlaceholder: "Describe the source",
     notesOptional: "Additional notes (optional)",
     requestedProjectName: "Requested Project / Service Name",
-    requestedProjectNamePlaceholder: "Enter the project or service the client needs",
+    requestedProjectNamePlaceholder: "Select country / region and business project",
+    requestedProjectOtherName: "Other project name",
+    requestedProjectOtherNamePlaceholder: "Enter the project or service the client needs",
+    requestedProjectSelectCountry: "Select country / region",
+    requestedProjectSearchPlaceholder: "Search countries / regions or projects",
     stageNotes: "Initial Communication",
     stageNotesPlaceholder:
       "Record the customer’s current needs, purpose, main concerns, expected timeline, and next step. Minimum 10 characters.",
@@ -2796,6 +2800,9 @@ const en = {
     requestedProjectNameRequired: "Requested project / service name is required.",
     invalidRequestedProjectName:
       "Project name must be at least 4 characters and cannot be symbols only.",
+    requestedProjectCodeRequired: "Please select the requested project.",
+    invalidRequestedProjectCode: "Invalid project option.",
+    invalidRequestedProjectOtherName: "Please enter a specific other project name.",
     stageNotesRequired:
       "Please enter initial communication notes, at least 10 characters.",
     currentPasswordRequired: "Please enter your current password.",

@@ -24,6 +24,12 @@ import { useTranslation } from "@/i18n/provider";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { ui } from "@/lib/ui/classes";
 import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
+import { RequestedProjectSelector } from "@/components/customers/requested-project-selector";
+import {
+  getRequestedProjectItem,
+  isRequestedProjectOtherCode,
+  REQUESTED_PROJECT_OTHER_CODE,
+} from "@/lib/constants/requested-projects";
 
 type DuplicateMatch = {
   field: string;
@@ -46,6 +52,7 @@ const STAFF_LOCKED_SENSITIVE_FIELDS = new Set([
   "customerName",
   "customerType",
   "source",
+  "requestedProjectCode",
   "requestedProjectName",
   "phoneCountryCode",
   "phone",
@@ -67,6 +74,7 @@ export type EditCustomerInitial = {
   email: string;
   source: string;
   sourceRemark: string;
+  requestedProjectCode: string | null;
   requestedProjectName: string;
   notes: string;
   salesStage: string;
@@ -117,6 +125,7 @@ export function EditCustomerForm({
     email: initial.email,
     source: initial.source,
     sourceRemark: initial.sourceRemark,
+    requestedProjectCode: initial.requestedProjectCode ?? "",
     requestedProjectName: initial.requestedProjectName,
     notes: initial.notes,
     salesStage: initial.salesStage,
@@ -217,13 +226,21 @@ export function EditCustomerForm({
       return;
     }
 
-    const validationErrors = validateCustomerInput(form, {
-      isUpdate: true,
-      existingNotes: initial.notes,
-      existingSalesStage: initial.salesStage,
-      allowedSourceKeys: tags.map((tag) => tag.tagKey),
-      userRole: isStaff ? "staff" : "admin",
-    });
+    const validationErrors = validateCustomerInput(
+      {
+        ...form,
+        requestedProjectCode: form.requestedProjectCode || null,
+      },
+      {
+        isUpdate: true,
+        existingNotes: initial.notes,
+        existingSalesStage: initial.salesStage,
+        existingRequestedProjectCode: initial.requestedProjectCode ?? null,
+        existingRequestedProjectName: initial.requestedProjectName || null,
+        allowedSourceKeys: tags.map((tag) => tag.tagKey),
+        userRole: isStaff ? "staff" : "admin",
+      },
+    );
     if (validationErrors.length > 0) {
       const errs: Record<string, string> = {};
       for (const fe of validationErrors) errs[fe.field] = resolveFieldError(t, fe);
@@ -234,7 +251,13 @@ export function EditCustomerForm({
 
     try {
       const { status: _status, ...fieldsWithoutStatus } = form;
-      const submitBody = showStatusDropdown ? form : fieldsWithoutStatus;
+      const baseBody = showStatusDropdown ? form : fieldsWithoutStatus;
+      const submitBody = {
+        ...baseBody,
+        requestedProjectCode: form.requestedProjectCode
+          ? form.requestedProjectCode
+          : null,
+      };
 
       const res = await fetch(`/api/customers/${initial.id}`, {
         method: "PATCH",
@@ -345,20 +368,80 @@ export function EditCustomerForm({
             {t("customers.requestedProjectName")}{" "}
             <span className="text-red-500">*</span>
           </Label>
-          <Input
+          <RequestedProjectSelector
             id="requestedProjectName"
-            value={form.requestedProjectName}
-            onChange={(e) => set("requestedProjectName", e.target.value)}
+            locale={locale}
+            valueCode={form.requestedProjectCode || null}
+            valueName={form.requestedProjectName}
             placeholder={t("customers.requestedProjectNamePlaceholder")}
+            selectCountryTitle={t("customers.requestedProjectSelectCountry")}
+            searchPlaceholder={t("customers.requestedProjectSearchPlaceholder")}
+            backLabel={t("common.back")}
+            closeLabel={t("common.close")}
             disabled={lockSensitiveFields}
             className={lockSensitiveFields ? lockedFieldClassName : undefined}
+            onSelect={({ code }) => {
+              if (lockSensitiveFields) return;
+              if (isRequestedProjectOtherCode(code)) {
+                setForm((prev) => ({
+                  ...prev,
+                  requestedProjectCode: REQUESTED_PROJECT_OTHER_CODE,
+                  requestedProjectName:
+                    prev.requestedProjectCode === REQUESTED_PROJECT_OTHER_CODE
+                      ? prev.requestedProjectName
+                      : "",
+                }));
+              } else {
+                const item = getRequestedProjectItem(code);
+                setForm((prev) => ({
+                  ...prev,
+                  requestedProjectCode: code,
+                  requestedProjectName: item?.canonicalZhHans ?? "",
+                }));
+              }
+              setFieldErrors((prev) => {
+                const next = { ...prev };
+                delete next.requestedProjectCode;
+                delete next.requestedProjectName;
+                return next;
+              });
+            }}
           />
-          {fieldErrors.requestedProjectName && (
+          {fieldErrors.requestedProjectCode && (
             <p className="mt-1 text-xs text-red-600">
-              {fieldErrors.requestedProjectName}
+              {fieldErrors.requestedProjectCode}
             </p>
           )}
         </Field>
+
+        {isRequestedProjectOtherCode(form.requestedProjectCode) ||
+        !form.requestedProjectCode ? (
+          <Field>
+            <Label htmlFor="requestedProjectOtherName">
+              {isRequestedProjectOtherCode(form.requestedProjectCode)
+                ? t("customers.requestedProjectOtherName")
+                : t("customers.requestedProjectName")}{" "}
+              <span className="text-red-500">*</span>
+            </Label>
+            <Input
+              id="requestedProjectOtherName"
+              value={form.requestedProjectName}
+              onChange={(e) => set("requestedProjectName", e.target.value)}
+              placeholder={
+                isRequestedProjectOtherCode(form.requestedProjectCode)
+                  ? t("customers.requestedProjectOtherNamePlaceholder")
+                  : t("customers.requestedProjectOtherNamePlaceholder")
+              }
+              disabled={lockSensitiveFields}
+              className={lockSensitiveFields ? lockedFieldClassName : undefined}
+            />
+            {fieldErrors.requestedProjectName && (
+              <p className="mt-1 text-xs text-red-600">
+                {fieldErrors.requestedProjectName}
+              </p>
+            )}
+          </Field>
+        ) : null}
 
         <Field>
           <Label htmlFor="customerType">{t("customers.clientType")}</Label>

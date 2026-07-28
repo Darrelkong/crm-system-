@@ -26,6 +26,7 @@ import {
   buildCustomerUpdatePayload,
   writeFieldChangeLogs,
 } from "@/lib/customers/field-change-log";
+import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
 import { archiveCustomerToRecycleBin } from "@/lib/recycle-bin/archive-customer";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
@@ -162,6 +163,8 @@ export async function PATCH(request: Request, context: RouteContext) {
         isUpdate: true,
         existingNotes: existing.notes,
         existingSalesStage: existing.salesStage,
+        existingRequestedProjectCode: existing.requestedProjectCode ?? null,
+        existingRequestedProjectName: existing.requestedProjectName ?? null,
         allowedSourceKeys,
         userRole: user.role === "admin" ? "admin" : "staff",
       },
@@ -182,6 +185,33 @@ export async function PATCH(request: Request, context: RouteContext) {
       );
     }
 
+    const projectResolved = resolveRequestedProjectForPersist({
+      requestedProjectCode: input.requestedProjectCode,
+      requestedProjectName: input.requestedProjectName,
+      mode: "update",
+      existingCode: existing.requestedProjectCode ?? null,
+      existingName: existing.requestedProjectName ?? null,
+    });
+    if (!projectResolved.ok) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "customer.update_failed.validation",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: { fieldErrors: projectResolved.fieldErrors },
+      });
+      return Response.json(
+        {
+          error: "输入校验失败",
+          errorCode: "VALIDATION_FAILED",
+          fieldErrors: projectResolved.fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+
     const payload = buildCustomerUpdatePayload({
       customerName: input.customerName!,
       customerType: input.customerType!,
@@ -191,7 +221,8 @@ export async function PATCH(request: Request, context: RouteContext) {
       email: input.email ?? null,
       source: input.source!,
       sourceRemark: input.sourceRemark ?? null,
-      requestedProjectName: input.requestedProjectName ?? null,
+      requestedProjectCode: projectResolved.value.requestedProjectCode,
+      requestedProjectName: projectResolved.value.requestedProjectName,
       notes: input.notes ?? null,
       salesStage: input.salesStage!,
       status: updateStatus,
@@ -284,6 +315,7 @@ export async function PATCH(request: Request, context: RouteContext) {
           email: payload.email,
           source: payload.source,
           sourceRemark: payload.sourceRemark,
+          requestedProjectCode: payload.requestedProjectCode,
           requestedProjectName: payload.requestedProjectName,
           notes: payload.notes,
           salesStage: payload.salesStage,
@@ -338,6 +370,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         email: payload.email,
         source: payload.source,
         sourceRemark: payload.sourceRemark,
+        requestedProjectCode: payload.requestedProjectCode,
         requestedProjectName: payload.requestedProjectName,
         notes: payload.notes,
         salesStage: payload.salesStage,
