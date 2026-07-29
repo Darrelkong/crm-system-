@@ -13,6 +13,8 @@ export const BACKUP_TABLE_NAMES = [
   "customer_assignees",
   "customer_tags",
   "customer_ai_insights",
+  /** After insights — FK: customer_id, ai_insight_id, created_by. */
+  "ai_insight_feedback",
   "follow_ups",
   "tasks",
   "audit_logs",

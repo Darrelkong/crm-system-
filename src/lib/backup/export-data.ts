@@ -51,6 +51,7 @@ export async function collectBackupTableData(
   const customerAssignees = await db.select().from(schema.customerAssignees);
   const customerTags = await db.select().from(schema.customerTags);
   const customerAiInsights = await db.select().from(schema.customerAiInsights);
+  const aiInsightFeedback = await db.select().from(schema.aiInsightFeedback);
   const followUps = await db.select().from(schema.followUps);
   const tasks = await db.select().from(schema.tasks);
   const auditLogs = await db.select().from(schema.auditLogs);
@@ -87,6 +88,7 @@ export async function collectBackupTableData(
     customer_assignees: customerAssignees.map((r) => toSnakeRow(r as Row)),
     customer_tags: customerTags.map((r) => toSnakeRow(r as Row)),
     customer_ai_insights: customerAiInsights.map((r) => toSnakeRow(r as Row)),
+    ai_insight_feedback: aiInsightFeedback.map((r) => toSnakeRow(r as Row)),
     follow_ups: followUps.map((r) => toSnakeRow(r as Row)),
     tasks: tasks.map((r) => toSnakeRow(r as Row)),
     audit_logs: auditLogs.map((r) => toSnakeRow(r as Row)),
