@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
   type CompositionEvent,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import { Badge, Card } from "@/components/ui/card";
@@ -27,6 +28,21 @@ import {
   parseFollowUpListFilters,
   type FollowUpListFilters,
 } from "@/lib/follow-ups/list-filters";
+import {
+  FOLLOW_UPS_RETURN_ITEM_ATTR,
+  buildFollowUpsReturnStorageKey,
+  clearFollowUpsReturnMarkerOnHistory,
+  computeFollowUpsRestoreScrollY,
+  getCurrentFollowUpsListUrl,
+  isDocumentReload,
+  mergeHistoryStateWithReturnMarker,
+  readFollowUpsReturnState,
+  removeFollowUpsReturnState,
+  saveFollowUpsReturnState,
+  shouldSaveFollowUpsReturnOnNavigationClick,
+  stripReturnMarkerFromHistoryState,
+  getReturnMarkerFromHistoryState,
+} from "@/lib/follow-ups/list-return-state";
 import { formatHongKongDate, formatHongKongDateTime } from "@/lib/timezone";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
@@ -103,6 +119,7 @@ function FollowUpRowContent({
   status,
   t,
   locale,
+  onCustomerNavigateClick,
 }: {
   item: FollowUpListItem;
   showStaff: boolean;
@@ -112,6 +129,10 @@ function FollowUpRowContent({
   status: (key: string) => string;
   t: (key: string) => string;
   locale: string;
+  onCustomerNavigateClick: (
+    event: ReactMouseEvent<HTMLAnchorElement>,
+    itemId: string,
+  ) => void;
 }) {
   return (
     <>
@@ -135,6 +156,8 @@ function FollowUpRowContent({
             <Link
               href={`/customers/${item.customerId}`}
               className={`text-sm font-medium ${linkClass}`}
+              data-follow-up-return-id={item.id}
+              onClick={(event) => onCustomerNavigateClick(event, item.id)}
             >
               {displayName}
             </Link>
@@ -165,6 +188,8 @@ function FollowUpRowContent({
       <Link
         href={`/customers/${item.customerId}`}
         className={`mt-3 inline-block text-xs ${linkClass}`}
+        data-follow-up-return-id={item.id}
+        onClick={(event) => onCustomerNavigateClick(event, item.id)}
       >
         {t("followUpsPage.viewCustomer")}
       </Link>
@@ -253,11 +278,17 @@ export function FollowUpsListClient({
       );
       const current = `${window.location.pathname}${window.location.search}`;
       if (href === current) return;
+      const stateWithoutMarker = stripReturnMarkerFromHistoryState(
+        window.history.state,
+      );
       if (mode === "push") {
-        window.history.pushState(window.history.state, "", href);
+        window.history.pushState(stateWithoutMarker, "", href);
       } else {
-        window.history.replaceState(window.history.state, "", href);
+        window.history.replaceState(stateWithoutMarker, "", href);
       }
+      removeFollowUpsReturnState(current);
+      removeFollowUpsReturnState(href);
+      window.scrollTo({ top: 0, behavior: "auto" });
     },
     [role],
   );
@@ -278,6 +309,88 @@ export function FollowUpsListClient({
     [role, writeUrl],
   );
 
+  const tryRestoreScroll = useCallback(() => {
+    if (typeof window === "undefined") return;
+    const url = getCurrentFollowUpsListUrl();
+    const marker = getReturnMarkerFromHistoryState(window.history.state);
+    const expectedKey = buildFollowUpsReturnStorageKey(url);
+    if (!marker || marker !== expectedKey) return;
+    const state = readFollowUpsReturnState(url);
+    if (!state) return;
+    const top = computeFollowUpsRestoreScrollY(state);
+    window.scrollTo({ top, behavior: "auto" });
+  }, []);
+
+  const scheduleRestoreScroll = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        tryRestoreScroll();
+      });
+    });
+  }, [tryRestoreScroll]);
+
+  const onCustomerNavigateClick = useCallback(
+    (event: ReactMouseEvent<HTMLAnchorElement>, itemId: string) => {
+      if (
+        !shouldSaveFollowUpsReturnOnNavigationClick(
+          event,
+          event.currentTarget,
+        )
+      ) {
+        return;
+      }
+      const url = getCurrentFollowUpsListUrl();
+      const key = buildFollowUpsReturnStorageKey(url);
+      const anchorEl =
+        (event.currentTarget.closest(
+          `[${FOLLOW_UPS_RETURN_ITEM_ATTR}]`,
+        ) as HTMLElement | null) ?? event.currentTarget;
+      const rect = anchorEl.getBoundingClientRect();
+      saveFollowUpsReturnState({
+        v: 1,
+        url,
+        scrollY: window.scrollY,
+        itemId,
+        itemViewportOffset: rect.top,
+        savedAt: Date.now(),
+      });
+      try {
+        const merged = mergeHistoryStateWithReturnMarker(
+          window.history.state,
+          key,
+        );
+        window.history.replaceState(
+          merged,
+          "",
+          `${window.location.pathname}${window.location.search}`,
+        );
+      } catch {
+        // Storage / history failures must not block navigation.
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (isDocumentReload()) {
+      const url = getCurrentFollowUpsListUrl();
+      removeFollowUpsReturnState(url);
+      clearFollowUpsReturnMarkerOnHistory();
+      return;
+    }
+    let cancelled = false;
+    const outer = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        if (!cancelled) tryRestoreScroll();
+      });
+    });
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(outer);
+    };
+  }, [items, filters, locale, tryRestoreScroll]);
+
   useEffect(() => {
     const onPopState = () => {
       clearDebounce();
@@ -289,13 +402,14 @@ export function FollowUpsListClient({
       );
       setFilters(parsed);
       setSearchInput(parsed.search);
+      scheduleRestoreScroll();
     };
     window.addEventListener("popstate", onPopState);
     return () => {
       window.removeEventListener("popstate", onPopState);
       clearDebounce();
     };
-  }, [role, clearDebounce]);
+  }, [role, clearDebounce, scheduleRestoreScroll]);
 
   const applySearchValue = useCallback(
     (raw: string, mode: "push" | "replace") => {
@@ -643,18 +757,21 @@ export function FollowUpsListClient({
         <>
           <div className="space-y-3 md:hidden">
             {filteredItems.map((item) => (
-              <Card key={item.id} className="p-4">
-                <FollowUpRowContent
-                  item={item}
-                  showStaff={showStaff}
-                  followUpChannel={followUpChannel}
-                  followUpOutcome={followUpOutcome}
-                  salesStage={salesStage}
-                  status={status}
-                  t={t}
-                  locale={locale}
-                />
-              </Card>
+              <div key={item.id} data-follow-up-return-id={item.id}>
+                <Card className="p-4">
+                  <FollowUpRowContent
+                    item={item}
+                    showStaff={showStaff}
+                    followUpChannel={followUpChannel}
+                    followUpOutcome={followUpOutcome}
+                    salesStage={salesStage}
+                    status={status}
+                    t={t}
+                    locale={locale}
+                    onCustomerNavigateClick={onCustomerNavigateClick}
+                  />
+                </Card>
+              </div>
             ))}
           </div>
 
@@ -691,6 +808,7 @@ export function FollowUpsListClient({
                 {filteredItems.map((item) => (
                   <tr
                     key={item.id}
+                    data-follow-up-return-id={item.id}
                     className="table-row transition-colors duration-200 hover:bg-[#E8F1FA]"
                   >
                     <td className="px-4 py-3 whitespace-nowrap text-[#6B7890]">
@@ -706,6 +824,10 @@ export function FollowUpsListClient({
                           <Link
                             href={`/customers/${item.customerId}`}
                             className={`font-medium ${linkClass}`}
+                            data-follow-up-return-id={item.id}
+                            onClick={(event) =>
+                              onCustomerNavigateClick(event, item.id)
+                            }
                           >
                             {displayName}
                           </Link>
