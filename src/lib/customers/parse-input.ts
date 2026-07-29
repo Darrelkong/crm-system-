@@ -3,6 +3,7 @@ import {
   isCustomerNameStatus,
   type CustomerNameStatus,
 } from "./name-status";
+import { parseCustomerProfileBody } from "./customer-profile";
 
 export function parseCustomerBody(
   body: Record<string, unknown>,
@@ -19,6 +20,8 @@ export function parseCustomerBody(
       nameStatus = body.nameStatus as CustomerNameStatus;
     }
   }
+
+  const profile = parseCustomerProfileBody(body);
 
   return {
     customerName:
@@ -52,5 +55,6 @@ export function parseCustomerBody(
           ? ""
           : "new_lead",
     status: typeof body.status === "string" ? body.status : "active",
+    ...profile,
   };
 }

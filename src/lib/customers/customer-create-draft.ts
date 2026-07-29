@@ -5,6 +5,10 @@
 
 import type { CustomerNameStatus } from "@/lib/customers/name-status";
 import { isPendingNamePlaceholder } from "@/lib/customers/name-status";
+import {
+  createEmptyCustomerProfileFormFields,
+  type CustomerProfileFormFields,
+} from "@/lib/customers/customer-profile";
 
 export const CUSTOMER_CREATE_DRAFT_VERSION = 1 as const;
 export const CUSTOMER_CREATE_DRAFT_TTL_MS = 72 * 60 * 60 * 1000;
@@ -30,7 +34,7 @@ export type CustomerCreateDraftFormData = {
   sourceRemark: string;
   salesStage: string;
   notes: string;
-};
+} & CustomerProfileFormFields;
 
 export type CustomerCreateDraftPayload = {
   version: typeof CUSTOMER_CREATE_DRAFT_VERSION;
@@ -70,6 +74,7 @@ export function createEmptyCustomerCreateFormData(): CustomerCreateDraftFormData
     sourceRemark: "",
     salesStage: "new_lead",
     notes: "",
+    ...createEmptyCustomerProfileFormFields(),
   };
 }
 
@@ -127,7 +132,7 @@ export function parseCustomerCreateDraftPayload(
   };
 }
 
-/** Legacy drafts without nameStatus default to confirmed; illegal pending pairs downgrade. */
+/** Legacy drafts without profile / nameStatus default safely. */
 export function normalizeCustomerCreateDraftForm(
   form: Record<string, unknown>,
 ): CustomerCreateDraftFormData {
@@ -158,6 +163,16 @@ export function normalizeCustomerCreateDraftForm(
     sourceRemark: readString(form.sourceRemark),
     salesStage: readString(form.salesStage, "new_lead"),
     notes: readString(form.notes),
+    preferredName: readString(form.preferredName),
+    gender: readString(form.gender),
+    ageRange: readString(form.ageRange),
+    preferredLanguage: readString(form.preferredLanguage),
+    preferredContactMethod: readString(form.preferredContactMethod),
+    occupation: readString(form.occupation),
+    companyName: readString(form.companyName),
+    jobTitle: readString(form.jobTitle),
+    targetCountryOrRegion: readString(form.targetCountryOrRegion),
+    primaryConcern: readString(form.primaryConcern),
   };
 }
 

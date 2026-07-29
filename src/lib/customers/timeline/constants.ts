@@ -5,6 +5,7 @@ export const SENSITIVE_FIELD_NAMES = new Set([
   "email",
   "notes",
   "source_remark",
+  "primary_concern",
 ]);
 
 export const FIELD_NAME_LABELS: Record<string, string> = {
@@ -20,6 +21,16 @@ export const FIELD_NAME_LABELS: Record<string, string> = {
   status: "状态",
   notes: "备注",
   owner_id: "负责人",
+  preferred_name: "称呼偏好",
+  gender: "性别",
+  age_range: "年龄区间",
+  preferred_language: "语言偏好",
+  preferred_contact_method: "偏好联络方式",
+  occupation: "职业",
+  company_name: "公司",
+  job_title: "职位",
+  target_country_or_region: "目标国家／地区",
+  primary_concern: "主要关注点",
 };
 
 export const CUSTOMER_TIMELINE_AUDIT_ACTIONS = new Set([

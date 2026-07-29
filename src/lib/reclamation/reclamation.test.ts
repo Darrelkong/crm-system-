@@ -92,6 +92,16 @@ function buildCustomer(
     updatedAt: createdAt,
     ...rest,
     requestedProjectCode: rest.requestedProjectCode ?? null,
+    preferredName: rest.preferredName ?? null,
+    gender: rest.gender ?? null,
+    ageRange: rest.ageRange ?? null,
+    preferredLanguage: rest.preferredLanguage ?? null,
+    preferredContactMethod: rest.preferredContactMethod ?? null,
+    occupation: rest.occupation ?? null,
+    companyName: rest.companyName ?? null,
+    jobTitle: rest.jobTitle ?? null,
+    targetCountryOrRegion: rest.targetCountryOrRegion ?? null,
+    primaryConcern: rest.primaryConcern ?? null,
   };
 }
 

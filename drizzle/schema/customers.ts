@@ -29,6 +29,17 @@ export const customers = sqliteTable(
     /** Catalog code; null = legacy free-text name only. Group derived from catalog. */
     requestedProjectCode: text("requested_project_code"),
     notes: text("notes"),
+    /** Optional profile — Phase 1 (0043). All nullable; empty → NULL. */
+    preferredName: text("preferred_name"),
+    gender: text("gender"),
+    ageRange: text("age_range"),
+    preferredLanguage: text("preferred_language"),
+    preferredContactMethod: text("preferred_contact_method"),
+    occupation: text("occupation"),
+    companyName: text("company_name"),
+    jobTitle: text("job_title"),
+    targetCountryOrRegion: text("target_country_or_region"),
+    primaryConcern: text("primary_concern"),
     salesStage: text("sales_stage").notNull().default("new_lead"),
     ownerId: text("owner_id").references(() => users.id),
     status: text("status", { enum: CUSTOMER_STATUSES })

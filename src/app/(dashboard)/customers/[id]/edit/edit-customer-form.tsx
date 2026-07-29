@@ -29,6 +29,11 @@ import {
   isRequestedProjectOtherCode,
   REQUESTED_PROJECT_OTHER_CODE,
 } from "@/lib/constants/requested-projects";
+import {
+  CustomerProfileSection,
+  shouldExpandCustomerProfileSection,
+} from "@/components/customers/customer-profile-section";
+import { type CustomerProfileFormFields } from "@/lib/customers/customer-profile";
 
 type DuplicateMatch = {
   field: string;
@@ -80,6 +85,16 @@ export type EditCustomerInitial = {
   notes: string;
   salesStage: string;
   status: string;
+  preferredName: string;
+  gender: string;
+  ageRange: string;
+  preferredLanguage: string;
+  preferredContactMethod: string;
+  occupation: string;
+  companyName: string;
+  jobTitle: string;
+  targetCountryOrRegion: string;
+  primaryConcern: string;
 };
 
 export function EditCustomerForm({
@@ -131,7 +146,37 @@ export function EditCustomerForm({
     notes: initial.notes,
     salesStage: initial.salesStage,
     status: initial.status,
+    preferredName: initial.preferredName,
+    gender: initial.gender,
+    ageRange: initial.ageRange,
+    preferredLanguage: initial.preferredLanguage,
+    preferredContactMethod: initial.preferredContactMethod,
+    occupation: initial.occupation,
+    companyName: initial.companyName,
+    jobTitle: initial.jobTitle,
+    targetCountryOrRegion: initial.targetCountryOrRegion,
+    primaryConcern: initial.primaryConcern,
   });
+
+  const profileInitiallyExpanded = shouldExpandCustomerProfileSection({
+    preferredName: initial.preferredName,
+    gender: initial.gender,
+    ageRange: initial.ageRange,
+    preferredLanguage: initial.preferredLanguage,
+    preferredContactMethod: initial.preferredContactMethod,
+    occupation: initial.occupation,
+    companyName: initial.companyName,
+    jobTitle: initial.jobTitle,
+    targetCountryOrRegion: initial.targetCountryOrRegion,
+    primaryConcern: initial.primaryConcern,
+  });
+
+  function setProfileField(
+    field: keyof CustomerProfileFormFields,
+    value: string,
+  ) {
+    set(field, value);
+  }
 
   function set(field: string, value: string) {
     if (lockSensitiveFields && STAFF_LOCKED_SENSITIVE_FIELDS.has(field)) {
@@ -651,6 +696,26 @@ export function EditCustomerForm({
           )}
         </Field>
       </div>
+
+      <CustomerProfileSection
+        values={{
+          preferredName: form.preferredName,
+          gender: form.gender,
+          ageRange: form.ageRange,
+          preferredLanguage: form.preferredLanguage,
+          preferredContactMethod: form.preferredContactMethod,
+          occupation: form.occupation,
+          companyName: form.companyName,
+          jobTitle: form.jobTitle,
+          targetCountryOrRegion: form.targetCountryOrRegion,
+          primaryConcern: form.primaryConcern,
+        }}
+        fieldErrors={fieldErrors}
+        onChange={setProfileField}
+        t={t}
+        idPrefix="edit-profile"
+        initiallyExpanded={profileInitiallyExpanded}
+      />
 
       <div className="mt-6 flex gap-3">
         <Button type="submit" disabled={submitting}>

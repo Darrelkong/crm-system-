@@ -72,6 +72,16 @@ export type CustomerView = {
   requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   notes?: string | null;
+  preferredName?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
+  preferredLanguage?: string | null;
+  preferredContactMethod?: string | null;
+  occupation?: string | null;
+  companyName?: string | null;
+  jobTitle?: string | null;
+  targetCountryOrRegion?: string | null;
+  primaryConcern?: string | null;
   releaserUserId?: string | null;
   createdBy: string;
   createdByName?: string | null;
@@ -534,6 +544,16 @@ export function toCustomerFullView(customer: Customer): CustomerView {
     requestedProjectCode: customer.requestedProjectCode,
     requestedProjectName: customer.requestedProjectName,
     notes: customer.notes,
+    preferredName: customer.preferredName,
+    gender: customer.gender,
+    ageRange: customer.ageRange,
+    preferredLanguage: customer.preferredLanguage,
+    preferredContactMethod: customer.preferredContactMethod,
+    occupation: customer.occupation,
+    companyName: customer.companyName,
+    jobTitle: customer.jobTitle,
+    targetCountryOrRegion: customer.targetCountryOrRegion,
+    primaryConcern: customer.primaryConcern,
     releaserUserId: customer.releaserUserId,
     createdBy: customer.createdBy,
     updatedBy: customer.updatedBy,

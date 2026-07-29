@@ -114,6 +114,16 @@ export default async function EditCustomerPage({ params }: Props) {
           notes: customer.notes ?? "",
           salesStage: customer.salesStage as SalesStage,
           status: customer.status,
+          preferredName: customer.preferredName ?? "",
+          gender: customer.gender ?? "",
+          ageRange: customer.ageRange ?? "",
+          preferredLanguage: customer.preferredLanguage ?? "",
+          preferredContactMethod: customer.preferredContactMethod ?? "",
+          occupation: customer.occupation ?? "",
+          companyName: customer.companyName ?? "",
+          jobTitle: customer.jobTitle ?? "",
+          targetCountryOrRegion: customer.targetCountryOrRegion ?? "",
+          primaryConcern: customer.primaryConcern ?? "",
         }}
       />
     </div>

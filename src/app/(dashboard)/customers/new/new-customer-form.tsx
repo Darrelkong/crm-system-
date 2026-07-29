@@ -46,6 +46,11 @@ import {
   REQUESTED_PROJECT_OTHER_CODE,
 } from "@/lib/constants/requested-projects";
 import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
+import {
+  CustomerProfileSection,
+  shouldExpandCustomerProfileSection,
+} from "@/components/customers/customer-profile-section";
+import { type CustomerProfileFormFields } from "@/lib/customers/customer-profile";
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
@@ -112,6 +117,8 @@ export function NewCustomerForm({
   const [showDraftRestoreModal, setShowDraftRestoreModal] = useState(false);
   const [pendingDraft, setPendingDraft] =
     useState<CustomerCreateDraftFormData | null>(null);
+  const [profileInitiallyExpanded, setProfileInitiallyExpanded] =
+    useState(false);
   const draftAutosaveRef = useRef(
     createCustomerCreateDraftAutosave({
       onPersisted: (result) => {
@@ -184,10 +191,20 @@ export function NewCustomerForm({
     if (pendingDraft) {
       setForm(toFormState(pendingDraft));
       setDraftSavedAt(Date.now());
+      if (shouldExpandCustomerProfileSection(pendingDraft)) {
+        setProfileInitiallyExpanded(true);
+      }
     }
     setPendingDraft(null);
     setShowDraftRestoreModal(false);
     draftAutosaveRef.current.setReady(true);
+  }
+
+  function setProfileField(
+    field: keyof CustomerProfileFormFields,
+    value: string,
+  ) {
+    set(field, value);
   }
 
   function discardDraft() {
@@ -864,6 +881,26 @@ export function NewCustomerForm({
           )}
         </Field>
       </div>
+
+      <CustomerProfileSection
+        values={{
+          preferredName: form.preferredName,
+          gender: form.gender,
+          ageRange: form.ageRange,
+          preferredLanguage: form.preferredLanguage,
+          preferredContactMethod: form.preferredContactMethod,
+          occupation: form.occupation,
+          companyName: form.companyName,
+          jobTitle: form.jobTitle,
+          targetCountryOrRegion: form.targetCountryOrRegion,
+          primaryConcern: form.primaryConcern,
+        }}
+        fieldErrors={fieldErrors}
+        onChange={setProfileField}
+        t={t}
+        idPrefix="create-profile"
+        initiallyExpanded={profileInitiallyExpanded}
+      />
 
       <div className="mt-6 hidden gap-3 md:flex">
         <Button type="submit" disabled={submitting}>

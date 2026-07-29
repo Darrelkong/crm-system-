@@ -5,6 +5,7 @@ import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { ui } from "@/lib/ui/classes";
+import { profileEnumLabelKey } from "@/lib/customers/customer-profile";
 
 const cd = ui.customerDetail;
 
@@ -66,6 +67,22 @@ export function CustomerTimelineView({
       default:
         return value;
     }
+  }
+
+  function resolveProfileTimelineValue(
+    fieldName: string,
+    value: string | undefined,
+  ): string {
+    if (value == null) return EMPTY_MARKER;
+    if (value === EMPTY_MARKER || value === t("timelineMessages.emptyValue")) {
+      return EMPTY_MARKER;
+    }
+    const enumKey = profileEnumLabelKey(fieldName, value);
+    if (enumKey) {
+      const translated = t(enumKey);
+      return translated === enumKey ? value : translated;
+    }
+    return value;
   }
 
   function translateTaskValue(key: string, value: string): string {
@@ -166,8 +183,23 @@ export function CustomerTimelineView({
                 <p className={`mt-1 text-sm ${cd.value}`}>
                   {renderMessage(
                     item.descriptionKey,
-                    item.descriptionParams,
-                    item.descriptionKey === "timelineMessages.taskDescription" ? "task" : "default",
+                    item.descriptionKey ===
+                      "timelineMessages.fieldChangedFromTo" &&
+                      typeof item.metadata?.field_name === "string"
+                      ? {
+                          oldValue: resolveProfileTimelineValue(
+                            item.metadata.field_name,
+                            item.descriptionParams?.oldValue,
+                          ),
+                          newValue: resolveProfileTimelineValue(
+                            item.metadata.field_name,
+                            item.descriptionParams?.newValue,
+                          ),
+                        }
+                      : item.descriptionParams,
+                    item.descriptionKey === "timelineMessages.taskDescription"
+                      ? "task"
+                      : "default",
                   )}
                 </p>
               )}

@@ -17,6 +17,10 @@ import {
   type CustomerNameStatus,
 } from "@/lib/customers/name-status";
 import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
+import {
+  normalizeCustomerProfileFields,
+  validateCustomerProfileFields,
+} from "@/lib/customers/customer-profile";
 
 const CN_PHONE_RE = /^1\d{10}$/;
 const CHINESE_CHAR_RE = /[\u4e00-\u9fff]/g;
@@ -64,6 +68,16 @@ export type CustomerInput = {
   notes?: string | null;
   salesStage?: string;
   status?: string;
+  preferredName?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
+  preferredLanguage?: string | null;
+  preferredContactMethod?: string | null;
+  occupation?: string | null;
+  companyName?: string | null;
+  jobTitle?: string | null;
+  targetCountryOrRegion?: string | null;
+  primaryConcern?: string | null;
 };
 
 export type ValidationFieldError = { field: string; message: string; code: string };
@@ -361,6 +375,9 @@ export function validateCustomerInput(
       code: "INVALID_STATUS",
     });
   }
+
+  const profile = normalizeCustomerProfileFields(input);
+  errors.push(...validateCustomerProfileFields(profile));
 
   return errors;
 }

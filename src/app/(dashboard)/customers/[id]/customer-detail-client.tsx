@@ -65,6 +65,16 @@ export type CustomerDetailView = {
   requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
   notes?: string | null;
+  preferredName?: string | null;
+  gender?: string | null;
+  ageRange?: string | null;
+  preferredLanguage?: string | null;
+  preferredContactMethod?: string | null;
+  occupation?: string | null;
+  companyName?: string | null;
+  jobTitle?: string | null;
+  targetCountryOrRegion?: string | null;
+  primaryConcern?: string | null;
   ownerId?: string | null;
   ownerName?: string | null;
   assigneeNames?: string[];
@@ -396,6 +406,83 @@ export function CustomerDetailClient({
               </dl>
             </SectionCard>
           )}
+
+          {!view.isMasked &&
+            (view.preferredName ||
+              view.gender ||
+              view.ageRange ||
+              view.preferredLanguage ||
+              view.preferredContactMethod ||
+              view.occupation ||
+              view.companyName ||
+              view.jobTitle ||
+              view.targetCountryOrRegion ||
+              view.primaryConcern) && (
+              <SectionCard title={t("customers.moreCustomerData")}>
+                <dl>
+                  <DetailRow
+                    label={t("customers.preferredName")}
+                    value={view.preferredName}
+                  />
+                  <DetailRow
+                    label={t("customers.gender")}
+                    value={
+                      view.gender
+                        ? t(`customerProfileEnums.gender.${view.gender}`)
+                        : undefined
+                    }
+                  />
+                  <DetailRow
+                    label={t("customers.ageRange")}
+                    value={
+                      view.ageRange
+                        ? t(`customerProfileEnums.ageRange.${view.ageRange}`)
+                        : undefined
+                    }
+                  />
+                  <DetailRow
+                    label={t("customers.preferredLanguage")}
+                    value={
+                      view.preferredLanguage
+                        ? t(
+                            `customerProfileEnums.preferredLanguage.${view.preferredLanguage}`,
+                          )
+                        : undefined
+                    }
+                  />
+                  <DetailRow
+                    label={t("customers.preferredContactMethod")}
+                    value={
+                      view.preferredContactMethod
+                        ? t(
+                            `customerProfileEnums.preferredContactMethod.${view.preferredContactMethod}`,
+                          )
+                        : undefined
+                    }
+                  />
+                  <DetailRow
+                    label={t("customers.occupation")}
+                    value={view.occupation}
+                  />
+                  <DetailRow
+                    label={t("customers.companyName")}
+                    value={view.companyName}
+                  />
+                  <DetailRow
+                    label={t("customers.jobTitle")}
+                    value={view.jobTitle}
+                  />
+                  <DetailRow
+                    label={t("customers.targetCountryOrRegion")}
+                    value={view.targetCountryOrRegion}
+                  />
+                  <DetailRow
+                    label={t("customers.primaryConcern")}
+                    value={view.primaryConcern}
+                  />
+                </dl>
+              </SectionCard>
+            )}
 
           {followUps.length > 0 && (
             <section>

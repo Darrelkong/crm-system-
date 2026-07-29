@@ -1,5 +1,9 @@
 import { getDb, schema } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
+import {
+  normalizeCustomerProfileFields,
+  type CustomerProfileFields,
+} from "@/lib/customers/customer-profile";
 
 /** DB column names tracked in field_change_logs. */
 const TRACKED_FIELDS = [
@@ -15,6 +19,22 @@ const TRACKED_FIELDS = [
   { key: "salesStage" as const, fieldName: "sales_stage" },
   { key: "status" as const, fieldName: "status" },
   { key: "notes" as const, fieldName: "notes" },
+  { key: "preferredName" as const, fieldName: "preferred_name" },
+  { key: "gender" as const, fieldName: "gender" },
+  { key: "ageRange" as const, fieldName: "age_range" },
+  { key: "preferredLanguage" as const, fieldName: "preferred_language" },
+  {
+    key: "preferredContactMethod" as const,
+    fieldName: "preferred_contact_method",
+  },
+  { key: "occupation" as const, fieldName: "occupation" },
+  { key: "companyName" as const, fieldName: "company_name" },
+  { key: "jobTitle" as const, fieldName: "job_title" },
+  {
+    key: "targetCountryOrRegion" as const,
+    fieldName: "target_country_or_region",
+  },
+  { key: "primaryConcern" as const, fieldName: "primary_concern" },
 ] as const;
 
 type TrackedKey = (typeof TRACKED_FIELDS)[number]["key"];
@@ -44,8 +64,9 @@ export function buildCustomerUpdatePayload(
     notes: string | null;
     salesStage: string;
     status: string;
-  },
+  } & Partial<CustomerProfileFields>,
 ): CustomerUpdatePayload {
+  const profile = normalizeCustomerProfileFields(input);
   return {
     customerName: input.customerName.trim(),
     customerType: input.customerType,
@@ -60,6 +81,16 @@ export function buildCustomerUpdatePayload(
     notes: normalizeValue(input.notes),
     salesStage: input.salesStage,
     status: input.status as Customer["status"],
+    preferredName: profile.preferredName,
+    gender: profile.gender,
+    ageRange: profile.ageRange,
+    preferredLanguage: profile.preferredLanguage,
+    preferredContactMethod: profile.preferredContactMethod,
+    occupation: profile.occupation,
+    companyName: profile.companyName,
+    jobTitle: profile.jobTitle,
+    targetCountryOrRegion: profile.targetCountryOrRegion,
+    primaryConcern: profile.primaryConcern,
   };
 }
 
