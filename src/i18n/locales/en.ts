@@ -1484,6 +1484,18 @@ const en = {
     columnStaff: "Team Member",
     columnClientCount: "Clients",
     columnFollowUpCount: "Follow-ups",
+    columnNewCustomerCount: "New",
+    newCustomersByCreatorThisMonth: "New customers by creator this month",
+    newCustomersByCreatorNote:
+      "Attributed to who created the record. Ownership changes do not alter history. Recycle-bin customers are excluded.",
+    staffClientRankingNote:
+      "Active clients currently owned by each member — not this month's new creations.",
+    newClientsThisMonthCompanyHint:
+      "All clients created company-wide this month (excludes recycle bin)",
+    newClientsThisMonthCreatorHint:
+      "Based on records you created; ownership transfers do not change history",
+    formerMemberBadge: "Former",
+    noCreatorNewCustomerData: "No creator new-customer data yet.",
     myClients: "My Clients",
     myTasks: "My Tasks",
     myFollowUps: "My Follow-ups",

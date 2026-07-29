@@ -137,7 +137,7 @@ describe("reports Round B Staff metrics wiring", () => {
     assert.match(recent, /RECENT_FOLLOW_UP_LIMIT = 10/);
   });
 
-  it("does not modify Admin Reports, Dashboard stats, or staff-dashboard API", () => {
+  it("does not modify Admin Reports or staff-dashboard API route; Staff Dashboard month new is creator-aligned", () => {
     const admin = read("src/lib/reports/admin-reports.ts");
     assert.doesNotMatch(admin, /createdBy/);
     assert.match(admin, /ne\(schema\.customers\.status, "archived"\)/);
@@ -145,9 +145,9 @@ describe("reports Round B Staff metrics wiring", () => {
     const dash = read("src/lib/reports/staff-dashboard.ts");
     assert.match(
       dash,
-      /eq\(schema\.customers\.ownerId, user\.id\)[\s\S]*?normalCustomerListStatusWhere\(\)/,
+      /eq\(schema\.customers\.createdBy, user\.id\)[\s\S]*?isNull\(schema\.customers\.deletedAt\)/,
     );
-    assert.doesNotMatch(dash, /createdBy/);
+    assert.doesNotMatch(dash, /normalCustomerListStatusWhere/);
 
     const api = read("src/app/api/reports/staff-dashboard/route.ts");
     assert.match(api, /getStaffDashboardStats/);

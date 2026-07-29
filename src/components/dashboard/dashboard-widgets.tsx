@@ -142,41 +142,74 @@ export function RankingTable({
   columns,
   rows,
   emptyMessage,
+  note,
+  scrollable = false,
 }: {
   title: string;
   columns: [string, string];
-  rows: { name: string; count: number }[];
+  rows: {
+    id?: string;
+    name: string;
+    count: number;
+    /** Optional quiet labels (e.g. Admin / Former). Omitted rows look unchanged. */
+    badges?: string[];
+  }[];
   /** Required i18n string — avoid hardcoded locale fallbacks. */
   emptyMessage: string;
+  /** Optional quiet scope note under the title. */
+  note?: string;
+  /** When true, list scrolls vertically instead of growing unboundedly. */
+  scrollable?: boolean;
 }) {
   return (
     <div>
       <h3 className="section-title mb-3 sm:mb-4">{title}</h3>
+      {note ? (
+        <p className="mb-3 text-xs leading-relaxed crm-text-secondary">{note}</p>
+      ) : null}
       {rows.length === 0 ? (
         <p className="text-sm crm-text-secondary">{emptyMessage}</p>
       ) : (
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="ranking-table-head text-left">
-              <th className="th-label pb-2.5 text-xs font-semibold uppercase tracking-wide">
-                {columns[0]}
-              </th>
-              <th className="th-label pb-2.5 text-right text-xs font-semibold uppercase tracking-wide">
-                {columns[1]}
-              </th>
-            </tr>
-          </thead>
-          <tbody className="crm-divide-y divide-y">
-            {rows.map((row) => (
-              <tr key={row.name} className="table-row">
-                <td className="td-body min-w-0 py-2.5 break-words">{row.name}</td>
-                <td className="td-body py-2.5 text-right font-semibold tabular-nums whitespace-nowrap">
-                  {row.count}
-                </td>
+        <div
+          className={
+            scrollable ? "max-h-80 overflow-y-auto overscroll-contain" : undefined
+          }
+        >
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="ranking-table-head text-left">
+                <th className="th-label pb-2.5 text-xs font-semibold uppercase tracking-wide">
+                  {columns[0]}
+                </th>
+                <th className="th-label pb-2.5 text-right text-xs font-semibold uppercase tracking-wide">
+                  {columns[1]}
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="crm-divide-y divide-y">
+              {rows.map((row) => (
+                <tr key={row.id ?? row.name} className="table-row">
+                  <td className="td-body min-w-0 py-2.5 break-words">
+                    <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                      <span className="min-w-0 break-words">{row.name}</span>
+                      {row.badges?.map((badge) => (
+                        <span
+                          key={badge}
+                          className="shrink-0 rounded-md border crm-border px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide crm-text-secondary"
+                        >
+                          {badge}
+                        </span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="td-body py-2.5 text-right font-semibold tabular-nums whitespace-nowrap">
+                    {row.count}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );

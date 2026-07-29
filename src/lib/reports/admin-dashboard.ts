@@ -1,13 +1,16 @@
 import {
   and,
+  asc,
   count,
   desc,
   eq,
   gte,
   isNotNull,
+  isNull,
   lt,
   lte,
   ne,
+  sql,
 } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
@@ -22,7 +25,20 @@ import {
   getBusinessMonthRange,
   getBusinessTodayRange,
 } from "./dates";
-import type { AdminDashboardStats } from "./types";
+import type {
+  AdminDashboardStats,
+  CreatorNewCustomerCount,
+} from "./types";
+
+function sortCreatorNewCustomerRows(
+  rows: CreatorNewCustomerCount[],
+): CreatorNewCustomerCount[] {
+  return [...rows].sort((a, b) => {
+    if (b.count !== a.count) return b.count - a.count;
+    if (a.isFormer !== b.isFormer) return a.isFormer ? 1 : -1;
+    return a.displayName.localeCompare(b.displayName, "zh-Hant");
+  });
+}
 
 export async function getAdminDashboardStats(
   db: Database,
@@ -46,7 +62,6 @@ export async function getAdminDashboardStats(
     todayTasksRow,
     overdueTasksRow,
     pendingApprovalsRow,
-    newCustomersRow,
     followUpsRow,
     validFollowUpsRow,
     closedWonRow,
@@ -93,16 +108,6 @@ export async function getAdminDashboardStats(
       .select({ value: count() })
       .from(schema.approvals)
       .where(eq(schema.approvals.status, "pending")),
-    db
-      .select({ value: count() })
-      .from(schema.customers)
-      .where(
-        and(
-          gte(schema.customers.createdAt, monthStart),
-          lt(schema.customers.createdAt, monthEndExclusive),
-          ne(schema.customers.status, "archived"),
-        ),
-      ),
     db
       .select({ value: count() })
       .from(schema.followUps)
@@ -202,6 +207,50 @@ export async function getAdminDashboardStats(
     .groupBy(schema.followUps.userId, schema.users.displayName)
     .orderBy(desc(count()));
 
+  // Users as base so zero-count creators (incl. former staff) still appear.
+  const creatorMonthRows = await db
+    .select({
+      userId: schema.users.id,
+      displayName: schema.users.displayName,
+      role: schema.users.role,
+      deletedAt: schema.users.deletedAt,
+      count: sql<number>`count(${schema.customers.id})`.mapWith(Number),
+    })
+    .from(schema.users)
+    .leftJoin(
+      schema.customers,
+      and(
+        eq(schema.customers.createdBy, schema.users.id),
+        gte(schema.customers.createdAt, monthStart),
+        lt(schema.customers.createdAt, monthEndExclusive),
+        isNull(schema.customers.deletedAt),
+      ),
+    )
+    .groupBy(
+      schema.users.id,
+      schema.users.displayName,
+      schema.users.role,
+      schema.users.deletedAt,
+    )
+    .orderBy(asc(schema.users.displayName));
+
+  const newCustomersByCreatorThisMonth = sortCreatorNewCustomerRows(
+    creatorMonthRows.map((row) => ({
+      userId: row.userId,
+      displayName: row.displayName,
+      role: row.role,
+      isFormer: row.deletedAt != null,
+      count: Number(row.count ?? 0),
+    })),
+  );
+
+  // Derive company total from the same creator breakdown so KPI and per-person
+  // rows cannot diverge from a second concurrent count query.
+  const newCustomersThisMonth = newCustomersByCreatorThisMonth.reduce(
+    (sum, row) => sum + row.count,
+    0,
+  );
+
   // Pass `settings` to avoid a second getEffectiveSettings DB round-trip.
   const scoringSummary = await computeScoringSummaryForAdmin(db, now, settings);
 
@@ -213,7 +262,7 @@ export async function getAdminDashboardStats(
     todayOpenTasks: todayTasksRow[0]?.value ?? 0,
     overdueTasks: overdueTasksRow[0]?.value ?? 0,
     pendingApprovals: pendingApprovalsRow[0]?.value ?? 0,
-    newCustomersThisMonth: newCustomersRow[0]?.value ?? 0,
+    newCustomersThisMonth,
     followUpsThisMonth: followUpsRow[0]?.value ?? 0,
     validFollowUpsThisMonth: validFollowUpsRow[0]?.value ?? 0,
     closedWonCustomers: closedWonRow[0]?.value ?? 0,
@@ -240,5 +289,6 @@ export async function getAdminDashboardStats(
       userName: r.userName,
       count: r.count,
     })),
+    newCustomersByCreatorThisMonth,
   };
 }

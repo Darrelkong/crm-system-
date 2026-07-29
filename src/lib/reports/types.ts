@@ -15,6 +15,15 @@ export type StaffFollowUpCount = {
   count: number;
 };
 
+/** Admin Dashboard: month new-customer counts attributed by creator. */
+export type CreatorNewCustomerCount = {
+  userId: string;
+  displayName: string;
+  role: "admin" | "staff";
+  isFormer: boolean;
+  count: number;
+};
+
 export type RecentFollowUpRow = {
   id: string;
   customerId: string;
@@ -74,6 +83,8 @@ export type AdminDashboardStats = {
   customersBySalesStage: CountByLabel[];
   customersByOwner: OwnerCount[];
   followUpsByStaffThisMonth: StaffFollowUpCount[];
+  /** Additive: month new customers grouped by creator (includes zero counts). */
+  newCustomersByCreatorThisMonth: CreatorNewCustomerCount[];
 };
 
 export type PublicPoolClaimSummary = {

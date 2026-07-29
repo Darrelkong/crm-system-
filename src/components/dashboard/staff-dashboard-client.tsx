@@ -40,6 +40,7 @@ export function StaffDashboardClient({ stats }: { stats: StaffDashboardStats }) 
         <KpiCard
           label={t("dashboard.newClientsThisMonth")}
           value={stats.myNewCustomersThisMonth}
+          hint={t("dashboard.newClientsThisMonthCreatorHint")}
           icon={kpiIcons.users}
         />
       </div>

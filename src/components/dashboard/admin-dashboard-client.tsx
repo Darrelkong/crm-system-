@@ -121,6 +121,7 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
         <KpiCard
           label={t("dashboard.newClientsThisMonth")}
           value={stats.newCustomersThisMonth}
+          hint={t("dashboard.newClientsThisMonthCompanyHint")}
           icon={kpiIcons.users}
         />
         <KpiCard
@@ -200,12 +201,63 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
         </Card>
       </div>
 
+      <Card data-dashboard-creator-ranking>
+        <RankingTable
+          title={t("dashboard.newCustomersByCreatorThisMonth")}
+          note={t("dashboard.newCustomersByCreatorNote")}
+          columns={[
+            t("dashboard.columnStaff"),
+            t("dashboard.columnNewCustomerCount"),
+          ]}
+          rows={stats.newCustomersByCreatorThisMonth.map((row) => {
+            const badges: string[] = [];
+            if (row.role === "admin") {
+              const adminLabel = t("employees.adminRole");
+              const resolvedAdminLabel =
+                adminLabel &&
+                adminLabel !== "employees.adminRole" &&
+                adminLabel.trim()
+                  ? adminLabel
+                  : t("common.admin");
+              if (
+                resolvedAdminLabel &&
+                resolvedAdminLabel !== "employees.adminRole" &&
+                resolvedAdminLabel !== "common.admin" &&
+                resolvedAdminLabel.trim()
+              ) {
+                badges.push(resolvedAdminLabel);
+              }
+            }
+            if (row.isFormer) {
+              const formerLabel = t("dashboard.formerMemberBadge");
+              if (
+                formerLabel &&
+                formerLabel !== "dashboard.formerMemberBadge" &&
+                formerLabel.trim()
+              ) {
+                badges.push(formerLabel);
+              }
+            }
+            return {
+              id: row.userId,
+              name: row.displayName,
+              count: row.count,
+              badges: badges.length > 0 ? badges : undefined,
+            };
+          })}
+          emptyMessage={t("dashboard.noCreatorNewCustomerData")}
+          scrollable
+        />
+      </Card>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <RankingTable
             title={t("dashboard.staffClientRanking")}
+            note={t("dashboard.staffClientRankingNote")}
             columns={[t("dashboard.columnStaff"), t("dashboard.columnClientCount")]}
             rows={stats.customersByOwner.map((o) => ({
+              id: o.ownerId,
               name: o.ownerName,
               count: o.count,
             }))}
@@ -218,6 +270,7 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
             title={t("dashboard.staffFollowUpRanking")}
             columns={[t("dashboard.columnStaff"), t("dashboard.columnFollowUpCount")]}
             rows={stats.followUpsByStaffThisMonth.map((s) => ({
+              id: s.userId,
               name: s.userName,
               count: s.count,
             }))}

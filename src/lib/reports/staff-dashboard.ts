@@ -12,7 +12,6 @@ import {
 import { sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
-import { normalCustomerListStatusWhere } from "@/lib/customers/customer-list-filters";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
 import { RECLAMATION_EXCLUDED_SALES_STAGES } from "@/lib/reclamation/constants";
 import { getEffectiveSettings } from "@/lib/settings/effective";
@@ -100,10 +99,10 @@ export async function getStaffDashboardStats(
       .from(schema.customers)
       .where(
         and(
-          eq(schema.customers.ownerId, user.id),
+          eq(schema.customers.createdBy, user.id),
+          isNull(schema.customers.deletedAt),
           gte(schema.customers.createdAt, monthStart),
           lt(schema.customers.createdAt, monthEndExclusive),
-          normalCustomerListStatusWhere(),
         ),
       ),
     db
