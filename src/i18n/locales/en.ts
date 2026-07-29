@@ -544,12 +544,33 @@ const en = {
     saveSuccess: "Saved successfully",
     saveFailed: "Failed to save. Please try again later.",
     duplicateFound: "Duplicate client detected. Please review the following:",
+    duplicateAlertTitle:
+      "Duplicate customer found — no new record was created",
+    duplicateAlertDescription:
+      "Matching contact details were found. To avoid duplicates, this create was stopped. Your form entries are still kept.",
+    duplicateMaskedDescription:
+      "This contact already exists in the system. You do not have permission to view the related customer. Please edit the contact details or ask an admin to verify.",
+    duplicateGenericEmpty:
+      "This contact already exists, but no further customer details can be shown. Please edit the contact details or ask an admin to verify.",
+    duplicateEditContact: "Edit contact information",
     fieldExists: "{{field}} is a duplicate",
     duplicateAuthorizedSummary: "{{code}}｜{{name}}｜{{stage}}",
-    viewExistingClient: "View existing client",
+    duplicateAuthorizedNameStage: "{{name}}｜{{stage}}",
+    viewExistingClient: "View existing customer",
     maskedNoDetail: "(masked client — details unavailable)",
     maskedDuplicateHint:
       "A client with the same contact details already exists. Based on your permissions, details cannot be shown. Please contact an Admin to verify.",
+    createdTitle: "Customer created successfully",
+    createdSubtitle:
+      "The customer record has been saved. Choose what to do next.",
+    createdCustomerName: "Customer name",
+    createdRequestedProject: "Requested service",
+    createdNotProvided: "Not provided",
+    createdViewDetails: "View customer details",
+    createdAddFollowUp: "Add follow-up",
+    createdCreateAnother: "Create another customer",
+    createdBackToList: "Return to customer list",
+    createdActionsLabel: "Post-create actions",
     heatDescription:
       "Calculated from valid follow-ups, sales stage, next follow-up, and auto-reclaim rules.",
     completenessPoints: "{{score}} pts",

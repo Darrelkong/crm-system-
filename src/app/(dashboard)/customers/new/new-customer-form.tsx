@@ -26,6 +26,11 @@ import {
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
+import {
+  CustomerCreateDuplicateAlert,
+  isCustomerCreateDuplicateConflict,
+  resolveDuplicateFocusField,
+} from "./customer-create-duplicate-alert";
 import { CustomerCreateMobileActions } from "./customer-create-mobile-actions";
 import { IncompleteContactConfirmModal } from "./incomplete-contact-confirm-modal";
 import { OnHoldApprovalSubmittedModal, OnHoldReasonModal } from "./on-hold-approval-pending-modal";
@@ -96,7 +101,7 @@ export function NewCustomerForm({
   userId: string;
 }) {
   const router = useRouter();
-  const { t, salesStage, customerType, fieldLabel } = useCustomerLabels();
+  const { t, salesStage, customerType } = useCustomerLabels();
   const { locale } = useTranslation();
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -135,6 +140,8 @@ export function NewCustomerForm({
   const submitFlightRef = useRef(createCustomerCreateSubmitFlight());
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const wechatInputRef = useRef<HTMLInputElement>(null);
+  const emailInputRef = useRef<HTMLInputElement>(null);
+  const duplicateAlertRef = useRef<HTMLDivElement>(null);
   const keyboardOpen = useMobileKeyboardOpen();
 
   useEffect(() => {
@@ -174,6 +181,31 @@ export function NewCustomerForm({
       autosave.dispose();
     };
   }, []);
+
+  useEffect(() => {
+    if (duplicates === null) return;
+    const el = duplicateAlertRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.focus({ preventScroll: true });
+  }, [duplicates]);
+
+  function focusDuplicateContactField() {
+    const focusField = resolveDuplicateFocusField(duplicates);
+    if (focusField === "phone") {
+      phoneInputRef.current?.focus();
+      return;
+    }
+    if (focusField === "wechatId") {
+      wechatInputRef.current?.focus();
+      return;
+    }
+    if (focusField === "email") {
+      emailInputRef.current?.focus();
+      return;
+    }
+    document.getElementById("customerName")?.focus();
+  }
 
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -280,7 +312,7 @@ export function NewCustomerForm({
         finalizeAcceptedSubmission();
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
-        router.push(`/customers/${data.id}`);
+        router.replace(`/customers/${data.id}/created`);
         return;
       }
 
@@ -295,12 +327,11 @@ export function NewCustomerForm({
         return;
       }
 
-      if (res.status === 409 && data.code === "duplicate_customer") {
+      if (isCustomerCreateDuplicateConflict(res.status, data)) {
         setDuplicates(data.duplicates ?? []);
-        setServerError(t("customers.duplicateFound"));
-        if (onHoldReason) {
-          setShowOnHoldReasonModal(false);
-        }
+        setServerError(null);
+        setShowCreateConfirmModal(false);
+        setShowOnHoldReasonModal(false);
         unlockSubmitFlight();
         return;
       }
@@ -466,41 +497,16 @@ export function NewCustomerForm({
         noValidate
         className="max-w-2xl max-md:pb-16"
       >
+      {duplicates !== null ? (
+        <CustomerCreateDuplicateAlert
+          alertRef={duplicateAlertRef}
+          duplicates={duplicates}
+          onEditContact={focusDuplicateContactField}
+        />
+      ) : null}
       {serverError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-700">{serverError}</p>
-          {duplicates && duplicates.length > 0 && (
-            <ul className="mt-2 space-y-1">
-              {duplicates.map((d, i) => (
-                <li key={i} className="text-sm text-red-600">
-                  {t("customers.fieldExists", {
-                    field: fieldLabel(d.matchedField ?? d.field),
-                  })}
-                  {d.customer.isMasked ? (
-                    <span className="ml-1">
-                      {t("customers.maskedDuplicateHint")}
-                    </span>
-                  ) : (
-                    <>
-                      <span className="ml-1">
-                        {t("customers.duplicateAuthorizedSummary", {
-                          code: d.customer.customerCode || "—",
-                          name: d.customer.displayName,
-                          stage: salesStage(d.customer.salesStage),
-                        })}
-                      </span>
-                      <a
-                        href={d.customer.href}
-                        className="ml-1 font-medium underline hover:text-red-800"
-                      >
-                        {t("customers.viewExistingClient")}
-                      </a>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
       )}
 
@@ -784,6 +790,7 @@ export function NewCustomerForm({
           <Input
             id="email"
             type="email"
+            ref={emailInputRef}
             value={form.email}
             onChange={(e) => set("email", e.target.value)}
             placeholder={t("customers.emailOptional")}
