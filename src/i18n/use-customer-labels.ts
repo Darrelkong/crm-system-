@@ -38,6 +38,7 @@ export function useCustomerLabels() {
       if (field === "phone") return t("customers.phone");
       if (field === "wechatId") return t("customers.wechatId");
       if (field === "email") return t("common.email");
+      if (field === "name") return t("customers.duplicateNameField");
       return field;
     },
   };

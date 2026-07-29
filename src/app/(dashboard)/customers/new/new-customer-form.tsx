@@ -29,6 +29,7 @@ import { CreateCustomerConfirmModal } from "./create-customer-confirm-modal";
 import {
   CustomerCreateDuplicateAlert,
   isCustomerCreateDuplicateConflict,
+  isCustomerCreateNameDuplicateWarning,
   resolveDuplicateFocusField,
 } from "./customer-create-duplicate-alert";
 import { CustomerCreateMobileActions } from "./customer-create-mobile-actions";
@@ -107,6 +108,10 @@ export function NewCustomerForm({
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicates, setDuplicates] = useState<DuplicateMatch[] | null>(null);
+  const [nameDuplicateWarning, setNameDuplicateWarning] = useState<{
+    normalizedName: string;
+    duplicates: DuplicateMatch[];
+  } | null>(null);
   const [showCreateConfirmModal, setShowCreateConfirmModal] = useState(false);
   const [incompleteContactKind, setIncompleteContactKind] =
     useState<IncompleteContactKind | null>(null);
@@ -141,6 +146,7 @@ export function NewCustomerForm({
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const wechatInputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
+  const customerNameInputRef = useRef<HTMLInputElement>(null);
   const duplicateAlertRef = useRef<HTMLDivElement>(null);
   const keyboardOpen = useMobileKeyboardOpen();
 
@@ -183,12 +189,12 @@ export function NewCustomerForm({
   }, []);
 
   useEffect(() => {
-    if (duplicates === null) return;
+    if (duplicates === null && nameDuplicateWarning === null) return;
     const el = duplicateAlertRef.current;
     if (!el) return;
     el.scrollIntoView({ behavior: "smooth", block: "center" });
     el.focus({ preventScroll: true });
-  }, [duplicates]);
+  }, [duplicates, nameDuplicateWarning]);
 
   function focusDuplicateContactField() {
     const focusField = resolveDuplicateFocusField(duplicates);
@@ -207,6 +213,16 @@ export function NewCustomerForm({
     document.getElementById("customerName")?.focus();
   }
 
+  function focusCustomerNameField() {
+    setNameDuplicateWarning(null);
+    if (form.nameStatus === "pending") {
+      document.getElementById("customerName")?.focus();
+      return;
+    }
+    customerNameInputRef.current?.focus();
+    document.getElementById("customerName")?.focus();
+  }
+
   function set(field: keyof FormState, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     setFieldErrors((prev) => {
@@ -217,6 +233,9 @@ export function NewCustomerForm({
     });
     setServerError(null);
     setDuplicates(null);
+    if (field === "customerName" || field === "nameStatus") {
+      setNameDuplicateWarning(null);
+    }
   }
 
   function continueDraft() {
@@ -258,8 +277,16 @@ export function NewCustomerForm({
     setSubmitting(false);
   }
 
-  async function submitCreate(onHoldReason?: string) {
-    const body = onHoldReason ? { ...form, onHoldReason } : form;
+  async function submitCreate(
+    onHoldReason?: string,
+    options?: { confirmDuplicateName?: string },
+  ) {
+    const body = {
+      ...(onHoldReason ? { ...form, onHoldReason } : { ...form }),
+      ...(options?.confirmDuplicateName
+        ? { confirmDuplicateName: options.confirmDuplicateName }
+        : {}),
+    };
     const gated = await postCustomerCreateOnce({
       flight: submitFlightRef.current,
       body,
@@ -268,6 +295,9 @@ export function NewCustomerForm({
         setFieldErrors({});
         setServerError(null);
         setDuplicates(null);
+        if (!options?.confirmDuplicateName) {
+          setNameDuplicateWarning(null);
+        }
       },
     });
 
@@ -297,6 +327,7 @@ export function NewCustomerForm({
         fieldErrors?: ValidationFieldError[];
         code?: string;
         duplicates?: DuplicateMatch[];
+        normalizedName?: string;
       };
 
       if (res.ok && data.pendingApproval) {
@@ -304,6 +335,7 @@ export function NewCustomerForm({
         finalizeAcceptedSubmission();
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
+        setNameDuplicateWarning(null);
         setShowOnHoldSubmittedModal(true);
         return;
       }
@@ -312,6 +344,7 @@ export function NewCustomerForm({
         finalizeAcceptedSubmission();
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
+        setNameDuplicateWarning(null);
         router.replace(`/customers/${data.id}/created`);
         return;
       }
@@ -328,7 +361,21 @@ export function NewCustomerForm({
       }
 
       if (isCustomerCreateDuplicateConflict(res.status, data)) {
+        setNameDuplicateWarning(null);
         setDuplicates(data.duplicates ?? []);
+        setServerError(null);
+        setShowCreateConfirmModal(false);
+        setShowOnHoldReasonModal(false);
+        unlockSubmitFlight();
+        return;
+      }
+
+      if (isCustomerCreateNameDuplicateWarning(res.status, data)) {
+        setDuplicates(null);
+        setNameDuplicateWarning({
+          normalizedName: data.normalizedName ?? "",
+          duplicates: data.duplicates ?? [],
+        });
         setServerError(null);
         setShowCreateConfirmModal(false);
         setShowOnHoldReasonModal(false);
@@ -350,6 +397,19 @@ export function NewCustomerForm({
     }
   }
 
+  function handleConfirmNameContinue() {
+    if (
+      !nameDuplicateWarning?.normalizedName ||
+      submitting ||
+      submitFlightRef.current.isInFlight()
+    ) {
+      return;
+    }
+    void submitCreate(undefined, {
+      confirmDuplicateName: nameDuplicateWarning.normalizedName,
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting || submitFlightRef.current.isInFlight()) {
@@ -362,6 +422,7 @@ export function NewCustomerForm({
     setFieldErrors({});
     setServerError(null);
     setDuplicates(null);
+    setNameDuplicateWarning(null);
 
     const validationErrors = validateCustomerInput(
       {
@@ -497,11 +558,25 @@ export function NewCustomerForm({
         noValidate
         className="max-w-2xl max-md:pb-16"
       >
-      {duplicates !== null ? (
+      {duplicates !== null || nameDuplicateWarning !== null ? (
         <CustomerCreateDuplicateAlert
           alertRef={duplicateAlertRef}
-          duplicates={duplicates}
+          mode={
+            nameDuplicateWarning
+              ? "name-soft-warning"
+              : "contact-hard-duplicate"
+          }
+          duplicates={
+            nameDuplicateWarning
+              ? nameDuplicateWarning.duplicates
+              : duplicates
+          }
           onEditContact={focusDuplicateContactField}
+          onEditName={focusCustomerNameField}
+          onConfirmContinue={handleConfirmNameContinue}
+          confirmingContinue={
+            Boolean(nameDuplicateWarning) && submitting
+          }
         />
       ) : null}
       {serverError && (
@@ -642,6 +717,7 @@ export function NewCustomerForm({
           ) : (
             <Input
               id="customerName"
+              ref={customerNameInputRef}
               value={form.customerName}
               onChange={(e) => set("customerName", e.target.value)}
               placeholder={t("customers.clientName")}

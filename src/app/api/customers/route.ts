@@ -6,6 +6,14 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
 import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
+import {
+  checkCustomerNameDuplicates,
+  duplicateCustomerNameConflictResponse,
+} from "@/lib/customers/name-duplicate-check";
+import {
+  normalizeCustomerNameForDuplicateMatch,
+  parseConfirmDuplicateName,
+} from "@/lib/customers/name-duplicate";
 import { buildReplaceCustomerIdentifierStatements } from "@/lib/customers/contact-identifiers";
 import {
   duplicateCustomerConflictResponse,
@@ -208,6 +216,43 @@ export async function POST(request: Request) {
       );
     }
 
+    const nameStatus =
+      createInput.nameStatus === "pending" ? "pending" : "confirmed";
+    let duplicateNameWarningConfirmed = false;
+
+    if (nameStatus === "confirmed") {
+      const normalizedName = normalizeCustomerNameForDuplicateMatch(
+        createInput.customerName,
+      );
+      if (normalizedName) {
+        let nameDuplicates;
+        try {
+          nameDuplicates = await checkCustomerNameDuplicates(
+            normalizedName,
+            user,
+          );
+        } catch {
+          return Response.json(
+            {
+              error: "服务器错误，请稍后重试",
+              errorCode: "INTERNAL_ERROR",
+            },
+            { status: 500 },
+          );
+        }
+        if (nameDuplicates.length > 0) {
+          const confirm = parseConfirmDuplicateName(body.confirmDuplicateName);
+          if (confirm !== normalizedName) {
+            return duplicateCustomerNameConflictResponse({
+              normalizedName,
+              duplicates: nameDuplicates,
+            });
+          }
+          duplicateNameWarningConfirmed = true;
+        }
+      }
+    }
+
     const now = new Date().toISOString();
     const id = crypto.randomUUID();
     const customerCode = await allocateCustomerCode(db);
@@ -305,9 +350,6 @@ export async function POST(request: Request) {
       targetCountryOrRegion: createInput.targetCountryOrRegion,
       primaryConcern: createInput.primaryConcern,
     });
-
-    const nameStatus =
-      createInput.nameStatus === "pending" ? "pending" : "confirmed";
 
     const insertCustomerStmt = db.insert(schema.customers).values({
       id,
@@ -433,6 +475,9 @@ export async function POST(request: Request) {
           approvalId,
           requestedSalesStage,
           nameStatus,
+          ...(duplicateNameWarningConfirmed
+            ? { duplicateNameWarningConfirmed: true }
+            : {}),
         },
       });
 
@@ -460,6 +505,9 @@ export async function POST(request: Request) {
         source: createInput.source,
         ownerId,
         nameStatus,
+        ...(duplicateNameWarningConfirmed
+          ? { duplicateNameWarningConfirmed: true }
+          : {}),
       },
     });
 

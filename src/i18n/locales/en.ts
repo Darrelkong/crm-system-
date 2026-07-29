@@ -557,6 +557,16 @@ const en = {
     duplicateAuthorizedSummary: "{{code}}｜{{name}}｜{{stage}}",
     duplicateAuthorizedNameStage: "{{name}}｜{{stage}}",
     viewExistingClient: "View existing customer",
+    duplicateNameAlertTitle: "Customer with the same name found",
+    duplicateNameAlertDescription:
+      "A customer with the same name already exists. Confirm whether this is the same person; if not, you can continue creating.",
+    duplicateNameMaskedDescription:
+      "A customer with the same name already exists, but you do not have permission to view the related details.",
+    duplicateNameEditName: "Edit name",
+    duplicateNameConfirmContinue:
+      "Confirm this is a different customer and continue",
+    duplicateNameConfirming: "Submitting…",
+    duplicateNameField: "Name",
     maskedNoDetail: "(masked client — details unavailable)",
     maskedDuplicateHint:
       "A client with the same contact details already exists. Based on your permissions, details cannot be shown. Please contact an Admin to verify.",

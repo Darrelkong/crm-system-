@@ -536,6 +536,15 @@ const zhHant: Messages = {
     duplicateAuthorizedSummary: "{{code}}｜{{name}}｜{{stage}}",
     duplicateAuthorizedNameStage: "{{name}}｜{{stage}}",
     viewExistingClient: "查看現有客戶",
+    duplicateNameAlertTitle: "發現同名客戶",
+    duplicateNameAlertDescription:
+      "系統中已有相同姓名的客戶。請先確認是否為同一位客戶；如確認為不同客戶，可以繼續建立。",
+    duplicateNameMaskedDescription:
+      "系統中已有相同姓名的客戶，但你目前沒有權限查看相關資料。",
+    duplicateNameEditName: "修改姓名",
+    duplicateNameConfirmContinue: "確認不是同一位客戶，繼續建立",
+    duplicateNameConfirming: "提交中…",
+    duplicateNameField: "姓名",
     maskedNoDetail: "（脫敏客戶，無法查看詳情）",
     maskedDuplicateHint:
       "系統中已存在相同聯絡資料的客戶。基於資料權限，無法顯示該客戶詳情，請聯絡 Admin 核實處理。",

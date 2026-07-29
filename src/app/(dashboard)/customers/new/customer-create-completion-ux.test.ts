@@ -229,6 +229,25 @@ describe("customer create completion UX — form wiring", () => {
     assert.match(alertSource, /duplicateAuthorizedNameStage/);
     assert.match(alertSource, /duplicateMaskedDescription/);
     assert.match(alertSource, /duplicateGenericEmpty/);
+    assert.match(alertSource, /name-soft-warning/);
+    assert.match(alertSource, /contact-hard-duplicate/);
+  });
+
+  it("uses neutral soft/hard accents without amber", () => {
+    assert.doesNotMatch(alertSource, /amber-/);
+    assert.match(alertSource, /border-slate-200/);
+    assert.match(alertSource, /border-l-blue-700/);
+    assert.match(alertSource, /bg-slate-50\/70/);
+    assert.match(alertSource, /dark:border-l-blue-400/);
+    assert.match(alertSource, /border-stone-200/);
+    assert.match(alertSource, /border-l-rose-700/);
+    assert.match(alertSource, /bg-stone-50\/75/);
+    assert.match(alertSource, /dark:border-l-rose-400/);
+    assert.match(alertSource, /dark:bg-zinc-950\/35/);
+    assert.match(alertSource, /flex flex-col gap-2 sm:flex-row sm:flex-wrap/);
+    assert.match(alertSource, /role="alert"/);
+    assert.match(alertSource, /aria-live="assertive"/);
+    assert.match(alertSource, /variant="secondary"/);
   });
 
   it("does not clear draft on 409 path", () => {
