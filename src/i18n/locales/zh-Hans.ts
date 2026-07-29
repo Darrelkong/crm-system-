@@ -233,9 +233,15 @@ const zhHans: Messages = {
     myFollowUpsThisMonth: "我的本月跟进数",
     myStageDistribution: "我的客户阶段分布",
     noData: "暂无报告数据",
+    noReportDataTitle: "目前尚无可统计的业务数据",
+    noReportDataDescription: "下方指标会暂时显示为 0；有数据后会自动更新。",
+    scopeNoteAdmin:
+      "客户总数与阶段分布不含已归档客户；客户总数目前包含公共池。跟进指标按跟进记录时间计算。",
+    scopeNoteStaff:
+      "客户总数只计算你当前负责的有效客户；跟进指标按你创建的跟进记录计算。",
     noRecentFollowUps: "暂无近期跟进",
-    noStageData: "暂无客户阶段资料",
-    noStaffDistribution: "暂无团队成员客户分布资料",
+    noStageData: "暂无客户阶段数据",
+    noStaffDistribution: "暂无团队成员客户分布数据",
     columnTime: "时间",
     columnCustomer: "客户",
     columnChannel: "渠道",

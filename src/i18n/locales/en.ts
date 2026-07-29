@@ -243,6 +243,13 @@ const en = {
     myFollowUpsThisMonth: "My follow-ups this month",
     myStageDistribution: "My customer stage distribution",
     noData: "No report data available yet.",
+    noReportDataTitle: "No business data to summarize yet",
+    noReportDataDescription:
+      "Metrics below will show 0 for now and update automatically when data is available.",
+    scopeNoteAdmin:
+      "Customer totals and stage breakdown exclude archived clients; totals currently include the public pool. Follow-up metrics use follow-up time.",
+    scopeNoteStaff:
+      "Customer totals count only active clients you currently own. Follow-up metrics count follow-ups you created.",
     noRecentFollowUps: "No recent follow-ups.",
     noStageData: "No customer stage data.",
     noStaffDistribution: "No team member customer distribution data.",

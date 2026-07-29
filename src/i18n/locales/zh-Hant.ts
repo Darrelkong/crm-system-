@@ -233,6 +233,12 @@ const zhHant: Messages = {
     myFollowUpsThisMonth: "我的本月跟進數",
     myStageDistribution: "我的客戶階段分佈",
     noData: "暫無報告數據",
+    noReportDataTitle: "目前尚無可統計的業務資料",
+    noReportDataDescription: "下方指標會暫時顯示為 0；有資料後會自動更新。",
+    scopeNoteAdmin:
+      "客戶總數與階段分佈不含已歸檔客戶；客戶總數目前包含公共池。跟進指標按跟進記錄時間計算。",
+    scopeNoteStaff:
+      "客戶總數只計算你目前負責的有效客戶；跟進指標按你建立的跟進記錄計算。",
     noRecentFollowUps: "暫無近期跟進",
     noStageData: "暫無客戶階段資料",
     noStaffDistribution: "暫無團隊成員客戶分佈資料",

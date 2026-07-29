@@ -39,45 +39,67 @@ export function KpiCard({
   hint,
   variant = "default",
   icon: Icon = Users,
+  compact = false,
 }: {
   label: string;
   value: number | string;
   hint?: React.ReactNode;
   variant?: "default" | "warning" | "danger";
   icon?: LucideIcon;
+  /** Tighter padding/typography for Reports; Dashboard keeps default. */
+  compact?: boolean;
 }) {
   return (
-    <div className="interactive-card group relative overflow-hidden p-5">
+    <div
+      className={cn(
+        "interactive-card group relative overflow-hidden",
+        compact ? "p-3.5 sm:p-4" : "p-5",
+      )}
+    >
       <div
         className={cn(
           "absolute inset-x-0 top-0 h-1 opacity-90",
           KPI_ACCENT[variant],
         )}
       />
-      <div className="flex items-start justify-between gap-3">
+      <div className={cn("flex items-start justify-between", compact ? "gap-2" : "gap-3")}>
         <div className="min-w-0 flex-1">
-          <p className="kpi-label text-[11px] font-semibold uppercase tracking-wider">
+          <p
+            className={cn(
+              "kpi-label font-semibold uppercase tracking-wider",
+              compact ? "line-clamp-2 text-[10px] leading-snug" : "text-[11px]",
+            )}
+          >
             {label}
           </p>
           <p
             className={cn(
-              "mt-2 text-3xl font-semibold tracking-tight",
+              "font-semibold tracking-tight",
+              compact ? "mt-1.5 text-2xl sm:text-[1.65rem]" : "mt-2 text-3xl",
               KPI_VALUE[variant],
             )}
           >
             {value}
           </p>
           {hint && (
-            <p className="kpi-hint mt-2 text-xs leading-relaxed">{hint}</p>
+            <p
+              className={cn(
+                "kpi-hint text-xs leading-relaxed",
+                compact ? "mt-1.5" : "mt-2",
+              )}
+            >
+              {hint}
+            </p>
           )}
         </div>
         <div
           className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105",
+            "flex shrink-0 items-center justify-center rounded-xl transition-transform duration-200 ease-out group-hover:scale-105",
+            compact ? "h-9 w-9" : "h-11 w-11",
             KPI_ICON_WRAP[variant],
           )}
         >
-          <Icon className="h-5 w-5" aria-hidden />
+          <Icon className={cn(compact ? "h-4 w-4" : "h-5 w-5")} aria-hidden />
         </div>
       </div>
     </div>
@@ -97,9 +119,13 @@ export function SimpleBarRow({
 
   return (
     <div className="space-y-2">
-      <div className="flex items-center justify-between text-sm">
-        <span className="crm-text-secondary">{label}</span>
-        <span className="kpi-value font-semibold">{count}</span>
+      <div className="flex items-start justify-between gap-3 text-sm">
+        <span className="min-w-0 flex-1 break-words crm-text-secondary">
+          {label}
+        </span>
+        <span className="kpi-value shrink-0 font-semibold tabular-nums">
+          {count}
+        </span>
       </div>
       <div className="kpi-bar-track h-2 overflow-hidden rounded-full">
         <div
@@ -115,16 +141,17 @@ export function RankingTable({
   title,
   columns,
   rows,
-  emptyMessage = "暂无数据",
+  emptyMessage,
 }: {
   title: string;
   columns: [string, string];
   rows: { name: string; count: number }[];
-  emptyMessage?: string;
+  /** Required i18n string — avoid hardcoded locale fallbacks. */
+  emptyMessage: string;
 }) {
   return (
     <div>
-      <h3 className="section-title mb-4">{title}</h3>
+      <h3 className="section-title mb-3 sm:mb-4">{title}</h3>
       {rows.length === 0 ? (
         <p className="text-sm crm-text-secondary">{emptyMessage}</p>
       ) : (
@@ -142,8 +169,8 @@ export function RankingTable({
           <tbody className="crm-divide-y divide-y">
             {rows.map((row) => (
               <tr key={row.name} className="table-row">
-                <td className="td-body py-2.5">{row.name}</td>
-                <td className="td-body py-2.5 text-right font-semibold">
+                <td className="td-body min-w-0 py-2.5 break-words">{row.name}</td>
+                <td className="td-body py-2.5 text-right font-semibold tabular-nums whitespace-nowrap">
                   {row.count}
                 </td>
               </tr>
