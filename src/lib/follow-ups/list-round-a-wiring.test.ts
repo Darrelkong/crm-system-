@@ -69,9 +69,10 @@ describe("follow-ups list Round A wiring", () => {
     assert.doesNotMatch(types, /wechat/);
   });
 
-  it("customer link route unchanged", () => {
+  it("customer link route still targets /customers/{id}", () => {
     const source = read("src/components/follow-ups/follow-ups-list-client.tsx");
-    assert.match(source, /href=\{`\/customers\/\$\{item\.customerId\}`\}/);
+    assert.match(source, /appendFollowUpsReturnTo\(`\/customers\/\$\{customerId\}`/);
+    assert.match(source, /buildCustomerHref/);
   });
 
   it("validation / create rules files untouched by Round A scope markers", () => {

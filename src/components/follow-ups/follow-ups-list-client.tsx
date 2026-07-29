@@ -43,6 +43,13 @@ import {
   stripReturnMarkerFromHistoryState,
   getReturnMarkerFromHistoryState,
 } from "@/lib/follow-ups/list-return-state";
+import {
+  appendFollowUpsReturnTo,
+  createFollowUpsLinkReturnNonce,
+  getFollowUpsLinkReturnNonce,
+  stripFollowUpsLinkReturnNonce,
+  withFollowUpsLinkReturnNonce,
+} from "@/lib/follow-ups/safe-return-to";
 import { formatHongKongDate, formatHongKongDateTime } from "@/lib/timezone";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
@@ -119,6 +126,7 @@ function FollowUpRowContent({
   status,
   t,
   locale,
+  customerHref,
   onCustomerNavigateClick,
 }: {
   item: FollowUpListItem;
@@ -129,6 +137,7 @@ function FollowUpRowContent({
   status: (key: string) => string;
   t: (key: string) => string;
   locale: string;
+  customerHref: string;
   onCustomerNavigateClick: (
     event: ReactMouseEvent<HTMLAnchorElement>,
     itemId: string,
@@ -154,7 +163,7 @@ function FollowUpRowContent({
           pendingLabel={t("customers.namePendingBadge")}
           renderName={(displayName) => (
             <Link
-              href={`/customers/${item.customerId}`}
+              href={customerHref}
               className={`text-sm font-medium ${linkClass}`}
               data-follow-up-return-id={item.id}
               onClick={(event) => onCustomerNavigateClick(event, item.id)}
@@ -186,7 +195,7 @@ function FollowUpRowContent({
         </p>
       )}
       <Link
-        href={`/customers/${item.customerId}`}
+        href={customerHref}
         className={`mt-3 inline-block text-xs ${linkClass}`}
         data-follow-up-return-id={item.id}
         onClick={(event) => onCustomerNavigateClick(event, item.id)}
@@ -255,10 +264,46 @@ export function FollowUpsListClient({
   const [filters, setFilters] = useState<FollowUpListFilters>(seeded);
   const [searchInput, setSearchInput] = useState(seeded.search);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [hasMounted, setHasMounted] = useState(false);
+  const [linkReturnNonce, setLinkReturnNonce] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const composingRef = useRef(false);
   const filtersRef = useRef(filters);
+  const linkReturnNonceRef = useRef<string | null>(null);
   filtersRef.current = filters;
+  linkReturnNonceRef.current = linkReturnNonce;
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
+  const listReturnPath = useMemo(() => {
+    if (!hasMounted) {
+      return buildFollowUpListHref("/follow-ups", filters, "");
+    }
+    return buildFollowUpListHref(
+      window.location.pathname,
+      filters,
+      window.location.search,
+    );
+  }, [filters, hasMounted]);
+
+  useEffect(() => {
+    if (!hasMounted) return;
+    setLinkReturnNonce(createFollowUpsLinkReturnNonce());
+  }, [hasMounted, listReturnPath]);
+
+  const buildCustomerHref = useCallback(
+    (customerId: string) => {
+      const returnPath =
+        linkReturnNonce != null
+          ? (withFollowUpsLinkReturnNonce(listReturnPath, linkReturnNonce) ??
+            listReturnPath)
+          : listReturnPath;
+      return appendFollowUpsReturnTo(`/customers/${customerId}`, returnPath);
+    },
+    [listReturnPath, linkReturnNonce],
+  );
 
   const clearDebounce = useCallback(() => {
     if (debounceRef.current) {
@@ -311,14 +356,35 @@ export function FollowUpsListClient({
 
   const tryRestoreScroll = useCallback(() => {
     if (typeof window === "undefined") return;
-    const url = getCurrentFollowUpsListUrl();
+    const rawUrl = getCurrentFollowUpsListUrl();
+    const linkNonce = getFollowUpsLinkReturnNonce(rawUrl);
+    const canonicalUrl = stripFollowUpsLinkReturnNonce(rawUrl);
     const marker = getReturnMarkerFromHistoryState(window.history.state);
-    const expectedKey = buildFollowUpsReturnStorageKey(url);
-    if (!marker || marker !== expectedKey) return;
-    const state = readFollowUpsReturnState(url);
+    const expectedKey = buildFollowUpsReturnStorageKey(canonicalUrl);
+    const state = readFollowUpsReturnState(canonicalUrl);
     if (!state) return;
+
+    const markerOk = marker === expectedKey;
+    const linkOk =
+      !!linkNonce &&
+      !!state.linkNonce &&
+      linkNonce === state.linkNonce;
+    if (!markerOk && !linkOk) return;
+
     const top = computeFollowUpsRestoreScrollY(state);
     window.scrollTo({ top, behavior: "auto" });
+
+    if (linkOk && rawUrl !== canonicalUrl) {
+      try {
+        const merged = mergeHistoryStateWithReturnMarker(
+          window.history.state,
+          expectedKey,
+        );
+        window.history.replaceState(merged, "", canonicalUrl);
+      } catch {
+        // ignore
+      }
+    }
   }, []);
 
   const scheduleRestoreScroll = useCallback(() => {
@@ -346,12 +412,14 @@ export function FollowUpsListClient({
           `[${FOLLOW_UPS_RETURN_ITEM_ATTR}]`,
         ) as HTMLElement | null) ?? event.currentTarget;
       const rect = anchorEl.getBoundingClientRect();
+      const nonce = linkReturnNonceRef.current;
       saveFollowUpsReturnState({
         v: 1,
         url,
         scrollY: window.scrollY,
         itemId,
         itemViewportOffset: rect.top,
+        ...(nonce ? { linkNonce: nonce } : {}),
         savedAt: Date.now(),
       });
       try {
@@ -374,9 +442,11 @@ export function FollowUpsListClient({
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (isDocumentReload()) {
-      const url = getCurrentFollowUpsListUrl();
-      removeFollowUpsReturnState(url);
-      clearFollowUpsReturnMarkerOnHistory();
+      const rawUrl = getCurrentFollowUpsListUrl();
+      const canonicalUrl = stripFollowUpsLinkReturnNonce(rawUrl);
+      removeFollowUpsReturnState(rawUrl);
+      removeFollowUpsReturnState(canonicalUrl);
+      clearFollowUpsReturnMarkerOnHistory(window.history, canonicalUrl);
       return;
     }
     let cancelled = false;
@@ -768,6 +838,7 @@ export function FollowUpsListClient({
                     status={status}
                     t={t}
                     locale={locale}
+                    customerHref={buildCustomerHref(item.customerId)}
                     onCustomerNavigateClick={onCustomerNavigateClick}
                   />
                 </Card>
@@ -822,7 +893,7 @@ export function FollowUpsListClient({
                         pendingLabel={t("customers.namePendingBadge")}
                         renderName={(displayName) => (
                           <Link
-                            href={`/customers/${item.customerId}`}
+                            href={buildCustomerHref(item.customerId)}
                             className={`font-medium ${linkClass}`}
                             data-follow-up-return-id={item.id}
                             onClick={(event) =>

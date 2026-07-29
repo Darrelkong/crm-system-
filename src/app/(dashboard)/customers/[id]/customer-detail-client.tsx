@@ -106,6 +106,8 @@ type Props = {
   showConfirmNameButton: boolean;
   showManageAssigneesButton: boolean;
   showRequestAssigneesButton: boolean;
+  /** Server-validated back href: /follow-ups?... or /customers. */
+  returnHref: string;
 };
 
 function DetailRow({
@@ -205,6 +207,7 @@ export function CustomerDetailClient({
   showConfirmNameButton,
   showManageAssigneesButton,
   showRequestAssigneesButton,
+  returnHref,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
@@ -294,7 +297,7 @@ export function CustomerDetailClient({
             </Link>
           )}
           <Link
-            href="/customers"
+            href={returnHref}
             className={`px-3 py-2 text-sm ${cd.backLink}`}
           >
             ← {t("customers.backToList")}

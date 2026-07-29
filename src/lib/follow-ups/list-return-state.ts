@@ -14,6 +14,8 @@ export type FollowUpsReturnState = {
   scrollY: number;
   itemId?: string;
   itemViewportOffset?: number;
+  /** One-time nonce for in-page Link return (not Browser Back). */
+  linkNonce?: string;
   savedAt: number;
 };
 
@@ -114,6 +116,12 @@ export function validateFollowUpsReturnState(
   }
   if (isFiniteNumber(candidate.itemViewportOffset)) {
     state.itemViewportOffset = candidate.itemViewportOffset;
+  }
+  if (
+    typeof candidate.linkNonce === "string" &&
+    /^[a-zA-Z0-9_-]{1,64}$/.test(candidate.linkNonce)
+  ) {
+    state.linkNonce = candidate.linkNonce;
   }
 
   if (isFollowUpsReturnStateExpired(state, now)) return null;

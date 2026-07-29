@@ -47,11 +47,13 @@ describe("follow-ups list return-state B1 wiring", () => {
     assert.match(source, /clearFollowUpsReturnMarkerOnHistory/);
   });
 
-  it("requires history marker to match current URL storage key", () => {
+  it("requires history marker or matching link-return nonce before restore", () => {
     const source = client();
     assert.match(source, /getReturnMarkerFromHistoryState/);
     assert.match(source, /buildFollowUpsReturnStorageKey/);
-    assert.match(source, /marker !== expectedKey/);
+    assert.match(source, /markerOk/);
+    assert.match(source, /linkOk/);
+    assert.match(source, /getFollowUpsLinkReturnNonce/);
   });
 
   it("helper keeps scroll data out of history state and avoids PII fields", () => {
@@ -65,12 +67,13 @@ describe("follow-ups list return-state B1 wiring", () => {
     assert.match(source, /FOLLOW_UPS_RETURN_TTL_MS = 30 \* 60 \* 1000/);
   });
 
-  it("does not touch customer detail / returnTo / SQL", () => {
+  it("does not touch customer detail returnTo trust or SQL scope", () => {
     const detail = read(
       "src/app/(dashboard)/customers/[id]/customer-detail-client.tsx",
     );
-    assert.doesNotMatch(detail, /returnTo/);
-    assert.match(detail, /href="\/customers"/);
+    assert.match(detail, /href=\{returnHref\}/);
+    assert.doesNotMatch(detail, /parseSafeFollowUpsReturnTo/);
+    assert.doesNotMatch(detail, /router\.back/);
     const queries = read("src/lib/follow-ups/list-queries.ts");
     assert.match(queries, /where\(eq\(schema\.followUps\.userId, userId\)\)/);
     assert.doesNotMatch(queries, /ownerId/);

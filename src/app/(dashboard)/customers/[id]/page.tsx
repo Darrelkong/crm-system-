@@ -23,11 +23,23 @@ import { getCustomerTimeline } from "@/lib/customers/timeline/service";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { CustomerDetailClient } from "./customer-detail-client";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
+import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 
-type Props = { params: Promise<{ id: string }> };
+type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
-export default async function CustomerDetailPage({ params }: Props) {
+function firstSearchParam(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value) && typeof value[0] === "string") return value[0];
+  return undefined;
+}
+
+export default async function CustomerDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
+  const query = await searchParams;
+  const safeReturnHref =
+    parseSafeFollowUpsReturnTo(firstSearchParam(query.returnTo)) ?? "/customers";
   const user = await requireAuthCached();
   const customer = await getCustomerById(id);
 
@@ -196,6 +208,7 @@ export default async function CustomerDetailPage({ params }: Props) {
       showConfirmNameButton={showConfirmNameButton}
       showManageAssigneesButton={showManageAssigneesButton}
       showRequestAssigneesButton={showRequestAssigneesButton}
+      returnHref={safeReturnHref}
     />
   );
 }
