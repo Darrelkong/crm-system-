@@ -342,6 +342,26 @@ describe("phase2 source hash and prompt", () => {
     assert.equal(ha, hb);
   });
 
+  it("changes source hash when customerProfile content changes", async () => {
+    const a = insightContext({
+      customerProfile: { occupation: "Engineer" },
+    });
+    const b = insightContext({
+      customerProfile: { occupation: "Founder" },
+    });
+    const ha = await computeCustomerInsightSourceHash(a);
+    const hb = await computeCustomerInsightSourceHash(b);
+    assert.notEqual(ha, hb);
+  });
+
+  it("keeps source hash when empty customerProfile is omitted", async () => {
+    const a = insightContext();
+    const b = insightContext({ customerProfile: undefined });
+    const ha = await computeCustomerInsightSourceHash(a);
+    const hb = await computeCustomerInsightSourceHash(b);
+    assert.equal(ha, hb);
+  });
+
   it("includes fixed compliance and untrusted context marking", () => {
     const system = buildSystemPrompt("en");
     assert.equal(assertFixedComplianceIntact(system), true);

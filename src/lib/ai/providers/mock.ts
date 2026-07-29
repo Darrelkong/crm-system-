@@ -52,6 +52,11 @@ export const mockCustomerInsightProvider: CustomerInsightAIProvider = {
     if (context.requestedProjectName) {
       keySignals.push(`已記錄需求項目：${context.requestedProjectName}`);
     }
+    if (context.customerProfile?.primaryConcern) {
+      keySignals.push("客戶畫像已記錄主要關注點");
+    } else if (context.customerProfile?.targetCountryOrRegion) {
+      keySignals.push("客戶畫像已記錄目標國家／地區");
+    }
     if (latestFollowUp?.customerIntent) {
       keySignals.push(`最近跟進意向：${latestFollowUp.customerIntent}`);
     }

@@ -3,6 +3,7 @@ import {
   type ContactAvailability,
   type CustomerInsightContext,
 } from "@/lib/ai/customer-insights/context-builder";
+import { sanitizeCustomerInsightProfileForProvider } from "@/lib/ai/customer-insights/customer-profile-context";
 import {
   AI_CONTEXT_FOLLOW_UP_INTENT_MAX_CHARS,
   AI_CONTEXT_FOLLOW_UP_NEXT_ACTION_MAX_CHARS,
@@ -29,6 +30,10 @@ type SanitizedCustomerInsightContext = CustomerInsightContext & {
 export function sanitizeCustomerInsightContextForProvider(
   context: CustomerInsightContext,
 ): SanitizedCustomerInsightContext {
+  const customerProfile = sanitizeCustomerInsightProfileForProvider(
+    context.customerProfile,
+  );
+
   return {
     customerId: context.customerId,
     customerName: context.customerName,
@@ -58,5 +63,6 @@ export function sanitizeCustomerInsightContextForProvider(
       ),
       customerIntent: truncateField(followUp.customerIntent, AI_CONTEXT_FOLLOW_UP_INTENT_MAX_CHARS),
     })),
+    ...(customerProfile ? { customerProfile } : {}),
   };
 }

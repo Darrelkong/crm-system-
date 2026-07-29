@@ -2,6 +2,10 @@ import { desc, eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
+  buildCustomerInsightProfile,
+  type CustomerInsightProfile,
+} from "@/lib/ai/customer-insights/customer-profile-context";
+import {
   PermissionError,
   type CustomerAccessLevel,
 } from "@/lib/permissions/customers";
@@ -76,6 +80,11 @@ export type CustomerInsightContext = {
   wechatId: string | null;
   email: string | null;
   recentFollowUps: CustomerInsightFollowUpContext[];
+  /**
+   * Optional allowlisted profile slice (8 fields). Omitted when empty.
+   * Never includes gender / ageRange.
+   */
+  customerProfile?: CustomerInsightProfile;
 };
 
 export async function buildCustomerInsightContext(
@@ -126,6 +135,18 @@ export async function buildCustomerInsightContext(
     .orderBy(desc(schema.followUps.followUpTime))
     .limit(RECENT_FOLLOW_UP_LIMIT);
 
+  const customerProfile = buildCustomerInsightProfile({
+    preferredName: customer.preferredName,
+    preferredLanguage: customer.preferredLanguage,
+    preferredContactMethod: customer.preferredContactMethod,
+    occupation: customer.occupation,
+    companyName: customer.companyName,
+    jobTitle: customer.jobTitle,
+    targetCountryOrRegion: customer.targetCountryOrRegion,
+    primaryConcern: customer.primaryConcern,
+    // Explicitly not passed: gender, ageRange
+  });
+
   return {
     customerId: customer.id,
     customerName:
@@ -147,5 +168,6 @@ export async function buildCustomerInsightContext(
     wechatId: customer.wechatId,
     email: customer.email,
     recentFollowUps: followUpRows,
+    ...(customerProfile ? { customerProfile } : {}),
   };
 }

@@ -1,10 +1,13 @@
 import type { CustomerInsightContext } from "./context-builder";
+import { customerInsightProfileForHash } from "./customer-profile-context";
 
 const RECENT_FOLLOW_UP_LIMIT = 10;
 
 export async function computeCustomerInsightSourceHash(
   context: CustomerInsightContext,
 ): Promise<string> {
+  const customerProfile = customerInsightProfileForHash(context.customerProfile);
+
   const payload = {
     customerId: context.customerId,
     customer: {
@@ -31,6 +34,8 @@ export async function computeCustomerInsightSourceHash(
       isValidFollowUp: row.isValidFollowUp,
       nextFollowUpAt: row.nextFollowUpAt,
     })),
+    // Omit when empty so legacy customers without profile keep compatible hashes.
+    ...(customerProfile ? { customerProfile } : {}),
   };
 
   const encoded = new TextEncoder().encode(JSON.stringify(payload));
