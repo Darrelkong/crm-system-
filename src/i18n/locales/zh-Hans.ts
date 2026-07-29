@@ -238,7 +238,7 @@ const zhHans: Messages = {
     scopeNoteAdmin:
       "客户总数与阶段分布不含已归档客户；客户总数目前包含公共池。跟进指标按跟进记录时间计算。",
     scopeNoteStaff:
-      "客户总数只计算你当前负责的有效客户；跟进指标按你创建的跟进记录计算。",
+      "客户总数与阶段分布只包含你当前负责的有效客户。新增客户按创建记录归属，后续转移负责人不会改变历史数据。跟进指标按你创建的跟进记录统计。",
     noRecentFollowUps: "暂无近期跟进",
     noStageData: "暂无客户阶段数据",
     noStaffDistribution: "暂无团队成员客户分布数据",

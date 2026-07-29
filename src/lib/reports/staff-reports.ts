@@ -1,10 +1,6 @@
-import { and, count, desc, eq, gte, lt, lte } from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, lt, lte } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
-import {
-  normalCustomerListStatusWhere,
-  ownedNormalCustomerListWhere,
-} from "@/lib/customers/customer-list-filters";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import type { User } from "../../../drizzle/schema/users";
 import {
@@ -15,17 +11,15 @@ import {
 import { listRecentFollowUpsForStaff } from "./recent-follow-ups";
 import type { StaffReportsStats } from "./types";
 
-function ownedNonArchivedFilter(userId: string) {
-  return ownedNormalCustomerListWhere(userId);
-}
-
-function ownedNewCustomerFilter(
+/** Historical new-customer KPI: creator + not in recycle bin + createdAt range. */
+function createdNewCustomerFilter(
   userId: string,
   start: string,
   endExclusive: string,
 ) {
   return and(
-    ownedNormalCustomerListWhere(userId),
+    eq(schema.customers.createdBy, userId),
+    isNull(schema.customers.deletedAt),
     gte(schema.customers.createdAt, start),
     lt(schema.customers.createdAt, endExclusive),
   );
@@ -82,20 +76,20 @@ export async function getStaffReportsStats(
       .from(schema.customers)
       .where(
         and(
-          eq(schema.customers.ownerId, user.id),
+          eq(schema.customers.createdBy, user.id),
+          isNull(schema.customers.deletedAt),
           gte(schema.customers.createdAt, todayStart),
           lte(schema.customers.createdAt, todayEnd),
-          normalCustomerListStatusWhere(),
         ),
       ),
     db
       .select({ value: count() })
       .from(schema.customers)
-      .where(ownedNewCustomerFilter(user.id, weekStart, weekEndExclusive)),
+      .where(createdNewCustomerFilter(user.id, weekStart, weekEndExclusive)),
     db
       .select({ value: count() })
       .from(schema.customers)
-      .where(ownedNewCustomerFilter(user.id, monthStart, monthEndExclusive)),
+      .where(createdNewCustomerFilter(user.id, monthStart, monthEndExclusive)),
     db
       .select({ value: count() })
       .from(schema.followUps)
@@ -123,7 +117,7 @@ export async function getStaffReportsStats(
         count: count(),
       })
       .from(schema.customers)
-      .where(ownedNonArchivedFilter(user.id))
+      .where(ownedActiveFilter)
       .groupBy(schema.customers.salesStage)
       .orderBy(desc(count())),
     listRecentFollowUpsForStaff(db, user.id),

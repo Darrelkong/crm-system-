@@ -20,9 +20,9 @@ describe("reports Round A UX wiring", () => {
     read("src/components/dashboard/dashboard-widgets.tsx");
   const pageIntro = () => read("src/components/ui/page-intro.tsx");
 
-  it("does not modify reports SQL helpers or dates", () => {
-    // Presence-only: Round A must not rewrite these files' query semantics.
-    // Compare against known SQL markers that must remain.
+  it("does not modify Admin reports SQL, recent follow-ups, or dates", () => {
+    // Round A UI must not rewrite these files' query semantics.
+    // Staff new-customer / stage SQL is covered by Round B tests.
     const admin = read("src/lib/reports/admin-reports.ts");
     const staff = read("src/lib/reports/staff-reports.ts");
     const recentSql = read("src/lib/reports/recent-follow-ups.ts");
@@ -31,9 +31,9 @@ describe("reports Round A UX wiring", () => {
     assert.match(admin, /ne\(schema\.customers\.status, "archived"\)/);
     assert.match(admin, /eq\(schema\.customers\.status, "active"\)/);
     assert.match(admin, /followUpTime/);
-    assert.match(staff, /ownedNormalCustomerListWhere/);
     assert.match(staff, /eq\(schema\.followUps\.userId, userId\)/);
     assert.match(staff, /eq\(schema\.customers\.status, "active"\)/);
+    assert.match(staff, /listRecentFollowUpsForStaff/);
     assert.match(recentSql, /RECENT_FOLLOW_UP_LIMIT = 10/);
     assert.match(recentSql, /orderBy\(desc\(schema\.followUps\.followUpTime\)\)/);
     assert.doesNotMatch(recentSql, /fetch\(/);
@@ -111,12 +111,20 @@ describe("reports Round A UX wiring", () => {
       assert.match(locale, /noReportDataDescription:/);
     }
     const staffNoteHant = zhHant.match(/scopeNoteStaff:\s*"([^"]+)"/)?.[1] ?? "";
+    const staffNoteHans = zhHans.match(/scopeNoteStaff:\s*"([^"]+)"/)?.[1] ?? "";
     const staffNoteEn = en.match(/scopeNoteStaff:\s*"([^"]+)"/)?.[1] ?? "";
     assert.match(zhHant, /scopeNoteAdmin:[\s\S]*?公共池/);
     assert.match(zhHans, /scopeNoteAdmin:[\s\S]*?公共池/);
     assert.match(en, /scopeNoteAdmin:[\s\S]*?public pool/i);
-    assert.doesNotMatch(staffNoteHant, /共同負責|assignee/i);
-    assert.doesNotMatch(staffNoteEn, /assignee|co-owner/i);
+    assert.match(staffNoteHant, /階段分佈|建立記錄/);
+    assert.match(staffNoteHans, /阶段分布|创建记录/);
+    assert.match(staffNoteEn, /stage distribution|created the record/i);
+    assert.doesNotMatch(staffNoteHant, /共同負責|assignee|Dashboard|儀表板/i);
+    assert.doesNotMatch(staffNoteHans, /共同负责|assignee|Dashboard|仪表盘/i);
+    assert.doesNotMatch(staffNoteEn, /assignee|co-owner|dashboard/i);
+    assert.doesNotMatch(staffNoteHant, /createdBy|ownerId/);
+    assert.doesNotMatch(staffNoteHans, /createdBy|ownerId/);
+    assert.doesNotMatch(staffNoteEn, /createdBy|ownerId/);
   });
 
   it("PageIntro compact reduces title area; RankingTable requires emptyMessage", () => {

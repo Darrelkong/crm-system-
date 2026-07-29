@@ -249,7 +249,7 @@ const en = {
     scopeNoteAdmin:
       "Customer totals and stage breakdown exclude archived clients; totals currently include the public pool. Follow-up metrics use follow-up time.",
     scopeNoteStaff:
-      "Customer totals count only active clients you currently own. Follow-up metrics count follow-ups you created.",
+      "Customer totals and stage distribution include only active customers you currently own. New customers are attributed to the person who created the record; later ownership changes do not alter historical new-customer counts. Follow-up metrics use records you created.",
     noRecentFollowUps: "No recent follow-ups.",
     noStageData: "No customer stage data.",
     noStaffDistribution: "No team member customer distribution data.",
