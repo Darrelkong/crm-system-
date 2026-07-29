@@ -2702,7 +2702,7 @@ const en = {
   followUpsPage: {
     title: "Follow-up Records",
     adminDescription: "Browse all follow-up activity across the team.",
-    staffDescription: "Your follow-up records across assigned clients.",
+    staffDescription: "View the customer follow-up records you created.",
     time: "Follow-up time",
     customer: "Customer",
     staff: "Team Member",
@@ -2711,6 +2711,22 @@ const en = {
     nextStep: "Next step",
     stageStatus: "Stage / status",
     empty: "No follow-up records yet.",
+    emptyTitle: "No follow-up records yet",
+    emptyDescription:
+      "After you complete a customer follow-up, related records will appear here.",
+    emptyFilteredTitle: "No matching follow-ups",
+    emptyFilteredDescription:
+      "Try adjusting your search or filters and try again.",
+    clearAllFilters: "Clear all filters",
+    listLimitNotice:
+      "This page shows up to the {{limit}} most recent follow-up records.",
+    resultCount: "Showing {{count}}",
+    resultSummary:
+      "{{count}} shown · Up to the {{limit}} most recent follow-up records",
+    filters: "Filters",
+    filtersWithCount: "Filters {{count}}",
+    activeFilters: "Active filters",
+    dateRange: "Date range",
     viewCustomer: "View customer",
     searchCustomer: "Search customer",
     searchCustomerPlaceholder: "Search by customer name",

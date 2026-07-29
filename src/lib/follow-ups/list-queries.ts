@@ -3,7 +3,8 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { FollowUpListItem } from "./types";
 
-const LIST_LIMIT = 500;
+/** Max rows returned for /follow-ups list (ORDER BY follow_up_time DESC). */
+export const FOLLOW_UPS_LIST_LIMIT = 500;
 
 function mapRow(row: {
   id: string;
@@ -61,7 +62,7 @@ const listSelect = {
 
 export async function listFollowUpsForAdmin(
   db: Database,
-  limit = LIST_LIMIT,
+  limit = FOLLOW_UPS_LIST_LIMIT,
 ): Promise<FollowUpListItem[]> {
   const rows = await db
     .select(listSelect)
@@ -80,7 +81,7 @@ export async function listFollowUpsForAdmin(
 export async function listFollowUpsForStaff(
   db: Database,
   userId: string,
-  limit = LIST_LIMIT,
+  limit = FOLLOW_UPS_LIST_LIMIT,
 ): Promise<FollowUpListItem[]> {
   const rows = await db
     .select(listSelect)
