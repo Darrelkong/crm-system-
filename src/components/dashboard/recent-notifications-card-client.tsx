@@ -136,7 +136,7 @@ export function RecentNotificationsCardClient({ items, unreadCount }: Props) {
         </ul>
       )}
       <Link
-        href="/notifications"
+        href="/work-items?tab=notifications&view=all"
         className="mt-4 inline-block text-sm link-primary hover:underline"
       >
         {t("notifications.enterCenter")}

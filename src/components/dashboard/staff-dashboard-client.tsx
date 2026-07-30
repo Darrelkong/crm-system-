@@ -19,11 +19,31 @@ export function StaffDashboardClient({ stats }: { stats: StaffDashboardStats }) 
           hint={t("dashboard.myClientsHint")}
           icon={kpiIcons.users}
         />
-        <KpiCard label={t("dashboard.myTasks")} value={stats.myTodayTasks} icon={kpiIcons.clock} />
+        <KpiCard
+          label={t("dashboard.todayTasks")}
+          value={stats.myTodayTasks}
+          hint={
+            <Link
+              href="/work-items?tab=tasks&view=today"
+              className={linkClass}
+            >
+              {t("dashboard.viewTasks")}
+            </Link>
+          }
+          icon={kpiIcons.clock}
+        />
         <KpiCard
           label={t("dashboard.overdueTasks")}
           value={stats.myOverdueTasks}
           variant="danger"
+          hint={
+            <Link
+              href="/work-items?tab=tasks&view=overdue"
+              className={linkClass}
+            >
+              {t("dashboard.viewTasks")}
+            </Link>
+          }
           icon={kpiIcons.alert}
         />
         <KpiCard

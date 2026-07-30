@@ -143,3 +143,16 @@ export async function countTaskStatsForUser(user: User) {
   ).length;
   return { open: tasks.length, overdue };
 }
+
+export type {
+  WorkItemTaskCounts,
+  WorkItemStaffOption,
+  WorkItemTaskRow,
+} from "./work-items-query";
+
+export {
+  countWorkItemTasks,
+  listWorkItemTasks,
+  listWorkItemStaffOptions,
+  getTaskDueBounds,
+} from "./work-items-query";

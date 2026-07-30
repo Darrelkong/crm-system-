@@ -72,12 +72,25 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
         <KpiCard
           label={t("dashboard.todayTasks")}
           value={stats.todayOpenTasks}
+          hint={
+            <Link href="/work-items?tab=tasks&view=today" className={linkClass}>
+              {t("dashboard.viewTasks")}
+            </Link>
+          }
           icon={kpiIcons.clock}
         />
         <KpiCard
           label={t("dashboard.overdueTasks")}
           value={stats.overdueTasks}
           variant="danger"
+          hint={
+            <Link
+              href="/work-items?tab=tasks&view=overdue"
+              className={linkClass}
+            >
+              {t("dashboard.viewTasks")}
+            </Link>
+          }
           icon={kpiIcons.alert}
         />
         <KpiCard

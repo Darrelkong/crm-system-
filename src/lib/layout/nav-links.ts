@@ -18,7 +18,7 @@ export type NavGroup = {
 export type MobileNavItem = {
   href: string;
   labelKey: string;
-  icon: "dashboard" | "customers" | "notifications" | "publicPool" | "more";
+  icon: "dashboard" | "customers" | "notifications" | "workItems" | "publicPool" | "more";
 };
 
 function markActive(links: NavLink[], activeHref: string): NavLink[] {
@@ -37,10 +37,14 @@ function markActive(links: NavLink[], activeHref: string): NavLink[] {
 }
 
 export function isNavActive(href: string, pathname: string): boolean {
-  if (href === "/admin" || href === "/staff") {
-    return pathname === href;
+  const hrefPath = href.split("?")[0] ?? href;
+  if (hrefPath === "/admin" || hrefPath === "/staff") {
+    return pathname === hrefPath;
   }
-  return pathname === href || pathname.startsWith(`${href}/`);
+  if (hrefPath === "/work-items") {
+    return pathname === "/work-items" || pathname.startsWith("/work-items/");
+  }
+  return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
 
 function dashboardHref(role: "admin" | "staff"): string {
@@ -101,7 +105,11 @@ export function getAdminNavGroups(activeHref?: string): NavGroup[] {
       links: [
         { href: "/approvals", labelKey: "nav.approvals", icon: "approvals", mobilePrimary: true },
         { href: "/reports", labelKey: "nav.reports", icon: "reports" },
-        { href: "/notifications", labelKey: "nav.notifications", icon: "notifications" },
+        {
+          href: "/work-items?tab=tasks&view=open",
+          labelKey: "nav.workItems",
+          icon: "workItems",
+        },
         {
           href: "/admin/announcements",
           labelKey: "nav.announcementManagement",
@@ -156,7 +164,11 @@ export function getStaffNavGroups(activeHref?: string): NavGroup[] {
       links: [
         { href: "/approvals", labelKey: "nav.approvals", icon: "approvals", mobilePrimary: true },
         { href: "/reports", labelKey: "nav.reports", icon: "reports" },
-        { href: "/notifications", labelKey: "nav.notifications", icon: "notifications" },
+        {
+          href: "/work-items?tab=tasks&view=open",
+          labelKey: "nav.workItems",
+          icon: "workItems",
+        },
         { href: "/announcements", labelKey: "nav.announcements", icon: "announcements" },
         { href: "/help", labelKey: "nav.help", icon: "help" },
       ],
@@ -183,7 +195,11 @@ export function getMobileBottomNav(role: "admin" | "staff"): MobileNavItem[] {
   return [
     { href: dash, labelKey: "nav.dashboard", icon: "dashboard" },
     { href: "/customers", labelKey: "nav.customers", icon: "customers" },
-    { href: "/notifications", labelKey: "nav.notifications", icon: "notifications" },
+    {
+      href: "/work-items?tab=notifications&view=unread",
+      labelKey: "nav.workItems",
+      icon: "workItems",
+    },
     { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
     { href: "#more", labelKey: "nav.more", icon: "more" },
   ];

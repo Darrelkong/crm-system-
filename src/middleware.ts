@@ -180,6 +180,7 @@ export async function middleware(request: NextRequest) {
   if (
     pathname.startsWith("/approvals") ||
     pathname.startsWith("/notifications") ||
+    pathname.startsWith("/work-items") ||
     pathname.startsWith("/announcements") ||
     pathname.startsWith("/help") ||
     pathname.startsWith("/follow-ups") ||
@@ -215,6 +216,8 @@ export const config = {
     "/approvals/:path*",
     "/notifications",
     "/notifications/:path*",
+    "/work-items",
+    "/work-items/:path*",
     "/announcements",
     "/announcements/:path*",
     "/help",

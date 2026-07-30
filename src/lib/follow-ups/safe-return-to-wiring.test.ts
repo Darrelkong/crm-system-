@@ -61,10 +61,14 @@ describe("follow-ups safe returnTo B2 wiring", () => {
 
   it("customer detail server validates returnTo before passing returnHref", () => {
     const page = detailPage();
+    assert.match(page, /parseSafeWorkItemsReturnTo/);
     assert.match(page, /parseSafeFollowUpsReturnTo/);
     assert.match(page, /safeReturnHref/);
     assert.match(page, /returnHref=\{safeReturnHref\}/);
-    assert.match(page, /\?\? "\/customers"/);
+    assert.match(
+      page,
+      /parseSafeWorkItemsReturnTo\([\s\S]*?\)\s*\?\?\s*parseSafeFollowUpsReturnTo\([\s\S]*?\)\s*\?\?\s*"\/customers"/,
+    );
     assert.doesNotMatch(page, /returnHref=\{[^}]*query\.returnTo/);
     assert.doesNotMatch(page, /returnTo=\{/);
   });

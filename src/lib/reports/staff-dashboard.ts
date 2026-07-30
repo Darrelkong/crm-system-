@@ -6,7 +6,6 @@ import {
   isNotNull,
   isNull,
   lt,
-  lte,
   notInArray,
 } from "drizzle-orm";
 import { sql } from "drizzle-orm";
@@ -35,10 +34,11 @@ export async function getStaffDashboardStats(
     getBusinessMonthRange(now, timezone);
   const nowIso = now.toISOString();
   const sevenDaysAgo = getRollingSevenDaysAgoIso(now);
-  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
+  const { end: todayEnd } = getBusinessTodayRange(
     now,
     timezone,
   );
+  const tomorrowStart = new Date(new Date(todayEnd).getTime() + 1).toISOString();
 
   const ownedActiveFilter = and(
     eq(schema.customers.ownerId, user.id),
@@ -70,8 +70,8 @@ export async function getStaffDashboardStats(
           eq(schema.tasks.assignedTo, user.id),
           eq(schema.tasks.status, "open"),
           isNotNull(schema.tasks.dueAt),
-          gte(schema.tasks.dueAt, todayStart),
-          lte(schema.tasks.dueAt, todayEnd),
+          gte(schema.tasks.dueAt, nowIso),
+          lt(schema.tasks.dueAt, tomorrowStart),
         ),
       ),
     db

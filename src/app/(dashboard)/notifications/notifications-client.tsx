@@ -25,6 +25,10 @@ import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
   userRole: "admin" | "staff";
+  /** When set, unread filter is controlled by parent (Work Items URL). */
+  controlledUnreadOnly?: boolean;
+  onUnreadOnlyChange?: (unreadOnly: boolean) => void;
+  onUnreadCountChange?: (count: number) => void;
 };
 
 function getActionLabel(
@@ -70,21 +74,40 @@ function safeResolveMessage(
   }
 }
 
-export function NotificationsClient({ userRole }: Props) {
+export function NotificationsClient({
+  userRole,
+  controlledUnreadOnly,
+  onUnreadOnlyChange,
+  onUnreadCountChange,
+}: Props) {
   const { t, locale } = useTranslation();
   const [items, setItems] = useState<NotificationListItem[]>([]);
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [internalUnreadOnly, setInternalUnreadOnly] = useState(false);
+  const unreadOnly = controlledUnreadOnly ?? internalUnreadOnly;
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState<string | null>(null);
+
+  const setUnreadOnly = useCallback(
+    (next: boolean) => {
+      if (onUnreadOnlyChange) {
+        onUnreadOnlyChange(next);
+      } else {
+        setInternalUnreadOnly(next);
+      }
+    },
+    [onUnreadOnlyChange],
+  );
 
   const loadUnreadCount = useCallback(async () => {
     const res = await fetch("/api/notifications/unread-count");
     if (res.ok) {
       const data = (await res.json()) as { unreadCount?: number };
-      setUnreadCount(data.unreadCount ?? 0);
+      const count = data.unreadCount ?? 0;
+      setUnreadCount(count);
+      onUnreadCountChange?.(count);
     }
-  }, []);
+  }, [onUnreadCountChange]);
 
   const load = useCallback(async () => {
     setLoading(true);

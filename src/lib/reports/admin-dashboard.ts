@@ -8,7 +8,6 @@ import {
   isNotNull,
   isNull,
   lt,
-  lte,
   ne,
   sql,
 } from "drizzle-orm";
@@ -49,10 +48,11 @@ export async function getAdminDashboardStats(
   const { start: monthStart, endExclusive: monthEndExclusive } =
     getBusinessMonthRange(now, timezone);
   const nowIso = now.toISOString();
-  const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
+  const { end: todayEnd } = getBusinessTodayRange(
     now,
     timezone,
   );
+  const tomorrowStart = new Date(new Date(todayEnd).getTime() + 1).toISOString();
 
   const [
     totalCustomersRow,
@@ -90,8 +90,8 @@ export async function getAdminDashboardStats(
         and(
           eq(schema.tasks.status, "open"),
           isNotNull(schema.tasks.dueAt),
-          gte(schema.tasks.dueAt, todayStart),
-          lte(schema.tasks.dueAt, todayEnd),
+          gte(schema.tasks.dueAt, nowIso),
+          lt(schema.tasks.dueAt, tomorrowStart),
         ),
       ),
     db

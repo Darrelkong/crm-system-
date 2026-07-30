@@ -3,8 +3,7 @@ export const dynamic = "force-dynamic";
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 
-/** Keep layout so auth/shell remain valid during redirect from page.tsx. */
-export default async function NotificationsLayout({
+export default async function WorkItemsLayout({
   children,
 }: {
   children: React.ReactNode;

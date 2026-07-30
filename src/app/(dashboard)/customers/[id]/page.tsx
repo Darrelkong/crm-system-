@@ -24,6 +24,7 @@ import { CustomerStatePanel } from "@/components/customers/customer-state-panel"
 import { CustomerDetailClient } from "./customer-detail-client";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
+import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -38,8 +39,11 @@ function firstSearchParam(
 export default async function CustomerDetailPage({ params, searchParams }: Props) {
   const { id } = await params;
   const query = await searchParams;
+  const returnToRaw = firstSearchParam(query.returnTo);
   const safeReturnHref =
-    parseSafeFollowUpsReturnTo(firstSearchParam(query.returnTo)) ?? "/customers";
+    parseSafeWorkItemsReturnTo(returnToRaw) ??
+    parseSafeFollowUpsReturnTo(returnToRaw) ??
+    "/customers";
   const user = await requireAuthCached();
   const customer = await getCustomerById(id);
 

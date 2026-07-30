@@ -5,6 +5,7 @@ import type { ComponentType } from "react";
 import {
   Bell,
   ChevronDown,
+  ClipboardList,
   LayoutDashboard,
   Menu,
   Users,
@@ -27,8 +28,12 @@ import {
 } from "@/components/layout/navigation-pending";
 import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
 
-const NOTIFICATIONS_HREF = "/notifications";
+const WORK_ITEMS_HREF_PREFIX = "/work-items";
 const APPROVALS_HREF = "/approvals";
+
+function isWorkItemsNavHref(href: string): boolean {
+  return href === WORK_ITEMS_HREF_PREFIX || href.startsWith(`${WORK_ITEMS_HREF_PREFIX}?`);
+}
 
 function NavLinkRow({
   link,
@@ -57,7 +62,7 @@ function NavLinkRow({
   const label = t(link.labelKey);
   const unreadCount = useNotificationUnreadCount();
   const approvalPendingCount = useApprovalPendingCount();
-  const showNotificationBadge = link.href === NOTIFICATIONS_HREF;
+  const showNotificationBadge = isWorkItemsNavHref(link.href);
   const showApprovalBadge = link.href === APPROVALS_HREF;
 
   function handleNavigate() {
@@ -303,6 +308,7 @@ export function MobileBottomNav({
     dashboard: LayoutDashboard,
     customers: Users,
     notifications: Bell,
+    workItems: ClipboardList,
     publicPool: Waves,
     more: Menu,
   };
@@ -313,9 +319,10 @@ export function MobileBottomNav({
         {items.map((item) => {
           const Icon = icons[item.icon] ?? Menu;
           const isMore = item.href === "#more";
+          const itemPath = item.href.split("?")[0] ?? item.href;
           const isActive =
             !isMore &&
-            (activePath === item.href || activePath.startsWith(`${item.href}/`));
+            (activePath === itemPath || activePath.startsWith(`${itemPath}/`));
           const isPending =
             navigationPending?.pendingHref === item.href &&
             !isSameNavTarget(item.href, activePath);
@@ -351,7 +358,7 @@ export function MobileBottomNav({
               >
                 <span className="relative">
                   <Icon className="h-5 w-5" />
-                  {item.href === NOTIFICATIONS_HREF && (
+                  {isWorkItemsNavHref(item.href) && (
                     <NotificationCountBadge
                       count={unreadCount}
                       variant="overlay"

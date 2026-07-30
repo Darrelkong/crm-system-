@@ -33,6 +33,7 @@ export type NavIconId =
   | "approvals"
   | "reports"
   | "notifications"
+  | "workItems"
   | "announcementManagement"
   | "announcements"
   | "aiSettings"
@@ -58,6 +59,7 @@ export const navIcons: Record<NavIconId, LucideIcon> = {
   approvals: CheckSquare,
   reports: BarChart3,
   notifications: Bell,
+  workItems: ClipboardList,
   announcementManagement: Megaphone,
   announcements: Megaphone,
   aiSettings: Sparkles,
