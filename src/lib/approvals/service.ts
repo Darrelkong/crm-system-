@@ -24,6 +24,11 @@ import { findPendingApproval, getApprovalById } from "./queries";
 import type { ApprovalRequestInput } from "./validation";
 import { validateApprovalRequestInput } from "./validation";
 import {
+  TASK_CANCEL_REASON,
+  buildCancelOpenTasksForCustomerStatement,
+  buildTaskCancelAuditFields,
+} from "@/lib/tasks/lifecycle";
+import {
   buildOnHoldCreateApprovedAuditMetadata,
   buildOnHoldCreateApprovedCustomerUpdate,
   buildOnHoldCreateRejectedAuditMetadata,
@@ -134,17 +139,20 @@ async function executeApprovedAction(
 
   switch (approval.requestType) {
     case "delete_customer": {
-      await db
-        .update(schema.customers)
-        .set({
-          status: "archived",
-          deletedAt: now,
-          deletedBy: reviewer.id,
-          deletedReason: approval.reason ?? null,
-          updatedBy: reviewer.id,
-          updatedAt: now,
-        })
-        .where(eq(schema.customers.id, customer.id));
+      await db.batch([
+        db
+          .update(schema.customers)
+          .set({
+            status: "archived",
+            deletedAt: now,
+            deletedBy: reviewer.id,
+            deletedReason: approval.reason ?? null,
+            updatedBy: reviewer.id,
+            updatedAt: now,
+          })
+          .where(eq(schema.customers.id, customer.id)),
+        buildCancelOpenTasksForCustomerStatement(db, customer.id, now),
+      ] as unknown as Parameters<Database["batch"]>[0]);
 
       await writeFieldChangeLogEntry(
         customer.id,
@@ -165,6 +173,7 @@ async function executeApprovedAction(
             customerName: customer.customerName,
             deletedAt: now,
             deletedReason: approval.reason ?? null,
+            ...buildTaskCancelAuditFields(TASK_CANCEL_REASON.softArchive),
           },
         },
         db,

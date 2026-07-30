@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
@@ -101,11 +101,17 @@ async function deleteTestData() {
   const customerIds = [TEST_CUSTOMER_1, TEST_CUSTOMER_2, TEST_CUSTOMER_3];
   for (const customerId of customerIds) {
     await db
+      .delete(schema.tasks)
+      .where(eq(schema.tasks.customerId, customerId));
+    await db
       .delete(schema.followUps)
       .where(eq(schema.followUps.customerId, customerId));
     await db
       .delete(schema.customerAssignees)
       .where(eq(schema.customerAssignees.customerId, customerId));
+    await db
+      .delete(schema.auditLogs)
+      .where(eq(schema.auditLogs.entityId, customerId));
     await db
       .delete(schema.customers)
       .where(eq(schema.customers.id, customerId));
@@ -166,6 +172,146 @@ describe("archiveCustomerToRecycleBin", () => {
     assert.equal(updated.deletedReason, DEFAULT_ADMIN_ARCHIVE_REASON);
     assert.equal(updated.ownerId, SEED_IDS.staffA);
     assert.equal(updated.createdBy, SEED_IDS.staffA);
+  });
+
+  it("cancels all open task types and preserves completed/cancelled", async () => {
+    await deleteTestData();
+    const now = "2026-06-29T11:00:00.000Z";
+    const customer = makeCustomer({
+      id: TEST_CUSTOMER_1,
+      customerName: "Archive Task Cancel",
+      customerCode: "EF-ARCH-TSK",
+    });
+    await upsertCustomer(customer);
+
+    const openFollowUp = "t4444444-4444-4444-4444-444444444401";
+    const openFirstContact = "t4444444-4444-4444-4444-444444444402";
+    const openOther = "t4444444-4444-4444-4444-444444444403";
+    const completedId = "t4444444-4444-4444-4444-444444444404";
+    const cancelledId = "t4444444-4444-4444-4444-444444444405";
+    const otherCustomerOpen = "t4444444-4444-4444-4444-444444444406";
+
+    const otherCustomer = makeCustomer({
+      id: TEST_CUSTOMER_2,
+      customerName: "Other Customer Keep Tasks",
+      customerCode: "EF-ARCH-OTH",
+    });
+    await upsertCustomer(otherCustomer);
+
+    await db.insert(schema.tasks).values([
+      {
+        id: openFollowUp,
+        customerId: TEST_CUSTOMER_1,
+        assignedTo: SEED_IDS.staffA,
+        createdBy: SEED_IDS.admin,
+        title: "跟进",
+        type: "follow_up",
+        status: "open",
+        dueAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: openFirstContact,
+        customerId: TEST_CUSTOMER_1,
+        assignedTo: SEED_IDS.staffA,
+        createdBy: SEED_IDS.admin,
+        title: "首次",
+        type: "first_contact",
+        status: "open",
+        dueAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: openOther,
+        customerId: TEST_CUSTOMER_1,
+        assignedTo: SEED_IDS.staffB,
+        createdBy: SEED_IDS.admin,
+        title: "其他",
+        type: "other",
+        status: "open",
+        dueAt: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: completedId,
+        customerId: TEST_CUSTOMER_1,
+        assignedTo: SEED_IDS.staffA,
+        createdBy: SEED_IDS.admin,
+        title: "已完成",
+        type: "follow_up",
+        status: "completed",
+        completedAt: now,
+        dueAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: cancelledId,
+        customerId: TEST_CUSTOMER_1,
+        assignedTo: SEED_IDS.staffA,
+        createdBy: SEED_IDS.admin,
+        title: "已取消",
+        type: "follow_up",
+        status: "cancelled",
+        dueAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+      {
+        id: otherCustomerOpen,
+        customerId: TEST_CUSTOMER_2,
+        assignedTo: SEED_IDS.staffA,
+        createdBy: SEED_IDS.admin,
+        title: "他人客戶",
+        type: "follow_up",
+        status: "open",
+        dueAt: now,
+        createdAt: now,
+        updatedAt: now,
+      },
+    ]);
+
+    await archiveCustomerToRecycleBin(db, {
+      customer,
+      actor: adminUser,
+      source: "admin_patch",
+      now,
+    });
+
+    const rows = await db
+      .select()
+      .from(schema.tasks)
+      .where(
+        eq(schema.tasks.customerId, TEST_CUSTOMER_1),
+      );
+    const byId = Object.fromEntries(rows.map((row) => [row.id, row]));
+    assert.equal(byId[openFollowUp]?.status, "cancelled");
+    assert.equal(byId[openFirstContact]?.status, "cancelled");
+    assert.equal(byId[openOther]?.status, "cancelled");
+    assert.equal(byId[completedId]?.status, "completed");
+    assert.equal(byId[completedId]?.completedAt, now);
+    assert.equal(byId[cancelledId]?.status, "cancelled");
+
+    const otherOpen = await db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.id, otherCustomerOpen));
+    assert.equal(otherOpen[0]?.status, "open");
+
+    const audit = await db
+      .select()
+      .from(schema.auditLogs)
+      .where(eq(schema.auditLogs.entityId, TEST_CUSTOMER_1))
+      .orderBy(desc(schema.auditLogs.createdAt));
+    const soft = audit.find((row) => row.action === "customer.deleted.soft");
+    assert.ok(soft?.metadata);
+    const metadata = JSON.parse(soft.metadata) as Record<string, unknown>;
+    assert.equal(metadata.taskCancelReasonCode, "soft_archive");
+    assert.equal("cancelledOpenTaskCount" in metadata, false);
+    assert.equal("title" in metadata, false);
   });
 
   it("lists archived customer in recycle bin sorted by deletedAt DESC", async () => {

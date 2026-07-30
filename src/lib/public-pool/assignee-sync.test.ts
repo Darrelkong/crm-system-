@@ -26,6 +26,7 @@ import {
   claimCustomerFromPool,
   releaseCustomerToPool,
 } from "@/lib/public-pool/service";
+import { cancelOpenTasksForCustomer } from "@/lib/tasks/lifecycle";
 
 const TEST_RELEASE_CUSTOMER_ID = "33333333-3333-3333-3333-333333333301";
 const TEST_CLAIM_CUSTOMER_ID = "33333333-3333-3333-3333-333333333302";
@@ -239,6 +240,143 @@ describe("public pool assignee sync (3B-IMPLEMENT)", () => {
       );
       assert.ok(metadata);
       assert.equal(metadata.clearedAssigneeCount, 2);
+    });
+
+    it("release cancels all open task types and keeps completed/cancelled", async () => {
+      await deleteTestCustomers();
+      const customer = makeActiveCustomer(
+        TEST_RELEASE_CUSTOMER_ID,
+        SEED_IDS.staffA,
+      );
+      await insertTestCustomer(customer);
+      await seedAssignees(TEST_RELEASE_CUSTOMER_ID, [
+        { userId: SEED_IDS.staffA, role: "primary" },
+      ]);
+
+      const openFollowUp = "33333333-3333-3333-3333-333333333311";
+      const openFirst = "33333333-3333-3333-3333-333333333312";
+      const openOther = "33333333-3333-3333-3333-333333333313";
+      const completedId = "33333333-3333-3333-3333-333333333314";
+      const cancelledId = "33333333-3333-3333-3333-333333333315";
+      const otherCustomerOpen = "33333333-3333-3333-3333-333333333316";
+
+      const otherCustomer = makeActiveCustomer(
+        TEST_CLAIM_CUSTOMER_ID,
+        SEED_IDS.staffB,
+      );
+      await insertTestCustomer(otherCustomer);
+
+      await db.insert(schema.tasks).values([
+        {
+          id: openFollowUp,
+          customerId: TEST_RELEASE_CUSTOMER_ID,
+          assignedTo: SEED_IDS.staffA,
+          createdBy: SEED_IDS.admin,
+          title: "跟进",
+          type: "follow_up",
+          status: "open",
+          dueAt: FIXED_NOW,
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+        },
+        {
+          id: openFirst,
+          customerId: TEST_RELEASE_CUSTOMER_ID,
+          assignedTo: SEED_IDS.staffA,
+          createdBy: SEED_IDS.admin,
+          title: "首次",
+          type: "first_contact",
+          status: "open",
+          dueAt: FIXED_NOW,
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+        },
+        {
+          id: openOther,
+          customerId: TEST_RELEASE_CUSTOMER_ID,
+          assignedTo: SEED_IDS.staffB,
+          createdBy: SEED_IDS.admin,
+          title: "其他",
+          type: "other",
+          status: "open",
+          dueAt: null,
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+        },
+        {
+          id: completedId,
+          customerId: TEST_RELEASE_CUSTOMER_ID,
+          assignedTo: SEED_IDS.staffA,
+          createdBy: SEED_IDS.admin,
+          title: "完成",
+          type: "follow_up",
+          status: "completed",
+          completedAt: FIXED_NOW,
+          dueAt: FIXED_NOW,
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+        },
+        {
+          id: cancelledId,
+          customerId: TEST_RELEASE_CUSTOMER_ID,
+          assignedTo: SEED_IDS.staffA,
+          createdBy: SEED_IDS.admin,
+          title: "取消",
+          type: "follow_up",
+          status: "cancelled",
+          dueAt: FIXED_NOW,
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+        },
+        {
+          id: otherCustomerOpen,
+          customerId: TEST_CLAIM_CUSTOMER_ID,
+          assignedTo: SEED_IDS.staffB,
+          createdBy: SEED_IDS.admin,
+          title: "其他客戶",
+          type: "follow_up",
+          status: "open",
+          dueAt: FIXED_NOW,
+          createdAt: FIXED_NOW,
+          updatedAt: FIXED_NOW,
+        },
+      ]);
+
+      await releaseCustomerToPool(customer, staffA, "釋放並取消任務");
+
+      const tasks = await db
+        .select()
+        .from(schema.tasks)
+        .where(eq(schema.tasks.customerId, TEST_RELEASE_CUSTOMER_ID));
+      const byId = Object.fromEntries(tasks.map((row) => [row.id, row]));
+      assert.equal(byId[openFollowUp]?.status, "cancelled");
+      assert.equal(byId[openFirst]?.status, "cancelled");
+      assert.equal(byId[openOther]?.status, "cancelled");
+      assert.equal(byId[completedId]?.status, "completed");
+      assert.equal(byId[cancelledId]?.status, "cancelled");
+
+      const other = await db
+        .select()
+        .from(schema.tasks)
+        .where(eq(schema.tasks.id, otherCustomerOpen));
+      assert.equal(other[0]?.status, "open");
+
+      const metadata = await latestAuditMetadata(
+        TEST_RELEASE_CUSTOMER_ID,
+        "customer.released_to_pool",
+      );
+      assert.ok(metadata);
+      assert.equal(metadata.taskCancelReasonCode, "pool_release");
+      assert.equal("cancelledOpenTaskCount" in metadata, false);
+      assert.equal("title" in metadata, false);
+
+      // Idempotent: second cancel leaves already-cancelled tasks unchanged
+      await cancelOpenTasksForCustomer(db, TEST_RELEASE_CUSTOMER_ID, FIXED_NOW);
+      const afterSecond = await db
+        .select({ status: schema.tasks.status })
+        .from(schema.tasks)
+        .where(eq(schema.tasks.id, openFollowUp));
+      assert.equal(afterSecond[0]?.status, "cancelled");
     });
 
     it("admin release clears all customer_assignees", async () => {

@@ -2,6 +2,11 @@ import { eq } from "drizzle-orm";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { writeFieldChangeLogEntry } from "@/lib/customers/field-change-log";
 import { schema, type Database } from "@/lib/db";
+import {
+  TASK_CANCEL_REASON,
+  buildCancelOpenTasksForCustomerStatement,
+  buildTaskCancelAuditFields,
+} from "@/lib/tasks/lifecycle";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -60,17 +65,20 @@ export async function archiveCustomerToRecycleBin(
     customer.deletedReason ??
     (input.reason?.trim() || DEFAULT_ADMIN_ARCHIVE_REASON);
 
-  await db
-    .update(schema.customers)
-    .set({
-      status: "archived",
-      deletedAt,
-      deletedBy,
-      deletedReason,
-      updatedBy: actor.id,
-      updatedAt: now,
-    })
-    .where(eq(schema.customers.id, customer.id));
+  await db.batch([
+    db
+      .update(schema.customers)
+      .set({
+        status: "archived",
+        deletedAt,
+        deletedBy,
+        deletedReason,
+        updatedBy: actor.id,
+        updatedAt: now,
+      })
+      .where(eq(schema.customers.id, customer.id)),
+    buildCancelOpenTasksForCustomerStatement(db, customer.id, now),
+  ] as unknown as Parameters<Database["batch"]>[0]);
 
   if (previousStatus !== "archived") {
     await writeFieldChangeLogEntry(
@@ -95,6 +103,7 @@ export async function archiveCustomerToRecycleBin(
         source: input.source,
         deletedAt,
         deletedReason,
+        ...buildTaskCancelAuditFields(TASK_CANCEL_REASON.softArchive),
         ...input.extraAuditMetadata,
       },
     },

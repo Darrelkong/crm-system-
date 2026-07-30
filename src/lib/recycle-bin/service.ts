@@ -9,6 +9,7 @@ import {
 } from "@/lib/recycle-bin/constants";
 import { computeRemainingRetentionDays } from "@/lib/recycle-bin/queries";
 import type { ExpiredRecycleBinPreviewResult } from "@/lib/recycle-bin/types";
+import { buildCancelOpenTasksForCustomerStatement } from "@/lib/tasks/lifecycle";
 import { getUserById } from "@/lib/users/queries";
 import type { Customer, CustomerStatus } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -177,15 +178,7 @@ async function executePermanentDeleteInBatch(
       .delete(schema.reclamationWarningLogs)
       .where(eq(schema.reclamationWarningLogs.customerId, customer.id)),
     // Cancel open tasks before DELETE so status is preserved after FK sets customerId→null.
-    db
-      .update(schema.tasks)
-      .set({ status: "cancelled", updatedAt: now })
-      .where(
-        and(
-          eq(schema.tasks.customerId, customer.id),
-          eq(schema.tasks.status, "open"),
-        ),
-      ),
+    buildCancelOpenTasksForCustomerStatement(db, customer.id, now),
     db.insert(schema.auditLogs).values({
       id: crypto.randomUUID(),
       userId: options.userId,

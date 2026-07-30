@@ -11,6 +11,11 @@ import {
   CLAIM_QUOTA_DAYS,
   SELF_RELEASE_CLAIM_BLOCK_DAYS,
 } from "@/lib/public-pool/constants";
+import {
+  TASK_CANCEL_REASON,
+  buildCancelOpenTasksForCustomerStatement,
+  buildTaskCancelAuditFields,
+} from "@/lib/tasks/lifecycle";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -299,6 +304,7 @@ export async function releaseCustomerToPool(
     db
       .delete(schema.customerAssignees)
       .where(eq(schema.customerAssignees.customerId, customer.id)),
+    buildCancelOpenTasksForCustomerStatement(db, customer.id, now),
   ] as unknown as Parameters<typeof db.batch>[0]);
 
   await writeAuditLog({
@@ -313,6 +319,7 @@ export async function releaseCustomerToPool(
       poolReason: reason.trim(),
       previousOwnerId,
       clearedAssigneeCount,
+      ...buildTaskCancelAuditFields(TASK_CANCEL_REASON.poolRelease),
     },
   });
 }
