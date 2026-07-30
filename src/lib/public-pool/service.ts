@@ -4,6 +4,7 @@ import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import {
+  clearCustomerAssignees,
   countCustomerAssignees,
   replaceCustomerPrimaryAssignee,
 } from "@/lib/public-pool/assignee-sync";
@@ -16,48 +17,93 @@ import {
   buildCancelOpenTasksForCustomerStatement,
   buildTaskCancelAuditFields,
 } from "@/lib/tasks/lifecycle";
+import {
+  upsertFirstContactTaskForClaim,
+  type UpsertFirstContactTaskForClaimResult,
+} from "@/lib/tasks/first-contact";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
-export async function createFirstContactTask(
+/**
+ * Rolls back a claim that this actor still holds.
+ * Clears assignees so the customer does not remain assigned after a failed claim.
+ */
+async function rollbackPoolClaimToPublicPool(
+  db: Database,
   customer: Customer,
-  assigneeId: string,
-  createdBy: string,
-  audit?: { ipAddress?: string | null; userAgent?: string | null },
-): Promise<string> {
-  const db = getDb();
-  const settings = await getEffectiveSettings(db);
-  const now = new Date();
-  const dueAt = new Date(
-    now.getTime() + settings.firstContactSlaHours * 60 * 60 * 1000,
-  ).toISOString();
-  const taskId = crypto.randomUUID();
-  const isoNow = now.toISOString();
+  actorId: string,
+): Promise<void> {
+  await db
+    .update(schema.customers)
+    .set({
+      ownerId: null,
+      status: "public_pool",
+      claimedBy: null,
+      claimedAt: null,
+      poolLeftAt: null,
+      updatedBy: customer.updatedBy,
+      updatedAt: customer.updatedAt,
+    })
+    .where(
+      and(
+        eq(schema.customers.id, customer.id),
+        eq(schema.customers.ownerId, actorId),
+        eq(schema.customers.status, "active"),
+      ),
+    );
 
-  await db.insert(schema.tasks).values({
-    id: taskId,
-    customerId: customer.id,
-    assignedTo: assigneeId,
-    createdBy,
-    title: `首次联系客户：${customer.customerName}`,
-    type: "first_contact",
-    status: "open",
-    dueAt,
-    createdAt: isoNow,
-    updatedAt: isoNow,
-  });
+  await clearCustomerAssignees(db, customer.id);
+}
 
-  await writeAuditLog({
-    userId: createdBy,
-    action: "task.created.first_contact",
-    entityType: "task",
-    entityId: taskId,
-    ipAddress: audit?.ipAddress,
-    userAgent: audit?.userAgent,
-    metadata: { customerId: customer.id, dueAt },
-  });
+async function writeFirstContactTaskAuditSafe(input: {
+  actorId: string;
+  customerId: string;
+  result: UpsertFirstContactTaskForClaimResult;
+  dueAt: string;
+  ipAddress?: string | null;
+  userAgent?: string | null;
+}): Promise<void> {
+  try {
+    if (input.result.createdNewTask) {
+      await writeAuditLog({
+        userId: input.actorId,
+        action: "task.created.first_contact",
+        entityType: "task",
+        entityId: input.result.taskId,
+        ipAddress: input.ipAddress,
+        userAgent: input.userAgent,
+        metadata: { customerId: input.customerId, dueAt: input.dueAt },
+      });
+      return;
+    }
 
-  return taskId;
+    await writeAuditLog({
+      userId: input.actorId,
+      action: "task.updated",
+      entityType: "task",
+      entityId: input.result.taskId,
+      ipAddress: input.ipAddress,
+      userAgent: input.userAgent,
+      metadata: {
+        customerId: input.customerId,
+        reasonCode: "public_pool_claim",
+        reusedExistingTask: true,
+        deduplicatedExistingTasks: input.result.deduplicatedExistingTasks,
+        previousAssigneeId: input.result.previousAssigneeId,
+        nextAssigneeId: input.actorId,
+        dueAtChanged: input.result.dueAtChanged,
+        dueAt: input.dueAt,
+      },
+    });
+  } catch {
+    // Core claim already succeeded — do not reverse customer/task state for audit failures.
+    console.error("[public-pool] first_contact task audit write failed", {
+      customerId: input.customerId,
+      taskId: input.result.taskId,
+      createdNewTask: input.result.createdNewTask,
+      reusedExistingTask: input.result.reusedExistingTask,
+    });
+  }
 }
 
 /** Params for atomic staff quota / cooldown / self-release SQL guards. */
@@ -155,6 +201,11 @@ export type ClaimCustomerFromPoolOptions = {
   staffGuards?: StaffClaimGuardParams;
   /** Extra success audit metadata (e.g. random claim method). */
   successAuditMetadata?: Record<string, unknown>;
+  /**
+   * Internal/test seam only. Overrides first-contact upsert used after claim.
+   * Never bind from HTTP request.
+   */
+  upsertFirstContactTask?: typeof upsertFirstContactTaskForClaim;
 };
 
 export async function claimCustomerFromPool(
@@ -169,7 +220,8 @@ export async function claimCustomerFromPool(
     ("staffGuards" in auditOrOptions ||
       "successAuditMetadata" in auditOrOptions ||
       "now" in auditOrOptions ||
-      "db" in auditOrOptions)
+      "db" in auditOrOptions ||
+      "upsertFirstContactTask" in auditOrOptions)
       ? auditOrOptions
       : {
           ipAddress: (
@@ -187,6 +239,8 @@ export async function claimCustomerFromPool(
   const database = options.db ?? getDb();
   const claimedAtDate = options.now ?? new Date();
   const now = claimedAtDate.toISOString();
+  const upsertTask =
+    options.upsertFirstContactTask ?? upsertFirstContactTaskForClaim;
 
   const whereParts = [
     eq(schema.customers.id, customer.id),
@@ -228,51 +282,85 @@ export async function claimCustomerFromPool(
     });
     clearedAssigneeCount = syncResult.clearedAssigneeCount;
   } catch (error) {
-    await database
-      .update(schema.customers)
-      .set({
-        ownerId: null,
-        status: "public_pool",
-        claimedBy: null,
-        claimedAt: null,
-        poolLeftAt: null,
-        updatedBy: customer.updatedBy,
-        updatedAt: customer.updatedAt,
-      })
-      .where(
-        and(
-          eq(schema.customers.id, customer.id),
-          eq(schema.customers.ownerId, user.id),
-          eq(schema.customers.status, "active"),
-        ),
-      );
+    try {
+      await rollbackPoolClaimToPublicPool(database, customer, user.id);
+    } catch {
+      console.error("[public-pool] claim rollback failed after assignee sync failure", {
+        customerId: customer.id,
+        actorId: user.id,
+      });
+    }
     throw error;
   }
 
-  const updated = { ...customer, customerName: customer.customerName };
-  const taskId = await createFirstContactTask(updated, user.id, user.id, {
-    ipAddress: options.ipAddress,
-    userAgent: options.userAgent,
-  });
+  const settings = await getEffectiveSettings(database);
+  const dueAt = new Date(
+    claimedAtDate.getTime() + settings.firstContactSlaHours * 60 * 60 * 1000,
+  ).toISOString();
 
-  await writeAuditLog({
-    userId: user.id,
-    action: "customer.claimed_from_pool",
-    entityType: "customer",
-    entityId: customer.id,
-    ipAddress: options.ipAddress,
-    userAgent: options.userAgent,
-    metadata: {
+  let taskResult: UpsertFirstContactTaskForClaimResult;
+  try {
+    taskResult = await upsertTask({
+      db: database,
+      customerId: customer.id,
+      actorId: user.id,
       customerName: customer.customerName,
-      taskId,
-      previousReleasedBy: customer.releasedBy ?? customer.releaserUserId,
-      primaryAssigneeSynced: true,
-      clearedAssigneeCount,
-      ...options.successAuditMetadata,
-    },
+      dueAt,
+      now,
+    });
+  } catch (error) {
+    try {
+      await rollbackPoolClaimToPublicPool(database, customer, user.id);
+    } catch {
+      console.error(
+        "[public-pool] claim rollback failed after first_contact write failure",
+        {
+          customerId: customer.id,
+          actorId: user.id,
+        },
+      );
+    }
+    throw error;
+  }
+
+  await writeFirstContactTaskAuditSafe({
+    actorId: user.id,
+    customerId: customer.id,
+    result: taskResult,
+    dueAt,
+    ipAddress: options.ipAddress,
+    userAgent: options.userAgent,
   });
 
-  return { ok: true, taskId };
+  try {
+    await writeAuditLog({
+      userId: user.id,
+      action: "customer.claimed_from_pool",
+      entityType: "customer",
+      entityId: customer.id,
+      ipAddress: options.ipAddress,
+      userAgent: options.userAgent,
+      metadata: {
+        customerName: customer.customerName,
+        taskId: taskResult.taskId,
+        previousReleasedBy: customer.releasedBy ?? customer.releaserUserId,
+        primaryAssigneeSynced: true,
+        clearedAssigneeCount,
+        reusedExistingTask: taskResult.reusedExistingTask,
+        deduplicatedExistingTasks: taskResult.deduplicatedExistingTasks,
+        ...options.successAuditMetadata,
+      },
+    });
+  } catch {
+    // Core claim already succeeded — do not reverse customer/assignee/task.
+    console.error("[public-pool] customer.claimed_from_pool audit write failed", {
+      customerId: customer.id,
+      taskId: taskResult.taskId,
+      actorId: user.id,
+    });
+  }
+
+  return { ok: true, taskId: taskResult.taskId };
 }
 
 export async function releaseCustomerToPool(
