@@ -1092,6 +1092,8 @@ const zhHant: Messages = {
     deleteStaffModalOwnedCustomers: "名下客戶數",
     deleteStaffModalCollaboratorCustomers: "共同負責客戶數",
     deleteStaffModalOpenTasks: "未完成任務數",
+    deleteStaffModalOpenTasksReassign:
+      "未完成任務：{{count}} 項。刪除後，這些任務將轉移給目前執行操作的管理員。",
     deleteStaffModalPendingApprovals: "待審批申請數",
     deleteStaffModalIrreversible: "此操作不可直接恢復。",
     deleteStaffModalConfirm: "確認刪除",

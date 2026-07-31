@@ -16,15 +16,19 @@ function read(rel: string): string {
 describe("tasks Round B1-B lifecycle cancel wiring", () => {
   it("exposes customer-scoped cancel helper without type/assignee filters", () => {
     const src = read("src/lib/tasks/lifecycle.ts");
+    const cancelFn = src.slice(
+      src.indexOf("export function buildCancelOpenTasksForCustomerStatement"),
+      src.indexOf("export async function cancelOpenTasksForCustomer"),
+    );
     assert.match(src, /export function buildCancelOpenTasksForCustomerStatement/);
-    assert.match(src, /eq\(schema\.tasks\.customerId, customerId\)/);
-    assert.match(src, /eq\(schema\.tasks\.status, "open"\)/);
-    assert.match(src, /status:\s*"cancelled"/);
-    assert.doesNotMatch(src, /inArray\(schema\.tasks\.type/);
-    assert.doesNotMatch(src, /eq\(schema\.tasks\.assignedTo/);
-    assert.doesNotMatch(src, /taskIds|task_ids/);
-    assert.doesNotMatch(src, /count\(|countOpenTasksForCustomer|cancelledOpenTaskCount/);
-    assert.doesNotMatch(src, /title|phone|email|customerName/);
+    assert.match(cancelFn, /eq\(schema\.tasks\.customerId, customerId\)/);
+    assert.match(cancelFn, /eq\(schema\.tasks\.status, "open"\)/);
+    assert.match(cancelFn, /status:\s*"cancelled"/);
+    assert.doesNotMatch(cancelFn, /inArray\(schema\.tasks\.type/);
+    assert.doesNotMatch(cancelFn, /eq\(schema\.tasks\.assignedTo/);
+    assert.doesNotMatch(cancelFn, /taskIds|task_ids/);
+    assert.doesNotMatch(cancelFn, /count\(|countOpenTasksForCustomer|cancelledOpenTaskCount/);
+    assert.doesNotMatch(cancelFn, /title|phone|email|customerName/);
     assert.match(src, /pool_release/);
     assert.match(src, /soft_archive/);
   });

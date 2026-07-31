@@ -169,6 +169,11 @@ export function DeleteStaffModal({ user, onClose, onDeleted }: Props) {
                   value={preview.impact?.pendingApprovalsCount ?? 0}
                 />
               </dl>
+              <p className="mt-3 break-words text-[#6B7890]">
+                {t("employees.deleteStaffModalOpenTasksReassign", {
+                  count: String(preview.impact?.openTasksCount ?? 0),
+                })}
+              </p>
             </div>
 
             <p className="text-[#6B7890]">

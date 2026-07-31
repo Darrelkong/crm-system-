@@ -7,6 +7,7 @@ import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getUserById } from "@/lib/users/queries";
 import { buildUserDeletionAuditMetadata } from "@/lib/users-admin/deletion-metadata";
 import { appendStaffDeleteAssigneeStatements } from "@/lib/users-admin/staff-delete-assignees";
+import { buildReassignOpenTasksForAssigneeStatement } from "@/lib/tasks/lifecycle";
 import { initialDeviceAutoApprovalEligibleForNewRole } from "@/lib/devices/initial-device-auto-approval";
 import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
@@ -297,6 +298,14 @@ export async function softDeleteUserAccount(
   );
 
   batchStatements.push(
+    buildReassignOpenTasksForAssigneeStatement(db, {
+      previousAssigneeId: targetUserId,
+      nextAssigneeId: actor.id,
+      updatedAt: now,
+    }),
+  );
+
+  batchStatements.push(
     db
       .update(schema.users)
       .set({
@@ -333,6 +342,9 @@ export async function softDeleteUserAccount(
           assigneeSync.primaryAssigneesTransferredCount,
         collaboratorAssigneesRemovedCount:
           assigneeSync.collaboratorAssigneesRemovedCount,
+        taskReassignmentReasonCode: "staff_deleted",
+        previousAssigneeId: targetUserId,
+        nextAssigneeId: actor.id,
       }),
       createdAt: now,
     }),

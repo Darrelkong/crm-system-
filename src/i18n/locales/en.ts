@@ -1132,6 +1132,8 @@ const en = {
     deleteStaffModalOwnedCustomers: "Owned clients",
     deleteStaffModalCollaboratorCustomers: "Collaborator clients",
     deleteStaffModalOpenTasks: "Open tasks",
+    deleteStaffModalOpenTasksReassign:
+      "Open tasks: {{count}}. After deletion, these tasks will be reassigned to the administrator performing this action.",
     deleteStaffModalPendingApprovals: "Pending approvals",
     deleteStaffModalIrreversible: "This action cannot be directly undone.",
     deleteStaffModalConfirm: "Confirm deletion",

@@ -50,6 +50,33 @@ export async function cancelOpenTasksForCustomer(
   await buildCancelOpenTasksForCustomerStatement(db, customerId, now);
 }
 
+/**
+ * Single-statement reassignment of all open tasks for one assignee.
+ * Does not filter by type or customerId. Idempotent when re-run.
+ * Server-only — never accept previous/next assignee from the client.
+ */
+export function buildReassignOpenTasksForAssigneeStatement(
+  db: Database,
+  input: {
+    previousAssigneeId: string;
+    nextAssigneeId: string;
+    updatedAt: string;
+  },
+) {
+  return db
+    .update(schema.tasks)
+    .set({
+      assignedTo: input.nextAssigneeId,
+      updatedAt: input.updatedAt,
+    })
+    .where(
+      and(
+        eq(schema.tasks.assignedTo, input.previousAssigneeId),
+        eq(schema.tasks.status, "open"),
+      ),
+    );
+}
+
 /** Safe lifecycle audit fields only — no estimated/pre-count task totals. */
 export function buildTaskCancelAuditFields(
   reasonCode: TaskCancelReasonCode,
