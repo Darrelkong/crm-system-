@@ -8,7 +8,7 @@ import {
   createNotificationOnce,
 } from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
-import { logApprovalNotificationFailure } from "./notification-safe";
+import { logApprovalNotificationFailure, markApprovalPendingNotificationsReadSafely } from "./notification-safe";
 import type { Approval } from "../../../drizzle/schema/approvals";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -793,6 +793,12 @@ export async function approveApprovalRequest(
     },
   });
 
+  await markApprovalPendingNotificationsReadSafely(
+    db,
+    approvalId,
+    "approved",
+  );
+
   const comment = adminComment?.trim();
   await notifyApplicant(
     db,
@@ -877,6 +883,12 @@ export async function rejectApprovalRequest(
       requestedBy: approval.requestedBy,
     },
   });
+
+  await markApprovalPendingNotificationsReadSafely(
+    db,
+    approvalId,
+    "rejected",
+  );
 
   const comment = adminComment?.trim();
   await notifyApplicant(

@@ -309,6 +309,7 @@ describe("Notifications Round A1 approval pending/result + CAS", () => {
 
     const pendingAfter = await listApprovalNotifications(id, "approval.pending");
     assert.equal(pendingAfter.length, pendingBefore.length);
+    assert.ok(pendingAfter.every((row) => row.isRead === 1));
 
     const auditsBefore = await db
       .select()
@@ -379,6 +380,7 @@ describe("Notifications Round A1 approval pending/result + CAS", () => {
 
     const pendingAfter = await listApprovalNotifications(id, "approval.pending");
     assert.equal(pendingAfter.length, pendingBefore.length);
+    assert.ok(pendingAfter.every((row) => row.isRead === 1));
 
     await assert.rejects(
       () => rejectApprovalRequest(id, admin, "再次拒绝"),

@@ -86,7 +86,12 @@ describe("Notifications Round A1 wiring", () => {
       approve.indexOf("executeApprovedAction") < approve.indexOf("writeAuditLog"),
     );
     assert.ok(
-      approve.indexOf("writeAuditLog") < approve.indexOf("notifyApplicant"),
+      approve.indexOf("writeAuditLog") <
+        approve.indexOf("markApprovalPendingNotificationsReadSafely"),
+    );
+    assert.ok(
+      approve.indexOf("markApprovalPendingNotificationsReadSafely") <
+        approve.indexOf("notifyApplicant"),
     );
 
     const reject = src.slice(
@@ -106,7 +111,12 @@ describe("Notifications Round A1 wiring", () => {
       reject.indexOf("executeRejectedAction") < reject.indexOf("writeAuditLog"),
     );
     assert.ok(
-      reject.indexOf("writeAuditLog") < reject.indexOf("notifyApplicant"),
+      reject.indexOf("writeAuditLog") <
+        reject.indexOf("markApprovalPendingNotificationsReadSafely"),
+    );
+    assert.ok(
+      reject.indexOf("markApprovalPendingNotificationsReadSafely") <
+        reject.indexOf("notifyApplicant"),
     );
   });
 

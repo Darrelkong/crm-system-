@@ -184,6 +184,45 @@ export async function markAllNotificationsRead(
   return unread.length;
 }
 
+function extractNotificationUpdateChanges(result: unknown): number {
+  if (
+    result &&
+    typeof result === "object" &&
+    "meta" in result &&
+    result.meta &&
+    typeof result.meta === "object" &&
+    "changes" in result.meta &&
+    typeof (result.meta as { changes: unknown }).changes === "number"
+  ) {
+    return (result.meta as { changes: number }).changes;
+  }
+  return 0;
+}
+
+/**
+ * Marks all unread approval.pending notifications for one approval as read.
+ * No userId filter — applies to every admin recipient. Idempotent.
+ * Does not return notification content or recipients.
+ */
+export async function markApprovalPendingNotificationsRead(
+  db: Database,
+  approvalId: string,
+): Promise<{ markedReadCount: number }> {
+  const result = await db
+    .update(schema.notifications)
+    .set({ isRead: 1 })
+    .where(
+      and(
+        eq(schema.notifications.type, "approval.pending"),
+        eq(schema.notifications.relatedEntityType, "approval"),
+        eq(schema.notifications.relatedEntityId, approvalId),
+        eq(schema.notifications.isRead, 0),
+      ),
+    );
+
+  return { markedReadCount: extractNotificationUpdateChanges(result) };
+}
+
 export function isRelatedCustomerMissing(
   item: Pick<
     NotificationListItem,
