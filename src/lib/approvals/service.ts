@@ -3,8 +3,12 @@ import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { writeFieldChangeLogEntry } from "@/lib/customers/field-change-log";
-import { createNotification } from "@/lib/notifications/service";
+import {
+  createNotification,
+  createNotificationOnce,
+} from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
+import { logApprovalNotificationFailure } from "./notification-safe";
 import type { Approval } from "../../../drizzle/schema/approvals";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -59,26 +63,61 @@ export class ApprovalError extends Error {
   }
 }
 
+function extractChanges(result: unknown): number | null {
+  if (
+    result &&
+    typeof result === "object" &&
+    "meta" in result &&
+    result.meta &&
+    typeof result.meta === "object" &&
+    "changes" in result.meta &&
+    typeof (result.meta as { changes: unknown }).changes === "number"
+  ) {
+    return (result.meta as { changes: number }).changes;
+  }
+  return null;
+}
+
 async function notifyAdminsPending(
   db: Database,
   approval: Approval,
   customer: Customer,
 ): Promise<void> {
-  const admins = await listActiveAdminUsers();
-
-  for (const admin of admins) {
-    await createNotification(db, {
-      userId: admin.id,
-      type: "approval.pending",
-      titleKey: "notificationTypes.approval_pending",
-      messageKey: "notificationMessages.approvalPendingAdmin",
-      messageParams: {
-        ...customerNameNotificationParams(customer),
-        approvalType: approval.requestType,
-      },
-      relatedEntityType: "approval",
-      relatedEntityId: approval.id,
+  let recipientIds: string[];
+  try {
+    const admins = await listActiveAdminUsers();
+    recipientIds = [...new Set(admins.map((admin) => admin.id))];
+  } catch (error) {
+    logApprovalNotificationFailure({
+      approvalId: approval.id,
+      notificationType: "approval.pending",
+      error,
     });
+    return;
+  }
+
+  for (const recipientUserId of recipientIds) {
+    try {
+      await createNotificationOnce(db, {
+        userId: recipientUserId,
+        type: "approval.pending",
+        titleKey: "notificationTypes.approval_pending",
+        messageKey: "notificationMessages.approvalPendingAdmin",
+        messageParams: {
+          ...customerNameNotificationParams(customer),
+          approvalType: approval.requestType,
+        },
+        relatedEntityType: "approval",
+        relatedEntityId: approval.id,
+      });
+    } catch (error) {
+      logApprovalNotificationFailure({
+        approvalId: approval.id,
+        recipientUserId,
+        notificationType: "approval.pending",
+        error,
+      });
+    }
   }
 }
 
@@ -90,15 +129,24 @@ async function notifyApplicant(
   messageKey: string,
   messageParams: Record<string, string>,
 ): Promise<void> {
-  await createNotification(db, {
-    userId: approval.requestedBy,
-    type,
-    titleKey,
-    messageKey,
-    messageParams,
-    relatedEntityType: "approval",
-    relatedEntityId: approval.id,
-  });
+  try {
+    await createNotificationOnce(db, {
+      userId: approval.requestedBy,
+      type,
+      titleKey,
+      messageKey,
+      messageParams,
+      relatedEntityType: "approval",
+      relatedEntityId: approval.id,
+    });
+  } catch (error) {
+    logApprovalNotificationFailure({
+      approvalId: approval.id,
+      recipientUserId: approval.requestedBy,
+      notificationType: type,
+      error,
+    });
+  }
 }
 
 async function reassignOpenTasks(
@@ -705,7 +753,7 @@ export async function approveApprovalRequest(
 
   const now = new Date().toISOString();
 
-  await db
+  const updateResult = await db
     .update(schema.approvals)
     .set({
       status: "approved",
@@ -714,7 +762,20 @@ export async function approveApprovalRequest(
       reviewedAt: now,
       updatedAt: now,
     })
-    .where(eq(schema.approvals.id, approvalId));
+    .where(
+      and(
+        eq(schema.approvals.id, approvalId),
+        eq(schema.approvals.status, "pending"),
+      ),
+    );
+
+  const changes = extractChanges(updateResult);
+  if (changes === 0) {
+    throw new ApprovalError(409, "该申请已处理，不能重复审批");
+  }
+  if (changes !== null && changes !== 1) {
+    throw new ApprovalError(409, "该申请已处理，不能重复审批");
+  }
 
   await executeApprovedAction(db, approval, customer, reviewer);
 
@@ -777,7 +838,7 @@ export async function rejectApprovalRequest(
 
   const now = new Date().toISOString();
 
-  await db
+  const updateResult = await db
     .update(schema.approvals)
     .set({
       status: "rejected",
@@ -786,7 +847,20 @@ export async function rejectApprovalRequest(
       reviewedAt: now,
       updatedAt: now,
     })
-    .where(eq(schema.approvals.id, approvalId));
+    .where(
+      and(
+        eq(schema.approvals.id, approvalId),
+        eq(schema.approvals.status, "pending"),
+      ),
+    );
+
+  const changes = extractChanges(updateResult);
+  if (changes === 0) {
+    throw new ApprovalError(409, "该申请已处理，不能重复审批");
+  }
+  if (changes !== null && changes !== 1) {
+    throw new ApprovalError(409, "该申请已处理，不能重复审批");
+  }
 
   await executeRejectedAction(db, approval, customer, reviewer, adminComment);
 

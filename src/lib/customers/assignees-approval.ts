@@ -27,9 +27,10 @@ import {
   PermissionError,
 } from "@/lib/permissions/customers";
 import { findPendingApproval } from "@/lib/approvals/queries";
-import { createNotification } from "@/lib/notifications/service";
+import { createNotificationOnce } from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
 import { listActiveAdminUsers } from "@/lib/users/queries";
+import { logApprovalNotificationFailure } from "@/lib/approvals/notification-safe";
 import { APPROVAL_AUDIT_ACTIONS } from "@/lib/approvals/constants";
 import { getUserById } from "@/lib/users/queries";
 
@@ -129,20 +130,41 @@ async function notifyAdminsAssigneePending(
   approvalId: string,
   customer: Customer,
 ): Promise<void> {
-  const admins = await listActiveAdminUsers();
-  for (const admin of admins) {
-    await createNotification(db, {
-      userId: admin.id,
-      type: "approval.pending",
-      titleKey: "notificationTypes.approval_pending",
-      messageKey: "notificationMessages.approvalPendingAdmin",
-      messageParams: {
-        ...customerNameNotificationParams(customer),
-        approvalType: "update_customer_assignees",
-      },
-      relatedEntityType: "approval",
-      relatedEntityId: approvalId,
+  let recipientIds: string[];
+  try {
+    const admins = await listActiveAdminUsers();
+    recipientIds = [...new Set(admins.map((admin) => admin.id))];
+  } catch (error) {
+    logApprovalNotificationFailure({
+      approvalId,
+      notificationType: "approval.pending",
+      error,
     });
+    return;
+  }
+
+  for (const recipientUserId of recipientIds) {
+    try {
+      await createNotificationOnce(db, {
+        userId: recipientUserId,
+        type: "approval.pending",
+        titleKey: "notificationTypes.approval_pending",
+        messageKey: "notificationMessages.approvalPendingAdmin",
+        messageParams: {
+          ...customerNameNotificationParams(customer),
+          approvalType: "update_customer_assignees",
+        },
+        relatedEntityType: "approval",
+        relatedEntityId: approvalId,
+      });
+    } catch (error) {
+      logApprovalNotificationFailure({
+        approvalId,
+        recipientUserId,
+        notificationType: "approval.pending",
+        error,
+      });
+    }
   }
 }
 

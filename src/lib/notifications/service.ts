@@ -1,3 +1,4 @@
+import { and, asc, eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { NotificationType } from "../../../drizzle/schema/notifications";
@@ -17,6 +18,23 @@ type CreateNotificationInput = {
   messageParams?: Record<string, string>;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
+};
+
+export type CreateEntityNotificationOnceInput = {
+  userId: string;
+  type: NotificationType;
+  relatedEntityType: string;
+  relatedEntityId: string;
+  title?: string;
+  message?: string;
+  titleKey?: string;
+  messageKey?: string;
+  messageParams?: Record<string, string>;
+};
+
+export type CreateNotificationOnceResult = {
+  id: string;
+  created: boolean;
 };
 
 export async function createNotification(
@@ -49,4 +67,53 @@ export async function createNotification(
   });
 
   return id;
+}
+
+/**
+ * Application-layer natural-key dedup for notifications that have a full
+ * entity identity (relatedEntityType + relatedEntityId both required).
+ *
+ * Natural key: userId + type + relatedEntityType + relatedEntityId.
+ * Does not use title/message/isRead/createdAt. Does not mutate existing rows.
+ * SELECT+INSERT still has a tiny race window; DB unique is deferred to A2.
+ */
+export async function createNotificationOnce(
+  db: Database,
+  input: CreateEntityNotificationOnceInput,
+): Promise<CreateNotificationOnceResult> {
+  const existing = await db
+    .select({ id: schema.notifications.id })
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.userId, input.userId),
+        eq(schema.notifications.type, input.type),
+        eq(schema.notifications.relatedEntityType, input.relatedEntityType),
+        eq(schema.notifications.relatedEntityId, input.relatedEntityId),
+      ),
+    )
+    .orderBy(
+      asc(schema.notifications.createdAt),
+      asc(schema.notifications.id),
+    )
+    .limit(1);
+
+  const existingId = existing[0]?.id;
+  if (existingId) {
+    return { id: existingId, created: false };
+  }
+
+  const id = await createNotification(db, {
+    userId: input.userId,
+    type: input.type,
+    title: input.title,
+    message: input.message,
+    titleKey: input.titleKey,
+    messageKey: input.messageKey,
+    messageParams: input.messageParams,
+    relatedEntityType: input.relatedEntityType,
+    relatedEntityId: input.relatedEntityId,
+  });
+
+  return { id, created: true };
 }
