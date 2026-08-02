@@ -123,6 +123,10 @@ describe("tasks Round B1-B lifecycle cancel wiring", () => {
       src,
       /Cancel open tasks before DELETE[\s\S]*?buildCancelOpenTasksForCustomerStatement/,
     );
+    assert.match(
+      src,
+      /buildMarkApprovalNotificationsReadForCustomerStatement[\s\S]*?\.delete\(schema\.approvals\)[\s\S]*?buildCancelOpenTasksForCustomerStatement/,
+    );
   });
 
   it("auto reclaim keeps previousOwner + follow_up/first_contact scope", () => {

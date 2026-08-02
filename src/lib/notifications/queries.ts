@@ -223,6 +223,35 @@ export async function markApprovalPendingNotificationsRead(
   return { markedReadCount: extractNotificationUpdateChanges(result) };
 }
 
+/**
+ * Single-statement mark-read for all unread approval-related notifications
+ * whose relatedEntityId belongs to approvals of the given customer.
+ * Intended for permanent-delete db.batch before DELETE approvals.
+ * No recipient filter — all recipients and approval-related types. Idempotent.
+ * Returns a statement only; does not execute or return content.
+ */
+export function buildMarkApprovalNotificationsReadForCustomerStatement(
+  db: Database,
+  customerId: string,
+) {
+  return db
+    .update(schema.notifications)
+    .set({ isRead: 1 })
+    .where(
+      and(
+        eq(schema.notifications.isRead, 0),
+        eq(schema.notifications.relatedEntityType, "approval"),
+        inArray(
+          schema.notifications.relatedEntityId,
+          db
+            .select({ id: schema.approvals.id })
+            .from(schema.approvals)
+            .where(eq(schema.approvals.customerId, customerId)),
+        ),
+      ),
+    );
+}
+
 export function isRelatedCustomerMissing(
   item: Pick<
     NotificationListItem,

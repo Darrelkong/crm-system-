@@ -19,7 +19,9 @@ describe("Notifications Round B1 pending lifecycle wiring", () => {
     const src = read("src/lib/notifications/queries.ts");
     const fn = src.slice(
       src.indexOf("export async function markApprovalPendingNotificationsRead"),
-      src.indexOf("export function isRelatedCustomerMissing"),
+      src.indexOf(
+        "export function buildMarkApprovalNotificationsReadForCustomerStatement",
+      ),
     );
     assert.match(fn, /eq\(schema\.notifications\.type,\s*"approval\.pending"\)/);
     assert.match(

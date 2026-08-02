@@ -9,6 +9,7 @@ import {
 } from "@/lib/recycle-bin/constants";
 import { computeRemainingRetentionDays } from "@/lib/recycle-bin/queries";
 import type { ExpiredRecycleBinPreviewResult } from "@/lib/recycle-bin/types";
+import { buildMarkApprovalNotificationsReadForCustomerStatement } from "@/lib/notifications/queries";
 import { buildCancelOpenTasksForCustomerStatement } from "@/lib/tasks/lifecycle";
 import { getUserById } from "@/lib/users/queries";
 import type { Customer, CustomerStatus } from "../../../drizzle/schema/customers";
@@ -171,6 +172,8 @@ async function executePermanentDeleteInBatch(
   );
 
   const batchStatements = [
+    // Mark unread approval notifications read before DELETE approvals (same batch).
+    buildMarkApprovalNotificationsReadForCustomerStatement(db, customer.id),
     db
       .delete(schema.approvals)
       .where(eq(schema.approvals.customerId, customer.id)),
