@@ -20,6 +20,11 @@ type CreateNotificationInput = {
   relatedEntityId?: string | null;
 };
 
+export type BuildCreateNotificationStatementInput = CreateNotificationInput & {
+  id: string;
+  createdAt: string;
+};
+
 export type CreateEntityNotificationOnceInput = {
   userId: string;
   type: NotificationType;
@@ -37,35 +42,52 @@ export type CreateNotificationOnceResult = {
   created: boolean;
 };
 
+function resolveNotificationTitle(input: CreateNotificationInput): string {
+  if (input.titleKey != null) {
+    return storeNotificationTitle(input.titleKey);
+  }
+  return input.title ?? storeNotificationTitle(notificationTypeToTitleKey(input.type));
+}
+
+function resolveNotificationMessage(input: CreateNotificationInput): string {
+  if (input.messageKey != null) {
+    return storeNotificationMessage(input.messageKey, input.messageParams);
+  }
+  return input.message ?? "";
+}
+
+/**
+ * Returns a single notifications INSERT statement for use inside db.batch.
+ * Does not execute. Callers must supply id and createdAt.
+ */
+export function buildCreateNotificationStatement(
+  db: Database,
+  input: BuildCreateNotificationStatementInput,
+) {
+  return db.insert(schema.notifications).values({
+    id: input.id,
+    userId: input.userId,
+    type: input.type,
+    title: resolveNotificationTitle(input),
+    message: resolveNotificationMessage(input),
+    relatedEntityType: input.relatedEntityType ?? null,
+    relatedEntityId: input.relatedEntityId ?? null,
+    isRead: 0,
+    createdAt: input.createdAt,
+  });
+}
+
 export async function createNotification(
   db: Database,
   input: CreateNotificationInput,
 ): Promise<string> {
   const id = crypto.randomUUID();
-  const now = new Date().toISOString();
-
-  const title =
-    input.titleKey != null
-      ? storeNotificationTitle(input.titleKey)
-      : input.title ?? storeNotificationTitle(notificationTypeToTitleKey(input.type));
-
-  const message =
-    input.messageKey != null
-      ? storeNotificationMessage(input.messageKey, input.messageParams)
-      : (input.message ?? "");
-
-  await db.insert(schema.notifications).values({
+  const createdAt = new Date().toISOString();
+  await buildCreateNotificationStatement(db, {
+    ...input,
     id,
-    userId: input.userId,
-    type: input.type,
-    title,
-    message,
-    relatedEntityType: input.relatedEntityType ?? null,
-    relatedEntityId: input.relatedEntityId ?? null,
-    isRead: 0,
-    createdAt: now,
+    createdAt,
   });
-
   return id;
 }
 

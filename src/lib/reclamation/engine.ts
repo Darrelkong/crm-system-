@@ -2,7 +2,7 @@ import { and, eq, gte, inArray, isNotNull, notInArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
-import { createNotification } from "@/lib/notifications/service";
+import { buildCreateNotificationStatement, createNotification } from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
 import type { Customer } from "../../../drizzle/schema/customers";
 import {
@@ -22,6 +22,7 @@ import {
 } from "@/lib/settings/effective";
 import { getCollaborativeCustomerIds } from "./collaborative";
 import { countCustomerAssignees } from "@/lib/public-pool/assignee-sync";
+import { isReclamationWarningLogUniqueConflictError } from "./warning-log-unique";
 
 export type ReclamationRunResult = {
   /** Pre-reclaim warnings sent this run (single-warning model, E-4b). */
@@ -150,25 +151,26 @@ async function sendReclaimWarning(
     return false;
   }
 
-  // DB UNIQUE(customer_id, warning_type, warning_date) also guards against
-  // same-day duplicates if two cron runs race.
-  try {
-    await db.insert(schema.reclamationWarningLogs).values({
-      id: crypto.randomUUID(),
-      customerId: customer.id,
-      warningType: RECLAIM_WARNING_LOG_TYPE,
-      warningDate,
-      ownerId: customer.ownerId,
-      createdAt: new Date().toISOString(),
-    });
-  } catch {
-    return false;
-  }
+  const createdAt = new Date().toISOString();
+  const warningLogId = crypto.randomUUID();
+  const notificationId = crypto.randomUUID();
+  const ownerId = customer.ownerId;
 
-  const metadata = buildAuditMetadata(customer, days);
-
-  await createNotification(db, {
-    userId: customer.ownerId,
+  // UNIQUE(customer_id, warning_type, warning_date) guards same-day races.
+  // Log + notification share one batch so a notification failure cannot leave
+  // a cycle-blocking warning log without a delivered notification.
+  const warningLogStatement = db.insert(schema.reclamationWarningLogs).values({
+    id: warningLogId,
+    customerId: customer.id,
+    warningType: RECLAIM_WARNING_LOG_TYPE,
+    warningDate,
+    ownerId,
+    createdAt,
+  });
+  const notificationStatement = buildCreateNotificationStatement(db, {
+    id: notificationId,
+    createdAt,
+    userId: ownerId,
     type: "auto_reclaim_warning_day_6",
     titleKey: "notificationTypes.auto_reclaim_warning_day_6",
     messageKey: "notificationMessages.autoReclaimWarning",
@@ -181,6 +183,21 @@ async function sendReclaimWarning(
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
   });
+
+  try {
+    await db.batch(
+      [warningLogStatement, notificationStatement] as unknown as Parameters<
+        Database["batch"]
+      >[0],
+    );
+  } catch (error) {
+    if (isReclamationWarningLogUniqueConflictError(error)) {
+      return false;
+    }
+    throw error;
+  }
+
+  const metadata = buildAuditMetadata(customer, days);
 
   await writeAuditLog(
     {
