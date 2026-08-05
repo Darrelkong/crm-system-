@@ -320,7 +320,8 @@ describe("auto reclaim lifecycle atomicity wiring", () => {
     assert.match(warnFn, /db\.batch\(/);
     assert.match(warnFn, /buildCreateNotificationStatement/);
     assert.match(warnFn, /isReclamationWarningLogUniqueConflictError/);
-    assert.match(engine, /getReclamationWarningMilestone/);
+    assert.match(engine, /resolveNextWarningMilestone/);
+    assert.match(engine, /getSentWarningMilestonesInCycle/);
     assert.doesNotMatch(
       read("src/lib/reclamation/collaborative-dry-run.ts"),
       /db\.batch|autoReclaimCustomer|createNotification/,

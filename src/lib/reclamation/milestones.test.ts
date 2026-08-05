@@ -19,54 +19,86 @@ describe("reclamation milestones", () => {
     assert.deepEqual(getPeriodicWarningMilestones(8), []);
   });
 
-  it("sends first periodic warning at day 7", () => {
-    assert.equal(
-      resolveNextWarningMilestone(7, reclaimDays, new Set()),
-      7,
-    );
+  it("day 8 with no sent milestones sends day 7", () => {
+    assert.equal(resolveNextWarningMilestone(8, reclaimDays, new Set()), 7);
   });
 
-  it("catches up day-7 warning on day 8 when missed", () => {
-    assert.equal(
-      resolveNextWarningMilestone(8, reclaimDays, new Set()),
-      7,
-    );
+  it("day 15 with no sent milestones sends day 14 directly", () => {
+    assert.equal(resolveNextWarningMilestone(15, reclaimDays, new Set()), 14);
   });
 
-  it("sends day-14 warning on day 14", () => {
-    assert.equal(
-      resolveNextWarningMilestone(14, reclaimDays, new Set([7])),
-      14,
-    );
-  });
-
-  it("catches up day-14 warning on day 15 when day 7 already sent", () => {
+  it("day 15 after day 7 sent sends day 14", () => {
     assert.equal(
       resolveNextWarningMilestone(15, reclaimDays, new Set([7])),
       14,
     );
   });
 
-  it("does not send multiple periodic milestones in one run", () => {
+  it("day 22 with no sent milestones sends day 21 directly", () => {
+    assert.equal(resolveNextWarningMilestone(22, reclaimDays, new Set()), 21);
+  });
+
+  it("day 22 after only day 7 sent sends day 21 directly", () => {
     assert.equal(
-      resolveNextWarningMilestone(21, reclaimDays, new Set()),
-      7,
-    );
-    assert.equal(
-      resolveNextWarningMilestone(21, reclaimDays, new Set([7])),
-      14,
-    );
-    assert.equal(
-      resolveNextWarningMilestone(21, reclaimDays, new Set([7, 14])),
+      resolveNextWarningMilestone(22, reclaimDays, new Set([7])),
       21,
     );
   });
 
-  it("does not repeat an already-sent periodic milestone", () => {
+  it("day 22 after day 14 sent sends day 21", () => {
+    assert.equal(
+      resolveNextWarningMilestone(22, reclaimDays, new Set([14])),
+      21,
+    );
+  });
+
+  it("day 22 after day 21 sent sends nothing", () => {
+    assert.equal(
+      resolveNextWarningMilestone(22, reclaimDays, new Set([21])),
+      null,
+    );
+  });
+
+  it("day 22 after day 21 sent does not backfill day 7 or 14", () => {
+    assert.equal(
+      resolveNextWarningMilestone(22, reclaimDays, new Set([21])),
+      null,
+    );
+  });
+
+  it("day 36 after only day 7 sent sends day 35 directly", () => {
+    assert.equal(
+      resolveNextWarningMilestone(36, reclaimDays, new Set([7])),
+      35,
+    );
+  });
+
+  it("does not repeat an already-sent highest applicable milestone", () => {
     assert.equal(
       resolveNextWarningMilestone(8, reclaimDays, new Set([7])),
       null,
     );
+    assert.equal(
+      resolveNextWarningMilestone(15, reclaimDays, new Set([14])),
+      null,
+    );
+  });
+
+  it("sends at most one periodic milestone per run", () => {
+    const milestone = resolveNextWarningMilestone(28, reclaimDays, new Set());
+    assert.equal(milestone, 28);
+    assert.notEqual(milestone, 7);
+    assert.notEqual(milestone, 14);
+    assert.notEqual(milestone, 21);
+  });
+
+  it("new cycle with empty sent set recalculates from highest applicable node", () => {
+    const oldCycleSent = new Set([7, 14, 21]);
+    assert.equal(
+      resolveNextWarningMilestone(22, reclaimDays, oldCycleSent),
+      null,
+    );
+    assert.equal(resolveNextWarningMilestone(22, reclaimDays, new Set()), 21);
   });
 
   it("final warning window spans the last business day before reclaim", () => {
@@ -92,11 +124,19 @@ describe("reclamation milestones", () => {
       resolveNextWarningMilestone(44, reclaimDays, new Set([7])),
       44,
     );
+    assert.equal(
+      resolveNextWarningMilestone(44, reclaimDays, new Set([7, 14, 21, 28, 35, 42])),
+      44,
+    );
   });
 
-  it("does not backfill final warning after reclaim threshold", () => {
+  it("does not backfill warnings after reclaim threshold", () => {
     assert.equal(
       resolveNextWarningMilestone(46, reclaimDays, new Set()),
+      null,
+    );
+    assert.equal(
+      resolveNextWarningMilestone(45, reclaimDays, new Set()),
       null,
     );
   });

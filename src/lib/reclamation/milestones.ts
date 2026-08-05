@@ -23,7 +23,7 @@ export function isInFinalWarningWindow(
 /**
  * Returns the next milestone to warn at for this run, or null.
  * - Final window takes priority over periodic milestones.
- * - Periodic: lowest reached milestone not yet sent (one catch-up per run).
+ * - Periodic: highest reached milestone not yet sent (skip stale earlier nodes).
  */
 export function resolveNextWarningMilestone(
   idleDays: number,
@@ -39,13 +39,21 @@ export function resolveNextWarningMilestone(
     return sentMilestones.has(finalMilestone) ? null : finalMilestone;
   }
 
-  for (const milestone of getPeriodicWarningMilestones(reclaimDays)) {
-    if (idleDays >= milestone && !sentMilestones.has(milestone)) {
-      return milestone;
+  const periodic = getPeriodicWarningMilestones(reclaimDays);
+  let highestApplicable: number | null = null;
+  for (const milestone of periodic) {
+    if (milestone <= idleDays) {
+      highestApplicable = milestone;
+    } else {
+      break;
     }
   }
 
-  return null;
+  if (highestApplicable === null) {
+    return null;
+  }
+
+  return sentMilestones.has(highestApplicable) ? null : highestApplicable;
 }
 
 /** @deprecated Use resolveNextWarningMilestone with sent-milestone set. */
