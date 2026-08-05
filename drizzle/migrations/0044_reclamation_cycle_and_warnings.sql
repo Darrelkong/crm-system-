@@ -12,3 +12,9 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_reclamation_warning_cycle_milestone ON rec
   cycle_started_at,
   warning_milestone
 );
+
+-- Legacy default timezone alias → unified Hong Kong business timezone.
+UPDATE system_settings
+SET value = 'Asia/Hong_Kong'
+WHERE key = 'business_timezone'
+  AND value = 'Asia/Shanghai';

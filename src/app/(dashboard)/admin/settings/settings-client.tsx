@@ -160,7 +160,7 @@ function SettingsSectionCard({
                       value={settings[key] ?? ""}
                       onChange={(e) => onChange(key, e.target.value)}
                     >
-                      <option value="Asia/Shanghai">Asia/Shanghai</option>
+                      <option value="Asia/Hong_Kong">Asia/Hong_Kong</option>
                       <option value="UTC">UTC</option>
                     </Select>
                   ) : key === "inactivity_logout_minutes" ? (

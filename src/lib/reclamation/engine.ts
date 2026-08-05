@@ -30,9 +30,9 @@ import {
 import {
   buildReclaimTimelineMessage,
   buildWarningTimelineMessage,
-  getReclamationWarningMilestone,
   isFinalReclamationWarning,
   notificationTypeForMilestone,
+  resolveNextWarningMilestone,
   warningTypeForMilestone,
 } from "./milestones";
 import {
@@ -142,6 +142,35 @@ async function writeCancelledTaskAuditsBestEffort(
       });
     }
   }
+}
+
+/**
+ * Per-cycle milestone dedup: one warning per (cycle anchor, milestone).
+ */
+async function getSentWarningMilestonesInCycle(
+  db: Database,
+  customerId: string,
+  cycleStartedAt: string,
+): Promise<Set<number>> {
+  const rows = await db
+    .select({
+      warningMilestone: schema.reclamationWarningLogs.warningMilestone,
+    })
+    .from(schema.reclamationWarningLogs)
+    .where(
+      and(
+        eq(schema.reclamationWarningLogs.customerId, customerId),
+        eq(schema.reclamationWarningLogs.cycleStartedAt, cycleStartedAt),
+      ),
+    );
+
+  const sent = new Set<number>();
+  for (const row of rows) {
+    if (row.warningMilestone != null) {
+      sent.add(row.warningMilestone);
+    }
+  }
+  return sent;
 }
 
 /**
@@ -518,7 +547,17 @@ export async function runReclamationCheck(
       continue;
     }
 
-    const milestone = getReclamationWarningMilestone(days, reclaimDays);
+    const cycleStartedAt = getReclamationCycleStartedAt(customer);
+    const sentMilestones = await getSentWarningMilestonesInCycle(
+      db,
+      customer.id,
+      cycleStartedAt,
+    );
+    const milestone = resolveNextWarningMilestone(
+      days,
+      reclaimDays,
+      sentMilestones,
+    );
     if (milestone !== null) {
       const warned = await sendReclaimWarning(
         db,

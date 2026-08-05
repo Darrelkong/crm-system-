@@ -42,10 +42,20 @@ describe("settings UI sections", () => {
     const keys = getSectionKeys("reclaimPublicPool");
     assert.deepEqual(keys, [
       "automatic_reclaim_days",
-      "reclaim_warning_days_before",
       "public_pool_claim_quota_7_days",
       "public_pool_claim_cooldown_hours",
     ]);
+  });
+
+  it("reclaim_warning_days_before is not editable in admin UI", () => {
+    const editable = getEditableSettingKeys();
+    assert.equal(editable.includes("reclaim_warning_days_before"), false);
+    const payload = buildSettingsSavePayload({
+      reclaim_warning_days_before: "3",
+      automatic_reclaim_days: "45",
+    });
+    assert.equal(payload.reclaim_warning_days_before, undefined);
+    assert.equal(payload.automatic_reclaim_days, "45");
   });
 
   it("device keys are in the security section", () => {

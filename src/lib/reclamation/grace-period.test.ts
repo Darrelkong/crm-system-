@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { Customer } from "../../../drizzle/schema/customers";
 import { getDaysWithoutValidFollowUp } from "./days";
 import { RECLAIM_RULE_SHORTENING_GRACE_HOURS } from "./grace-period";
+import { isReclaimGraceActive } from "./cycle";
 
 function buildCustomer(
   idleDays: number,
@@ -89,5 +90,23 @@ describe("rule shortening grace eligibility (unit)", () => {
     const customer = buildCustomer(45, now);
     assert.equal(getDaysWithoutValidFollowUp(customer, now), 45);
     assert.equal(customer.reclaimRuleGraceUntil, null);
+  });
+
+  it("active grace blocks reclaim eligibility check", () => {
+    const customer = buildCustomer(50, now, {
+      reclaimRuleGraceUntil: new Date(
+        now.getTime() + 12 * 60 * 60 * 1000,
+      ).toISOString(),
+    });
+    assert.equal(isReclaimGraceActive(customer, now), true);
+  });
+
+  it("expired grace does not block reclaim", () => {
+    const customer = buildCustomer(50, now, {
+      reclaimRuleGraceUntil: new Date(
+        now.getTime() - 60_000,
+      ).toISOString(),
+    });
+    assert.equal(isReclaimGraceActive(customer, now), false);
   });
 });

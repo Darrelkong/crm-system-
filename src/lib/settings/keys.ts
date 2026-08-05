@@ -59,7 +59,7 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   public_pool_claim_cooldown_hours: "12",
   first_contact_sla_hours: "24",
   inactivity_logout_minutes: String(INACTIVITY_LOGOUT_MINUTES),
-  business_timezone: "Asia/Shanghai",
+  business_timezone: "Asia/Hong_Kong",
   device_authorization_enabled: "false",
   device_authorization_limit_per_user: "2",
   collaborative_dissolution_enabled: "false",
@@ -90,6 +90,8 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
 export const HIDDEN_SETTING_KEYS = [
   "reclaim_warning_day_1",
   "reclaim_warning_day_2",
+  /** Milestone warnings are fixed every 7 days; no longer admin-configurable. */
+  "reclaim_warning_days_before",
   /** Phase 1A: no Admin Switch yet; mutate via dedicated API only. */
   "global_idle_timeout_exempt_enabled",
 ] as const satisfies readonly SettingKey[];
@@ -98,4 +100,7 @@ export function isHiddenSettingKey(key: string): boolean {
   return (HIDDEN_SETTING_KEYS as readonly string[]).includes(key);
 }
 
-export const ALLOWED_TIMEZONES = ["Asia/Shanghai", "UTC"] as const;
+export const ALLOWED_TIMEZONES = ["Asia/Hong_Kong", "UTC"] as const;
+
+/** Legacy stored value; normalized to Asia/Hong_Kong on read. */
+export const LEGACY_BUSINESS_TIMEZONE_ALIASES = ["Asia/Shanghai"] as const;

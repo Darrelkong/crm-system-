@@ -282,7 +282,7 @@ describe("reclaim warning delivery hardening wiring", () => {
     );
 
     const engine = read("src/lib/reclamation/engine.ts");
-    assert.match(engine, /getReclamationWarningMilestone/);
+    assert.match(engine, /resolveNextWarningMilestone/);
     assert.doesNotMatch(
       engine.slice(engine.indexOf("export async function runReclamationCheck")),
       /reclaimWarningThresholdDays/,
@@ -426,6 +426,24 @@ describe("reclaim warning delivery hardening DB", () => {
       ).length,
       1,
     );
+  });
+
+  it("catches up missed day-7 warning when cron runs on day 8", async () => {
+    await deleteTestData();
+    await db
+      .insert(schema.customers)
+      .values(makeWarningCustomer(WARNING_TEST_ID, 8));
+    await isolateOtherEligibleCustomers([WARNING_TEST_ID]);
+
+    const result = await runReclamationCheck(db, FIXED_NOW);
+    assert.equal(result.warningsCount, 1);
+
+    const logs = await db
+      .select()
+      .from(schema.reclamationWarningLogs)
+      .where(eq(schema.reclamationWarningLogs.customerId, WARNING_TEST_ID));
+    assert.equal(logs.length, 1);
+    assert.equal(logs[0]?.warningMilestone, 7);
   });
 
   it("new valid follow-up starts a new cycle that can warn again", async () => {

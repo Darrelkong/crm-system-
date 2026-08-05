@@ -4,16 +4,33 @@
  */
 
 function errorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "string") return error;
-  return String(error ?? "");
+  const parts: string[] = [];
+  let current: unknown = error;
+  let depth = 0;
+  while (current != null && depth < 4) {
+    if (current instanceof Error) {
+      parts.push(current.message);
+      current = current.cause;
+    } else if (typeof current === "string") {
+      parts.push(current);
+      break;
+    } else {
+      parts.push(String(current));
+      break;
+    }
+    depth += 1;
+  }
+  return parts.join(" ");
 }
 
 export function isReclamationWarningLogUniqueConflictError(
   error: unknown,
 ): boolean {
   const lower = errorMessage(error).toLowerCase();
-  if (!lower.includes("unique constraint failed")) {
+  if (
+    !lower.includes("unique constraint failed") &&
+    !lower.includes("sqlite_constraint_unique")
+  ) {
     return false;
   }
 

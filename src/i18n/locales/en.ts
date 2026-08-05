@@ -2182,7 +2182,7 @@ const en = {
       reclaimPublicPool: {
         title: "Public pool & auto-reclaim",
         description:
-          "Single-owner customers without valid follow-up are reclaimed to the public pool after the configured days, with a pre-reclaim warning. Collaborative customers with assignees are not directly released by ordinary auto-reclaim.",
+          "Single-owner customers without valid follow-up are reclaimed to the public pool after the configured days, with periodic warnings. Warnings are sent automatically every 7 idle days; no separate warning-day setting is required. Collaborative customers with assignees are not directly released by ordinary auto-reclaim.",
       },
       customerRules: {
         title: "Customer management rules",

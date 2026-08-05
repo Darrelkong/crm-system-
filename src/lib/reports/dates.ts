@@ -84,6 +84,27 @@ export function getBusinessDateYmd(
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+/** Whole-day index for calendar-day arithmetic in a business timezone. */
+export function getBusinessCalendarDayIndex(
+  instant: Date,
+  timezone: ReportsTimezone = HONG_KONG_TIMEZONE,
+): number {
+  const { year, month, day } = getDatePartsForTimezone(instant, timezone);
+  return Math.floor(Date.UTC(year, month - 1, day) / 86_400_000);
+}
+
+/** Inclusive calendar-day difference: `to` minus `from` in the business timezone. */
+export function getBusinessCalendarDayDifference(
+  from: Date,
+  to: Date,
+  timezone: ReportsTimezone = HONG_KONG_TIMEZONE,
+): number {
+  return (
+    getBusinessCalendarDayIndex(to, timezone) -
+    getBusinessCalendarDayIndex(from, timezone)
+  );
+}
+
 /** Calendar week (Monday–Sunday) in the configured timezone: Monday 00:00 inclusive, next Monday exclusive. */
 export function getBusinessWeekRange(
   now: Date = new Date(),

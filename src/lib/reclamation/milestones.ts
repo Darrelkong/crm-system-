@@ -2,25 +2,58 @@
  * Milestone-based auto-reclaim warnings (every 7 idle days + final 1-day warning).
  */
 
-/** Returns milestone idle-day count to warn at, or null if no warning today. */
-export function getReclamationWarningMilestone(
+/** Periodic warning nodes: 7, 14, 21, … strictly before the final milestone. */
+export function getPeriodicWarningMilestones(reclaimDays: number): number[] {
+  const finalMilestone = reclaimDays - 1;
+  const milestones: number[] = [];
+  for (let day = 7; day < finalMilestone; day += 7) {
+    milestones.push(day);
+  }
+  return milestones;
+}
+
+/** Final urgent warning window: last business day before reclaim. */
+export function isInFinalWarningWindow(
   idleDays: number,
   reclaimDays: number,
+): boolean {
+  return idleDays >= reclaimDays - 1 && idleDays < reclaimDays;
+}
+
+/**
+ * Returns the next milestone to warn at for this run, or null.
+ * - Final window takes priority over periodic milestones.
+ * - Periodic: lowest reached milestone not yet sent (one catch-up per run).
+ */
+export function resolveNextWarningMilestone(
+  idleDays: number,
+  reclaimDays: number,
+  sentMilestones: ReadonlySet<number>,
 ): number | null {
   if (idleDays <= 0 || idleDays >= reclaimDays) {
     return null;
   }
 
   const finalMilestone = reclaimDays - 1;
-  if (idleDays === finalMilestone) {
-    return finalMilestone;
+  if (isInFinalWarningWindow(idleDays, reclaimDays)) {
+    return sentMilestones.has(finalMilestone) ? null : finalMilestone;
   }
 
-  if (idleDays % 7 === 0 && idleDays < finalMilestone) {
-    return idleDays;
+  for (const milestone of getPeriodicWarningMilestones(reclaimDays)) {
+    if (idleDays >= milestone && !sentMilestones.has(milestone)) {
+      return milestone;
+    }
   }
 
   return null;
+}
+
+/** @deprecated Use resolveNextWarningMilestone with sent-milestone set. */
+export function getReclamationWarningMilestone(
+  idleDays: number,
+  reclaimDays: number,
+): number | null {
+  return resolveNextWarningMilestone(idleDays, reclaimDays, new Set());
 }
 
 /** 1-based sequence for periodic warnings (7→1, 14→2, …). Final milestone returns 0. */

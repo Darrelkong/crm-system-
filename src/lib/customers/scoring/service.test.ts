@@ -43,7 +43,7 @@ const DEFAULT_SETTINGS: EffectiveSettings = {
     SETTING_DEFAULTS.public_pool_claim_cooldown_hours,
   ),
   firstContactSlaHours: Number(SETTING_DEFAULTS.first_contact_sla_hours),
-  businessTimezone: "Asia/Shanghai",
+  businessTimezone: "Asia/Hong_Kong",
   inactivityLogoutMinutes: Number(SETTING_DEFAULTS.inactivity_logout_minutes),
 };
 

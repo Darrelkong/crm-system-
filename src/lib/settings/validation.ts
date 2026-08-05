@@ -1,5 +1,6 @@
 import {
   ALLOWED_TIMEZONES,
+  LEGACY_BUSINESS_TIMEZONE_ALIASES,
   SETTING_KEYS,
   type SettingKey,
 } from "@/lib/settings/keys";
@@ -25,8 +26,11 @@ export function validateSettingValue(
   }
 
   if (key === "business_timezone") {
-    if (!(ALLOWED_TIMEZONES as readonly string[]).includes(value)) {
-      return "时区仅允许 Asia/Shanghai 或 UTC";
+    if (
+      !(ALLOWED_TIMEZONES as readonly string[]).includes(value) &&
+      !(LEGACY_BUSINESS_TIMEZONE_ALIASES as readonly string[]).includes(value)
+    ) {
+      return "时区仅允许 Asia/Hong_Kong 或 UTC";
     }
     return null;
   }
@@ -83,9 +87,12 @@ export function validateSettingsConsistency(
   if (
     !(ALLOWED_TIMEZONES as readonly string[]).includes(
       settings.business_timezone,
+    ) &&
+    !(LEGACY_BUSINESS_TIMEZONE_ALIASES as readonly string[]).includes(
+      settings.business_timezone,
     )
   ) {
-    return "business_timezone 只能是 Asia/Shanghai 或 UTC";
+    return "business_timezone 只能是 Asia/Hong_Kong 或 UTC";
   }
 
   return null;

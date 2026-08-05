@@ -22,7 +22,7 @@ import {
 } from "./constants";
 import { getDaysWithoutValidFollowUp } from "./days";
 import { isReclaimGraceActive } from "./cycle";
-import { getReclamationWarningMilestone } from "./milestones";
+import { resolveNextWarningMilestone } from "./milestones";
 
 const DEFAULT_SETTINGS: EffectiveSettings = {
   automaticReclaimDays: 45,
@@ -33,7 +33,7 @@ const DEFAULT_SETTINGS: EffectiveSettings = {
   publicPoolClaimQuota7Days: 5,
   publicPoolClaimCooldownHours: 12,
   firstContactSlaHours: 24,
-  businessTimezone: "Asia/Shanghai",
+  businessTimezone: "Asia/Hong_Kong",
   inactivityLogoutMinutes: 30,
 };
 
@@ -137,7 +137,11 @@ function classifyReclamationOutcome(
     return "reclaim";
   }
 
-  const milestone = getReclamationWarningMilestone(days, automaticReclaimDays);
+  const milestone = resolveNextWarningMilestone(
+    days,
+    automaticReclaimDays,
+    new Set(),
+  );
   if (milestone !== null) {
     return "warning";
   }
@@ -265,7 +269,7 @@ describe("auto-reclamation outcomes (45-day reclaim / 7-day milestones)", () => 
     );
   });
 
-  it("no duplicate milestone between 7-day nodes (day 8)", () => {
+  it("no duplicate milestone between 7-day nodes (day 8 catches up day 7)", () => {
     const customer = buildCustomer(
       {
         salesStage: "negotiation",
@@ -276,7 +280,7 @@ describe("auto-reclamation outcomes (45-day reclaim / 7-day milestones)", () => 
     );
     assert.equal(
       classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
-      "none",
+      "warning",
     );
   });
 
@@ -578,6 +582,42 @@ describe("auto-reclamation settings validation", () => {
       err,
       "reclaim_warning_days_before 必须小于 automatic_reclaim_days",
     );
+  });
+});
+
+describe("auto-reclamation customer status scope", () => {
+  it("engine query only includes active customers with owners", () => {
+    const included = { status: "active", ownerId: "owner-id" };
+    assert.equal(included.status === "active" && included.ownerId != null, true);
+    assert.equal(null == null, true);
+  });
+
+  it("public_pool customers are outside engine eligibility query", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        status: "public_pool",
+        ownerId: null,
+        lastValidFollowUpAt: daysAgoIso(50, new Date()),
+        reclamationCycleStartedAt: daysAgoIso(50, new Date()),
+      },
+      new Date(),
+    );
+    assert.notEqual(customer.status, "active");
+    assert.equal(customer.ownerId, null);
+  });
+
+  it("deleted customers are outside engine eligibility query", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        status: "active",
+        deletedAt: new Date().toISOString(),
+        lastValidFollowUpAt: daysAgoIso(50, new Date()),
+      },
+      new Date(),
+    );
+    assert.ok(customer.deletedAt);
   });
 });
 

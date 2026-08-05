@@ -56,7 +56,6 @@ export const SETTINGS_UI_SECTIONS: readonly SettingsSection[] = [
     descriptionKey: "settings.sections.reclaimPublicPool.description",
     editableKeys: [
       "automatic_reclaim_days",
-      "reclaim_warning_days_before",
       "public_pool_claim_quota_7_days",
       "public_pool_claim_cooldown_hours",
     ],

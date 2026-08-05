@@ -1,23 +1,32 @@
 import type { Customer } from "../../../drizzle/schema/customers";
+import {
+  getBusinessCalendarDayDifference,
+  getBusinessDateYmd,
+} from "@/lib/reports/dates";
+import { HONG_KONG_TIMEZONE, parseUtcDate } from "@/lib/timezone";
 import { getReclamationCycleStartedAt } from "./cycle";
-
-const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /** Anchor for reclamation idle-day count. */
 export function getReclamationAnchorAt(customer: Customer): string {
   return getReclamationCycleStartedAt(customer);
 }
 
+/**
+ * Idle whole business days since the cycle anchor in Asia/Hong_Kong.
+ * Day 0 = anchor calendar date; day 7 = 7 full HK calendar days later.
+ */
 export function getDaysWithoutValidFollowUp(
   customer: Customer,
   now: Date,
 ): number {
-  const anchor = new Date(getReclamationAnchorAt(customer));
-  const diffMs = now.getTime() - anchor.getTime();
-  return Math.floor(diffMs / MS_PER_DAY);
+  const anchor = parseUtcDate(getReclamationAnchorAt(customer));
+  if (!anchor) {
+    return 0;
+  }
+  return getBusinessCalendarDayDifference(anchor, now, HONG_KONG_TIMEZONE);
 }
 
-/** UTC calendar date YYYY-MM-DD for deduplicating daily warnings. */
+/** HK calendar date YYYY-MM-DD for warning log dedup metadata. */
 export function getWarningDateKey(now: Date): string {
-  return now.toISOString().slice(0, 10);
+  return getBusinessDateYmd(now, HONG_KONG_TIMEZONE);
 }

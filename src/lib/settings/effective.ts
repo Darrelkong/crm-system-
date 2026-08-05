@@ -1,9 +1,11 @@
 import type { Database } from "@/lib/db";
 import {
   ALLOWED_TIMEZONES,
+  LEGACY_BUSINESS_TIMEZONE_ALIASES,
   SETTING_DEFAULTS,
   type SettingKey,
 } from "@/lib/settings/keys";
+import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import { getSystemSettings, type SettingsMap } from "@/lib/settings/service";
 
 export type BusinessTimezone = (typeof ALLOWED_TIMEZONES)[number];
@@ -44,14 +46,22 @@ function parsePositiveInt(
   return n;
 }
 
+function normalizeBusinessTimezone(raw: string): string {
+  if ((LEGACY_BUSINESS_TIMEZONE_ALIASES as readonly string[]).includes(raw)) {
+    return HONG_KONG_TIMEZONE;
+  }
+  return raw;
+}
+
 function parseTimezone(raw: string): BusinessTimezone {
-  if ((ALLOWED_TIMEZONES as readonly string[]).includes(raw)) {
-    return raw as BusinessTimezone;
+  const normalized = normalizeBusinessTimezone(raw);
+  if ((ALLOWED_TIMEZONES as readonly string[]).includes(normalized)) {
+    return normalized as BusinessTimezone;
   }
   console.warn(
-    `[settings] Invalid business_timezone="${raw}", using default Asia/Shanghai`,
+    `[settings] Invalid business_timezone="${raw}", using default ${HONG_KONG_TIMEZONE}`,
   );
-  return "Asia/Shanghai";
+  return HONG_KONG_TIMEZONE;
 }
 
 /** Parse settings map into typed values; invalid stored values fall back to defaults. */
