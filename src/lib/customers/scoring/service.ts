@@ -19,6 +19,7 @@ import type { User } from "../../../../drizzle/schema/users";
 import { LOW_COMPLETENESS_THRESHOLD } from "./constants";
 import type { HeatLevel } from "./types";
 import { HEAT_LEVELS } from "./types";
+import { buildReclamationCountdownDisplay } from "@/lib/reclamation/countdown-display";
 import { calculateDataCompletenessScore } from "./completeness";
 import { calculateCustomerHeat } from "./heat";
 import type { CustomerScores, ScoringContext } from "./types";
@@ -61,6 +62,11 @@ export function getCustomerScores(
     heatLevel: heat.heatLevel,
     completenessScore: completeness.completenessScore,
     heatReasonKeys: heat.heatReasonKeys,
+    reclamationCountdown: buildReclamationCountdownDisplay(
+      customer,
+      settings,
+      now,
+    ),
   };
 
   if (options?.includeMissingFields) {
@@ -83,6 +89,7 @@ export function attachScoresToView(
     completenessMissingFields: includeDetails
       ? scores.completenessMissingFields
       : undefined,
+    reclamationCountdown: scores.reclamationCountdown ?? null,
   };
 }
 

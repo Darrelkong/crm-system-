@@ -9,6 +9,7 @@ import {
   HeatBadge,
 } from "@/components/customers/customer-scores-cards";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
+import { ReclamationCountdownBadge } from "@/components/customers/reclamation-countdown-badge";
 import { Button } from "@/components/ui/button";
 import { Badge, EmptyState } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
@@ -95,6 +96,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     isPinned: item.isPinned ?? false,
     pinnedAt: item.pinnedAt ?? null,
     createdAt: item.createdAt,
+    reclamationCountdown: item.reclamationCountdown ?? null,
   };
 }
 
@@ -343,6 +345,7 @@ export function CustomersListClient({
           </span>
           {c.neverContacted && <Badge variant="warning">{t("customers.neverContacted")}</Badge>}
           {c.overdueFollowUp && <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>}
+          <ReclamationCountdownBadge countdown={c.reclamationCountdown} />
         </div>
       </Link>
     );
@@ -510,7 +513,10 @@ export function CustomersListClient({
                         {c.overdueFollowUp && (
                           <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>
                         )}
-                        {!c.neverContacted && !c.overdueFollowUp && (
+                        <ReclamationCountdownBadge countdown={c.reclamationCountdown} />
+                        {!c.neverContacted &&
+                          !c.overdueFollowUp &&
+                          !c.reclamationCountdown && (
                           <span className="text-xs crm-text-secondary">—</span>
                         )}
                       </div>

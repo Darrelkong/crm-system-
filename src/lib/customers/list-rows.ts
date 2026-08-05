@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { CustomerWithScores } from "@/lib/customers/scoring/service";
+import type { ReclamationCountdownDisplay } from "@/lib/reclamation/countdown-display";
 import { listCustomerAssigneesByCustomerIds } from "@/lib/customers/assignees";
 import { resolveUserDisplayNames } from "@/lib/customers/user-labels";
 
@@ -26,12 +27,15 @@ export type CustomerListRowData = {
   isPinned: boolean;
   pinnedAt?: string | null;
   createdAt: string;
+  /** Auto-release countdown badge; null when ineligible or collaborative. */
+  reclamationCountdown: ReclamationCountdownDisplay | null;
 };
 
 export function toCustomerListRow(
   customer: CustomerWithScores,
   ownerName: string | null,
   assigneeNames: string[] = [],
+  options?: { isCollaborative?: boolean },
 ): CustomerListRowData {
   return {
     id: customer.id,
@@ -55,6 +59,9 @@ export function toCustomerListRow(
     isPinned: customer.isPinned,
     pinnedAt: customer.pinnedAt ?? null,
     createdAt: customer.createdAt,
+    reclamationCountdown: options?.isCollaborative
+      ? null
+      : (customer.reclamationCountdown ?? null),
   };
 }
 
@@ -81,14 +88,19 @@ export async function buildCustomerListRows(
   const nameMap = await resolveUserDisplayNames(db, [...userIds]);
 
   return items.map((item) => {
-    const assigneeNames = (assigneesByCustomerId.get(item.id) ?? [])
+    const assignees = assigneesByCustomerId.get(item.id) ?? [];
+    const assigneeNames = assignees
       .map((assignee) => nameMap.get(assignee.userId))
       .filter((name): name is string => !!name?.trim());
+    const isCollaborative = assignees.some(
+      (assignee) => assignee.role === "collaborator",
+    );
 
     return toCustomerListRow(
       item,
       item.ownerId ? (nameMap.get(item.ownerId) ?? null) : null,
       assigneeNames,
+      { isCollaborative },
     );
   });
 }

@@ -167,6 +167,48 @@ describe("toCustomerListRow pin fields", () => {
     assert.equal(row.isPinned, true);
     assert.equal(row.pinnedAt, "2026-06-28T09:00:00.000Z");
     assert.deepEqual(row.assigneeNames, ["Staff A"]);
+    assert.equal(row.reclamationCountdown, null);
+  });
+
+  it("clears countdown for collaborative customers", () => {
+    const customer = makeCustomer({
+      id: "c-collab",
+      customerName: "Collaborative client",
+    });
+    const view = makeScoredView(adminUser, customer);
+    view.reclamationCountdown = {
+      state: "normal",
+      daysRemaining: 20,
+      graceHoursRemaining: null,
+      reclaimAt: "2026-07-20T00:00:00.000Z",
+      graceUntil: null,
+      reclaimDays: 45,
+      lastValidFollowUpAt: null,
+    };
+    const row = toCustomerListRow(view, "Staff A", ["Collab"], {
+      isCollaborative: true,
+    });
+    assert.equal(row.reclamationCountdown, null);
+  });
+
+  it("keeps countdown for non-collaborative eligible customers", () => {
+    const customer = makeCustomer({
+      id: "c-countdown",
+      customerName: "Countdown client",
+    });
+    const view = makeScoredView(adminUser, customer);
+    view.reclamationCountdown = {
+      state: "warning",
+      daysRemaining: 10,
+      graceHoursRemaining: null,
+      reclaimAt: "2026-07-10T00:00:00.000Z",
+      graceUntil: null,
+      reclaimDays: 45,
+      lastValidFollowUpAt: "2026-06-01T00:00:00.000Z",
+    };
+    const row = toCustomerListRow(view, "Staff A");
+    assert.equal(row.reclamationCountdown?.state, "warning");
+    assert.equal(row.reclamationCountdown?.daysRemaining, 10);
   });
 
   it("includes isPinned for staff without exposing customerCode", () => {
