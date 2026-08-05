@@ -181,7 +181,15 @@ describe("migration 0045 fresh database", () => {
       "grouping_key",
       "action_updated_at",
       "summary_scope",
+      "summary_fingerprint",
     ]);
+
+    const actionItemColumns = d1Query<{ name: string }>(
+      env,
+      "PRAGMA table_info(reclamation_action_items);",
+    );
+    const actionItemNames = new Set(actionItemColumns.map((row) => row.name));
+    assert.ok(actionItemNames.has("risk_episode_key"));
 
     const actionItems = d1Query<{ name: string }>(
       env,
@@ -189,13 +197,17 @@ describe("migration 0045 fresh database", () => {
     );
     assert.equal(actionItems.length, 1);
 
-    const indexes = d1Query<{ name: string }>(
+    const indexes = d1Query<{ name: string; sql: string }>(
       env,
-      "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name IN ('notifications', 'reclamation_action_items');",
+      "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND tbl_name IN ('notifications', 'reclamation_action_items');",
     );
     const indexNames = indexes.map((row) => row.name);
-    assert.ok(indexNames.includes("idx_reclamation_action_items_owner_cycle"));
+    assert.ok(indexNames.includes("idx_reclamation_action_items_episode"));
     assert.ok(indexNames.includes("idx_notifications_user_grouping_pending"));
+    const pendingPartial = indexes.find(
+      (row) => row.name === "idx_notifications_user_grouping_pending",
+    );
+    assert.match(String(pendingPartial?.sql ?? ""), /action_state = 'pending'/i);
   });
 });
 
@@ -289,6 +301,91 @@ INSERT INTO notifications (
       `SELECT action_state FROM notifications WHERE id = 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeee3';`,
     )[0];
     assert.equal(announcement?.action_state, "informational");
+  });
+
+  it("retires unread legacy reclaim warnings as read informational", () => {
+    const env = createEnv(44);
+    applyMigrations(env);
+
+    d1Exec(
+      env,
+      `
+INSERT INTO users (
+  id, email, display_name, password_hash, role, is_active,
+  failed_login_attempts, locked_until, created_at, updated_at
+) VALUES ('${STAFF_ID}', 'staff-a@crm.local', 'Staff', 'hash', 'staff', 1, 0, NULL, '${NOW}', '${NOW}');
+
+INSERT INTO notifications (
+  id, user_id, type, title, message, related_entity_type, related_entity_id,
+  is_read, created_at
+) VALUES (
+  'iiiiiiii-iiii-iiii-iiii-iiiiiiiiiii1',
+  '${STAFF_ID}',
+  'auto_reclaim_warning_day_7',
+  '{"key":"notificationTypes.auto_reclaim_warning_day_7"}',
+  '{"key":"notificationMessages.autoReclaimWarningDay7"}',
+  'customer',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+  0,
+  '${NOW}'
+);
+`.trim(),
+    );
+
+    addMigration045(env);
+    applyMigrations(env);
+
+    const legacy = d1Query<{ action_state: string; is_read: number }>(
+      env,
+      `SELECT action_state, is_read FROM notifications WHERE id = 'iiiiiiii-iiii-iiii-iiii-iiiiiiiiiii1';`,
+    )[0];
+    assert.equal(legacy?.action_state, "informational");
+    assert.equal(legacy?.is_read, 1);
+
+    const stillExists = d1Query<{ n: number }>(
+      env,
+      `SELECT COUNT(*) AS n FROM notifications WHERE id = 'iiiiiiii-iiii-iiii-iiii-iiiiiiiiiii1';`,
+    )[0]?.n;
+    assert.equal(stillExists, 1);
+  });
+
+  it("migrates pending second conversion notifications to pending", () => {
+    const env = createEnv(44);
+    applyMigrations(env);
+
+    d1Exec(
+      env,
+      `
+INSERT INTO users (
+  id, email, display_name, password_hash, role, is_active,
+  failed_login_attempts, locked_until, created_at, updated_at
+) VALUES ('${STAFF_ID}', 'staff-a@crm.local', 'Staff', 'hash', 'staff', 1, 0, NULL, '${NOW}', '${NOW}');
+
+INSERT INTO notifications (
+  id, user_id, type, title, message, related_entity_type, related_entity_id,
+  is_read, created_at
+) VALUES (
+  'jjjjjjjj-jjjj-jjjj-jjjj-jjjjjjjjjjj1',
+  '${STAFF_ID}',
+  'customer.pending_second_conversion',
+  '{"key":"notificationTypes.customer_pending_second_conversion"}',
+  '{"key":"notificationMessages.customerPendingSecondConversion"}',
+  'customer',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+  0,
+  '${NOW}'
+);
+`.trim(),
+    );
+
+    addMigration045(env);
+    applyMigrations(env);
+
+    const row = d1Query<{ action_state: string }>(
+      env,
+      `SELECT action_state FROM notifications WHERE id = 'jjjjjjjj-jjjj-jjjj-jjjj-jjjjjjjjjjj1';`,
+    )[0];
+    assert.equal(row?.action_state, "pending");
   });
 
   it("enforces unique pending summary grouping per user", () => {

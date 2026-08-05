@@ -32,6 +32,7 @@ export const reclamationActionItems = sqliteTable(
       .notNull()
       .references(() => customers.id),
     cycleStartedAt: text("cycle_started_at").notNull(),
+    riskEpisodeKey: text("risk_episode_key").notNull(),
     actionState: text("action_state", {
       enum: RECLAMATION_ACTION_STATES,
     }).notNull(),
@@ -48,14 +49,15 @@ export const reclamationActionItems = sqliteTable(
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
-    uniqueIndex("idx_reclamation_action_items_owner_cycle").on(
-      table.customerId,
-      table.cycleStartedAt,
-      table.userId,
-    ),
+    uniqueIndex("idx_reclamation_action_items_episode").on(table.riskEpisodeKey),
     index("idx_reclamation_action_items_user_state").on(
       table.userId,
       table.actionState,
+    ),
+    index("idx_reclamation_action_items_customer_cycle").on(
+      table.customerId,
+      table.cycleStartedAt,
+      table.userId,
     ),
   ],
 );

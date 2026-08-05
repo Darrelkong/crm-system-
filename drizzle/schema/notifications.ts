@@ -1,4 +1,5 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 import { users } from "./users";
 
 export const NOTIFICATION_TYPES = [
@@ -59,6 +60,7 @@ export const notifications = sqliteTable(
     summaryScope: text("summary_scope", {
       enum: NOTIFICATION_SUMMARY_SCOPES,
     }),
+    summaryFingerprint: text("summary_fingerprint"),
     createdAt: text("created_at").notNull(),
   },
   (table) => [
@@ -69,6 +71,11 @@ export const notifications = sqliteTable(
       table.relatedEntityId,
     ),
     index("idx_notifications_user_action").on(table.userId, table.actionState),
+    uniqueIndex("idx_notifications_user_grouping_pending")
+      .on(table.userId, table.groupingKey)
+      .where(
+        sql`${table.actionState} = 'pending' AND ${table.groupingKey} IS NOT NULL`,
+      ),
   ],
 );
 

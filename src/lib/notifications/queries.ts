@@ -1,4 +1,4 @@
-import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, or, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { NotificationActionState } from "../../../drizzle/schema/notifications";
@@ -8,6 +8,7 @@ import {
   isLegacyPerCustomerReclaimWarningType,
   isPendingActionState,
   isReclamationSummaryType,
+  isVisibleNotificationType,
   NOTIFICATION_ACTION_STATE,
 } from "./action-state";
 import { parseNotificationMessage } from "./i18n-storage";
@@ -43,10 +44,6 @@ function toListItem(row: typeof schema.notifications.$inferSelect): Notification
     action_updated_at: row.actionUpdatedAt,
     created_at: row.createdAt,
   };
-}
-
-function shouldHideFromWorkItemsList(type: string): boolean {
-  return isLegacyPerCustomerReclaimWarningType(type);
 }
 
 async function attachRelatedEntityMissingFlags(
@@ -109,10 +106,14 @@ export async function listNotificationsForUser(
     .limit(limit * 2);
 
   const filtered = rows
-    .filter((row) => !shouldHideFromWorkItemsList(row.type))
+    .filter((row) => isVisibleNotificationType(row.type))
     .slice(0, limit);
 
   return attachRelatedEntityMissingFlags(db, filtered.map(toListItem));
+}
+
+function visibleNotificationCondition() {
+  return sql`${schema.notifications.type} NOT IN ('auto_reclaim_warning_day_6', 'auto_reclaim_warning_day_7')`;
 }
 
 export async function getUnreadNotificationCount(
@@ -126,13 +127,25 @@ export async function getUnreadNotificationCount(
       and(
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.isRead, 0),
-        ne(schema.notifications.type, "auto_reclaim_warning_day_6"),
-        ne(schema.notifications.type, "auto_reclaim_warning_day_7"),
-        or(
-          eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.informational),
-          eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.completed),
-          eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.expired),
-        ),
+        visibleNotificationCondition(),
+      ),
+    );
+  return row[0]?.value ?? 0;
+}
+
+export async function getUnreadNonPendingNotificationCount(
+  db: Database,
+  userId: string,
+): Promise<number> {
+  const row = await db
+    .select({ value: count() })
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.userId, userId),
+        eq(schema.notifications.isRead, 0),
+        ne(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.pending),
+        visibleNotificationCondition(),
       ),
     );
   return row[0]?.value ?? 0;
@@ -149,6 +162,7 @@ export async function getPendingActionCount(
       and(
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.pending),
+        visibleNotificationCondition(),
       ),
     );
   return row[0]?.value ?? 0;
@@ -158,11 +172,11 @@ export async function getWorkItemsAttentionCount(
   db: Database,
   userId: string,
 ): Promise<number> {
-  const [unread, pending] = await Promise.all([
-    getUnreadNotificationCount(db, userId),
+  const [pending, unreadNonPending] = await Promise.all([
     getPendingActionCount(db, userId),
+    getUnreadNonPendingNotificationCount(db, userId),
   ]);
-  return unread + pending;
+  return pending + unreadNonPending;
 }
 
 export async function getNotificationById(

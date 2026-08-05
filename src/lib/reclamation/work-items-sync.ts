@@ -10,9 +10,14 @@ import {
   type ReclamationSummaryCounts,
 } from "@/lib/notifications/action-state";
 import { storeNotificationMessage, storeNotificationTitle } from "@/lib/notifications/i18n-storage";
+import { buildSummaryFingerprint } from "@/lib/notifications/summary-fingerprint";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { RECLAMATION_EXCLUDED_SALES_STAGES } from "./constants";
 import { getCollaborativeCustomerIds } from "./collaborative";
+import {
+  buildRiskEpisodeKey,
+  getReclaimRuleVersion,
+} from "./reclaim-rule-version";
 import {
   aggregateRiskCounts,
   isCustomerAtReclamationRisk,
@@ -31,6 +36,10 @@ export const RECLAMATION_EXPIRE_REASON = {
 
 export type ReclamationExpireReason =
   (typeof RECLAMATION_EXPIRE_REASON)[keyof typeof RECLAMATION_EXPIRE_REASON];
+
+type SnapshotWithEpisode = ReclamationRiskSnapshot & {
+  riskEpisodeKey: string;
+};
 
 async function listActiveAdminUserIds(db: Database): Promise<string[]> {
   const rows = await db
@@ -83,20 +92,32 @@ export async function collectReclamationRiskSnapshots(
   return snapshots;
 }
 
+async function attachRiskEpisodeKeys(
+  db: Database,
+  snapshots: ReclamationRiskSnapshot[],
+): Promise<SnapshotWithEpisode[]> {
+  const reclaimRuleVersion = await getReclaimRuleVersion(db);
+  return snapshots.map((snapshot) => ({
+    ...snapshot,
+    riskEpisodeKey: buildRiskEpisodeKey({
+      customerId: snapshot.customerId,
+      ownerId: snapshot.ownerId,
+      cycleStartedAt: snapshot.cycleStartedAt,
+      reclaimRuleVersion,
+    }),
+  }));
+}
+
 async function upsertPendingActionItem(
   db: Database,
-  snapshot: ReclamationRiskSnapshot,
+  snapshot: SnapshotWithEpisode,
   nowIso: string,
 ): Promise<void> {
   const existing = await db
     .select()
     .from(schema.reclamationActionItems)
     .where(
-      and(
-        eq(schema.reclamationActionItems.customerId, snapshot.customerId),
-        eq(schema.reclamationActionItems.cycleStartedAt, snapshot.cycleStartedAt),
-        eq(schema.reclamationActionItems.userId, snapshot.ownerId),
-      ),
+      eq(schema.reclamationActionItems.riskEpisodeKey, snapshot.riskEpisodeKey),
     )
     .limit(1);
 
@@ -124,6 +145,7 @@ async function upsertPendingActionItem(
     userId: snapshot.ownerId,
     customerId: snapshot.customerId,
     cycleStartedAt: snapshot.cycleStartedAt,
+    riskEpisodeKey: snapshot.riskEpisodeKey,
     actionState: "pending",
     riskBand: snapshot.riskBand,
     idleDays: snapshot.idleDays,
@@ -135,7 +157,7 @@ async function upsertPendingActionItem(
 
 async function expireStalePendingItems(
   db: Database,
-  activeKeys: Set<string>,
+  activeEpisodeKeys: Set<string>,
   nowIso: string,
   reason: ReclamationExpireReason,
 ): Promise<void> {
@@ -145,8 +167,7 @@ async function expireStalePendingItems(
     .where(eq(schema.reclamationActionItems.actionState, "pending"));
 
   for (const item of pending) {
-    const key = `${item.customerId}:${item.cycleStartedAt}:${item.userId}`;
-    if (!activeKeys.has(key)) {
+    if (!activeEpisodeKeys.has(item.riskEpisodeKey)) {
       await db
         .update(schema.reclamationActionItems)
         .set({
@@ -199,10 +220,18 @@ async function upsertSummaryNotification(
     titleKey: string;
     messageKey: string;
     messageParams: Record<string, string>;
+    counts: ReclamationSummaryCounts;
     nowIso: string;
     hasPendingCustomers: boolean;
   },
 ): Promise<void> {
+  const fingerprint = buildSummaryFingerprint({
+    summaryScope: input.summaryScope,
+    counts: input.counts,
+  });
+  const title = storeNotificationTitle(input.titleKey);
+  const message = storeNotificationMessage(input.messageKey, input.messageParams);
+
   const pendingRows = await db
     .select()
     .from(schema.notifications)
@@ -215,9 +244,6 @@ async function upsertSummaryNotification(
     )
     .limit(1);
 
-  const title = storeNotificationTitle(input.titleKey);
-  const message = storeNotificationMessage(input.messageKey, input.messageParams);
-
   if (!input.hasPendingCustomers) {
     if (pendingRows[0]) {
       await db
@@ -225,9 +251,9 @@ async function upsertSummaryNotification(
         .set({
           actionState: NOTIFICATION_ACTION_STATE.completed,
           actionUpdatedAt: input.nowIso,
-          isRead: 0,
           title,
           message,
+          summaryFingerprint: fingerprint,
         })
         .where(eq(schema.notifications.id, pendingRows[0].id));
     }
@@ -235,14 +261,17 @@ async function upsertSummaryNotification(
   }
 
   if (pendingRows[0]) {
+    const fingerprintChanged =
+      pendingRows[0].summaryFingerprint !== fingerprint;
     await db
       .update(schema.notifications)
       .set({
         title,
         message,
-        isRead: 0,
+        summaryFingerprint: fingerprint,
         actionUpdatedAt: input.nowIso,
         type: input.type,
+        ...(fingerprintChanged ? { isRead: 0 } : {}),
       })
       .where(eq(schema.notifications.id, pendingRows[0].id));
     return;
@@ -261,6 +290,7 @@ async function upsertSummaryNotification(
     groupingKey: input.groupingKey,
     actionUpdatedAt: input.nowIso,
     summaryScope: input.summaryScope,
+    summaryFingerprint: fingerprint,
     createdAt: input.nowIso,
   });
 }
@@ -270,24 +300,25 @@ export async function syncReclamationWorkItems(
   now: Date = new Date(),
 ): Promise<void> {
   const nowIso = now.toISOString();
-  const snapshots = await collectReclamationRiskSnapshots(db, now);
-  const activeKeys = new Set<string>();
+  const snapshots = await attachRiskEpisodeKeys(
+    db,
+    await collectReclamationRiskSnapshots(db, now),
+  );
+  const activeEpisodeKeys = new Set<string>();
 
   for (const snapshot of snapshots) {
-    activeKeys.add(
-      `${snapshot.customerId}:${snapshot.cycleStartedAt}:${snapshot.ownerId}`,
-    );
+    activeEpisodeKeys.add(snapshot.riskEpisodeKey);
     await upsertPendingActionItem(db, snapshot, nowIso);
   }
 
   await expireStalePendingItems(
     db,
-    activeKeys,
+    activeEpisodeKeys,
     nowIso,
     RECLAMATION_EXPIRE_REASON.ruleExtended,
   );
 
-  const byOwner = new Map<string, ReclamationRiskSnapshot[]>();
+  const byOwner = new Map<string, SnapshotWithEpisode[]>();
   for (const snapshot of snapshots) {
     const list = byOwner.get(snapshot.ownerId) ?? [];
     list.push(snapshot);
@@ -309,6 +340,7 @@ export async function syncReclamationWorkItems(
         ? "notificationMessages.reclamationSummaryStaffUrgent"
         : "notificationMessages.reclamationSummaryStaff",
       messageParams: buildStaffSummaryMessageParams(counts),
+      counts,
       nowIso,
       hasPendingCustomers: counts.totalCount > 0,
     });
@@ -320,6 +352,15 @@ export async function syncReclamationWorkItems(
     .from(schema.users)
     .where(and(eq(schema.users.role, "staff"), eq(schema.users.isActive, 1)));
 
+  const emptyCounts: ReclamationSummaryCounts = {
+    totalCount: 0,
+    tomorrowCount: 0,
+    within7Count: 0,
+    within14Count: 0,
+    routineCount: 0,
+    earliestReleaseAt: null,
+  };
+
   for (const staff of allStaffIds) {
     if (staffOwnerIds.has(staff.id)) continue;
     await upsertSummaryNotification(db, {
@@ -329,14 +370,8 @@ export async function syncReclamationWorkItems(
       summaryScope: "staff_self",
       titleKey: "notificationTypes.reclamation_summary_staff",
       messageKey: "notificationMessages.reclamationSummaryStaff",
-      messageParams: buildStaffSummaryMessageParams({
-        totalCount: 0,
-        tomorrowCount: 0,
-        within7Count: 0,
-        within14Count: 0,
-        routineCount: 0,
-        earliestReleaseAt: null,
-      }),
+      messageParams: buildStaffSummaryMessageParams(emptyCounts),
+      counts: emptyCounts,
       nowIso,
       hasPendingCustomers: false,
     });
@@ -362,6 +397,7 @@ export async function syncReclamationWorkItems(
         ? "notificationMessages.reclamationSummaryAdminUrgent"
         : "notificationMessages.reclamationSummaryAdmin",
       messageParams: buildAdminSummaryMessageParams(teamCounts),
+      counts: teamCounts,
       nowIso,
       hasPendingCustomers: teamCounts.totalCount > 0,
     });
@@ -489,3 +525,5 @@ export async function resolveReclamationRiskCustomerIds(
   }
   return undefined;
 }
+
+export { buildRiskEpisodeKey, getReclaimRuleVersion };

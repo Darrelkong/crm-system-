@@ -1,13 +1,16 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  ACTIONABLE_NOTIFICATION_TYPES,
   defaultActionStateForType,
+  isActionableNotificationType,
   isBulkMarkReadEligible,
   isLegacyPerCustomerReclaimWarningType,
   NOTIFICATION_ACTION_STATE,
   staffReclamationGroupingKey,
   adminReclamationGroupingKey,
 } from "./action-state";
+import { NOTIFICATION_TYPES } from "../../../drizzle/schema/notifications";
 import {
   classifyReclamationRiskBand,
 } from "@/lib/reclamation/risk-snapshot";
@@ -32,6 +35,36 @@ describe("notification action state helpers", () => {
       defaultActionStateForType("customer.transferred"),
       NOTIFICATION_ACTION_STATE.informational,
     );
+    assert.equal(
+      defaultActionStateForType("approval.approved"),
+      NOTIFICATION_ACTION_STATE.informational,
+    );
+    assert.equal(
+      defaultActionStateForType("customer_auto_reclaimed"),
+      NOTIFICATION_ACTION_STATE.informational,
+    );
+  });
+
+  it("marks all actionable notification types as pending", () => {
+    for (const type of ACTIONABLE_NOTIFICATION_TYPES) {
+      assert.equal(
+        defaultActionStateForType(type),
+        NOTIFICATION_ACTION_STATE.pending,
+        type,
+      );
+      assert.equal(isActionableNotificationType(type), true, type);
+    }
+
+    for (const type of NOTIFICATION_TYPES) {
+      if ((ACTIONABLE_NOTIFICATION_TYPES as readonly string[]).includes(type)) {
+        continue;
+      }
+      assert.equal(
+        defaultActionStateForType(type),
+        NOTIFICATION_ACTION_STATE.informational,
+        type,
+      );
+    }
   });
 
   it("bulk mark read excludes pending only", () => {

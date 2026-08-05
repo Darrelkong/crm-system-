@@ -65,12 +65,18 @@ export async function updateSystemSettings(
     const value = String(rawValue).trim();
 
     const existing = await db
-      .select({ key: schema.systemSettings.key })
+      .select({
+        key: schema.systemSettings.key,
+        value: schema.systemSettings.value,
+      })
       .from(schema.systemSettings)
       .where(eq(schema.systemSettings.key, rawKey))
       .limit(1);
 
     if (existing.length > 0) {
+      if (existing[0]?.value === value) {
+        continue;
+      }
       await db
         .update(schema.systemSettings)
         .set({ value, updatedBy: actor.id, updatedAt: now })

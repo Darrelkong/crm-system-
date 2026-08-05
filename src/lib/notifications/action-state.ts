@@ -26,17 +26,31 @@ export function countsTowardPendingActions(
   return actionState === NOTIFICATION_ACTION_STATE.pending;
 }
 
+/** Notification types that require user action in Work Items. */
+export const ACTIONABLE_NOTIFICATION_TYPES = [
+  "approval.pending",
+  "reclamation.summary.staff",
+  "reclamation.summary.admin",
+  "customer.pending_second_conversion",
+] as const;
+
+export type ActionableNotificationType =
+  (typeof ACTIONABLE_NOTIFICATION_TYPES)[number];
+
+export function isActionableNotificationType(type: string): boolean {
+  return (ACTIONABLE_NOTIFICATION_TYPES as readonly string[]).includes(type);
+}
+
 export function defaultActionStateForType(type: string): NotificationActionState {
-  if (type === "approval.pending") {
-    return NOTIFICATION_ACTION_STATE.pending;
-  }
-  if (
-    type === "reclamation.summary.staff" ||
-    type === "reclamation.summary.admin"
-  ) {
+  if (isActionableNotificationType(type)) {
     return NOTIFICATION_ACTION_STATE.pending;
   }
   return NOTIFICATION_ACTION_STATE.informational;
+}
+
+/** Visible in Work Items lists and notification counts. */
+export function isVisibleNotificationType(type: string): boolean {
+  return !isLegacyPerCustomerReclaimWarningType(type);
 }
 
 export function staffReclamationGroupingKey(userId: string): string {
