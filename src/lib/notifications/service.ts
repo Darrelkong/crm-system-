@@ -3,6 +3,9 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { NotificationType } from "../../../drizzle/schema/notifications";
 import {
+  defaultActionStateForType,
+} from "./action-state";
+import {
   notificationTypeToTitleKey,
   storeNotificationMessage,
   storeNotificationTitle,
@@ -73,6 +76,8 @@ export function buildCreateNotificationStatement(
     relatedEntityType: input.relatedEntityType ?? null,
     relatedEntityId: input.relatedEntityId ?? null,
     isRead: 0,
+    actionState: defaultActionStateForType(input.type),
+    actionUpdatedAt: input.createdAt,
     createdAt: input.createdAt,
   });
 }

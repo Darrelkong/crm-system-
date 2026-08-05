@@ -30,7 +30,8 @@ type Props = {
   initialView: TasksView | NotificationsView;
   initialStaffId: string | null;
   taskCounts: WorkItemTaskCounts;
-  unreadCount: number;
+  pendingCount: number;
+  attentionCount: number;
   staffOptions: WorkItemStaffOption[];
 };
 
@@ -57,7 +58,8 @@ export function WorkItemsClient({
   initialView,
   initialStaffId,
   taskCounts: initialTaskCounts,
-  unreadCount: initialUnreadCount,
+  pendingCount: initialPendingCount,
+  attentionCount: initialAttentionCount,
   staffOptions,
 }: Props) {
   const { t } = useTranslation();
@@ -95,7 +97,23 @@ export function WorkItemsClient({
       : null;
 
   const [taskCounts, setTaskCounts] = useState(initialTaskCounts);
-  const [unreadCount, setUnreadCount] = useState(initialUnreadCount);
+  const [pendingCount, setPendingCount] = useState(initialPendingCount);
+  const [attentionCount, setAttentionCount] = useState(initialAttentionCount);
+
+  const refreshNotificationCounts = useCallback(async () => {
+    const res = await fetch("/api/notifications/unread-count");
+    if (!res.ok) return;
+    const data = (await res.json()) as {
+      unreadCount?: number;
+      pendingCount?: number;
+      attentionCount?: number;
+    };
+    setPendingCount(data.pendingCount ?? 0);
+    setAttentionCount(
+      data.attentionCount ??
+        (data.unreadCount ?? 0) + (data.pendingCount ?? 0),
+    );
+  }, []);
   const [tasks, setTasks] = useState<WorkItemTaskRow[]>([]);
   const [tasksLoading, setTasksLoading] = useState(activeTab === "tasks");
   const [tasksError, setTasksError] = useState<string | null>(null);
@@ -146,12 +164,9 @@ export function WorkItemsClient({
   }, [activeTab, tasksView, staffId, userRole, t]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch tasks when view changes
     void loadTasks();
   }, [loadTasks]);
-
-  useEffect(() => {
-    setUnreadCount(initialUnreadCount);
-  }, [initialUnreadCount]);
 
   const currentReturnPath = useMemo(() => {
     const qs = searchParams.toString();
@@ -243,7 +258,7 @@ export function WorkItemsClient({
           }
         >
           {t("workItems.tabNotifications")}
-          <span className="ml-2 text-xs tabular-nums">{unreadCount}</span>
+          <span className="ml-2 text-xs tabular-nums">{attentionCount}</span>
         </button>
       </div>
 
@@ -413,13 +428,16 @@ export function WorkItemsClient({
         <NotificationsClient
           userRole={userRole}
           controlledUnreadOnly={notificationsView === "unread"}
+          pendingCount={pendingCount}
           onUnreadOnlyChange={(unreadOnly) =>
             replaceUrl({
               tab: "notifications",
               view: unreadOnly ? "unread" : "all",
             })
           }
-          onUnreadCountChange={setUnreadCount}
+          onUnreadCountChange={() => {
+            void refreshNotificationCounts();
+          }}
         />
       )}
     </div>

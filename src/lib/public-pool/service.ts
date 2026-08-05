@@ -21,6 +21,10 @@ import {
   upsertFirstContactTaskForClaim,
   type UpsertFirstContactTaskForClaimResult,
 } from "@/lib/tasks/first-contact";
+import {
+  expireReclamationActionItems,
+  RECLAMATION_EXPIRE_REASON,
+} from "@/lib/reclamation/work-items-sync";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -361,6 +365,12 @@ export async function claimCustomerFromPool(
       actorId: user.id,
     });
   }
+
+  await expireReclamationActionItems(database, {
+    customerId: customer.id,
+    reason: RECLAMATION_EXPIRE_REASON.claimed,
+    now: claimedAtDate,
+  });
 
   return { ok: true, taskId: taskResult.taskId };
 }

@@ -3,7 +3,10 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
-import { getUnreadNotificationCount } from "@/lib/notifications/queries";
+import {
+  getPendingActionCount,
+  getWorkItemsAttentionCount,
+} from "@/lib/notifications/queries";
 import {
   countWorkItemTasks,
   listWorkItemStaffOptions,
@@ -43,11 +46,13 @@ export default async function WorkItemsPage({ searchParams }: Props) {
   }
 
   const db = getDb();
-  const [taskCounts, unreadCount, staffOptions] = await Promise.all([
+  const [taskCounts, pendingCount, attentionCount, staffOptions] =
+    await Promise.all([
     countWorkItemTasks(user, {
       staffId: user.role === "admin" ? state.staffId : null,
     }),
-    getUnreadNotificationCount(db, user.id),
+    getPendingActionCount(db, user.id),
+    getWorkItemsAttentionCount(db, user.id),
     user.role === "admin" ? listWorkItemStaffOptions() : Promise.resolve([]),
   ]);
 
@@ -58,7 +63,8 @@ export default async function WorkItemsPage({ searchParams }: Props) {
       initialView={state.view}
       initialStaffId={state.staffId}
       taskCounts={taskCounts}
-      unreadCount={unreadCount}
+      pendingCount={pendingCount}
+      attentionCount={attentionCount}
       staffOptions={staffOptions}
     />
   );

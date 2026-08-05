@@ -1318,7 +1318,12 @@ const zhHant: Messages = {
     title: "通知",
     center: "通知中心",
     subtitle: "查看系統自動推送的業務通知，點擊可跳轉相關客戶或審批。",
-    unreadCount: "未讀通知：{{count}}",
+    unreadCount: "未讀：{{count}}",
+    pendingCount: "待處理：{{count}}",
+    pendingAction: "待處理",
+    priorityTomorrow: "明日釋放",
+    markAllPartial: "已將 {{marked}} 條普通通知標記為已讀。另有 {{retained}} 條待處理事項將繼續保留。",
+    markAllNoneEligible: "目前沒有可批量標記為已讀的普通通知。",
     unreadBadgeLabel: "未讀通知 {{count}} 則",
     unreadOnly: "只看未讀",
     markAsRead: "標記為已讀",
@@ -1394,6 +1399,10 @@ const zhHant: Messages = {
     customer_closed_won_approved: "成交申請已通過",
     customer_pending_second_conversion: "待二次轉化",
     backup_failed: "系統備份失敗",
+    reclamation_summary_staff: "客戶回收預警",
+    reclamation_summary_staff_urgent: "客戶回收緊急提醒",
+    reclamation_summary_admin: "團隊客戶回收預警",
+    reclamation_summary_admin_urgent: "團隊客戶回收緊急提醒",
   },
   notificationMessages: {
     approvalPendingAdmin: "{{customerName}} 有新的{{approvalType}}待審批。",
@@ -1416,6 +1425,14 @@ const zhHant: Messages = {
       "客戶「{{customerName}}」已連續 {{days}} 天未新增有效跟進，距自動釋放還有 {{daysRemaining}} 天（規則：{{reclaimDays}} 天）。",
     autoReclaimWarningFinal:
       "客戶「{{customerName}}」將在 1 天後自動釋放至公共池，請盡快完成有效跟進（規則：{{reclaimDays}} 天）。",
+    reclamationSummaryStaff:
+      "你有 {{count}} 位客戶進入回收預警，其中 {{urgentCount}} 位將在 7 天內自動釋放。請及時完成有效跟進。",
+    reclamationSummaryStaffUrgent:
+      "你有 {{count}} 位客戶將在明日自動釋放至公共池。完成有效跟進後，相關事項將自動解除。",
+    reclamationSummaryAdmin:
+      "全團隊目前有 {{count}} 位客戶處於回收風險中，涉及 {{memberCount}} 位團隊成員，其中 {{urgentCount}} 位將在 7 天內自動釋放。",
+    reclamationSummaryAdminUrgent:
+      "全團隊有 {{count}} 位客戶將在明日自動釋放，涉及 {{memberCount}} 位團隊成員。請查看團隊風險客戶。",
     customerAutoReclaimed:
       "客戶「{{customerName}}」已超過 {{days}} 天無有效跟進，已自動回收到公共池。",
     backupFailed: "系統備份失敗，請盡快檢查。錯誤：{{errorMessage}}",

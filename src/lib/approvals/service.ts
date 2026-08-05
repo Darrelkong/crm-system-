@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
@@ -27,6 +27,11 @@ import {
 import { findPendingApproval, getApprovalById } from "./queries";
 import type { ApprovalRequestInput } from "./validation";
 import { validateApprovalRequestInput } from "./validation";
+import { getReclamationCycleStartedAt } from "@/lib/reclamation/cycle";
+import {
+  expireReclamationActionItems,
+  RECLAMATION_EXPIRE_REASON,
+} from "@/lib/reclamation/work-items-sync";
 import {
   TASK_CANCEL_REASON,
   buildCancelOpenTasksForCustomerStatement,
@@ -237,6 +242,7 @@ async function executeApprovedAction(
       const previousOwnerId = customer.ownerId;
       const transferredFromPublicPool = customer.status === "public_pool";
       const targetUserId = approval.targetUserId;
+      const previousCycleStartedAt = getReclamationCycleStartedAt(customer);
 
       const updateCustomerStmt = db
         .update(schema.customers)
@@ -326,6 +332,13 @@ async function executeApprovedAction(
           messageParams: customerNameNotificationParams(customer),
           relatedEntityType: "customer",
           relatedEntityId: customer.id,
+        });
+
+        await expireReclamationActionItems(db, {
+          customerId: customer.id,
+          userId: previousOwnerId,
+          cycleStartedAt: previousCycleStartedAt,
+          reason: RECLAMATION_EXPIRE_REASON.transferred,
         });
       } else if (transferredFromPublicPool) {
         await writeAuditLog(

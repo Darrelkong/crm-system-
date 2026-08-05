@@ -13,7 +13,10 @@ export async function PATCH(request: Request) {
     const db = getDb();
     const { ipAddress, userAgent } = getRequestMeta(request);
 
-    const markedCount = await markAllNotificationsRead(db, user.id);
+    const { markedCount, retainedCount } = await markAllNotificationsRead(
+      db,
+      user.id,
+    );
 
     await writeAuditLog({
       userId: user.id,
@@ -21,10 +24,10 @@ export async function PATCH(request: Request) {
       entityType: "notification",
       ipAddress,
       userAgent,
-      metadata: { markedCount },
+      metadata: { markedCount, retainedCount },
     });
 
-    return Response.json({ ok: true, markedCount });
+    return Response.json({ ok: true, markedCount, retainedCount });
   } catch (error) {
     return authErrorResponse(error);
   }

@@ -8,6 +8,9 @@ export function getNotificationCategory(type: string): NotificationCategory {
   if (type.startsWith("approval.")) {
     return "approval";
   }
+  if (type.startsWith("reclamation.summary.")) {
+    return "customer";
+  }
   if (
     type.startsWith("auto_reclaim") ||
     type.startsWith("customer_") ||

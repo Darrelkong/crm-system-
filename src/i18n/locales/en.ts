@@ -1361,6 +1361,13 @@ const en = {
     subtitle:
       "View system-generated business notifications. Click to open related clients or approvals.",
     unreadCount: "Unread: {{count}}",
+    pendingCount: "Pending actions: {{count}}",
+    pendingAction: "Pending",
+    priorityTomorrow: "Releases tomorrow",
+    markAllPartial:
+      "{{marked}} general notifications marked as read. {{retained}} pending items remain.",
+    markAllNoneEligible:
+      "No general notifications eligible for bulk mark-as-read.",
     unreadBadgeLabel: "Unread notifications: {{count}}",
     unreadOnly: "Unread only",
     markAsRead: "Mark as Read",
@@ -1438,6 +1445,10 @@ const en = {
     customer_closed_won_approved: "Close-Won Approved",
     customer_pending_second_conversion: "Pending second conversion",
     backup_failed: "Backup Failed",
+    reclamation_summary_staff: "Customer reclamation alerts",
+    reclamation_summary_staff_urgent: "Urgent reclamation reminder",
+    reclamation_summary_admin: "Team reclamation alerts",
+    reclamation_summary_admin_urgent: "Urgent team reclamation reminder",
   },
   notificationMessages: {
     approvalPendingAdmin:
@@ -1466,6 +1477,14 @@ const en = {
       "Client \"{{customerName}}\" has had no valid follow-up for {{days}} days. {{daysRemaining}} days remain before auto-release (rule: {{reclaimDays}} days).",
     autoReclaimWarningFinal:
       "Client \"{{customerName}}\" will be auto-released to the public pool in 1 day. Please complete a valid follow-up soon (rule: {{reclaimDays}} days).",
+    reclamationSummaryStaff:
+      "You have {{count}} clients in reclamation alert, including {{urgentCount}} releasing within 7 days. Please complete valid follow-ups.",
+    reclamationSummaryStaffUrgent:
+      "You have {{count}} clients releasing to the public pool tomorrow. Valid follow-ups will clear related items automatically.",
+    reclamationSummaryAdmin:
+      "The team has {{count}} clients at reclamation risk across {{memberCount}} members, including {{urgentCount}} releasing within 7 days.",
+    reclamationSummaryAdminUrgent:
+      "The team has {{count}} clients releasing tomorrow across {{memberCount}} members. Please review team risk clients.",
     customerAutoReclaimed:
       "Client \"{{customerName}}\" exceeded {{days}} days without valid follow-up and was auto-reclaimed to the public pool.",
     backupFailed:

@@ -21,6 +21,7 @@ import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
+import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
 
 type Props = {
   searchParams: Promise<{
@@ -29,17 +30,28 @@ type Props = {
     completenessBelow?: string;
     createdBy?: string;
     page?: string;
+    reclamationRisk?: string;
   }>;
 };
 
 export default async function CustomersPage({ searchParams }: Props) {
   const user = await requireAuthCached();
   const params = await searchParams;
-  const listFilter = parseCustomerListFilter(user, params);
+  const db = getDb();
+  const reclamationCustomerIds = await resolveReclamationRiskCustomerIds(
+    db,
+    user,
+    params.reclamationRisk,
+  );
+  const listFilter = {
+    ...parseCustomerListFilter(user, params),
+    ...(reclamationCustomerIds !== undefined
+      ? { reclamationCustomerIds }
+      : {}),
+  };
   const showArchived = listFilter.status === "archived";
   const { page } = parseCustomerListPageParams({ page: params.page });
 
-  const db = getDb();
   const settings = await getEffectiveSettings(db);
 
   const scoringFilter: {

@@ -5,6 +5,8 @@ export const NOTIFICATION_TYPES = [
   "auto_reclaim_warning_day_6",
   "auto_reclaim_warning_day_7",
   "customer_auto_reclaimed",
+  "reclamation.summary.staff",
+  "reclamation.summary.admin",
   "approval.pending",
   "approval.approved",
   "approval.rejected",
@@ -15,6 +17,24 @@ export const NOTIFICATION_TYPES = [
 ] as const;
 
 export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
+
+export const NOTIFICATION_ACTION_STATES = [
+  "informational",
+  "pending",
+  "completed",
+  "expired",
+] as const;
+
+export type NotificationActionState =
+  (typeof NOTIFICATION_ACTION_STATES)[number];
+
+export const NOTIFICATION_SUMMARY_SCOPES = [
+  "staff_self",
+  "admin_team",
+] as const;
+
+export type NotificationSummaryScope =
+  (typeof NOTIFICATION_SUMMARY_SCOPES)[number];
 
 export const notifications = sqliteTable(
   "notifications",
@@ -29,6 +49,16 @@ export const notifications = sqliteTable(
     relatedEntityType: text("related_entity_type"),
     relatedEntityId: text("related_entity_id"),
     isRead: integer("is_read").notNull().default(0),
+    actionState: text("action_state", {
+      enum: NOTIFICATION_ACTION_STATES,
+    })
+      .notNull()
+      .default("informational"),
+    groupingKey: text("grouping_key"),
+    actionUpdatedAt: text("action_updated_at"),
+    summaryScope: text("summary_scope", {
+      enum: NOTIFICATION_SUMMARY_SCOPES,
+    }),
     createdAt: text("created_at").notNull(),
   },
   (table) => [
@@ -38,6 +68,7 @@ export const notifications = sqliteTable(
       table.relatedEntityType,
       table.relatedEntityId,
     ),
+    index("idx_notifications_user_action").on(table.userId, table.actionState),
   ],
 );
 

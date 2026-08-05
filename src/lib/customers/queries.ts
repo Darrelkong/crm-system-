@@ -1,9 +1,8 @@
-import { and, asc, eq, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
   adminCustomerListStatusWhere,
-  staffAssigneeExistsWhere,
   staffCustomerListPermissionWhere,
 } from "@/lib/customers/customer-list-filters";
 import { ON_HOLD_CREATE_APPROVAL_TYPE } from "@/lib/customers/on-hold-create-pending";
@@ -20,6 +19,8 @@ export type CustomerListFilter = {
   status?: "archived";
   /** Admin only: filter by `customers.created_by`. */
   createdBy?: string;
+  /** Server-resolved reclamation risk customer IDs (from action items). */
+  reclamationCustomerIds?: string[];
 };
 
 export type CustomerCreatorOption = {
@@ -162,6 +163,18 @@ export function excludePendingOnHoldCreateApprovalWhere(): SQL {
   )`;
 }
 
+function buildReclamationRiskWhere(
+  filter: CustomerListFilter,
+): SQL | undefined {
+  if (!filter.reclamationCustomerIds) {
+    return undefined;
+  }
+  if (filter.reclamationCustomerIds.length === 0) {
+    return sql`1 = 0`;
+  }
+  return inArray(schema.customers.id, filter.reclamationCustomerIds);
+}
+
 function buildListWhere(
   user: User,
   filter: CustomerListFilter = {},
@@ -169,6 +182,7 @@ function buildListWhere(
   return combineWhere(
     buildPermissionWhere(user, filter),
     buildCreatedByWhere(user, filter),
+    buildReclamationRiskWhere(filter),
     excludePendingOnHoldCreateApprovalWhere(),
   );
 }

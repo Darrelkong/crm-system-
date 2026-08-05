@@ -15,6 +15,7 @@ export * from "./login-ip-email-restrictions";
 export * from "./system-settings";
 export * from "./notifications";
 export * from "./reclamation-warning-logs";
+export * from "./reclamation-action-items";
 export * from "./approvals";
 export * from "./import-jobs";
 export * from "./export-jobs";

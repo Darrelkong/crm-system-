@@ -18,6 +18,7 @@ import {
 import { dispatchNotificationUnreadChanged } from "@/lib/notifications/badge-count";
 import {
   getNotificationHref,
+  getNotificationVisualPriority,
   isRelatedCustomerMissing,
   type NotificationListItem,
 } from "@/lib/notifications/queries";
@@ -25,8 +26,8 @@ import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
   userRole: "admin" | "staff";
-  /** When set, unread filter is controlled by parent (Work Items URL). */
   controlledUnreadOnly?: boolean;
+  pendingCount?: number;
   onUnreadOnlyChange?: (unreadOnly: boolean) => void;
   onUnreadCountChange?: (count: number) => void;
 };
@@ -77,6 +78,7 @@ function safeResolveMessage(
 export function NotificationsClient({
   userRole,
   controlledUnreadOnly,
+  pendingCount = 0,
   onUnreadOnlyChange,
   onUnreadCountChange,
 }: Props) {
@@ -178,7 +180,24 @@ export function NotificationsClient({
       setMessage(resolveApiError(t, data));
       return;
     }
-    setMessage(t("notifications.markAllSuccess"));
+    const data = (await res.json()) as {
+      markedCount?: number;
+      retainedCount?: number;
+    };
+    const marked = data.markedCount ?? 0;
+    const retained = data.retainedCount ?? 0;
+    if (marked === 0 && retained > 0) {
+      setMessage(t("notifications.markAllNoneEligible"));
+    } else if (retained > 0) {
+      setMessage(
+        t("notifications.markAllPartial", {
+          marked: String(marked),
+          retained: String(retained),
+        }),
+      );
+    } else {
+      setMessage(t("notifications.markAllSuccess"));
+    }
     await load();
     dispatchNotificationUnreadChanged();
   }
@@ -188,6 +207,8 @@ export function NotificationsClient({
       <div className="surface-card flex flex-wrap items-center gap-3 p-4">
         <p className="text-sm text-[#6B7890]">
           {t("notifications.unreadCount", { count: String(unreadCount) })}
+          {" · "}
+          {t("notifications.pendingCount", { count: String(pendingCount) })}
         </p>
         <label className="flex items-center gap-2 text-sm text-[#172033]">
           <input
@@ -218,6 +239,7 @@ export function NotificationsClient({
             const actionLabel = getActionLabel(t, item, userRole);
             const relatedCustomerMissing = isRelatedCustomerMissing(item);
             const category = getNotificationCategory(item.type);
+            const priority = getNotificationVisualPriority(item);
             const typeKey = getNotificationTypeLabelKey(item.type);
             const typeLabel =
               t(typeKey) === typeKey ? item.type : t(typeKey);
@@ -239,6 +261,16 @@ export function NotificationsClient({
                       <span className="text-xs text-[#6B7890]">{typeLabel}</span>
                       {!item.is_read && (
                         <Badge variant="accent">{t("notifications.unread")}</Badge>
+                      )}
+                      {item.action_state === "pending" && (
+                        <Badge variant="warning">
+                          {t("notifications.pendingAction")}
+                        </Badge>
+                      )}
+                      {priority === "tomorrow" && (
+                        <Badge variant="danger">
+                          {t("notifications.priorityTomorrow")}
+                        </Badge>
                       )}
                     </div>
                     <p className="mt-2 font-medium text-[#172033]">

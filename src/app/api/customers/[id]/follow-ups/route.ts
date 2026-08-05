@@ -21,7 +21,11 @@ import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import {
   evaluateDuplicateFollowUpContent,
 } from "@/lib/follow-ups/duplicate-content";
-import { buildReclamationCycleResetFields } from "@/lib/reclamation/cycle";
+import {
+  buildReclamationCycleResetFields,
+  getReclamationCycleStartedAt,
+} from "@/lib/reclamation/cycle";
+import { completeReclamationActionItemsForFollowUp } from "@/lib/reclamation/work-items-sync";
 import { isValidFollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 import type { FollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 import { upsertFollowUpTask } from "@/lib/tasks/service";
@@ -219,6 +223,14 @@ export async function POST(request: Request, context: RouteContext) {
     };
 
     if (isValid === 1) {
+      if (customer.ownerId && customer.ownerId === user.id) {
+        await completeReclamationActionItemsForFollowUp(db, {
+          customerId: id,
+          ownerId: customer.ownerId,
+          cycleStartedAt: getReclamationCycleStartedAt(customer),
+          followUpId,
+        });
+      }
       customerUpdates.lastValidFollowUpAt = followUpTime;
       Object.assign(
         customerUpdates,

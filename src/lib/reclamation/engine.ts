@@ -7,7 +7,6 @@ import {
 } from "@/lib/audit/audit-log";
 import {
   buildCreateNotificationInsertSelectStatement,
-  buildCreateNotificationStatement,
   resolveCreateNotificationContent,
 } from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
@@ -31,7 +30,6 @@ import {
   buildReclaimTimelineMessage,
   buildWarningTimelineMessage,
   isFinalReclamationWarning,
-  notificationTypeForMilestone,
   resolveNextWarningMilestone,
   warningTypeForMilestone,
 } from "./milestones";
@@ -42,6 +40,11 @@ import {
 import { getCollaborativeCustomerIds } from "./collaborative";
 import { countCustomerAssignees } from "@/lib/public-pool/assignee-sync";
 import { isReclamationWarningLogUniqueConflictError } from "./warning-log-unique";
+import {
+  expireReclamationActionItems,
+  RECLAMATION_EXPIRE_REASON,
+  syncReclamationWorkItems,
+} from "./work-items-sync";
 import {
   buildAutoReclaimCustomerCasWhere,
   buildAutoReclaimCustomerExistsGuardSql,
@@ -217,12 +220,10 @@ async function sendReclaimWarning(
 
   const createdAt = new Date().toISOString();
   const warningLogId = crypto.randomUUID();
-  const notificationId = crypto.randomUUID();
   const ownerId = customer.ownerId;
   const reclaimDays = settings.automaticReclaimDays;
   const isFinal = isFinalReclamationWarning(milestone, reclaimDays);
   const warningType = warningTypeForMilestone(milestone, reclaimDays);
-  const notificationType = notificationTypeForMilestone(milestone, reclaimDays);
   const timelineMessage = buildWarningTimelineMessage({
     milestone,
     idleDays: days,
@@ -241,32 +242,10 @@ async function sendReclaimWarning(
     ownerId,
     createdAt,
   });
-  const notificationStatement = buildCreateNotificationStatement(db, {
-    id: notificationId,
-    createdAt,
-    userId: ownerId,
-    type: notificationType,
-    titleKey: `notificationTypes.${notificationType}`,
-    messageKey: isFinal
-      ? "notificationMessages.autoReclaimWarningFinal"
-      : "notificationMessages.autoReclaimWarningMilestone",
-    messageParams: {
-      ...customerNameNotificationParams(customer),
-      days: String(days),
-      reclaimDays: String(reclaimDays),
-      milestone: String(milestone),
-      daysRemaining: String(reclaimDays - days),
-      sequence: String(isFinal ? 0 : milestone / 7),
-    },
-    relatedEntityType: "customer",
-    relatedEntityId: customer.id,
-  });
 
   try {
     await db.batch(
-      [warningLogStatement, notificationStatement] as unknown as Parameters<
-        Database["batch"]
-      >[0],
+      [warningLogStatement] as unknown as Parameters<Database["batch"]>[0],
     );
   } catch (error) {
     if (isReclamationWarningLogUniqueConflictError(error)) {
@@ -373,6 +352,8 @@ async function autoReclaimCustomer(
             ${"customer"} AS related_entity_type,
             ${customer.id} AS related_entity_id,
             ${0} AS is_read,
+            ${"informational"} AS action_state,
+            ${now} AS action_updated_at,
             ${now} AS created_at
           FROM customers
           WHERE ${snapshotMatchSql}
@@ -436,6 +417,14 @@ async function autoReclaimCustomer(
       customerId: customer.id,
       previousOwnerId,
       taskIds: openTasksToCancel.map((row) => row.id),
+    });
+
+    await expireReclamationActionItems(db, {
+      customerId: customer.id,
+      userId: previousOwnerId,
+      cycleStartedAt: getReclamationCycleStartedAt(customer),
+      reason: RECLAMATION_EXPIRE_REASON.autoReclaimed,
+      now: new Date(now),
     });
 
     return true;
@@ -583,6 +572,8 @@ export async function runReclamationCheck(
 
     result.skippedCount += 1;
   }
+
+  await syncReclamationWorkItems(db, now);
 
   return result;
 }

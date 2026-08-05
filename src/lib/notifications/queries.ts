@@ -1,7 +1,16 @@
-import { and, count, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray, ne, or } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
+import type { NotificationActionState } from "../../../drizzle/schema/notifications";
 import type { User } from "../../../drizzle/schema/users";
+import {
+  isBulkMarkReadEligible,
+  isLegacyPerCustomerReclaimWarningType,
+  isPendingActionState,
+  isReclamationSummaryType,
+  NOTIFICATION_ACTION_STATE,
+} from "./action-state";
+import { parseNotificationMessage } from "./i18n-storage";
 
 export type NotificationListItem = {
   id: string;
@@ -10,9 +19,12 @@ export type NotificationListItem = {
   message: string;
   related_entity_type: string | null;
   related_entity_id: string | null;
-  /** True when related_entity_type is customer and the row no longer exists. */
   related_entity_missing?: boolean;
   is_read: boolean;
+  action_state: NotificationActionState;
+  grouping_key: string | null;
+  summary_scope: string | null;
+  action_updated_at: string | null;
   created_at: string;
 };
 
@@ -25,8 +37,16 @@ function toListItem(row: typeof schema.notifications.$inferSelect): Notification
     related_entity_type: row.relatedEntityType,
     related_entity_id: row.relatedEntityId,
     is_read: row.isRead === 1,
+    action_state: row.actionState,
+    grouping_key: row.groupingKey,
+    summary_scope: row.summaryScope,
+    action_updated_at: row.actionUpdatedAt,
     created_at: row.createdAt,
   };
+}
+
+function shouldHideFromWorkItemsList(type: string): boolean {
+  return isLegacyPerCustomerReclaimWarningType(type);
 }
 
 async function attachRelatedEntityMissingFlags(
@@ -86,9 +106,13 @@ export async function listNotificationsForUser(
     .from(schema.notifications)
     .where(and(...conditions))
     .orderBy(desc(schema.notifications.createdAt))
-    .limit(limit);
+    .limit(limit * 2);
 
-  return attachRelatedEntityMissingFlags(db, rows.map(toListItem));
+  const filtered = rows
+    .filter((row) => !shouldHideFromWorkItemsList(row.type))
+    .slice(0, limit);
+
+  return attachRelatedEntityMissingFlags(db, filtered.map(toListItem));
 }
 
 export async function getUnreadNotificationCount(
@@ -102,9 +126,43 @@ export async function getUnreadNotificationCount(
       and(
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.isRead, 0),
+        ne(schema.notifications.type, "auto_reclaim_warning_day_6"),
+        ne(schema.notifications.type, "auto_reclaim_warning_day_7"),
+        or(
+          eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.informational),
+          eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.completed),
+          eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.expired),
+        ),
       ),
     );
   return row[0]?.value ?? 0;
+}
+
+export async function getPendingActionCount(
+  db: Database,
+  userId: string,
+): Promise<number> {
+  const row = await db
+    .select({ value: count() })
+    .from(schema.notifications)
+    .where(
+      and(
+        eq(schema.notifications.userId, userId),
+        eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.pending),
+      ),
+    );
+  return row[0]?.value ?? 0;
+}
+
+export async function getWorkItemsAttentionCount(
+  db: Database,
+  userId: string,
+): Promise<number> {
+  const [unread, pending] = await Promise.all([
+    getUnreadNotificationCount(db, userId),
+    getPendingActionCount(db, userId),
+  ]);
+  return unread + pending;
 }
 
 export async function getNotificationById(
@@ -139,7 +197,6 @@ export async function markNotificationRead(
     return { ok: true };
   }
 
-  const now = new Date().toISOString();
   await db
     .update(schema.notifications)
     .set({ isRead: 1 })
@@ -153,12 +210,20 @@ export async function markNotificationRead(
   return { ok: true };
 }
 
+export type MarkAllReadResult = {
+  markedCount: number;
+  retainedCount: number;
+};
+
 export async function markAllNotificationsRead(
   db: Database,
   userId: string,
-): Promise<number> {
+): Promise<MarkAllReadResult> {
   const unread = await db
-    .select({ id: schema.notifications.id })
+    .select({
+      actionState: schema.notifications.actionState,
+      type: schema.notifications.type,
+    })
     .from(schema.notifications)
     .where(
       and(
@@ -167,8 +232,21 @@ export async function markAllNotificationsRead(
       ),
     );
 
-  if (unread.length === 0) {
-    return 0;
+  let markedCount = 0;
+  let retainedCount = 0;
+  for (const row of unread) {
+    if (
+      isBulkMarkReadEligible(row.actionState) &&
+      !isLegacyPerCustomerReclaimWarningType(row.type)
+    ) {
+      markedCount += 1;
+    } else {
+      retainedCount += 1;
+    }
+  }
+
+  if (markedCount === 0) {
+    return { markedCount: 0, retainedCount };
   }
 
   await db
@@ -178,10 +256,24 @@ export async function markAllNotificationsRead(
       and(
         eq(schema.notifications.userId, userId),
         eq(schema.notifications.isRead, 0),
+        or(
+          eq(
+            schema.notifications.actionState,
+            NOTIFICATION_ACTION_STATE.informational,
+          ),
+          eq(
+            schema.notifications.actionState,
+            NOTIFICATION_ACTION_STATE.completed,
+          ),
+          eq(
+            schema.notifications.actionState,
+            NOTIFICATION_ACTION_STATE.expired,
+          ),
+        ),
       ),
     );
 
-  return unread.length;
+  return { markedCount, retainedCount };
 }
 
 function extractNotificationUpdateChanges(result: unknown): number {
@@ -199,11 +291,6 @@ function extractNotificationUpdateChanges(result: unknown): number {
   return 0;
 }
 
-/**
- * Marks all unread approval.pending notifications for one approval as read.
- * No userId filter — applies to every admin recipient. Idempotent.
- * Does not return notification content or recipients.
- */
 export async function markApprovalPendingNotificationsRead(
   db: Database,
   approvalId: string,
@@ -223,13 +310,6 @@ export async function markApprovalPendingNotificationsRead(
   return { markedReadCount: extractNotificationUpdateChanges(result) };
 }
 
-/**
- * Single-statement mark-read for all unread approval-related notifications
- * whose relatedEntityId belongs to approvals of the given customer.
- * Intended for permanent-delete db.batch before DELETE approvals.
- * No recipient filter — all recipients and approval-related types. Idempotent.
- * Returns a statement only; does not execute or return content.
- */
 export function buildMarkApprovalNotificationsReadForCustomerStatement(
   db: Database,
   customerId: string,
@@ -267,10 +347,24 @@ export function isRelatedCustomerMissing(
 export function getNotificationHref(
   item: Pick<
     NotificationListItem,
-    "related_entity_type" | "related_entity_id" | "related_entity_missing"
+    | "type"
+    | "related_entity_type"
+    | "related_entity_id"
+    | "related_entity_missing"
+    | "summary_scope"
   >,
   role: User["role"],
 ): string | null {
+  if (isReclamationSummaryType(item.type)) {
+    if (item.summary_scope === "admin_team" && role === "admin") {
+      return "/customers?reclamationRisk=team";
+    }
+    if (item.summary_scope === "staff_self") {
+      return "/customers?reclamationRisk=mine";
+    }
+    return null;
+  }
+
   if (!item.related_entity_type || !item.related_entity_id) {
     return null;
   }
@@ -290,4 +384,33 @@ export function getNotificationHref(
     default:
       return null;
   }
+}
+
+export function getNotificationVisualPriority(
+  item: Pick<NotificationListItem, "type" | "action_state" | "message">,
+): "normal" | "important" | "urgent" | "tomorrow" | "completed" | "expired" {
+  if (item.action_state === NOTIFICATION_ACTION_STATE.completed) {
+    return "completed";
+  }
+  if (item.action_state === NOTIFICATION_ACTION_STATE.expired) {
+    return "expired";
+  }
+  if (!isPendingActionState(item.action_state)) {
+    return "normal";
+  }
+  if (
+    item.type === "reclamation.summary.staff" ||
+    item.type === "reclamation.summary.admin"
+  ) {
+    const parsed = parseNotificationMessage(item.message);
+    const tomorrow = Number(parsed?.params?.tomorrowCount ?? 0);
+    if (tomorrow > 0) return "tomorrow";
+    const urgent = Number(parsed?.params?.urgentCount ?? 0);
+    if (urgent > 0) return "urgent";
+    return "important";
+  }
+  if (item.type === "approval.pending") {
+    return "urgent";
+  }
+  return "important";
 }

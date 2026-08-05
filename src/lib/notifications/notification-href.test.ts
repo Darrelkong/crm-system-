@@ -7,29 +7,83 @@ import {
 
 const CUSTOMER_ID = "22222222-2222-2222-2222-222222222201";
 
+function hrefItem(
+  overrides: Partial<{
+    type: string;
+    related_entity_type: string | null;
+    related_entity_id: string | null;
+    related_entity_missing: boolean;
+    summary_scope: string | null;
+  }> = {},
+) {
+  return {
+    type: "customer.transferred",
+    summary_scope: null,
+    related_entity_type: null,
+    related_entity_id: null,
+    ...overrides,
+  };
+}
+
 describe("getNotificationHref", () => {
   it("returns customer href when customer exists", () => {
     assert.equal(
       getNotificationHref(
-        {
+        hrefItem({
           related_entity_type: "customer",
           related_entity_id: CUSTOMER_ID,
           related_entity_missing: false,
-        },
+        }),
         "staff",
       ),
       `/customers/${CUSTOMER_ID}`,
     );
   });
 
+  it("returns staff reclamation summary href", () => {
+    assert.equal(
+      getNotificationHref(
+        hrefItem({
+          type: "reclamation.summary.staff",
+          summary_scope: "staff_self",
+        }),
+        "staff",
+      ),
+      "/customers?reclamationRisk=mine",
+    );
+  });
+
+  it("returns admin team summary href for admin only", () => {
+    assert.equal(
+      getNotificationHref(
+        hrefItem({
+          type: "reclamation.summary.admin",
+          summary_scope: "admin_team",
+        }),
+        "admin",
+      ),
+      "/customers?reclamationRisk=team",
+    );
+    assert.equal(
+      getNotificationHref(
+        hrefItem({
+          type: "reclamation.summary.admin",
+          summary_scope: "admin_team",
+        }),
+        "staff",
+      ),
+      null,
+    );
+  });
+
   it("returns null when related customer is missing", () => {
     assert.equal(
       getNotificationHref(
-        {
+        hrefItem({
           related_entity_type: "customer",
           related_entity_id: CUSTOMER_ID,
           related_entity_missing: true,
-        },
+        }),
         "staff",
       ),
       null,
@@ -39,10 +93,10 @@ describe("getNotificationHref", () => {
   it("returns null when related_entity_id is null", () => {
     assert.equal(
       getNotificationHref(
-        {
+        hrefItem({
           related_entity_type: "customer",
           related_entity_id: null,
-        },
+        }),
         "staff",
       ),
       null,
@@ -52,10 +106,10 @@ describe("getNotificationHref", () => {
   it("keeps approval href unchanged", () => {
     assert.equal(
       getNotificationHref(
-        {
+        hrefItem({
           related_entity_type: "approval",
           related_entity_id: "approval-1",
-        },
+        }),
         "staff",
       ),
       "/approvals",
@@ -65,10 +119,10 @@ describe("getNotificationHref", () => {
   it("keeps backup href for admin", () => {
     assert.equal(
       getNotificationHref(
-        {
+        hrefItem({
           related_entity_type: "backup",
           related_entity_id: "backup-1",
-        },
+        }),
         "admin",
       ),
       "/admin/backups",
@@ -78,10 +132,10 @@ describe("getNotificationHref", () => {
   it("returns null for backup href for staff", () => {
     assert.equal(
       getNotificationHref(
-        {
+        hrefItem({
           related_entity_type: "backup_job",
           related_entity_id: "backup-1",
-        },
+        }),
         "staff",
       ),
       null,

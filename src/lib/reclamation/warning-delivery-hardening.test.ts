@@ -154,6 +154,9 @@ async function deleteTestData() {
   await restoreIsolatedCustomers();
   for (const customerId of TEST_CUSTOMER_IDS) {
     await db
+      .delete(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, customerId));
+    await db
       .delete(schema.notifications)
       .where(eq(schema.notifications.relatedEntityId, customerId));
     await db
@@ -169,6 +172,17 @@ async function deleteTestData() {
       .delete(schema.customers)
       .where(eq(schema.customers.id, customerId));
   }
+  await db
+    .delete(schema.notifications)
+    .where(
+      and(
+        inArray(schema.notifications.userId, [SEED_IDS.staffA, SEED_IDS.admin]),
+        inArray(schema.notifications.type, [
+          "reclamation.summary.staff",
+          "reclamation.summary.admin",
+        ]),
+      ),
+    );
 }
 
 async function upsertSetting(key: string, value: string) {
@@ -238,33 +252,31 @@ describe("isReclamationWarningLogUniqueConflictError", () => {
 });
 
 describe("reclaim warning delivery hardening wiring", () => {
-  it("sendReclaimWarning uses atomic db.batch of warning log then notification", () => {
+  it("sendReclaimWarning writes warning log only; runReclamationCheck syncs work items", () => {
     const src = read("src/lib/reclamation/engine.ts");
     const fn = src.slice(
       src.indexOf("async function sendReclaimWarning"),
       src.indexOf("async function autoReclaimCustomer"),
     );
     assert.match(fn, /db\.batch\(/);
-    assert.match(
-      fn,
-      /insert\(schema\.reclamationWarningLogs\)[\s\S]*?buildCreateNotificationStatement/,
-    );
+    assert.match(fn, /insert\(schema\.reclamationWarningLogs\)/);
     assert.match(fn, /isReclamationWarningLogUniqueConflictError/);
     assert.doesNotMatch(
       fn,
       /await db\.insert\(schema\.reclamationWarningLogs\)/,
     );
     assert.doesNotMatch(fn, /await createNotification\(/);
+    assert.doesNotMatch(fn, /buildCreateNotificationStatement/);
     assert.match(
       fn,
-      /db\.batch\([\s\S]*?writeAuditLog/,
+      /await writeAuditLog/,
     );
-    const batchIdx = fn.indexOf("db.batch");
-    const auditIdx = fn.indexOf("writeAuditLog");
-    assert.ok(batchIdx >= 0 && auditIdx > batchIdx);
-
     assert.doesNotMatch(fn, /createNotificationOnce/);
-    assert.match(fn, /notificationTypeForMilestone/);
+    assert.doesNotMatch(fn, /syncReclamationWorkItems/);
+
+    const runCheck = src.slice(src.indexOf("export async function runReclamationCheck"));
+    assert.match(runCheck, /await sendReclaimWarning/);
+    assert.match(runCheck, /await syncReclamationWorkItems/);
   });
 
   it("entries share runReclamationCheck milestone model", () => {
@@ -339,7 +351,7 @@ describe("reclaim warning delivery hardening DB", () => {
     await disposeProxy?.();
   });
 
-  it("creates warning log and notification together; same-day rerun skips", async () => {
+  it("creates warning log and work-item summary; same-day rerun skips", async () => {
     await deleteTestData();
     await db.insert(schema.customers).values(makeWarningCustomer(WARNING_TEST_ID, 7));
     await isolateOtherEligibleCustomers([WARNING_TEST_ID]);
@@ -359,19 +371,25 @@ describe("reclaim warning delivery hardening DB", () => {
     assert.equal(logs[0]?.warningMilestone, 7);
     assert.equal(logs[0]?.reclaimDaysSnapshot, 14);
 
-    const notifs = await db
+    const summaries = await db
       .select()
       .from(schema.notifications)
       .where(
         and(
-          eq(schema.notifications.relatedEntityId, WARNING_TEST_ID),
-          eq(schema.notifications.type, "auto_reclaim_warning_day_6"),
+          eq(schema.notifications.userId, SEED_IDS.staffA),
+          eq(schema.notifications.type, "reclamation.summary.staff"),
         ),
       );
-    assert.equal(notifs.length, 1);
-    assert.equal(notifs[0]?.userId, SEED_IDS.staffA);
-    assert.equal(notifs[0]?.relatedEntityType, "customer");
-    assert.equal(notifs[0]?.isRead, 0);
+    assert.equal(summaries.length, 1);
+    assert.equal(summaries[0]?.actionState, "pending");
+    assert.equal(summaries[0]?.isRead, 0);
+
+    const actionItems = await db
+      .select()
+      .from(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, WARNING_TEST_ID));
+    assert.equal(actionItems.length, 1);
+    assert.equal(actionItems[0]?.actionState, "pending");
 
     const audits = await db
       .select()
@@ -398,34 +416,16 @@ describe("reclaim warning delivery hardening DB", () => {
       .from(schema.reclamationWarningLogs)
       .where(eq(schema.reclamationWarningLogs.customerId, WARNING_TEST_ID));
     assert.equal(logsAfter.length, 1);
-    const notifsAfter = await db
+    const summariesAfter = await db
       .select()
       .from(schema.notifications)
       .where(
         and(
-          eq(schema.notifications.relatedEntityId, WARNING_TEST_ID),
-          eq(schema.notifications.type, "auto_reclaim_warning_day_6"),
+          eq(schema.notifications.userId, SEED_IDS.staffA),
+          eq(schema.notifications.type, "reclamation.summary.staff"),
         ),
       );
-    assert.equal(notifsAfter.length, 1);
-
-    const nextDay = new Date(FIXED_NOW.getTime() + MS_PER_DAY);
-    const crossDay = await runReclamationCheck(db, nextDay);
-    assert.equal(crossDay.warningsCount, 0);
-    assert.equal(
-      (
-        await db
-          .select()
-          .from(schema.notifications)
-          .where(
-            and(
-              eq(schema.notifications.relatedEntityId, WARNING_TEST_ID),
-              eq(schema.notifications.type, "auto_reclaim_warning_day_6"),
-            ),
-          )
-      ).length,
-      1,
-    );
+    assert.equal(summariesAfter.length, 1);
   });
 
   it("catches up missed day-7 warning when cron runs on day 8", async () => {
@@ -477,16 +477,15 @@ describe("reclaim warning delivery hardening DB", () => {
       .where(eq(schema.reclamationWarningLogs.customerId, WARNING_CYCLE_ID));
     assert.equal(logs.length, 2);
 
-    const notifs = await db
+    const actionItems = await db
       .select()
-      .from(schema.notifications)
-      .where(
-        and(
-          eq(schema.notifications.relatedEntityId, WARNING_CYCLE_ID),
-          eq(schema.notifications.type, "auto_reclaim_warning_day_6"),
-        ),
-      );
-    assert.equal(notifs.length, 2);
+      .from(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, WARNING_CYCLE_ID));
+    assert.equal(actionItems.length, 2);
+    const pendingItems = actionItems.filter((row) => row.actionState === "pending");
+    assert.equal(pendingItems.length, 1);
+    const expiredItems = actionItems.filter((row) => row.actionState === "expired");
+    assert.equal(expiredItems.length, 1);
   });
 
   it("milestone dedup in same cycle skips without duplicate notification or audit", async () => {
@@ -502,16 +501,16 @@ describe("reclaim warning delivery hardening DB", () => {
     const raced = await runReclamationCheck(db, FIXED_NOW);
     assert.equal(raced.warningsCount, 0);
 
-    const notifs = await db
+    const summaries = await db
       .select()
       .from(schema.notifications)
       .where(
         and(
-          eq(schema.notifications.relatedEntityId, WARNING_UNIQUE_ID),
-          eq(schema.notifications.type, "auto_reclaim_warning_day_6"),
+          eq(schema.notifications.userId, SEED_IDS.staffA),
+          eq(schema.notifications.type, "reclamation.summary.staff"),
         ),
       );
-    assert.equal(notifs.length, 1);
+    assert.equal(summaries.length, 1);
 
     const audits = await db
       .select()

@@ -24,7 +24,9 @@ const NotificationUnreadContext =
   createContext<NotificationUnreadContextValue | null>(null);
 
 export function NotificationUnreadProvider({ children }: { children: ReactNode }) {
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [unreadCount, setUnreadCount] = useState(
+    () => getCachedUnreadCount() ?? 0,
+  );
 
   const refreshUnreadCount = useCallback(async (options?: { force?: boolean }) => {
     const force = options?.force ?? false;
@@ -41,8 +43,14 @@ export function NotificationUnreadProvider({ children }: { children: ReactNode }
       if (!res.ok) {
         return;
       }
-      const data = (await res.json()) as { unreadCount?: number };
-      const count = data.unreadCount ?? 0;
+      const data = (await res.json()) as {
+        unreadCount?: number;
+        pendingCount?: number;
+        attentionCount?: number;
+      };
+      const count =
+        data.attentionCount ??
+        (data.unreadCount ?? 0) + (data.pendingCount ?? 0);
       setCachedUnreadCount(count);
       setUnreadCount(count);
     } catch {
@@ -52,11 +60,8 @@ export function NotificationUnreadProvider({ children }: { children: ReactNode }
 
   // Fetch on mount; use cache if available to avoid a flash of zero.
   useEffect(() => {
-    const cached = getCachedUnreadCount();
-    if (cached != null) {
-      setUnreadCount(cached);
-    }
-    void refreshUnreadCount({ force: cached == null });
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- refresh nav badge on mount
+    void refreshUnreadCount({ force: getCachedUnreadCount() == null });
   }, [refreshUnreadCount]);
 
   // Force-refresh whenever a notification is marked read/unread elsewhere.
