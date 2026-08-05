@@ -1,4 +1,4 @@
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { customers } from "./customers";
 import { users } from "./users";
 
@@ -16,6 +16,12 @@ export const reclamationWarningLogs = sqliteTable(
       .references(() => customers.id),
     warningType: text("warning_type", { enum: RECLAMATION_WARNING_TYPES }).notNull(),
     warningDate: text("warning_date").notNull(),
+    /** Cycle anchor at warning time (ISO); dedup key with warning_milestone. */
+    cycleStartedAt: text("cycle_started_at"),
+    /** Idle-day milestone: 7,14,…,42 or reclaimDays-1 for final urgent warning. */
+    warningMilestone: integer("warning_milestone"),
+    /** automatic_reclaim_days snapshot when the warning was issued. */
+    reclaimDaysSnapshot: integer("reclaim_days_snapshot"),
     ownerId: text("owner_id")
       .notNull()
       .references(() => users.id),
@@ -28,6 +34,11 @@ export const reclamationWarningLogs = sqliteTable(
       table.warningDate,
     ),
     index("idx_reclamation_warning_customer").on(table.customerId),
+    uniqueIndex("idx_reclamation_warning_cycle_milestone").on(
+      table.customerId,
+      table.cycleStartedAt,
+      table.warningMilestone,
+    ),
   ],
 );
 

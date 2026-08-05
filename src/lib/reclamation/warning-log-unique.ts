@@ -28,6 +28,8 @@ export function isReclamationWarningLogUniqueConflictError(
   return (
     lower.includes("warning_date") ||
     lower.includes("warning_type") ||
+    lower.includes("warning_milestone") ||
+    lower.includes("cycle_started_at") ||
     lower.includes("customer_id")
   );
 }

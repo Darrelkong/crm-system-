@@ -1,3 +1,4 @@
+import type { SQL } from "drizzle-orm";
 import { getDb, type Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 
@@ -27,4 +28,15 @@ export async function writeAuditLog(
     metadata: input.metadata ? JSON.stringify(input.metadata) : null,
     createdAt: new Date().toISOString(),
   });
+}
+
+/**
+ * Returns an audit_logs INSERT…SELECT statement for use inside db.batch.
+ * Does not execute. Caller supplies a SELECT that returns audit_logs columns.
+ */
+export function buildInsertAuditLogSelectStatement(
+  db: Database,
+  selectSql: SQL,
+) {
+  return db.insert(schema.auditLogs).select(selectSql);
 }

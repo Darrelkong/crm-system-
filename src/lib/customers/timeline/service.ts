@@ -165,6 +165,9 @@ function buildAuditItem(
     descriptionParams = {
       adminComment: String(metadata.adminComment ?? ""),
     };
+  } else if (typeof metadata.timelineMessage === "string") {
+    descriptionKey = undefined;
+    descriptionParams = undefined;
   } else if (isTaskAudit) {
     const parts: string[] = [];
     if (metadata.taskType) parts.push(String(metadata.taskType));
@@ -200,6 +203,10 @@ function buildAuditItem(
       ? "timelineMessages.detailsHidden"
       : descriptionKey,
     descriptionParams: sensitive ? undefined : descriptionParams,
+    descriptionText:
+      !sensitive && typeof metadata.timelineMessage === "string"
+        ? String(metadata.timelineMessage)
+        : undefined,
     actorName: actor.name,
     actorIsSystem: actor.isSystem,
     occurredAt: row.createdAt,

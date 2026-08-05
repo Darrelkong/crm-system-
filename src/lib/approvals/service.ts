@@ -244,6 +244,8 @@ async function executeApprovedAction(
           ownerId: targetUserId,
           updatedBy: reviewer.id,
           updatedAt: now,
+          reclamationCycleStartedAt: now,
+          reclaimRuleGraceUntil: null,
           ...(transferredFromPublicPool
             ? {
                 status: "active" as const,

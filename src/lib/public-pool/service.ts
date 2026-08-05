@@ -259,6 +259,8 @@ export async function claimCustomerFromPool(
       claimedBy: user.id,
       claimedAt: now,
       poolLeftAt: now,
+      reclamationCycleStartedAt: now,
+      reclaimRuleGraceUntil: null,
       updatedBy: user.id,
       updatedAt: now,
     })

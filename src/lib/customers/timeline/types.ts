@@ -12,6 +12,8 @@ export type TimelineItem = {
   titleParams?: Record<string, string>;
   descriptionKey?: string;
   descriptionParams?: Record<string, string>;
+  /** Raw system message (e.g. auto-reclaim warnings with rule snapshot). */
+  descriptionText?: string;
   actorName: string;
   actorIsSystem?: boolean;
   occurredAt: string;

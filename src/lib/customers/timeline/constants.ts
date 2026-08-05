@@ -51,6 +51,7 @@ export const CUSTOMER_TIMELINE_AUDIT_ACTIONS = new Set([
   "customer.deleted.soft",
   "customer.auto_reclaim_warning.day_6",
   "customer.auto_reclaim_warning.day_7",
+  "customer.reclaim_rule_grace_started",
 ]);
 
 export const TASK_TIMELINE_AUDIT_ACTIONS = new Set([

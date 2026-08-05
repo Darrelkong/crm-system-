@@ -54,17 +54,22 @@ describe("tasks Round B1-C1 first-contact upsert wiring", () => {
     const src = read("src/lib/tasks/lifecycle.ts");
     assert.match(src, /buildCancelOpenTasksForCustomerStatement/);
     assert.match(src, /eq\(schema\.tasks\.status, "open"\)/);
-    assert.doesNotMatch(src, /first_contact|upsertFirstContact/);
+    assert.doesNotMatch(src, /upsertFirstContact/);
   });
 
-  it("does not modify auto reclaim cancelOwnerOpenTasks scope", () => {
-    const src = read("src/lib/reclamation/engine.ts");
-    assert.match(src, /eq\(schema\.tasks\.assignedTo, previousOwnerId\)/);
+  it("does not expand auto reclaim cancel beyond previousOwner follow_up/first_contact", () => {
+    const engine = read("src/lib/reclamation/engine.ts");
+    const lifecycle = read("src/lib/tasks/lifecycle.ts");
+    assert.match(engine, /buildCancelOwnerOpenReclaimTasksStatement/);
     assert.match(
-      src,
+      lifecycle,
+      /eq\(schema\.tasks\.assignedTo, input\.previousOwnerId\)/,
+    );
+    assert.match(
+      lifecycle,
       /inArray\(schema\.tasks\.type, \["follow_up", "first_contact"\]\)/,
     );
-    assert.doesNotMatch(src, /upsertFirstContactTaskForClaim/);
+    assert.doesNotMatch(engine, /upsertFirstContactTaskForClaim/);
   });
 
   it("does not change Work Items, Dashboard, Follow-ups upsert, or complete permission", () => {

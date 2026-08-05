@@ -1412,6 +1412,10 @@ const zhHant: Messages = {
       "客戶「{{customerName}}」已多日未有效跟進，請盡快安排跟進，否則將被自動回收到公共池。",
     autoReclaimWarningDay7:
       "客戶「{{customerName}}」已多日未有效跟進，請盡快安排跟進，否則將被自動回收到公共池。",
+    autoReclaimWarningMilestone:
+      "客戶「{{customerName}}」已連續 {{days}} 天未新增有效跟進，距自動釋放還有 {{daysRemaining}} 天（規則：{{reclaimDays}} 天）。",
+    autoReclaimWarningFinal:
+      "客戶「{{customerName}}」將在 1 天後自動釋放至公共池，請盡快完成有效跟進（規則：{{reclaimDays}} 天）。",
     customerAutoReclaimed:
       "客戶「{{customerName}}」已超過 {{days}} 天無有效跟進，已自動回收到公共池。",
     backupFailed: "系統備份失敗，請盡快檢查。錯誤：{{errorMessage}}",

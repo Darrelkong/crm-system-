@@ -203,6 +203,11 @@ export function CustomerTimelineView({
                   )}
                 </p>
               )}
+              {item.descriptionText && (
+                <p className={`mt-1 whitespace-pre-line text-sm ${cd.value}`}>
+                  {item.descriptionText}
+                </p>
+              )}
               <p className={`mt-2 text-xs ${cd.muted}`}>
                 {t("customers.timelineActor", { name: actorLabel(item) })}
               </p>

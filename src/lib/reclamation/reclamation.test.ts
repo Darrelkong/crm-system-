@@ -21,11 +21,13 @@ import {
   isReclamationExcludedSalesStage,
 } from "./constants";
 import { getDaysWithoutValidFollowUp } from "./days";
+import { isReclaimGraceActive } from "./cycle";
+import { getReclamationWarningMilestone } from "./milestones";
 
 const DEFAULT_SETTINGS: EffectiveSettings = {
-  automaticReclaimDays: 7,
-  reclaimWarningDaysBefore: 3,
-  reclaimWarningThresholdDays: 4,
+  automaticReclaimDays: 45,
+  reclaimWarningDaysBefore: 1,
+  reclaimWarningThresholdDays: 44,
   reclaimWarningDay1: 6,
   reclaimWarningDay2: 7,
   publicPoolClaimQuota7Days: 5,
@@ -78,6 +80,8 @@ function buildCustomer(
     lastValidFollowUpAt:
       rest.lastValidFollowUpAt ?? daysAgoIso(10, now),
     nextFollowUpAt: null,
+    reclamationCycleStartedAt: rest.reclamationCycleStartedAt ?? null,
+    reclaimRuleGraceUntil: rest.reclaimRuleGraceUntil ?? null,
     deletedAt: null,
     deletedBy: null,
     deletedReason: null,
@@ -109,7 +113,7 @@ type ReclamationOutcome = "reclaim" | "warning" | "none";
 
 /**
  * Mirror of the engine's stateless decision (without dedup).
- * E-4b single-warning model: warn at >= reclaim - daysBefore; reclaim at >= reclaim.
+ * Milestone model: warn every 7 idle days + final at reclaimDays - 1.
  */
 function classifyReclamationOutcome(
   customer: Customer,
@@ -124,10 +128,19 @@ function classifyReclamationOutcome(
   }
 
   const days = getDaysWithoutValidFollowUp(customer, now);
-  const { automaticReclaimDays, reclaimWarningThresholdDays } = settings;
+  const { automaticReclaimDays } = settings;
 
-  if (days >= automaticReclaimDays) return "reclaim";
-  if (days >= reclaimWarningThresholdDays) return "warning";
+  if (days >= automaticReclaimDays) {
+    if (isReclaimGraceActive(customer, now)) {
+      return "none";
+    }
+    return "reclaim";
+  }
+
+  const milestone = getReclamationWarningMilestone(days, automaticReclaimDays);
+  if (milestone !== null) {
+    return "warning";
+  }
   return "none";
 }
 
@@ -204,14 +217,15 @@ describe("auto-reclamation customer eligibility", () => {
   });
 });
 
-describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () => {
+describe("auto-reclamation outcomes (45-day reclaim / 7-day milestones)", () => {
   const now = new Date("2026-06-29T12:00:00.000Z");
 
-  it("no action below the warning threshold (day 3)", () => {
+  it("no action below first milestone (day 6)", () => {
     const customer = buildCustomer(
       {
         salesStage: "negotiation",
-        lastValidFollowUpAt: daysAgoIso(3, now),
+        lastValidFollowUpAt: daysAgoIso(6, now),
+        reclamationCycleStartedAt: daysAgoIso(6, now),
       },
       now,
     );
@@ -221,11 +235,12 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     );
   });
 
-  it("sends a pre-reclaim warning at day 4 (= reclaim - daysBefore)", () => {
+  it("sends first periodic warning at day 7", () => {
     const customer = buildCustomer(
       {
         salesStage: "negotiation",
-        lastValidFollowUpAt: daysAgoIso(4, now),
+        lastValidFollowUpAt: daysAgoIso(7, now),
+        reclamationCycleStartedAt: daysAgoIso(7, now),
       },
       now,
     );
@@ -235,36 +250,81 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     );
   });
 
-  it("still in warning band at day 5 and day 6 (engine layer dedups across days)", () => {
-    const d5 = buildCustomer(
-      {
-        salesStage: "negotiation",
-        lastValidFollowUpAt: daysAgoIso(5, now),
-      },
-      now,
-    );
-    const d6 = buildCustomer(
-      {
-        salesStage: "negotiation",
-        lastValidFollowUpAt: daysAgoIso(6, now),
-      },
-      now,
-    );
-    assert.equal(classifyReclamationOutcome(d5, DEFAULT_SETTINGS, now), "warning");
-    assert.equal(classifyReclamationOutcome(d6, DEFAULT_SETTINGS, now), "warning");
-  });
-
-  it("auto-reclaims at day 7", () => {
+  it("sends second periodic warning at day 14", () => {
     const customer = buildCustomer(
       {
         salesStage: "negotiation",
-        lastValidFollowUpAt: daysAgoIso(7, now),
+        lastValidFollowUpAt: daysAgoIso(14, now),
+        reclamationCycleStartedAt: daysAgoIso(14, now),
+      },
+      now,
+    );
+    assert.equal(
+      classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
+      "warning",
+    );
+  });
+
+  it("no duplicate milestone between 7-day nodes (day 8)", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(8, now),
+        reclamationCycleStartedAt: daysAgoIso(8, now),
+      },
+      now,
+    );
+    assert.equal(
+      classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
+      "none",
+    );
+  });
+
+  it("final urgent warning at day 44", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(44, now),
+        reclamationCycleStartedAt: daysAgoIso(44, now),
+      },
+      now,
+    );
+    assert.equal(
+      classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
+      "warning",
+    );
+  });
+
+  it("auto-reclaims at day 45", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(45, now),
+        reclamationCycleStartedAt: daysAgoIso(45, now),
       },
       now,
     );
     assert.equal(
       classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
       "reclaim",
+    );
+  });
+
+  it("blocks reclaim during 24h rule-shortening grace", () => {
+    const customer = buildCustomer(
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(50, now),
+        reclamationCycleStartedAt: daysAgoIso(50, now),
+        reclaimRuleGraceUntil: new Date(
+          now.getTime() + 12 * 60 * 60 * 1000,
+        ).toISOString(),
+      },
+      now,
+    );
+    assert.equal(
+      classifyReclamationOutcome(customer, DEFAULT_SETTINGS, now),
+      "none",
     );
   });
 
@@ -346,7 +406,8 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     const customer = buildCustomer(
       {
         salesStage: "closed_lost",
-        lastValidFollowUpAt: daysAgoIso(7, now),
+        lastValidFollowUpAt: daysAgoIso(45, now),
+        reclamationCycleStartedAt: daysAgoIso(45, now),
       },
       now,
     );
@@ -356,11 +417,12 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     );
   });
 
-  it("does not warn on_hold customers in the warning band", () => {
+  it("does not warn on_hold customers at milestone days", () => {
     const customer = buildCustomer(
       {
         salesStage: "on_hold",
-        lastValidFollowUpAt: daysAgoIso(4, now),
+        lastValidFollowUpAt: daysAgoIso(7, now),
+        reclamationCycleStartedAt: daysAgoIso(7, now),
       },
       now,
     );
@@ -370,13 +432,14 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     );
   });
 
-  it("does not warn pinned customers in the warning band", () => {
+  it("does not warn pinned customers at milestone days", () => {
     const customer = buildCustomer(
       {
         salesStage: "negotiation",
         isPinned: 1,
         pinnedAt: daysAgoIso(1, now),
-        lastValidFollowUpAt: daysAgoIso(5, now),
+        lastValidFollowUpAt: daysAgoIso(7, now),
+        reclamationCycleStartedAt: daysAgoIso(7, now),
       },
       now,
     );
@@ -386,22 +449,24 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
     );
   });
 
-  it("resets warning band after a fresh valid follow-up (anchor moves forward)", () => {
-    const idle10 = buildCustomer(
+  it("resets milestone schedule after a fresh valid follow-up (anchor moves forward)", () => {
+    const idle45 = buildCustomer(
       {
         salesStage: "negotiation",
-        lastValidFollowUpAt: daysAgoIso(10, now),
+        lastValidFollowUpAt: daysAgoIso(45, now),
+        reclamationCycleStartedAt: daysAgoIso(45, now),
       },
       now,
     );
     assert.equal(
-      classifyReclamationOutcome(idle10, DEFAULT_SETTINGS, now),
+      classifyReclamationOutcome(idle45, DEFAULT_SETTINGS, now),
       "reclaim",
     );
     const afterFollowUp = buildCustomer(
       {
         salesStage: "negotiation",
         lastValidFollowUpAt: daysAgoIso(0, now),
+        reclamationCycleStartedAt: daysAgoIso(0, now),
       },
       now,
     );
@@ -412,12 +477,12 @@ describe("auto-reclamation outcomes (E-4b 7-day reclaim / 3-day pre-warn)", () =
   });
 });
 
-describe("auto-reclamation settings parsing (E-4b)", () => {
-  it("uses E-4b defaults: 7 / 3 / threshold 4", () => {
+describe("auto-reclamation settings parsing", () => {
+  it("uses defaults: 45 / 1 / threshold 44", () => {
     const settings = parseEffectiveSettings(makeSettingsMap());
-    assert.equal(settings.automaticReclaimDays, 7);
-    assert.equal(settings.reclaimWarningDaysBefore, 3);
-    assert.equal(settings.reclaimWarningThresholdDays, 4);
+    assert.equal(settings.automaticReclaimDays, 45);
+    assert.equal(settings.reclaimWarningDaysBefore, 1);
+    assert.equal(settings.reclaimWarningThresholdDays, 44);
   });
 
   it("falls back to defaults when daysBefore >= reclaim", () => {
@@ -427,8 +492,8 @@ describe("auto-reclamation settings parsing (E-4b)", () => {
         reclaim_warning_days_before: "5",
       }),
     );
-    assert.equal(settings.automaticReclaimDays, 7);
-    assert.equal(settings.reclaimWarningDaysBefore, 3);
+    assert.equal(settings.automaticReclaimDays, 45);
+    assert.equal(settings.reclaimWarningDaysBefore, 1);
   });
 
   it("only falls back daysBefore when it is non-positive (keeps custom reclaim)", () => {
@@ -439,8 +504,8 @@ describe("auto-reclamation settings parsing (E-4b)", () => {
       }),
     );
     assert.equal(settings.automaticReclaimDays, 10);
-    assert.equal(settings.reclaimWarningDaysBefore, 3);
-    assert.equal(settings.reclaimWarningThresholdDays, 7);
+    assert.equal(settings.reclaimWarningDaysBefore, 1);
+    assert.equal(settings.reclaimWarningThresholdDays, 9);
   });
 
   it("respects valid custom values (10 / 4 → threshold 6)", () => {
@@ -456,8 +521,8 @@ describe("auto-reclamation settings parsing (E-4b)", () => {
   });
 });
 
-describe("auto-reclamation settings validation (E-4b)", () => {
-  it("accepts default values (7 / 3)", () => {
+describe("auto-reclamation settings validation", () => {
+  it("accepts default values (45 / 1)", () => {
     assert.equal(validateSettingsConsistency(makeSettingsMap()), null);
   });
 
@@ -494,18 +559,21 @@ describe("auto-reclamation settings validation (E-4b)", () => {
     );
   });
 
-  it("accepts admin PATCH updating only the new keys to 7 / 3", () => {
+  it("accepts admin PATCH updating reclaim keys to 45 / 1", () => {
     const err = validateSettingsPatch(makeSettingsMap(), {
-      automatic_reclaim_days: "7",
-      reclaim_warning_days_before: "3",
+      automatic_reclaim_days: "45",
+      reclaim_warning_days_before: "1",
     });
     assert.equal(err, null);
   });
 
   it("rejects admin PATCH lowering reclaim below current daysBefore", () => {
-    const err = validateSettingsPatch(makeSettingsMap(), {
-      automatic_reclaim_days: "3",
-    });
+    const err = validateSettingsPatch(
+      makeSettingsMap({ reclaim_warning_days_before: "5" }),
+      {
+        automatic_reclaim_days: "3",
+      },
+    );
     assert.equal(
       err,
       "reclaim_warning_days_before 必须小于 automatic_reclaim_days",
@@ -544,9 +612,13 @@ describe("C-2: collaborative customers are exempt from ordinary auto-reclaim", (
     return classifyReclamationOutcome(customer, settings, nowDate);
   }
 
-  it("collaborative customer at reclaim threshold (day 7) is skipped", () => {
+  it("collaborative customer at reclaim threshold (day 45) is skipped", () => {
     const customer = buildCustomer(
-      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(7, now) },
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(45, now),
+        reclamationCycleStartedAt: daysAgoIso(45, now),
+      },
       now,
     );
     assert.equal(
@@ -566,9 +638,13 @@ describe("C-2: collaborative customers are exempt from ordinary auto-reclaim", (
     );
   });
 
-  it("collaborative customer in warning band (day 5) is also skipped", () => {
+  it("collaborative customer in warning band (day 7) is also skipped", () => {
     const customer = buildCustomer(
-      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(5, now) },
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(7, now),
+        reclamationCycleStartedAt: daysAgoIso(7, now),
+      },
       now,
     );
     assert.equal(
@@ -594,9 +670,13 @@ describe("C-2: collaborative customers are exempt from ordinary auto-reclaim", (
     assert.equal(customer.status, "active");
   });
 
-  it("non-collaborative customer at reclaim threshold (day 7) is still reclaimed", () => {
+  it("non-collaborative customer at reclaim threshold (day 45) is still reclaimed", () => {
     const customer = buildCustomer(
-      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(7, now) },
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(45, now),
+        reclamationCycleStartedAt: daysAgoIso(45, now),
+      },
       now,
     );
     assert.equal(
@@ -605,9 +685,13 @@ describe("C-2: collaborative customers are exempt from ordinary auto-reclaim", (
     );
   });
 
-  it("non-collaborative customer in warning band (day 5) still gets a warning", () => {
+  it("non-collaborative customer at milestone (day 7) gets a warning", () => {
     const customer = buildCustomer(
-      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(5, now) },
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(7, now),
+        reclamationCycleStartedAt: daysAgoIso(7, now),
+      },
       now,
     );
     assert.equal(
@@ -616,9 +700,13 @@ describe("C-2: collaborative customers are exempt from ordinary auto-reclaim", (
     );
   });
 
-  it("non-collaborative customer below warning threshold (day 3) has no action", () => {
+  it("non-collaborative customer below first milestone (day 6) has no action", () => {
     const customer = buildCustomer(
-      { salesStage: "negotiation", lastValidFollowUpAt: daysAgoIso(3, now) },
+      {
+        salesStage: "negotiation",
+        lastValidFollowUpAt: daysAgoIso(6, now),
+        reclamationCycleStartedAt: daysAgoIso(6, now),
+      },
       now,
     );
     assert.equal(

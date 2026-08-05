@@ -1,4 +1,4 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, type SQL } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { NotificationType } from "../../../drizzle/schema/notifications";
@@ -75,6 +75,28 @@ export function buildCreateNotificationStatement(
     isRead: 0,
     createdAt: input.createdAt,
   });
+}
+
+/**
+ * Returns a notifications INSERT…SELECT statement for use inside db.batch.
+ * Does not execute. selectSql must project notification column values;
+ * typically SELECT … FROM customers WHERE snapshot CAS predicates.
+ */
+export function buildCreateNotificationInsertSelectStatement(
+  db: Database,
+  selectSql: SQL,
+) {
+  return db.insert(schema.notifications).select(selectSql);
+}
+
+/** Resolve stored title/message the same way as createNotification. */
+export function resolveCreateNotificationContent(
+  input: CreateNotificationInput,
+): { title: string; message: string } {
+  return {
+    title: resolveNotificationTitle(input),
+    message: resolveNotificationMessage(input),
+  };
 }
 
 export async function createNotification(

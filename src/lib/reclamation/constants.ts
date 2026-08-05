@@ -62,6 +62,7 @@ export const RECLAMATION_AUDIT_ACTIONS = {
   reclaimed: "customer.auto_reclaimed_to_pool",
   failed: "customer.auto_reclaim_failed",
   taskCancelled: "task.cancelled.auto_reclaim",
+  ruleGraceStarted: "customer.reclaim_rule_grace_started",
 } as const;
 
 /**

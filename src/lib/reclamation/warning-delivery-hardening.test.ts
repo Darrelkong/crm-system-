@@ -81,6 +81,8 @@ function makeWarningCustomer(
     lastFollowUpAt: null,
     lastValidFollowUpAt: anchor,
     nextFollowUpAt: null,
+    reclamationCycleStartedAt: overrides.reclamationCycleStartedAt ?? anchor,
+    reclaimRuleGraceUntil: overrides.reclaimRuleGraceUntil ?? null,
     deletedAt: null,
     deletedBy: null,
     deletedReason: null,
@@ -262,10 +264,10 @@ describe("reclaim warning delivery hardening wiring", () => {
     assert.ok(batchIdx >= 0 && auditIdx > batchIdx);
 
     assert.doesNotMatch(fn, /createNotificationOnce/);
-    assert.doesNotMatch(fn, /auto_reclaim_warning_day_7/);
+    assert.match(fn, /notificationTypeForMilestone/);
   });
 
-  it("entries share runReclamationCheck and day7 remains disabled", () => {
+  it("entries share runReclamationCheck milestone model", () => {
     assert.match(
       read("workers/reclamation-cron.ts"),
       /runReclamationCheck/,
@@ -280,10 +282,10 @@ describe("reclaim warning delivery hardening wiring", () => {
     );
 
     const engine = read("src/lib/reclamation/engine.ts");
-    assert.match(engine, /warningsDay7Count:\s*0/);
+    assert.match(engine, /getReclamationWarningMilestone/);
     assert.doesNotMatch(
       engine.slice(engine.indexOf("export async function runReclamationCheck")),
-      /auto_reclaim_warning_day_7/,
+      /reclaimWarningThresholdDays/,
     );
 
     const dryRun = read("src/lib/reclamation/collaborative-dry-run.ts");
@@ -319,8 +321,8 @@ describe("reclaim warning delivery hardening DB", () => {
 
     previousReclaimDays = await readSetting("automatic_reclaim_days");
     previousDaysBefore = await readSetting("reclaim_warning_days_before");
-    await upsertSetting("automatic_reclaim_days", "7");
-    await upsertSetting("reclaim_warning_days_before", "3");
+    await upsertSetting("automatic_reclaim_days", "14");
+    await upsertSetting("reclaim_warning_days_before", "1");
     await deleteTestData();
   });
 
@@ -339,7 +341,7 @@ describe("reclaim warning delivery hardening DB", () => {
 
   it("creates warning log and notification together; same-day rerun skips", async () => {
     await deleteTestData();
-    await db.insert(schema.customers).values(makeWarningCustomer(WARNING_TEST_ID, 5));
+    await db.insert(schema.customers).values(makeWarningCustomer(WARNING_TEST_ID, 7));
     await isolateOtherEligibleCustomers([WARNING_TEST_ID]);
 
     const first = await runReclamationCheck(db, FIXED_NOW);
@@ -354,7 +356,8 @@ describe("reclaim warning delivery hardening DB", () => {
     assert.equal(logs.length, 1);
     assert.equal(logs[0]?.warningType, "day_6");
     assert.equal(logs[0]?.warningDate, "2026-07-15");
-    assert.equal(logs[0]?.ownerId, SEED_IDS.staffA);
+    assert.equal(logs[0]?.warningMilestone, 7);
+    assert.equal(logs[0]?.reclaimDaysSnapshot, 14);
 
     const notifs = await db
       .select()
@@ -380,6 +383,12 @@ describe("reclaim warning delivery hardening DB", () => {
         ),
       );
     assert.equal(audits.length, 1);
+    const auditMeta = JSON.parse(audits[0]?.metadata ?? "{}") as {
+      timelineMessage?: string;
+      reclaimDaysSnapshot?: number;
+    };
+    assert.equal(auditMeta.reclaimDaysSnapshot, 14);
+    assert.match(String(auditMeta.timelineMessage ?? ""), /当时自动释放规则：14 天/);
 
     const second = await runReclamationCheck(db, FIXED_NOW);
     assert.equal(second.warningsCount, 0);
@@ -423,18 +432,19 @@ describe("reclaim warning delivery hardening DB", () => {
     await deleteTestData();
     await db
       .insert(schema.customers)
-      .values(makeWarningCustomer(WARNING_CYCLE_ID, 5));
+      .values(makeWarningCustomer(WARNING_CYCLE_ID, 7));
     await isolateOtherEligibleCustomers([WARNING_CYCLE_ID]);
 
     const first = await runReclamationCheck(db, FIXED_NOW);
     assert.equal(first.warningsCount, 1);
 
-    const freshAnchor = new Date(Date.now() + 1000).toISOString();
-    const laterNow = new Date(new Date(freshAnchor).getTime() + 5 * MS_PER_DAY);
+    const freshAnchor = new Date(FIXED_NOW.getTime() + 1000).toISOString();
+    const laterNow = new Date(new Date(freshAnchor).getTime() + 7 * MS_PER_DAY);
     await db
       .update(schema.customers)
       .set({
         lastValidFollowUpAt: freshAnchor,
+        reclamationCycleStartedAt: freshAnchor,
         updatedAt: freshAnchor,
       })
       .where(eq(schema.customers.id, WARNING_CYCLE_ID));
@@ -461,23 +471,15 @@ describe("reclaim warning delivery hardening DB", () => {
     assert.equal(notifs.length, 2);
   });
 
-  it("same-day unique conflict skips without a second notification or audit", async () => {
+  it("milestone dedup in same cycle skips without duplicate notification or audit", async () => {
     await deleteTestData();
     await db
       .insert(schema.customers)
-      .values(makeWarningCustomer(WARNING_UNIQUE_ID, 5));
+      .values(makeWarningCustomer(WARNING_UNIQUE_ID, 7));
     await isolateOtherEligibleCustomers([WARNING_UNIQUE_ID]);
 
     const first = await runReclamationCheck(db, FIXED_NOW);
     assert.equal(first.warningsCount, 1);
-
-    // Keep UNIQUE(customer_id, warning_type, warning_date) but move createdAt
-    // before the cycle anchor so hasWarningInCurrentCycle is false and the
-    // batch path must hit the unique constraint.
-    await db
-      .update(schema.reclamationWarningLogs)
-      .set({ createdAt: daysAgoIso(30, FIXED_NOW) })
-      .where(eq(schema.reclamationWarningLogs.customerId, WARNING_UNIQUE_ID));
 
     const raced = await runReclamationCheck(db, FIXED_NOW);
     assert.equal(raced.warningsCount, 0);
@@ -509,6 +511,7 @@ describe("reclaim warning delivery hardening DB", () => {
       .from(schema.reclamationWarningLogs)
       .where(eq(schema.reclamationWarningLogs.customerId, WARNING_UNIQUE_ID));
     assert.equal(logs.length, 1);
+    assert.equal(logs[0]?.warningMilestone, 7);
   });
 
   it("createNotification still works via statement builder for non-batch callers", async () => {

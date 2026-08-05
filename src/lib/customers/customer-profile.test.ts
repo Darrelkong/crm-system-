@@ -73,6 +73,8 @@ function baseCustomer(overrides: Partial<Customer> = {}): Customer {
     updatedBy: null,
     lastFollowUpAt: null,
     lastValidFollowUpAt: null,
+    reclamationCycleStartedAt: null,
+    reclaimRuleGraceUntil: null,
     nextFollowUpAt: null,
     deletedAt: null,
     deletedBy: null,

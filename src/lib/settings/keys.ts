@@ -51,8 +51,8 @@ export const SETTING_KEYS = [
 export type SettingKey = (typeof SETTING_KEYS)[number];
 
 export const SETTING_DEFAULTS: Record<SettingKey, string> = {
-  automatic_reclaim_days: "7",
-  reclaim_warning_days_before: "3",
+  automatic_reclaim_days: "45",
+  reclaim_warning_days_before: "1",
   reclaim_warning_day_1: "6",
   reclaim_warning_day_2: "7",
   public_pool_claim_quota_7_days: "5",

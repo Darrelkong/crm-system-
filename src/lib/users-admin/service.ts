@@ -249,6 +249,8 @@ export async function softDeleteUserAccount(
           ownerId: actor.id,
           updatedBy: actor.id,
           updatedAt: now,
+          reclamationCycleStartedAt: now,
+          reclaimRuleGraceUntil: null,
         })
         .where(eq(schema.customers.id, customer.id)),
     );

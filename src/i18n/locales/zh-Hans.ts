@@ -1411,6 +1411,10 @@ const zhHans: Messages = {
       "客户「{{customerName}}」已多日未有效跟进，请尽快安排跟进，否则将被自动回收到公共池。",
     autoReclaimWarningDay7:
       "客户「{{customerName}}」已多日未有效跟进，请尽快安排跟进，否则将被自动回收到公共池。",
+    autoReclaimWarningMilestone:
+      "客户「{{customerName}}」已连续 {{days}} 天未新增有效跟进，距自动释放还有 {{daysRemaining}} 天（规则：{{reclaimDays}} 天）。",
+    autoReclaimWarningFinal:
+      "客户「{{customerName}}」将在 1 天后自动释放至公共池，请尽快完成有效跟进（规则：{{reclaimDays}} 天）。",
     customerAutoReclaimed:
       "客户「{{customerName}}」已超过 {{days}} 天无有效跟进，已自动回收到公共池。",
     backupFailed: "系统备份失败，请尽快检查。错误：{{errorMessage}}",

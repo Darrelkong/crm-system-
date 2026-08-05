@@ -60,6 +60,10 @@ export const customers = sqliteTable(
     lastFollowUpAt: text("last_follow_up_at"),
     lastValidFollowUpAt: text("last_valid_follow_up_at"),
     nextFollowUpAt: text("next_follow_up_at"),
+    /** Explicit auto-reclaim cycle anchor; falls back to lastValidFollowUpAt then createdAt. */
+    reclamationCycleStartedAt: text("reclamation_cycle_started_at"),
+    /** Admin rule-shortening 24h protection; reclaim blocked until this instant (UTC ISO). */
+    reclaimRuleGraceUntil: text("reclaim_rule_grace_until"),
     deletedAt: text("deleted_at"),
     deletedBy: text("deleted_by").references(() => users.id),
     deletedReason: text("deleted_reason"),

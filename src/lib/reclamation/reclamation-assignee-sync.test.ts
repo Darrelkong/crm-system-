@@ -110,13 +110,16 @@ async function isolateOtherEligibleCustomers(keepCustomerIds: string[]) {
     return;
   }
 
-  await db
-    .update(schema.customers)
-    .set({
-      lastValidFollowUpAt: recent,
-      updatedAt: FIXED_NOW.toISOString(),
-    })
-    .where(inArray(schema.customers.id, idsToNeutralize));
+  for (let i = 0; i < idsToNeutralize.length; i += 40) {
+    const chunk = idsToNeutralize.slice(i, i + 40);
+    await db
+      .update(schema.customers)
+      .set({
+        lastValidFollowUpAt: recent,
+        updatedAt: FIXED_NOW.toISOString(),
+      })
+      .where(inArray(schema.customers.id, chunk));
+  }
 }
 
 async function deleteTestCustomers() {

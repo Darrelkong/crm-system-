@@ -381,6 +381,7 @@ export async function POST(request: Request) {
       ownerId,
       createdBy: user.id,
       updatedBy: user.id,
+      reclamationCycleStartedAt: now,
       createdAt: now,
       updatedAt: now,
     });

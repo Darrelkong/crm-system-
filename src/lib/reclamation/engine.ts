@@ -1,13 +1,20 @@
-import { and, eq, gte, inArray, isNotNull, notInArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, notInArray, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
-import { writeAuditLog } from "@/lib/audit/audit-log";
-import { buildCreateNotificationStatement, createNotification } from "@/lib/notifications/service";
+import {
+  buildInsertAuditLogSelectStatement,
+  writeAuditLog,
+} from "@/lib/audit/audit-log";
+import {
+  buildCreateNotificationInsertSelectStatement,
+  buildCreateNotificationStatement,
+  resolveCreateNotificationContent,
+} from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
 import type { Customer } from "../../../drizzle/schema/customers";
+import { buildCancelOwnerOpenReclaimTasksStatement } from "@/lib/tasks/lifecycle";
 import {
   AUTO_RECLAIM_POOL_REASON_PREFIX,
-  RECLAIM_WARNING_LOG_TYPE,
   RECLAMATION_AUDIT_ACTIONS,
   RECLAMATION_EXCLUDED_SALES_STAGES,
 } from "./constants";
@@ -17,12 +24,33 @@ import {
   getWarningDateKey,
 } from "./days";
 import {
+  getReclamationCycleStartedAt,
+  isReclaimGraceActive,
+} from "./cycle";
+import {
+  buildReclaimTimelineMessage,
+  buildWarningTimelineMessage,
+  getReclamationWarningMilestone,
+  isFinalReclamationWarning,
+  notificationTypeForMilestone,
+  warningTypeForMilestone,
+} from "./milestones";
+import {
   getEffectiveSettings,
   type EffectiveSettings,
 } from "@/lib/settings/effective";
 import { getCollaborativeCustomerIds } from "./collaborative";
 import { countCustomerAssignees } from "@/lib/public-pool/assignee-sync";
 import { isReclamationWarningLogUniqueConflictError } from "./warning-log-unique";
+import {
+  buildAutoReclaimCustomerCasWhere,
+  buildAutoReclaimCustomerExistsGuardSql,
+  buildAutoReclaimSnapshotMatchSql,
+  buildGuardedDeleteCustomerAssigneesStatement,
+  buildSelectOwnerOpenReclaimTaskIds,
+  extractChanges,
+  toAutoReclaimCustomerSnapshot,
+} from "./auto-reclaim-cas";
 
 export type ReclamationRunResult = {
   /** Pre-reclaim warnings sent this run (single-warning model, E-4b). */
@@ -59,67 +87,71 @@ function buildAuditMetadata(
   };
 }
 
-async function cancelOwnerOpenTasks(
+/**
+ * Best-effort per-task audits after a successful reclaim batch.
+ * Must not fail the reclaim, re-send notifications, or mutate the customer.
+ */
+async function writeCancelledTaskAuditsBestEffort(
   db: Database,
-  customerId: string,
-  previousOwnerId: string,
-  now: string,
-  customerName: string,
-): Promise<number> {
-  const openTasks = await db
-    .select()
+  input: {
+    customerId: string;
+    previousOwnerId: string;
+    taskIds: string[];
+  },
+): Promise<void> {
+  if (input.taskIds.length === 0) return;
+
+  const cancelled = await db
+    .select({
+      id: schema.tasks.id,
+      type: schema.tasks.type,
+    })
     .from(schema.tasks)
     .where(
       and(
-        eq(schema.tasks.customerId, customerId),
-        eq(schema.tasks.assignedTo, previousOwnerId),
-        eq(schema.tasks.status, "open"),
+        inArray(schema.tasks.id, input.taskIds),
+        eq(schema.tasks.customerId, input.customerId),
+        eq(schema.tasks.assignedTo, input.previousOwnerId),
+        eq(schema.tasks.status, "cancelled"),
         inArray(schema.tasks.type, ["follow_up", "first_contact"]),
       ),
     );
 
-  for (const task of openTasks) {
-    await db
-      .update(schema.tasks)
-      .set({ status: "cancelled", updatedAt: now })
-      .where(eq(schema.tasks.id, task.id));
-
-    await writeAuditLog(
-      {
-        userId: null,
-        action: RECLAMATION_AUDIT_ACTIONS.taskCancelled,
-        entityType: "task",
-        entityId: task.id,
-        metadata: {
-          customerId,
-          customerName,
-          previousOwnerId,
-          taskType: task.type,
-          executedBy: "system",
+  for (const task of cancelled) {
+    try {
+      await writeAuditLog(
+        {
+          userId: null,
+          action: RECLAMATION_AUDIT_ACTIONS.taskCancelled,
+          entityType: "task",
+          entityId: task.id,
+          metadata: {
+            customerId: input.customerId,
+            previousOwnerId: input.previousOwnerId,
+            taskType: task.type,
+            executedBy: "system",
+          },
         },
-      },
-      db,
-    );
+        db,
+      );
+    } catch (error) {
+      console.error("[reclamation] task cancel audit failed", {
+        customerId: input.customerId,
+        taskId: task.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
-
-  return openTasks.length;
 }
 
 /**
- * Per-cycle dedup for the single pre-reclaim warning (E-4b).
- *
- * A "cycle" starts at the customer's reclamation anchor
- * (lastValidFollowUpAt ?? createdAt). We only send one warning per cycle:
- * if any warning log exists with created_at >= anchorIso we skip. A new
- * valid follow-up advances the anchor and starts a fresh cycle.
- *
- * Includes legacy warning_type values so customers already warned under
- * the old two-stage model are not double-notified.
+ * Per-cycle milestone dedup: one warning per (cycle anchor, milestone).
  */
-async function hasWarningInCurrentCycle(
+async function hasMilestoneWarningInCycle(
   db: Database,
   customerId: string,
-  anchorIso: string,
+  cycleStartedAt: string,
+  milestone: number,
 ): Promise<boolean> {
   const rows = await db
     .select({ id: schema.reclamationWarningLogs.id })
@@ -127,8 +159,8 @@ async function hasWarningInCurrentCycle(
     .where(
       and(
         eq(schema.reclamationWarningLogs.customerId, customerId),
-        gte(schema.reclamationWarningLogs.createdAt, anchorIso),
-        inArray(schema.reclamationWarningLogs.warningType, ["day_6", "day_7"]),
+        eq(schema.reclamationWarningLogs.cycleStartedAt, cycleStartedAt),
+        eq(schema.reclamationWarningLogs.warningMilestone, milestone),
       ),
     )
     .limit(1);
@@ -141,13 +173,16 @@ async function sendReclaimWarning(
   days: number,
   warningDate: string,
   settings: EffectiveSettings,
+  milestone: number,
 ): Promise<boolean> {
   if (!customer.ownerId) {
     return false;
   }
 
-  const anchorIso = getReclamationAnchorAt(customer);
-  if (await hasWarningInCurrentCycle(db, customer.id, anchorIso)) {
+  const cycleStartedAt = getReclamationCycleStartedAt(customer);
+  if (
+    await hasMilestoneWarningInCycle(db, customer.id, cycleStartedAt, milestone)
+  ) {
     return false;
   }
 
@@ -155,15 +190,25 @@ async function sendReclaimWarning(
   const warningLogId = crypto.randomUUID();
   const notificationId = crypto.randomUUID();
   const ownerId = customer.ownerId;
+  const reclaimDays = settings.automaticReclaimDays;
+  const isFinal = isFinalReclamationWarning(milestone, reclaimDays);
+  const warningType = warningTypeForMilestone(milestone, reclaimDays);
+  const notificationType = notificationTypeForMilestone(milestone, reclaimDays);
+  const timelineMessage = buildWarningTimelineMessage({
+    milestone,
+    idleDays: days,
+    reclaimDays,
+    isFinal,
+  });
 
-  // UNIQUE(customer_id, warning_type, warning_date) guards same-day races.
-  // Log + notification share one batch so a notification failure cannot leave
-  // a cycle-blocking warning log without a delivered notification.
   const warningLogStatement = db.insert(schema.reclamationWarningLogs).values({
     id: warningLogId,
     customerId: customer.id,
-    warningType: RECLAIM_WARNING_LOG_TYPE,
+    warningType,
     warningDate,
+    cycleStartedAt,
+    warningMilestone: milestone,
+    reclaimDaysSnapshot: reclaimDays,
     ownerId,
     createdAt,
   });
@@ -171,14 +216,18 @@ async function sendReclaimWarning(
     id: notificationId,
     createdAt,
     userId: ownerId,
-    type: "auto_reclaim_warning_day_6",
-    titleKey: "notificationTypes.auto_reclaim_warning_day_6",
-    messageKey: "notificationMessages.autoReclaimWarning",
+    type: notificationType,
+    titleKey: `notificationTypes.${notificationType}`,
+    messageKey: isFinal
+      ? "notificationMessages.autoReclaimWarningFinal"
+      : "notificationMessages.autoReclaimWarningMilestone",
     messageParams: {
       ...customerNameNotificationParams(customer),
       days: String(days),
-      reclaimDays: String(settings.automaticReclaimDays),
-      daysBefore: String(settings.reclaimWarningDaysBefore),
+      reclaimDays: String(reclaimDays),
+      milestone: String(milestone),
+      daysRemaining: String(reclaimDays - days),
+      sequence: String(isFinal ? 0 : milestone / 7),
     },
     relatedEntityType: "customer",
     relatedEntityId: customer.id,
@@ -197,12 +246,22 @@ async function sendReclaimWarning(
     throw error;
   }
 
-  const metadata = buildAuditMetadata(customer, days);
+  const metadata = {
+    ...buildAuditMetadata(customer, days),
+    reclamationAnchorAt: cycleStartedAt,
+    reclaimDaysSnapshot: reclaimDays,
+    warningMilestone: milestone,
+    warningSequence: isFinal ? 0 : milestone / 7,
+    timelineMessage,
+    isFinalWarning: isFinal,
+  };
 
   await writeAuditLog(
     {
       userId: null,
-      action: RECLAMATION_AUDIT_ACTIONS.warning,
+      action: isFinal
+        ? RECLAMATION_AUDIT_ACTIONS.warningDay7
+        : RECLAMATION_AUDIT_ACTIONS.warning,
       entityType: "customer",
       entityId: customer.id,
       metadata,
@@ -220,15 +279,93 @@ async function autoReclaimCustomer(
   now: string,
   settings: EffectiveSettings,
 ): Promise<boolean> {
-  const previousOwnerId = customer.ownerId;
-  if (!previousOwnerId) {
+  const snapshot = toAutoReclaimCustomerSnapshot(customer);
+  if (!snapshot) {
     return false;
   }
 
-  try {
-    const clearedAssigneeCount = await countCustomerAssignees(db, customer.id);
+  const previousOwnerId = snapshot.ownerId;
+  const customerExistsGuard = buildAutoReclaimCustomerExistsGuardSql(snapshot);
+  const snapshotMatchSql = buildAutoReclaimSnapshotMatchSql(snapshot);
 
-    await db.batch([
+  const notificationId = crypto.randomUUID();
+  const auditId = crypto.randomUUID();
+  const { title, message } = resolveCreateNotificationContent({
+    userId: previousOwnerId,
+    type: "customer_auto_reclaimed",
+    titleKey: "notificationTypes.customer_auto_reclaimed",
+    messageKey: "notificationMessages.customerAutoReclaimed",
+    messageParams: {
+      ...customerNameNotificationParams(customer),
+      days: String(settings.automaticReclaimDays),
+    },
+    relatedEntityType: "customer",
+    relatedEntityId: customer.id,
+  });
+
+  const clearedAssigneeCount = await countCustomerAssignees(db, customer.id);
+  const openTasksToCancel = await buildSelectOwnerOpenReclaimTaskIds(
+    db,
+    customer.id,
+    previousOwnerId,
+  );
+  const expectedCancelledTaskCount = openTasksToCancel.length;
+
+  const reclaimMetadata = {
+    ...buildAuditMetadata(customer, days),
+    reclamationAnchorAt: getReclamationAnchorAt(customer),
+    reclaimDaysSnapshot: settings.automaticReclaimDays,
+    timelineMessage: buildReclaimTimelineMessage(settings.automaticReclaimDays),
+    clearedAssigneeCount,
+    cancelledTaskCount: expectedCancelledTaskCount,
+  };
+  const reclaimMetadataJson = JSON.stringify(reclaimMetadata);
+
+  try {
+    // Single guarded batch. Side effects use EXISTS(snapshot); Customer CAS last.
+    // D1 cannot condition later statements on earlier affected rows, so CAS is last.
+    const batchResults = (await db.batch([
+      buildGuardedDeleteCustomerAssigneesStatement(db, snapshot),
+      buildCancelOwnerOpenReclaimTasksStatement(db, {
+        customerId: customer.id,
+        previousOwnerId,
+        now,
+        customerSnapshotGuardSql: customerExistsGuard,
+      }),
+      buildCreateNotificationInsertSelectStatement(
+        db,
+        sql`
+          SELECT
+            ${notificationId} AS id,
+            ${previousOwnerId} AS user_id,
+            ${"customer_auto_reclaimed"} AS type,
+            ${title} AS title,
+            ${message} AS message,
+            ${"customer"} AS related_entity_type,
+            ${customer.id} AS related_entity_id,
+            ${0} AS is_read,
+            ${now} AS created_at
+          FROM customers
+          WHERE ${snapshotMatchSql}
+        `,
+      ),
+      buildInsertAuditLogSelectStatement(
+        db,
+        sql`
+          SELECT
+            ${auditId} AS id,
+            ${null} AS user_id,
+            ${RECLAMATION_AUDIT_ACTIONS.reclaimed} AS action,
+            ${"customer"} AS entity_type,
+            ${customer.id} AS entity_id,
+            ${null} AS ip_address,
+            ${null} AS user_agent,
+            ${reclaimMetadataJson} AS metadata,
+            ${now} AS created_at
+          FROM customers
+          WHERE ${snapshotMatchSql}
+        `,
+      ),
       db
         .update(schema.customers)
         .set({
@@ -242,84 +379,69 @@ async function autoReclaimCustomer(
           updatedBy: null,
           updatedAt: now,
         })
-        .where(eq(schema.customers.id, customer.id)),
-      db
-        .delete(schema.customerAssignees)
-        .where(eq(schema.customerAssignees.customerId, customer.id)),
-    ] as unknown as Parameters<Database["batch"]>[0]);
+        .where(buildAutoReclaimCustomerCasWhere(snapshot)),
+    ] as unknown as Parameters<Database["batch"]>[0])) as unknown as unknown[];
 
-    const cancelledTaskCount = await cancelOwnerOpenTasks(
-      db,
-      customer.id,
+    const customerChanges = extractChanges(batchResults[4]);
+    const notificationChanges = extractChanges(batchResults[2]);
+    const auditChanges = extractChanges(batchResults[3]);
+
+    if (customerChanges === 0) {
+      // Snapshot lost the race (or was never valid). Side effects should be 0.
+      return false;
+    }
+
+    if (customerChanges !== 1) {
+      throw new Error(
+        `[reclamation] auto reclaim CAS returned unexpected changes=${String(customerChanges)}`,
+      );
+    }
+
+    if (notificationChanges !== 1 || auditChanges !== 1) {
+      throw new Error(
+        `[reclamation] auto reclaim batch inconsistency notification=${String(notificationChanges)} audit=${String(auditChanges)}`,
+      );
+    }
+
+    await writeCancelledTaskAuditsBestEffort(db, {
+      customerId: customer.id,
       previousOwnerId,
-      now,
-      customer.customerName,
-    );
-
-    const metadata = {
-      ...buildAuditMetadata(customer, days),
-      cancelledTaskCount,
-      reclamationAnchorAt: getReclamationAnchorAt(customer),
-      clearedAssigneeCount,
-    };
-
-    await writeAuditLog(
-      {
-        userId: null,
-        action: RECLAMATION_AUDIT_ACTIONS.reclaimed,
-        entityType: "customer",
-        entityId: customer.id,
-        metadata,
-      },
-      db,
-    );
-
-    await createNotification(db, {
-      userId: previousOwnerId,
-      type: "customer_auto_reclaimed",
-      titleKey: "notificationTypes.customer_auto_reclaimed",
-      messageKey: "notificationMessages.customerAutoReclaimed",
-      messageParams: {
-        ...customerNameNotificationParams(customer),
-        days: String(settings.automaticReclaimDays),
-      },
-      relatedEntityType: "customer",
-      relatedEntityId: customer.id,
+      taskIds: openTasksToCancel.map((row) => row.id),
     });
 
     return true;
   } catch (error) {
-    await writeAuditLog(
-      {
-        userId: null,
-        action: RECLAMATION_AUDIT_ACTIONS.failed,
-        entityType: "customer",
-        entityId: customer.id,
-        metadata: {
-          ...buildAuditMetadata(customer, days),
-          error: error instanceof Error ? error.message : String(error),
+    try {
+      await writeAuditLog(
+        {
+          userId: null,
+          action: RECLAMATION_AUDIT_ACTIONS.failed,
+          entityType: "customer",
+          entityId: customer.id,
+          metadata: {
+            ...buildAuditMetadata(customer, days),
+            error: error instanceof Error ? error.message : String(error),
+          },
         },
-      },
-      db,
-    );
+        db,
+      );
+    } catch (auditError) {
+      console.error("[reclamation] failed audit write failed", {
+        customerId: customer.id,
+        error:
+          auditError instanceof Error ? auditError.message : String(auditError),
+      });
+    }
     return false;
   }
 }
 
 /**
- * Evaluates active owned customers for the configured pre-reclaim warning
- * and auto-reclaim thresholds (single-warning model, E-4b).
+ * Evaluates active owned customers for milestone warnings and auto-reclaim.
  *
- *   reclaimDays      = automaticReclaimDays
- *   warningThreshold = reclaimDays - reclaimWarningDaysBefore
- *
- * Only status=active with owner_id set participate. Excludes
- * public_pool / inactive / archived, excluded sales stages
- * (closed_won, converted, on_hold), and pinned customers (is_pinned = 1).
- *
- * Sends at most one pre-reclaim warning per cycle (anchor = last valid
- * follow-up or createdAt). If the day-N cron run is missed, the next run
- * in the warning band still issues exactly one warning.
+ *   - Every 7 idle days: periodic warning (7, 14, 21, …)
+ *   - reclaimDays - 1: final urgent warning
+ *   - reclaimDays: auto-reclaim (unless 24h rule-shortening grace active)
  */
 export async function runReclamationCheck(
   db: Database,
@@ -330,7 +452,6 @@ export async function runReclamationCheck(
   const isoNow = now.toISOString();
 
   const reclaimDays = settings.automaticReclaimDays;
-  const warningThreshold = settings.reclaimWarningThresholdDays;
 
   const eligibleCustomers = await db
     .select()
@@ -377,6 +498,10 @@ export async function runReclamationCheck(
     const days = getDaysWithoutValidFollowUp(customer, now);
 
     if (days >= reclaimDays) {
+      if (isReclaimGraceActive(customer, now)) {
+        result.skippedCount += 1;
+        continue;
+      }
       const reclaimed = await autoReclaimCustomer(
         db,
         customer,
@@ -393,17 +518,23 @@ export async function runReclamationCheck(
       continue;
     }
 
-    if (days >= warningThreshold) {
+    const milestone = getReclamationWarningMilestone(days, reclaimDays);
+    if (milestone !== null) {
       const warned = await sendReclaimWarning(
         db,
         customer,
         days,
         warningDate,
         settings,
+        milestone,
       );
       if (warned) {
         result.warningsCount += 1;
-        result.warningsDay6Count += 1;
+        if (isFinalReclamationWarning(milestone, reclaimDays)) {
+          result.warningsDay7Count += 1;
+        } else {
+          result.warningsDay6Count += 1;
+        }
         result.affectedCustomerIds.push(customer.id);
       } else {
         result.skippedCount += 1;

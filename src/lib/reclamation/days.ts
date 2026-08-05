@@ -1,10 +1,11 @@
 import type { Customer } from "../../../drizzle/schema/customers";
+import { getReclamationCycleStartedAt } from "./cycle";
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
-/** Anchor for reclamation: last valid follow-up, or created_at if never contacted. */
+/** Anchor for reclamation idle-day count. */
 export function getReclamationAnchorAt(customer: Customer): string {
-  return customer.lastValidFollowUpAt ?? customer.createdAt;
+  return getReclamationCycleStartedAt(customer);
 }
 
 export function getDaysWithoutValidFollowUp(

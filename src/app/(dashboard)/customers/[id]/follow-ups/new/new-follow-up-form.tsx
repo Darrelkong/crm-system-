@@ -44,6 +44,7 @@ export function NewFollowUpForm({
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
+  const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
 
   const minNextFollowUpAt = getMinNextFollowUpDatetimeLocal();
 
@@ -71,8 +72,7 @@ export function NewFollowUpForm({
     setSubmitting(false);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function submitFollowUp(confirmDuplicateFollowUp = false) {
     setFieldErrors({});
     setServerError(null);
 
@@ -104,6 +104,7 @@ export function NewFollowUpForm({
       customerIntent: form.customerIntent.trim(),
       nextFollowUpAt: nextFollowUpAtIso,
       nextAction: form.nextAction,
+      ...(confirmDuplicateFollowUp ? { confirmDuplicateFollowUp: true } : {}),
     };
 
     const gated = await postFollowUpCreateOnce({
@@ -131,12 +132,19 @@ export function NewFollowUpForm({
         ok?: boolean;
         error?: string;
         errorCode?: string;
+        requiresConfirm?: boolean;
         fieldErrors?: ValidationFieldError[];
       };
 
       if (res.ok) {
-        // Success: keep flight locked and submitting until navigation finishes.
+        setDuplicateConfirmOpen(false);
         router.push(`/customers/${customerId}`);
+        return;
+      }
+
+      if (res.status === 409 && data.errorCode === "FOLLOW_UP_DUPLICATE_CONTENT") {
+        setDuplicateConfirmOpen(true);
+        unlockSubmitFlight();
         return;
       }
 
@@ -158,11 +166,48 @@ export function NewFollowUpForm({
     }
   }
 
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setDuplicateConfirmOpen(false);
+    await submitFollowUp(false);
+  }
+
+  async function handleConfirmDuplicate() {
+    await submitFollowUp(true);
+  }
+
   return (
     <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
       <p className="mb-4 text-sm text-[#6B7890]">
         {t("followUps.addFollowUpFor", { name: displayName })}
       </p>
+
+      {duplicateConfirmOpen && (
+        <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+          <p>
+            本次跟进内容与最近一次记录相同，请确认是否继续提交。
+          </p>
+          <div className="mt-3 flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              disabled={submitting}
+              onClick={() => void handleConfirmDuplicate()}
+            >
+              {t("common.confirm")}
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
+              disabled={submitting}
+              onClick={() => setDuplicateConfirmOpen(false)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {serverError && (
         <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">

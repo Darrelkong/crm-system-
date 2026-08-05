@@ -18,6 +18,10 @@ import {
   validateFollowUpInput,
 } from "@/lib/follow-ups/validation";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
+import {
+  evaluateDuplicateFollowUpContent,
+} from "@/lib/follow-ups/duplicate-content";
+import { buildReclamationCycleResetFields } from "@/lib/reclamation/cycle";
 import { isValidFollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 import type { FollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 import { upsertFollowUpTask } from "@/lib/tasks/service";
@@ -160,6 +164,31 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    const confirmDuplicateFollowUp =
+      body.confirmDuplicateFollowUp === true ||
+      body.confirmDuplicateFollowUp === "true";
+
+    const existingFollowUps = await listFollowUpsByCustomerId(id);
+    const latestByUser = existingFollowUps.find((row) => row.userId === user.id);
+    const duplicateCheck = evaluateDuplicateFollowUpContent({
+      newSummary: input.summary,
+      previousSummary: latestByUser?.summary ?? null,
+      previousFollowUpTime: latestByUser?.followUpTime ?? null,
+      now: new Date(),
+      confirmed: confirmDuplicateFollowUp,
+    });
+    if (duplicateCheck.kind === "duplicate_requires_confirm") {
+      return Response.json(
+        {
+          error:
+            "本次跟进内容与最近一次记录相同，请确认是否继续提交。",
+          errorCode: "FOLLOW_UP_DUPLICATE_CONTENT",
+          requiresConfirm: true,
+        },
+        { status: 409 },
+      );
+    }
+
     const followUpTime = input.followUpTime?.trim() || new Date().toISOString();
     const outcome = input.outcome as FollowUpOutcome;
     const isValid = isValidFollowUpOutcome(outcome) ? 1 : 0;
@@ -191,6 +220,10 @@ export async function POST(request: Request, context: RouteContext) {
 
     if (isValid === 1) {
       customerUpdates.lastValidFollowUpAt = followUpTime;
+      Object.assign(
+        customerUpdates,
+        buildReclamationCycleResetFields(followUpTime),
+      );
     }
 
     if (nextFollowUpAt) {
@@ -225,6 +258,9 @@ export async function POST(request: Request, context: RouteContext) {
         outcome: input.outcome,
         isValidFollowUp: isValid === 1,
         taskId,
+        ...(confirmDuplicateFollowUp
+          ? { duplicateContentConfirmed: true }
+          : {}),
       },
     });
 

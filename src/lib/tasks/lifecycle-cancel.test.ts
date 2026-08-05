@@ -129,16 +129,22 @@ describe("tasks Round B1-B lifecycle cancel wiring", () => {
     );
   });
 
-  it("auto reclaim keeps previousOwner + follow_up/first_contact scope", () => {
-    const src = read("src/lib/reclamation/engine.ts");
-    assert.match(src, /async function cancelOwnerOpenTasks/);
-    assert.match(src, /eq\(schema\.tasks\.assignedTo, previousOwnerId\)/);
+  it("auto reclaim uses guarded owner follow_up/first_contact cancel in reclaim batch", () => {
+    const engine = read("src/lib/reclamation/engine.ts");
+    const lifecycle = read("src/lib/tasks/lifecycle.ts");
+    assert.match(engine, /buildCancelOwnerOpenReclaimTasksStatement/);
+    assert.match(engine, /from "@\/lib\/tasks\/lifecycle"/);
+    assert.doesNotMatch(engine, /async function cancelOwnerOpenTasks/);
+    assert.doesNotMatch(engine, /buildCancelOpenTasksForCustomerStatement/);
+    assert.match(lifecycle, /export function buildCancelOwnerOpenReclaimTasksStatement/);
     assert.match(
-      src,
+      lifecycle,
+      /eq\(schema\.tasks\.assignedTo, input\.previousOwnerId\)/,
+    );
+    assert.match(
+      lifecycle,
       /inArray\(schema\.tasks\.type, \["follow_up", "first_contact"\]\)/,
     );
-    assert.doesNotMatch(src, /buildCancelOpenTasksForCustomerStatement/);
-    assert.doesNotMatch(src, /from "@\/lib\/tasks\/lifecycle"/);
   });
 
   it("restore does not reopen cancelled tasks", () => {

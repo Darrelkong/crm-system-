@@ -1462,6 +1462,10 @@ const en = {
       "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
     autoReclaimWarningDay7:
       "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
+    autoReclaimWarningMilestone:
+      "Client \"{{customerName}}\" has had no valid follow-up for {{days}} days. {{daysRemaining}} days remain before auto-release (rule: {{reclaimDays}} days).",
+    autoReclaimWarningFinal:
+      "Client \"{{customerName}}\" will be auto-released to the public pool in 1 day. Please complete a valid follow-up soon (rule: {{reclaimDays}} days).",
     customerAutoReclaimed:
       "Client \"{{customerName}}\" exceeded {{days}} days without valid follow-up and was auto-reclaimed to the public pool.",
     backupFailed:

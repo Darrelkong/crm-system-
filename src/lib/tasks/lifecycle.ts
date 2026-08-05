@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, type SQL } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 
@@ -48,6 +48,37 @@ export async function cancelOpenTasksForCustomer(
   now: string = new Date().toISOString(),
 ): Promise<void> {
   await buildCancelOpenTasksForCustomerStatement(db, customerId, now);
+}
+
+/**
+ * Auto Reclaim only: cancel previous owner's open follow_up / first_contact
+ * tasks, gated by a Customer snapshot EXISTS guard for inclusion in db.batch.
+ * Does not expand to all assignees or all task types.
+ */
+export function buildCancelOwnerOpenReclaimTasksStatement(
+  db: Database,
+  input: {
+    customerId: string;
+    previousOwnerId: string;
+    now: string;
+    customerSnapshotGuardSql: SQL;
+  },
+) {
+  return db
+    .update(schema.tasks)
+    .set({
+      status: "cancelled",
+      updatedAt: input.now,
+    })
+    .where(
+      and(
+        eq(schema.tasks.customerId, input.customerId),
+        eq(schema.tasks.assignedTo, input.previousOwnerId),
+        eq(schema.tasks.status, "open"),
+        inArray(schema.tasks.type, ["follow_up", "first_contact"]),
+        input.customerSnapshotGuardSql,
+      ),
+    );
 }
 
 /**

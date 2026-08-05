@@ -10,6 +10,11 @@ import {
   type SettingKey,
 } from "@/lib/settings/keys";
 import { isSettingKey, validateSettingsPatch } from "@/lib/settings/validation";
+import { parseEffectiveSettings } from "@/lib/settings/effective";
+import {
+  applyReclaimRuleShorteningGrace,
+  clearReclaimRuleGraceForAll,
+} from "@/lib/reclamation/grace-period";
 import type { User } from "../../../drizzle/schema/users";
 
 export type SettingsMap = Record<SettingKey, string>;
@@ -91,6 +96,22 @@ export async function updateSystemSettings(
       userAgent: meta.userAgent,
       metadata: { changed },
     });
+
+    if (changed.automatic_reclaim_days) {
+      const previous = parseEffectiveSettings(current);
+      const next = parseEffectiveSettings({ ...current, ...changed });
+      const now = new Date();
+      if (next.automaticReclaimDays < previous.automaticReclaimDays) {
+        await applyReclaimRuleShorteningGrace(db, {
+          previousReclaimDays: previous.automaticReclaimDays,
+          newReclaimDays: next.automaticReclaimDays,
+          now,
+          actorUserId: actor.id,
+        });
+      } else if (next.automaticReclaimDays > previous.automaticReclaimDays) {
+        await clearReclaimRuleGraceForAll(db, now);
+      }
+    }
   }
 
   return getSystemSettings();
