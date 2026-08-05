@@ -1,55 +1,58 @@
-import { inArray } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { SETTING_DEFAULTS } from "@/lib/settings/keys";
 
-const RECLAIM_RULE_SETTING_KEYS = [
-  "automatic_reclaim_days",
-  "reclaim_warning_days_before",
-] as const;
+const AUTOMATIC_RECLAIM_DAYS_KEY = "automatic_reclaim_days";
 
-/**
- * Stable reclaim-rule identity for risk episodes. Uses setting values plus the
- * latest `updated_at` across reclaim-related settings so 45→60→45 does not
- * collide with an earlier 45-day episode in the same cycle.
- */
-export async function getReclaimRuleVersion(db: Database): Promise<string> {
-  const rows = await db
+export type AutomaticReclaimRuleState = {
+  reclaimDays: number;
+  /** Changes only when `automatic_reclaim_days` value is saved with a new value. */
+  ruleVersion: string;
+};
+
+export async function getAutomaticReclaimRuleState(
+  db: Database,
+): Promise<AutomaticReclaimRuleState> {
+  const row = await db
     .select({
-      key: schema.systemSettings.key,
       value: schema.systemSettings.value,
       updatedAt: schema.systemSettings.updatedAt,
     })
     .from(schema.systemSettings)
-    .where(
-      inArray(schema.systemSettings.key, [...RECLAIM_RULE_SETTING_KEYS]),
-    );
+    .where(eq(schema.systemSettings.key, AUTOMATIC_RECLAIM_DAYS_KEY))
+    .limit(1);
 
-  const byKey = new Map(rows.map((row) => [row.key, row]));
-  const reclaimDays =
-    byKey.get("automatic_reclaim_days")?.value ??
-    SETTING_DEFAULTS.automatic_reclaim_days;
-  const warningDaysBefore =
-    byKey.get("reclaim_warning_days_before")?.value ??
-    SETTING_DEFAULTS.reclaim_warning_days_before;
-  const ruleUpdatedAt = rows
-    .map((row) => row.updatedAt)
-    .sort()
-    .at(-1) ?? "";
+  const reclaimDays = Number.parseInt(
+    row[0]?.value ?? SETTING_DEFAULTS.automatic_reclaim_days,
+    10,
+  );
+  const ruleVersion = row[0]?.updatedAt ?? "default";
 
-  return `${reclaimDays}:${warningDaysBefore}:${ruleUpdatedAt}`;
+  return {
+    reclaimDays: Number.isFinite(reclaimDays) ? reclaimDays : Number(SETTING_DEFAULTS.automatic_reclaim_days),
+    ruleVersion,
+  };
+}
+
+/** @deprecated Use getAutomaticReclaimRuleState().ruleVersion */
+export async function getReclaimRuleVersion(db: Database): Promise<string> {
+  const state = await getAutomaticReclaimRuleState(db);
+  return state.ruleVersion;
 }
 
 export function buildRiskEpisodeKey(input: {
   customerId: string;
   ownerId: string;
   cycleStartedAt: string;
+  reclaimDays: number;
   reclaimRuleVersion: string;
 }): string {
   return [
     input.customerId,
     input.ownerId,
     input.cycleStartedAt,
+    String(input.reclaimDays),
     input.reclaimRuleVersion,
   ].join(":");
 }

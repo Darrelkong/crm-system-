@@ -276,6 +276,211 @@ describe("risk episode re-entry after rule extension DB", () => {
     assert.equal(after[0]?.actionState, "pending");
   });
 
+  it("re-unreads summary when risk customer set changes with same counts", async () => {
+    const customerA = "77777777-7777-7777-7777-777777777711";
+    const customerB = "77777777-7777-7777-7777-777777777712";
+    const customerC = "77777777-7777-7777-7777-777777777713";
+    const customerD = "77777777-7777-7777-7777-777777777714";
+
+    for (const id of [customerA, customerB, customerC, customerD]) {
+      await db
+        .delete(schema.reclamationActionItems)
+        .where(eq(schema.reclamationActionItems.customerId, id));
+      await db
+        .delete(schema.reclamationWarningLogs)
+        .where(eq(schema.reclamationWarningLogs.customerId, id));
+      await db.delete(schema.customers).where(eq(schema.customers.id, id));
+    }
+
+    const anchor = daysAgoIso(6);
+    await db.insert(schema.customers).values({
+      ...makeCustomer(6),
+      id: customerA,
+      customerName: "[TEST] Risk swap A",
+      lastValidFollowUpAt: anchor,
+      reclamationCycleStartedAt: anchor,
+      createdAt: anchor,
+      updatedAt: anchor,
+    });
+    await db.insert(schema.customers).values({
+      ...makeCustomer(6),
+      id: customerB,
+      customerName: "[TEST] Risk swap B",
+      lastValidFollowUpAt: anchor,
+      reclamationCycleStartedAt: anchor,
+      createdAt: anchor,
+      updatedAt: anchor,
+    });
+    await isolateOtherEligibleCustomers([customerA, customerB]);
+    await runReclamationCheck(db, FIXED_NOW);
+
+    const summary = await db
+      .select()
+      .from(schema.notifications)
+      .where(
+        eq(
+          schema.notifications.groupingKey,
+          staffReclamationGroupingKey(SEED_IDS.staffA),
+        ),
+      )
+      .limit(1);
+    assert.ok(summary[0]);
+    assert.equal(summary[0]?.isRead, 0);
+    const firstFingerprint = summary[0]?.summaryFingerprint;
+
+    await db
+      .update(schema.notifications)
+      .set({ isRead: 1 })
+      .where(eq(schema.notifications.id, summary[0]!.id));
+
+    await db
+      .update(schema.customers)
+      .set({ isPinned: 1, pinnedAt: FIXED_NOW.toISOString() })
+      .where(inArray(schema.customers.id, [customerA, customerB]));
+
+    const anchorC = daysAgoIso(6);
+    await db.insert(schema.customers).values({
+      ...makeCustomer(6),
+      id: customerC,
+      customerName: "[TEST] Risk swap C",
+      lastValidFollowUpAt: anchorC,
+      reclamationCycleStartedAt: anchorC,
+      createdAt: anchorC,
+      updatedAt: anchorC,
+    });
+    await db.insert(schema.customers).values({
+      ...makeCustomer(6),
+      id: customerD,
+      customerName: "[TEST] Risk swap D",
+      lastValidFollowUpAt: anchorC,
+      reclamationCycleStartedAt: anchorC,
+      createdAt: anchorC,
+      updatedAt: anchorC,
+    });
+    await isolateOtherEligibleCustomers([customerC, customerD]);
+    await runReclamationCheck(db, FIXED_NOW);
+
+    const after = await db
+      .select()
+      .from(schema.notifications)
+      .where(eq(schema.notifications.id, summary[0]!.id))
+      .limit(1);
+    assert.equal(after[0]?.isRead, 0);
+    assert.notEqual(after[0]?.summaryFingerprint, firstFingerprint);
+    assert.doesNotMatch(after[0]?.message ?? "", /riskEpisodeKey/i);
+    assert.doesNotMatch(
+      after[0]?.message ?? "",
+      /77777777-7777-7777-7777-7777777777/,
+    );
+
+    for (const id of [customerA, customerB, customerC, customerD]) {
+      await db
+        .delete(schema.reclamationActionItems)
+        .where(eq(schema.reclamationActionItems.customerId, id));
+      await db
+        .delete(schema.reclamationWarningLogs)
+        .where(eq(schema.reclamationWarningLogs.customerId, id));
+      await db.delete(schema.customers).where(eq(schema.customers.id, id));
+    }
+  });
+
+  it("does not create a new episode when warningDaysBefore changes", async () => {
+    await deleteTestData();
+    await db.insert(schema.customers).values(makeCustomer(6));
+    await isolateOtherEligibleCustomers([EPISODE_CUSTOMER]);
+    await syncReclamationWorkItems(db, FIXED_NOW);
+
+    const before = await db
+      .select()
+      .from(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, EPISODE_CUSTOMER));
+    assert.equal(before.length, 1);
+
+    await upsertSetting("reclaim_warning_days_before", "3");
+    await syncReclamationWorkItems(db, FIXED_NOW);
+
+    const after = await db
+      .select()
+      .from(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, EPISODE_CUSTOMER));
+    assert.equal(after.length, 1);
+    assert.equal(after[0]?.riskEpisodeKey, before[0]?.riskEpisodeKey);
+    assert.equal(after[0]?.actionState, "pending");
+  });
+
+  it("does not create a new episode when automatic_reclaim_days is saved with the same value", async () => {
+    await deleteTestData();
+    await db.insert(schema.customers).values(makeCustomer(6));
+    await isolateOtherEligibleCustomers([EPISODE_CUSTOMER]);
+    await syncReclamationWorkItems(db, FIXED_NOW);
+
+    const before = await db
+      .select()
+      .from(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, EPISODE_CUSTOMER));
+    assert.equal(before.length, 1);
+
+    await upsertSetting("automatic_reclaim_days", "14");
+    await syncReclamationWorkItems(db, FIXED_NOW);
+
+    const after = await db
+      .select()
+      .from(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, EPISODE_CUSTOMER));
+    assert.equal(after.length, 1);
+    assert.equal(after[0]?.riskEpisodeKey, before[0]?.riskEpisodeKey);
+  });
+
+  it("enforces unique risk_episode_key at the database layer", async () => {
+    const episodeKey = "unique-episode-key-test";
+    const nowIso = FIXED_NOW.toISOString();
+    await db
+      .delete(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.riskEpisodeKey, episodeKey));
+
+    await db.insert(schema.reclamationActionItems).values({
+      id: "88888888-8888-8888-8888-888888888801",
+      userId: SEED_IDS.staffA,
+      customerId: EPISODE_CUSTOMER,
+      cycleStartedAt: nowIso,
+      riskEpisodeKey: episodeKey,
+      actionState: "pending",
+      riskBand: "within_7",
+      idleDays: 6,
+      reclaimDaysSnapshot: 14,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+
+    await assert.rejects(
+      () =>
+        db.insert(schema.reclamationActionItems).values({
+          id: "88888888-8888-8888-8888-888888888802",
+          userId: SEED_IDS.staffA,
+          customerId: EPISODE_CUSTOMER,
+          cycleStartedAt: nowIso,
+          riskEpisodeKey: episodeKey,
+          actionState: "pending",
+          riskBand: "within_7",
+          idleDays: 6,
+          reclaimDaysSnapshot: 14,
+          createdAt: nowIso,
+          updatedAt: nowIso,
+        }),
+      (error: unknown) => {
+        const message =
+          error instanceof Error
+            ? `${error.message}${error.cause instanceof Error ? error.cause.message : ""}`
+            : String(error);
+        return /UNIQUE constraint failed/i.test(message);
+      },
+    );
+
+    await db
+      .delete(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.riskEpisodeKey, episodeKey));
+  });
+
   it("re-unreads summary when risk counts change materially", async () => {
     const secondCustomer = "77777777-7777-7777-7777-777777777702";
     await deleteTestData();

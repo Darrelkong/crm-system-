@@ -16,6 +16,7 @@ import { RECLAMATION_EXCLUDED_SALES_STAGES } from "./constants";
 import { getCollaborativeCustomerIds } from "./collaborative";
 import {
   buildRiskEpisodeKey,
+  getAutomaticReclaimRuleState,
   getReclaimRuleVersion,
 } from "./reclaim-rule-version";
 import {
@@ -96,14 +97,15 @@ async function attachRiskEpisodeKeys(
   db: Database,
   snapshots: ReclamationRiskSnapshot[],
 ): Promise<SnapshotWithEpisode[]> {
-  const reclaimRuleVersion = await getReclaimRuleVersion(db);
+  const { ruleVersion } = await getAutomaticReclaimRuleState(db);
   return snapshots.map((snapshot) => ({
     ...snapshot,
     riskEpisodeKey: buildRiskEpisodeKey({
       customerId: snapshot.customerId,
       ownerId: snapshot.ownerId,
       cycleStartedAt: snapshot.cycleStartedAt,
-      reclaimRuleVersion,
+      reclaimDays: snapshot.reclaimDays,
+      reclaimRuleVersion: ruleVersion,
     }),
   }));
 }
@@ -221,12 +223,15 @@ async function upsertSummaryNotification(
     messageKey: string;
     messageParams: Record<string, string>;
     counts: ReclamationSummaryCounts;
+    riskEpisodeKeys: string[];
     nowIso: string;
     hasPendingCustomers: boolean;
   },
 ): Promise<void> {
   const fingerprint = buildSummaryFingerprint({
     summaryScope: input.summaryScope,
+    recipientUserId: input.userId,
+    riskEpisodeKeys: input.riskEpisodeKeys,
     counts: input.counts,
   });
   const title = storeNotificationTitle(input.titleKey);
@@ -341,6 +346,7 @@ export async function syncReclamationWorkItems(
         : "notificationMessages.reclamationSummaryStaff",
       messageParams: buildStaffSummaryMessageParams(counts),
       counts,
+      riskEpisodeKeys: ownerSnapshots.map((snapshot) => snapshot.riskEpisodeKey),
       nowIso,
       hasPendingCustomers: counts.totalCount > 0,
     });
@@ -372,6 +378,7 @@ export async function syncReclamationWorkItems(
       messageKey: "notificationMessages.reclamationSummaryStaff",
       messageParams: buildStaffSummaryMessageParams(emptyCounts),
       counts: emptyCounts,
+      riskEpisodeKeys: [],
       nowIso,
       hasPendingCustomers: false,
     });
@@ -398,6 +405,7 @@ export async function syncReclamationWorkItems(
         : "notificationMessages.reclamationSummaryAdmin",
       messageParams: buildAdminSummaryMessageParams(teamCounts),
       counts: teamCounts,
+      riskEpisodeKeys: snapshots.map((snapshot) => snapshot.riskEpisodeKey),
       nowIso,
       hasPendingCustomers: teamCounts.totalCount > 0,
     });
@@ -526,4 +534,4 @@ export async function resolveReclamationRiskCustomerIds(
   return undefined;
 }
 
-export { buildRiskEpisodeKey, getReclaimRuleVersion };
+export { buildRiskEpisodeKey, getAutomaticReclaimRuleState, getReclaimRuleVersion };

@@ -450,6 +450,102 @@ INSERT INTO notifications (
     rmSync(duplicateSqlFile, { force: true });
     assert.match(duplicateInsert, /UNIQUE constraint failed/i);
   });
+
+  it("enforces unique risk_episode_key on reclamation_action_items", () => {
+    const env = createEnv();
+    applyMigrations(env);
+
+    d1Exec(
+      env,
+      `
+INSERT INTO users (
+  id, email, display_name, password_hash, role, is_active,
+  failed_login_attempts, locked_until, created_at, updated_at
+) VALUES
+  ('${ADMIN_ID}', 'admin@crm.local', 'Admin', 'hash', 'admin', 1, 0, NULL, '${NOW}', '${NOW}'),
+  ('${STAFF_ID}', 'staff-a@crm.local', 'Staff', 'hash', 'staff', 1, 0, NULL, '${NOW}', '${NOW}');
+
+INSERT INTO customers (
+  id, customer_name, name_status, customer_type, phone_country_code, phone,
+  source, sales_stage, owner_id, status, created_by, updated_by,
+  last_valid_follow_up_at, reclamation_cycle_started_at, is_pinned, created_at, updated_at
+) VALUES (
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+  'Episode customer',
+  'confirmed',
+  'individual',
+  '+86',
+  '13800000001',
+  'referral',
+  'negotiation',
+  '${STAFF_ID}',
+  'active',
+  '${ADMIN_ID}',
+  '${ADMIN_ID}',
+  '${NOW}',
+  '${NOW}',
+  0,
+  '${NOW}',
+  '${NOW}'
+);
+
+INSERT INTO reclamation_action_items (
+  id, user_id, customer_id, cycle_started_at, risk_episode_key, action_state,
+  risk_band, idle_days, reclaim_days_snapshot, created_at, updated_at
+) VALUES (
+  'kkkkkkkk-kkkk-kkkk-kkkk-kkkkkkkkkkk1',
+  '${STAFF_ID}',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+  '${NOW}',
+  'episode-key-unique-test',
+  'pending',
+  'within_7',
+  6,
+  14,
+  '${NOW}',
+  '${NOW}'
+);
+`.trim(),
+    );
+
+    const duplicateSqlFile = join(env.migrationsDir, "duplicate-episode.sql");
+    writeFileSync(
+      duplicateSqlFile,
+      `
+INSERT INTO reclamation_action_items (
+  id, user_id, customer_id, cycle_started_at, risk_episode_key, action_state,
+  risk_band, idle_days, reclaim_days_snapshot, created_at, updated_at
+) VALUES (
+  'kkkkkkkk-kkkk-kkkk-kkkk-kkkkkkkkkkk2',
+  '${STAFF_ID}',
+  'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1',
+  '${NOW}',
+  'episode-key-unique-test',
+  'pending',
+  'within_7',
+  6,
+  14,
+  '${NOW}',
+  '${NOW}'
+);
+`.trim(),
+    );
+
+    const duplicateInsert = wrangler(
+      env,
+      ["execute", "--file", duplicateSqlFile],
+      { allowFailure: true },
+    );
+    rmSync(duplicateSqlFile, { force: true });
+    assert.match(duplicateInsert, /UNIQUE constraint failed/i);
+
+    const episodeIndex = d1Query<{ name: string; sql: string }>(
+      env,
+      "SELECT name, sql FROM sqlite_master WHERE type = 'index' AND name = 'idx_reclamation_action_items_episode';",
+    )[0];
+    assert.ok(episodeIndex);
+    assert.match(String(episodeIndex.sql ?? ""), /risk_episode_key/i);
+  });
 });
 
 describe("migration 0045 idempotent re-apply", () => {
