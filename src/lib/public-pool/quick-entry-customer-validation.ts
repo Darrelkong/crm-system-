@@ -1,7 +1,12 @@
-import { isPendingNamePlaceholder } from "@/lib/customers/name-status";
 import {
-  countLatinLetters,
+  isCustomerNameStatus,
+  isPendingNamePlaceholder,
+  type CustomerNameStatus,
+} from "@/lib/customers/name-status";
+import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
+import {
   hasSubstantiveContent,
+  isValidCustomerName,
 } from "@/lib/customers/validation";
 
 /** Mainland China mobile: ASCII digits only, starts with 1, exactly 11 digits. */
@@ -14,14 +19,14 @@ export const QUICK_ENTRY_WECHAT_MAX_LENGTH = 64;
 export const QUICK_ENTRY_NAME_MAX_LENGTH = 200;
 export const QUICK_ENTRY_PROJECT_MAX_LENGTH = 200;
 
-/** Pure CJK unified ideographs, length 2–5 (Quick Entry confirmed names only). */
-const QUICK_ENTRY_PURE_CHINESE_NAME_RE = /^[\u4e00-\u9fff]{2,5}$/;
 /**
- * English confirmed names: letters with optional single spaces, hyphens, or
- * apostrophes between letter groups (e.g. John Smith, Mary-Jane, O'Connor).
+ * Confirmed-name format for Quick Entry — same rules as create/edit
+ * ({@link isValidCustomerName}: Chinese 1–5, or Latin ≥4).
+ * Pending placeholders must be accepted via nameStatus=pending instead.
  */
-const QUICK_ENTRY_ENGLISH_NAME_RE =
-  /^[A-Za-z]+(?:[ '\-][A-Za-z]+)*$/;
+export function isValidQuickEntryCustomerName(name: string): boolean {
+  return isValidCustomerName(name);
+}
 
 export const QUICK_ENTRY_CUSTOMER_ERROR_CODES = {
   CUSTOMER_NAME_REQUIRED: "QUICK_ENTRY_CUSTOMER_NAME_REQUIRED",
@@ -38,43 +43,35 @@ export const QUICK_ENTRY_CUSTOMER_ERROR_CODES = {
   VALIDATION_FAILED: "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
 } as const;
 
-/**
- * Quick Entry confirmed-name format (does not treat pending placeholders).
- * Callers must reject placeholders via `isPendingNamePlaceholder` first.
- */
-export function isValidQuickEntryCustomerName(name: string): boolean {
-  const trimmed = name.trim();
-  if (!trimmed) return false;
-  if (QUICK_ENTRY_PURE_CHINESE_NAME_RE.test(trimmed)) return true;
-  // Any remaining Chinese → wrong length, mixed script, or punctuation.
-  if (/[\u4e00-\u9fff]/.test(trimmed)) return false;
-  if (/\d/.test(trimmed)) return false;
-  if (!QUICK_ENTRY_ENGLISH_NAME_RE.test(trimmed)) return false;
-  return countLatinLetters(trimmed) >= 4;
-}
-
 export type QuickEntryCustomerInput = {
   customerName: string;
+  /** Create-aligned; omit / confirmed = real name. Pending requires exact placeholder. */
+  nameStatus?: CustomerNameStatus | null;
   phone?: string | null;
   phoneCountryCode?: string | null;
   wechatId?: string | null;
   /** Optional; checked for duplicates when present. Not shown in QE UI yet. */
   email?: string | null;
-  requestedProjectName: string;
+  /** Catalog code (required for new QE creates). */
+  requestedProjectCode?: string | null;
+  /** Required when code is `other`; ignored for standard catalog codes. */
+  requestedProjectName?: string | null;
   initialFollowUpNote?: string | null;
   supplementalNote?: string | null;
 };
 
 /**
- * Shared canonical customer fields for hash + QE-2 create.
+ * Shared canonical customer fields for hash + QE create.
  * Trimmed; empty optionals → null; phoneCountryCode always set (default +86).
  */
 export type QuickEntryCanonicalCustomerFields = {
   customerName: string;
+  nameStatus: CustomerNameStatus;
   phone: string | null;
   phoneCountryCode: string;
   wechatId: string | null;
   email: string | null;
+  requestedProjectCode: string;
   requestedProjectName: string;
   initialFollowUpNote: string | null;
   supplementalNote: string | null;
@@ -82,10 +79,12 @@ export type QuickEntryCanonicalCustomerFields = {
 
 export type QuickEntryCustomerNormalized = {
   customerName: string;
+  nameStatus: CustomerNameStatus;
   phone: string | null;
   phoneCountryCode: string;
   wechatId: string | null;
   email: string | null;
+  requestedProjectCode: string;
   requestedProjectName: string;
   /** Maps to customers.notes */
   notes: string | null;
@@ -111,13 +110,18 @@ function asTrimmedNullable(value: unknown): string | null {
 }
 
 /**
- * Shared normalize for QE-2 validator and Batch canonical hash.
+ * Shared normalize for QE validator and Batch canonical hash.
  * Does not validate business rules (name length, phone format, …).
  * phoneCountryCode: missing／null／"" → +86; any other non-empty trimmed value kept for validation.
  */
 export function normalizeQuickEntryCustomerInput(
   input: QuickEntryCustomerInput,
-): QuickEntryCanonicalCustomerFields {
+): Omit<
+  QuickEntryCanonicalCustomerFields,
+  "requestedProjectCode"
+> & {
+  requestedProjectCode: string;
+} {
   const customerName =
     typeof input.customerName === "string" ? input.customerName.trim() : "";
   const phone =
@@ -140,6 +144,14 @@ export function normalizeQuickEntryCustomerInput(
       : null;
   const phoneCountryCode = ccRaw ?? QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE;
 
+  const nameStatus: CustomerNameStatus =
+    input.nameStatus === "pending" ? "pending" : "confirmed";
+
+  const requestedProjectCode =
+    typeof input.requestedProjectCode === "string"
+      ? input.requestedProjectCode.trim()
+      : "";
+
   const requestedProjectName =
     typeof input.requestedProjectName === "string"
       ? input.requestedProjectName.trim()
@@ -159,10 +171,12 @@ export function normalizeQuickEntryCustomerInput(
 
   return {
     customerName,
+    nameStatus,
     phone,
     phoneCountryCode,
     wechatId,
     email,
+    requestedProjectCode,
     requestedProjectName,
     initialFollowUpNote,
     supplementalNote,
@@ -174,10 +188,12 @@ export function canonicalToNormalizedCustomer(
 ): QuickEntryCustomerNormalized {
   return {
     customerName: canonical.customerName,
+    nameStatus: canonical.nameStatus,
     phone: canonical.phone,
     phoneCountryCode: canonical.phoneCountryCode,
     wechatId: canonical.wechatId,
     email: canonical.email,
+    requestedProjectCode: canonical.requestedProjectCode,
     requestedProjectName: canonical.requestedProjectName,
     notes: canonical.initialFollowUpNote,
     sourceRemark: canonical.supplementalNote,
@@ -190,8 +206,7 @@ export function isValidQuickEntryCnPhone(phone: string): boolean {
 
 /**
  * Server-side validator for public-pool quick-entry customer create.
- * Does not accept / apply Client-controlled system fields (owner/status/source/…).
- * Reuses {@link normalizeQuickEntryCustomerInput} for trim／null／country-code.
+ * Aligns name + requested-project rules with full customer create.
  */
 export function validateQuickEntryCustomerInput(
   input: unknown,
@@ -257,6 +272,17 @@ export function validateQuickEntryCustomerInput(
       message: "补充备注无效",
     });
   }
+  if (
+    record.nameStatus != null &&
+    typeof record.nameStatus === "string" &&
+    !isCustomerNameStatus(record.nameStatus)
+  ) {
+    errors.push({
+      field: "customerName",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
+      message: "姓名状态无效",
+    });
+  }
 
   if (errors.length > 0) {
     return { ok: false, errors };
@@ -265,6 +291,10 @@ export function validateQuickEntryCustomerInput(
   const typed: QuickEntryCustomerInput = {
     customerName:
       typeof record.customerName === "string" ? record.customerName : "",
+    nameStatus:
+      record.nameStatus === "pending" || record.nameStatus === "confirmed"
+        ? record.nameStatus
+        : "confirmed",
     phone:
       typeof record.phone === "string" || record.phone == null
         ? (record.phone as string | null | undefined)
@@ -281,6 +311,11 @@ export function validateQuickEntryCustomerInput(
     email:
       typeof record.email === "string" || record.email == null
         ? (record.email as string | null | undefined)
+        : null,
+    requestedProjectCode:
+      typeof record.requestedProjectCode === "string" ||
+      record.requestedProjectCode == null
+        ? (record.requestedProjectCode as string | null | undefined)
         : null,
     requestedProjectName:
       typeof record.requestedProjectName === "string"
@@ -300,7 +335,21 @@ export function validateQuickEntryCustomerInput(
 
   const canonical = normalizeQuickEntryCustomerInput(typed);
 
-  if (!canonical.customerName) {
+  if (canonical.nameStatus === "pending") {
+    if (!canonical.customerName) {
+      errors.push({
+        field: "customerName",
+        errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_REQUIRED,
+        message: "请选择 X先生 或 X女士",
+      });
+    } else if (!isPendingNamePlaceholder(canonical.customerName)) {
+      errors.push({
+        field: "customerName",
+        errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
+        message: "请选择 X先生 或 X女士",
+      });
+    }
+  } else if (!canonical.customerName) {
     errors.push({
       field: "customerName",
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_REQUIRED,
@@ -311,7 +360,7 @@ export function validateQuickEntryCustomerInput(
       field: "customerName",
       errorCode:
         QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN,
-      message: "X先生／X女士不能作为已确认姓名，请使用完整新增客户流程",
+      message: "X先生／X女士仅可在「暂时不知道姓名」时使用",
     });
   } else if (
     canonical.customerName.length > QUICK_ENTRY_NAME_MAX_LENGTH ||
@@ -321,7 +370,7 @@ export function validateQuickEntryCustomerInput(
       field: "customerName",
       errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
       message:
-        "中文姓名须为 2～5 个中文字；英文姓名仅可含字母、空格、连字号或撇号，且不得含数字、中英混合或其他符号",
+        "中文姓名须为 1～5 个中文字；英文姓名至少 4 个字母",
     });
   }
 
@@ -360,15 +409,39 @@ export function validateQuickEntryCustomerInput(
     });
   }
 
-  if (!canonical.requestedProjectName) {
+  const projectResolved = resolveRequestedProjectForPersist({
+    requestedProjectCode: canonical.requestedProjectCode || null,
+    requestedProjectName: canonical.requestedProjectName || null,
+    mode: "create",
+  });
+  if (!projectResolved.ok) {
+    const first = projectResolved.fieldErrors[0];
+    const isRequired =
+      first?.code === "REQUESTED_PROJECT_CODE_REQUIRED" ||
+      first?.code === "REQUESTED_PROJECT_NAME_REQUIRED";
     errors.push({
-      field: "requestedProjectName",
-      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_REQUIRED,
-      message: "客户需要的项目名称必填",
+      field: first?.field === "requestedProjectCode"
+        ? "requestedProjectCode"
+        : "requestedProjectName",
+      errorCode: isRequired
+        ? QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_REQUIRED
+        : QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_INVALID,
+      message: first?.message ?? "需求业务无效",
     });
   } else if (
-    canonical.requestedProjectName.length > QUICK_ENTRY_PROJECT_MAX_LENGTH ||
-    !hasSubstantiveContent(canonical.requestedProjectName, 4)
+    projectResolved.value.requestedProjectName &&
+    projectResolved.value.requestedProjectName.length >
+      QUICK_ENTRY_PROJECT_MAX_LENGTH
+  ) {
+    errors.push({
+      field: "requestedProjectName",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_INVALID,
+      message: "项目名称过长",
+    });
+  } else if (
+    projectResolved.value.requestedProjectCode === "other" &&
+    projectResolved.value.requestedProjectName &&
+    !hasSubstantiveContent(projectResolved.value.requestedProjectName, 4)
   ) {
     errors.push({
       field: "requestedProjectName",
@@ -403,11 +476,32 @@ export function validateQuickEntryCustomerInput(
     return { ok: false, errors };
   }
 
+  if (!projectResolved.ok || !projectResolved.value.requestedProjectCode) {
+    return {
+      ok: false,
+      errors: [
+        {
+          field: "requestedProjectCode",
+          errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_REQUIRED,
+          message: "需求业务必填",
+        },
+      ],
+    };
+  }
+
   return {
     ok: true,
     value: canonicalToNormalizedCustomer({
-      ...canonical,
+      customerName: canonical.customerName,
+      nameStatus: canonical.nameStatus,
+      phone: canonical.phone,
       phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
+      wechatId: canonical.wechatId,
+      email: canonical.email,
+      requestedProjectCode: projectResolved.value.requestedProjectCode,
+      requestedProjectName: projectResolved.value.requestedProjectName ?? "",
+      initialFollowUpNote: canonical.initialFollowUpNote,
+      supplementalNote: canonical.supplementalNote,
     }),
   };
 }

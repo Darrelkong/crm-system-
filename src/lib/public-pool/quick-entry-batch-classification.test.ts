@@ -15,9 +15,11 @@ describe("normalizeQuickEntryCustomerInput", () => {
   it("trims and maps empty optionals to null with default +86", () => {
     const canonical = normalizeQuickEntryCustomerInput({
       customerName: "  张三  ",
+      nameStatus: "confirmed",
       phone: " 13800138000 ",
       phoneCountryCode: "",
       wechatId: "  ",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "  移民项目咨询  ",
       initialFollowUpNote: "  ",
       supplementalNote: "",
@@ -34,7 +36,9 @@ describe("normalizeQuickEntryCustomerInput", () => {
   it("keeps wechat case and +86 when phone missing", () => {
     const canonical = normalizeQuickEntryCustomerInput({
       customerName: "李四",
+      nameStatus: "confirmed",
       wechatId: "WeChat_User",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "留学项目咨询",
     });
     assert.equal(canonical.wechatId, "WeChat_User");
@@ -45,8 +49,10 @@ describe("normalizeQuickEntryCustomerInput", () => {
   it("is reused by validator for identical trim／null semantics", () => {
     const input = {
       customerName: "  王五  ",
+      nameStatus: "confirmed" as const,
       phone: " 13800138001 ",
       phoneCountryCode: null,
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "  加拿大移民项目  ",
       initialFollowUpNote: "  备注  ",
       supplementalNote: "   ",
@@ -65,7 +71,9 @@ describe("normalizeQuickEntryCustomerInput", () => {
   it("preserves existing QE-2 error codes", () => {
     const missing = validateQuickEntryCustomerInput({
       customerName: "  ",
+      nameStatus: "confirmed",
       phone: "13800138000",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     });
     assert.equal(missing.ok, false);
@@ -83,16 +91,20 @@ describe("canonical hash after normalize", () => {
     const submissionId = "550e8400-e29b-41d4-a716-4466554400aa";
     const a = normalizeQuickEntryCustomerInput({
       customerName: "张三",
+      nameStatus: "confirmed",
       phone: "13800138000",
       phoneCountryCode: undefined,
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "加拿大移民项目",
       initialFollowUpNote: "",
       supplementalNote: null,
     });
     const b = normalizeQuickEntryCustomerInput({
       customerName: " 张三 ",
+      nameStatus: "confirmed",
       phone: " 13800138000 ",
       phoneCountryCode: "+86",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: " 加拿大移民项目 ",
       initialFollowUpNote: "   ",
       supplementalNote: "",
@@ -120,6 +132,7 @@ describe("classifyQuickEntryBatchRows", () => {
       customerName: "测试客户",
       phone,
       wechatId,
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     });
     return {
@@ -130,6 +143,7 @@ describe("classifyQuickEntryBatchRows", () => {
         customerName: "测试客户",
         phone,
         wechatId,
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "移民项目咨询",
       }),
     };
@@ -165,12 +179,16 @@ describe("classifyQuickEntryBatchRows", () => {
       clientRowId: "bad",
       canonical: normalizeQuickEntryCustomerInput({
         customerName: "A",
+        nameStatus: "confirmed",
         phone: "13800138000",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "移民项目咨询",
       }),
       validation: validateQuickEntryCustomerInput({
         customerName: "A",
+        nameStatus: "confirmed",
         phone: "13800138000",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "移民项目咨询",
       }),
     };

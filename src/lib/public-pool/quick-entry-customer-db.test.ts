@@ -139,7 +139,9 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
       actor: staffUser,
       customer: {
         customerName: "快录客户甲",
+        nameStatus: "confirmed",
         phone: "13910001001",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "加拿大移民项目",
         initialFollowUpNote: "可选首次备注",
         supplementalNote: "补充备注",
@@ -231,8 +233,10 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
       actor: adminUser,
       customer: {
         customerName: "重复客户",
+        nameStatus: "confirmed",
         phone: "13910002002",
         wechatId: "qe2_dup_wx",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "澳洲移民项目",
       },
       db,
@@ -244,7 +248,9 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
       actor: staffUser,
       customer: {
         customerName: "另一客户",
+        nameStatus: "confirmed",
         phone: "13910002002",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "澳洲移民项目",
       },
       db,
@@ -264,6 +270,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
       customer: {
         customerName: "另一客户二",
         wechatId: "qe2_dup_wx",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "澳洲移民项目",
       },
       db,
@@ -292,6 +299,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
           customer: {
             customerName,
             phone: `13910003${String(i + 1).padStart(3, "0")}`,
+            requestedProjectCode: "hk_bank_account",
             requestedProjectName: "新西兰移民项目",
           },
           db,
@@ -320,7 +328,9 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
       actor: adminUser,
       customer: {
         customerName: "候选客户",
+        nameStatus: "confirmed",
         phone: "13910004004",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "英国移民项目",
       },
       db,
@@ -365,7 +375,9 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
       actor: inactive,
       customer: {
         customerName: "无效操作者",
+        nameStatus: "confirmed",
         phone: "13910005005",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "测试项目名称",
       },
       db,

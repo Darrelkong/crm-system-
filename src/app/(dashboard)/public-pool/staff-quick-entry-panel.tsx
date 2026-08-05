@@ -16,6 +16,7 @@ import { Input, Label, Textarea } from "@/components/ui/form";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { QuickEntryDrawer } from "@/components/ui/quick-entry-drawer";
 import { useTranslation } from "@/i18n/provider";
+import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 import { QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE } from "@/lib/public-pool/quick-entry-customer-validation";
 import {
@@ -23,9 +24,9 @@ import {
   BatchResultsPanel,
   batchResultsHasIncomplete,
 } from "./quick-entry-batch-ui";
+import { QuickEntryNameProjectFields } from "./quick-entry-name-project-fields";
 import {
   QUICK_ENTRY_CUSTOMERS_API_PATH,
-  QUICK_ENTRY_PROJECT_SUGGESTIONS,
   QUICK_ENTRY_STATUS_API_PATH,
   QUICK_ENTRY_VERIFY_API_PATH,
   applyQuickEntryModeSwitchChoice,
@@ -39,7 +40,6 @@ import {
   createNewQuickEntryBatch,
   customersRequestBodyHasForbiddenKeys,
   deriveSingleEntryResultKind,
-  filterProjectSuggestions,
   filterIncompleteRowsForRetry,
   firstErrorClientRowId,
   firstFieldErrorKey,
@@ -125,7 +125,7 @@ function fieldDomId(rowId: string, field: QuickEntryFieldKey): string {
 }
 
 export function StaffQuickEntryPanel(_props: Props) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const titleId = useId();
   const drawerTitleId = useId();
@@ -161,8 +161,6 @@ export function StaffQuickEntryPanel(_props: Props) {
   >(null);
   const [keepProject, setKeepProject] = useState(true);
   const [noteOpen, setNoteOpen] = useState(false);
-  const [projectComboOpen, setProjectComboOpen] = useState(false);
-  const [projectHighlight, setProjectHighlight] = useState(0);
   const [discardOpen, setDiscardOpen] = useState(false);
   const [sessionCreatedCount, setSessionCreatedCount] = useState(0);
   const [draftSnapshot, setDraftSnapshot] = useState<QuickEntryFormRow | null>(
@@ -198,8 +196,7 @@ export function StaffQuickEntryPanel(_props: Props) {
     setBanner(null);
     setBannerTone(null);
     setNoteOpen(false);
-    setProjectComboOpen(false);
-    setDraftSnapshot(null);
+        setDraftSnapshot(null);
     setBatchDraftRows([]);
     setResultDetailOpenIds([]);
     setDeleteConfirmId(null);
@@ -340,8 +337,7 @@ export function StaffQuickEntryPanel(_props: Props) {
     setVerifyCode("");
     setVerifyError(null);
     setDiscardOpen(false);
-    setProjectComboOpen(false);
-    if (!batchResult) {
+        if (!batchResult) {
       setSubmissionId("");
       setRows([]);
       setOpenCardIds([]);
@@ -547,8 +543,7 @@ export function StaffQuickEntryPanel(_props: Props) {
     setFormError(null);
     setProcessingRetryAfter(null);
     setNoteOpen(false);
-    setProjectComboOpen(false);
-    setView("form");
+        setView("form");
     setBanner(t("publicPool.quickEntry.toastContinueSuccess"));
     setBannerTone("success");
     setTimeout(() => nameInputRef.current?.focus(), 0);
@@ -842,10 +837,6 @@ export function StaffQuickEntryPanel(_props: Props) {
   const singleFieldErrors = singleRow
     ? fieldErrorsByRow[singleRow.clientRowId]
     : undefined;
-  const projectSuggestions = filterProjectSuggestions(
-    singleRow?.requestedProjectName ?? "",
-  );
-  const otherLabel = t("publicPool.quickEntry.projectOtherOption");
 
   const modeTabs =
     view === "form" ? (
@@ -1096,16 +1087,10 @@ export function StaffQuickEntryPanel(_props: Props) {
               fieldErrors={singleFieldErrors}
               noteOpen={noteOpen}
               setNoteOpen={setNoteOpen}
-              projectComboOpen={projectComboOpen}
-              setProjectComboOpen={setProjectComboOpen}
-              projectHighlight={projectHighlight}
-              setProjectHighlight={setProjectHighlight}
-              projectSuggestions={projectSuggestions}
-              otherLabel={otherLabel}
               submitting={submitting}
-              nameInputRef={nameInputRef}
               updateRow={updateRow}
               t={t}
+              locale={locale}
             />
           ) : null}
 
@@ -1135,6 +1120,7 @@ export function StaffQuickEntryPanel(_props: Props) {
               onRetry={() => void handleSubmit("batch")}
               onNewBatch={handleNewBatch}
               t={t}
+              locale={locale}
             />
           ) : null}
 
@@ -1391,169 +1377,32 @@ function SingleEntryForm({
   fieldErrors,
   noteOpen,
   setNoteOpen,
-  projectComboOpen,
-  setProjectComboOpen,
-  projectHighlight,
-  setProjectHighlight,
-  projectSuggestions,
-  otherLabel,
   submitting,
-  nameInputRef,
   updateRow,
   t,
+  locale,
 }: {
   row: QuickEntryFormRow;
   fieldErrors?: QuickEntryFieldErrors;
   noteOpen: boolean;
   setNoteOpen: (open: boolean) => void;
-  projectComboOpen: boolean;
-  setProjectComboOpen: (open: boolean) => void;
-  projectHighlight: number;
-  setProjectHighlight: (n: number) => void;
-  projectSuggestions: string[];
-  otherLabel: string;
   submitting: boolean;
-  nameInputRef: RefObject<HTMLInputElement | null>;
   updateRow: (id: string, patch: Partial<QuickEntryFormRow>) => void;
   t: TFn;
+  locale: Locale;
 }) {
   const phoneInvalid = Boolean(fieldErrors?.phone || fieldErrors?.contact);
-  const suggestions =
-    projectSuggestions.length > 0
-      ? projectSuggestions
-      : [...QUICK_ENTRY_PROJECT_SUGGESTIONS];
-
-  function pickProject(value: string) {
-    const isOther = value === "其他" || value === otherLabel;
-    updateRow(row.clientRowId, {
-      requestedProjectName: isOther ? "" : value,
-    });
-    setProjectComboOpen(false);
-  }
-
-  function onProjectKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    if (
-      !projectComboOpen &&
-      (event.key === "ArrowDown" || event.key === "Enter")
-    ) {
-      setProjectComboOpen(true);
-      return;
-    }
-    if (!projectComboOpen) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setProjectHighlight((projectHighlight + 1) % suggestions.length);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setProjectHighlight(
-        (projectHighlight - 1 + suggestions.length) % suggestions.length,
-      );
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const picked = suggestions[projectHighlight];
-      if (picked) pickProject(picked);
-    } else if (event.key === "Escape") {
-      setProjectComboOpen(false);
-    }
-  }
 
   return (
     <form className="space-y-4" noValidate onSubmit={(e) => e.preventDefault()}>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div>
-          <Label htmlFor={`${row.clientRowId}-name`}>
-            {t("publicPool.quickEntry.fields.customerName")}
-          </Label>
-          <Input
-            ref={nameInputRef}
-            id={`${row.clientRowId}-name`}
-            value={row.customerName}
-            disabled={submitting}
-            aria-invalid={Boolean(fieldErrors?.customerName)}
-            aria-describedby={
-              fieldErrors?.customerName ? `${row.clientRowId}-name-err` : undefined
-            }
-            onChange={(e) =>
-              updateRow(row.clientRowId, { customerName: e.target.value })
-            }
-          />
-          {fieldErrors?.customerName ? (
-            <p
-              id={`${row.clientRowId}-name-err`}
-              className="qe-field-error"
-              role="alert"
-            >
-              {t(`publicPool.quickEntry.validation.${fieldErrors.customerName}`)}
-            </p>
-          ) : null}
-        </div>
-        <div>
-          <Label htmlFor={`${row.clientRowId}-project`}>
-            {t("publicPool.quickEntry.fields.requestedProjectName")}
-          </Label>
-          <div className="qe-combo">
-            <Input
-              id={`${row.clientRowId}-project`}
-              value={row.requestedProjectName}
-              disabled={submitting}
-              placeholder={t("publicPool.quickEntry.projectSearchPlaceholder")}
-              aria-invalid={Boolean(fieldErrors?.requestedProjectName)}
-              aria-autocomplete="list"
-              aria-expanded={projectComboOpen}
-              aria-describedby={
-                fieldErrors?.requestedProjectName
-                  ? `${row.clientRowId}-project-err`
-                  : undefined
-              }
-              onFocus={() => setProjectComboOpen(true)}
-              onChange={(e) => {
-                updateRow(row.clientRowId, {
-                  requestedProjectName: e.target.value,
-                });
-                setProjectComboOpen(true);
-                setProjectHighlight(0);
-              }}
-              onKeyDown={onProjectKeyDown}
-              onBlur={() => {
-                setTimeout(() => setProjectComboOpen(false), 120);
-              }}
-            />
-            {projectComboOpen ? (
-              <ul className="qe-combo-list" role="listbox">
-                {suggestions.map((item, index) => (
-                  <li key={item}>
-                    <button
-                      type="button"
-                      role="option"
-                      className="qe-combo-item"
-                      aria-selected={index === projectHighlight}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => pickProject(item)}
-                    >
-                      {item === "其他" ? otherLabel : item}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-          </div>
-          <p className="mt-1 text-xs text-[var(--color-crm-text-secondary)]">
-            {t("publicPool.quickEntry.projectOtherHint")}
-          </p>
-          {fieldErrors?.requestedProjectName ? (
-            <p
-              id={`${row.clientRowId}-project-err`}
-              className="qe-field-error"
-              role="alert"
-            >
-              {t(
-                `publicPool.quickEntry.validation.${fieldErrors.requestedProjectName}`,
-              )}
-            </p>
-          ) : null}
-        </div>
-      </div>
-
+      <QuickEntryNameProjectFields
+        row={row}
+        locale={locale}
+        t={t}
+        fieldErrors={fieldErrors}
+        disabled={submitting}
+        updateRow={updateRow}
+      />
       <div className="grid gap-3 md:grid-cols-2">
         <div>
           <Label htmlFor={`${row.clientRowId}-phone`}>

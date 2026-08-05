@@ -14,8 +14,9 @@ import type { User } from "../../../drizzle/schema/users";
 
 const validBase = {
   customerName: "张三",
+  nameStatus: "confirmed" as const,
   phone: "13800138000",
-  requestedProjectName: "移民项目咨询",
+  requestedProjectCode: "hk_bank_account",
 };
 
 const staffActor = {
@@ -27,15 +28,14 @@ const staffActor = {
 } as User;
 
 describe("isValidQuickEntryCustomerName", () => {
-  it("accepts Chinese names of length 2–5", () => {
-    for (const name of ["王明", "王小明", "歐陽娜娜", "阿布都熱依"]) {
+  it("accepts Chinese names of length 1–5", () => {
+    for (const name of ["王", "王明", "王小明", "歐陽娜娜", "阿布都熱依"]) {
       assert.equal(isValidQuickEntryCustomerName(name), true, name);
     }
   });
 
-  it("rejects Chinese names outside 2–5 or with extras", () => {
+  it("rejects Chinese names outside 1–5 or with extras", () => {
     for (const name of [
-      "王",
       "王小明明明明",
       "王小明123",
       "王 John",
@@ -47,6 +47,12 @@ describe("isValidQuickEntryCustomerName", () => {
     ]) {
       assert.equal(isValidQuickEntryCustomerName(name), false, name);
     }
+  });
+
+  it("trims surrounding spaces before validating Chinese names", () => {
+    assert.equal(isValidQuickEntryCustomerName("  王  "), true);
+    assert.equal(isValidQuickEntryCustomerName("  王小明  "), true);
+    assert.equal(isValidQuickEntryCustomerName("  王小明明明明  "), false);
   });
 
   it("accepts English names with spaces, hyphens, and apostrophes", () => {
@@ -79,6 +85,7 @@ describe("isValidQuickEntryCustomerName", () => {
 describe("validateQuickEntryCustomerInput name rules", () => {
   it("accepts valid Chinese and English names", () => {
     for (const customerName of [
+      "王",
       "王明",
       "王小明",
       "歐陽娜娜",
@@ -95,26 +102,45 @@ describe("validateQuickEntryCustomerInput name rules", () => {
     }
   });
 
-  it("rejects pending placeholders X先生 / X女士", () => {
+  it("rejects six-character Chinese names after trim", () => {
+    const result = validateQuickEntryCustomerInput({
+      ...validBase,
+      customerName: "  王小明明明明  ",
+    });
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.equal(
+        result.errors[0]?.errorCode,
+        QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_INVALID,
+      );
+    }
+  });
+
+  it("rejects pending placeholders unless nameStatus is pending", () => {
     for (const customerName of ["X先生", "X女士"]) {
-      const result = validateQuickEntryCustomerInput({
+      const forbidden = validateQuickEntryCustomerInput({
         ...validBase,
         customerName,
       });
-      assert.equal(result.ok, false, customerName);
-      if (!result.ok) {
+      assert.equal(forbidden.ok, false, customerName);
+      if (!forbidden.ok) {
         assert.equal(
-          result.errors[0]?.errorCode,
+          forbidden.errors[0]?.errorCode,
           QUICK_ENTRY_CUSTOMER_ERROR_CODES.CUSTOMER_NAME_PLACEHOLDER_FORBIDDEN,
           customerName,
         );
       }
+      const allowed = validateQuickEntryCustomerInput({
+        ...validBase,
+        customerName,
+        nameStatus: "pending",
+      });
+      assert.equal(allowed.ok, true, customerName);
     }
   });
 
   it("rejects invalid Chinese / mixed / symbol names", () => {
     for (const customerName of [
-      "王",
       "王小明明明明",
       "王小明123",
       "王 John",
@@ -154,6 +180,7 @@ describe("validateQuickEntryCustomerInput", () => {
     const result = validateQuickEntryCustomerInput({
       customerName: "李四",
       wechatId: "wechat_user_1",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "留学项目咨询",
     });
     assert.equal(result.ok, true);
@@ -219,6 +246,7 @@ describe("validateQuickEntryCustomerInput", () => {
   it("rejects missing both contacts", () => {
     const result = validateQuickEntryCustomerInput({
       customerName: "王五",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     });
     assert.equal(result.ok, false);
@@ -247,7 +275,9 @@ describe("validateQuickEntryCustomerInput", () => {
 
     const wechat = validateQuickEntryCustomerInput({
       customerName: "赵六",
+      nameStatus: "confirmed",
       wechatId: "x".repeat(65),
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     });
     assert.equal(wechat.ok, false);
@@ -319,6 +349,7 @@ describe("validateQuickEntryCustomerInput", () => {
       validateQuickEntryCustomerInput({
         customerName: "测试用户",
         wechatId: "wx_only",
+        requestedProjectCode: "hk_bank_account",
         requestedProjectName: "移民项目咨询",
       }).ok,
       true,
@@ -332,12 +363,14 @@ describe("validateQuickEntryCustomerInput", () => {
     );
   });
 
-  it("maps reproduction payload project short name to PROJECT_INVALID", () => {
+  it("maps other-code short project name to PROJECT_INVALID", () => {
     const result = validateQuickEntryCustomerInput({
       customerName: "測試",
+      nameStatus: "confirmed",
       phoneCountryCode: "",
       phone: "13800138000",
       wechatId: "",
+      requestedProjectCode: "other",
       requestedProjectName: "測試",
       initialFollowUpNote: "測試測試測試",
       supplementalNote: "測試測試",
@@ -354,17 +387,37 @@ describe("validateQuickEntryCustomerInput", () => {
   it("rejects missing / invalid project", () => {
     const missing = validateQuickEntryCustomerInput({
       customerName: "钱七",
+      nameStatus: "confirmed",
       phone: "13800138001",
+      requestedProjectCode: "",
       requestedProjectName: "",
     });
     assert.equal(missing.ok, false);
+    if (!missing.ok) {
+      assert.ok(
+        missing.errors.some(
+          (e) =>
+            e.errorCode === QUICK_ENTRY_CUSTOMER_ERROR_CODES.PROJECT_REQUIRED,
+        ),
+      );
+    }
 
-    const invalid = validateQuickEntryCustomerInput({
+    const invalidCode = validateQuickEntryCustomerInput({
       customerName: "钱七",
+      nameStatus: "confirmed",
       phone: "13800138001",
+      requestedProjectCode: "not_a_real_code",
+    });
+    assert.equal(invalidCode.ok, false);
+
+    const invalidOther = validateQuickEntryCustomerInput({
+      customerName: "钱七",
+      nameStatus: "confirmed",
+      phone: "13800138001",
+      requestedProjectCode: "other",
       requestedProjectName: "！！！",
     });
-    assert.equal(invalid.ok, false);
+    assert.equal(invalidOther.ok, false);
   });
 
   it("rejects notes that are too long", () => {
@@ -408,12 +461,13 @@ describe("validateQuickEntryCustomerInput", () => {
 
 describe("prepareDirectPublicPoolCustomerCreation name gate", () => {
   it("rejects illegal names before insert (no customer created)", async () => {
-    for (const customerName of ["X先生", "王", "王 John", "John2"]) {
+    for (const customerName of ["X先生", "王小明明明明", "王 John", "John2"]) {
       const result = await prepareDirectPublicPoolCustomerCreation({
         actor: staffActor,
         customer: {
           customerName,
           phone: "13800138000",
+          requestedProjectCode: "hk_bank_account",
           requestedProjectName: "移民项目咨询",
         },
       });
@@ -427,13 +481,13 @@ describe("prepareDirectPublicPoolCustomerCreation name gate", () => {
 describe("quick-entry name i18n parity", () => {
   it("keeps validation and API error copy aligned across locales", () => {
     assert.ok(
-      zhHant.publicPool.quickEntry.validation.name_invalid.includes("2～5"),
+      zhHant.publicPool.quickEntry.validation.name_invalid.includes("1～5"),
     );
     assert.ok(
-      zhHans.publicPool.quickEntry.validation.name_invalid.includes("2～5"),
+      zhHans.publicPool.quickEntry.validation.name_invalid.includes("1～5"),
     );
     assert.ok(
-      en.publicPool.quickEntry.validation.name_invalid.includes("2–5"),
+      en.publicPool.quickEntry.validation.name_invalid.includes("1–5"),
     );
     assert.match(
       zhHant.publicPool.quickEntry.validation.name_placeholder_forbidden,

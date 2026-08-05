@@ -170,10 +170,12 @@ function buildCanonicalRows(
 
     const normalized = normalizeQuickEntryCustomerInput({
       customerName: row.customerName,
+      nameStatus: row.nameStatus,
       phone: row.phone,
       phoneCountryCode: row.phoneCountryCode,
       wechatId: row.wechatId,
       email: row.email,
+      requestedProjectCode: row.requestedProjectCode,
       requestedProjectName: row.requestedProjectName,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,
@@ -307,10 +309,12 @@ export async function processQuickEntryCustomerSubmission(input: {
   const validationInputs = built.canonical.map((row, rowIndex) => {
     const validation = validateQuickEntryCustomerInput({
       customerName: row.customerName,
+      nameStatus: row.nameStatus,
       phone: row.phone,
       phoneCountryCode: row.phoneCountryCode,
       wechatId: row.wechatId,
       email: row.email ?? null,
+      requestedProjectCode: row.requestedProjectCode,
       requestedProjectName: row.requestedProjectName,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,
@@ -320,10 +324,12 @@ export async function processQuickEntryCustomerSubmission(input: {
       clientRowId: row.clientRowId,
       canonical: {
         customerName: row.customerName,
+        nameStatus: row.nameStatus,
         phone: row.phone,
         phoneCountryCode: row.phoneCountryCode,
         wechatId: row.wechatId,
         email: row.email ?? null,
+        requestedProjectCode: row.requestedProjectCode,
         requestedProjectName: row.requestedProjectName,
         initialFollowUpNote: row.initialFollowUpNote,
         supplementalNote: row.supplementalNote,
@@ -444,9 +450,11 @@ export async function processQuickEntryCustomerSubmission(input: {
         actor: input.actor,
         customer: {
           customerName: plan.normalizedCustomer.customerName,
+          nameStatus: plan.normalizedCustomer.nameStatus,
           phone: plan.normalizedCustomer.phone,
           phoneCountryCode: plan.normalizedCustomer.phoneCountryCode,
           wechatId: plan.normalizedCustomer.wechatId,
+          requestedProjectCode: plan.normalizedCustomer.requestedProjectCode,
           requestedProjectName: plan.normalizedCustomer.requestedProjectName,
           initialFollowUpNote: plan.normalizedCustomer.initialFollowUpNote,
           supplementalNote: plan.normalizedCustomer.supplementalNote,

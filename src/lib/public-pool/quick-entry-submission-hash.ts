@@ -1,10 +1,12 @@
 export type QuickEntryCanonicalSubmissionRow = {
   clientRowId: string;
   customerName: string;
+  nameStatus: "confirmed" | "pending";
   phone: string | null;
   /** Always present after shared normalize (default +86). */
   phoneCountryCode: string;
   wechatId: string | null;
+  requestedProjectCode: string;
   requestedProjectName: string;
   initialFollowUpNote: string | null;
   supplementalNote: string | null;
@@ -33,9 +35,11 @@ export function buildQuickEntryCanonicalSubmissionObject(
     rows: input.rows.map((row) => ({
       clientRowId: row.clientRowId,
       customerName: row.customerName,
+      nameStatus: row.nameStatus,
       phone: row.phone,
       phoneCountryCode: row.phoneCountryCode,
       wechatId: row.wechatId,
+      requestedProjectCode: row.requestedProjectCode,
       requestedProjectName: row.requestedProjectName,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,

@@ -13,9 +13,11 @@ const TOP_LEVEL_ALLOWED = new Set(["submissionId", "rows"]);
 const ROW_ALLOWED = new Set([
   "clientRowId",
   "customerName",
+  "nameStatus",
   "phone",
   "phoneCountryCode",
   "wechatId",
+  "requestedProjectCode",
   "requestedProjectName",
   "initialFollowUpNote",
   "supplementalNote",
@@ -160,7 +162,7 @@ export function parseQuickEntryBatchRequest(
       }
     }
 
-    if (!("clientRowId" in row) || !("customerName" in row) || !("requestedProjectName" in row)) {
+    if (!("clientRowId" in row) || !("customerName" in row) || !("requestedProjectCode" in row)) {
       return reject(
         QUICK_ENTRY_SUBMISSION_ERROR_CODES.BATCH_INVALID,
         "row 缺少必填字段",
@@ -185,18 +187,44 @@ export function parseQuickEntryBatchRequest(
         "customerName 无效",
       );
     }
-    if (typeof row.requestedProjectName !== "string") {
+    if (typeof row.requestedProjectCode !== "string") {
       return reject(
         QUICK_ENTRY_SUBMISSION_ERROR_CODES.BATCH_INVALID,
-        "requestedProjectName 无效",
+        "requestedProjectCode 无效",
       );
     }
 
     const parsed: QuickEntryBatchCustomerRowInput = {
       clientRowId: clientRowId.value,
       customerName: row.customerName,
-      requestedProjectName: row.requestedProjectName,
+      requestedProjectCode: row.requestedProjectCode,
     };
+
+    if ("nameStatus" in row) {
+      if (
+        row.nameStatus != null &&
+        row.nameStatus !== "confirmed" &&
+        row.nameStatus !== "pending"
+      ) {
+        return reject(
+          QUICK_ENTRY_SUBMISSION_ERROR_CODES.BATCH_INVALID,
+          "nameStatus 无效",
+        );
+      }
+      parsed.nameStatus = row.nameStatus as "confirmed" | "pending" | null;
+    }
+    if ("requestedProjectName" in row) {
+      if (
+        row.requestedProjectName != null &&
+        typeof row.requestedProjectName !== "string"
+      ) {
+        return reject(
+          QUICK_ENTRY_SUBMISSION_ERROR_CODES.BATCH_INVALID,
+          "requestedProjectName 无效",
+        );
+      }
+      parsed.requestedProjectName = row.requestedProjectName as string | null;
+    }
 
     if ("phone" in row) {
       if (row.phone != null && typeof row.phone !== "string") {

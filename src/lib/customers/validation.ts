@@ -25,6 +25,13 @@ import {
 const CN_PHONE_RE = /^1\d{10}$/;
 const CHINESE_CHAR_RE = /[\u4e00-\u9fff]/g;
 const LATIN_LETTER_RE = /[A-Za-z]/g;
+/** Pure CJK unified ideographs, length 1–5 (confirmed real names). */
+const PURE_CHINESE_NAME_RE = /^[\u4e00-\u9fff]{1,5}$/;
+/**
+ * English confirmed names: letters with optional single spaces, hyphens, or
+ * apostrophes between letter groups (e.g. John Smith, Mary-Jane, O'Connor).
+ */
+const ENGLISH_NAME_RE = /^[A-Za-z]+(?:[ '\-][A-Za-z]+)*$/;
 
 export function countChineseCharacters(value: string): number {
   return value.match(CHINESE_CHAR_RE)?.length ?? 0;
@@ -47,8 +54,11 @@ export function hasSubstantiveContent(
 export function isValidCustomerName(name: string): boolean {
   const trimmed = name.trim();
   if (!trimmed) return false;
-  const chineseCount = countChineseCharacters(trimmed);
-  if (chineseCount >= 2) return true;
+  if (PURE_CHINESE_NAME_RE.test(trimmed)) return true;
+  // Any remaining Chinese → wrong length, mixed script, or punctuation.
+  if (countChineseCharacters(trimmed) > 0) return false;
+  if (/\d/.test(trimmed)) return false;
+  if (!ENGLISH_NAME_RE.test(trimmed)) return false;
   return countLatinLetters(trimmed) >= 4;
 }
 
@@ -245,7 +255,7 @@ export function validateCustomerInput(
       errors.push({
         field: "customerName",
         message:
-          "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
+          "请输入有效的客户姓名。中文姓名须为 1～5 个汉字；英文姓名至少 4 个英文字母",
         code: "INVALID_CUSTOMER_NAME",
       });
     }
@@ -259,7 +269,7 @@ export function validateCustomerInput(
     errors.push({
       field: "customerName",
       message:
-        "请输入有效的客户姓名。中文姓名至少 2 个汉字；英文姓名至少 4 个英文字母",
+        "请输入有效的客户姓名。中文姓名须为 1～5 个汉字；英文姓名至少 4 个英文字母",
       code: "INVALID_CUSTOMER_NAME",
     });
   }

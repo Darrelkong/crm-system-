@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   QUICK_ENTRY_CUSTOMERS_API_PATH,
-  QUICK_ENTRY_PROJECT_SUGGESTIONS,
   QUICK_ENTRY_STATUS_API_PATH,
   QUICK_ENTRY_UI_MAX_ROWS,
   QUICK_ENTRY_VERIFY_API_PATH,
@@ -22,7 +21,6 @@ import {
   deriveQuickEntryCardBadge,
   deriveSingleEntryResultKind,
   filterIncompleteRowsForRetry,
-  filterProjectSuggestions,
   firstErrorClientRowId,
   firstFieldErrorKey,
   initialAccordionOpenIds,
@@ -176,25 +174,24 @@ describe("row limits and validation", () => {
     assert.equal(QUICK_ENTRY_UI_MAX_ROWS, 20);
   });
 
-  it("requires name, project (>=4 chars), and phone or wechat", () => {
+  it("requires name, catalog project code, and phone or wechat", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.customerName = "张三";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
-    row.requestedProjectName = "项目";
-    assert.equal(validateQuickEntryFormRows([row]).ok, false);
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.phone = "13800138000";
     assert.equal(validateQuickEntryFormRows([row]).ok, true);
   });
 
-  it("rejects pending placeholders and invalid name formats", () => {
+  it("allows pending placeholders only when nameStatus is pending", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
     row.phone = "13800138000";
 
     row.customerName = "X先生";
+    row.nameStatus = "confirmed";
     let result = validateQuickEntryFormRows([row]);
     assert.equal(result.ok, false);
     if (!result.ok) {
@@ -204,7 +201,19 @@ describe("row limits and validation", () => {
       );
     }
 
+    row.nameStatus = "pending";
+    row.customerName = "X先生";
+    assert.equal(validateQuickEntryFormRows([row]).ok, true);
+
+    row.nameStatus = "pending";
+    row.customerName = "X女士";
+    assert.equal(validateQuickEntryFormRows([row]).ok, true);
+
+    row.nameStatus = "confirmed";
     row.customerName = "王";
+    assert.equal(validateQuickEntryFormRows([row]).ok, true);
+
+    row.customerName = "王小明明明明";
     result = validateQuickEntryFormRows([row]);
     assert.equal(result.ok, false);
     if (!result.ok) {
@@ -218,13 +227,14 @@ describe("row limits and validation", () => {
   it("returns field-level errors for single-entry UX", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "";
+    row.requestedProjectCode = null;
     row.requestedProjectName = "測試";
     row.phone = "1380013800";
     const result = validateQuickEntryFormRows([row]);
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.equal(result.fieldErrors[uuidA]?.customerName, "name_required");
-    assert.equal(result.fieldErrors[uuidA]?.requestedProjectName, "project_invalid");
+    assert.equal(result.fieldErrors[uuidA]?.requestedProjectCode, "project_required");
     assert.equal(result.fieldErrors[uuidA]?.phone, "phone_invalid");
   });
 });
@@ -241,8 +251,10 @@ describe("request body security", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "张三";
     row.phone = "13800138000";
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
     const body = buildCustomersRequestBody(uuidB, [row]);
+    assert.equal(body.rows[0]?.nameStatus, "confirmed");
+    assert.equal(body.rows[0]?.requestedProjectCode, "hk_bank_account");
     assert.deepEqual(Object.keys(body).sort(), ["rows", "submissionId"]);
     assert.equal(body.rows[0]?.phoneCountryCode, "+86");
     assert.equal(
@@ -266,7 +278,7 @@ describe("request body security", () => {
   it("client validation rejects invalid phones and requires contact", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "张三";
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.phone = "1380013800";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
@@ -437,6 +449,7 @@ describe("quick entry UI wiring and security scans", () => {
     assert.match(panelSrc, /qe-phone-prefix/);
     assert.match(panelSrc, /QUICK_ENTRY_PHONE_INVALID/);
     assert.match(panelSrc, /QUICK_ENTRY_PROJECT_INVALID/);
+    assert.match(panelSrc, /QuickEntryNameProjectFields/);
     assert.match(panelSrc, /QUICK_ENTRY_PHONE_COUNTRY_CODE_INVALID/);
     assert.match(panelSrc, /reviseNeedsNewBatch/);
     assert.match(panelSrc, /type="tel"/);
@@ -474,6 +487,7 @@ describe("quick entry UI wiring and security scans", () => {
     assert.match(panelSrc, /deleteConfirmId/);
     assert.match(batchUiSrc, /aria-expanded/);
     assert.match(batchUiSrc, /BatchAccordionForm/);
+    assert.match(batchUiSrc, /QuickEntryNameProjectFields/);
     assert.match(batchUiSrc, /resultViewDetails/);
     assert.ok(!panelSrc.includes("function BatchEntryForm"));
     assert.ok(!panelSrc.includes("function BatchResultsView"));
@@ -494,58 +508,24 @@ describe("quick entry V2 helpers", () => {
     const previous = createEmptyQuickEntryRow(() => "00000000-0000-4000-8000-000000000000");
     previous.customerName = "张三";
     previous.phone = "13800138000";
-    previous.requestedProjectName = "美国个人银行开户";
+    previous.requestedProjectCode = "us_bank_account";
+    previous.requestedProjectName = "";
     const kept = prepareContinueEntryRow(previous, true, randomUuid);
     assert.equal(kept.clientRowId, uuidA);
     assert.equal(kept.customerName, "");
     assert.equal(kept.phone, "");
-    assert.equal(kept.requestedProjectName, "美国个人银行开户");
+    assert.equal(kept.requestedProjectCode, "us_bank_account");
     const cleared = prepareContinueEntryRow(previous, false, randomUuid);
     assert.equal(cleared.clientRowId, uuidB);
+    assert.equal(cleared.requestedProjectCode, null);
     assert.equal(cleared.requestedProjectName, "");
   });
 
-  it("filters project suggestions and derives single result kinds", () => {
-    assert.ok(QUICK_ENTRY_PROJECT_SUGGESTIONS.includes("ITIN申請"));
-    assert.deepEqual(
-      filterProjectSuggestions("香港"),
-      QUICK_ENTRY_PROJECT_SUGGESTIONS.filter((s) => s.includes("香港")),
-    );
-    assert.equal(
-      deriveSingleEntryResultKind({
-        clientRowId: uuidA,
-        status: "created",
-        customerId: "c",
-        customerCode: "EF1",
-        customerName: "张三",
-      }),
-      "success",
-    );
-    assert.equal(
-      deriveSingleEntryResultKind({
-        clientRowId: uuidA,
-        status: "duplicate",
-        errorCode: "QUICK_ENTRY_DUPLICATE_PHONE",
-        duplicateField: "phone",
-      }),
-      "duplicate",
-    );
-    assert.equal(
-      firstFieldErrorKey({
-        phone: "phone_invalid",
-        customerName: "name_required",
-      }),
-      "customerName",
-    );
-    assert.equal(
-      isQuickEntryBatchDirty([
-        {
-          ...createEmptyQuickEntryRow(() => uuidA),
-          customerName: "x",
-        },
-      ]),
-      true,
-    );
+  it("empty row starts with confirmed name and no project code", () => {
+    const row = createEmptyQuickEntryRow(() => uuidA);
+    assert.equal(row.nameStatus, "confirmed");
+    assert.equal(row.requestedProjectCode, null);
+    assert.equal(row.requestedProjectName, "");
   });
 });
 
@@ -563,7 +543,7 @@ describe("quick entry V2 Phase C batch accordion helpers", () => {
     assert.equal(buildQuickEntryCardSummary(row).projectEmpty, true);
     row.customerName = "张三";
     row.phone = "13800138000";
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
     const summary = buildQuickEntryCardSummary(row);
     assert.equal(summary.nameEmpty, false);
     assert.equal(summary.contactKind, "phone");
@@ -579,7 +559,7 @@ describe("quick entry V2 Phase C batch accordion helpers", () => {
     assert.equal(deriveQuickEntryCardBadge(row), "incomplete");
     row.customerName = "张三";
     row.phone = "13800138000";
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
     assert.equal(deriveQuickEntryCardBadge(row), "ready");
     assert.equal(
       deriveQuickEntryCardBadge(row, { hasFieldErrors: true }),
@@ -649,7 +629,8 @@ describe("quick entry V2 Phase C batch accordion helpers", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "张三";
     row.phone = "13800138000";
-    row.requestedProjectName = "移民项目咨询";
+    row.requestedProjectCode = "hk_bank_account";
+    row.requestedProjectName = "";
     const patched = { ...row, wechatId: "wx" };
     assert.equal(patched.clientRowId, uuidA);
     let n = 0;
@@ -682,12 +663,14 @@ describe("quick entry V2 Phase C batch accordion helpers", () => {
       ...createEmptyQuickEntryRow(() => uuidA),
       customerName: "张三",
       phone: "13800138000",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     };
     const dirtyB = {
       ...createEmptyQuickEntryRow(() => uuidB),
       customerName: "李四",
       wechatId: "wx_b",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     };
     assert.equal(
@@ -736,12 +719,14 @@ describe("quick entry V2 Phase C batch accordion helpers", () => {
       ...createEmptyQuickEntryRow(() => uuidA),
       customerName: "张三",
       phone: "13800138000",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     };
     const dup = {
       ...createEmptyQuickEntryRow(() => uuidB),
       customerName: "李四",
       phone: "13900139000",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
     };
     const results = [

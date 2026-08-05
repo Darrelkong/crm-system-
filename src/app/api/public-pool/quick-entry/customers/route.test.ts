@@ -39,7 +39,9 @@ const validBody = {
     {
       clientRowId: "row-1",
       customerName: "张三",
+      nameStatus: "confirmed",
       phone: "13800138000",
+      requestedProjectCode: "hk_bank_account",
       requestedProjectName: "加拿大移民项目",
     },
   ],

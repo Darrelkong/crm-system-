@@ -1,17 +1,16 @@
 "use client";
 
-import { useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/form";
 import { cn } from "@/lib/cn";
 import { QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE } from "@/lib/public-pool/quick-entry-customer-validation";
+import type { Locale } from "@/i18n/config";
 import {
-  QUICK_ENTRY_PROJECT_SUGGESTIONS,
   buildQuickEntryCardSummary,
   canRemoveQuickEntryRow,
   deriveQuickEntryCardBadge,
-  filterProjectSuggestions,
   quickEntryDuplicateFieldMessageKey,
   type QuickEntryBatchSuccessView,
   type QuickEntryCardBadge,
@@ -19,6 +18,7 @@ import {
   type QuickEntryFormRow,
   type QuickEntryRowResultView,
 } from "./quick-entry-ui";
+import { QuickEntryNameProjectFields } from "./quick-entry-name-project-fields";
 
 type TFn = (key: string, params?: Record<string, string>) => string;
 
@@ -88,7 +88,7 @@ function AccordionRowFields({
   setNoteOpen,
   updateRow,
   t,
-  otherLabel,
+  locale,
 }: {
   row: QuickEntryFormRow;
   fieldErrors?: QuickEntryFieldErrors;
@@ -97,126 +97,22 @@ function AccordionRowFields({
   setNoteOpen: (open: boolean) => void;
   updateRow: (id: string, patch: Partial<QuickEntryFormRow>) => void;
   t: TFn;
-  otherLabel: string;
+  locale: Locale;
 }) {
-  const [comboOpen, setComboOpen] = useState(false);
-  const [highlight, setHighlight] = useState(0);
   const phoneInvalid = Boolean(fieldErrors?.phone || fieldErrors?.contact);
-  const suggestions = filterProjectSuggestions(row.requestedProjectName);
-
-  function pickProject(value: string) {
-    const isOther = value === "其他" || value === otherLabel;
-    updateRow(row.clientRowId, {
-      requestedProjectName: isOther ? "" : value,
-    });
-    setComboOpen(false);
-  }
-
-  function onProjectKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
-    const list =
-      suggestions.length > 0 ? suggestions : [...QUICK_ENTRY_PROJECT_SUGGESTIONS];
-    if (!comboOpen && (event.key === "ArrowDown" || event.key === "Enter")) {
-      setComboOpen(true);
-      return;
-    }
-    if (!comboOpen) return;
-    if (event.key === "ArrowDown") {
-      event.preventDefault();
-      setHighlight((highlight + 1) % list.length);
-    } else if (event.key === "ArrowUp") {
-      event.preventDefault();
-      setHighlight((highlight - 1 + list.length) % list.length);
-    } else if (event.key === "Enter") {
-      event.preventDefault();
-      const picked = list[highlight];
-      if (picked) pickProject(picked);
-    } else if (event.key === "Escape") {
-      setComboOpen(false);
-    }
-  }
-
-  const list =
-    suggestions.length > 0 ? suggestions : [...QUICK_ENTRY_PROJECT_SUGGESTIONS];
 
   return (
-    <div className="grid gap-3 md:grid-cols-2">
-      <div className="md:col-span-1">
-        <Label htmlFor={`${row.clientRowId}-name`}>
-          {t("publicPool.quickEntry.fields.customerName")}
-        </Label>
-        <Input
-          id={`${row.clientRowId}-name`}
-          value={row.customerName}
-          disabled={submitting}
-          aria-invalid={Boolean(fieldErrors?.customerName)}
-          aria-describedby={
-            fieldErrors?.customerName ? `${row.clientRowId}-name-err` : undefined
-          }
-          onChange={(e) =>
-            updateRow(row.clientRowId, { customerName: e.target.value })
-          }
-        />
-        {fieldErrors?.customerName ? (
-          <p
-            id={`${row.clientRowId}-name-err`}
-            className="qe-field-error"
-            role="alert"
-          >
-            {t(`publicPool.quickEntry.validation.${fieldErrors.customerName}`)}
-          </p>
-        ) : null}
-      </div>
-      <div className="md:col-span-1">
-        <Label htmlFor={`${row.clientRowId}-project`}>
-          {t("publicPool.quickEntry.fields.requestedProjectName")}
-        </Label>
-        <div className="qe-combo">
-          <Input
-            id={`${row.clientRowId}-project`}
-            value={row.requestedProjectName}
-            disabled={submitting}
-            placeholder={t("publicPool.quickEntry.projectSearchPlaceholder")}
-            aria-invalid={Boolean(fieldErrors?.requestedProjectName)}
-            aria-autocomplete="list"
-            aria-expanded={comboOpen}
-            onFocus={() => setComboOpen(true)}
-            onChange={(e) => {
-              updateRow(row.clientRowId, {
-                requestedProjectName: e.target.value,
-              });
-              setComboOpen(true);
-              setHighlight(0);
-            }}
-            onKeyDown={onProjectKeyDown}
-            onBlur={() => setTimeout(() => setComboOpen(false), 120)}
-          />
-          {comboOpen ? (
-            <ul className="qe-combo-list" role="listbox">
-              {list.map((item, index) => (
-                <li key={item}>
-                  <button
-                    type="button"
-                    role="option"
-                    className="qe-combo-item"
-                    aria-selected={index === highlight}
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => pickProject(item)}
-                  >
-                    {item === "其他" ? otherLabel : item}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-        {fieldErrors?.requestedProjectName ? (
-          <p className="qe-field-error" role="alert">
-            {t(
-              `publicPool.quickEntry.validation.${fieldErrors.requestedProjectName}`,
-            )}
-          </p>
-        ) : null}
-      </div>
+    <div className="space-y-3">
+      <QuickEntryNameProjectFields
+        row={row}
+        locale={locale}
+        t={t}
+        fieldErrors={fieldErrors}
+        disabled={submitting}
+        updateRow={updateRow}
+        compact
+      />
+      <div className="grid gap-3 md:grid-cols-2">
       <div>
         <Label htmlFor={`${row.clientRowId}-phone`}>
           {t("publicPool.quickEntry.fields.phone")}
@@ -313,6 +209,7 @@ function AccordionRowFields({
           </button>
         )}
       </div>
+      </div>
     </div>
   );
 }
@@ -338,6 +235,7 @@ export function BatchAccordionForm({
   onRetry,
   onNewBatch,
   t,
+  locale,
 }: {
   rows: QuickEntryFormRow[];
   openCardIds: string[];
@@ -359,8 +257,8 @@ export function BatchAccordionForm({
   onRetry: () => void;
   onNewBatch: () => void;
   t: TFn;
+  locale: Locale;
 }) {
-  const otherLabel = t("publicPool.quickEntry.projectOtherOption");
   const openSet = new Set(openCardIds);
 
   function toggleCard(id: string) {
@@ -509,7 +407,7 @@ export function BatchAccordionForm({
                       }
                       updateRow={updateRow}
                       t={t}
-                      otherLabel={otherLabel}
+                      locale={locale}
                     />
                   </>
                 ) : null}

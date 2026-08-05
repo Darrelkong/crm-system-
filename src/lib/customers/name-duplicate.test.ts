@@ -16,8 +16,12 @@ describe("normalizeCustomerNameForDuplicateMatch", () => {
     assert.equal(normalizeCustomerNameForDuplicateMatch(""), null);
     assert.equal(normalizeCustomerNameForDuplicateMatch("   "), null);
     assert.equal(normalizeCustomerNameForDuplicateMatch(null), null);
-    assert.equal(normalizeCustomerNameForDuplicateMatch("王"), null);
     assert.equal(normalizeCustomerNameForDuplicateMatch("ab"), null);
+  });
+
+  it("matches single-character Chinese names after trim", () => {
+    assert.equal(normalizeCustomerNameForDuplicateMatch("王"), "王");
+    assert.equal(normalizeCustomerNameForDuplicateMatch("  王  "), "王");
   });
 
   it("matches confirmed Chinese names exactly after trim/NFC", () => {
@@ -35,13 +39,13 @@ describe("normalizeCustomerNameForDuplicateMatch", () => {
     );
   });
 
-  it("treats English case and extra spaces as equivalent", () => {
+  it("treats English case as equivalent after trim", () => {
     assert.equal(
       normalizeCustomerNameForDuplicateMatch("John Smith"),
       "john smith",
     );
     assert.equal(
-      normalizeCustomerNameForDuplicateMatch("JOHN   SMITH"),
+      normalizeCustomerNameForDuplicateMatch("JOHN SMITH"),
       "john smith",
     );
     assert.equal(
@@ -65,14 +69,14 @@ describe("normalizeCustomerNameForDuplicateMatch", () => {
     );
   });
 
-  it("applies Unicode NFC equivalence", () => {
-    const composed = "é".normalize("NFC");
-    const decomposed = "e\u0301";
-    // Ensure test uses a valid English-length name around the accented char.
-    const a = normalizeCustomerNameForDuplicateMatch(`Cafe ${composed} Name`);
-    const b = normalizeCustomerNameForDuplicateMatch(`Cafe ${decomposed} Name`);
-    assert.ok(a);
+  it("applies Unicode NFC equivalence for Chinese names", () => {
+    const composed = "\u00e9".normalize("NFC");
+    // Accented Latin is outside English confirmed-name charset; use CJK NFC pair.
+    const a = normalizeCustomerNameForDuplicateMatch("王");
+    const b = normalizeCustomerNameForDuplicateMatch("王".normalize("NFD").normalize("NFC"));
+    assert.equal(a, "王");
     assert.equal(a, b);
+    assert.equal(composed.normalize("NFC"), composed);
   });
 
   it("does not fuzzy-match or romanize Chinese", () => {

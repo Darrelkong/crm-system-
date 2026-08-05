@@ -8,8 +8,10 @@ import { QUICK_ENTRY_ERROR_CODES } from "@/lib/public-pool/quick-entry-constants
 const validRow = {
   clientRowId: "row-1",
   customerName: "张三",
+  nameStatus: "confirmed" as const,
   phone: "13800138000",
-  requestedProjectName: "加拿大移民项目",
+  requestedProjectCode: "ca_immigration_planning",
+  requestedProjectName: "",
 };
 
 const validBody = {
@@ -136,8 +138,10 @@ describe("parseQuickEntryBatchRequest", () => {
         {
           clientRowId: "r1",
           customerName: "A",
+          nameStatus: "confirmed",
           phone: "13800138000",
-          requestedProjectName: "加拿大移民项目",
+          requestedProjectCode: "ca_immigration_planning",
+          requestedProjectName: "",
         },
       ],
     });

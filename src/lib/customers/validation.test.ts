@@ -1,6 +1,44 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { validateCustomerInput } from "./validation";
+import { isValidCustomerName, validateCustomerInput } from "./validation";
+
+describe("isValidCustomerName Chinese 1–5 rule", () => {
+  it("accepts 1, 2, and 5 pure Chinese characters", () => {
+    assert.equal(isValidCustomerName("王"), true);
+    assert.equal(isValidCustomerName("王明"), true);
+    assert.equal(isValidCustomerName("王小明明明"), true);
+  });
+
+  it("rejects 6 pure Chinese characters", () => {
+    assert.equal(isValidCustomerName("王小明明明明"), false);
+  });
+
+  it("trims surrounding spaces before validating", () => {
+    assert.equal(isValidCustomerName("  王  "), true);
+    assert.equal(isValidCustomerName("  王小明  "), true);
+    assert.equal(isValidCustomerName("  王小明明明明  "), false);
+  });
+
+  it("rejects Chinese mixed with digits or symbols", () => {
+    assert.equal(isValidCustomerName("王小明123"), false);
+    assert.equal(isValidCustomerName("王小明！"), false);
+    assert.equal(isValidCustomerName("王 小明"), false);
+  });
+
+  it("does not apply the 1–5 rule to pending placeholders", () => {
+    // Placeholders are gated by nameStatus elsewhere; format helper rejects them as confirmed names.
+    assert.equal(isValidCustomerName("X先生"), false);
+    assert.equal(isValidCustomerName("X女士"), false);
+  });
+
+  it("keeps existing English name rules", () => {
+    assert.equal(isValidCustomerName("John Smith"), true);
+    assert.equal(isValidCustomerName("Mary-Jane Lee"), true);
+    assert.equal(isValidCustomerName("O'Connor"), true);
+    assert.equal(isValidCustomerName("John2"), false);
+    assert.equal(isValidCustomerName("Jo"), false);
+  });
+});
 
 const BASE_INPUT = {
   customerName: "张三测试",

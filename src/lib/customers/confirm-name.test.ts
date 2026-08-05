@@ -142,15 +142,20 @@ describe("normalizeConfirmCustomerName", () => {
     assert.equal(normalizeConfirmCustomerName("John Smith").ok, true);
   });
 
-  it("rejects blank, short, and placeholder names", () => {
+  it("rejects blank, overlong, and placeholder names", () => {
     assert.equal(normalizeConfirmCustomerName("").ok, false);
     assert.equal(normalizeConfirmCustomerName("   ").ok, false);
-    assert.equal(normalizeConfirmCustomerName("王").ok, false);
+    assert.equal(normalizeConfirmCustomerName("王小明明明明").ok, false);
     assert.equal(normalizeConfirmCustomerName("X先生").ok, false);
     assert.equal(normalizeConfirmCustomerName("X女士").ok, false);
     assert.equal(normalizeConfirmCustomerName("Mr. X").ok, false);
     assert.equal(normalizeConfirmCustomerName("Ms. X").ok, false);
     assert.equal(normalizeConfirmCustomerName("mr. x").ok, false);
+  });
+
+  it("accepts single-character Chinese confirmed names", () => {
+    assert.equal(normalizeConfirmCustomerName("王").ok, true);
+    assert.equal(normalizeConfirmCustomerName("  王  ").ok, true);
   });
 });
 

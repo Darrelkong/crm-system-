@@ -8,11 +8,13 @@ import type { QuickEntryDuplicateField } from "../../../drizzle/schema/public-po
 export type QuickEntryBatchCustomerRowInput = {
   clientRowId: string;
   customerName: string;
+  nameStatus?: "confirmed" | "pending" | null;
   phone?: string | null;
   phoneCountryCode?: string | null;
   wechatId?: string | null;
   email?: string | null;
-  requestedProjectName: string;
+  requestedProjectCode: string;
+  requestedProjectName?: string | null;
   initialFollowUpNote?: string | null;
   supplementalNote?: string | null;
 };

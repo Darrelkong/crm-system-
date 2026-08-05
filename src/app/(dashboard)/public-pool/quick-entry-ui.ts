@@ -3,7 +3,11 @@
  * No React — fully unit-testable. Server remains the authority.
  */
 
-import { isPendingNamePlaceholder } from "@/lib/customers/name-status";
+import {
+  isPendingNamePlaceholder,
+  type CustomerNameStatus,
+} from "@/lib/customers/name-status";
+import { isRequestedProjectOtherCode } from "@/lib/constants/requested-projects";
 import { hasSubstantiveContent } from "@/lib/customers/validation";
 import {
   QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
@@ -21,19 +25,6 @@ export const QUICK_ENTRY_CUSTOMERS_API_PATH =
 
 export const QUICK_ENTRY_UI_MAX_ROWS = QUICK_ENTRY_BATCH_MAX_ROWS;
 
-/** Frontend convenience suggestions only — still submitted as a plain string. */
-export const QUICK_ENTRY_PROJECT_SUGGESTIONS = [
-  "美國個人銀行開戶",
-  "美國企業銀行開戶",
-  "香港個人銀行開戶",
-  "香港公司銀行開戶",
-  "ITIN申請",
-  "海外身份規劃",
-  "香港身份",
-  "企業服務",
-  "其他",
-] as const;
-
 export type QuickEntryEntryMode = "single" | "batch";
 
 export type QuickEntryStatus = {
@@ -49,9 +40,11 @@ export type QuickEntryStatus = {
 export type QuickEntryFormRow = {
   clientRowId: string;
   customerName: string;
+  nameStatus: CustomerNameStatus;
   phone: string;
   phoneCountryCode: string;
   wechatId: string;
+  requestedProjectCode: string | null;
   requestedProjectName: string;
   initialFollowUpNote: string;
   supplementalNote: string;
@@ -155,6 +148,7 @@ export type QuickEntryClientRowError =
 
 export type QuickEntryFieldKey =
   | "customerName"
+  | "requestedProjectCode"
   | "requestedProjectName"
   | "phone"
   | "wechatId"
@@ -213,9 +207,11 @@ const FORBIDDEN_ROW_KEYS = FORBIDDEN_BODY_KEYS;
 const ALLOWED_ROW_KEYS = new Set([
   "clientRowId",
   "customerName",
+  "nameStatus",
   "phone",
   "phoneCountryCode",
   "wechatId",
+  "requestedProjectCode",
   "requestedProjectName",
   "initialFollowUpNote",
   "supplementalNote",
@@ -239,9 +235,11 @@ export function createEmptyQuickEntryRow(
   return {
     clientRowId: createQuickEntryClientRowId(randomUuid),
     customerName: "",
+    nameStatus: "confirmed",
     phone: "",
     phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
     wechatId: "",
+    requestedProjectCode: null,
     requestedProjectName: "",
     initialFollowUpNote: "",
     supplementalNote: "",
@@ -271,9 +269,11 @@ export function clearQuickEntryRow(
   return {
     ...row,
     customerName: "",
+    nameStatus: "confirmed",
     phone: "",
     phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
     wechatId: "",
+    requestedProjectCode: null,
     requestedProjectName: "",
     initialFollowUpNote: "",
     supplementalNote: "",
@@ -283,8 +283,10 @@ export function clearQuickEntryRow(
 export function isQuickEntryRowDirty(row: QuickEntryFormRow): boolean {
   return Boolean(
     row.customerName.trim() ||
+      row.nameStatus === "pending" ||
       row.phone.trim() ||
       row.wechatId.trim() ||
+      row.requestedProjectCode ||
       row.requestedProjectName.trim() ||
       row.initialFollowUpNote.trim() ||
       row.supplementalNote.trim(),
@@ -297,7 +299,7 @@ export function isQuickEntryBatchDirty(rows: QuickEntryFormRow[]): boolean {
 
 /**
  * Prepare the next single-entry draft after a successful "save and continue".
- * Always allocates a new clientRowId; optionally keeps the project name.
+ * Always allocates a new clientRowId; optionally keeps the project selection.
  */
 export function prepareContinueEntryRow(
   previous: QuickEntryFormRow,
@@ -306,18 +308,10 @@ export function prepareContinueEntryRow(
 ): QuickEntryFormRow {
   const next = createEmptyQuickEntryRow(randomUuid);
   if (keepProject) {
+    next.requestedProjectCode = previous.requestedProjectCode;
     next.requestedProjectName = previous.requestedProjectName;
   }
   return next;
-}
-
-export function filterProjectSuggestions(
-  query: string,
-  suggestions: readonly string[] = QUICK_ENTRY_PROJECT_SUGGESTIONS,
-): string[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [...suggestions];
-  return suggestions.filter((item) => item.toLowerCase().includes(q));
 }
 
 export function deriveSingleEntryResultKind(
@@ -332,6 +326,7 @@ export function deriveSingleEntryResultKind(
 
 const FIELD_ERROR_PRIORITY: QuickEntryFieldKey[] = [
   "customerName",
+  "requestedProjectCode",
   "requestedProjectName",
   "phone",
   "contact",
@@ -351,19 +346,31 @@ export function firstFieldErrorKey(
 function validateOneQuickEntryRow(row: QuickEntryFormRow): QuickEntryFieldErrors {
   const errors: QuickEntryFieldErrors = {};
   const customerName = row.customerName.trim();
-  if (!customerName) {
+  if (row.nameStatus === "pending") {
+    if (!customerName) {
+      errors.customerName = "name_required";
+    } else if (!isPendingNamePlaceholder(customerName)) {
+      errors.customerName = "name_invalid";
+    }
+  } else if (!customerName) {
     errors.customerName = "name_required";
   } else if (isPendingNamePlaceholder(customerName)) {
     errors.customerName = "name_placeholder_forbidden";
   } else if (!isValidQuickEntryCustomerName(customerName)) {
     errors.customerName = "name_invalid";
   }
-  const project = row.requestedProjectName.trim();
-  if (!project) {
-    errors.requestedProjectName = "project_required";
-  } else if (!hasSubstantiveContent(project, 4)) {
-    errors.requestedProjectName = "project_invalid";
+
+  if (!row.requestedProjectCode) {
+    errors.requestedProjectCode = "project_required";
+  } else if (isRequestedProjectOtherCode(row.requestedProjectCode)) {
+    const project = row.requestedProjectName.trim();
+    if (!project) {
+      errors.requestedProjectName = "project_required";
+    } else if (!hasSubstantiveContent(project, 4)) {
+      errors.requestedProjectName = "project_invalid";
+    }
   }
+
   const phone = row.phone.trim();
   const wechatId = row.wechatId.trim();
   if (!phone && !wechatId) {
@@ -480,9 +487,12 @@ export function buildCustomersRequestBody(
       const out: Record<string, string | null> = {
         clientRowId: row.clientRowId,
         customerName: row.customerName.trim(),
-        requestedProjectName: row.requestedProjectName.trim(),
+        nameStatus: row.nameStatus,
+        requestedProjectCode: row.requestedProjectCode ?? "",
         phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
       };
+      const projectName = optionalStringField(row.requestedProjectName);
+      if (projectName !== undefined) out.requestedProjectName = projectName;
       const phone = optionalStringField(row.phone);
       if (phone !== undefined) out.phone = phone;
       const wechatId = optionalStringField(row.wechatId);
@@ -762,7 +772,7 @@ export function buildQuickEntryCardSummary(
   const nameText = row.customerName.trim();
   const phone = row.phone.trim();
   const wechatId = row.wechatId.trim();
-  const projectText = row.requestedProjectName.trim();
+  const projectText = row.requestedProjectName.trim() || row.requestedProjectCode || "";
   let contactKind: QuickEntryCardSummary["contactKind"] = "empty";
   let contactText = "";
   if (phone) {
@@ -777,7 +787,7 @@ export function buildQuickEntryCardSummary(
     nameText,
     contactKind,
     contactText,
-    projectEmpty: !projectText,
+    projectEmpty: !row.requestedProjectCode,
     projectText,
   };
 }

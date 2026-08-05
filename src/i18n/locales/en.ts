@@ -2058,12 +2058,12 @@ const en = {
         duplicateIds: "Each row needs a unique client row id.",
         name_required: "Please enter the customer name.",
         name_invalid:
-          "Chinese names must be 2–5 Chinese characters. English names may only include letters, spaces, hyphens, or apostrophes — no digits, mixed scripts, or other symbols.",
+          "Chinese names must be 1–5 Chinese characters. English names may only include letters, spaces, hyphens, or apostrophes — no digits, mixed scripts, or other symbols.",
         name_placeholder_forbidden:
-          "X先生 / X女士 cannot be used as a confirmed name. Please use the full new-customer flow instead.",
-        project_required: "Requested project is required.",
+          "X先生 / X女士 can only be used when “Name unknown for now” is checked.",
+        project_required: "Please select a requested project.",
         project_invalid:
-          "Requested project / business must be at least 4 characters.",
+          "Select a valid requested project; if Other, enter at least 4 characters.",
         contact_required: "Enter at least a phone number or WeChat ID.",
         phone_invalid:
           "The phone number must be 11 digits and start with 1.",
@@ -2076,17 +2076,17 @@ const en = {
         locked: "Quick entry is temporarily locked.",
         nameRequired: "Please enter the customer name.",
         nameInvalid:
-          "Chinese names must be 2–5 Chinese characters. English names may only include letters, spaces, hyphens, or apostrophes — no digits, mixed scripts, or other symbols.",
+          "Chinese names must be 1–5 Chinese characters. English names may only include letters, spaces, hyphens, or apostrophes — no digits, mixed scripts, or other symbols.",
         namePlaceholderForbidden:
-          "X先生 / X女士 cannot be used as a confirmed name. Please use the full new-customer flow instead.",
+          "X先生 / X女士 can only be used when “Name unknown for now” is checked.",
         contactRequired: "Enter at least a phone number or WeChat ID.",
         phoneInvalid:
           "The phone number must be 11 digits and start with 1.",
         countryCodeInvalid: "Only the +86 country code is supported.",
         wechatInvalid: "WeChat ID is invalid.",
-        projectRequired: "Requested project is required.",
+        projectRequired: "Please select a requested project.",
         projectInvalid:
-          "Requested project / business must be at least 4 characters.",
+          "Select a valid requested project; if Other, enter at least 4 characters.",
         noteTooLong: "The note is too long.",
       },
     },
@@ -2961,7 +2961,7 @@ const en = {
     deleteFailed: "Failed to delete client.",
     clientNameRequired: "Client name is required.",
     invalidCustomerName:
-      "Please enter a valid client name. Chinese names must include at least 2 Chinese characters; English names must include at least 4 letters.",
+      "Please enter a valid client name. Chinese names must be 1–5 Chinese characters; English names must include at least 4 letters.",
     invalidNameStatus: "Invalid name status.",
     pendingNameRequired: "Please select Mr. X or Ms. X.",
     invalidPendingNamePlaceholder:

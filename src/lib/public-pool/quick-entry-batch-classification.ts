@@ -91,7 +91,18 @@ export function classifyQuickEntryBatchRows(
       kind: "eligible",
       rowIndex: row.rowIndex,
       clientRowId: row.clientRowId,
-      normalizedCustomer: canonical,
+      normalizedCustomer: {
+        customerName: row.validation.value.customerName,
+        nameStatus: row.validation.value.nameStatus,
+        phone: row.validation.value.phone,
+        phoneCountryCode: row.validation.value.phoneCountryCode,
+        wechatId: row.validation.value.wechatId,
+        email: row.validation.value.email,
+        requestedProjectCode: row.validation.value.requestedProjectCode,
+        requestedProjectName: row.validation.value.requestedProjectName,
+        initialFollowUpNote: row.validation.value.notes,
+        supplementalNote: row.validation.value.sourceRemark,
+      },
     });
   }
 
