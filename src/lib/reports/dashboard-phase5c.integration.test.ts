@@ -6,8 +6,14 @@ import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { bindTestDatabase } from "@/lib/db";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
-import { getAdminTeamExecutionOverview } from "./admin-team-execution";
-import { getDashboardStageDistribution } from "./dashboard-stage-distribution";
+import { getAdminTeamExecutionOverview, sortTeamMembersStable } from "./admin-team-execution";
+import {
+  countAdminPrivateActiveCustomers,
+  getDashboardStageDistribution,
+} from "./dashboard-stage-distribution";
+import { getDashboardSummary } from "./dashboard-summary";
+import { listActiveStaffUsers } from "@/lib/users/queries";
+import { getPendingActionCount } from "@/lib/notifications/queries";
 import type { User } from "../../../drizzle/schema/users";
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -32,9 +38,11 @@ const admin = {
 } as User;
 
 const CUST = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb801";
+const CUST_ADMIN = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb802";
 
 async function cleanup(): Promise<void> {
   await db.delete(schema.customers).where(eq(schema.customers.id, CUST));
+  await db.delete(schema.customers).where(eq(schema.customers.id, CUST_ADMIN));
 }
 
 describe("dashboard phase 5C permissions DB", () => {
@@ -115,6 +123,61 @@ describe("dashboard phase 5C permissions DB", () => {
     );
   });
 
+  it("includes admin-owned customers in admin stage distribution total", async () => {
+    await cleanup();
+    const nowIso = new Date().toISOString();
+    await db.insert(schema.customers).values({
+      id: CUST_ADMIN,
+      customerName: "[TEST] Admin owned stage",
+      nameStatus: "confirmed",
+      customerType: "individual",
+      phoneCountryCode: "+86",
+      phone: "13700000802",
+      source: "referral",
+      salesStage: "proposal",
+      ownerId: SEED_IDS.admin,
+      status: "active",
+      createdBy: SEED_IDS.admin,
+      updatedBy: SEED_IDS.admin,
+      isPinned: 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+
+    const adminDist = await getDashboardStageDistribution(db, admin);
+    const proposal = adminDist.stages.find((row) => row.key === "proposal");
+    assert.ok((proposal?.count ?? 0) >= 1);
+    const privateTotal = await countAdminPrivateActiveCustomers(db);
+    assert.equal(adminDist.totalCustomers, privateTotal);
+
+    const staffDist = await getDashboardStageDistribution(db, staffA);
+    const staffProposal = staffDist.stages.find((row) => row.key === "proposal");
+    const staffProposalBefore = staffProposal?.count ?? 0;
+
+    const adminOwnedInStaffList = staffDist.totalCustomers;
+    assert.ok(adminDist.totalCustomers >= adminOwnedInStaffList);
+    assert.equal(staffProposalBefore, staffProposal?.count ?? 0);
+  });
+
+  it("aligns team current, overdue, and pending with staff dashboard metrics", async () => {
+    const overview = await getAdminTeamExecutionOverview(db, admin);
+    const staffMember = overview.members.find(
+      (member) => member.userId === SEED_IDS.staffA,
+    );
+    assert.ok(staffMember);
+
+    const summary = await getDashboardSummary(db, staffA);
+    if (summary.role !== "staff") {
+      throw new Error("expected staff summary");
+    }
+
+    assert.equal(staffMember.currentCustomers, summary.metrics.myCustomerCount);
+    assert.equal(staffMember.overdueFollowUps, summary.metrics.overdueFollowUps);
+
+    const pending = await getPendingActionCount(db, SEED_IDS.staffA);
+    assert.equal(staffMember.pendingItems, pending);
+  });
+
   it("returns admin team execution without rank fields", async () => {
     const overview = await getAdminTeamExecutionOverview(db, admin);
     assert.equal(overview.role, "admin");
@@ -132,10 +195,11 @@ describe("dashboard phase 5C permissions DB", () => {
       assert.ok(member.customersHref.includes("ownerId="));
       assert.equal(/rank|score/i.test(member.customersHref), false);
     }
-    const names = overview.members.map((member) => member.displayName);
-    const sorted = [...names].sort((a, b) =>
-      a.localeCompare(b, "en", { sensitivity: "base" }),
+    const staffDirectory = await listActiveStaffUsers();
+    const expectedOrder = sortTeamMembersStable(staffDirectory).map(
+      (member) => member.id,
     );
-    assert.deepEqual(names, sorted);
+    const actualOrder = overview.members.map((member) => member.userId);
+    assert.deepEqual(actualOrder, expectedOrder);
   });
 });

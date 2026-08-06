@@ -237,9 +237,9 @@ function buildOwnerWhere(
     sql`EXISTS (
       SELECT 1 FROM ${schema.users} u
       WHERE u.id = ${filter.ownerId}
-        AND u.role = 'staff'
         AND u.is_active = 1
         AND u.deleted_at IS NULL
+        AND u.role IN ('staff', 'admin')
     )`,
   );
 }

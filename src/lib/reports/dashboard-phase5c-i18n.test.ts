@@ -57,7 +57,9 @@ describe("dashboard phase 5C i18n and wiring", () => {
     assert.doesNotMatch(team, /rank|position|score|leaderboard|排行榜|Top Staff/i);
     assert.doesNotMatch(teamCard, /rank|排行榜|冠军|Top Staff|RankingTable/i);
     assert.doesNotMatch(stageCard, /RankingTable|排行榜|orderBy\(desc\(count/);
-    assert.match(team, /displayName\.localeCompare/);
+    assert.match(team, /sortTeamMembersStable/);
+    assert.match(team, /staffOwnedActiveCustomersBatchWhere/);
+    assert.match(team, /getPendingActionCountsByUserIds/);
     assert.match(team, /groupBy/);
     assert.doesNotMatch(team, /for \(const staff of[\s\S]*await db/);
   });
@@ -86,5 +88,14 @@ describe("dashboard phase 5C i18n and wiring", () => {
     );
     assert.match(card, /dashboard\./);
     assert.doesNotMatch(card, /setInterval|requestAnimationFrame/);
+  });
+
+  it("admin stage distribution uses private customer scope helper", () => {
+    const stageService = readFileSync(
+      "src/lib/reports/dashboard-stage-distribution.ts",
+      "utf8",
+    );
+    assert.match(stageService, /adminStageDistributionWhere/);
+    assert.doesNotMatch(stageService, /u\.role = 'staff'/);
   });
 });

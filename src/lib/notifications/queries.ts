@@ -116,6 +116,17 @@ function visibleNotificationCondition() {
   return sql`${schema.notifications.type} NOT IN ('auto_reclaim_warning_day_6', 'auto_reclaim_warning_day_7')`;
 }
 
+export function pendingActionCountWhere(userId?: string) {
+  const conditions = [
+    eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.pending),
+    visibleNotificationCondition(),
+  ];
+  if (userId) {
+    conditions.push(eq(schema.notifications.userId, userId));
+  }
+  return and(...conditions)!;
+}
+
 export async function getUnreadNotificationCount(
   db: Database,
   userId: string,
@@ -158,14 +169,29 @@ export async function getPendingActionCount(
   const row = await db
     .select({ value: count() })
     .from(schema.notifications)
-    .where(
-      and(
-        eq(schema.notifications.userId, userId),
-        eq(schema.notifications.actionState, NOTIFICATION_ACTION_STATE.pending),
-        visibleNotificationCondition(),
-      ),
-    );
+    .where(pendingActionCountWhere(userId));
   return row[0]?.value ?? 0;
+}
+
+export async function getPendingActionCountsByUserIds(
+  db: Database,
+  userIds: string[],
+): Promise<Map<string, number>> {
+  if (userIds.length === 0) {
+    return new Map();
+  }
+  const rows = await db
+    .select({
+      userId: schema.notifications.userId,
+      value: count().mapWith(Number),
+    })
+    .from(schema.notifications)
+    .where(
+      and(inArray(schema.notifications.userId, userIds), pendingActionCountWhere()),
+    )
+    .groupBy(schema.notifications.userId);
+
+  return new Map(rows.map((row) => [row.userId, Number(row.value ?? 0)]));
 }
 
 export async function getWorkItemsAttentionCount(

@@ -1,8 +1,12 @@
-import { and, count, eq, gte, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, count, eq, gte, inArray, lt, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
-import { NOTIFICATION_ACTION_STATE } from "@/lib/notifications/action-state";
+import {
+  staffOwnedActiveCustomersBatchWhere,
+  staffOverdueFollowUpBatchWhere,
+} from "@/lib/reports/dashboard-customer-scopes";
 import { collectReclamationRiskSnapshots } from "@/lib/reclamation/work-items-sync";
+import { getPendingActionCountsByUserIds } from "@/lib/notifications/queries";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { listActiveStaffUsers } from "@/lib/users/queries";
 import {
@@ -37,34 +41,37 @@ export type AdminTeamExecutionOverview = {
   members: TeamMemberExecutionRow[];
 };
 
-function activeStaffOwnedScope(ownerIds: string[]) {
-  return and(
-    eq(schema.customers.status, "active"),
-    isNull(schema.customers.deletedAt),
-    isNotNull(schema.customers.ownerId),
-    inArray(schema.customers.ownerId, ownerIds),
-  )!;
+type StaffMemberRow = {
+  id: string;
+  displayName: string;
+  email: string;
+};
+
+export function sortTeamMembersStable<T extends StaffMemberRow>(rows: T[]): T[] {
+  return [...rows].sort((a, b) => {
+    const byName = a.displayName.localeCompare(b.displayName, "en", {
+      sensitivity: "base",
+    });
+    if (byName !== 0) return byName;
+    const byEmail = a.email.localeCompare(b.email, "en", {
+      sensitivity: "base",
+    });
+    if (byEmail !== 0) return byEmail;
+    return a.id.localeCompare(b.id);
+  });
 }
 
-function visiblePendingNotificationSql() {
-  return sql`${schema.notifications.type} NOT IN ('auto_reclaim_warning_day_6', 'auto_reclaim_warning_day_7')`;
-}
-
-async function countByOwner(
+async function countCustomersByOwner(
   db: Database,
-  ownerIds: string[],
-  extraWhere?: ReturnType<typeof and>,
+  scope: ReturnType<typeof and>,
 ): Promise<Map<string, number>> {
-  if (ownerIds.length === 0) {
-    return new Map();
-  }
   const rows = await db
     .select({
       ownerId: schema.customers.ownerId,
       value: count().mapWith(Number),
     })
     .from(schema.customers)
-    .where(and(activeStaffOwnedScope(ownerIds), extraWhere))
+    .where(scope)
     .groupBy(schema.customers.ownerId);
 
   return new Map(
@@ -132,40 +139,6 @@ async function countStageProgressByActor(
   return new Map(rows.map((row) => [row.actorId, Number(row.value ?? 0)]));
 }
 
-async function countPendingByUser(
-  db: Database,
-  userIds: string[],
-): Promise<Map<string, number>> {
-  if (userIds.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .select({
-      userId: schema.notifications.userId,
-      value: count().mapWith(Number),
-    })
-    .from(schema.notifications)
-    .where(
-      and(
-        inArray(schema.notifications.userId, userIds),
-        eq(
-          schema.notifications.actionState,
-          NOTIFICATION_ACTION_STATE.pending,
-        ),
-        visiblePendingNotificationSql(),
-      ),
-    )
-    .groupBy(schema.notifications.userId);
-
-  return new Map(rows.map((row) => [row.userId, Number(row.value ?? 0)]));
-}
-
-function sortStaffByDisplayName<T extends { displayName: string }>(rows: T[]): T[] {
-  return [...rows].sort((a, b) =>
-    a.displayName.localeCompare(b.displayName, "en", { sensitivity: "base" }),
-  );
-}
-
 function buildOwnerHref(ownerId: string, workView?: "overdue"): string {
   const params = new URLSearchParams();
   params.set("ownerId", ownerId);
@@ -184,7 +157,7 @@ export async function getAdminTeamExecutionOverview(
     throw new Error("Admin access required");
   }
 
-  const staff = sortStaffByDisplayName(await listActiveStaffUsers());
+  const staff = sortTeamMembersStable(await listActiveStaffUsers());
   const staffIds = staff.map((member) => member.id);
   const nowIso = now.toISOString();
   const settings = await getEffectiveSettings(db);
@@ -212,16 +185,19 @@ export async function getAdminTeamExecutionOverview(
 
   const [currentCustomers, overdueCustomers, pendingByUser, snapshots] =
     await Promise.all([
-      countByOwner(db, staffIds),
-      countByOwner(
-        db,
-        staffIds,
-        and(
-          isNotNull(schema.customers.nextFollowUpAt),
-          lt(schema.customers.nextFollowUpAt, nowIso),
-        ),
-      ),
-      countPendingByUser(db, staffIds),
+      staffIds.length > 0
+        ? countCustomersByOwner(
+            db,
+            staffOwnedActiveCustomersBatchWhere(staffIds),
+          )
+        : Promise.resolve(new Map<string, number>()),
+      staffIds.length > 0
+        ? countCustomersByOwner(
+            db,
+            staffOverdueFollowUpBatchWhere(staffIds, nowIso),
+          )
+        : Promise.resolve(new Map<string, number>()),
+      getPendingActionCountsByUserIds(db, staffIds),
       collectReclamationRiskSnapshots(db, now, settings),
     ]);
 

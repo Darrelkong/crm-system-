@@ -2,7 +2,11 @@ import { and, count, eq, gte, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { ownedNormalCustomerListWhere } from "@/lib/customers/customer-list-filters";
-import { normalCustomerListStatusWhere } from "@/lib/customers/customer-list-filters";
+import {
+  adminTeamOverdueFollowUpWhere,
+  staffMyActiveCustomerWhere,
+  staffOverdueFollowUpWhere,
+} from "@/lib/reports/dashboard-customer-scopes";
 import { getPendingActionCount } from "@/lib/notifications/queries";
 import { collectReclamationRiskSnapshots } from "@/lib/reclamation/work-items-sync";
 import { aggregateRiskCounts } from "@/lib/reclamation/risk-snapshot";
@@ -130,7 +134,7 @@ async function getStaffMetrics(
     db
       .select({ value: count() })
       .from(schema.customers)
-      .where(and(ownedScope, eq(schema.customers.status, "active"))),
+      .where(staffMyActiveCustomerWhere(user.id)),
     db
       .select({ value: count() })
       .from(schema.customers)
@@ -146,14 +150,7 @@ async function getStaffMetrics(
     db
       .select({ value: count() })
       .from(schema.customers)
-      .where(
-        and(
-          ownedScope,
-          eq(schema.customers.status, "active"),
-          isNotNull(schema.customers.nextFollowUpAt),
-          lt(schema.customers.nextFollowUpAt, nowIso),
-        ),
-      ),
+      .where(staffOverdueFollowUpWhere(user.id, nowIso)),
     db
       .select({ value: count() })
       .from(schema.followUps)
@@ -208,11 +205,6 @@ async function getAdminMetrics(
   const tomorrowStart = new Date(
     new Date(todayEnd).getTime() + 1,
   ).toISOString();
-  const teamActiveScope = and(
-    normalCustomerListStatusWhere(),
-    isNotNull(schema.customers.ownerId),
-    eq(schema.customers.status, "active"),
-  )!;
 
   const [
     totalCustomersRow,
@@ -254,13 +246,7 @@ async function getAdminMetrics(
     db
       .select({ value: count() })
       .from(schema.customers)
-      .where(
-        and(
-          teamActiveScope,
-          isNotNull(schema.customers.nextFollowUpAt),
-          lt(schema.customers.nextFollowUpAt, nowIso),
-        ),
-      ),
+      .where(adminTeamOverdueFollowUpWhere(nowIso)),
     db
       .select({ value: count() })
       .from(schema.customers)
