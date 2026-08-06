@@ -1513,7 +1513,7 @@ const en = {
     myTitle: "My Dashboard",
     welcomeBack: "Welcome Back",
     todayOverview: "Today's Overview",
-    totalClients: "Total Clients",
+    totalClients: "All customers",
     activeClients: "Active Clients",
     newClients: "New Clients",
     pendingApprovals: "Pending Approvals",
@@ -1661,6 +1661,11 @@ const en = {
     stageNotSet: "Not set",
     stageOther: "Other",
     stageDistributionCustomers: "{{count}} customers",
+    stageDistributionPrivateActiveCustomers: "Active private customers: {{count}}",
+    stageDistributionMyPrivateActiveCustomers:
+      "My active private customers: {{count}}",
+    stageDistributionScopeHint:
+      "Includes active private customers owned by valid internal team members. Public-pool and archived customers are excluded.",
     stageDistributionShare: "{{percent}}% share",
     teamExecutionOverview: "Team execution overview",
     teamExecutionReportingPeriod: "Reporting period",

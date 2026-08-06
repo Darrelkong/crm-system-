@@ -13,6 +13,10 @@ const KEYS = [
   "stageDistributionUnavailable",
   "stageNotSet",
   "stageOther",
+  "stageDistributionPrivateActiveCustomers",
+  "stageDistributionMyPrivateActiveCustomers",
+  "stageDistributionScopeHint",
+  "totalClients",
   "teamExecutionOverview",
   "teamExecutionReportingPeriod",
   "teamExecutionLast7Days",
@@ -87,7 +91,12 @@ describe("dashboard phase 5C i18n and wiring", () => {
       "utf8",
     );
     assert.match(card, /dashboard\./);
+    assert.match(card, /stageDistributionPrivateActiveCustomers/);
+    assert.match(card, /stageDistributionMyPrivateActiveCustomers/);
+    assert.match(card, /stageDistributionScopeHint/);
+    assert.match(card, /break-words/);
     assert.doesNotMatch(card, /setInterval|requestAnimationFrame/);
+    assert.doesNotMatch(card, /私有活跃客户|Active private customers/);
   });
 
   it("admin stage distribution uses private customer scope helper", () => {
@@ -95,7 +104,48 @@ describe("dashboard phase 5C i18n and wiring", () => {
       "src/lib/reports/dashboard-stage-distribution.ts",
       "utf8",
     );
+    const scopes = readFileSync(
+      "src/lib/reports/dashboard-customer-scopes.ts",
+      "utf8",
+    );
+    const ownerHelper = readFileSync(
+      "src/lib/customers/valid-internal-customer-owner.ts",
+      "utf8",
+    );
     assert.match(stageService, /adminStageDistributionWhere/);
+    assert.match(scopes, /validInternalCustomerOwnerExistsSql/);
+    assert.match(ownerHelper, /is_active = 1/);
+    assert.match(ownerHelper, /role IN \('staff', 'admin'\)/);
     assert.doesNotMatch(stageService, /u\.role = 'staff'/);
+  });
+
+  it("distinguishes all-customers KPI from private-active stage totals", () => {
+    assert.equal(zhHans.dashboard.totalClients, "全部客户");
+    assert.equal(zhHant.dashboard.totalClients, "全部客戶");
+    assert.equal(en.dashboard.totalClients, "All customers");
+    assert.match(
+      zhHans.dashboard.stageDistributionPrivateActiveCustomers,
+      /私有活跃客户/,
+    );
+    assert.match(
+      zhHant.dashboard.stageDistributionPrivateActiveCustomers,
+      /私人活躍客戶/,
+    );
+    assert.match(
+      en.dashboard.stageDistributionPrivateActiveCustomers,
+      /Active private customers/,
+    );
+    assert.match(
+      zhHans.dashboard.stageDistributionScopeHint,
+      /有效内部成员/,
+    );
+    assert.match(
+      zhHant.dashboard.stageDistributionScopeHint,
+      /有效內部成員/,
+    );
+    assert.match(
+      en.dashboard.stageDistributionScopeHint,
+      /valid internal team members/,
+    );
   });
 });

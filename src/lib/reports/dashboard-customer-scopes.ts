@@ -4,6 +4,7 @@ import {
   normalCustomerListStatusWhere,
   ownedNormalCustomerListWhere,
 } from "@/lib/customers/customer-list-filters";
+import { validInternalCustomerOwnerExistsSql } from "@/lib/customers/valid-internal-customer-owner";
 
 /**
  * Staff Dashboard「我的客户」口径（Phase 5A `getStaffMetrics`）。
@@ -34,6 +35,7 @@ export function staffOverdueFollowUpWhere(
 /**
  * Admin 团队私有活跃客户（Phase 5A `teamActiveScope`）。
  * 含 Staff 与 Admin owner；排除公共池与归档。
+ * 注意：此条件不校验 owner 用户有效性，供 Phase 5A 逾期等既有口径复用。
  */
 export function adminPrivateActiveCustomerWhere(): SQL {
   return and(
@@ -54,11 +56,15 @@ export function adminTeamOverdueFollowUpWhere(nowIso: string): SQL {
   )!;
 }
 
-/** Admin 阶段分布与 `adminPrivateActiveCustomerCount` 对齐的统计范围。 */
+/**
+ * Admin 阶段分布：合法内部负责人持有的私有活跃客户。
+ * 排除公共池、归档、软删除客户，以及无效／软删除／非内部 owner。
+ */
 export function adminStageDistributionWhere(): SQL {
   return and(
     adminPrivateActiveCustomerWhere(),
     isNull(schema.customers.deletedAt),
+    validInternalCustomerOwnerExistsSql(),
   )!;
 }
 

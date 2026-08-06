@@ -24,3 +24,14 @@ describe("sales stage list filter params", () => {
     assert.equal(isValidAdminOwnerListParam("x"), false);
   });
 });
+
+describe("admin owner list filter parsing", () => {
+  it("keeps malformed owner tokens so queries can reject them safely", async () => {
+    const { parseCustomerListFilter } = await import("@/lib/customers/queries");
+    const filter = parseCustomerListFilter(
+      { id: SEED_IDS.admin, role: "admin" } as never,
+      { ownerId: "not-a-uuid" },
+    );
+    assert.equal(filter.ownerId, "not-a-uuid");
+  });
+});

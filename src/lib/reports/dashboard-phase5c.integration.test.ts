@@ -14,6 +14,7 @@ import {
 import { getDashboardSummary } from "./dashboard-summary";
 import { listActiveStaffUsers } from "@/lib/users/queries";
 import { getPendingActionCount } from "@/lib/notifications/queries";
+import { listCustomersForUserPaginated } from "@/lib/customers/queries";
 import type { User } from "../../../drizzle/schema/users";
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -39,10 +40,19 @@ const admin = {
 
 const CUST = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb801";
 const CUST_ADMIN = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb802";
+const CUST_INACTIVE = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb804";
+const TEMP_INACTIVE_OWNER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb901";
+const TEMP_DELETED_OWNER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb902";
+const CUST_DELETED_OWNER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb805";
+const MISSING_OWNER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb999";
 
 async function cleanup(): Promise<void> {
-  await db.delete(schema.customers).where(eq(schema.customers.id, CUST));
-  await db.delete(schema.customers).where(eq(schema.customers.id, CUST_ADMIN));
+  for (const id of [CUST, CUST_ADMIN, CUST_INACTIVE, CUST_DELETED_OWNER]) {
+    await db.delete(schema.customers).where(eq(schema.customers.id, id));
+  }
+  for (const id of [TEMP_INACTIVE_OWNER, TEMP_DELETED_OWNER]) {
+    await db.delete(schema.users).where(eq(schema.users.id, id));
+  }
 }
 
 describe("dashboard phase 5C permissions DB", () => {
@@ -157,6 +167,128 @@ describe("dashboard phase 5C permissions DB", () => {
     const adminOwnedInStaffList = staffDist.totalCustomers;
     assert.ok(adminDist.totalCustomers >= adminOwnedInStaffList);
     assert.equal(staffProposalBefore, staffProposal?.count ?? 0);
+  });
+
+  it("excludes missing, inactive, and soft-deleted owners from admin stage distribution", async () => {
+    await cleanup();
+    const baseline = await getDashboardStageDistribution(db, admin);
+    const baselineQualification =
+      baseline.stages.find((row) => row.key === "qualification")?.count ?? 0;
+    const nowIso = new Date().toISOString();
+
+    await db.insert(schema.users).values([
+      {
+        id: TEMP_INACTIVE_OWNER,
+        email: "inactive-stage-owner@crm.local",
+        displayName: "Inactive Stage Owner",
+        passwordHash: "x",
+        role: "staff",
+        isActive: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: TEMP_DELETED_OWNER,
+        email: "deleted-stage-owner@crm.local",
+        displayName: "Deleted Stage Owner",
+        passwordHash: "x",
+        role: "staff",
+        isActive: 1,
+        deletedAt: nowIso,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ]);
+
+    await db.insert(schema.customers).values([
+      {
+        id: CUST_INACTIVE,
+        customerName: "[TEST] Inactive owner stage",
+        nameStatus: "confirmed",
+        customerType: "individual",
+        phoneCountryCode: "+86",
+        phone: "13700000804",
+        source: "referral",
+        salesStage: "qualification",
+        ownerId: TEMP_INACTIVE_OWNER,
+        status: "active",
+        createdBy: SEED_IDS.admin,
+        updatedBy: SEED_IDS.admin,
+        isPinned: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+      {
+        id: CUST_DELETED_OWNER,
+        customerName: "[TEST] Soft-deleted owner stage",
+        nameStatus: "confirmed",
+        customerType: "individual",
+        phoneCountryCode: "+86",
+        phone: "13700000805",
+        source: "referral",
+        salesStage: "qualification",
+        ownerId: TEMP_DELETED_OWNER,
+        status: "active",
+        createdBy: SEED_IDS.admin,
+        updatedBy: SEED_IDS.admin,
+        isPinned: 0,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      },
+    ]);
+
+    const after = await getDashboardStageDistribution(db, admin);
+    const afterQualification =
+      after.stages.find((row) => row.key === "qualification")?.count ?? 0;
+    assert.equal(afterQualification, baselineQualification);
+    assert.equal(after.totalCustomers, baseline.totalCustomers);
+
+    const missingOwnerDrilldown = await listCustomersForUserPaginated(
+      admin,
+      { salesStage: "qualification", ownerId: MISSING_OWNER },
+      1,
+    );
+    assert.equal(missingOwnerDrilldown.items.length, 0);
+    assert.equal(missingOwnerDrilldown.pagination.total, 0);
+
+    const inactiveDrilldown = await listCustomersForUserPaginated(
+      admin,
+      { salesStage: "qualification", ownerId: TEMP_INACTIVE_OWNER },
+      1,
+    );
+    assert.equal(
+      inactiveDrilldown.items.some((item) => item.id === CUST_INACTIVE),
+      false,
+    );
+
+    const deletedDrilldown = await listCustomersForUserPaginated(
+      admin,
+      { salesStage: "qualification", ownerId: TEMP_DELETED_OWNER },
+      1,
+    );
+    assert.equal(
+      deletedDrilldown.items.some((item) => item.id === CUST_DELETED_OWNER),
+      false,
+    );
+
+    const illegalOwner = await listCustomersForUserPaginated(
+      admin,
+      { ownerId: "not-a-uuid" },
+      1,
+    );
+    assert.equal(illegalOwner.items.length, 0);
+    assert.equal(illegalOwner.pagination.total, 0);
+
+    const staffIllegal = await listCustomersForUserPaginated(
+      staffA,
+      { ownerId: SEED_IDS.staffB },
+      1,
+    );
+    const staffOwn = await listCustomersForUserPaginated(staffA, {}, 1);
+    assert.deepEqual(
+      staffIllegal.items.map((item) => item.id).sort(),
+      staffOwn.items.map((item) => item.id).sort(),
+    );
   });
 
   it("aligns team current, overdue, and pending with staff dashboard metrics", async () => {

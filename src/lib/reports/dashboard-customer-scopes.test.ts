@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import { sortTeamMembersStable } from "./admin-team-execution";
 
@@ -25,6 +26,19 @@ describe("dashboard customer scopes and team ordering", () => {
     assert.deepEqual(
       members.map((member) => member.id),
       ["a-id", "b-id", "c-id"],
+    );
+  });
+
+  it("admin stage distribution requires a valid internal owner", () => {
+    const scopes = readFileSync(
+      "src/lib/reports/dashboard-customer-scopes.ts",
+      "utf8",
+    );
+    assert.match(scopes, /adminStageDistributionWhere/);
+    assert.match(scopes, /validInternalCustomerOwnerExistsSql/);
+    assert.match(
+      scopes,
+      /adminStageDistributionWhere\(\)[\s\S]*validInternalCustomerOwnerExistsSql/,
     );
   });
 });

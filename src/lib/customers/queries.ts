@@ -15,10 +15,15 @@ import {
 import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import { getBusinessTodayRange } from "@/lib/reports/dates";
 import {
+  isValidAdminOwnerListParam,
   parseAdminOwnerListParam,
   parseSalesStageListParam,
   STAGE_DIST_NOT_SET,
 } from "@/lib/customers/sales-stage-list-filter";
+import {
+  impossibleCustomerMatchSql,
+  validInternalCustomerOwnerExistsSql,
+} from "@/lib/customers/valid-internal-customer-owner";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -232,15 +237,13 @@ function buildOwnerWhere(
   if (user.role !== "admin" || !filter.ownerId) {
     return undefined;
   }
+  // Malformed ownerId must not degrade to an unfiltered admin list.
+  if (!isValidAdminOwnerListParam(filter.ownerId)) {
+    return impossibleCustomerMatchSql();
+  }
   return and(
     eq(schema.customers.ownerId, filter.ownerId),
-    sql`EXISTS (
-      SELECT 1 FROM ${schema.users} u
-      WHERE u.id = ${filter.ownerId}
-        AND u.is_active = 1
-        AND u.deleted_at IS NULL
-        AND u.role IN ('staff', 'admin')
-    )`,
+    validInternalCustomerOwnerExistsSql(),
   );
 }
 
@@ -432,9 +435,12 @@ export function parseCustomerListFilter(
     filter.salesStage = salesStage;
   }
 
-  const ownerId = parseAdminOwnerListParam(params.ownerId);
-  if (user.role === "admin" && ownerId) {
-    filter.ownerId = ownerId;
+  const rawOwnerId = params.ownerId?.trim();
+  if (user.role === "admin" && rawOwnerId) {
+    const ownerId = parseAdminOwnerListParam(rawOwnerId);
+    // Preserve a non-empty token so buildOwnerWhere can reject malformed ids
+    // instead of silently dropping the filter (which would return the full list).
+    filter.ownerId = ownerId ?? rawOwnerId;
   }
 
   const workView = parseWorkView(params.workView);

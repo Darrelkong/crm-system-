@@ -54,17 +54,28 @@ export function DashboardStageDistributionCard({
 
   const nonZeroStages = distribution.stages.filter((stage) => stage.count > 0);
   const isEmpty = distribution.totalCustomers === 0;
+  const countLabel =
+    distribution.role === "admin"
+      ? t("dashboard.stageDistributionPrivateActiveCustomers", {
+          count: String(distribution.totalCustomers),
+        })
+      : t("dashboard.stageDistributionMyPrivateActiveCustomers", {
+          count: String(distribution.totalCustomers),
+        });
 
   return (
     <Card className="min-w-0 overflow-hidden p-5">
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-        <div>
+      <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
           <h2 className="section-title">{t(distribution.titleKey)}</h2>
-          <p className="mt-1 text-sm crm-text-secondary">
-            {t("dashboard.stageDistributionCustomers", {
-              count: String(distribution.totalCustomers),
-            })}
+          <p className="mt-1 break-words text-sm crm-text-secondary">
+            {countLabel}
           </p>
+          {distribution.role === "admin" ? (
+            <p className="mt-1 break-words text-xs leading-relaxed crm-text-secondary">
+              {t("dashboard.stageDistributionScopeHint")}
+            </p>
+          ) : null}
         </div>
       </div>
 
