@@ -56,4 +56,38 @@ describe("dashboard layout and performance wiring", () => {
     const settingsCalls = service.match(/await getEffectiveSettings\(/g) ?? [];
     assert.equal(settingsCalls.length, 1);
   });
+
+  it("hides ranking tables from Admin and Staff dashboard UI", () => {
+    const adminClient = readFileSync(
+      "src/components/dashboard/admin-dashboard-client.tsx",
+      "utf8",
+    );
+    const adminView = readFileSync(
+      "src/components/dashboard/admin-dashboard-view.tsx",
+      "utf8",
+    );
+    const staffClient = readFileSync(
+      "src/components/dashboard/staff-dashboard-summary-client.tsx",
+      "utf8",
+    );
+    const staffView = readFileSync(
+      "src/components/dashboard/staff-dashboard-view.tsx",
+      "utf8",
+    );
+
+    for (const source of [adminClient, adminView, staffClient, staffView]) {
+      assert.doesNotMatch(source, /RankingTable/);
+      assert.doesNotMatch(source, /TeamPerformancePanel/);
+      assert.doesNotMatch(source, /staffClientRanking|staffFollowUpRanking/);
+      assert.doesNotMatch(source, /data-dashboard-creator-ranking/);
+      assert.doesNotMatch(source, /第\s*1\s*名|Top Staff|排行榜/);
+    }
+
+    assert.match(adminClient, /WorkflowPrioritiesPanel/);
+    assert.match(adminClient, /customersBySource/);
+    assert.match(adminClient, /customersBySalesStage/);
+    assert.match(adminView, /RecentNotificationsCard/);
+    assert.match(adminView, /RecentAnnouncementsCard/);
+    assert.match(staffView, /RecentNotificationsCard/);
+  });
 });

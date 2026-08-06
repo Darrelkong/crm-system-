@@ -27,6 +27,24 @@ function emptyReclamationRisk(drilldownHref: string): DashboardReclamationRiskSu
   };
 }
 
+/**
+ * Customers who formally entered the public pool during the HK business day.
+ * Uses `poolEnteredAt` (latest entry time). Does NOT require current status
+ * to remain `public_pool` — claimed/transferred customers still count.
+ * One row per customer, so same-day re-entry after a later overwrite still
+ * counts once via COUNT on customers.
+ */
+export function buildPublicPoolEnteredTodayWhere(
+  todayStart: string,
+  tomorrowStart: string,
+) {
+  return and(
+    isNotNull(schema.customers.poolEnteredAt),
+    gte(schema.customers.poolEnteredAt, todayStart),
+    lt(schema.customers.poolEnteredAt, tomorrowStart),
+  )!;
+}
+
 async function countPendingReclamationCustomers(
   db: Database,
   userId?: string,
@@ -246,14 +264,7 @@ async function getAdminMetrics(
     db
       .select({ value: count() })
       .from(schema.customers)
-      .where(
-        and(
-          eq(schema.customers.status, "public_pool"),
-          isNotNull(schema.customers.poolEnteredAt),
-          gte(schema.customers.poolEnteredAt, todayStart),
-          lt(schema.customers.poolEnteredAt, tomorrowStart),
-        ),
-      ),
+      .where(buildPublicPoolEnteredTodayWhere(todayStart, tomorrowStart)),
   ]);
 
   return {

@@ -5,9 +5,7 @@ import { Card } from "@/components/ui/card";
 import {
   KpiCard,
   kpiIcons,
-  RankingTable,
   SimpleBarRow,
-  TeamPerformancePanel,
   WorkflowPrioritiesPanel,
 } from "@/components/dashboard/dashboard-widgets";
 import { useTranslation } from "@/i18n/provider";
@@ -100,35 +98,21 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
         />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <WorkflowPrioritiesPanel
-            pendingApprovals={stats.pendingApprovals}
-            overdueTasks={stats.overdueTasks}
-            todayTasks={stats.todayOpenTasks}
-            labels={{
-              title: t("dashboard.workflowPriorities"),
-              priorities: t("dashboard.tabPriorities"),
-              approvals: t("dashboard.tabApprovals"),
-              tasks: t("dashboard.tabTasks"),
-              empty: t("dashboard.workflowAllClear"),
-              pendingApprovals: t("dashboard.pendingApprovals"),
-              overdueTasks: t("dashboard.overdueTasks"),
-              todayTasks: t("dashboard.todayTasks"),
-            }}
-          />
-        </div>
-        <TeamPerformancePanel
-          title={t("dashboard.teamPerformance")}
-          subtitle={t("dashboard.teamPerformanceSubtitle")}
-          rows={stats.followUpsByStaffThisMonth.map((s) => ({
-            name: s.userName,
-            count: s.count,
-          }))}
-          emptyMessage={t("dashboard.noData")}
-          columnLabels={[t("dashboard.columnStaff"), t("dashboard.columnFollowUpCount")]}
-        />
-      </div>
+      <WorkflowPrioritiesPanel
+        pendingApprovals={stats.pendingApprovals}
+        overdueTasks={stats.overdueTasks}
+        todayTasks={stats.todayOpenTasks}
+        labels={{
+          title: t("dashboard.workflowPriorities"),
+          priorities: t("dashboard.tabPriorities"),
+          approvals: t("dashboard.tabApprovals"),
+          tasks: t("dashboard.tabTasks"),
+          empty: t("dashboard.workflowAllClear"),
+          pendingApprovals: t("dashboard.pendingApprovals"),
+          overdueTasks: t("dashboard.overdueTasks"),
+          todayTasks: t("dashboard.todayTasks"),
+        }}
+      />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
@@ -211,84 +195,6 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
               />
             ))}
           </div>
-        </Card>
-      </div>
-
-      <Card data-dashboard-creator-ranking>
-        <RankingTable
-          title={t("dashboard.newCustomersByCreatorThisMonth")}
-          note={t("dashboard.newCustomersByCreatorNote")}
-          columns={[
-            t("dashboard.columnStaff"),
-            t("dashboard.columnNewCustomerCount"),
-          ]}
-          rows={stats.newCustomersByCreatorThisMonth.map((row) => {
-            const badges: string[] = [];
-            if (row.role === "admin") {
-              const adminLabel = t("employees.adminRole");
-              const resolvedAdminLabel =
-                adminLabel &&
-                adminLabel !== "employees.adminRole" &&
-                adminLabel.trim()
-                  ? adminLabel
-                  : t("common.admin");
-              if (
-                resolvedAdminLabel &&
-                resolvedAdminLabel !== "employees.adminRole" &&
-                resolvedAdminLabel !== "common.admin" &&
-                resolvedAdminLabel.trim()
-              ) {
-                badges.push(resolvedAdminLabel);
-              }
-            }
-            if (row.isFormer) {
-              const formerLabel = t("dashboard.formerMemberBadge");
-              if (
-                formerLabel &&
-                formerLabel !== "dashboard.formerMemberBadge" &&
-                formerLabel.trim()
-              ) {
-                badges.push(formerLabel);
-              }
-            }
-            return {
-              id: row.userId,
-              name: row.displayName,
-              count: row.count,
-              badges: badges.length > 0 ? badges : undefined,
-            };
-          })}
-          emptyMessage={t("dashboard.noCreatorNewCustomerData")}
-          scrollable
-        />
-      </Card>
-
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <RankingTable
-            title={t("dashboard.staffClientRanking")}
-            note={t("dashboard.staffClientRankingNote")}
-            columns={[t("dashboard.columnStaff"), t("dashboard.columnClientCount")]}
-            rows={stats.customersByOwner.map((o) => ({
-              id: o.ownerId,
-              name: o.ownerName,
-              count: o.count,
-            }))}
-            emptyMessage={t("dashboard.noData")}
-          />
-        </Card>
-
-        <Card>
-          <RankingTable
-            title={t("dashboard.staffFollowUpRanking")}
-            columns={[t("dashboard.columnStaff"), t("dashboard.columnFollowUpCount")]}
-            rows={stats.followUpsByStaffThisMonth.map((s) => ({
-              id: s.userId,
-              name: s.userName,
-              count: s.count,
-            }))}
-            emptyMessage={t("dashboard.noData")}
-          />
         </Card>
       </div>
     </div>
