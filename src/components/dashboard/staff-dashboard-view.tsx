@@ -1,14 +1,22 @@
 import { StaffDashboardSummaryClient } from "@/components/dashboard/staff-dashboard-summary-client";
 import { DashboardReclamationRiskCard } from "@/components/dashboard/dashboard-reclamation-risk-card";
+import { DashboardTrendsCard } from "@/components/dashboard/dashboard-trends-card";
 import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
 import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
 import { getDashboardSummary } from "@/lib/reports/dashboard-summary";
+import { getDashboardTrends } from "@/lib/reports/dashboard-trends";
 import { getDb } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
 
 export async function StaffDashboardView({ user }: { user: User }) {
   const db = getDb();
-  const summary = await getDashboardSummary(db, user);
+  const [summary, trendsResult] = await Promise.all([
+    getDashboardSummary(db, user),
+    getDashboardTrends(db, user).then(
+      (trends) => ({ trends, error: false as const }),
+      () => ({ trends: null, error: true as const }),
+    ),
+  ]);
 
   if (summary.role !== "staff") {
     throw new Error("Expected staff dashboard summary");
@@ -17,6 +25,11 @@ export async function StaffDashboardView({ user }: { user: User }) {
   return (
     <div className="space-y-6">
       <StaffDashboardSummaryClient summary={summary} />
+
+      <DashboardTrendsCard
+        trends={trendsResult.trends}
+        error={trendsResult.error}
+      />
 
       <DashboardReclamationRiskCard
         titleKey="dashboard.customerReclamationRisk"
