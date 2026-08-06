@@ -1,0 +1,141 @@
+import assert from "node:assert/strict";
+import { after, before, describe, it } from "node:test";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/d1";
+import { getPlatformProxy } from "wrangler";
+import * as schema from "../../../drizzle/schema";
+import { bindTestDatabase } from "@/lib/db";
+import { SEED_IDS } from "@/lib/constants/seed-ids";
+import { getAdminTeamExecutionOverview } from "./admin-team-execution";
+import { getDashboardStageDistribution } from "./dashboard-stage-distribution";
+import type { User } from "../../../drizzle/schema/users";
+
+let db: ReturnType<typeof drizzle<typeof schema>>;
+let disposeProxy: (() => Promise<void>) | undefined;
+
+const staffA = {
+  id: SEED_IDS.staffA,
+  role: "staff",
+  displayName: "Staff A",
+} as User;
+
+const staffB = {
+  id: SEED_IDS.staffB,
+  role: "staff",
+  displayName: "Staff B",
+} as User;
+
+const admin = {
+  id: SEED_IDS.admin,
+  role: "admin",
+  displayName: "Admin",
+} as User;
+
+const CUST = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbb801";
+
+async function cleanup(): Promise<void> {
+  await db.delete(schema.customers).where(eq(schema.customers.id, CUST));
+}
+
+describe("dashboard phase 5C permissions DB", () => {
+  before(async () => {
+    process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    const proxy = await getPlatformProxy<{ DB: unknown }>({
+      configPath: "./wrangler.jsonc",
+    });
+    db = drizzle(proxy.env.DB, { schema });
+    bindTestDatabase(db);
+    disposeProxy = proxy.dispose;
+    await cleanup();
+  });
+
+  after(async () => {
+    await cleanup();
+    bindTestDatabase(null);
+    delete process.env.CRM_ALLOW_TEST_DB_BIND;
+    await disposeProxy?.();
+  });
+
+  it("scopes staff stage distribution to owned active customers", async () => {
+    await cleanup();
+    const nowIso = new Date().toISOString();
+    await db.insert(schema.customers).values({
+      id: CUST,
+      customerName: "[TEST] Stage dist",
+      nameStatus: "confirmed",
+      customerType: "individual",
+      phoneCountryCode: "+86",
+      phone: "13700000801",
+      source: "referral",
+      salesStage: "negotiation",
+      ownerId: SEED_IDS.staffA,
+      status: "active",
+      createdBy: SEED_IDS.staffA,
+      updatedBy: SEED_IDS.staffA,
+      isPinned: 0,
+      createdAt: nowIso,
+      updatedAt: nowIso,
+    });
+
+    const staffDist = await getDashboardStageDistribution(db, staffA);
+    assert.equal(staffDist.role, "staff");
+    const staffNegotiation = staffDist.stages.find(
+      (row) => row.key === "negotiation",
+    );
+    assert.ok((staffNegotiation?.count ?? 0) >= 1);
+
+    const otherDist = await getDashboardStageDistribution(db, staffB);
+    const otherNegotiation = otherDist.stages.find(
+      (row) => row.key === "negotiation",
+    );
+    const before = otherNegotiation?.count ?? 0;
+
+    await db
+      .update(schema.customers)
+      .set({ ownerId: SEED_IDS.staffB, updatedAt: nowIso })
+      .where(eq(schema.customers.id, CUST));
+
+    const staffAfterTransfer = await getDashboardStageDistribution(db, staffA);
+    const staffNegotiationAfter = staffAfterTransfer.stages.find(
+      (row) => row.key === "negotiation",
+    );
+    assert.ok((staffNegotiationAfter?.count ?? 0) < (staffNegotiation?.count ?? 1));
+
+    const staffBDist = await getDashboardStageDistribution(db, staffB);
+    const staffBNegotiation = staffBDist.stages.find(
+      (row) => row.key === "negotiation",
+    );
+    assert.ok((staffBNegotiation?.count ?? 0) > before);
+  });
+
+  it("rejects staff access to admin team execution overview", async () => {
+    await assert.rejects(
+      () => getAdminTeamExecutionOverview(db, staffA),
+      /Admin access required/,
+    );
+  });
+
+  it("returns admin team execution without rank fields", async () => {
+    const overview = await getAdminTeamExecutionOverview(db, admin);
+    assert.equal(overview.role, "admin");
+    assert.equal(overview.defaultPeriodDays, 7);
+    assert.ok(Array.isArray(overview.members));
+    for (const member of overview.members) {
+      assert.ok(member.userId);
+      assert.ok(member.displayName);
+      assert.equal(typeof member.currentCustomers, "number");
+      assert.equal(typeof member.periodActivity[7].validFollowUps, "number");
+      assert.equal(
+        typeof member.periodActivity[30].stageProgressCustomers,
+        "number",
+      );
+      assert.ok(member.customersHref.includes("ownerId="));
+      assert.equal(/rank|score/i.test(member.customersHref), false);
+    }
+    const names = overview.members.map((member) => member.displayName);
+    const sorted = [...names].sort((a, b) =>
+      a.localeCompare(b, "en", { sensitivity: "base" }),
+    );
+    assert.deepEqual(names, sorted);
+  });
+});

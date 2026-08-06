@@ -33,6 +33,8 @@ type Props = {
     page?: string;
     reclamationRisk?: string;
     workView?: string;
+    salesStage?: string;
+    ownerId?: string;
   }>;
 };
 
@@ -49,8 +51,14 @@ export default async function CustomersPage({ searchParams }: Props) {
     user,
     reclamationScope,
   );
-  const listFilter = {
-    ...parseCustomerListFilter(user, params),
+    const listFilter = {
+    ...parseCustomerListFilter(user, {
+      status: params.status,
+      createdBy: params.createdBy,
+      workView: params.workView,
+      salesStage: params.salesStage,
+      ownerId: params.ownerId,
+    }),
     ...(reclamationCustomerIds !== undefined
       ? { reclamationCustomerIds }
       : {}),

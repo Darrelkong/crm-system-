@@ -14,6 +14,11 @@ import {
 } from "@/lib/customers/work-view-filter";
 import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import { getBusinessTodayRange } from "@/lib/reports/dates";
+import {
+  parseAdminOwnerListParam,
+  parseSalesStageListParam,
+  STAGE_DIST_NOT_SET,
+} from "@/lib/customers/sales-stage-list-filter";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -26,6 +31,10 @@ export type CustomerListFilter = {
   status?: "archived";
   /** Admin only: filter by `customers.created_by`. */
   createdBy?: string;
+  /** Validated sales stage bucket from dashboard drilldown. */
+  salesStage?: string;
+  /** Admin only: filter by current `customers.owner_id` (active staff). */
+  ownerId?: string;
   /** Server-resolved reclamation risk customer IDs (from action items). */
   reclamationCustomerIds?: string[];
   /** Temporary follow-up drilldown from dashboard cards. */
@@ -204,6 +213,37 @@ function buildWorkViewFilterWhere(
   );
 }
 
+function buildSalesStageWhere(
+  filter: CustomerListFilter,
+): SQL | undefined {
+  if (!filter.salesStage) {
+    return undefined;
+  }
+  if (filter.salesStage === STAGE_DIST_NOT_SET) {
+    return sql`trim(${schema.customers.salesStage}) = ''`;
+  }
+  return eq(schema.customers.salesStage, filter.salesStage);
+}
+
+function buildOwnerWhere(
+  user: User,
+  filter: CustomerListFilter,
+): SQL | undefined {
+  if (user.role !== "admin" || !filter.ownerId) {
+    return undefined;
+  }
+  return and(
+    eq(schema.customers.ownerId, filter.ownerId),
+    sql`EXISTS (
+      SELECT 1 FROM ${schema.users} u
+      WHERE u.id = ${filter.ownerId}
+        AND u.role = 'staff'
+        AND u.is_active = 1
+        AND u.deleted_at IS NULL
+    )`,
+  );
+}
+
 function buildListWhere(
   user: User,
   filter: CustomerListFilter = {},
@@ -211,6 +251,8 @@ function buildListWhere(
   return combineWhere(
     buildPermissionWhere(user, filter),
     buildCreatedByWhere(user, filter),
+    buildSalesStageWhere(filter),
+    buildOwnerWhere(user, filter),
     buildReclamationRiskWhere(filter),
     buildWorkViewFilterWhere(user, filter),
     excludePendingOnHoldCreateApprovalWhere(),
@@ -366,7 +408,13 @@ export async function getCustomerById(id: string) {
 
 export function parseCustomerListFilter(
   user: User,
-  params: { status?: string; createdBy?: string; workView?: string },
+  params: {
+    status?: string;
+    createdBy?: string;
+    workView?: string;
+    salesStage?: string;
+    ownerId?: string;
+  },
 ): CustomerListFilter {
   const filter: CustomerListFilter = {};
 
@@ -377,6 +425,16 @@ export function parseCustomerListFilter(
   const createdBy = params.createdBy?.trim();
   if (user.role === "admin" && createdBy) {
     filter.createdBy = createdBy;
+  }
+
+  const salesStage = parseSalesStageListParam(params.salesStage);
+  if (salesStage) {
+    filter.salesStage = salesStage;
+  }
+
+  const ownerId = parseAdminOwnerListParam(params.ownerId);
+  if (user.role === "admin" && ownerId) {
+    filter.ownerId = ownerId;
   }
 
   const workView = parseWorkView(params.workView);
@@ -390,6 +448,9 @@ export function parseCustomerListFilter(
 export function buildCustomersListQuery(params: {
   status?: "archived";
   createdBy?: string;
+  salesStage?: string;
+  ownerId?: string;
+  workView?: string;
   page?: number;
 }): string {
   const search = new URLSearchParams();
@@ -398,6 +459,15 @@ export function buildCustomersListQuery(params: {
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);
+  }
+  if (params.salesStage) {
+    search.set("salesStage", params.salesStage);
+  }
+  if (params.ownerId) {
+    search.set("ownerId", params.ownerId);
+  }
+  if (params.workView) {
+    search.set("workView", params.workView);
   }
   if (params.page && params.page > 1) {
     search.set("page", String(params.page));

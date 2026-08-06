@@ -1,10 +1,14 @@
 import { AdminDashboardSummaryClient } from "@/components/dashboard/admin-dashboard-summary-client";
 import { AdminDashboardClient } from "@/components/dashboard/admin-dashboard-client";
+import { AdminTeamExecutionCard } from "@/components/dashboard/admin-team-execution-card";
 import { DashboardReclamationRiskCard } from "@/components/dashboard/dashboard-reclamation-risk-card";
+import { DashboardStageDistributionCard } from "@/components/dashboard/dashboard-stage-distribution-card";
 import { DashboardTrendsCard } from "@/components/dashboard/dashboard-trends-card";
 import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
 import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
+import { getAdminTeamExecutionOverview } from "@/lib/reports/admin-team-execution";
 import { getDashboardSummary } from "@/lib/reports/dashboard-summary";
+import { getDashboardStageDistribution } from "@/lib/reports/dashboard-stage-distribution";
 import { getDashboardTrends } from "@/lib/reports/dashboard-trends";
 import { getAdminDashboardStats } from "@/lib/reports/admin-dashboard";
 import { getDb } from "@/lib/db";
@@ -12,12 +16,21 @@ import type { User } from "../../../drizzle/schema/users";
 
 export async function AdminDashboardView({ user }: { user: User }) {
   const db = getDb();
-  const [summary, legacyStats, trendsResult] = await Promise.all([
+  const [summary, legacyStats, trendsResult, stageResult, teamResult] =
+    await Promise.all([
     getDashboardSummary(db, user),
     getAdminDashboardStats(db),
     getDashboardTrends(db, user).then(
       (trends) => ({ trends, error: false as const }),
       () => ({ trends: null, error: true as const }),
+    ),
+    getDashboardStageDistribution(db, user).then(
+      (distribution) => ({ distribution, error: false as const }),
+      () => ({ distribution: null, error: true as const }),
+    ),
+    getAdminTeamExecutionOverview(db, user).then(
+      (overview) => ({ overview, error: false as const }),
+      () => ({ overview: null, error: true as const }),
     ),
   ]);
 
@@ -32,6 +45,16 @@ export async function AdminDashboardView({ user }: { user: User }) {
       <DashboardTrendsCard
         trends={trendsResult.trends}
         error={trendsResult.error}
+      />
+
+      <DashboardStageDistributionCard
+        distribution={stageResult.distribution}
+        error={stageResult.error}
+      />
+
+      <AdminTeamExecutionCard
+        overview={teamResult.overview}
+        error={teamResult.error}
       />
 
       <DashboardReclamationRiskCard

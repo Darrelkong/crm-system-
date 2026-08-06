@@ -65,6 +65,9 @@ export async function GET(request: Request) {
     const listFilter = parseCustomerListFilter(user, {
       status: statusParam ?? undefined,
       createdBy: url.searchParams.get("createdBy") ?? undefined,
+      workView: url.searchParams.get("workView") ?? undefined,
+      salesStage: url.searchParams.get("salesStage") ?? undefined,
+      ownerId: url.searchParams.get("ownerId") ?? undefined,
     });
     const scoringFilter = parseScoringListFilter(url.searchParams);
     const { page } = parseCustomerListPageParams({
