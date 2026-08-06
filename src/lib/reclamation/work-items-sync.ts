@@ -11,7 +11,7 @@ import {
 } from "@/lib/notifications/action-state";
 import { storeNotificationMessage, storeNotificationTitle } from "@/lib/notifications/i18n-storage";
 import { buildSummaryFingerprint } from "@/lib/notifications/summary-fingerprint";
-import { getEffectiveSettings } from "@/lib/settings/effective";
+import { getEffectiveSettings, type EffectiveSettings } from "@/lib/settings/effective";
 import { RECLAMATION_EXCLUDED_SALES_STAGES } from "./constants";
 import { getCollaborativeCustomerIds } from "./collaborative";
 import {
@@ -72,8 +72,9 @@ async function listEligibleCustomers(db: Database): Promise<Customer[]> {
 export async function collectReclamationRiskSnapshots(
   db: Database,
   now: Date = new Date(),
+  settingsOverride?: EffectiveSettings,
 ): Promise<ReclamationRiskSnapshot[]> {
-  const settings = await getEffectiveSettings(db);
+  const settings = settingsOverride ?? (await getEffectiveSettings(db));
   const customers = await listEligibleCustomers(db);
   const collaborativeIds = await getCollaborativeCustomerIds(
     db,

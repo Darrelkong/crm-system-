@@ -22,6 +22,7 @@ import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
 import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
+import { parseReclamationRiskParam } from "@/lib/customers/work-view-filter";
 
 type Props = {
   searchParams: Promise<{
@@ -31,6 +32,7 @@ type Props = {
     createdBy?: string;
     page?: string;
     reclamationRisk?: string;
+    workView?: string;
   }>;
 };
 
@@ -38,10 +40,14 @@ export default async function CustomersPage({ searchParams }: Props) {
   const user = await requireAuthCached();
   const params = await searchParams;
   const db = getDb();
+  const reclamationScope = parseReclamationRiskParam(
+    user,
+    params.reclamationRisk,
+  );
   const reclamationCustomerIds = await resolveReclamationRiskCustomerIds(
     db,
     user,
-    params.reclamationRisk,
+    reclamationScope,
   );
   const listFilter = {
     ...parseCustomerListFilter(user, params),

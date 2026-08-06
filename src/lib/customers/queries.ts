@@ -7,6 +7,13 @@ import {
 } from "@/lib/customers/customer-list-filters";
 import { ON_HOLD_CREATE_APPROVAL_TYPE } from "@/lib/customers/on-hold-create-pending";
 import { buildCustomerListOrderBy } from "@/lib/customers/list-sort";
+import {
+  buildWorkViewWhere,
+  parseWorkView,
+  type WorkView,
+} from "@/lib/customers/work-view-filter";
+import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
+import { getBusinessTodayRange } from "@/lib/reports/dates";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 
@@ -21,6 +28,8 @@ export type CustomerListFilter = {
   createdBy?: string;
   /** Server-resolved reclamation risk customer IDs (from action items). */
   reclamationCustomerIds?: string[];
+  /** Temporary follow-up drilldown from dashboard cards. */
+  workView?: WorkView;
 };
 
 export type CustomerCreatorOption = {
@@ -175,6 +184,26 @@ function buildReclamationRiskWhere(
   return inArray(schema.customers.id, filter.reclamationCustomerIds);
 }
 
+function buildWorkViewFilterWhere(
+  user: User,
+  filter: CustomerListFilter,
+): SQL | undefined {
+  if (!filter.workView) {
+    return undefined;
+  }
+  const now = new Date();
+  const { end: todayEnd } = getBusinessTodayRange(now, HONG_KONG_TIMEZONE);
+  const tomorrowStart = new Date(
+    new Date(todayEnd).getTime() + 1,
+  ).toISOString();
+  return buildWorkViewWhere(
+    user,
+    filter.workView,
+    now.toISOString(),
+    tomorrowStart,
+  );
+}
+
 function buildListWhere(
   user: User,
   filter: CustomerListFilter = {},
@@ -183,6 +212,7 @@ function buildListWhere(
     buildPermissionWhere(user, filter),
     buildCreatedByWhere(user, filter),
     buildReclamationRiskWhere(filter),
+    buildWorkViewFilterWhere(user, filter),
     excludePendingOnHoldCreateApprovalWhere(),
   );
 }
@@ -336,7 +366,7 @@ export async function getCustomerById(id: string) {
 
 export function parseCustomerListFilter(
   user: User,
-  params: { status?: string; createdBy?: string },
+  params: { status?: string; createdBy?: string; workView?: string },
 ): CustomerListFilter {
   const filter: CustomerListFilter = {};
 
@@ -347,6 +377,11 @@ export function parseCustomerListFilter(
   const createdBy = params.createdBy?.trim();
   if (user.role === "admin" && createdBy) {
     filter.createdBy = createdBy;
+  }
+
+  const workView = parseWorkView(params.workView);
+  if (workView) {
+    filter.workView = workView;
   }
 
   return filter;
