@@ -1649,6 +1649,10 @@ const en = {
     trendUnavailable: "Trend data is temporarily unavailable",
     trendReload: "Reload",
     trendTapHint: "Tap a point to see the daily count",
+    trendKeyboardHint:
+      "Use the left and right arrow keys to review daily trends",
+    trendChartAriaLabel: "Trend chart, {{metric}}, last {{days}} days",
+    trendTooltipLive: "{{date}}, {{metric}}: {{value}}",
   },
   announcements: {
     title: "Announcements",

@@ -1592,6 +1592,9 @@ const zhHans: Messages = {
     trendUnavailable: "趋势数据暂时不可用",
     trendReload: "重新加载",
     trendTapHint: "点击数据点可查看当日数量",
+    trendKeyboardHint: "使用左右方向键查看每日趋势",
+    trendChartAriaLabel: "趋势图，{{metric}}，最近 {{days}} 天",
+    trendTooltipLive: "{{date}}，{{metric}}：{{value}}",
   },
   announcements: {
     title: "公告",

@@ -1593,6 +1593,9 @@ const zhHant: Messages = {
     trendUnavailable: "趨勢資料暫時無法使用",
     trendReload: "重新載入",
     trendTapHint: "點擊資料點可查看當日數量",
+    trendKeyboardHint: "使用左右方向鍵查看每日趨勢",
+    trendChartAriaLabel: "趨勢圖，{{metric}}，最近 {{days}} 天",
+    trendTooltipLive: "{{date}}，{{metric}}：{{value}}",
   },
   announcements: {
     title: "公告",

@@ -29,6 +29,9 @@ const KEYS = [
   "trendNewThisPeriod",
   "trendEmptyPeriod",
   "trendUnavailable",
+  "trendKeyboardHint",
+  "trendChartAriaLabel",
+  "trendTooltipLive",
 ] as const;
 
 describe("dashboard trends i18n and wiring", () => {
@@ -64,6 +67,28 @@ describe("dashboard trends i18n and wiring", () => {
     assert.match(card, /aria-pressed/);
     assert.match(card, /dashboard\.trend/);
     assert.doesNotMatch(card, /RankingTable|排行榜|Top Staff/);
+  });
+
+  it("trend card exposes visible tooltip and single focus stop", () => {
+    const card = readFileSync(
+      "src/components/dashboard/dashboard-trends-card.tsx",
+      "utf8",
+    );
+    assert.match(card, /data-testid="trend-tooltip"/);
+    assert.match(card, /onPointerMove/);
+    assert.match(card, /onPointerDown/);
+    assert.match(card, /ArrowLeft/);
+    assert.match(card, /ArrowRight/);
+    assert.match(card, /Escape/);
+    assert.match(card, /tabIndex=\{0\}/);
+    assert.match(card, /touch-pan-y|touchAction:\s*"pan-y"/);
+    assert.match(card, /aria-live/);
+    assert.match(card, /<title>/);
+    assert.match(card, /trendEmptyPeriod/);
+    // Circles must not be individual tab stops.
+    assert.doesNotMatch(card, /tabIndex=\{1\}/);
+    assert.match(card, /key=\{\`\$\{rangeDays\}:\$\{activeMetricKey\}\`\}/);
+    assert.doesNotMatch(card, /useEffect/);
   });
 
   it("dashboard views load trends without blocking summary failure isolation", () => {

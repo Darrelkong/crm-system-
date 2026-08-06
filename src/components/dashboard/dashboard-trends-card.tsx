@@ -1,6 +1,13 @@
 "use client";
 
-import { useId, useMemo, useState } from "react";
+import {
+  useId,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { Card } from "@/components/ui/card";
 import { useTranslation } from "@/i18n/provider";
@@ -8,55 +15,70 @@ import type { DashboardTrendsPayload } from "@/lib/reports/dashboard-trends-type
 import {
   selectTrendWindow,
   TREND_RANGE_DAYS,
+  type DailyPoint,
   type TrendRangeDays,
 } from "@/lib/reports/dashboard-trends-period";
-import { formatHongKongDate } from "@/lib/timezone";
+import {
+  buildTrendChartCoords,
+  clampTrendIndex,
+  formatTrendAxisDate,
+  formatTrendTooltipDate,
+  getTrendTooltipSide,
+  moveTrendIndex,
+  nearestTrendIndexFromClientX,
+  TREND_CHART_HEIGHT,
+  TREND_CHART_PAD_X,
+  TREND_CHART_PAD_Y,
+  TREND_CHART_WIDTH,
+} from "@/lib/reports/dashboard-trends-interaction";
 
 type Props = {
   trends: DashboardTrendsPayload | null;
   error?: boolean;
 };
 
-function formatShortDate(ymd: string, locale: string): string {
-  const [y, m, d] = ymd.split("-").map(Number);
-  if (!y || !m || !d) return ymd;
-  try {
-    return new Intl.DateTimeFormat(locale, {
-      month: "short",
-      day: "numeric",
-      timeZone: "Asia/Hong_Kong",
-    }).format(new Date(Date.UTC(y, m - 1, d, 4, 0, 0)));
-  } catch {
-    return `${m}/${d}`;
-  }
-}
-
 function TrendLineChart({
   points,
   metricLabel,
+  rangeDays,
   locale,
+  t,
 }: {
-  points: Array<{ date: string; value: number }>;
+  points: DailyPoint[];
   metricLabel: string;
+  rangeDays: TrendRangeDays;
   locale: string;
+  t: (key: string, params?: Record<string, string>) => string;
 }) {
   const gradientId = useId().replace(/:/g, "");
-  const width = 640;
-  const height = 220;
-  const padX = 12;
-  const padY = 16;
-  const chartW = width - padX * 2;
-  const chartH = height - padY * 2;
-  const maxValue = Math.max(...points.map((p) => p.value), 1);
+  const chartRef = useRef<HTMLDivElement>(null);
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+  const pointerTypeRef = useRef<string>("mouse");
 
-  const coords = points.map((point, index) => {
-    const x =
-      points.length === 1
-        ? padX + chartW / 2
-        : padX + (index / (points.length - 1)) * chartW;
-    const y = padY + chartH - (point.value / maxValue) * chartH;
-    return { ...point, x, y };
+  const width = TREND_CHART_WIDTH;
+  const height = TREND_CHART_HEIGHT;
+  const padX = TREND_CHART_PAD_X;
+  const padY = TREND_CHART_PAD_Y;
+  const chartH = height - padY * 2;
+
+  const coords = useMemo(() => buildTrendChartCoords(points), [points]);
+
+  const active =
+    activeIndex == null
+      ? null
+      : (coords[clampTrendIndex(activeIndex, coords.length)] ?? null);
+  const chartAria = t("dashboard.trendChartAriaLabel", {
+    metric: metricLabel,
+    days: String(rangeDays),
   });
+  const liveValue =
+    active == null
+      ? chartAria
+      : t("dashboard.trendTooltipLive", {
+          date: formatTrendTooltipDate(active.date, locale),
+          metric: metricLabel,
+          value: String(Math.round(active.value)),
+        });
 
   const linePath = coords
     .map((c, i) => `${i === 0 ? "M" : "L"}${c.x.toFixed(1)},${c.y.toFixed(1)}`)
@@ -66,65 +88,197 @@ function TrendLineChart({
       ? `${linePath} L${coords[coords.length - 1]!.x.toFixed(1)},${(padY + chartH).toFixed(1)} L${coords[0]!.x.toFixed(1)},${(padY + chartH).toFixed(1)} Z`
       : "";
 
-  const summary = `${metricLabel}: ${points.map((p) => `${formatShortDate(p.date, locale)} ${p.value}`).join("; ")}`;
+  function selectFromClientX(clientX: number) {
+    const el = chartRef.current;
+    if (!el || points.length === 0) return;
+    const rect = el.getBoundingClientRect();
+    setActiveIndex(
+      nearestTrendIndexFromClientX(clientX, rect, points.length, padX, width),
+    );
+  }
+
+  function onPointerMove(event: PointerEvent<HTMLDivElement>) {
+    pointerTypeRef.current = event.pointerType;
+    if (event.pointerType === "mouse") {
+      selectFromClientX(event.clientX);
+    }
+  }
+
+  function onPointerDown(event: PointerEvent<HTMLDivElement>) {
+    pointerTypeRef.current = event.pointerType;
+    selectFromClientX(event.clientX);
+  }
+
+  function onPointerLeave() {
+    if (pointerTypeRef.current === "mouse") {
+      setActiveIndex(null);
+    }
+  }
+
+  function onKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    if (points.length === 0) return;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      setActiveIndex((prev) => moveTrendIndex(prev, points.length, -1));
+      return;
+    }
+    if (event.key === "ArrowRight") {
+      event.preventDefault();
+      setActiveIndex((prev) => moveTrendIndex(prev, points.length, 1));
+      return;
+    }
+    if (event.key === "Home") {
+      event.preventDefault();
+      setActiveIndex(0);
+      return;
+    }
+    if (event.key === "End") {
+      event.preventDefault();
+      setActiveIndex(points.length - 1);
+      return;
+    }
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setActiveIndex(null);
+    }
+  }
+
+  function onFocus() {
+    if (activeIndex == null && points.length > 0) {
+      setActiveIndex(points.length - 1);
+    }
+  }
+
+  const tooltipSide =
+    active == null ? "start" : getTrendTooltipSide(active.index, points.length);
+  const tooltipLeftPercent =
+    active == null ? 50 : (active.x / width) * 100;
 
   return (
-    <div className="w-full overflow-hidden">
-      <svg
-        viewBox={`0 0 ${width} ${height}`}
-        className="h-[220px] w-full sm:h-[260px]"
-        role="img"
-        aria-label={summary}
+    <div className="w-full min-w-0 overflow-hidden">
+      <div
+        ref={chartRef}
+        tabIndex={0}
+        role="group"
+        aria-label={chartAria}
+        aria-describedby={`${gradientId}-hint`}
+        aria-keyshortcuts="ArrowLeft ArrowRight Home End Escape"
+        className="relative touch-pan-y outline-none focus-visible:ring-2 focus-visible:ring-[#2F6FB3]/40 focus-visible:ring-offset-2"
+        style={{ touchAction: "pan-y" }}
+        onPointerMove={onPointerMove}
+        onPointerDown={onPointerDown}
+        onPointerLeave={onPointerLeave}
+        onKeyDown={onKeyDown}
+        onFocus={onFocus}
       >
-        <defs>
-          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#2F6FB3" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="#2F6FB3" stopOpacity="0.02" />
-          </linearGradient>
-        </defs>
-        <line
-          x1={padX}
-          y1={padY + chartH}
-          x2={padX + chartW}
-          y2={padY + chartH}
-          stroke="currentColor"
-          className="text-slate-200"
-          strokeWidth="1"
-        />
-        {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
-        {linePath && (
-          <path
-            d={linePath}
-            fill="none"
-            stroke="#2F6FB3"
-            strokeWidth="2.5"
-            strokeLinejoin="round"
-            strokeLinecap="round"
+        <svg
+          viewBox={`0 0 ${width} ${height}`}
+          className="h-[220px] w-full sm:h-[260px]"
+          role="img"
+          aria-hidden="true"
+        >
+          <defs>
+            <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#2F6FB3" stopOpacity="0.28" />
+              <stop offset="100%" stopColor="#2F6FB3" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          <line
+            x1={padX}
+            y1={padY + chartH}
+            x2={padX + (width - padX * 2)}
+            y2={padY + chartH}
+            stroke="currentColor"
+            className="text-slate-200"
+            strokeWidth="1"
           />
-        )}
-        {coords.map((c) => (
-          <g key={c.date}>
-            <circle
-              cx={c.x}
-              cy={c.y}
-              r="4"
-              fill="#fff"
+          {areaPath && <path d={areaPath} fill={`url(#${gradientId})`} />}
+          {linePath && (
+            <path
+              d={linePath}
+              fill="none"
               stroke="#2F6FB3"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
+            />
+          )}
+          {active && (
+            <line
+              x1={active.x}
+              y1={padY}
+              x2={active.x}
+              y2={padY + chartH}
+              stroke="#94A3B8"
+              strokeWidth="1"
+              strokeDasharray="4 4"
+            />
+          )}
+          {coords.map((c) => {
+            const isActive = active?.index === c.index;
+            return (
+              <circle
+                key={c.date}
+                cx={c.x}
+                cy={c.y}
+                r={isActive ? 6 : points.length <= 14 ? 3.5 : 0}
+                fill={isActive ? "#2F6FB3" : "#fff"}
+                stroke="#2F6FB3"
+                strokeWidth={isActive ? 2.5 : 1.5}
+                opacity={points.length > 14 && !isActive ? 0 : 1}
+              >
+                <title>
+                  {`${formatTrendTooltipDate(c.date, locale)} · ${metricLabel}: ${Math.round(c.value)}`}
+                </title>
+              </circle>
+            );
+          })}
+          {active && (
+            <circle
+              cx={active.x}
+              cy={active.y}
+              r="6"
+              fill="#2F6FB3"
+              stroke="#fff"
               strokeWidth="2"
-            >
-              <title>
-                {`${formatShortDate(c.date, locale)} · ${metricLabel}: ${c.value}`}
-              </title>
-            </circle>
-          </g>
-        ))}
-      </svg>
+            />
+          )}
+        </svg>
+
+        {active && (
+          <div
+            className="pointer-events-none absolute top-2 z-10 max-w-[min(100%,14rem)] rounded-lg border border-slate-200 bg-white/95 px-3 py-2 text-xs shadow-sm backdrop-blur-sm"
+            style={{
+              left: `${tooltipLeftPercent}%`,
+              transform:
+                tooltipSide === "end" ? "translateX(-100%)" : "translateX(0)",
+            }}
+            data-testid="trend-tooltip"
+            data-side={tooltipSide}
+          >
+            <p className="font-medium crm-text break-words">
+              {formatTrendTooltipDate(active.date, locale)}
+            </p>
+            <p className="mt-0.5 crm-text-secondary break-words">
+              {metricLabel}: {Math.round(active.value)}
+            </p>
+          </div>
+        )}
+      </div>
+
       <div className="mt-1 flex justify-between px-1 text-[10px] crm-text-secondary sm:text-xs">
-        <span>{formatShortDate(points[0]?.date ?? "", locale)}</span>
+        <span>{formatTrendAxisDate(points[0]?.date ?? "", locale)}</span>
         <span>
-          {formatShortDate(points[points.length - 1]?.date ?? "", locale)}
+          {formatTrendAxisDate(points[points.length - 1]?.date ?? "", locale)}
         </span>
       </div>
+
+      <p id={`${gradientId}-hint`} className="sr-only">
+        {t("dashboard.trendKeyboardHint")}
+      </p>
+      <p className="sr-only" aria-live="polite">
+        {liveValue}
+      </p>
     </div>
   );
 }
@@ -201,7 +355,7 @@ export function DashboardTrendsCard({ trends, error = false }: Props) {
   }
 
   return (
-    <Card className="p-5">
+    <Card className="min-w-0 overflow-hidden p-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h2 className="section-title">{t("dashboard.trendOverview")}</h2>
@@ -262,26 +416,25 @@ export function DashboardTrendsCard({ trends, error = false }: Props) {
         </div>
       </div>
 
-      <div className="mt-4">
-        {allZero ? (
-          <div className="flex h-[220px] items-center justify-center rounded-xl border border-dashed border-slate-200 px-4 text-center text-sm crm-text-secondary sm:h-[260px]">
+      <div className="mt-4 min-w-0">
+        {allZero && (
+          <p className="mb-2 text-center text-sm crm-text-secondary">
             {t("dashboard.trendEmptyPeriod")}
-          </div>
-        ) : (
-          <TrendLineChart
-            points={current}
-            metricLabel={metricLabel}
-            locale={locale}
-          />
+          </p>
         )}
+        <TrendLineChart
+          key={`${rangeDays}:${activeMetricKey}`}
+          points={current}
+          metricLabel={metricLabel}
+          rangeDays={rangeDays}
+          locale={locale}
+          t={t}
+        />
       </div>
 
-      {!allZero && (
-        <p className="mt-2 text-xs crm-text-secondary">
-          {t("dashboard.trendTapHint")} ·{" "}
-          {formatHongKongDate(current[current.length - 1]?.date ?? null)}
-        </p>
-      )}
+      <p className="mt-2 text-xs crm-text-secondary">
+        {t("dashboard.trendTapHint")} · {t("dashboard.trendKeyboardHint")}
+      </p>
     </Card>
   );
 }
