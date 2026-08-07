@@ -15,6 +15,17 @@ import {
   isLocale,
 } from "./config";
 import type { Messages } from "./locales/en";
+import {
+  getCachedMessages,
+  loadMessages,
+} from "./load-messages";
+import {
+  shouldRenderTranslatedApp,
+  shouldShowLocaleLoading,
+  type LocaleCatalogStatus,
+} from "./locale-catalog-state";
+import { LocaleErrorShell } from "./locale-error-shell";
+import { LocaleLoadingShell } from "./locale-loading-shell";
 import { translate } from "./translate";
 
 type I18nContextValue = {
@@ -24,29 +35,6 @@ type I18nContextValue = {
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
-
-const localeJsonPath: Record<Locale, string> = {
-  en: "/locales/en.json",
-  "zh-Hans": "/locales/zh-Hans.json",
-  "zh-Hant": "/locales/zh-Hant.json",
-};
-
-const localeMessageCache = new Map<Locale, Messages>();
-
-async function loadMessages(locale: Locale): Promise<Messages> {
-  const cached = localeMessageCache.get(locale);
-  if (cached) {
-    return cached;
-  }
-
-  const response = await fetch(localeJsonPath[locale]);
-  if (!response.ok) {
-    throw new Error(`Failed to load locale: ${locale}`);
-  }
-  const messages = (await response.json()) as Messages;
-  localeMessageCache.set(locale, messages);
-  return messages;
-}
 
 function readStoredLocale(): Locale {
   if (typeof window === "undefined") {
@@ -68,6 +56,8 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     typeof window !== "undefined" ? readStoredLocale() : DEFAULT_LOCALE,
   );
   const [messages, setMessages] = useState<Messages | null>(null);
+  const [loadedLocale, setLoadedLocale] = useState<Locale | null>(null);
+  const [status, setStatus] = useState<LocaleCatalogStatus>("loading");
 
   useEffect(() => {
     const stored = readStoredLocale();
@@ -77,11 +67,38 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    void loadMessages(locale).then((nextMessages) => {
-      if (!cancelled) {
+    const targetLocale = locale;
+    const cached = getCachedMessages(targetLocale);
+
+    if (cached) {
+      setMessages(cached);
+      setLoadedLocale(targetLocale);
+      setStatus("ready");
+      return;
+    }
+
+    setStatus("loading");
+    setLoadedLocale(null);
+    setMessages(null);
+
+    void loadMessages(targetLocale)
+      .then((nextMessages) => {
+        if (cancelled) {
+          return;
+        }
         setMessages(nextMessages);
-      }
-    });
+        setLoadedLocale(targetLocale);
+        setStatus("ready");
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+        setMessages(null);
+        setLoadedLocale(null);
+        setStatus("error");
+      });
+
     return () => {
       cancelled = true;
     };
@@ -98,8 +115,12 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const t = useCallback(
-    (key: string, params?: Record<string, string>) =>
-      translate(messages ?? ({} as Messages), key, params),
+    (key: string, params?: Record<string, string>) => {
+      if (!messages) {
+        return key;
+      }
+      return translate(messages, key, params);
+    },
     [messages],
   );
 
@@ -107,6 +128,18 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     () => ({ locale, setLocale, t }),
     [locale, setLocale, t],
   );
+
+  if (status === "error") {
+    return <LocaleErrorShell />;
+  }
+
+  if (shouldShowLocaleLoading(status, locale, loadedLocale)) {
+    return <LocaleLoadingShell />;
+  }
+
+  if (!shouldRenderTranslatedApp(status, locale, loadedLocale) || !messages) {
+    return <LocaleLoadingShell />;
+  }
 
   return (
     <I18nContext.Provider value={value}>{children}</I18nContext.Provider>
