@@ -482,7 +482,6 @@ export function buildCustomersListQuery(params: {
   salesStage?: string;
   ownerId?: string;
   workView?: string;
-  sort?: string;
   heat?: string;
   completenessBelow?: string;
   reclamationRisk?: string;
@@ -491,9 +490,6 @@ export function buildCustomersListQuery(params: {
   const search = new URLSearchParams();
   if (params.status === "archived") {
     search.set("status", "archived");
-  }
-  if (params.sort) {
-    search.set("sort", params.sort);
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);

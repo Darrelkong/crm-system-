@@ -1,13 +1,10 @@
-import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 import {
   CUSTOMER_LIST_PAGE_SIZE,
-  type CustomerListPaginationMeta,
 } from "@/lib/customers/customer-list-shared";
 import { buildCustomerListHref } from "@/components/ui/pagination";
 
 export type CustomerListFetchParams = {
   page: number;
-  sort: CustomerListSortMode;
   showArchived: boolean;
   filterCreatedBy?: string;
   heatFilter?: string;
@@ -18,23 +15,11 @@ export type CustomerListFetchParams = {
   filterReclamationRisk?: string;
 };
 
-export function buildDeferredListPagination(
-  page: number,
-): CustomerListPaginationMeta {
-  return {
-    page,
-    pageSize: CUSTOMER_LIST_PAGE_SIZE,
-    total: 0,
-    pageCount: 1,
-  };
-}
-
 export function buildCustomerListApiSearchParams(
   params: CustomerListFetchParams,
 ): URLSearchParams {
   const search = new URLSearchParams({
     page: String(params.page),
-    sort: params.sort,
   });
 
   if (params.showArchived) {
@@ -74,7 +59,6 @@ export function buildCustomerListBrowserPath(
     status: params.showArchived ? "archived" : undefined,
     heat: params.heatFilter,
     completenessBelow: params.completenessBelowFilter,
-    sort: params.sort,
     workView: params.filterWorkView,
     salesStage: params.filterSalesStage,
     ownerId: params.filterOwnerId,
@@ -85,3 +69,5 @@ export function buildCustomerListBrowserPath(
 export function replaceCustomerListBrowserPath(path: string): void {
   window.history.replaceState(window.history.state, "", path);
 }
+
+export { CUSTOMER_LIST_PAGE_SIZE };

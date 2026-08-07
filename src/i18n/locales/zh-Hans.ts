@@ -299,11 +299,6 @@ const zhHans: Messages = {
     management: "客户管理",
     title: "客户列表",
     searchPlaceholder: "搜索客户姓名、手机号、微信号、邮箱或客户编号",
-    sortModeLabel: "排序方式",
-    sortModeDefault: "当前优先级",
-    sortModeReclaimSoonest: "自动释放优先",
-    sortModeReclaimHelper:
-      "优先显示距离自动释放较近的客户，倒计时仅在剩余 30 天内显示。",
     listLoadFailed: "客户列表加载失败",
     listLoadRetry: "重新加载",
     noSearchResults: "未找到匹配客户",

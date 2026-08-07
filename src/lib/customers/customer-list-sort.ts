@@ -1,71 +1,23 @@
-import { cookies } from "next/headers";
-
 export const CUSTOMER_LIST_SORT_MODES = ["default", "reclaim_soonest"] as const;
 
 export type CustomerListSortMode = (typeof CUSTOMER_LIST_SORT_MODES)[number];
 
 export const CUSTOMER_LIST_SORT_COOKIE_NAME = "crm_customer_list_sort";
 
-const SORT_COOKIE_MAX_AGE_SECONDS = 400 * 24 * 60 * 60;
+/** Customer list pages always use default sort; legacy sort params are stripped. */
+export const CUSTOMER_LIST_ACTIVE_SORT_MODE: CustomerListSortMode = "default";
 
-function isProduction(): boolean {
-  return process.env.NODE_ENV === "production";
-}
-
-/** Parse allowlisted `sort` query param; invalid values fall back to default. */
+/** Parse list sort for API/page queries — always default for normal customer list. */
 export function parseCustomerListSortParam(
-  raw: string | null | undefined,
+  raw?: string | null,
   options?: { archived?: boolean },
 ): CustomerListSortMode {
-  if (options?.archived) {
-    return "default";
-  }
-  if (raw === "reclaim_soonest") {
-    return "reclaim_soonest";
-  }
-  if (raw === "default") {
-    return "default";
-  }
-  return "default";
+  void raw;
+  void options;
+  return CUSTOMER_LIST_ACTIVE_SORT_MODE;
 }
 
-/** Pure resolver: explicit URL sort beats remembered preference. */
-export function resolveCustomerListSortMode(
-  sortParam: string | undefined,
-  remembered: CustomerListSortMode | null,
-  options?: { archived?: boolean },
-): CustomerListSortMode {
-  if (options?.archived) {
-    return "default";
-  }
-  if (sortParam != null) {
-    return parseCustomerListSortParam(sortParam);
-  }
-  return remembered ?? "default";
-}
-
-/** Whether reclaim list data should be loaded client-side instead of page SSR. */
-export function shouldDeferCustomerListLoad(
-  sortMode: CustomerListSortMode,
-  options?: { archived?: boolean },
-): boolean {
-  if (options?.archived) {
-    return false;
-  }
-  return sortMode === "reclaim_soonest";
-}
-
-/** Server-side list sort for SSR queries; reclaim is always deferred to the client API. */
-export function resolveInitialServerListSortMode(
-  requestedSortMode: CustomerListSortMode,
-  options?: { archived?: boolean },
-): CustomerListSortMode {
-  if (shouldDeferCustomerListLoad(requestedSortMode, options)) {
-    return "default";
-  }
-  return requestedSortMode;
-}
-
+/** Legacy cookie decode (tests / migration only); customer list ignores remembered sort. */
 export function encodeCustomerListSortPreference(
   userId: string,
   sort: CustomerListSortMode,
@@ -95,37 +47,6 @@ export function decodeCustomerListSortPreference(
   return null;
 }
 
-export function getCustomerListSortCookieOptions(
-  userId: string,
-  sort: CustomerListSortMode,
-) {
-  return {
-    name: CUSTOMER_LIST_SORT_COOKIE_NAME,
-    value: encodeCustomerListSortPreference(userId, sort),
-    httpOnly: true,
-    secure: isProduction(),
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: SORT_COOKIE_MAX_AGE_SECONDS,
-  };
-}
-
-export async function rememberCustomerListSortPreference(
-  userId: string,
-  sort: CustomerListSortMode,
-): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.set(getCustomerListSortCookieOptions(userId, sort));
-}
-
-export async function readRememberedCustomerListSort(
-  userId: string,
-): Promise<CustomerListSortMode | null> {
-  const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(CUSTOMER_LIST_SORT_COOKIE_NAME)?.value;
-  return decodeCustomerListSortPreference(cookieValue, userId);
-}
-
 export type CustomerListUrlParams = {
   status?: string;
   sort?: string;
@@ -139,14 +60,12 @@ export type CustomerListUrlParams = {
   ownerId?: string;
 };
 
+/** Build `/customers` path; never emits legacy `sort` query params. */
 export function buildCustomersPagePath(params: CustomerListUrlParams): string {
   const search = new URLSearchParams();
 
   if (params.status === "archived") {
     search.set("status", "archived");
-  }
-  if (params.sort) {
-    search.set("sort", params.sort);
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);
@@ -177,34 +96,9 @@ export function buildCustomersPagePath(params: CustomerListUrlParams): string {
   return query ? `/customers?${query}` : "/customers";
 }
 
-/**
- * URL `sort` is source of truth when present. When absent, applies remembered preference
- * without redirect — reclaim lists are deferred to client API hydration.
- *
- * Sort preference cookies are persisted only from `/api/customers` (Route Handler),
- * never during page Server Component render.
- */
-export async function resolveCustomerListSortForPage(options: {
-  userId: string;
-  sortParam: string | undefined;
-  archived: boolean;
-  preserveParams: CustomerListUrlParams;
-}): Promise<CustomerListSortMode> {
-  if (options.archived) {
-    return "default";
-  }
-
-  const remembered = await readRememberedCustomerListSort(options.userId);
-
-  if (options.sortParam != null) {
-    return resolveCustomerListSortMode(
-      options.sortParam,
-      remembered,
-      { archived: options.archived },
-    );
-  }
-
-  return resolveCustomerListSortMode(undefined, remembered, {
-    archived: options.archived,
-  });
+/** Whether a legacy `sort` query param should be stripped via redirect. */
+export function shouldStripCustomerListSortParam(
+  sortParam: string | undefined,
+): boolean {
+  return sortParam != null;
 }

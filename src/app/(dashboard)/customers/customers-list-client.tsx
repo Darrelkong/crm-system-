@@ -32,7 +32,6 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
-import { CustomerListSortControl } from "@/components/customers/customer-list-sort-control";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
 import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 import {
@@ -47,7 +46,6 @@ import {
   CUSTOMER_LIST_PAGE_SIZE,
   type CustomerCreatorOption,
 } from "@/lib/customers/customer-list-shared";
-import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 import {
   buildCustomerListApiSearchParams,
   buildCustomerListBrowserPath,
@@ -67,9 +65,6 @@ type Props = {
   creatorOptions: CustomerCreatorOption[];
   heatFilter?: string;
   completenessBelowFilter?: string;
-  sortMode?: CustomerListSortMode;
-  deferInitialListLoad?: boolean;
-  initialPage?: number;
   filterWorkView?: string;
   filterSalesStage?: string;
   filterOwnerId?: string;
@@ -124,9 +119,6 @@ export function CustomersListClient({
   creatorOptions,
   heatFilter,
   completenessBelowFilter,
-  sortMode = "default",
-  deferInitialListLoad = false,
-  initialPage = 1,
   filterWorkView,
   filterSalesStage,
   filterOwnerId,
@@ -136,11 +128,9 @@ export function CustomersListClient({
   const { t: tCommon, locale } = useTranslation();
   const [listRows, setListRows] = useState(initialRows);
   const [listPagination, setListPagination] = useState(pagination);
-  const [currentSortMode, setCurrentSortMode] = useState(sortMode);
-  const [listLoading, setListLoading] = useState(deferInitialListLoad);
+  const [listLoading, setListLoading] = useState(false);
   const [listLoadError, setListLoadError] = useState(false);
   const listFetchInFlight = useRef(false);
-  const deferredInitialLoadStarted = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(
     null,
@@ -156,7 +146,6 @@ export function CustomersListClient({
     trimmedSearchQuery,
     filterCreatedBy ?? "",
     showArchived ? "archived" : "active",
-    currentSortMode,
     heatFilter ?? "",
     completenessBelowFilter ?? "",
     filterWorkView ?? "",
@@ -176,13 +165,9 @@ export function CustomersListClient({
   const showInitialListError =
     !isSearchActive && listLoadError && listRows.length === 0;
 
-  function currentListFetchParams(
-    page: number,
-    nextSort: CustomerListSortMode = currentSortMode,
-  ): CustomerListFetchParams {
+  function currentListFetchParams(page: number): CustomerListFetchParams {
     return {
       page,
-      sort: nextSort,
       showArchived,
       filterCreatedBy,
       heatFilter,
@@ -194,10 +179,7 @@ export function CustomersListClient({
     };
   }
 
-  async function fetchListPage(
-    page: number,
-    nextSort: CustomerListSortMode,
-  ): Promise<boolean> {
+  async function fetchListPage(page: number): Promise<boolean> {
     if (listFetchInFlight.current) {
       return false;
     }
@@ -206,7 +188,7 @@ export function CustomersListClient({
     setListLoadError(false);
     try {
       const params = buildCustomerListApiSearchParams(
-        currentListFetchParams(page, nextSort),
+        currentListFetchParams(page),
       );
       const res = await fetch(`/api/customers?${params.toString()}`);
       const contentType = res.headers.get("content-type") ?? "";
@@ -235,9 +217,8 @@ export function CustomersListClient({
         total: data.total ?? data.items.length,
         pageCount: data.pageCount ?? 1,
       });
-      setCurrentSortMode(nextSort);
       replaceCustomerListBrowserPath(
-        buildCustomerListBrowserPath(currentListFetchParams(page, nextSort)),
+        buildCustomerListBrowserPath(currentListFetchParams(page)),
       );
       return true;
     } catch {
@@ -249,41 +230,24 @@ export function CustomersListClient({
     }
   }
 
-  useEffect(() => {
-    if (!deferInitialListLoad || deferredInitialLoadStarted.current) {
-      return;
-    }
-    deferredInitialLoadStarted.current = true;
-    void fetchListPage(initialPage, sortMode);
-    // fetchListPage intentionally omitted — mount-once deferred hydration only.
-  }, [deferInitialListLoad, initialPage, sortMode]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  function handleSortChange(nextSort: CustomerListSortMode) {
-    if (nextSort === currentSortMode || listLoading) {
-      return;
-    }
-    void fetchListPage(1, nextSort);
-  }
-
   function handleListPageChange(page: number) {
     if (listLoading || page === listPagination.page) {
       return;
     }
-    void fetchListPage(page, currentSortMode);
+    void fetchListPage(page);
   }
 
   function setSearchPage(page: number) {
     setSearchPages((prev) => ({ ...prev, [searchScopeKey]: page }));
   }
 
-  function listHrefParams(page = 1, nextSort: CustomerListSortMode = currentSortMode) {
+  function listHrefParams(page = 1) {
     return {
       page: page > 1 ? page : undefined,
       createdBy: filterCreatedBy,
       status: showArchived ? ("archived" as const) : undefined,
       heat: heatFilter,
       completenessBelow: completenessBelowFilter,
-      sort: nextSort,
       workView: filterWorkView,
       salesStage: filterSalesStage,
       ownerId: filterOwnerId,
@@ -309,9 +273,6 @@ export function CustomersListClient({
         if (heatFilter) params.set("heat", heatFilter);
         if (completenessBelowFilter) {
           params.set("completenessBelow", completenessBelowFilter);
-        }
-        if (currentSortMode === "reclaim_soonest" || currentSortMode === "default") {
-          params.set("sort", currentSortMode);
         }
         if (filterWorkView) params.set("workView", filterWorkView);
         if (filterSalesStage) params.set("salesStage", filterSalesStage);
@@ -345,7 +306,6 @@ export function CustomersListClient({
     showArchived,
     heatFilter,
     completenessBelowFilter,
-    currentSortMode,
     filterWorkView,
     filterSalesStage,
     filterOwnerId,
@@ -359,9 +319,7 @@ export function CustomersListClient({
       ? "customers.countAdmin"
       : "customers.countStaff";
 
-  const clearFiltersHref = buildCustomerListHref(
-    listHrefParams(1, currentSortMode),
-  );
+  const clearFiltersHref = buildCustomerListHref(listHrefParams(1));
 
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
     return currentLocale === "en" ? "en" : "zh";
@@ -562,14 +520,6 @@ export function CustomersListClient({
         />
       </div>
 
-      {!showArchived && (
-        <CustomerListSortControl
-          sortMode={currentSortMode}
-          onSortChange={handleSortChange}
-          disabled={listLoading}
-        />
-      )}
-
       {isAdmin && (
         <form
           method="get"
@@ -577,12 +527,6 @@ export function CustomersListClient({
         >
           {showArchived && (
             <input type="hidden" name="status" value="archived" />
-          )}
-          {currentSortMode === "reclaim_soonest" && (
-            <input type="hidden" name="sort" value="reclaim_soonest" />
-          )}
-          {currentSortMode === "default" && (
-            <input type="hidden" name="sort" value="default" />
           )}
           {heatFilter && <input type="hidden" name="heat" value={heatFilter} />}
           {completenessBelowFilter && (
@@ -641,7 +585,7 @@ export function CustomersListClient({
             </p>
             <Button
               variant="secondary"
-              onClick={() => void fetchListPage(listPagination.page, currentSortMode)}
+              onClick={() => void fetchListPage(listPagination.page)}
             >
               {t("customers.listLoadRetry")}
             </Button>

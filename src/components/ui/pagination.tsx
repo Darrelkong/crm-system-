@@ -197,7 +197,6 @@ export function buildCustomerListHref(params: {
   status?: "archived";
   heat?: string;
   completenessBelow?: string;
-  sort?: string;
   workView?: string;
   salesStage?: string;
   ownerId?: string;
@@ -207,9 +206,6 @@ export function buildCustomerListHref(params: {
 
   if (params.status === "archived") {
     search.set("status", "archived");
-  }
-  if (params.sort) {
-    search.set("sort", params.sort);
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);

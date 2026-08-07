@@ -313,11 +313,6 @@ const en = {
     title: "Client List",
     searchPlaceholder:
       "Search by name, phone, WeChat, email, or client code",
-    sortModeLabel: "Sort mode",
-    sortModeDefault: "Current priority",
-    sortModeReclaimSoonest: "Auto-release priority",
-    sortModeReclaimHelper:
-      "Customers closer to auto-release are shown first. The countdown appears only within the final 30 days.",
     listLoadFailed: "Failed to load customer list",
     listLoadRetry: "Reload",
     noSearchResults: "No matching clients found",
