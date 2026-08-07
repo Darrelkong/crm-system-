@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
@@ -46,6 +49,10 @@ async function upsertSetting(key: string, value: string): Promise<void> {
 describe("automatic reclaim rule version", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env.WRANGLER_LOG_PATH = join(
+      mkdtempSync(join(tmpdir(), "wrangler-logs-")),
+      "wrangler.log",
+    );
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "./wrangler.jsonc",
     });
@@ -65,6 +72,7 @@ describe("automatic reclaim rule version", () => {
     }
     bindTestDatabase(null);
     delete process.env.CRM_ALLOW_TEST_DB_BIND;
+    delete process.env.WRANGLER_LOG_PATH;
     await disposeProxy?.();
   });
 

@@ -11,10 +11,13 @@ export const DASHBOARD_AI_MAX_STAFF_CANDIDATES = 20;
 /** Per-user refresh window for dashboard AI (seconds). */
 export const DASHBOARD_AI_RATE_LIMIT_WINDOW_MS = 60_000;
 
-/** In-process cache TTL (ms). Not shared across Workers. */
+/**
+ * In-process cache TTL (ms). Best-effort only; not shared across Workers.
+ * Cache is never used for authorization — misses still re-run permission checks.
+ */
 export const DASHBOARD_AI_CACHE_TTL_MS = 5 * 60_000;
 
-export const DASHBOARD_AI_DEFAULT_TIMEOUT_MS = 20_000;
+/** Provider timeout is read from effective `ai_timeout_ms` (default 30000 in ai-keys). */
 
 export const DASHBOARD_AI_PROVIDER_MAX_RESPONSE_CHARS = 12_000;
 

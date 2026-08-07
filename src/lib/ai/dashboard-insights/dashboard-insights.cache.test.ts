@@ -8,14 +8,14 @@ import {
 } from "./cache";
 import { buildDashboardAiContextFingerprint } from "./fingerprint";
 import {
-  checkDashboardAiRateLimit,
-  clearDashboardAiRateLimitForTests,
-} from "./rate-limit";
+  bestEffortLocalThrottleDashboardAi,
+  clearDashboardAiLocalThrottleForTests,
+} from "./best-effort-local-throttle";
 
 describe("dashboard AI cache and fingerprint", () => {
   afterEach(() => {
     clearDashboardAiCacheForTests();
-    clearDashboardAiRateLimitForTests();
+    clearDashboardAiLocalThrottleForTests();
   });
 
   it("isolates cache keys by user and insight type", () => {
@@ -62,9 +62,13 @@ describe("dashboard AI cache and fingerprint", () => {
     assert.notEqual(a, b);
   });
 
-  it("rate limits repeated requests per user", () => {
-    const first = checkDashboardAiRateLimit("staff-1", "staff_today_actions", 0);
-    const second = checkDashboardAiRateLimit(
+  it("best-effort local throttle limits repeated requests per user", () => {
+    const first = bestEffortLocalThrottleDashboardAi(
+      "staff-1",
+      "staff_today_actions",
+      0,
+    );
+    const second = bestEffortLocalThrottleDashboardAi(
       "staff-1",
       "staff_today_actions",
       1,

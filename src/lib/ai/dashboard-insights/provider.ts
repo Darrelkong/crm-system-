@@ -14,7 +14,6 @@ import {
 } from "./prompt";
 import type { DashboardAiInsightType } from "./types";
 import {
-  DASHBOARD_AI_DEFAULT_TIMEOUT_MS,
   DASHBOARD_AI_PROVIDER_MAX_RESPONSE_CHARS,
   DASHBOARD_AI_TRANSIENT_BACKOFF_MS,
   DASHBOARD_AI_TRANSIENT_HTTP_STATUSES,
@@ -289,7 +288,7 @@ export function resolveDashboardAiProviderConfig(
     model: settings.aiModel,
     temperature: settings.aiTemperature,
     maxTokens: settings.aiMaxTokens,
-    timeoutMs: settings.aiTimeoutMs || DASHBOARD_AI_DEFAULT_TIMEOUT_MS,
+    timeoutMs: settings.aiTimeoutMs,
     apiKey,
   };
 }

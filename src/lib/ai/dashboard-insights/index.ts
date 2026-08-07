@@ -6,8 +6,11 @@ export {
   clearDashboardAiCacheForTests,
 } from "./cache";
 export {
-  clearDashboardAiRateLimitForTests,
+  clearDashboardAiRateLimitEventsForTests,
 } from "./rate-limit";
+export {
+  clearDashboardAiLocalThrottleForTests,
+} from "./best-effort-local-throttle";
 export type {
   DashboardAiInsightType,
   DashboardAiInsightResult,
@@ -21,4 +24,5 @@ export {
 export {
   allowMockDashboardInsightGeneration,
   isMockDashboardInsightBlockedInProduction,
+  isProductionRuntime,
 } from "./mock-constants";

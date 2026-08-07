@@ -11,6 +11,7 @@ import { users } from "./users";
 export const AI_USAGE_OPERATION_TYPES = [
   "deep_analysis_refresh",
   "follow_up_organization",
+  "dashboard_ai_insight",
 ] as const;
 export type AiUsageOperationType = (typeof AI_USAGE_OPERATION_TYPES)[number];
 

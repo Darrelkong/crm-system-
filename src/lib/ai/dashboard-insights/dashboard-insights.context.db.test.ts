@@ -8,7 +8,7 @@ import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { buildStaffAiContext } from "./context/staff-context";
 import { buildAdminAiContext } from "./context/admin-context";
 import { serializeDashboardAiContext } from "./prompt";
-import type { User } from "../../../drizzle/schema/users";
+import type { User } from "../../../../drizzle/schema/users";
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let disposeProxy: (() => Promise<void>) | undefined;

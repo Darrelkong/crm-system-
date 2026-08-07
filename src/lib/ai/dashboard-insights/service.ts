@@ -8,7 +8,10 @@ import {
   getDashboardAiCache,
   setDashboardAiCache,
 } from "./cache";
-import { checkDashboardAiRateLimit } from "./rate-limit";
+import {
+  completeDashboardAiProviderRefresh,
+  reserveDashboardAiProviderRefresh,
+} from "./rate-limit";
 import { buildDashboardAiContextFingerprint } from "./fingerprint";
 import { DashboardAiPermissionError } from "./errors";
 import { getDashboardAiSafeMessage } from "./messages";
@@ -19,7 +22,7 @@ import {
 import { generateMockDashboardAiOutput } from "./mock";
 import {
   allowMockDashboardInsightGeneration,
-  isMockDashboardInsightBlockedInProduction,
+  isProductionRuntime,
   MOCK_DASHBOARD_INSIGHT_MODEL,
 } from "./mock-constants";
 import { validateDashboardAiProviderOutput } from "./validate-output";
@@ -91,6 +94,15 @@ function buildSystemFallbackPayload(
   };
 }
 
+function willConsumeProviderOrMock(
+  providerKind: ReturnType<typeof resolveDashboardAiProviderConfig>["providerKind"],
+): boolean {
+  if (providerKind !== "mock") {
+    return true;
+  }
+  return !isProductionRuntime() && allowMockDashboardInsightGeneration();
+}
+
 export async function generateDashboardAiInsight(
   input: GenerateDashboardAiInsightInput,
   db: Database = getDb(),
@@ -102,11 +114,6 @@ export async function generateDashboardAiInsight(
   const aiSettings = await getEffectiveAiSettings(db);
   if (!aiSettings.aiEnabled) {
     return buildDisabledResult(locale);
-  }
-
-  const rate = checkDashboardAiRateLimit(input.viewer.id, input.insightType);
-  if (!rate.allowed && !input.forceRefresh) {
-    return buildStatusResult("rate_limited", locale);
   }
 
   const contextBundle = await buildDashboardAiContext(
@@ -132,7 +139,7 @@ export async function generateDashboardAiInsight(
   });
 
   if (!input.forceRefresh) {
-    const cached = getDashboardAiCache(cacheKey);
+    const cached = getDashboardAiCache(cacheKey, now.getTime());
     if (cached) {
       logDashboardAiAudit({
         at: now.toISOString(),
@@ -151,128 +158,160 @@ export async function generateDashboardAiInsight(
     aiSettings,
     getAiApiKeyFromEnv(),
   );
-  const startedAt = Date.now();
 
-  if (providerConfig.providerKind === "mock") {
-    if (isMockDashboardInsightBlockedInProduction()) {
-      const fallback = buildSystemFallbackPayload(
+  let rateLimitEventId: string | null = null;
+  if (
+    input.forceRefresh &&
+    willConsumeProviderOrMock(providerConfig.providerKind)
+  ) {
+    const rate = await reserveDashboardAiProviderRefresh(db, {
+      userId: input.viewer.id,
+      insightType: input.insightType,
+      now,
+    });
+    if (!rate.allowed) {
+      return buildStatusResult("rate_limited", locale);
+    }
+    rateLimitEventId = rate.eventId;
+  }
+
+  const startedAt = Date.now();
+  let rateLimitOutcome: "succeeded" | "failed" = "failed";
+
+  try {
+    if (providerConfig.providerKind === "mock") {
+      if (isProductionRuntime()) {
+        const fallback = buildSystemFallbackPayload(
+          input.insightType,
+          contextBundle.providerContext,
+        );
+        const result: DashboardAiInsightResult = {
+          status: "success",
+          source: "system_fallback",
+          fingerprint,
+          payload: fallback,
+        };
+        setDashboardAiCache(cacheKey, result, now.getTime());
+        rateLimitOutcome = "succeeded";
+        return result;
+      }
+      if (!allowMockDashboardInsightGeneration()) {
+        return buildStatusResult("unavailable", locale);
+      }
+      const raw = generateMockDashboardAiOutput(
         input.insightType,
         contextBundle.providerContext,
       );
+      const validated = validateDashboardAiProviderOutput(
+        input.insightType,
+        raw,
+        contextBundle.refMap,
+      );
+      if (!validated.ok) {
+        return buildStatusResult("invalid_response", locale);
+      }
       const result: DashboardAiInsightResult = {
         status: "success",
-        source: "system_fallback",
+        source: "mock",
         fingerprint,
-        payload: fallback,
+        payload: validated.payload,
       };
-      setDashboardAiCache(cacheKey, result);
+      setDashboardAiCache(cacheKey, result, now.getTime());
+      logDashboardAiAudit({
+        at: now.toISOString(),
+        viewerId: input.viewer.id,
+        role: input.viewer.role,
+        insightType: input.insightType,
+        provider: "mock",
+        model: MOCK_DASHBOARD_INSIGHT_MODEL,
+        durationMs: Date.now() - startedAt,
+        status: "success",
+        fingerprint,
+      });
+      rateLimitOutcome = "succeeded";
       return result;
     }
-    if (!allowMockDashboardInsightGeneration()) {
-      return buildStatusResult("unavailable", locale);
-    }
-    const raw = generateMockDashboardAiOutput(
+
+    const providerResult = await callDashboardAiProvider(
+      providerConfig,
+      aiSettings,
       input.insightType,
       contextBundle.providerContext,
     );
+
+    if (!providerResult.ok) {
+      const status =
+        providerResult.category === "timeout"
+          ? "timeout"
+          : providerResult.category === "rate_limited"
+            ? "rate_limited"
+            : providerResult.category === "invalid_response"
+              ? "invalid_response"
+              : "unavailable";
+
+      logDashboardAiAudit({
+        at: now.toISOString(),
+        viewerId: input.viewer.id,
+        role: input.viewer.role,
+        insightType: input.insightType,
+        provider: providerConfig.providerKind,
+        model: providerConfig.model,
+        durationMs: Date.now() - startedAt,
+        status,
+        fingerprint,
+      });
+
+      return buildStatusResult(status, locale);
+    }
+
     const validated = validateDashboardAiProviderOutput(
       input.insightType,
-      raw,
+      providerResult.raw,
       contextBundle.refMap,
     );
     if (!validated.ok) {
+      logDashboardAiAudit({
+        at: now.toISOString(),
+        viewerId: input.viewer.id,
+        role: input.viewer.role,
+        insightType: input.insightType,
+        provider: providerConfig.providerKind,
+        model: providerConfig.model,
+        durationMs: Date.now() - startedAt,
+        status: "invalid_response",
+        fingerprint,
+      });
       return buildStatusResult("invalid_response", locale);
     }
+
     const result: DashboardAiInsightResult = {
       status: "success",
-      source: "mock",
+      source: "provider",
       fingerprint,
       payload: validated.payload,
     };
-    setDashboardAiCache(cacheKey, result);
+    setDashboardAiCache(cacheKey, result, now.getTime());
     logDashboardAiAudit({
       at: now.toISOString(),
       viewerId: input.viewer.id,
       role: input.viewer.role,
       insightType: input.insightType,
-      provider: "mock",
-      model: MOCK_DASHBOARD_INSIGHT_MODEL,
+      provider: providerConfig.providerKind,
+      model: providerConfig.model,
       durationMs: Date.now() - startedAt,
       status: "success",
       fingerprint,
     });
+    rateLimitOutcome = "succeeded";
     return result;
+  } finally {
+    if (rateLimitEventId) {
+      await completeDashboardAiProviderRefresh(
+        db,
+        rateLimitEventId,
+        rateLimitOutcome,
+        now,
+      );
+    }
   }
-
-  const providerResult = await callDashboardAiProvider(
-    providerConfig,
-    aiSettings,
-    input.insightType,
-    contextBundle.providerContext,
-  );
-
-  if (!providerResult.ok) {
-    const status =
-      providerResult.category === "timeout"
-        ? "timeout"
-        : providerResult.category === "rate_limited"
-          ? "rate_limited"
-          : providerResult.category === "invalid_response"
-            ? "invalid_response"
-            : "unavailable";
-
-    logDashboardAiAudit({
-      at: now.toISOString(),
-      viewerId: input.viewer.id,
-      role: input.viewer.role,
-      insightType: input.insightType,
-      provider: providerConfig.providerKind,
-      model: providerConfig.model,
-      durationMs: Date.now() - startedAt,
-      status,
-      fingerprint,
-    });
-
-    return buildStatusResult(status, locale);
-  }
-
-  const validated = validateDashboardAiProviderOutput(
-    input.insightType,
-    providerResult.raw,
-    contextBundle.refMap,
-  );
-  if (!validated.ok) {
-    logDashboardAiAudit({
-      at: now.toISOString(),
-      viewerId: input.viewer.id,
-      role: input.viewer.role,
-      insightType: input.insightType,
-      provider: providerConfig.providerKind,
-      model: providerConfig.model,
-      durationMs: Date.now() - startedAt,
-      status: "invalid_response",
-      fingerprint,
-    });
-    return buildStatusResult("invalid_response", locale);
-  }
-
-  const result: DashboardAiInsightResult = {
-    status: "success",
-    source: "provider",
-    fingerprint,
-    payload: validated.payload,
-  };
-  setDashboardAiCache(cacheKey, result);
-  logDashboardAiAudit({
-    at: now.toISOString(),
-    viewerId: input.viewer.id,
-    role: input.viewer.role,
-    insightType: input.insightType,
-    provider: providerConfig.providerKind,
-    model: providerConfig.model,
-    durationMs: Date.now() - startedAt,
-    status: "success",
-    fingerprint,
-  });
-  return result;
 }

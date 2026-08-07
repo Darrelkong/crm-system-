@@ -7,6 +7,7 @@ type CacheEntry = {
   result: DashboardAiInsightResult;
 };
 
+/** Best-effort in-process cache; not shared across Workers or isolates. */
 const cache = new Map<string, CacheEntry>();
 
 export function buildDashboardAiCacheKey(input: {
