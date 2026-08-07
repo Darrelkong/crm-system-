@@ -1,4 +1,5 @@
 import { StaffDashboardSummaryClient } from "@/components/dashboard/staff-dashboard-summary-client";
+import { DashboardAiInsightCard } from "@/components/dashboard/dashboard-ai-insight-card";
 import { DashboardReclamationRiskCard } from "@/components/dashboard/dashboard-reclamation-risk-card";
 import { DashboardStageDistributionCard } from "@/components/dashboard/dashboard-stage-distribution-card";
 import { DashboardTrendsCard } from "@/components/dashboard/dashboard-trends-card";
@@ -32,6 +33,13 @@ export async function StaffDashboardView({ user }: { user: User }) {
     <div className="space-y-6">
       <StaffDashboardSummaryClient summary={summary} />
 
+      <DashboardAiInsightCard variant="staff" />
+
+      <DashboardReclamationRiskCard
+        titleKey="dashboard.customerReclamationRisk"
+        risk={summary.reclamationRisk}
+      />
+
       <DashboardTrendsCard
         trends={trendsResult.trends}
         error={trendsResult.error}
@@ -40,11 +48,6 @@ export async function StaffDashboardView({ user }: { user: User }) {
       <DashboardStageDistributionCard
         distribution={stageResult.distribution}
         error={stageResult.error}
-      />
-
-      <DashboardReclamationRiskCard
-        titleKey="dashboard.customerReclamationRisk"
-        risk={summary.reclamationRisk}
       />
 
       <div className="grid gap-6 lg:grid-cols-2">

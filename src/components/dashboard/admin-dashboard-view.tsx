@@ -1,6 +1,7 @@
 import { AdminDashboardSummaryClient } from "@/components/dashboard/admin-dashboard-summary-client";
 import { AdminDashboardClient } from "@/components/dashboard/admin-dashboard-client";
 import { AdminTeamExecutionCard } from "@/components/dashboard/admin-team-execution-card";
+import { DashboardAiInsightCard } from "@/components/dashboard/dashboard-ai-insight-card";
 import { DashboardReclamationRiskCard } from "@/components/dashboard/dashboard-reclamation-risk-card";
 import { DashboardStageDistributionCard } from "@/components/dashboard/dashboard-stage-distribution-card";
 import { DashboardTrendsCard } from "@/components/dashboard/dashboard-trends-card";
@@ -42,6 +43,14 @@ export async function AdminDashboardView({ user }: { user: User }) {
     <div className="space-y-6">
       <AdminDashboardSummaryClient summary={summary} />
 
+      <DashboardAiInsightCard variant="admin" />
+
+      <DashboardReclamationRiskCard
+        titleKey="dashboard.teamCustomerReclamationRisk"
+        risk={summary.reclamationRisk}
+        showMemberCount
+      />
+
       <DashboardTrendsCard
         trends={trendsResult.trends}
         error={trendsResult.error}
@@ -55,12 +64,6 @@ export async function AdminDashboardView({ user }: { user: User }) {
       <AdminTeamExecutionCard
         overview={teamResult.overview}
         error={teamResult.error}
-      />
-
-      <DashboardReclamationRiskCard
-        titleKey="dashboard.teamCustomerReclamationRisk"
-        risk={summary.reclamationRisk}
-        showMemberCount
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
