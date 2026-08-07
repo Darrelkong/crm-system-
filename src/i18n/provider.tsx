@@ -14,7 +14,7 @@ import {
   type Locale,
   isLocale,
 } from "./config";
-import { getMessages } from "./index";
+import type { Messages } from "./locales/en";
 import { translate } from "./translate";
 
 type I18nContextValue = {
@@ -24,6 +24,29 @@ type I18nContextValue = {
 };
 
 const I18nContext = createContext<I18nContextValue | null>(null);
+
+const localeJsonPath: Record<Locale, string> = {
+  en: "/locales/en.json",
+  "zh-Hans": "/locales/zh-Hans.json",
+  "zh-Hant": "/locales/zh-Hant.json",
+};
+
+const localeMessageCache = new Map<Locale, Messages>();
+
+async function loadMessages(locale: Locale): Promise<Messages> {
+  const cached = localeMessageCache.get(locale);
+  if (cached) {
+    return cached;
+  }
+
+  const response = await fetch(localeJsonPath[locale]);
+  if (!response.ok) {
+    throw new Error(`Failed to load locale: ${locale}`);
+  }
+  const messages = (await response.json()) as Messages;
+  localeMessageCache.set(locale, messages);
+  return messages;
+}
 
 function readStoredLocale(): Locale {
   if (typeof window === "undefined") {
@@ -44,12 +67,25 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(() =>
     typeof window !== "undefined" ? readStoredLocale() : DEFAULT_LOCALE,
   );
+  const [messages, setMessages] = useState<Messages | null>(null);
 
   useEffect(() => {
     const stored = readStoredLocale();
     setLocaleState(stored);
     document.documentElement.lang = stored;
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadMessages(locale).then((nextMessages) => {
+      if (!cancelled) {
+        setMessages(nextMessages);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [locale]);
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
@@ -61,11 +97,9 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = next;
   }, []);
 
-  const messages = useMemo(() => getMessages(locale), [locale]);
-
   const t = useCallback(
     (key: string, params?: Record<string, string>) =>
-      translate(messages, key, params),
+      translate(messages ?? ({} as Messages), key, params),
     [messages],
   );
 

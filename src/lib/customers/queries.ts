@@ -28,6 +28,17 @@ import {
 } from "@/lib/customers/valid-internal-customer-owner";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
+import {
+  CUSTOMER_LIST_PAGE_SIZE,
+  type CustomerCreatorOption,
+  type CustomerListPaginationMeta,
+} from "@/lib/customers/customer-list-shared";
+
+export {
+  CUSTOMER_LIST_PAGE_SIZE,
+  type CustomerCreatorOption,
+  type CustomerListPaginationMeta,
+} from "@/lib/customers/customer-list-shared";
 
 export { staffAssigneeExistsWhere } from "@/lib/customers/customer-list-filters";
 
@@ -69,21 +80,6 @@ export type CustomerListFilter = {
   reclamationCustomerIds?: string[];
   /** Temporary follow-up drilldown from dashboard cards. */
   workView?: WorkView;
-};
-
-export type CustomerCreatorOption = {
-  id: string;
-  displayName: string;
-  role: string;
-};
-
-export const CUSTOMER_LIST_PAGE_SIZE = 40;
-
-export type CustomerListPaginationMeta = {
-  page: number;
-  pageSize: number;
-  total: number;
-  pageCount: number;
 };
 
 export type PaginatedCustomerListResult = {

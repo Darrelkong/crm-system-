@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { DEFAULT_LOCALE } from "@/i18n/config";
-import { getMessages } from "@/i18n";
 import { I18nProvider } from "@/i18n/provider";
 import { CrmThemeSync } from "@/components/theme/crm-theme-sync";
 import {
@@ -19,10 +18,8 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const messages = getMessages(DEFAULT_LOCALE);
-
 export const metadata: Metadata = {
-  title: messages.common.appName,
+  title: "ECHFRONT CRM",
   description: "EchFront CRM — internal client management",
 };
 

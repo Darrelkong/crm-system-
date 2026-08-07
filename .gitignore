@@ -40,6 +40,7 @@ yarn-error.log*
 # cloudflare
 .open-next/
 .wrangler/
+.deploy-size-*/
 .local-backups/
 backups/
 pre-migrate-*.sql

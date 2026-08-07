@@ -4,7 +4,7 @@ import type { Customer } from "../../../drizzle/schema/customers";
 import {
   compareCustomersForReclaimSoonest,
   getReclaimSortKey,
-} from "./list-sort-reclaim";
+} from "./list-sort-reclaim.test-helper";
 
 const RECLAIM_DAYS = 45;
 const NOW = new Date("2026-08-06T04:00:00.000Z");

@@ -46,7 +46,7 @@ import {
 import {
   CUSTOMER_LIST_PAGE_SIZE,
   type CustomerCreatorOption,
-} from "@/lib/customers/queries";
+} from "@/lib/customers/customer-list-shared";
 import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 import { ui } from "@/lib/ui/classes";
 
