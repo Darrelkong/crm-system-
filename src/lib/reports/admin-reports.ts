@@ -12,6 +12,7 @@ import {
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { getEffectiveSettings } from "@/lib/settings/effective";
+import { sortTeamMembersStable } from "@/lib/reports/admin-team-execution";
 import {
   getBusinessMonthRange,
   getBusinessTodayRange,
@@ -119,6 +120,7 @@ export async function getAdminReportsStats(
       .select({
         ownerId: schema.customers.ownerId,
         ownerName: schema.users.displayName,
+        ownerEmail: schema.users.email,
         count: count(),
       })
       .from(schema.customers)
@@ -129,10 +131,28 @@ export async function getAdminReportsStats(
           isNotNull(schema.customers.ownerId),
         ),
       )
-      .groupBy(schema.customers.ownerId, schema.users.displayName)
-      .orderBy(desc(count())),
+      .groupBy(
+        schema.customers.ownerId,
+        schema.users.displayName,
+        schema.users.email,
+      ),
     listRecentFollowUpsForAdmin(db),
   ]);
+
+  const customersByOwner = sortTeamMembersStable(
+    ownerRows
+      .filter((r) => r.ownerId)
+      .map((r) => ({
+        id: r.ownerId!,
+        displayName: r.ownerName,
+        email: r.ownerEmail,
+        count: r.count,
+      })),
+  ).map((r) => ({
+    ownerId: r.id,
+    ownerName: r.displayName,
+    count: r.count,
+  }));
 
   return {
     totalCustomers: totalCustomersRow[0]?.value ?? 0,
@@ -147,13 +167,7 @@ export async function getAdminReportsStats(
       label: r.label,
       count: r.count,
     })),
-    customersByOwner: ownerRows
-      .filter((r) => r.ownerId)
-      .map((r) => ({
-        ownerId: r.ownerId!,
-        ownerName: r.ownerName,
-        count: r.count,
-      })),
+    customersByOwner,
     recentFollowUps,
   };
 }

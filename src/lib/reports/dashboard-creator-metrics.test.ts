@@ -126,41 +126,35 @@ describe("dashboard creator metrics wiring", () => {
     assert.match(adminApi, /force-dynamic/);
   });
 
-  it("Admin UI shows creator ranking with badges and keeps owner/follow-up rankings", () => {
+  it("Admin Dashboard UI does not render member ranking tables", () => {
     const client = adminClient();
-    assert.match(client, /newCustomersByCreatorThisMonth/);
-    assert.match(client, /data-dashboard-creator-ranking/);
-    assert.match(client, /employees\.adminRole/);
-    assert.match(client, /common\.admin/);
-    assert.match(
-      client,
-      /adminLabel !== "employees\.adminRole"[\s\S]*?t\("common\.admin"\)/,
-    );
-    assert.match(client, /formerMemberBadge/);
-    assert.match(
-      client,
-      /formerLabel !== "dashboard\.formerMemberBadge"/,
-    );
-    assert.match(client, /staffClientRanking/);
-    assert.match(client, /staffClientRankingNote/);
-    assert.match(client, /staffFollowUpRanking/);
-    assert.match(client, /scrollable/);
-    assert.doesNotMatch(client, /email|phone|address/i);
-    assert.doesNotMatch(client, /fetch\(|\/api\/reports/);
+    assert.doesNotMatch(client, /RankingTable/);
+    assert.doesNotMatch(client, /data-dashboard-creator-ranking/);
+    assert.doesNotMatch(client, /staffClientRanking|staffFollowUpRanking/);
+    assert.doesNotMatch(client, /第\s*1\s*名|Top Staff|排行榜|冠军/);
+    assert.doesNotMatch(client, /newCustomersByCreatorThisMonth/);
+    assert.doesNotMatch(client, /customersByOwner|followUpsByStaffThisMonth/);
   });
 
-  it("RankingTable optional props do not break existing call sites", () => {
+  it("RankingTable remains unused by Admin Reports; distribution uses neutral table", () => {
     const w = widgets();
     assert.match(w, /scrollable\?: boolean/);
     assert.match(w, /badges\?: string\[\]/);
     assert.match(w, /note\?: string/);
     assert.match(w, /scrollable \? "max-h-80 overflow-y-auto/);
-    // Reports still uses RankingTable without new required props.
     const adminReportsClient = read(
       "src/components/reports/admin-reports-client.tsx",
     );
-    assert.match(adminReportsClient, /RankingTable/);
-    assert.doesNotMatch(adminReportsClient, /scrollable/);
+    assert.doesNotMatch(adminReportsClient, /RankingTable|ranking-table-head/);
+    assert.match(adminReportsClient, /data-reports-staff-distribution/);
+    assert.match(
+      read("src/lib/reports/admin-reports.ts"),
+      /sortTeamMembersStable/,
+    );
+    assert.doesNotMatch(
+      read("src/lib/reports/admin-reports.ts"),
+      /customersByOwner[\s\S]*orderBy\(desc\(count\(\)\)\)/,
+    );
   });
 
   it("does not modify Reports Round B, dates, or package.json", () => {

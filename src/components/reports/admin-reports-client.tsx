@@ -7,7 +7,6 @@ import { PageIntro } from "@/components/ui/page-intro";
 import {
   KpiCard,
   kpiIcons,
-  RankingTable,
   SimpleBarRow,
 } from "@/components/dashboard/dashboard-widgets";
 import { RecentFollowUpsList } from "@/components/reports/recent-follow-ups-list";
@@ -157,19 +156,40 @@ export function AdminReportsClient({ stats }: { stats: AdminReportsStats }) {
           )}
         </Card>
 
-        <Card className="p-4 sm:p-5">
-          <RankingTable
-            title={t("reports.staffCustomerDistribution")}
-            columns={[
-              t("dashboard.columnStaff"),
-              t("dashboard.columnClientCount"),
-            ]}
-            rows={stats.customersByOwner.map((o) => ({
-              name: o.ownerName,
-              count: o.count,
-            }))}
-            emptyMessage={t("reports.noStaffDistribution")}
-          />
+        <Card className="p-4 sm:p-5" data-reports-staff-distribution>
+          <h3 className="mb-3 text-sm font-semibold text-[#172033]">
+            {t("reports.staffCustomerDistribution")}
+          </h3>
+          {stats.customersByOwner.length === 0 ? (
+            <p className="text-sm text-[#6B7890]">
+              {t("reports.noStaffDistribution")}
+            </p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left">
+                  <th className="pb-2.5 text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+                    {t("dashboard.columnStaff")}
+                  </th>
+                  <th className="pb-2.5 text-right text-xs font-semibold uppercase tracking-wide text-[#6B7890]">
+                    {t("dashboard.columnClientCount")}
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="crm-divide-y divide-y">
+                {stats.customersByOwner.map((owner) => (
+                  <tr key={owner.ownerId}>
+                    <td className="min-w-0 py-2.5 break-words text-[#172033]">
+                      {owner.ownerName}
+                    </td>
+                    <td className="py-2.5 text-right font-semibold tabular-nums whitespace-nowrap text-[#172033]">
+                      {owner.count}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
         </Card>
       </div>
 
