@@ -208,7 +208,7 @@ export function buildCustomerListHref(params: {
   if (params.status === "archived") {
     search.set("status", "archived");
   }
-  if (params.sort && params.sort !== "default") {
+  if (params.sort) {
     search.set("sort", params.sort);
   }
   if (params.createdBy) {

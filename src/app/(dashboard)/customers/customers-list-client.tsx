@@ -166,7 +166,7 @@ export function CustomersListClient({
       status: showArchived ? ("archived" as const) : undefined,
       heat: heatFilter,
       completenessBelow: completenessBelowFilter,
-      sort: nextSort !== "default" ? nextSort : undefined,
+      sort: nextSort,
       workView: filterWorkView,
       salesStage: filterSalesStage,
       ownerId: filterOwnerId,

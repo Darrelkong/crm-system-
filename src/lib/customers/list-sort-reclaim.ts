@@ -176,9 +176,14 @@ export function buildCustomerListReclaimOrderBy(
     ELSE 99999
   END`;
 
+  const graceSortKey = sql`CASE
+    WHEN ${isGrace} THEN ${c.reclaimRuleGraceUntil}
+    ELSE NULL
+  END`;
+
   return [
     asc(sortGroup),
-    asc(c.reclaimRuleGraceUntil),
+    asc(graceSortKey),
     asc(countdownRemaining),
     ...buildCustomerListOrderBy(now),
   ];

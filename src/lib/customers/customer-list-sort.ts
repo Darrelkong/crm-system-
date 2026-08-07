@@ -24,7 +24,38 @@ export function parseCustomerListSortParam(
   if (raw === "reclaim_soonest") {
     return "reclaim_soonest";
   }
+  if (raw === "default") {
+    return "default";
+  }
   return "default";
+}
+
+/** Pure resolver: explicit URL sort beats remembered preference. */
+export function resolveCustomerListSortMode(
+  sortParam: string | undefined,
+  remembered: CustomerListSortMode | null,
+  options?: { archived?: boolean },
+): CustomerListSortMode {
+  if (options?.archived) {
+    return "default";
+  }
+  if (sortParam != null) {
+    return parseCustomerListSortParam(sortParam);
+  }
+  return remembered ?? "default";
+}
+
+/** Whether a bare `/customers` visit should redirect to remembered reclaim sort. */
+export function shouldRedirectToRememberedSort(
+  sortParam: string | undefined,
+  remembered: CustomerListSortMode | null,
+  archived: boolean,
+): boolean {
+  return (
+    !archived &&
+    sortParam == null &&
+    remembered === "reclaim_soonest"
+  );
 }
 
 export function encodeCustomerListSortPreference(
@@ -106,7 +137,7 @@ export function buildCustomersPagePath(params: CustomerListUrlParams): string {
   if (params.status === "archived") {
     search.set("status", "archived");
   }
-  if (params.sort && params.sort !== "default") {
+  if (params.sort) {
     search.set("sort", params.sort);
   }
   if (params.createdBy) {
@@ -152,21 +183,28 @@ export async function resolveCustomerListSortForPage(options: {
     return "default";
   }
 
+  const remembered = await readRememberedCustomerListSort(options.userId);
+
   if (options.sortParam != null) {
-    const mode = parseCustomerListSortParam(options.sortParam);
+    const mode = resolveCustomerListSortMode(
+      options.sortParam,
+      remembered,
+      { archived: options.archived },
+    );
     await rememberCustomerListSortPreference(options.userId, mode);
     return mode;
   }
 
-  const remembered = await readRememberedCustomerListSort(options.userId);
-  if (remembered === "reclaim_soonest") {
+  if (shouldRedirectToRememberedSort(options.sortParam, remembered, options.archived)) {
     redirect(
       buildCustomersPagePath({
         ...options.preserveParams,
-        sort: remembered,
+        sort: remembered!,
       }),
     );
   }
 
-  return "default";
+  return resolveCustomerListSortMode(undefined, remembered, {
+    archived: options.archived,
+  });
 }
