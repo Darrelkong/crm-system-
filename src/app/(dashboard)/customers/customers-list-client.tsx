@@ -32,6 +32,7 @@ import {
 } from "@/components/ui/table";
 import type { CustomerListRowData } from "@/lib/customers/list-rows";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
+import { CustomerListSortControl } from "@/components/customers/customer-list-sort-control";
 import { formatProjectNameForList } from "@/lib/customers/list-rows";
 import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 import {
@@ -46,6 +47,7 @@ import {
   CUSTOMER_LIST_PAGE_SIZE,
   type CustomerCreatorOption,
 } from "@/lib/customers/queries";
+import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 import { ui } from "@/lib/ui/classes";
 
 export type CustomerListRow = CustomerListRowData;
@@ -59,6 +61,11 @@ type Props = {
   creatorOptions: CustomerCreatorOption[];
   heatFilter?: string;
   completenessBelowFilter?: string;
+  sortMode?: CustomerListSortMode;
+  filterWorkView?: string;
+  filterSalesStage?: string;
+  filterOwnerId?: string;
+  filterReclamationRisk?: string;
 };
 
 type ApiCustomerItem = CustomerListRow & {
@@ -109,6 +116,11 @@ export function CustomersListClient({
   creatorOptions,
   heatFilter,
   completenessBelowFilter,
+  sortMode = "default",
+  filterWorkView,
+  filterSalesStage,
+  filterOwnerId,
+  filterReclamationRisk,
 }: Props) {
   const { t, salesStage, status } = useCustomerLabels();
   const { t: tCommon, locale } = useTranslation();
@@ -119,24 +131,55 @@ export function CustomersListClient({
   const [searchPagination, setSearchPagination] = useState<PaginationMeta | null>(
     null,
   );
-  const [searchPage, setSearchPage] = useState(1);
+  const [searchPages, setSearchPages] = useState<Record<string, number>>({});
   const [searching, setSearching] = useState(false);
 
-  const isSearchActive = searchQuery.trim().length > 0;
+  const trimmedSearchQuery = searchQuery.trim();
+  const searchScopeKey = [
+    trimmedSearchQuery,
+    filterCreatedBy ?? "",
+    showArchived ? "archived" : "active",
+    sortMode,
+    heatFilter ?? "",
+    completenessBelowFilter ?? "",
+    filterWorkView ?? "",
+    filterSalesStage ?? "",
+    filterOwnerId ?? "",
+    filterReclamationRisk ?? "",
+  ].join("\0");
+  const searchPage = searchPages[searchScopeKey] ?? 1;
+
+  const isSearchActive = trimmedSearchQuery.length > 0;
   const rows = isSearchActive ? (searchResults ?? []) : initialRows;
   const activePagination = isSearchActive
     ? (searchPagination ?? pagination)
     : pagination;
 
-  useEffect(() => {
-    setSearchPage(1);
-  }, [searchQuery, filterCreatedBy, showArchived]);
+  function setSearchPage(page: number) {
+    setSearchPages((prev) => ({ ...prev, [searchScopeKey]: page }));
+  }
+
+  function listHrefParams(page = 1, nextSort: CustomerListSortMode = sortMode) {
+    return {
+      page: page > 1 ? page : undefined,
+      createdBy: filterCreatedBy,
+      status: showArchived ? ("archived" as const) : undefined,
+      heat: heatFilter,
+      completenessBelow: completenessBelowFilter,
+      sort: nextSort !== "default" ? nextSort : undefined,
+      workView: filterWorkView,
+      salesStage: filterSalesStage,
+      ownerId: filterOwnerId,
+      reclamationRisk: filterReclamationRisk,
+    };
+  }
+
+  function buildSortHref(nextSort: CustomerListSortMode): string {
+    return buildCustomerListHref(listHrefParams(1, nextSort));
+  }
 
   useEffect(() => {
-    const q = searchQuery.trim();
-    if (!q) {
-      setSearchResults(null);
-      setSearchPagination(null);
+    if (!trimmedSearchQuery) {
       return;
     }
 
@@ -144,7 +187,7 @@ export function CustomersListClient({
       setSearching(true);
       try {
         const params = new URLSearchParams({
-          q,
+          q: trimmedSearchQuery,
           page: String(searchPage),
           pageSize: String(CUSTOMER_LIST_PAGE_SIZE),
         });
@@ -153,6 +196,15 @@ export function CustomersListClient({
         if (heatFilter) params.set("heat", heatFilter);
         if (completenessBelowFilter) {
           params.set("completenessBelow", completenessBelowFilter);
+        }
+        if (sortMode === "reclaim_soonest") {
+          params.set("sort", "reclaim_soonest");
+        }
+        if (filterWorkView) params.set("workView", filterWorkView);
+        if (filterSalesStage) params.set("salesStage", filterSalesStage);
+        if (filterOwnerId) params.set("ownerId", filterOwnerId);
+        if (filterReclamationRisk) {
+          params.set("reclamationRisk", filterReclamationRisk);
         }
 
         const res = await fetch(`/api/customers?${params.toString()}`);
@@ -173,12 +225,18 @@ export function CustomersListClient({
 
     return () => window.clearTimeout(handle);
   }, [
-    searchQuery,
+    trimmedSearchQuery,
     searchPage,
+    searchScopeKey,
     filterCreatedBy,
     showArchived,
     heatFilter,
     completenessBelowFilter,
+    sortMode,
+    filterWorkView,
+    filterSalesStage,
+    filterOwnerId,
+    filterReclamationRisk,
     pagination.pageSize,
   ]);
 
@@ -188,16 +246,12 @@ export function CustomersListClient({
       ? "customers.countAdmin"
       : "customers.countStaff";
 
-  const clearFiltersHref = showArchived ? "/customers?status=archived" : "/customers";
+  const clearFiltersHref = buildCustomerListHref(
+    listHrefParams(1, sortMode),
+  );
 
   function buildListPageHref(page: number): string {
-    return buildCustomerListHref({
-      page,
-      createdBy: filterCreatedBy,
-      status: showArchived ? "archived" : undefined,
-      heat: heatFilter,
-      completenessBelow: completenessBelowFilter,
-    });
+    return buildCustomerListHref(listHrefParams(page));
   }
 
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
@@ -399,6 +453,13 @@ export function CustomersListClient({
         />
       </div>
 
+      {!showArchived && (
+        <CustomerListSortControl
+          sortMode={sortMode}
+          buildSortHref={buildSortHref}
+        />
+      )}
+
       {isAdmin && (
         <form
           method="get"
@@ -406,6 +467,29 @@ export function CustomersListClient({
         >
           {showArchived && (
             <input type="hidden" name="status" value="archived" />
+          )}
+          {sortMode === "reclaim_soonest" && (
+            <input type="hidden" name="sort" value="reclaim_soonest" />
+          )}
+          {heatFilter && <input type="hidden" name="heat" value={heatFilter} />}
+          {completenessBelowFilter && (
+            <input type="hidden" name="completenessBelow" value={completenessBelowFilter} />
+          )}
+          {filterWorkView && (
+            <input type="hidden" name="workView" value={filterWorkView} />
+          )}
+          {filterSalesStage && (
+            <input type="hidden" name="salesStage" value={filterSalesStage} />
+          )}
+          {filterOwnerId && (
+            <input type="hidden" name="ownerId" value={filterOwnerId} />
+          )}
+          {filterReclamationRisk && (
+            <input
+              type="hidden"
+              name="reclamationRisk"
+              value={filterReclamationRisk}
+            />
           )}
           <div className="min-w-[180px] flex-1">
             <Label htmlFor="createdBy">{t("customers.filterCreatedBy")}</Label>

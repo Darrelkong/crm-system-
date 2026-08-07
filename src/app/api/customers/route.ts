@@ -37,6 +37,7 @@ import {
 } from "@/lib/customers/scoring/service";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { parseCustomerListSortParam } from "@/lib/customers/customer-list-sort";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
@@ -69,6 +70,11 @@ export async function GET(request: Request) {
       salesStage: url.searchParams.get("salesStage") ?? undefined,
       ownerId: url.searchParams.get("ownerId") ?? undefined,
     });
+    const archived = listFilter.status === "archived";
+    const sortMode = parseCustomerListSortParam(
+      url.searchParams.get("sort"),
+      { archived },
+    );
     const scoringFilter = parseScoringListFilter(url.searchParams);
     const { page } = parseCustomerListPageParams({
       page: url.searchParams.get("page"),
@@ -78,11 +84,15 @@ export async function GET(request: Request) {
 
     const db = getDb();
     const settings = await getEffectiveSettings(db);
+    const listQueryOptions = {
+      sortMode,
+      automaticReclaimDays: settings.automaticReclaimDays,
+    };
 
     if (hasScoringFilter) {
       const customers = searchQuery
-        ? await searchCustomersForUser(user, searchQuery, listFilter)
-        : await listCustomersForUser(user, listFilter);
+        ? await searchCustomersForUser(user, searchQuery, listFilter, 10_000, listQueryOptions)
+        : await listCustomersForUser(user, listFilter, 10_000, listQueryOptions);
       const followUpSet = await getCustomerIdsWithFollowUps(
         db,
         customers.map((c) => c.id),
@@ -123,8 +133,14 @@ export async function GET(request: Request) {
           searchQuery,
           listFilter,
           page,
+          listQueryOptions,
         )
-      : await listCustomersForUserPaginated(user, listFilter, page);
+      : await listCustomersForUserPaginated(
+          user,
+          listFilter,
+          page,
+          listQueryOptions,
+        );
     const followUpSet = await getCustomerIdsWithFollowUps(
       db,
       result.items.map((c) => c.id),

@@ -8,6 +8,9 @@ import {
 } from "./cycle";
 import { getDaysWithoutValidFollowUp } from "./days";
 
+/** UI-only threshold: hide countdown badge when more than this many days remain. */
+export const RECLAMATION_COUNTDOWN_VISIBLE_DAYS = 30;
+
 export const RECLAMATION_COUNTDOWN_STATES = [
   "normal",
   "warning",
@@ -93,12 +96,21 @@ export function getReclamationCountdownBadgeVariant(
   }
 }
 
-/** Extra class for orange high-risk (2–7 days) vs amber warning (8–14). */
+/** Extra class for subtle normal (15–30d), orange high-risk (2–7d). */
 export function getReclamationCountdownBadgeClassName(
   state: ReclamationCountdownState,
+  daysRemaining?: number | null,
 ): string | undefined {
   if (state === "high_risk") {
     return "bg-orange-100 text-orange-900 border border-orange-200";
+  }
+  if (
+    state === "normal" &&
+    daysRemaining != null &&
+    daysRemaining >= 15 &&
+    daysRemaining <= RECLAMATION_COUNTDOWN_VISIBLE_DAYS
+  ) {
+    return "bg-slate-50 text-slate-600 border border-slate-200";
   }
   return undefined;
 }
@@ -172,6 +184,9 @@ export function buildReclamationCountdownDisplay(
     }
 
     const daysRemaining = reclaimDays - idleDays;
+    if (daysRemaining > RECLAMATION_COUNTDOWN_VISIBLE_DAYS) {
+      return null;
+    }
     const state = classifyCountdownState(daysRemaining);
     if (state == null) return null;
 

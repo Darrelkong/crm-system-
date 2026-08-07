@@ -197,11 +197,19 @@ export function buildCustomerListHref(params: {
   status?: "archived";
   heat?: string;
   completenessBelow?: string;
+  sort?: string;
+  workView?: string;
+  salesStage?: string;
+  ownerId?: string;
+  reclamationRisk?: string;
 }): string {
   const search = new URLSearchParams();
 
   if (params.status === "archived") {
     search.set("status", "archived");
+  }
+  if (params.sort && params.sort !== "default") {
+    search.set("sort", params.sort);
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);
@@ -211,6 +219,18 @@ export function buildCustomerListHref(params: {
   }
   if (params.completenessBelow) {
     search.set("completenessBelow", params.completenessBelow);
+  }
+  if (params.workView) {
+    search.set("workView", params.workView);
+  }
+  if (params.salesStage) {
+    search.set("salesStage", params.salesStage);
+  }
+  if (params.ownerId) {
+    search.set("ownerId", params.ownerId);
+  }
+  if (params.reclamationRisk) {
+    search.set("reclamationRisk", params.reclamationRisk);
   }
   if (params.page && params.page > 1) {
     search.set("page", String(params.page));

@@ -7,6 +7,8 @@ import {
 } from "@/lib/customers/customer-list-filters";
 import { ON_HOLD_CREATE_APPROVAL_TYPE } from "@/lib/customers/on-hold-create-pending";
 import { buildCustomerListOrderBy } from "@/lib/customers/list-sort";
+import { buildCustomerListOrderByForMode } from "@/lib/customers/list-sort-reclaim";
+import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 import {
   buildWorkViewWhere,
   parseWorkView,
@@ -30,6 +32,29 @@ import type { User } from "../../../drizzle/schema/users";
 export { staffAssigneeExistsWhere } from "@/lib/customers/customer-list-filters";
 
 export { buildCustomerListOrderBy, buildFollowUpSort } from "@/lib/customers/list-sort";
+export type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
+export {
+  buildCustomerListOrderByForMode,
+  buildCustomerListReclaimOrderBy,
+} from "@/lib/customers/list-sort-reclaim";
+
+type ListQueryOptions = {
+  sortMode?: CustomerListSortMode;
+  automaticReclaimDays?: number;
+  now?: Date;
+};
+
+function resolveListOrderBy(options: ListQueryOptions = {}) {
+  const now = options.now ?? new Date();
+  const sortMode = options.sortMode ?? "default";
+  if (sortMode === "reclaim_soonest") {
+    const reclaimDays = options.automaticReclaimDays;
+    if (reclaimDays != null && Number.isFinite(reclaimDays) && reclaimDays >= 1) {
+      return buildCustomerListOrderByForMode(sortMode, reclaimDays, now);
+    }
+  }
+  return buildCustomerListOrderBy(now);
+}
 
 export type CustomerListFilter = {
   /** Admin only: `archived` shows archived customers; default excludes archived. */
@@ -299,10 +324,11 @@ export async function listCustomersForUser(
   user: User,
   filter: CustomerListFilter = {},
   limit = 100,
+  options: ListQueryOptions = {},
 ) {
   const db = getDb();
   const whereClause = buildListWhere(user, filter);
-  const orderBy = buildCustomerListOrderBy();
+  const orderBy = resolveListOrderBy(options);
 
   return db
     .select()
@@ -316,13 +342,14 @@ export async function listCustomersForUserPaginated(
   user: User,
   filter: CustomerListFilter = {},
   page = 1,
+  options: ListQueryOptions = {},
 ): Promise<PaginatedCustomerListResult> {
   const db = getDb();
   const whereClause = buildListWhere(user, filter);
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
-  const orderBy = buildCustomerListOrderBy();
+  const orderBy = resolveListOrderBy(options);
 
   const items =
     total === 0
@@ -343,10 +370,11 @@ export async function searchCustomersForUser(
   query: string,
   filter: CustomerListFilter = {},
   limit = 100,
+  options: ListQueryOptions = {},
 ) {
   const term = query.trim();
   if (!term) {
-    return listCustomersForUser(user, filter, limit);
+    return listCustomersForUser(user, filter, limit, options);
   }
 
   const db = getDb();
@@ -354,7 +382,7 @@ export async function searchCustomersForUser(
     buildListWhere(user, filter),
     buildSearchWhere(term),
   );
-  const orderBy = buildCustomerListOrderBy();
+  const orderBy = resolveListOrderBy(options);
 
   return db
     .select()
@@ -369,10 +397,11 @@ export async function searchCustomersForUserPaginated(
   query: string,
   filter: CustomerListFilter = {},
   page = 1,
+  options: ListQueryOptions = {},
 ): Promise<PaginatedCustomerListResult> {
   const term = query.trim();
   if (!term) {
-    return listCustomersForUserPaginated(user, filter, page);
+    return listCustomersForUserPaginated(user, filter, page, options);
   }
 
   const db = getDb();
@@ -383,7 +412,7 @@ export async function searchCustomersForUserPaginated(
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
-  const orderBy = buildCustomerListOrderBy();
+  const orderBy = resolveListOrderBy(options);
 
   const items =
     total === 0
@@ -457,11 +486,18 @@ export function buildCustomersListQuery(params: {
   salesStage?: string;
   ownerId?: string;
   workView?: string;
+  sort?: string;
+  heat?: string;
+  completenessBelow?: string;
+  reclamationRisk?: string;
   page?: number;
 }): string {
   const search = new URLSearchParams();
   if (params.status === "archived") {
     search.set("status", "archived");
+  }
+  if (params.sort && params.sort !== "default") {
+    search.set("sort", params.sort);
   }
   if (params.createdBy) {
     search.set("createdBy", params.createdBy);
@@ -474,6 +510,15 @@ export function buildCustomersListQuery(params: {
   }
   if (params.workView) {
     search.set("workView", params.workView);
+  }
+  if (params.heat) {
+    search.set("heat", params.heat);
+  }
+  if (params.completenessBelow) {
+    search.set("completenessBelow", params.completenessBelow);
+  }
+  if (params.reclamationRisk) {
+    search.set("reclamationRisk", params.reclamationRisk);
   }
   if (params.page && params.page > 1) {
     search.set("page", String(params.page));

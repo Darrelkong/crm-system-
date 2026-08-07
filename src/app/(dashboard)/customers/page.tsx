@@ -20,9 +20,12 @@ import { getDb } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
-import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
+import {
+  getAssigneeCustomerIdsForUser,
+} from "@/lib/customers/assignees";
 import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
 import { parseReclamationRiskParam } from "@/lib/customers/work-view-filter";
+import { resolveCustomerListSortForPage } from "@/lib/customers/customer-list-sort";
 
 type Props = {
   searchParams: Promise<{
@@ -35,6 +38,7 @@ type Props = {
     workView?: string;
     salesStage?: string;
     ownerId?: string;
+    sort?: string;
   }>;
 };
 
@@ -64,9 +68,28 @@ export default async function CustomersPage({ searchParams }: Props) {
       : {}),
   };
   const showArchived = listFilter.status === "archived";
-  const { page } = parseCustomerListPageParams({ page: params.page });
-
   const settings = await getEffectiveSettings(db);
+  const sortMode = await resolveCustomerListSortForPage({
+    userId: user.id,
+    sortParam: params.sort,
+    archived: showArchived,
+    preserveParams: {
+      status: params.status,
+      createdBy: params.createdBy,
+      heat: params.heat,
+      completenessBelow: params.completenessBelow,
+      reclamationRisk: params.reclamationRisk,
+      workView: params.workView,
+      salesStage: params.salesStage,
+      ownerId: params.ownerId,
+      page: params.page,
+    },
+  });
+  const listQueryOptions = {
+    sortMode,
+    automaticReclaimDays: settings.automaticReclaimDays,
+  };
+  const { page } = parseCustomerListPageParams({ page: params.page });
 
   const scoringFilter: {
     heat?: HeatLevel;
@@ -87,7 +110,12 @@ export default async function CustomersPage({ searchParams }: Props) {
   let pagination;
 
   if (hasScoringFilter) {
-    const customers = await listCustomersForUser(user, listFilter);
+    const customers = await listCustomersForUser(
+      user,
+      listFilter,
+      10_000,
+      listQueryOptions,
+    );
     const followUpSet = await getCustomerIdsWithFollowUps(
       db,
       customers.map((c) => c.id),
@@ -113,7 +141,12 @@ export default async function CustomersPage({ searchParams }: Props) {
     const pageViews = views.slice(offset, offset + pagination.pageSize);
     initialRows = await buildCustomerListRows(db, pageViews);
   } else {
-    const result = await listCustomersForUserPaginated(user, listFilter, page);
+    const result = await listCustomersForUserPaginated(
+      user,
+      listFilter,
+      page,
+      listQueryOptions,
+    );
     const followUpSet = await getCustomerIdsWithFollowUps(
       db,
       result.items.map((c) => c.id),
@@ -156,6 +189,11 @@ export default async function CustomersPage({ searchParams }: Props) {
           ? String(scoringFilter.completenessBelow)
           : undefined
       }
+      sortMode={sortMode}
+      filterWorkView={params.workView}
+      filterSalesStage={params.salesStage}
+      filterOwnerId={params.ownerId}
+      filterReclamationRisk={params.reclamationRisk}
     />
   );
 }

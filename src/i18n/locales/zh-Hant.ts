@@ -299,6 +299,11 @@ const zhHant: Messages = {
     management: "客戶管理",
     title: "客戶列表",
     searchPlaceholder: "搜尋客戶姓名、手機號、微信號、郵箱或客戶編號",
+    sortModeLabel: "排序方式",
+    sortModeDefault: "目前優先順序",
+    sortModeReclaimSoonest: "自動釋放優先",
+    sortModeReclaimHelper:
+      "優先顯示距離自動釋放較近的客戶，倒數僅在剩餘 30 天內顯示。",
     noSearchResults: "未找到匹配客戶",
     list: "客戶列表",
     details: "客戶詳情",

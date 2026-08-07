@@ -8,6 +8,7 @@ import {
   getProjectedReclaimAt,
   getReclamationCountdownBadgeClassName,
   getReclamationCountdownBadgeVariant,
+  RECLAMATION_COUNTDOWN_VISIBLE_DAYS,
 } from "./countdown-display";
 
 const FIXED_NOW = new Date("2026-08-06T04:00:00.000Z"); // HK 12:00
@@ -95,7 +96,7 @@ describe("classifyCountdownState", () => {
 });
 
 describe("buildReclamationCountdownDisplay", () => {
-  it("shows normal countdown for eligible customers with 16+ days remaining", () => {
+  it("shows normal countdown for eligible customers with 16 days remaining", () => {
     const customer = makeCustomer({
       lastValidFollowUpAt: daysAgoIso(29),
       reclamationCycleStartedAt: daysAgoIso(29),
@@ -108,6 +109,28 @@ describe("buildReclamationCountdownDisplay", () => {
     assert.ok(display);
     assert.equal(display.state, "normal");
     assert.equal(display.daysRemaining, 16);
+  });
+
+  it("hides countdown when more than 30 days remain and shows at 30 days", () => {
+    const hidden31 = buildReclamationCountdownDisplay(
+      makeCustomer({
+        lastValidFollowUpAt: daysAgoIso(14),
+        reclamationCycleStartedAt: daysAgoIso(14),
+      }),
+      settings,
+      FIXED_NOW,
+    );
+    const visible30 = buildReclamationCountdownDisplay(
+      makeCustomer({
+        lastValidFollowUpAt: daysAgoIso(15),
+        reclamationCycleStartedAt: daysAgoIso(15),
+      }),
+      settings,
+      FIXED_NOW,
+    );
+    assert.equal(hidden31, null);
+    assert.equal(visible30?.daysRemaining, 30);
+    assert.equal(RECLAMATION_COUNTDOWN_VISIBLE_DAYS, 30);
   });
 
   it("shows warning at 14 and 8 days remaining", () => {
@@ -306,6 +329,9 @@ describe("countdown badge visuals", () => {
     assert.equal(getReclamationCountdownBadgeVariant("due"), "danger");
     assert.equal(getReclamationCountdownBadgeVariant("grace"), "accent");
     assert.ok(getReclamationCountdownBadgeClassName("high_risk")?.includes("orange"));
+    assert.ok(
+      getReclamationCountdownBadgeClassName("normal", 24)?.includes("slate"),
+    );
     assert.equal(getReclamationCountdownBadgeClassName("warning"), undefined);
   });
 });

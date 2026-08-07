@@ -78,7 +78,10 @@ export function ReclamationCountdownBadge({ countdown }: Props) {
   if (!label) return null;
 
   const variant = getReclamationCountdownBadgeVariant(countdown.state);
-  const className = getReclamationCountdownBadgeClassName(countdown.state);
+  const className = getReclamationCountdownBadgeClassName(
+    countdown.state,
+    countdown.daysRemaining,
+  );
   const title = buildTitle(countdown, t);
 
   return (
