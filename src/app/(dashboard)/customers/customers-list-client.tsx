@@ -48,6 +48,12 @@ import {
   type CustomerCreatorOption,
 } from "@/lib/customers/customer-list-shared";
 import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
+import {
+  buildCustomerListApiSearchParams,
+  buildCustomerListBrowserPath,
+  replaceCustomerListBrowserPath,
+  type CustomerListFetchParams,
+} from "@/lib/customers/customer-list-fetch";
 import { ui } from "@/lib/ui/classes";
 
 export type CustomerListRow = CustomerListRowData;
@@ -124,6 +130,10 @@ export function CustomersListClient({
 }: Props) {
   const { t, salesStage, status } = useCustomerLabels();
   const { t: tCommon, locale } = useTranslation();
+  const [listRows, setListRows] = useState(initialRows);
+  const [listPagination, setListPagination] = useState(pagination);
+  const [currentSortMode, setCurrentSortMode] = useState(sortMode);
+  const [listLoading, setListLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(
     null,
@@ -139,7 +149,7 @@ export function CustomersListClient({
     trimmedSearchQuery,
     filterCreatedBy ?? "",
     showArchived ? "archived" : "active",
-    sortMode,
+    currentSortMode,
     heatFilter ?? "",
     completenessBelowFilter ?? "",
     filterWorkView ?? "",
@@ -150,16 +160,86 @@ export function CustomersListClient({
   const searchPage = searchPages[searchScopeKey] ?? 1;
 
   const isSearchActive = trimmedSearchQuery.length > 0;
-  const rows = isSearchActive ? (searchResults ?? []) : initialRows;
+  const rows = isSearchActive ? (searchResults ?? []) : listRows;
   const activePagination = isSearchActive
     ? (searchPagination ?? pagination)
-    : pagination;
+    : listPagination;
+
+  useEffect(() => {
+    setListRows(initialRows);
+    setListPagination(pagination);
+    setCurrentSortMode(sortMode);
+  }, [initialRows, pagination, sortMode]);
+
+  function currentListFetchParams(
+    page: number,
+    nextSort: CustomerListSortMode = currentSortMode,
+  ): CustomerListFetchParams {
+    return {
+      page,
+      sort: nextSort,
+      showArchived,
+      filterCreatedBy,
+      heatFilter,
+      completenessBelowFilter,
+      filterWorkView,
+      filterSalesStage,
+      filterOwnerId,
+      filterReclamationRisk,
+    };
+  }
+
+  async function fetchListPage(
+    page: number,
+    nextSort: CustomerListSortMode,
+  ): Promise<boolean> {
+    setListLoading(true);
+    try {
+      const params = buildCustomerListApiSearchParams(
+        currentListFetchParams(page, nextSort),
+      );
+      const res = await fetch(`/api/customers?${params.toString()}`);
+      const data = (await res.json()) as ApiCustomersResponse;
+      if (!res.ok || !data.items) {
+        return false;
+      }
+
+      setListRows(data.items.map(mapApiItem));
+      setListPagination({
+        page: data.page ?? page,
+        pageSize: data.pageSize ?? listPagination.pageSize,
+        total: data.total ?? data.items.length,
+        pageCount: data.pageCount ?? 1,
+      });
+      setCurrentSortMode(nextSort);
+      replaceCustomerListBrowserPath(
+        buildCustomerListBrowserPath(currentListFetchParams(page, nextSort)),
+      );
+      return true;
+    } finally {
+      setListLoading(false);
+    }
+  }
+
+  function handleSortChange(nextSort: CustomerListSortMode) {
+    if (nextSort === currentSortMode || listLoading) {
+      return;
+    }
+    void fetchListPage(1, nextSort);
+  }
+
+  function handleListPageChange(page: number) {
+    if (listLoading || page === listPagination.page) {
+      return;
+    }
+    void fetchListPage(page, currentSortMode);
+  }
 
   function setSearchPage(page: number) {
     setSearchPages((prev) => ({ ...prev, [searchScopeKey]: page }));
   }
 
-  function listHrefParams(page = 1, nextSort: CustomerListSortMode = sortMode) {
+  function listHrefParams(page = 1, nextSort: CustomerListSortMode = currentSortMode) {
     return {
       page: page > 1 ? page : undefined,
       createdBy: filterCreatedBy,
@@ -172,10 +252,6 @@ export function CustomersListClient({
       ownerId: filterOwnerId,
       reclamationRisk: filterReclamationRisk,
     };
-  }
-
-  function buildSortHref(nextSort: CustomerListSortMode): string {
-    return buildCustomerListHref(listHrefParams(1, nextSort));
   }
 
   useEffect(() => {
@@ -197,8 +273,8 @@ export function CustomersListClient({
         if (completenessBelowFilter) {
           params.set("completenessBelow", completenessBelowFilter);
         }
-        if (sortMode === "reclaim_soonest") {
-          params.set("sort", "reclaim_soonest");
+        if (currentSortMode === "reclaim_soonest" || currentSortMode === "default") {
+          params.set("sort", currentSortMode);
         }
         if (filterWorkView) params.set("workView", filterWorkView);
         if (filterSalesStage) params.set("salesStage", filterSalesStage);
@@ -232,7 +308,7 @@ export function CustomersListClient({
     showArchived,
     heatFilter,
     completenessBelowFilter,
-    sortMode,
+    currentSortMode,
     filterWorkView,
     filterSalesStage,
     filterOwnerId,
@@ -247,12 +323,8 @@ export function CustomersListClient({
       : "customers.countStaff";
 
   const clearFiltersHref = buildCustomerListHref(
-    listHrefParams(1, sortMode),
+    listHrefParams(1, currentSortMode),
   );
-
-  function buildListPageHref(page: number): string {
-    return buildCustomerListHref(listHrefParams(page));
-  }
 
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
     return currentLocale === "en" ? "en" : "zh";
@@ -410,7 +482,7 @@ export function CustomersListClient({
       <PageIntro
         title={showArchived ? t("customers.archivedList") : t("customers.title")}
         description={
-          searching
+          searching || listLoading
             ? t("common.loading")
             : t(countKey, { count: String(activePagination.total) })
         }
@@ -437,7 +509,7 @@ export function CustomersListClient({
           )}
         </div>
       )}
-      {searching && (
+      {(searching || listLoading) && (
         <p className="mb-4 flex items-center gap-2 text-sm crm-text-secondary">
           <LoadingSpinner size="sm" />
           {t("common.loading")}
@@ -455,8 +527,9 @@ export function CustomersListClient({
 
       {!showArchived && (
         <CustomerListSortControl
-          sortMode={sortMode}
-          buildSortHref={buildSortHref}
+          sortMode={currentSortMode}
+          onSortChange={handleSortChange}
+          disabled={listLoading}
         />
       )}
 
@@ -468,8 +541,11 @@ export function CustomersListClient({
           {showArchived && (
             <input type="hidden" name="status" value="archived" />
           )}
-          {sortMode === "reclaim_soonest" && (
+          {currentSortMode === "reclaim_soonest" && (
             <input type="hidden" name="sort" value="reclaim_soonest" />
+          )}
+          {currentSortMode === "default" && (
+            <input type="hidden" name="sort" value="default" />
           )}
           {heatFilter && <input type="hidden" name="heat" value={heatFilter} />}
           {completenessBelowFilter && (
@@ -626,8 +702,7 @@ export function CustomersListClient({
           <Pagination
             page={activePagination.page}
             pageCount={activePagination.pageCount}
-            buildHref={isSearchActive ? undefined : buildListPageHref}
-            onPageChange={isSearchActive ? setSearchPage : undefined}
+            onPageChange={isSearchActive ? setSearchPage : handleListPageChange}
             prevLabel={tCommon("common.prevPage")}
             nextLabel={tCommon("common.nextPage")}
           />

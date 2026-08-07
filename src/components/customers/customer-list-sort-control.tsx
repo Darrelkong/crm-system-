@@ -1,15 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslation } from "@/i18n/provider";
 import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 
 type Props = {
   sortMode: CustomerListSortMode;
-  buildSortHref: (sort: CustomerListSortMode) => string;
+  onSortChange: (sort: CustomerListSortMode) => void;
+  disabled?: boolean;
 };
 
-export function CustomerListSortControl({ sortMode, buildSortHref }: Props) {
+export function CustomerListSortControl({
+  sortMode,
+  onSortChange,
+  disabled = false,
+}: Props) {
   const { t } = useTranslation();
 
   const options: Array<{ value: CustomerListSortMode; label: string }> = [
@@ -28,21 +32,23 @@ export function CustomerListSortControl({ sortMode, buildSortHref }: Props) {
         {options.map((option) => {
           const selected = sortMode === option.value;
           return (
-            <Link
+            <button
               key={option.value}
-              href={buildSortHref(option.value)}
-              scroll={false}
+              type="button"
+              disabled={disabled}
+              onClick={() => onSortChange(option.value)}
               aria-pressed={selected}
               className={[
                 "inline-flex min-h-11 items-center justify-center rounded-md px-2 py-2.5 text-center text-sm leading-snug transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--crm-focus-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--crm-surface)]",
+                "disabled:cursor-not-allowed disabled:opacity-60",
                 selected
                   ? "border border-[var(--crm-border)] bg-[var(--crm-surface)] font-semibold text-[var(--crm-text)] shadow-sm"
                   : "border border-transparent font-normal crm-text-secondary hover:bg-[var(--crm-surface)]/60",
               ].join(" ")}
             >
               {option.label}
-            </Link>
+            </button>
           );
         })}
       </div>

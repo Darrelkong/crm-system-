@@ -37,7 +37,10 @@ import {
 } from "@/lib/customers/scoring/service";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
-import { parseCustomerListSortParam } from "@/lib/customers/customer-list-sort";
+import {
+  parseCustomerListSortParam,
+  rememberCustomerListSortPreference,
+} from "@/lib/customers/customer-list-sort";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
@@ -75,6 +78,9 @@ export async function GET(request: Request) {
       url.searchParams.get("sort"),
       { archived },
     );
+    if (url.searchParams.has("sort") && !archived) {
+      await rememberCustomerListSortPreference(user.id, sortMode);
+    }
     const scoringFilter = parseScoringListFilter(url.searchParams);
     const { page } = parseCustomerListPageParams({
       page: url.searchParams.get("page"),
