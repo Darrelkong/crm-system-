@@ -353,7 +353,10 @@ async function autoReclaimCustomer(
             ${customer.id} AS related_entity_id,
             ${0} AS is_read,
             ${"informational"} AS action_state,
+            ${null} AS grouping_key,
             ${now} AS action_updated_at,
+            ${null} AS summary_scope,
+            ${null} AS summary_fingerprint,
             ${now} AS created_at
           FROM customers
           WHERE ${snapshotMatchSql}

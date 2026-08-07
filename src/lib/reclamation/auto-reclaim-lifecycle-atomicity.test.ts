@@ -172,6 +172,9 @@ async function deleteTestData() {
       .delete(schema.reclamationWarningLogs)
       .where(eq(schema.reclamationWarningLogs.customerId, customerId));
     await db
+      .delete(schema.reclamationActionItems)
+      .where(eq(schema.reclamationActionItems.customerId, customerId));
+    await db
       .delete(schema.customers)
       .where(eq(schema.customers.id, customerId));
   }
@@ -318,7 +321,7 @@ describe("auto reclaim lifecycle atomicity wiring", () => {
     );
     const warnFn = engine.slice(engine.indexOf("async function sendReclaimWarning"));
     assert.match(warnFn, /db\.batch\(/);
-    assert.match(warnFn, /buildCreateNotificationStatement/);
+    assert.doesNotMatch(warnFn, /buildCreateNotificationStatement/);
     assert.match(warnFn, /isReclamationWarningLogUniqueConflictError/);
     assert.match(engine, /resolveNextWarningMilestone/);
     assert.match(engine, /getSentWarningMilestonesInCycle/);
