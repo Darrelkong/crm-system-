@@ -6,6 +6,9 @@ import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import { RECLAMATION_EXCLUDED_SALES_STAGES } from "@/lib/reclamation/constants";
 import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 
+/** Hidden default-list priority window: eligible customers within this many days. */
+export const NEAR_RELEASE_RISK_DAYS = 16;
+
 /** HK calendar-day idle count aligned with getDaysWithoutValidFollowUp(). */
 export function buildReclamationIdleDaysSql(now: Date = new Date()): SQL {
   const c = schema.customers;
@@ -14,7 +17,7 @@ export function buildReclamationIdleDaysSql(now: Date = new Date()): SQL {
   return sql`CAST((julianday(${hkToday}) - julianday(date(datetime(${cycleAnchor}, '+8 hours')))) AS INTEGER)`;
 }
 
-function buildReclamationEligibleSql(): SQL {
+export function buildReclamationEligibleSql(): SQL {
   const c = schema.customers;
   const ca = schema.customerAssignees;
   const excludedStages = sql.join(
@@ -36,6 +39,54 @@ function buildReclamationEligibleSql(): SQL {
   )`;
 }
 
+function buildReclamationGraceActiveSql(now: Date = new Date()): SQL {
+  const c = schema.customers;
+  const nowIso = now.toISOString();
+  return sql`(
+    ${c.reclaimRuleGraceUntil} IS NOT NULL
+    AND ${c.reclaimRuleGraceUntil} > ${nowIso}
+  )`;
+}
+
+/** ORDER BY clauses for hidden <=16-day auto-release risk priority (after pin sort). */
+export function buildNearReleaseRiskOrderClauses(
+  reclaimDays: number,
+  now: Date = new Date(),
+): SQL[] {
+  const c = schema.customers;
+  const idleDays = buildReclamationIdleDaysSql(now);
+  const eligible = buildReclamationEligibleSql();
+  const graceActive = buildReclamationGraceActiveSql(now);
+  const isDue = sql`(${eligible} AND ${idleDays} >= ${reclaimDays} AND NOT ${graceActive})`;
+  const isGrace = sql`(${eligible} AND ${idleDays} >= ${reclaimDays} AND ${graceActive})`;
+  const isInRiskWindow = sql`(
+    ${eligible} AND (
+      ${idleDays} >= ${reclaimDays}
+      OR (
+        ${idleDays} < ${reclaimDays}
+        AND (${reclaimDays} - ${idleDays}) <= ${NEAR_RELEASE_RISK_DAYS}
+      )
+    )
+  )`;
+
+  const riskBucket = sql`CASE WHEN ${isInRiskWindow} THEN 0 ELSE 1 END`;
+  const riskSortGroup = sql`CASE
+    WHEN ${isDue} THEN 0
+    WHEN ${isGrace} THEN 1
+    WHEN ${eligible}
+      AND ${idleDays} < ${reclaimDays}
+      AND (${reclaimDays} - ${idleDays}) <= ${NEAR_RELEASE_RISK_DAYS}
+      THEN 1 + (${reclaimDays} - ${idleDays})
+    ELSE 99999
+  END`;
+  const graceSortKey = sql`CASE
+    WHEN ${isGrace} THEN ${c.reclaimRuleGraceUntil}
+    ELSE NULL
+  END`;
+
+  return [asc(riskBucket), asc(riskSortGroup), asc(graceSortKey)];
+}
+
 /**
  * reclaim_soonest: due → grace → countdown ASC → ineligible,
  * with default list order as stable tie-break.
@@ -48,10 +99,7 @@ export function buildCustomerListReclaimOrderBy(
   const nowIso = now.toISOString();
   const idleDays = buildReclamationIdleDaysSql(now);
   const eligible = buildReclamationEligibleSql();
-  const graceActive = sql`(
-    ${c.reclaimRuleGraceUntil} IS NOT NULL
-    AND ${c.reclaimRuleGraceUntil} > ${nowIso}
-  )`;
+  const graceActive = buildReclamationGraceActiveSql(now);
   const isDue = sql`(${eligible} AND ${idleDays} >= ${reclaimDays} AND NOT ${graceActive})`;
   const isGrace = sql`(${eligible} AND ${idleDays} >= ${reclaimDays} AND ${graceActive})`;
 
@@ -89,5 +137,5 @@ export function buildCustomerListOrderByForMode(
   if (sortMode === "reclaim_soonest") {
     return buildCustomerListReclaimOrderBy(reclaimDays, now);
   }
-  return buildCustomerListOrderBy(now);
+  return buildCustomerListOrderBy(now, reclaimDays);
 }

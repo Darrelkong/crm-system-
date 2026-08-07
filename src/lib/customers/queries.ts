@@ -64,7 +64,7 @@ function resolveListOrderBy(options: ListQueryOptions = {}) {
       return buildCustomerListOrderByForMode(sortMode, reclaimDays, now);
     }
   }
-  return buildCustomerListOrderBy(now);
+  return buildCustomerListOrderBy(now, options.automaticReclaimDays);
 }
 
 export type CustomerListFilter = {

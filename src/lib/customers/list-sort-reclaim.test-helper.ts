@@ -1,5 +1,6 @@
 import type { Customer } from "../../../drizzle/schema/customers";
 import { compareCustomersForList } from "@/lib/customers/list-sort";
+import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim";
 import { isPublicPoolCustomer } from "@/lib/permissions/customers";
 import { isReclamationEligibleCustomer } from "@/lib/reclamation/constants";
 import { isReclaimGraceActive } from "@/lib/reclamation/cycle";
@@ -69,6 +70,69 @@ export function getReclaimSortKey(
     graceUntil: null,
     daysRemaining: reclaimDays - idleDays,
   };
+}
+
+export function getNearReleaseRiskSortKey(
+  customer: ReclaimSortableCustomer,
+  reclaimDays: number,
+  now: Date = new Date(),
+  options?: { isCollaborative?: boolean },
+): { riskBucket: number; riskGroup: number; graceUntil: string | null } {
+  const key = getReclaimSortKey(customer, reclaimDays, now, options);
+
+  if (key.group === 3) {
+    return { riskBucket: 1, riskGroup: 99_999, graceUntil: null };
+  }
+
+  const inRiskWindow =
+    key.group === 0 ||
+    key.group === 1 ||
+    (key.group === 2 && key.daysRemaining <= NEAR_RELEASE_RISK_DAYS);
+
+  if (!inRiskWindow) {
+    return { riskBucket: 1, riskGroup: 99_999, graceUntil: null };
+  }
+
+  const riskGroup =
+    key.group === 0 ? 0 : key.group === 1 ? 1 : 1 + key.daysRemaining;
+
+  return {
+    riskBucket: 0,
+    riskGroup,
+    graceUntil: key.group === 1 ? key.graceUntil : null,
+  };
+}
+
+export function compareNearReleaseRiskPriority(
+  a: ReclaimSortableCustomer,
+  b: ReclaimSortableCustomer,
+  reclaimDays: number,
+  now: Date = new Date(),
+  collaborativeFlags?: Map<string, boolean>,
+): number {
+  const keyA = getNearReleaseRiskSortKey(a, reclaimDays, now, {
+    isCollaborative: collaborativeFlags?.get(a.id) ?? false,
+  });
+  const keyB = getNearReleaseRiskSortKey(b, reclaimDays, now, {
+    isCollaborative: collaborativeFlags?.get(b.id) ?? false,
+  });
+
+  if (keyA.riskBucket !== keyB.riskBucket) {
+    return keyA.riskBucket - keyB.riskBucket;
+  }
+  if (keyA.riskGroup !== keyB.riskGroup) {
+    return keyA.riskGroup - keyB.riskGroup;
+  }
+  if (keyA.riskGroup === 1) {
+    const graceCmp = (keyA.graceUntil ?? "").localeCompare(
+      keyB.graceUntil ?? "",
+    );
+    if (graceCmp !== 0) {
+      return graceCmp;
+    }
+  }
+
+  return 0;
 }
 
 export function compareCustomersForReclaimSoonest(
