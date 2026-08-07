@@ -2,8 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Customer } from "../../../drizzle/schema/customers";
 import { buildCustomerListOrderBy, compareCustomersForList } from "@/lib/customers/list-sort";
-import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim";
-import { getNearReleaseRiskSortKey } from "@/lib/customers/list-sort-reclaim.test-helper";
+import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim-primitives";
+import {
+  compareCustomersForListWithNearReleaseRisk,
+  getNearReleaseRiskSortKey,
+} from "@/lib/customers/list-sort-reclaim.test-helper";
 
 const RECLAIM_DAYS = 45;
 const NOW = new Date("2026-08-06T04:00:00.000Z");
@@ -75,10 +78,13 @@ function makeCustomer(
 
 function sortWithRisk(customers: Customer[], collaborativeFlags?: Map<string, boolean>) {
   return [...customers].sort((a, b) =>
-    compareCustomersForList(a, b, NOW, {
-      automaticReclaimDays: RECLAIM_DAYS,
+    compareCustomersForListWithNearReleaseRisk(
+      a,
+      b,
+      RECLAIM_DAYS,
+      NOW,
       collaborativeFlags,
-    }),
+    ),
   );
 }
 
@@ -119,9 +125,12 @@ describe("near-release hidden priority (<=16 days)", () => {
       1,
     );
     assert.ok(
-      compareCustomersForList(sixteen, seventeen, NOW, {
-        automaticReclaimDays: RECLAIM_DAYS,
-      }) < 0,
+      compareCustomersForListWithNearReleaseRisk(
+        sixteen,
+        seventeen,
+        RECLAIM_DAYS,
+        NOW,
+      ) < 0,
     );
   });
 
@@ -184,9 +193,12 @@ describe("near-release hidden priority (<=16 days)", () => {
     });
 
     assert.ok(
-      compareCustomersForList(pinned, oneDay, NOW, {
-        automaticReclaimDays: RECLAIM_DAYS,
-      }) < 0,
+      compareCustomersForListWithNearReleaseRisk(
+        pinned,
+        oneDay,
+        RECLAIM_DAYS,
+        NOW,
+      ) < 0,
     );
   });
 
@@ -207,9 +219,12 @@ describe("near-release hidden priority (<=16 days)", () => {
     });
 
     assert.ok(
-      compareCustomersForList(overdue, plain, NOW, {
-        automaticReclaimDays: RECLAIM_DAYS,
-      }) < 0,
+      compareCustomersForListWithNearReleaseRisk(
+        overdue,
+        plain,
+        RECLAIM_DAYS,
+        NOW,
+      ) < 0,
     );
   });
 
@@ -362,9 +377,7 @@ describe("near-release hidden priority (<=16 days)", () => {
     assert.equal(getNearReleaseRiskSortKey(one, reclaimDays, NOW).riskBucket, 0);
     assert.equal(getNearReleaseRiskSortKey(two, reclaimDays, NOW).riskBucket, 0);
     assert.ok(
-      compareCustomersForList(one, two, NOW, {
-        automaticReclaimDays: reclaimDays,
-      }) < 0,
+      compareCustomersForListWithNearReleaseRisk(one, two, reclaimDays, NOW) < 0,
     );
   });
 });

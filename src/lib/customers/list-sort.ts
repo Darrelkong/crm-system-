@@ -2,12 +2,7 @@ import { asc, desc, sql, type SQL } from "drizzle-orm";
 import { schema } from "@/lib/db";
 import { getBusinessTodayRange } from "@/lib/reports/dates";
 import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
-import {
-  buildNearReleaseRiskOrderClauses,
-} from "@/lib/customers/list-sort-reclaim";
-import {
-  compareNearReleaseRiskPriority,
-} from "@/lib/customers/list-sort-reclaim.test-helper";
+import { buildNearReleaseRiskOrderClauses } from "@/lib/customers/list-sort-reclaim-primitives";
 import type { Customer } from "../../../drizzle/schema/customers";
 
 const DEPRIORITIZED_SALES_STAGES = new Set([
@@ -85,10 +80,6 @@ export function compareCustomersForList(
   a: Customer,
   b: Customer,
   now: Date = new Date(),
-  options?: {
-    automaticReclaimDays?: number;
-    collaborativeFlags?: Map<string, boolean>;
-  },
 ): number {
   const pinA = a.isPinned === 1 ? 1 : 0;
   const pinB = b.isPinned === 1 ? 1 : 0;
@@ -101,24 +92,6 @@ export function compareCustomersForList(
     const pinnedAtB = b.pinnedAt ?? "";
     if (pinnedAtA !== pinnedAtB) {
       return pinnedAtB.localeCompare(pinnedAtA);
-    }
-  }
-
-  const reclaimDays = options?.automaticReclaimDays;
-  if (
-    reclaimDays != null &&
-    Number.isFinite(reclaimDays) &&
-    reclaimDays >= 1
-  ) {
-    const riskCmp = compareNearReleaseRiskPriority(
-      a,
-      b,
-      reclaimDays,
-      now,
-      options?.collaborativeFlags,
-    );
-    if (riskCmp !== 0) {
-      return riskCmp;
     }
   }
 

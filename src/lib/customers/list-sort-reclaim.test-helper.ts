@@ -1,6 +1,6 @@
 import type { Customer } from "../../../drizzle/schema/customers";
 import { compareCustomersForList } from "@/lib/customers/list-sort";
-import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim";
+import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim-primitives";
 import { isPublicPoolCustomer } from "@/lib/permissions/customers";
 import { isReclamationEligibleCustomer } from "@/lib/reclamation/constants";
 import { isReclaimGraceActive } from "@/lib/reclamation/cycle";
@@ -133,6 +133,42 @@ export function compareNearReleaseRiskPriority(
   }
 
   return 0;
+}
+
+/** Test-only comparator matching DB list order with hidden near-release risk. */
+export function compareCustomersForListWithNearReleaseRisk(
+  a: ReclaimSortableCustomer,
+  b: ReclaimSortableCustomer,
+  reclaimDays: number,
+  now: Date = new Date(),
+  collaborativeFlags?: Map<string, boolean>,
+): number {
+  const pinA = a.isPinned === 1 ? 1 : 0;
+  const pinB = b.isPinned === 1 ? 1 : 0;
+  if (pinB !== pinA) {
+    return pinB - pinA;
+  }
+
+  if (pinA === 1) {
+    const pinnedAtA = a.pinnedAt ?? "";
+    const pinnedAtB = b.pinnedAt ?? "";
+    if (pinnedAtA !== pinnedAtB) {
+      return pinnedAtB.localeCompare(pinnedAtA);
+    }
+  }
+
+  const riskCmp = compareNearReleaseRiskPriority(
+    a,
+    b,
+    reclaimDays,
+    now,
+    collaborativeFlags,
+  );
+  if (riskCmp !== 0) {
+    return riskCmp;
+  }
+
+  return compareCustomersForList(a as Customer, b as Customer, now);
 }
 
 export function compareCustomersForReclaimSoonest(
