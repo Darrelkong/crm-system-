@@ -180,6 +180,9 @@ export function buildCustomersPagePath(params: CustomerListUrlParams): string {
 /**
  * URL `sort` is source of truth when present. When absent, applies remembered preference
  * without redirect — reclaim lists are deferred to client API hydration.
+ *
+ * Sort preference cookies are persisted only from `/api/customers` (Route Handler),
+ * never during page Server Component render.
  */
 export async function resolveCustomerListSortForPage(options: {
   userId: string;
@@ -194,13 +197,11 @@ export async function resolveCustomerListSortForPage(options: {
   const remembered = await readRememberedCustomerListSort(options.userId);
 
   if (options.sortParam != null) {
-    const mode = resolveCustomerListSortMode(
+    return resolveCustomerListSortMode(
       options.sortParam,
       remembered,
       { archived: options.archived },
     );
-    await rememberCustomerListSortPreference(options.userId, mode);
-    return mode;
   }
 
   return resolveCustomerListSortMode(undefined, remembered, {

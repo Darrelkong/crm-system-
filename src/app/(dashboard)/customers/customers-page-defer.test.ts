@@ -22,4 +22,12 @@ describe("customers page reclaim defer architecture", () => {
   it("passes requested reclaim sort to client for deferred hydration", () => {
     assert.match(pageSource, /sortMode=\{requestedSortMode\}/);
   });
+
+  it("does not persist sort cookies during page SSR", () => {
+    assert.doesNotMatch(pageSource, /rememberCustomerListSortPreference/);
+    assert.doesNotMatch(
+      readFileSync("src/lib/customers/customer-list-sort.ts", "utf8"),
+      /resolveCustomerListSortForPage[\s\S]*rememberCustomerListSortPreference/,
+    );
+  });
 });
