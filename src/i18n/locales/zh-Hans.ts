@@ -304,6 +304,8 @@ const zhHans: Messages = {
     sortModeReclaimSoonest: "自动释放优先",
     sortModeReclaimHelper:
       "优先显示距离自动释放较近的客户，倒计时仅在剩余 30 天内显示。",
+    listLoadFailed: "客户列表加载失败",
+    listLoadRetry: "重新加载",
     noSearchResults: "未找到匹配客户",
     list: "客户列表",
     details: "客户详情",

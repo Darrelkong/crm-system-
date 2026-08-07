@@ -1,4 +1,8 @@
 import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
+import {
+  CUSTOMER_LIST_PAGE_SIZE,
+  type CustomerListPaginationMeta,
+} from "@/lib/customers/customer-list-shared";
 import { buildCustomerListHref } from "@/components/ui/pagination";
 
 export type CustomerListFetchParams = {
@@ -13,6 +17,17 @@ export type CustomerListFetchParams = {
   filterOwnerId?: string;
   filterReclamationRisk?: string;
 };
+
+export function buildDeferredListPagination(
+  page: number,
+): CustomerListPaginationMeta {
+  return {
+    page,
+    pageSize: CUSTOMER_LIST_PAGE_SIZE,
+    total: 0,
+    pageCount: 1,
+  };
+}
 
 export function buildCustomerListApiSearchParams(
   params: CustomerListFetchParams,

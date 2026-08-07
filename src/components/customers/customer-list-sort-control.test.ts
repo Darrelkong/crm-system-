@@ -67,4 +67,15 @@ describe("customer list client-side fetch", () => {
     });
     assert.equal(path, "/customers?sort=default");
   });
+
+  it("defers reclaim initial load to client API with retry UX", () => {
+    assert.match(clientSource, /deferInitialListLoad/);
+    assert.match(clientSource, /deferredInitialLoadStarted/);
+    assert.match(clientSource, /listFetchInFlight/);
+    assert.match(clientSource, /listLoadFailed/);
+    assert.match(clientSource, /listLoadRetry/);
+    assert.match(clientSource, /contentType\.includes\("application\/json"\)/);
+    assert.match(clientSource, /showInitialListLoading/);
+    assert.match(clientSource, /showInitialListError/);
+  });
 });

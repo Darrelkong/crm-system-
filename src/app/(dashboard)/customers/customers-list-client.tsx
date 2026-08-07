@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
@@ -68,6 +68,8 @@ type Props = {
   heatFilter?: string;
   completenessBelowFilter?: string;
   sortMode?: CustomerListSortMode;
+  deferInitialListLoad?: boolean;
+  initialPage?: number;
   filterWorkView?: string;
   filterSalesStage?: string;
   filterOwnerId?: string;
@@ -123,6 +125,8 @@ export function CustomersListClient({
   heatFilter,
   completenessBelowFilter,
   sortMode = "default",
+  deferInitialListLoad = false,
+  initialPage = 1,
   filterWorkView,
   filterSalesStage,
   filterOwnerId,
@@ -133,7 +137,10 @@ export function CustomersListClient({
   const [listRows, setListRows] = useState(initialRows);
   const [listPagination, setListPagination] = useState(pagination);
   const [currentSortMode, setCurrentSortMode] = useState(sortMode);
-  const [listLoading, setListLoading] = useState(false);
+  const [listLoading, setListLoading] = useState(deferInitialListLoad);
+  const [listLoadError, setListLoadError] = useState(false);
+  const listFetchInFlight = useRef(false);
+  const deferredInitialLoadStarted = useRef(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(
     null,
@@ -164,12 +171,10 @@ export function CustomersListClient({
   const activePagination = isSearchActive
     ? (searchPagination ?? pagination)
     : listPagination;
-
-  useEffect(() => {
-    setListRows(initialRows);
-    setListPagination(pagination);
-    setCurrentSortMode(sortMode);
-  }, [initialRows, pagination, sortMode]);
+  const showInitialListLoading =
+    !isSearchActive && listLoading && listRows.length === 0;
+  const showInitialListError =
+    !isSearchActive && listLoadError && listRows.length === 0;
 
   function currentListFetchParams(
     page: number,
@@ -193,14 +198,33 @@ export function CustomersListClient({
     page: number,
     nextSort: CustomerListSortMode,
   ): Promise<boolean> {
+    if (listFetchInFlight.current) {
+      return false;
+    }
+    listFetchInFlight.current = true;
     setListLoading(true);
+    setListLoadError(false);
     try {
       const params = buildCustomerListApiSearchParams(
         currentListFetchParams(page, nextSort),
       );
       const res = await fetch(`/api/customers?${params.toString()}`);
-      const data = (await res.json()) as ApiCustomersResponse;
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        setListLoadError(true);
+        return false;
+      }
+
+      let data: ApiCustomersResponse;
+      try {
+        data = (await res.json()) as ApiCustomersResponse;
+      } catch {
+        setListLoadError(true);
+        return false;
+      }
+
       if (!res.ok || !data.items) {
+        setListLoadError(true);
         return false;
       }
 
@@ -216,10 +240,23 @@ export function CustomersListClient({
         buildCustomerListBrowserPath(currentListFetchParams(page, nextSort)),
       );
       return true;
+    } catch {
+      setListLoadError(true);
+      return false;
     } finally {
       setListLoading(false);
+      listFetchInFlight.current = false;
     }
   }
+
+  useEffect(() => {
+    if (!deferInitialListLoad || deferredInitialLoadStarted.current) {
+      return;
+    }
+    deferredInitialLoadStarted.current = true;
+    void fetchListPage(initialPage, sortMode);
+    // fetchListPage intentionally omitted — mount-once deferred hydration only.
+  }, [deferInitialListLoad, initialPage, sortMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSortChange(nextSort: CustomerListSortMode) {
     if (nextSort === currentSortMode || listLoading) {
@@ -482,7 +519,7 @@ export function CustomersListClient({
       <PageIntro
         title={showArchived ? t("customers.archivedList") : t("customers.title")}
         description={
-          searching || listLoading
+          searching || showInitialListLoading
             ? t("common.loading")
             : t(countKey, { count: String(activePagination.total) })
         }
@@ -597,6 +634,24 @@ export function CustomersListClient({
       )}
 
       {rows.length === 0 && !(isSearchActive && searching) ? (
+        showInitialListError ? (
+          <div className="surface-card flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <p className="text-sm crm-text-secondary">
+              {t("customers.listLoadFailed")}
+            </p>
+            <Button
+              variant="secondary"
+              onClick={() => void fetchListPage(listPagination.page, currentSortMode)}
+            >
+              {t("customers.listLoadRetry")}
+            </Button>
+          </div>
+        ) : showInitialListLoading ? (
+          <div className="surface-card flex flex-col items-center gap-3 px-6 py-14 text-center">
+            <LoadingSpinner size="lg" />
+            <p className="text-sm crm-text-secondary">{t("common.loading")}</p>
+          </div>
+        ) : (
         <EmptyState
           message={
             isSearchActive
@@ -613,6 +668,7 @@ export function CustomersListClient({
             ) : undefined
           }
         />
+        )
       ) : (
         <>
           <div className="space-y-3 md:hidden">

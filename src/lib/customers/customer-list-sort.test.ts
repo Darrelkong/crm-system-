@@ -7,7 +7,8 @@ import {
   encodeCustomerListSortPreference,
   parseCustomerListSortParam,
   resolveCustomerListSortMode,
-  shouldRedirectToRememberedSort,
+  resolveInitialServerListSortMode,
+  shouldDeferCustomerListLoad,
 } from "./customer-list-sort";
 
 describe("customer list sort preference", () => {
@@ -81,19 +82,29 @@ describe("customer list sort switch flow", () => {
 
   it("does not redirect to reclaim after default is remembered", () => {
     assert.equal(
-      shouldRedirectToRememberedSort(undefined, "default", false),
+      shouldDeferCustomerListLoad("default"),
       false,
     );
     assert.equal(
-      shouldRedirectToRememberedSort(undefined, null, false),
+      shouldDeferCustomerListLoad("default", { archived: true }),
       false,
     );
   });
 
-  it("still redirects bare /customers when reclaim is remembered", () => {
+  it("defers reclaim_soonest to client hydration instead of server redirect", () => {
+    assert.equal(shouldDeferCustomerListLoad("reclaim_soonest"), true);
     assert.equal(
-      shouldRedirectToRememberedSort(undefined, "reclaim_soonest", false),
-      true,
+      resolveInitialServerListSortMode("reclaim_soonest"),
+      "default",
+    );
+    assert.equal(shouldDeferCustomerListLoad("default"), false);
+    assert.equal(
+      resolveInitialServerListSortMode("default"),
+      "default",
+    );
+    assert.equal(
+      shouldDeferCustomerListLoad("reclaim_soonest", { archived: true }),
+      false,
     );
   });
 

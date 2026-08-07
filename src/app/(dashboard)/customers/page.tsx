@@ -25,7 +25,12 @@ import {
 } from "@/lib/customers/assignees";
 import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
 import { parseReclamationRiskParam } from "@/lib/customers/work-view-filter";
-import { resolveCustomerListSortForPage } from "@/lib/customers/customer-list-sort";
+import {
+  resolveCustomerListSortForPage,
+  resolveInitialServerListSortMode,
+  shouldDeferCustomerListLoad,
+} from "@/lib/customers/customer-list-sort";
+import { buildDeferredListPagination } from "@/lib/customers/customer-list-fetch";
 
 type Props = {
   searchParams: Promise<{
@@ -55,7 +60,7 @@ export default async function CustomersPage({ searchParams }: Props) {
     user,
     reclamationScope,
   );
-    const listFilter = {
+  const listFilter = {
     ...parseCustomerListFilter(user, {
       status: params.status,
       createdBy: params.createdBy,
@@ -69,7 +74,7 @@ export default async function CustomersPage({ searchParams }: Props) {
   };
   const showArchived = listFilter.status === "archived";
   const settings = await getEffectiveSettings(db);
-  const sortMode = await resolveCustomerListSortForPage({
+  const requestedSortMode = await resolveCustomerListSortForPage({
     userId: user.id,
     sortParam: params.sort,
     archived: showArchived,
@@ -85,8 +90,15 @@ export default async function CustomersPage({ searchParams }: Props) {
       page: params.page,
     },
   });
+  const deferInitialListLoad = shouldDeferCustomerListLoad(requestedSortMode, {
+    archived: showArchived,
+  });
+  const initialServerSortMode = resolveInitialServerListSortMode(
+    requestedSortMode,
+    { archived: showArchived },
+  );
   const listQueryOptions = {
-    sortMode,
+    sortMode: initialServerSortMode,
     automaticReclaimDays: settings.automaticReclaimDays,
   };
   const { page } = parseCustomerListPageParams({ page: params.page });
@@ -106,66 +118,68 @@ export default async function CustomersPage({ searchParams }: Props) {
   const hasScoringFilter =
     scoringFilter.heat != null || scoringFilter.completenessBelow != null;
 
-  let initialRows;
-  let pagination;
+  let initialRows: Awaited<ReturnType<typeof buildCustomerListRows>> = [];
+  let pagination = buildDeferredListPagination(page);
 
-  if (hasScoringFilter) {
-    const customers = await listCustomersForUser(
-      user,
-      listFilter,
-      10_000,
-      listQueryOptions,
-    );
-    const followUpSet = await getCustomerIdsWithFollowUps(
-      db,
-      customers.map((c) => c.id),
-    );
-    const assigneeIds = await getAssigneeCustomerIdsForUser(
-      db,
-      user.id,
-      customers.map((customer) => customer.id),
-    );
-    const views = filterCustomersWithScores(
-      getCustomersWithScores(
+  if (!deferInitialListLoad) {
+    if (hasScoringFilter) {
+      const customers = await listCustomersForUser(
         user,
-        customers,
+        listFilter,
+        10_000,
+        listQueryOptions,
+      );
+      const followUpSet = await getCustomerIdsWithFollowUps(
+        db,
+        customers.map((c) => c.id),
+      );
+      const assigneeIds = await getAssigneeCustomerIdsForUser(
+        db,
+        user.id,
+        customers.map((customer) => customer.id),
+      );
+      const views = filterCustomersWithScores(
+        getCustomersWithScores(
+          user,
+          customers,
+          followUpSet,
+          settings,
+          new Date(),
+          assigneeIds,
+        ),
+        scoringFilter,
+      );
+      pagination = buildCustomerListPagination(views.length, page);
+      const offset = (pagination.page - 1) * pagination.pageSize;
+      const pageViews = views.slice(offset, offset + pagination.pageSize);
+      initialRows = await buildCustomerListRows(db, pageViews);
+    } else {
+      const result = await listCustomersForUserPaginated(
+        user,
+        listFilter,
+        page,
+        listQueryOptions,
+      );
+      const followUpSet = await getCustomerIdsWithFollowUps(
+        db,
+        result.items.map((c) => c.id),
+      );
+      const assigneeIds = await getAssigneeCustomerIdsForUser(
+        db,
+        user.id,
+        result.items.map((customer) => customer.id),
+      );
+      const views = getCustomersWithScores(
+        user,
+        result.items,
         followUpSet,
         settings,
         new Date(),
         assigneeIds,
-      ),
-      scoringFilter,
-    );
-    pagination = buildCustomerListPagination(views.length, page);
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    const pageViews = views.slice(offset, offset + pagination.pageSize);
-    initialRows = await buildCustomerListRows(db, pageViews);
-  } else {
-    const result = await listCustomersForUserPaginated(
-      user,
-      listFilter,
-      page,
-      listQueryOptions,
-    );
-    const followUpSet = await getCustomerIdsWithFollowUps(
-      db,
-      result.items.map((c) => c.id),
-    );
-    const assigneeIds = await getAssigneeCustomerIdsForUser(
-      db,
-      user.id,
-      result.items.map((customer) => customer.id),
-    );
-    const views = getCustomersWithScores(
-      user,
-      result.items,
-      followUpSet,
-      settings,
-      new Date(),
-      assigneeIds,
-    );
-    initialRows = await buildCustomerListRows(db, views);
-    pagination = result.pagination;
+      );
+      initialRows = await buildCustomerListRows(db, views);
+      pagination = result.pagination;
+    }
   }
 
   const creatorOptions =
@@ -189,7 +203,9 @@ export default async function CustomersPage({ searchParams }: Props) {
           ? String(scoringFilter.completenessBelow)
           : undefined
       }
-      sortMode={sortMode}
+      sortMode={requestedSortMode}
+      deferInitialListLoad={deferInitialListLoad}
+      initialPage={page}
       filterWorkView={params.workView}
       filterSalesStage={params.salesStage}
       filterOwnerId={params.ownerId}

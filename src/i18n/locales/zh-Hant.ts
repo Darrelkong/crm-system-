@@ -304,6 +304,8 @@ const zhHant: Messages = {
     sortModeReclaimSoonest: "自動釋放優先",
     sortModeReclaimHelper:
       "優先顯示距離自動釋放較近的客戶，倒數僅在剩餘 30 天內顯示。",
+    listLoadFailed: "客戶列表載入失敗",
+    listLoadRetry: "重新載入",
     noSearchResults: "未找到匹配客戶",
     list: "客戶列表",
     details: "客戶詳情",

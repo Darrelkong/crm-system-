@@ -318,6 +318,8 @@ const en = {
     sortModeReclaimSoonest: "Auto-release priority",
     sortModeReclaimHelper:
       "Customers closer to auto-release are shown first. The countdown appears only within the final 30 days.",
+    listLoadFailed: "Failed to load customer list",
+    listLoadRetry: "Reload",
     noSearchResults: "No matching clients found",
     list: "Client List",
     details: "Client Details",

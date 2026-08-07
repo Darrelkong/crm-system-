@@ -1,5 +1,4 @@
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 export const CUSTOMER_LIST_SORT_MODES = ["default", "reclaim_soonest"] as const;
 
@@ -45,17 +44,26 @@ export function resolveCustomerListSortMode(
   return remembered ?? "default";
 }
 
-/** Whether a bare `/customers` visit should redirect to remembered reclaim sort. */
-export function shouldRedirectToRememberedSort(
-  sortParam: string | undefined,
-  remembered: CustomerListSortMode | null,
-  archived: boolean,
+/** Whether reclaim list data should be loaded client-side instead of page SSR. */
+export function shouldDeferCustomerListLoad(
+  sortMode: CustomerListSortMode,
+  options?: { archived?: boolean },
 ): boolean {
-  return (
-    !archived &&
-    sortParam == null &&
-    remembered === "reclaim_soonest"
-  );
+  if (options?.archived) {
+    return false;
+  }
+  return sortMode === "reclaim_soonest";
+}
+
+/** Server-side list sort for SSR queries; reclaim is always deferred to the client API. */
+export function resolveInitialServerListSortMode(
+  requestedSortMode: CustomerListSortMode,
+  options?: { archived?: boolean },
+): CustomerListSortMode {
+  if (shouldDeferCustomerListLoad(requestedSortMode, options)) {
+    return "default";
+  }
+  return requestedSortMode;
 }
 
 export function encodeCustomerListSortPreference(
@@ -170,8 +178,8 @@ export function buildCustomersPagePath(params: CustomerListUrlParams): string {
 }
 
 /**
- * URL `sort` is source of truth. When absent, redirect to remembered preference.
- * Persists explicit sort choices to a user-scoped cookie.
+ * URL `sort` is source of truth when present. When absent, applies remembered preference
+ * without redirect — reclaim lists are deferred to client API hydration.
  */
 export async function resolveCustomerListSortForPage(options: {
   userId: string;
@@ -193,15 +201,6 @@ export async function resolveCustomerListSortForPage(options: {
     );
     await rememberCustomerListSortPreference(options.userId, mode);
     return mode;
-  }
-
-  if (shouldRedirectToRememberedSort(options.sortParam, remembered, options.archived)) {
-    redirect(
-      buildCustomersPagePath({
-        ...options.preserveParams,
-        sort: remembered!,
-      }),
-    );
   }
 
   return resolveCustomerListSortMode(undefined, remembered, {
