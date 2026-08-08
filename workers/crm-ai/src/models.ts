@@ -33,7 +33,12 @@ export const BENCHMARK_MODELS = [MODEL_QWEN, MODEL_LLAMA] as const;
 export function resolveTimeoutMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
-  return Math.min(20_000, Math.max(15_000, Math.round(parsed)));
+  const rounded = Math.round(parsed);
+  // Tests may set a short deadline via CRM_AI_TIMEOUT_MS (e.g. 50ms).
+  if (process.env.NODE_ENV === "test" && rounded >= 50) {
+    return rounded;
+  }
+  return Math.min(20_000, Math.max(15_000, rounded));
 }
 
 export function resolveModelForTask(

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   handleCrmAiRequest,
   parseCrmAiRequestBody,
+  runHealthProbe,
 } from "../src/service";
 import {
   MODEL_LLAMA,
@@ -94,6 +95,65 @@ describe("crm-ai service contract", () => {
     assert.equal(result.ok, false);
     if (result.ok) throw new Error("expected failure");
     assert.equal(result.error, "timeout");
+  });
+
+  it("maps cloudflare error code 3007 to timeout", async () => {
+    const env = makeEnv(async () => {
+      const error = new Error("inference timeout") as Error & { code: number };
+      error.code = 3007;
+      throw error;
+    });
+    const result = await handleCrmAiRequest(env, {
+      task: "health_probe",
+      model: MODEL_QWEN,
+    });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("expected failure");
+    assert.equal(result.error, "timeout");
+  });
+
+  it("maps cloudflare error code 3008 to timeout", async () => {
+    const env = makeEnv(async () => {
+      const error = new Error("inference aborted") as Error & { code: number };
+      error.code = 3008;
+      throw error;
+    });
+    const result = await handleCrmAiRequest(env, {
+      task: "structured_probe",
+      model: MODEL_QWEN,
+    });
+    assert.equal(result.ok, false);
+    if (result.ok) throw new Error("expected failure");
+    assert.equal(result.error, "timeout");
+  });
+
+  it("resolves timeout when AI.run never settles", async () => {
+    const env: CrmAiEnv = {
+      AI: {
+        run: () => new Promise(() => {}),
+      } as unknown as Ai,
+      CRM_AI_TIMEOUT_MS: "50",
+    };
+
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => {
+      unhandled.push(reason);
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      const startedAt = Date.now();
+      const result = await runHealthProbe(env);
+      assert.equal(result.ok, false);
+      if (result.ok) throw new Error("expected failure");
+      assert.equal(result.error, "timeout");
+      assert.ok(Date.now() - startedAt < 500, "should use short test deadline");
+
+      await new Promise((resolve) => setTimeout(resolve, 100));
+      assert.equal(unhandled.length, 0, "late provider promise must not reject");
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 
   it("retries at most once on invalid_output", async () => {

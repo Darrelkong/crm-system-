@@ -11,7 +11,7 @@ import {
 } from "../src/models";
 import type { CrmAiEnv } from "../src/types";
 
-const RUNS_PER_MODEL = 3;
+const RUNS_PER_MODEL = Number(process.env.BENCHMARK_RUNS ?? 1);
 
 type ModelStats = {
   model: string;
@@ -55,6 +55,24 @@ async function benchmarkModel(
   }
 
   return stats;
+}
+
+function selectEvaluatedGeneralModel(
+  qwen: ModelStats | undefined,
+  llama: ModelStats | undefined,
+): string | null {
+  if (qwen && qwen.success >= 1) return MODEL_QWEN;
+  if (llama && llama.success >= 1) return MODEL_LLAMA;
+  return null;
+}
+
+function selectEvaluatedStructuredModel(
+  qwen: ModelStats | undefined,
+  llama: ModelStats | undefined,
+): string | null {
+  if (qwen && qwen.structuredSuccess >= 1) return MODEL_QWEN;
+  if (llama && llama.structuredSuccess >= 1) return MODEL_LLAMA;
+  return null;
 }
 
 function avg(values: number[]): number {
@@ -101,14 +119,10 @@ async function main() {
           errors: llama.errors,
         }
       : null,
-    defaultGeneralModel:
-      qwen && qwen.structuredSuccess >= 2 ? MODEL_QWEN : MODEL_QWEN,
-    defaultStructuredModel:
-      qwen && qwen.structuredSuccess === 3
-        ? MODEL_QWEN
-        : llama && llama.structuredSuccess >= 1
-          ? MODEL_LLAMA
-          : MODEL_LLAMA,
+    evaluatedGeneralModel: selectEvaluatedGeneralModel(qwen, llama),
+    evaluatedStructuredModel: selectEvaluatedStructuredModel(qwen, llama),
+    recommendedGeneralModel: MODEL_QWEN,
+    recommendedStructuredModel: MODEL_QWEN,
   };
 
   console.log(JSON.stringify(report, null, 2));

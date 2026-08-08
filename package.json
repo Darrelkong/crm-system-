@@ -26,7 +26,7 @@
     "cron:deploy": "wrangler deploy -c wrangler.cron.jsonc",
     "cron:backup:deploy": "wrangler deploy -c wrangler.backup-cron.jsonc",
     "cron:recycle:deploy": "wrangler deploy -c wrangler.recycle-cron.jsonc",
-    "crm-ai:test": "node --import tsx --test workers/crm-ai/tests/service.test.ts",
+    "crm-ai:test": "NODE_ENV=test node --import tsx --test workers/crm-ai/tests/service.test.ts",
     "crm-ai:benchmark": "node --import tsx workers/crm-ai/scripts/benchmark-remote.ts",
     "crm-ai:deploy": "wrangler deploy --config workers/crm-ai/wrangler.jsonc",
     "auto:backup": "node scripts/auto-backup-github.mjs",

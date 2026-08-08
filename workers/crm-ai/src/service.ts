@@ -21,6 +21,14 @@ import type {
 
 const MAX_RETRIES = 1;
 
+/** Returned when the caller response deadline is reached (not GPU cancellation). */
+export class ResponseDeadlineError extends Error {
+  constructor() {
+    super("response_deadline");
+    this.name = "ResponseDeadlineError";
+  }
+}
+
 type GatewayOptions = {
   gateway: {
     id: string;
@@ -46,17 +54,41 @@ function gatewayOptions(task: SystemAiTask): GatewayOptions {
 }
 
 function mapRunFailure(error: unknown): AiServiceError {
+  if (error instanceof ResponseDeadlineError) {
+    return "timeout";
+  }
   if (error instanceof DOMException && error.name === "AbortError") {
     return "timeout";
   }
+
+  const code =
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    typeof (error as { code: unknown }).code === "number"
+      ? (error as { code: number }).code
+      : undefined;
+  if (code === 3007 || code === 3008) {
+    return "timeout";
+  }
+
   const message =
-    error instanceof Error ? error.message.toLowerCase() : String(error);
+    error instanceof Error ? error.message.toLowerCase() : String(error).toLowerCase();
+  if (
+    message.includes("408") ||
+    message.includes("timeout") ||
+    message.includes("aborted") ||
+    message.includes("3007") ||
+    message.includes("3008")
+  ) {
+    return "timeout";
+  }
   if (message.includes("rate") || message.includes("429")) {
     return "rate_limited";
   }
   if (
     message.includes("json mode couldn't be met") ||
-    message.includes("invalid")
+    (message.includes("invalid") && !message.includes("invalid_output"))
   ) {
     return "invalid_output";
   }
@@ -102,16 +134,30 @@ function parseJsonValue(value: unknown): unknown | null {
   return null;
 }
 
-async function runWithTimeout<T>(
+/**
+ * Application response deadline via Promise.race.
+ * Workers AI binding does not expose caller AbortSignal cancellation;
+ * inference may continue after we return timeout to the caller.
+ */
+export async function runWithResponseDeadline<T>(
   timeoutMs: number,
-  fn: (signal: AbortSignal) => Promise<T>,
+  operation: () => Promise<T>,
 ): Promise<T> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const deadlinePromise = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => reject(new ResponseDeadlineError()), timeoutMs);
+  });
+
+  const taskPromise = operation();
+
   try {
-    return await fn(controller.signal);
+    return await Promise.race([taskPromise, deadlinePromise]);
   } finally {
-    clearTimeout(timer);
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    // Late-settling provider work must not surface as unhandled rejection.
+    void taskPromise.catch(() => {});
   }
 }
 
@@ -122,12 +168,9 @@ async function invokeModel(
   payload: Record<string, unknown>,
   timeoutMs: number,
 ): Promise<unknown> {
-  return runWithTimeout(timeoutMs, async (signal) => {
-    if (signal.aborted) {
-      throw new DOMException("Aborted", "AbortError");
-    }
-    return env.AI.run(model, payload, gatewayOptions(task));
-  });
+  return runWithResponseDeadline(timeoutMs, () =>
+    env.AI.run(model, payload, gatewayOptions(task)),
+  );
 }
 
 function buildStructuredPayload(): Record<string, unknown> {
