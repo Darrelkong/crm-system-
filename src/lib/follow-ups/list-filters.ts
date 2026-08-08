@@ -9,6 +9,7 @@ export type FollowUpListFilters = {
   channel: string;
   fromDate: string;
   toDate: string;
+  validOnly: boolean;
 };
 
 export const DEFAULT_FOLLOW_UP_LIST_FILTERS: FollowUpListFilters = {
@@ -17,6 +18,7 @@ export const DEFAULT_FOLLOW_UP_LIST_FILTERS: FollowUpListFilters = {
   channel: "",
   fromDate: "",
   toDate: "",
+  validOnly: false,
 };
 
 /** Stable URL query keys for this page only. */
@@ -26,6 +28,7 @@ export const FOLLOW_UP_LIST_FILTER_KEYS = [
   "from",
   "to",
   "staff",
+  "valid",
 ] as const;
 
 export type FollowUpListFilterKey = (typeof FOLLOW_UP_LIST_FILTER_KEYS)[number];
@@ -78,6 +81,13 @@ export function normalizeFollowUpListDate(
   return trimmed;
 }
 
+export function parseFollowUpListValidOnly(
+  raw: string | null | undefined,
+): boolean {
+  const trimmed = (raw ?? "").trim().toLowerCase();
+  return trimmed === "1" || trimmed === "true";
+}
+
 export function parseFollowUpListFilters(
   params: URLSearchParams,
 ): FollowUpListFilters {
@@ -87,6 +97,7 @@ export function parseFollowUpListFilters(
     fromDate: normalizeFollowUpListDate(params.get("from")),
     toDate: normalizeFollowUpListDate(params.get("to")),
     staffUserId: normalizeFollowUpListStaffId(params.get("staff")),
+    validOnly: parseFollowUpListValidOnly(params.get("valid")),
   };
 }
 
@@ -106,6 +117,7 @@ export function countActiveFollowUpListFilters(
   if (filters.fromDate) count += 1;
   if (filters.toDate) count += 1;
   if (filters.staffUserId) count += 1;
+  if (filters.validOnly) count += 1;
   return count;
 }
 
@@ -140,6 +152,7 @@ export function applyFollowUpListFiltersToSearchParams(
   if (fromDate) next.set("from", fromDate);
   if (toDate) next.set("to", toDate);
   if (staffUserId) next.set("staff", staffUserId);
+  if (filters.validOnly) next.set("valid", "1");
 
   return next;
 }
@@ -153,7 +166,8 @@ export function followUpListFiltersEqual(
     a.channel === b.channel &&
     a.fromDate === b.fromDate &&
     a.toDate === b.toDate &&
-    a.staffUserId === b.staffUserId
+    a.staffUserId === b.staffUserId &&
+    a.validOnly === b.validOnly
   );
 }
 

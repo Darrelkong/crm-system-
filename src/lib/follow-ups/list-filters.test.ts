@@ -34,6 +34,17 @@ describe("follow-up list filters", () => {
       fromDate: "2026-01-01",
       toDate: "2026-01-31",
       staffUserId: "user_1",
+      validOnly: false,
+    });
+  });
+
+  it("parses valid-only filter", () => {
+    const params = new URLSearchParams("valid=1&from=2026-08-08&to=2026-08-08");
+    assert.deepEqual(parseFollowUpListFilters(params), {
+      ...DEFAULT_FOLLOW_UP_LIST_FILTERS,
+      fromDate: "2026-08-08",
+      toDate: "2026-08-08",
+      validOnly: true,
     });
   });
 
@@ -78,6 +89,7 @@ describe("follow-up list filters", () => {
       fromDate: "2026-07-01",
       toDate: "2026-07-20",
       staffUserId: "abc-123",
+      validOnly: false,
     };
     const params = applyFollowUpListFiltersToSearchParams(
       filters,
@@ -134,6 +146,7 @@ describe("follow-up list filters", () => {
         fromDate: "2026-01-01",
         toDate: "2026-01-31",
         staffUserId: "u1",
+        validOnly: false,
       }),
       5,
     );

@@ -9,6 +9,7 @@ import {
   TREND_RANGE_DAYS,
   type TrendRangeDays,
 } from "@/lib/reports/dashboard-trends-period";
+import { buildTeamValidFollowUpsHref } from "@/lib/reports/dashboard-drilldown-links";
 
 type Props = {
   overview: AdminTeamExecutionOverview | null;
@@ -132,7 +133,13 @@ export function AdminTeamExecutionCard({ overview, error = false }: Props) {
                         <MetricLink href={member.customersHref} value={member.currentCustomers} />
                       </td>
                       <td className="px-2 py-3 tabular-nums">
-                        {activity.validFollowUps}
+                        <MetricLink
+                          href={buildTeamValidFollowUpsHref(
+                            member.userId,
+                            periodDays,
+                          )}
+                          value={activity.validFollowUps}
+                        />
                       </td>
                       {overview.showStageProgress && (
                         <td className="px-2 py-3 tabular-nums">
@@ -147,15 +154,11 @@ export function AdminTeamExecutionCard({ overview, error = false }: Props) {
                         />
                       </td>
                       <td className="px-2 py-3 tabular-nums">
-                        <span
-                          className={
-                            member.autoReleaseWithin7Days > 0
-                              ? "text-amber-700"
-                              : undefined
-                          }
-                        >
-                          {member.autoReleaseWithin7Days}
-                        </span>
+                        <MetricLink
+                          href={member.reclamationHref}
+                          value={member.autoReleaseWithin7Days}
+                          warn={member.autoReleaseWithin7Days > 0}
+                        />
                       </td>
                       <td className="px-2 py-3 tabular-nums">
                         {member.pendingItems}
@@ -181,6 +184,10 @@ export function AdminTeamExecutionCard({ overview, error = false }: Props) {
                       label={t("dashboard.teamExecutionValidFollowUps")}
                       value={activity.validFollowUps}
                       hint={t("dashboard.teamExecutionPeriodActivity")}
+                      href={buildTeamValidFollowUpsHref(
+                        member.userId,
+                        periodDays,
+                      )}
                     />
                     {overview.showStageProgress && (
                       <MetricBlock
@@ -206,6 +213,7 @@ export function AdminTeamExecutionCard({ overview, error = false }: Props) {
                       label={t("dashboard.teamExecutionAutoRelease7d")}
                       value={member.autoReleaseWithin7Days}
                       hint={t("dashboard.teamExecutionCurrentStatus")}
+                      href={member.reclamationHref}
                       warn={member.autoReleaseWithin7Days > 0}
                     />
                     <MetricBlock
@@ -239,7 +247,9 @@ function MetricLink({
   return (
     <Link
       href={href}
-      className={warn ? "text-amber-700 hover:underline" : "text-[#2F6FB3] hover:underline"}
+      className={`focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6FB3] focus-visible:ring-offset-2 ${
+        warn ? "text-amber-700 hover:underline" : "text-[#2F6FB3] hover:underline"
+      }`}
     >
       {value}
     </Link>
@@ -269,7 +279,12 @@ function MetricBlock({
         }`}
       >
         {href && value > 0 ? (
-          <Link href={href} className="hover:underline">
+          <Link
+            href={href}
+            className={`hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2F6FB3] focus-visible:ring-offset-2 ${
+              warn ? "text-amber-700" : ""
+            }`}
+          >
             {value}
           </Link>
         ) : (

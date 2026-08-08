@@ -325,6 +325,7 @@ describe("dashboard phase 5C permissions DB", () => {
         "number",
       );
       assert.ok(member.customersHref.includes("ownerId="));
+      assert.ok(member.reclamationHref.includes("reclamationRisk=team"));
       assert.equal(/rank|score/i.test(member.customersHref), false);
     }
     const staffDirectory = await listActiveStaffUsers();

@@ -29,6 +29,10 @@ import {
   type FollowUpListFilters,
 } from "@/lib/follow-ups/list-filters";
 import {
+  applyFollowUpListItemFilters,
+  filtersForFollowUpListRole,
+} from "@/lib/follow-ups/apply-list-filters";
+import {
   FOLLOW_UPS_RETURN_ITEM_ATTR,
   buildFollowUpsReturnStorageKey,
   clearFollowUpsReturnMarkerOnHistory,
@@ -52,7 +56,6 @@ import {
 } from "@/lib/follow-ups/safe-return-to";
 import { formatHongKongDate, formatHongKongDateTime } from "@/lib/timezone";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
-import { getCustomerDisplayName } from "@/lib/customers/customer-display-name";
 import { cn } from "@/lib/cn";
 
 const linkClass = "text-[#2F6FB3] hover:text-[#1F4E79] hover:underline";
@@ -70,10 +73,7 @@ function filtersForRole(
   filters: FollowUpListFilters,
   role: "admin" | "staff",
 ): FollowUpListFilters {
-  if (role === "staff") {
-    return { ...filters, staffUserId: "" };
-  }
-  return filters;
+  return filtersForFollowUpListRole(filters, role);
 }
 
 function applyFilters(
@@ -81,40 +81,7 @@ function applyFilters(
   filters: FollowUpListFilters,
   locale: string,
 ): FollowUpListItem[] {
-  const search = filters.search.trim().toLowerCase();
-
-  return items.filter((item) => {
-    if (search) {
-      const displayName = getCustomerDisplayName({
-        customerName: item.customerName,
-        nameStatus: item.nameStatus,
-        locale,
-      }).toLowerCase();
-      const rawName = item.customerName.toLowerCase();
-      if (!displayName.includes(search) && !rawName.includes(search)) {
-        return false;
-      }
-    }
-    if (filters.staffUserId && item.userId !== filters.staffUserId) {
-      return false;
-    }
-    if (filters.channel && item.channel !== filters.channel) {
-      return false;
-    }
-    if (filters.fromDate) {
-      const itemDate = formatHongKongDate(item.followUpTime, "");
-      if (!itemDate || itemDate < filters.fromDate) {
-        return false;
-      }
-    }
-    if (filters.toDate) {
-      const itemDate = formatHongKongDate(item.followUpTime, "");
-      if (!itemDate || itemDate > filters.toDate) {
-        return false;
-      }
-    }
-    return true;
-  });
+  return applyFollowUpListItemFilters(items, filters, locale);
 }
 
 function FollowUpRowContent({
@@ -604,14 +571,19 @@ export function FollowUpsListClient({
         staffNameById.get(filters.staffUserId) ?? filters.staffUserId,
       );
     }
+    if (filters.validOnly) {
+      chips.push(t("customers.validFollowUp"));
+    }
     return chips;
   }, [
     filters.search,
     filters.channel,
     filters.staffUserId,
+    filters.validOnly,
     dateRangeSummary,
     followUpChannel,
     staffNameById,
+    t,
   ]);
 
   const showNoDataEmpty = items.length === 0;

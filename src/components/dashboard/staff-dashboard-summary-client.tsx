@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { KpiCard, kpiIcons } from "@/components/dashboard/dashboard-widgets";
 import { useTranslation } from "@/i18n/provider";
+import { buildValidFollowUpsTodayHref } from "@/lib/reports/dashboard-drilldown-links";
 import type { StaffDashboardSummary } from "@/lib/reports/dashboard-summary-types";
 
 const linkClass =
@@ -15,6 +16,7 @@ type Props = {
 export function StaffDashboardSummaryClient({ summary }: Props) {
   const { t } = useTranslation();
   const { metrics } = summary;
+  const validFollowUpsTodayHref = buildValidFollowUpsTodayHref();
 
   return (
     <div className="space-y-6">
@@ -75,11 +77,21 @@ export function StaffDashboardSummaryClient({ summary }: Props) {
               icon={kpiIcons.clipboard}
             />
           </Link>
-          <KpiCard
-            label={t("dashboard.validFollowUpsToday")}
-            value={metrics.validFollowUpsToday}
-            icon={kpiIcons.trend}
-          />
+          {metrics.validFollowUpsToday > 0 ? (
+            <Link href={validFollowUpsTodayHref} className="block">
+              <KpiCard
+                label={t("dashboard.validFollowUpsToday")}
+                value={metrics.validFollowUpsToday}
+                icon={kpiIcons.trend}
+              />
+            </Link>
+          ) : (
+            <KpiCard
+              label={t("dashboard.validFollowUpsToday")}
+              value={metrics.validFollowUpsToday}
+              icon={kpiIcons.trend}
+            />
+          )}
         </div>
       </div>
 
