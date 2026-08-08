@@ -3,5 +3,6 @@ interface CloudflareEnv {
   ATTACHMENTS: R2Bucket;
   ASSETS: Fetcher;
   WORKER_SELF_REFERENCE: Fetcher;
+  AI_SERVICE: Fetcher;
   AI_API_KEY?: string;
 }

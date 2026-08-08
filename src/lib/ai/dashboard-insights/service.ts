@@ -27,11 +27,8 @@ import {
 } from "./mock-constants";
 import { validateDashboardAiProviderOutput } from "./validate-output";
 import { logDashboardAiAudit } from "./logging";
-import {
-  buildDeterministicAdminBrief,
-  buildDeterministicStaffActions,
-} from "./fallback";
-import type { AdminAiProviderContext } from "./context/admin-context";
+import { generateAdminManagementBriefInsight } from "./admin-insight";
+import { buildDeterministicStaffActions } from "./fallback";
 import type { StaffAiProviderContext } from "./context/staff-context";
 import type {
   DashboardAiInsightResult,
@@ -75,19 +72,10 @@ function buildStatusResult(
 }
 
 function buildSystemFallbackPayload(
-  insightType: GenerateDashboardAiInsightInput["insightType"],
   providerContext: unknown,
 ) {
-  if (insightType === "admin_management_brief") {
-    return {
-      insightType,
-      insight: buildDeterministicAdminBrief(
-        providerContext as AdminAiProviderContext,
-      ),
-    };
-  }
   return {
-    insightType,
+    insightType: "staff_today_actions" as const,
     insight: buildDeterministicStaffActions(
       providerContext as StaffAiProviderContext,
     ),
@@ -110,6 +98,10 @@ export async function generateDashboardAiInsight(
   const now = input.now ?? new Date();
   const locale = input.locale;
   assertInsightTypeAllowedForViewer(input);
+
+  if (input.insightType === "admin_management_brief") {
+    return generateAdminManagementBriefInsight(input, db);
+  }
 
   const aiSettings = await getEffectiveAiSettings(db);
   if (!aiSettings.aiEnabled) {
@@ -182,7 +174,6 @@ export async function generateDashboardAiInsight(
     if (providerConfig.providerKind === "mock") {
       if (isProductionRuntime()) {
         const fallback = buildSystemFallbackPayload(
-          input.insightType,
           contextBundle.providerContext,
         );
         const result: DashboardAiInsightResult = {

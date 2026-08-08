@@ -5,6 +5,7 @@ export const MODEL_LLAMA = "@cf/meta/llama-3.1-8b-instruct-fast";
 export const AI_GATEWAY_ID = "default";
 
 export const DEFAULT_TIMEOUT_MS = 18_000;
+export const ADMIN_BRIEF_TOTAL_DEADLINE_MS = 20_000;
 export const DEFAULT_TEMPERATURE = 0.2;
 export const DEFAULT_MAX_TOKENS = 512;
 export const MAX_SUMMARY_LENGTH = 600;
@@ -30,11 +31,24 @@ export const HEALTH_PROBE_JSON_SCHEMA = {
 
 export const BENCHMARK_MODELS = [MODEL_QWEN, MODEL_LLAMA] as const;
 
+export const ADMIN_MANAGEMENT_BRIEF_MODEL = MODEL_QWEN;
+export const ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES = 1;
+
 export function resolveTimeoutMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
   const rounded = Math.round(parsed);
   // Tests may set a short deadline via CRM_AI_TIMEOUT_MS (e.g. 50ms).
+  if (process.env.NODE_ENV === "test" && rounded >= 50) {
+    return rounded;
+  }
+  return Math.min(20_000, Math.max(15_000, rounded));
+}
+
+export function resolveAdminBriefDeadlineMs(raw: string | undefined): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return ADMIN_BRIEF_TOTAL_DEADLINE_MS;
+  const rounded = Math.round(parsed);
   if (process.env.NODE_ENV === "test" && rounded >= 50) {
     return rounded;
   }

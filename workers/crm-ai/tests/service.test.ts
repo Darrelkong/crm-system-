@@ -200,10 +200,9 @@ describe("crm-ai architecture guards", () => {
     assert.doesNotMatch(config, /custom_domain/);
   });
 
-  it("index only accepts POST probe tasks", () => {
+  it("index only accepts POST and has no customer insight task", () => {
     const source = readFileSync("workers/crm-ai/src/index.ts", "utf8");
     assert.match(source, /request.method !== "POST"/);
-    assert.doesNotMatch(source, /admin_management_brief/);
     assert.doesNotMatch(source, /customer_insight/);
   });
 });

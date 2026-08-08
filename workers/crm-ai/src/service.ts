@@ -1,19 +1,39 @@
 import {
   AI_GATEWAY_ID,
+  ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES,
+  ADMIN_MANAGEMENT_BRIEF_MODEL,
   DEFAULT_MAX_TOKENS,
   DEFAULT_TEMPERATURE,
   HEALTH_PROBE_JSON_SCHEMA,
   HEALTH_PROBE_SYSTEM_PROMPT,
   SYNTHETIC_HEALTH_PROBE_USER_PROMPT,
+  resolveAdminBriefDeadlineMs,
   resolveModelForTask,
   resolveTimeoutMs,
 } from "./models";
+import {
+  ADMIN_BRIEF_JSON_SCHEMA,
+  ADMIN_BRIEF_MAX_TOKENS,
+  ADMIN_BRIEF_TEMPERATURE,
+  ADMIN_MANAGEMENT_BRIEF_PROMPT_VERSION,
+  buildAdminBriefSystemPrompt,
+  buildAdminBriefUserPrompt,
+} from "./admin-brief";
 import { logCrmAiEvent } from "./logging";
 import { validateHealthProbeOutput } from "./validate";
+import {
+  validateAdminBriefContext,
+  validateAdminBriefLocale,
+  type ValidatedAdminContext,
+} from "./validate-admin-context";
+import { validateAdminBriefOutput } from "./validate-admin-output";
 import type {
+  AdminBriefOutput,
   AiServiceError,
   AiServiceResult,
+  CrmAiAdminBriefRequest,
   CrmAiEnv,
+  CrmAiHandleResult,
   CrmAiRequest,
   HealthProbeOutput,
   SystemAiTask,
@@ -35,19 +55,22 @@ type GatewayOptions = {
     collectLog: false;
     metadata: {
       task: SystemAiTask;
-      schemaVersion: "10a-v1";
+      schemaVersion: string;
     };
   };
 };
 
-function gatewayOptions(task: SystemAiTask): GatewayOptions {
+function gatewayOptions(
+  task: SystemAiTask,
+  schemaVersion: string,
+): GatewayOptions {
   return {
     gateway: {
       id: AI_GATEWAY_ID,
       collectLog: false,
       metadata: {
         task,
-        schemaVersion: "10a-v1",
+        schemaVersion,
       },
     },
   };
@@ -165,11 +188,12 @@ async function invokeModel(
   env: CrmAiEnv,
   model: string,
   task: SystemAiTask,
+  schemaVersion: string,
   payload: Record<string, unknown>,
   timeoutMs: number,
 ): Promise<unknown> {
   return runWithResponseDeadline(timeoutMs, () =>
-    env.AI.run(model, payload, gatewayOptions(task)),
+    env.AI.run(model, payload, gatewayOptions(task, schemaVersion)),
   );
 }
 
@@ -199,6 +223,7 @@ async function runStructuredAttempt(
     env,
     model,
     task,
+    "10a-v1",
     buildStructuredPayload(),
     timeoutMs,
   );
@@ -307,15 +332,136 @@ export async function runStructuredProbe(
   return { ok: false, error: lastError };
 }
 
+function buildAdminBriefPayload(
+  locale: string,
+  context: ValidatedAdminContext,
+): Record<string, unknown> {
+  const contextJson = JSON.stringify(context, null, 2);
+  return {
+    messages: [
+      { role: "system", content: buildAdminBriefSystemPrompt(locale) },
+      { role: "user", content: buildAdminBriefUserPrompt(contextJson) },
+    ],
+    temperature: ADMIN_BRIEF_TEMPERATURE,
+    max_tokens: ADMIN_BRIEF_MAX_TOKENS,
+    stream: false,
+    response_format: {
+      type: "json_schema",
+      json_schema: ADMIN_BRIEF_JSON_SCHEMA,
+    },
+  };
+}
+
+async function runAdminBriefAttempt(
+  env: CrmAiEnv,
+  request: CrmAiAdminBriefRequest,
+  timeoutMs: number,
+): Promise<AiServiceResult<AdminBriefOutput>> {
+  const validatedContext = validateAdminBriefContext(request.context);
+  if (!validatedContext) {
+    return { ok: false, error: "invalid_output" };
+  }
+
+  const raw = await invokeModel(
+    env,
+    ADMIN_MANAGEMENT_BRIEF_MODEL,
+    "admin_management_brief",
+    request.schemaVersion,
+    buildAdminBriefPayload(request.locale, validatedContext),
+    timeoutMs,
+  );
+  const structured = parseJsonValue(extractStructuredPayload(raw));
+  if (!structured || !validateAdminBriefOutput(structured)) {
+    return { ok: false, error: "invalid_output" };
+  }
+  return {
+    ok: true,
+    data: structured,
+    model: ADMIN_MANAGEMENT_BRIEF_MODEL,
+  };
+}
+
+export async function runAdminManagementBrief(
+  env: CrmAiEnv,
+  request: CrmAiAdminBriefRequest,
+): Promise<AiServiceResult<AdminBriefOutput>> {
+  const task: SystemAiTask = "admin_management_brief";
+  const totalDeadlineMs = resolveAdminBriefDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  const startedAt = Date.now();
+
+  let lastError: AiServiceError = "internal_error";
+
+  for (let attempt = 0; attempt <= ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES; attempt++) {
+    const elapsed = Date.now() - startedAt;
+    const remainingMs = totalDeadlineMs - elapsed;
+    if (remainingMs <= 100) {
+      lastError = "timeout";
+      break;
+    }
+
+    try {
+      const result = await runAdminBriefAttempt(env, request, remainingMs);
+      if (
+        !result.ok &&
+        result.error === "invalid_output" &&
+        attempt < ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES
+      ) {
+        lastError = result.error;
+        continue;
+      }
+      if (!result.ok && result.error === "model_unavailable" && attempt < ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES) {
+        lastError = result.error;
+        continue;
+      }
+      if (!result.ok && result.error === "timeout") {
+        lastError = result.error;
+        break;
+      }
+
+      logCrmAiEvent({
+        task,
+        model: ADMIN_MANAGEMENT_BRIEF_MODEL,
+        ok: result.ok,
+        durationMs: Date.now() - startedAt,
+        error: result.ok ? undefined : result.error,
+      });
+      return result;
+    } catch (error) {
+      lastError = mapRunFailure(error);
+      if (lastError === "timeout") {
+        break;
+      }
+      if (
+        attempt >= ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES ||
+        (lastError !== "invalid_output" && lastError !== "model_unavailable")
+      ) {
+        break;
+      }
+    }
+  }
+
+  logCrmAiEvent({
+    task,
+    model: ADMIN_MANAGEMENT_BRIEF_MODEL,
+    ok: false,
+    durationMs: Date.now() - startedAt,
+    error: lastError,
+  });
+  return { ok: false, error: lastError };
+}
+
 export async function handleCrmAiRequest(
   env: CrmAiEnv,
   request: CrmAiRequest,
-): Promise<AiServiceResult<HealthProbeOutput>> {
+): Promise<CrmAiHandleResult> {
   if (request.task === "health_probe") {
     return runHealthProbe(env, request.model);
   }
   if (request.task === "structured_probe") {
     return runStructuredProbe(env, request.model);
+  }
+  if (request.task === "admin_management_brief") {
+    return runAdminManagementBrief(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -323,6 +469,24 @@ export async function handleCrmAiRequest(
 export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
   if (!body || typeof body !== "object") return null;
   const record = body as Record<string, unknown>;
+
+  if (record.task === "admin_management_brief") {
+    if (record.schemaVersion !== ADMIN_MANAGEMENT_BRIEF_PROMPT_VERSION) {
+      return null;
+    }
+    const locale = validateAdminBriefLocale(record.locale);
+    const context = validateAdminBriefContext(record.context);
+    if (!locale || !context) {
+      return null;
+    }
+    return {
+      task: "admin_management_brief",
+      schemaVersion: ADMIN_MANAGEMENT_BRIEF_PROMPT_VERSION,
+      locale,
+      context,
+    };
+  }
+
   if (record.task === "health_probe" || record.task === "structured_probe") {
     const model =
       typeof record.model === "string" && record.model.trim()

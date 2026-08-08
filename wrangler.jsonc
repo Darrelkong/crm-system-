@@ -19,6 +19,10 @@
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "crm-system"
+    },
+    {
+      "binding": "AI_SERVICE",
+      "service": "crm-ai"
     }
   ],
   "d1_databases": [
