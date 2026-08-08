@@ -20,6 +20,7 @@ import {
 } from "@/lib/customer-tags/queries";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { computeScoringSummaryForAdmin } from "@/lib/customers/scoring/service";
+import { recordAdminDashboardSettingsPhysicalLoad } from "./admin-dashboard-request-instrumentation";
 import {
   getBusinessMonthRange,
   getBusinessTodayRange,
@@ -28,6 +29,11 @@ import type {
   AdminDashboardStats,
   CreatorNewCustomerCount,
 } from "./types";
+import type { EffectiveSettings } from "@/lib/settings/effective";
+
+export type AdminDashboardStatsRequestOptions = {
+  settings?: EffectiveSettings;
+};
 
 function sortCreatorNewCustomerRows(
   rows: CreatorNewCustomerCount[],
@@ -42,8 +48,15 @@ function sortCreatorNewCustomerRows(
 export async function getAdminDashboardStats(
   db: Database,
   now: Date = new Date(),
+  requestOptions?: AdminDashboardStatsRequestOptions,
 ): Promise<AdminDashboardStats> {
-  const settings = await getEffectiveSettings(db);
+  let settings: EffectiveSettings;
+  if (requestOptions?.settings) {
+    settings = requestOptions.settings;
+  } else {
+    recordAdminDashboardSettingsPhysicalLoad();
+    settings = await getEffectiveSettings(db);
+  }
   const timezone = settings.businessTimezone;
   const { start: monthStart, endExclusive: monthEndExclusive } =
     getBusinessMonthRange(now, timezone);

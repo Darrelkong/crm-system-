@@ -7,6 +7,7 @@ import { DashboardStageDistributionCard } from "@/components/dashboard/dashboard
 import { DashboardTrendsCard } from "@/components/dashboard/dashboard-trends-card";
 import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
 import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
+import { loadAdminDashboardRequestData } from "@/lib/reports/admin-dashboard-request-data";
 import { getAdminTeamExecutionOverview } from "@/lib/reports/admin-team-execution";
 import { getDashboardSummary } from "@/lib/reports/dashboard-summary";
 import { getDashboardStageDistribution } from "@/lib/reports/dashboard-stage-distribution";
@@ -17,23 +18,37 @@ import type { User } from "../../../drizzle/schema/users";
 
 export async function AdminDashboardView({ user }: { user: User }) {
   const db = getDb();
+  const now = new Date();
+  const requestData = await loadAdminDashboardRequestData(db, now);
+  const summaryRequestOptions = {
+    settings: requestData.settings,
+    reclamationSnapshots: requestData.reclamationSnapshots,
+    reclamationSnapshotsFailed: requestData.reclamationSnapshotsFailed,
+  };
+  const statsRequestOptions = { settings: requestData.settings };
+  const teamRequestOptions = {
+    settings: requestData.settings,
+    reclamationSnapshots: requestData.reclamationSnapshots,
+    reclamationSnapshotsFailed: requestData.reclamationSnapshotsFailed,
+  };
+
   const [summary, legacyStats, trendsResult, stageResult, teamResult] =
     await Promise.all([
-    getDashboardSummary(db, user),
-    getAdminDashboardStats(db),
-    getDashboardTrends(db, user).then(
-      (trends) => ({ trends, error: false as const }),
-      () => ({ trends: null, error: true as const }),
-    ),
-    getDashboardStageDistribution(db, user).then(
-      (distribution) => ({ distribution, error: false as const }),
-      () => ({ distribution: null, error: true as const }),
-    ),
-    getAdminTeamExecutionOverview(db, user).then(
-      (overview) => ({ overview, error: false as const }),
-      () => ({ overview: null, error: true as const }),
-    ),
-  ]);
+      getDashboardSummary(db, user, now, summaryRequestOptions),
+      getAdminDashboardStats(db, now, statsRequestOptions),
+      getDashboardTrends(db, user).then(
+        (trends) => ({ trends, error: false as const }),
+        () => ({ trends: null, error: true as const }),
+      ),
+      getDashboardStageDistribution(db, user).then(
+        (distribution) => ({ distribution, error: false as const }),
+        () => ({ distribution: null, error: true as const }),
+      ),
+      getAdminTeamExecutionOverview(db, user, now, teamRequestOptions).then(
+        (overview) => ({ overview, error: false as const }),
+        () => ({ overview: null, error: true as const }),
+      ),
+    ]);
 
   if (summary.role !== "admin") {
     throw new Error("Expected admin dashboard summary");

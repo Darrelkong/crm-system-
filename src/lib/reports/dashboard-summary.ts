@@ -13,12 +13,23 @@ import { aggregateRiskCounts } from "@/lib/reclamation/risk-snapshot";
 import { getEffectiveSettings, type EffectiveSettings } from "@/lib/settings/effective";
 import type { User } from "../../../drizzle/schema/users";
 import { getBusinessTodayRange, type ReportsTimezone } from "./dates";
+import {
+  recordAdminDashboardReclamationSnapshotPhysicalLoad,
+  recordAdminDashboardSettingsPhysicalLoad,
+} from "./admin-dashboard-request-instrumentation";
 import type {
   AdminDashboardSummary,
   DashboardReclamationRiskSummary,
   DashboardSummary,
   StaffDashboardSummary,
 } from "./dashboard-summary-types";
+import type { ReclamationRiskSnapshot } from "@/lib/reclamation/risk-snapshot";
+
+export type DashboardSummaryRequestOptions = {
+  settings?: EffectiveSettings;
+  reclamationSnapshots?: ReclamationRiskSnapshot[];
+  reclamationSnapshotsFailed?: boolean;
+};
 
 function emptyReclamationRisk(drilldownHref: string): DashboardReclamationRiskSummary {
   return {
@@ -69,9 +80,28 @@ async function buildReclamationRiskSummary(
   user: User,
   now: Date,
   settings: EffectiveSettings,
+  snapshotInput?: Pick<
+    DashboardSummaryRequestOptions,
+    "reclamationSnapshots" | "reclamationSnapshotsFailed"
+  >,
 ): Promise<DashboardReclamationRiskSummary> {
+  const drilldownHref =
+    user.role === "admin"
+      ? "/customers?reclamationRisk=team"
+      : "/customers?reclamationRisk=mine";
+
+  if (snapshotInput?.reclamationSnapshotsFailed) {
+    return emptyReclamationRisk(drilldownHref);
+  }
+
   try {
-    const snapshots = await collectReclamationRiskSnapshots(db, now, settings);
+    let snapshots: ReclamationRiskSnapshot[];
+    if (snapshotInput?.reclamationSnapshots !== undefined) {
+      snapshots = snapshotInput.reclamationSnapshots;
+    } else {
+      recordAdminDashboardReclamationSnapshotPhysicalLoad();
+      snapshots = await collectReclamationRiskSnapshots(db, now, settings);
+    }
     const scoped =
       user.role === "staff"
         ? snapshots.filter((snapshot) => snapshot.ownerId === user.id)
@@ -90,21 +120,14 @@ async function buildReclamationRiskSummary(
       within14Count: counts.within14Count,
       pendingRiskCount,
       memberCount: user.role === "admin" ? memberIds.size : null,
-      drilldownHref:
-        user.role === "admin"
-          ? "/customers?reclamationRisk=team"
-          : "/customers?reclamationRisk=mine",
+      drilldownHref,
     };
   } catch (error) {
     console.error("[dashboard-summary] reclamation risk failed", {
       userId: user.id,
       error,
     });
-    return emptyReclamationRisk(
-      user.role === "admin"
-        ? "/customers?reclamationRisk=team"
-        : "/customers?reclamationRisk=mine",
-    );
+    return emptyReclamationRisk(drilldownHref);
   }
 }
 
@@ -281,14 +304,36 @@ export async function getDashboardSummary(
   db: Database,
   user: User,
   now: Date = new Date(),
+  requestOptions?: DashboardSummaryRequestOptions,
 ): Promise<DashboardSummary> {
-  const settings = await getEffectiveSettings(db);
+  let settings: EffectiveSettings;
+  if (requestOptions?.settings) {
+    settings = requestOptions.settings;
+  } else {
+    recordAdminDashboardSettingsPhysicalLoad();
+    settings = await getEffectiveSettings(db);
+  }
   const timezone = settings.businessTimezone;
+  const reclamationSnapshotInput =
+    requestOptions?.reclamationSnapshots !== undefined ||
+    requestOptions?.reclamationSnapshotsFailed
+      ? {
+          reclamationSnapshots: requestOptions.reclamationSnapshots,
+          reclamationSnapshotsFailed:
+            requestOptions.reclamationSnapshotsFailed,
+        }
+      : undefined;
 
   if (user.role === "admin") {
     const [baseMetrics, reclamationRisk] = await Promise.all([
       getAdminMetrics(db, user, now, timezone),
-      buildReclamationRiskSummary(db, user, now, settings),
+      buildReclamationRiskSummary(
+        db,
+        user,
+        now,
+        settings,
+        reclamationSnapshotInput,
+      ),
     ]);
 
     return {
@@ -304,7 +349,13 @@ export async function getDashboardSummary(
 
   const [baseMetrics, reclamationRisk] = await Promise.all([
     getStaffMetrics(db, user, now, timezone),
-    buildReclamationRiskSummary(db, user, now, settings),
+    buildReclamationRiskSummary(
+      db,
+      user,
+      now,
+      settings,
+      reclamationSnapshotInput,
+    ),
   ]);
   const metrics = applyReclamationMetricsToStaff(baseMetrics, reclamationRisk);
 

@@ -7,14 +7,25 @@ import {
 } from "@/lib/reports/dashboard-customer-scopes";
 import { collectReclamationRiskSnapshots } from "@/lib/reclamation/work-items-sync";
 import { getPendingActionCountsByUserIds } from "@/lib/notifications/queries";
-import { getEffectiveSettings } from "@/lib/settings/effective";
+import { getEffectiveSettings, type EffectiveSettings } from "@/lib/settings/effective";
 import { listActiveStaffUsers } from "@/lib/users/queries";
+import type { ReclamationRiskSnapshot } from "@/lib/reclamation/risk-snapshot";
+import {
+  recordAdminDashboardReclamationSnapshotPhysicalLoad,
+  recordAdminDashboardSettingsPhysicalLoad,
+} from "./admin-dashboard-request-instrumentation";
 import {
   getHongKongSeriesUtcBounds,
   TREND_RANGE_DAYS,
   type TrendRangeDays,
 } from "@/lib/reports/dashboard-trends-period";
 import type { User } from "../../../drizzle/schema/users";
+
+export type AdminTeamExecutionRequestOptions = {
+  settings?: EffectiveSettings;
+  reclamationSnapshots?: ReclamationRiskSnapshot[];
+  reclamationSnapshotsFailed?: boolean;
+};
 
 export type TeamMemberExecutionRow = {
   userId: string;
@@ -152,6 +163,7 @@ export async function getAdminTeamExecutionOverview(
   db: Database,
   viewer: User,
   now: Date = new Date(),
+  requestOptions?: AdminTeamExecutionRequestOptions,
 ): Promise<AdminTeamExecutionOverview> {
   if (viewer.role !== "admin") {
     throw new Error("Admin access required");
@@ -160,7 +172,13 @@ export async function getAdminTeamExecutionOverview(
   const staff = sortTeamMembersStable(await listActiveStaffUsers());
   const staffIds = staff.map((member) => member.id);
   const nowIso = now.toISOString();
-  const settings = await getEffectiveSettings(db);
+  let settings: EffectiveSettings;
+  if (requestOptions?.settings) {
+    settings = requestOptions.settings;
+  } else {
+    recordAdminDashboardSettingsPhysicalLoad();
+    settings = await getEffectiveSettings(db);
+  }
 
   const periodBounds = Object.fromEntries(
     TREND_RANGE_DAYS.map((days) => [
@@ -183,6 +201,19 @@ export async function getAdminTeamExecutionOverview(
     }),
   );
 
+  const resolveReclamationSnapshots = async (): Promise<
+    ReclamationRiskSnapshot[]
+  > => {
+    if (requestOptions?.reclamationSnapshotsFailed) {
+      throw new Error("reclamation snapshots unavailable");
+    }
+    if (requestOptions?.reclamationSnapshots !== undefined) {
+      return requestOptions.reclamationSnapshots;
+    }
+    recordAdminDashboardReclamationSnapshotPhysicalLoad();
+    return collectReclamationRiskSnapshots(db, now, settings);
+  };
+
   const [currentCustomers, overdueCustomers, pendingByUser, snapshots] =
     await Promise.all([
       staffIds.length > 0
@@ -198,7 +229,7 @@ export async function getAdminTeamExecutionOverview(
           )
         : Promise.resolve(new Map<string, number>()),
       getPendingActionCountsByUserIds(db, staffIds),
-      collectReclamationRiskSnapshots(db, now, settings),
+      resolveReclamationSnapshots(),
     ]);
 
   const releaseWithin7ByOwner = new Map<string, number>();
