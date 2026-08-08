@@ -9,7 +9,10 @@ import {
   SYNTHETIC_HEALTH_PROBE_USER_PROMPT,
   resolveAdminBriefDeadlineMs,
   resolveModelForTask,
+  resolveStaffActionsDeadlineMs,
   resolveTimeoutMs,
+  STAFF_TODAY_ACTIONS_MAX_RETRIES,
+  STAFF_TODAY_ACTIONS_MODEL,
 } from "./models";
 import {
   ADMIN_BRIEF_JSON_SCHEMA,
@@ -19,6 +22,14 @@ import {
   buildAdminBriefSystemPrompt,
   buildAdminBriefUserPrompt,
 } from "./admin-brief";
+import {
+  STAFF_TODAY_ACTIONS_JSON_SCHEMA,
+  STAFF_TODAY_ACTIONS_PROMPT_VERSION,
+  STAFF_ACTIONS_MAX_TOKENS,
+  STAFF_ACTIONS_TEMPERATURE,
+  buildStaffActionsSystemPrompt,
+  buildStaffActionsUserPrompt,
+} from "./staff-actions";
 import { logCrmAiEvent } from "./logging";
 import { validateHealthProbeOutput } from "./validate";
 import {
@@ -27,6 +38,12 @@ import {
   type ValidatedAdminContext,
 } from "./validate-admin-context";
 import { validateAdminBriefOutput } from "./validate-admin-output";
+import {
+  validateStaffActionsContext,
+  validateStaffActionsLocale,
+  type ValidatedStaffContext,
+} from "./validate-staff-context";
+import { validateStaffActionsOutput } from "./validate-staff-output";
 import type {
   AdminBriefOutput,
   AiServiceError,
@@ -35,7 +52,9 @@ import type {
   CrmAiEnv,
   CrmAiHandleResult,
   CrmAiRequest,
+  CrmAiStaffActionsRequest,
   HealthProbeOutput,
+  StaffTodayActionsOutput,
   SystemAiTask,
 } from "./types";
 
@@ -450,6 +469,132 @@ export async function runAdminManagementBrief(
   return { ok: false, error: lastError };
 }
 
+function buildStaffActionsPayload(
+  locale: string,
+  context: ValidatedStaffContext,
+): Record<string, unknown> {
+  const { allowedCustomerRefs: _allowed, ...providerContext } = context;
+  const contextJson = JSON.stringify(providerContext, null, 2);
+  return {
+    messages: [
+      { role: "system", content: buildStaffActionsSystemPrompt(locale) },
+      { role: "user", content: buildStaffActionsUserPrompt(contextJson) },
+    ],
+    temperature: STAFF_ACTIONS_TEMPERATURE,
+    max_tokens: STAFF_ACTIONS_MAX_TOKENS,
+    stream: false,
+    response_format: {
+      type: "json_schema",
+      json_schema: STAFF_TODAY_ACTIONS_JSON_SCHEMA,
+    },
+  };
+}
+
+async function runStaffActionsAttempt(
+  env: CrmAiEnv,
+  request: CrmAiStaffActionsRequest,
+  timeoutMs: number,
+): Promise<AiServiceResult<StaffTodayActionsOutput>> {
+  const validatedContext = validateStaffActionsContext(request.context);
+  if (!validatedContext) {
+    return { ok: false, error: "invalid_output" };
+  }
+
+  const raw = await invokeModel(
+    env,
+    STAFF_TODAY_ACTIONS_MODEL,
+    "staff_today_actions",
+    request.schemaVersion,
+    buildStaffActionsPayload(request.locale, validatedContext),
+    timeoutMs,
+  );
+  const structured = parseJsonValue(extractStructuredPayload(raw));
+  if (
+    !structured ||
+    !validateStaffActionsOutput(structured, validatedContext.allowedCustomerRefs)
+  ) {
+    return { ok: false, error: "invalid_output" };
+  }
+  return {
+    ok: true,
+    data: structured,
+    model: STAFF_TODAY_ACTIONS_MODEL,
+  };
+}
+
+export async function runStaffTodayActions(
+  env: CrmAiEnv,
+  request: CrmAiStaffActionsRequest,
+): Promise<AiServiceResult<StaffTodayActionsOutput>> {
+  const task: SystemAiTask = "staff_today_actions";
+  const totalDeadlineMs = resolveStaffActionsDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  const startedAt = Date.now();
+
+  let lastError: AiServiceError = "internal_error";
+
+  for (let attempt = 0; attempt <= STAFF_TODAY_ACTIONS_MAX_RETRIES; attempt++) {
+    const elapsed = Date.now() - startedAt;
+    const remainingMs = totalDeadlineMs - elapsed;
+    if (remainingMs <= 100) {
+      lastError = "timeout";
+      break;
+    }
+
+    try {
+      const result = await runStaffActionsAttempt(env, request, remainingMs);
+      if (
+        !result.ok &&
+        result.error === "invalid_output" &&
+        attempt < STAFF_TODAY_ACTIONS_MAX_RETRIES
+      ) {
+        lastError = result.error;
+        continue;
+      }
+      if (
+        !result.ok &&
+        result.error === "model_unavailable" &&
+        attempt < STAFF_TODAY_ACTIONS_MAX_RETRIES
+      ) {
+        lastError = result.error;
+        continue;
+      }
+      if (!result.ok && result.error === "timeout") {
+        lastError = result.error;
+        break;
+      }
+
+      logCrmAiEvent({
+        task,
+        model: STAFF_TODAY_ACTIONS_MODEL,
+        ok: result.ok,
+        durationMs: Date.now() - startedAt,
+        error: result.ok ? undefined : result.error,
+      });
+      return result;
+    } catch (error) {
+      lastError = mapRunFailure(error);
+      if (lastError === "timeout") {
+        break;
+      }
+      if (
+        attempt >= STAFF_TODAY_ACTIONS_MAX_RETRIES ||
+        (lastError !== "invalid_output" && lastError !== "model_unavailable")
+      ) {
+        break;
+      }
+    }
+  }
+
+  logCrmAiEvent({
+    task,
+    model: STAFF_TODAY_ACTIONS_MODEL,
+    ok: false,
+    durationMs: Date.now() - startedAt,
+    error: lastError,
+  });
+  return { ok: false, error: lastError };
+}
+
 export async function handleCrmAiRequest(
   env: CrmAiEnv,
   request: CrmAiRequest,
@@ -462,6 +607,9 @@ export async function handleCrmAiRequest(
   }
   if (request.task === "admin_management_brief") {
     return runAdminManagementBrief(env, request);
+  }
+  if (request.task === "staff_today_actions") {
+    return runStaffTodayActions(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -484,6 +632,24 @@ export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
       schemaVersion: ADMIN_MANAGEMENT_BRIEF_PROMPT_VERSION,
       locale,
       context,
+    };
+  }
+
+  if (record.task === "staff_today_actions") {
+    if (record.schemaVersion !== STAFF_TODAY_ACTIONS_PROMPT_VERSION) {
+      return null;
+    }
+    const locale = validateStaffActionsLocale(record.locale);
+    const context = validateStaffActionsContext(record.context);
+    if (!locale || !context) {
+      return null;
+    }
+    const { allowedCustomerRefs: _allowed, ...safeContext } = context;
+    return {
+      task: "staff_today_actions",
+      schemaVersion: STAFF_TODAY_ACTIONS_PROMPT_VERSION,
+      locale,
+      context: safeContext,
     };
   }
 

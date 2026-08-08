@@ -136,15 +136,15 @@ describe("admin cloudflare dashboard insight", () => {
 });
 
 describe("staff legacy dashboard insight routing", () => {
-  it("keeps staff on legacy provider path in service source", () => {
+  it("routes staff through dedicated cloudflare module", () => {
     const source = readFileSync(
       "src/lib/ai/dashboard-insights/service.ts",
       "utf8",
     );
-    assert.match(source, /input\.insightType === "admin_management_brief"/);
+    assert.match(source, /generateStaffTodayActionsInsight/);
     assert.match(source, /generateAdminManagementBriefInsight/);
-    assert.match(source, /callDashboardAiProvider/);
-    assert.match(source, /if \(!aiSettings\.aiEnabled\)/);
+    assert.doesNotMatch(source, /callDashboardAiProvider/);
+    assert.doesNotMatch(source, /getEffectiveAiSettings/);
   });
 });
 

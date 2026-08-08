@@ -1,7 +1,8 @@
 export type SystemAiTask =
   | "health_probe"
   | "structured_probe"
-  | "admin_management_brief";
+  | "admin_management_brief"
+  | "staff_today_actions";
 
 export type AiServiceError =
   | "timeout"
@@ -31,6 +32,17 @@ export type AdminBriefOutput = {
   cautions: string[];
 };
 
+export type StaffTodayActionsOutput = {
+  headline: string;
+  actions: Array<{
+    customerRef?: string;
+    category: string;
+    title: string;
+    reason: string;
+    urgency: string;
+  }>;
+};
+
 export type CrmAiProbeRequest = {
   task: "health_probe" | "structured_probe";
   model?: string;
@@ -43,7 +55,17 @@ export type CrmAiAdminBriefRequest = {
   context: Record<string, unknown>;
 };
 
-export type CrmAiRequest = CrmAiProbeRequest | CrmAiAdminBriefRequest;
+export type CrmAiStaffActionsRequest = {
+  task: "staff_today_actions";
+  schemaVersion: string;
+  locale: string;
+  context: Record<string, unknown>;
+};
+
+export type CrmAiRequest =
+  | CrmAiProbeRequest
+  | CrmAiAdminBriefRequest
+  | CrmAiStaffActionsRequest;
 
 export type CrmAiEnv = {
   AI: Ai;
@@ -52,4 +74,5 @@ export type CrmAiEnv = {
 
 export type CrmAiHandleResult =
   | AiServiceResult<HealthProbeOutput>
-  | AiServiceResult<AdminBriefOutput>;
+  | AiServiceResult<AdminBriefOutput>
+  | AiServiceResult<StaffTodayActionsOutput>;

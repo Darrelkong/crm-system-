@@ -34,6 +34,10 @@ export const BENCHMARK_MODELS = [MODEL_QWEN, MODEL_LLAMA] as const;
 export const ADMIN_MANAGEMENT_BRIEF_MODEL = MODEL_QWEN;
 export const ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES = 1;
 
+export const STAFF_TODAY_ACTIONS_MODEL = MODEL_QWEN;
+export const STAFF_TODAY_ACTIONS_MAX_RETRIES = 1;
+export const STAFF_TODAY_ACTIONS_TOTAL_DEADLINE_MS = 20_000;
+
 export function resolveTimeoutMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
@@ -48,6 +52,16 @@ export function resolveTimeoutMs(raw: string | undefined): number {
 export function resolveAdminBriefDeadlineMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return ADMIN_BRIEF_TOTAL_DEADLINE_MS;
+  const rounded = Math.round(parsed);
+  if (process.env.NODE_ENV === "test" && rounded >= 50) {
+    return rounded;
+  }
+  return Math.min(20_000, Math.max(15_000, rounded));
+}
+
+export function resolveStaffActionsDeadlineMs(raw: string | undefined): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return STAFF_TODAY_ACTIONS_TOTAL_DEADLINE_MS;
   const rounded = Math.round(parsed);
   if (process.env.NODE_ENV === "test" && rounded >= 50) {
     return rounded;
