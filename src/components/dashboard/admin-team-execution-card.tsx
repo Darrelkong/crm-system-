@@ -154,11 +154,15 @@ export function AdminTeamExecutionCard({ overview, error = false }: Props) {
                         />
                       </td>
                       <td className="px-2 py-3 tabular-nums">
-                        <MetricLink
-                          href={member.reclamationHref}
-                          value={member.autoReleaseWithin7Days}
-                          warn={member.autoReleaseWithin7Days > 0}
-                        />
+                        <span
+                          className={
+                            member.autoReleaseWithin7Days > 0
+                              ? "text-amber-700"
+                              : undefined
+                          }
+                        >
+                          {member.autoReleaseWithin7Days}
+                        </span>
                       </td>
                       <td className="px-2 py-3 tabular-nums">
                         {member.pendingItems}
@@ -213,7 +217,6 @@ export function AdminTeamExecutionCard({ overview, error = false }: Props) {
                       label={t("dashboard.teamExecutionAutoRelease7d")}
                       value={member.autoReleaseWithin7Days}
                       hint={t("dashboard.teamExecutionCurrentStatus")}
-                      href={member.reclamationHref}
                       warn={member.autoReleaseWithin7Days > 0}
                     />
                     <MetricBlock

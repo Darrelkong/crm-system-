@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  buildTeamReclamationHref,
   buildTeamValidFollowUpsHref,
   buildValidFollowUpsTodayHref,
   getDashboardHongKongTodayYmd,
@@ -40,13 +39,5 @@ describe("dashboard drill-down links", () => {
     );
     assert.equal(parsed30.fromDate, "2026-07-10");
     assert.equal(parsed30.toDate, "2026-08-08");
-  });
-
-  it("builds team reclamation href with owner and team scope", () => {
-    const ownerId = "11111111-1111-1111-1111-111111111102";
-    assert.equal(
-      buildTeamReclamationHref(ownerId),
-      `/customers?ownerId=${ownerId}&reclamationRisk=team`,
-    );
   });
 });

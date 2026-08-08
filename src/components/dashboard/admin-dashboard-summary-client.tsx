@@ -60,22 +60,18 @@ export function AdminDashboardSummaryClient({ summary }: Props) {
               icon={kpiIcons.clipboard}
             />
           </Link>
-          <Link href="/customers?reclamationRisk=team" className="block">
-            <KpiCard
-              label={t("dashboard.autoReleaseWithin7Days")}
-              value={metrics.autoReleaseWithin7Days}
-              variant="warning"
-              icon={kpiIcons.alert}
-            />
-          </Link>
-          <Link href="/customers?reclamationRisk=team" className="block">
-            <KpiCard
-              label={t("dashboard.autoReleaseTomorrow")}
-              value={metrics.autoReleaseTomorrow}
-              variant="danger"
-              icon={kpiIcons.alert}
-            />
-          </Link>
+          <KpiCard
+            label={t("dashboard.autoReleaseWithin7Days")}
+            value={metrics.autoReleaseWithin7Days}
+            variant="warning"
+            icon={kpiIcons.alert}
+          />
+          <KpiCard
+            label={t("dashboard.autoReleaseTomorrow")}
+            value={metrics.autoReleaseTomorrow}
+            variant="danger"
+            icon={kpiIcons.alert}
+          />
           <Link href="/customers?workView=overdue" className="block">
             <KpiCard
               label={t("dashboard.overdueFollowUps")}

@@ -14,7 +14,6 @@ import {
   TREND_RANGE_DAYS,
   type TrendRangeDays,
 } from "@/lib/reports/dashboard-trends-period";
-import { buildTeamReclamationHref } from "@/lib/reports/dashboard-drilldown-links";
 import type { User } from "../../../drizzle/schema/users";
 
 export type TeamMemberExecutionRow = {
@@ -33,7 +32,6 @@ export type TeamMemberExecutionRow = {
   >;
   customersHref: string;
   overdueHref: string;
-  reclamationHref: string;
 };
 
 export type AdminTeamExecutionOverview = {
@@ -235,7 +233,6 @@ export async function getAdminTeamExecutionOverview(
       periodActivity,
       customersHref: buildOwnerHref(member.id),
       overdueHref: buildOwnerHref(member.id, "overdue"),
-      reclamationHref: buildTeamReclamationHref(member.id),
     };
   });
 

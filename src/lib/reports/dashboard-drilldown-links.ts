@@ -56,11 +56,3 @@ export function buildTeamValidFollowUpsHref(
     staffUserId,
   });
 }
-
-/** Member-scoped 7-day auto-release risk customers (admin team drill-down). */
-export function buildTeamReclamationHref(ownerId: string): string {
-  const params = new URLSearchParams();
-  params.set("ownerId", ownerId);
-  params.set("reclamationRisk", "team");
-  return `/customers?${params.toString()}`;
-}

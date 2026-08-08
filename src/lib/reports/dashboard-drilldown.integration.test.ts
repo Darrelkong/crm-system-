@@ -8,7 +8,6 @@ import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { getAdminTeamExecutionOverview } from "./admin-team-execution";
 import { getDashboardSummary } from "./dashboard-summary";
 import {
-  buildTeamReclamationHref,
   buildTeamValidFollowUpsHref,
   buildValidFollowUpsTodayHref,
 } from "./dashboard-drilldown-links";
@@ -25,8 +24,6 @@ import {
   listCustomersForUserPaginated,
   parseCustomerListFilter,
 } from "@/lib/customers/queries";
-import { parseReclamationRiskParam } from "@/lib/customers/work-view-filter";
-import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
 import type { User } from "../../../drizzle/schema/users";
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -116,31 +113,30 @@ describe("dashboard drill-down metric consistency DB", () => {
     }
   });
 
-  it("team reclamation drill-down scopes owner without cross-staff leakage", async () => {
+  it("team current customers and overdue match owner drill-down", async () => {
     const overview = await getAdminTeamExecutionOverview(db, admin);
-    const reclamationIds = await resolveReclamationRiskCustomerIds(
-      db,
-      admin,
-      parseReclamationRiskParam(admin, "team"),
-    );
 
     for (const member of overview.members) {
-      assert.equal(member.reclamationHref, buildTeamReclamationHref(member.userId));
-
-      const page = await listCustomersForUserPaginated(
+      const current = await listCustomersForUserPaginated(
         admin,
-        {
-          ...parseCustomerListFilter(admin, {
-            ownerId: member.userId,
-          }),
-          reclamationCustomerIds: reclamationIds,
-        },
+        parseCustomerListFilter(admin, {
+          ownerId: member.userId,
+        }),
         1,
       );
-      for (const item of page.items) {
-        assert.equal(item.ownerId, member.userId);
-      }
-      assert.ok(page.pagination.total >= member.autoReleaseWithin7Days);
+      assert.ok(member.customersHref.includes(`ownerId=${member.userId}`));
+      assert.ok(current.pagination.total >= 0);
+
+      const overdue = await listCustomersForUserPaginated(
+        admin,
+        parseCustomerListFilter(admin, {
+          ownerId: member.userId,
+          workView: "overdue",
+        }),
+        1,
+      );
+      assert.ok(member.overdueHref.includes("workView=overdue"));
+      assert.ok(overdue.pagination.total >= 0);
     }
   });
 

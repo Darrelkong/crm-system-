@@ -50,22 +50,18 @@ export function StaffDashboardSummaryClient({ summary }: Props) {
               icon={kpiIcons.alert}
             />
           </Link>
-          <Link href="/customers?reclamationRisk=mine" className="block">
-            <KpiCard
-              label={t("dashboard.autoReleaseWithin7Days")}
-              value={metrics.autoReleaseWithin7Days}
-              variant="warning"
-              icon={kpiIcons.alert}
-            />
-          </Link>
-          <Link href="/customers?reclamationRisk=mine" className="block">
-            <KpiCard
-              label={t("dashboard.autoReleaseTomorrow")}
-              value={metrics.autoReleaseTomorrow}
-              variant="danger"
-              icon={kpiIcons.alert}
-            />
-          </Link>
+          <KpiCard
+            label={t("dashboard.autoReleaseWithin7Days")}
+            value={metrics.autoReleaseWithin7Days}
+            variant="warning"
+            icon={kpiIcons.alert}
+          />
+          <KpiCard
+            label={t("dashboard.autoReleaseTomorrow")}
+            value={metrics.autoReleaseTomorrow}
+            variant="danger"
+            icon={kpiIcons.alert}
+          />
           <Link href="/work-items?tab=notifications&view=unread" className="block">
             <KpiCard
               label={t("dashboard.pendingWorkItems")}
