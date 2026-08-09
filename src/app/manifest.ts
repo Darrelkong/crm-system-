@@ -20,21 +20,21 @@ export default function manifest(): MetadataRoute.Manifest {
     theme_color: CRM_THEME_COLOR_LIGHT,
     icons: [
       {
-        src: "/icons/icon-192.svg",
+        src: "/icons/icon-192.png",
         sizes: "192x192",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/icon-512.svg",
+        src: "/icons/icon-512.png",
         sizes: "512x512",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any",
       },
       {
-        src: "/icons/apple-touch-icon.svg",
+        src: "/icons/apple-touch-icon.png",
         sizes: "180x180",
-        type: "image/svg+xml",
+        type: "image/png",
         purpose: "any",
       },
     ],

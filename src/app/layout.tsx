@@ -23,11 +23,9 @@ export const metadata: Metadata = {
   description: "EchFront CRM — internal client management",
   applicationName: "ECHFRONT CRM",
   icons: {
-    icon: [
-      { url: "/icons/icon-192.svg", type: "image/svg+xml" },
-    ],
+    icon: [{ url: "/icons/icon-192.png", type: "image/png", sizes: "192x192" }],
     apple: [
-      { url: "/icons/apple-touch-icon.svg", type: "image/svg+xml" },
+      { url: "/icons/apple-touch-icon.png", type: "image/png", sizes: "180x180" },
     ],
   },
   appleWebApp: {
