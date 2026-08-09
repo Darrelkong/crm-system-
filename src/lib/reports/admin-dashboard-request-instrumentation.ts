@@ -32,7 +32,9 @@ export function recordAdminDashboardReclamationSnapshotPhysicalLoad(): void {
 }
 
 export function recordAdminDashboardRequestSettingsLoad(): void {
-  instrumentation.settingsPhysicalLoads += 1;
+  if (process.env.CRM_ALLOW_TEST_DB_BIND === "1") {
+    instrumentation.settingsPhysicalLoads += 1;
+  }
 }
 
 export function recordAdminDashboardRequestReclamationSnapshotLoad(): void {

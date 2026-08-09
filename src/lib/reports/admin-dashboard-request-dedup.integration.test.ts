@@ -12,6 +12,7 @@ import {
   resetAdminDashboardRequestInstrumentation,
 } from "./admin-dashboard-request-instrumentation";
 import { loadAdminDashboardRequestData } from "./admin-dashboard-request-data";
+import { loadAdminDashboardReports } from "./admin-dashboard-orchestration";
 import { getAdminTeamExecutionOverview } from "./admin-team-execution";
 import { getDashboardSummary } from "./dashboard-summary";
 import { getBusinessTodayRange } from "./dates";
@@ -66,24 +67,12 @@ async function runLegacyAdminDashboardLoads(now: Date) {
 
 async function runSharedAdminDashboardLoads(now: Date) {
   resetAdminDashboardRequestInstrumentation();
-  const requestData = await loadAdminDashboardRequestData(db, now);
-  const summaryRequestOptions = {
-    settings: requestData.settings,
-    reclamationSnapshots: requestData.reclamationSnapshots,
-    reclamationSnapshotsFailed: requestData.reclamationSnapshotsFailed,
+  const result = await loadAdminDashboardReports(db, admin, now);
+  return {
+    summary: result.summary,
+    legacyStats: result.legacyStats,
+    teamOverview: result.teamResult.overview,
   };
-  const statsRequestOptions = { settings: requestData.settings };
-  const teamRequestOptions = {
-    settings: requestData.settings,
-    reclamationSnapshots: requestData.reclamationSnapshots,
-    reclamationSnapshotsFailed: requestData.reclamationSnapshotsFailed,
-  };
-  const [summary, legacyStats, teamOverview] = await Promise.all([
-    getDashboardSummary(db, admin, now, summaryRequestOptions),
-    getAdminDashboardStats(db, now, statsRequestOptions),
-    getAdminTeamExecutionOverview(db, admin, now, teamRequestOptions),
-  ]);
-  return { summary, legacyStats, teamOverview, requestData };
 }
 
 describe("admin dashboard request dedup DB", () => {

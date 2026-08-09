@@ -7,40 +7,59 @@ import {
   recordAdminDashboardRequestSettingsLoad,
 } from "./admin-dashboard-request-instrumentation";
 
-export type AdminDashboardRequestData = {
-  now: Date;
-  settings: EffectiveSettings;
+export type AdminDashboardReclamationData = {
   reclamationSnapshots?: ReclamationRiskSnapshot[];
   reclamationSnapshotsFailed?: boolean;
 };
 
-/**
- * Load settings and reclamation snapshots once per Admin Dashboard SSR request.
- * Explicit parameter injection — not module-global or cross-request cache.
- */
-export async function loadAdminDashboardRequestData(
-  db: Database,
-  now: Date = new Date(),
-): Promise<AdminDashboardRequestData> {
-  recordAdminDashboardRequestSettingsLoad();
-  const settings = await getEffectiveSettings(db);
+export type AdminDashboardRequestData = {
+  now: Date;
+  settings: EffectiveSettings;
+} & AdminDashboardReclamationData;
 
+/** Load effective settings once per Admin Dashboard SSR request. */
+export async function loadAdminDashboardSharedSettings(
+  db: Database,
+): Promise<EffectiveSettings> {
+  recordAdminDashboardRequestSettingsLoad();
+  return getEffectiveSettings(db);
+}
+
+/** Load reclamation snapshots once; failures are isolated to summary/team consumers. */
+export async function loadAdminDashboardReclamationData(
+  db: Database,
+  now: Date,
+  settings: EffectiveSettings,
+): Promise<AdminDashboardReclamationData> {
+  recordAdminDashboardRequestReclamationSnapshotLoad();
   try {
-    recordAdminDashboardRequestReclamationSnapshotLoad();
     const reclamationSnapshots = await collectReclamationRiskSnapshots(
       db,
       now,
       settings,
     );
-    return { now, settings, reclamationSnapshots };
+    return { reclamationSnapshots };
   } catch (error) {
     console.error("[admin-dashboard-request] reclamation snapshots failed", {
       error,
     });
-    return {
-      now,
-      settings,
-      reclamationSnapshotsFailed: true,
-    };
+    return { reclamationSnapshotsFailed: true };
   }
+}
+
+/**
+ * Load settings and reclamation snapshots sequentially.
+ * Prefer `loadAdminDashboardReports` for parallel Admin Dashboard orchestration.
+ */
+export async function loadAdminDashboardRequestData(
+  db: Database,
+  now: Date = new Date(),
+): Promise<AdminDashboardRequestData> {
+  const settings = await loadAdminDashboardSharedSettings(db);
+  const reclamationData = await loadAdminDashboardReclamationData(
+    db,
+    now,
+    settings,
+  );
+  return { now, settings, ...reclamationData };
 }
