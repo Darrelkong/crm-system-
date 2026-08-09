@@ -1802,6 +1802,23 @@ const en = {
     readOnlyNotice:
       "This page is for reference only. It does not change any system settings.",
     sections: {
+      homeScreenApp: {
+        title: "Add ECHFRONT CRM to Home Screen",
+        description:
+          "Install the CRM as a Home Screen web app for a standalone, app-like window on iPhone.",
+        items: {
+          why:
+            "Adding to Home Screen opens ECHFRONT CRM in its own window instead of Safari tabs.",
+          iosSteps:
+            "On iPhone Safari, tap Share, then choose Add to Home Screen.",
+          standaloneBenefit:
+            "After installation, launch ECHFRONT from your Home Screen for quicker access.",
+          stepShare: "Tap the Share button in Safari.",
+          stepAddToHomeScreen: 'Choose "Add to Home Screen".',
+          stepOpenStandalone:
+            "Open ECHFRONT from your Home Screen to use standalone mode.",
+        },
+      },
       aiCustomerAnalysis: {
         title: "AI client analysis",
         description:

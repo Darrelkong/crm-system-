@@ -56,6 +56,7 @@ describe("getHelpSectionsForRole staff", () => {
 
   it("includes employee-focused sections", () => {
     assertIncludes(staffSectionIds, [
+      "homeScreenApp",
       "aiCustomerAnalysis",
       "addCustomer",
       "recordFollowUp",
@@ -82,6 +83,7 @@ describe("getHelpSectionsForRole admin", () => {
 
   it("includes the same employee-focused sections", () => {
     assertIncludes(adminSectionIds, [
+      "homeScreenApp",
       "aiCustomerAnalysis",
       "addCustomer",
       "recordFollowUp",

@@ -1742,6 +1742,22 @@ const zhHant: Messages = {
     staffOnlyBadge: "僅團隊成員適用",
     readOnlyNotice: "此頁面僅供參考，不會修改任何系統設定。",
     sections: {
+      homeScreenApp: {
+        title: "將 ECHFRONT CRM 加入主畫面",
+        description:
+          "在 iPhone 上將 CRM 安裝為主畫面 Web App，以獨立視窗開啟。",
+        items: {
+          why:
+            "加入主畫面後，ECHFRONT CRM 會以獨立視窗開啟，而不是 Safari 分頁。",
+          iosSteps:
+            "在 iPhone Safari 中，點選「分享」，再選擇「加入主畫面」。",
+          standaloneBenefit:
+            "安裝後可從主畫面快速開啟 ECHFRONT，使用體驗更接近 App。",
+          stepShare: "在 Safari 點選「分享」按鈕。",
+          stepAddToHomeScreen: "選擇「加入主畫面」。",
+          stepOpenStandalone: "從主畫面開啟 ECHFRONT，即可使用獨立視窗模式。",
+        },
+      },
       aiCustomerAnalysis: {
         title: "AI 客戶分析功能",
         description: "AI 可以協助您更快理解客戶，但仍需由您做最終判斷。",

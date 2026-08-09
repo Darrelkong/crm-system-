@@ -21,6 +21,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "ECHFRONT CRM",
   description: "EchFront CRM — internal client management",
+  applicationName: "ECHFRONT CRM",
+  icons: {
+    icon: [
+      { url: "/icons/icon-192.svg", type: "image/svg+xml" },
+    ],
+    apple: [
+      { url: "/icons/apple-touch-icon.svg", type: "image/svg+xml" },
+    ],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "ECHFRONT",
+    statusBarStyle: "default",
+  },
 };
 
 export const viewport: Viewport = {

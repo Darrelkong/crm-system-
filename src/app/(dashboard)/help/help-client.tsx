@@ -1,5 +1,6 @@
 "use client";
 
+import { HomeScreenInstallGuide } from "@/components/pwa/home-screen-install-guide";
 import { Badge } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import {
@@ -122,6 +123,8 @@ export function HelpClient({ role }: { role: "admin" | "staff" }) {
           ))}
         </div>
       </section>
+
+      <HomeScreenInstallGuide />
 
       <p className="mt-6 text-sm text-[#6B7890]">{t("help.readOnlyNotice")}</p>
     </div>

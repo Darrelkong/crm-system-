@@ -28,6 +28,17 @@ export function isHelpVisibleForRole(
 
 export const HELP_CONTENT_SECTIONS: HelpSectionConfig[] = [
   {
+    id: "homeScreenApp",
+    titleKey: "help.sections.homeScreenApp.title",
+    descriptionKey: "help.sections.homeScreenApp.description",
+    audience: "all",
+    itemKeys: [
+      "help.sections.homeScreenApp.items.why",
+      "help.sections.homeScreenApp.items.iosSteps",
+      "help.sections.homeScreenApp.items.standaloneBenefit",
+    ],
+  },
+  {
     id: "aiCustomerAnalysis",
     titleKey: "help.sections.aiCustomerAnalysis.title",
     descriptionKey: "help.sections.aiCustomerAnalysis.description",
