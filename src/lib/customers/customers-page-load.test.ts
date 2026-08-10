@@ -12,13 +12,39 @@ import {
   listCustomerAssigneesByCustomerIds,
 } from "@/lib/customers/assignees";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
-import { listCustomersForUserPaginated } from "@/lib/customers/queries";
-import { getCustomersWithScores } from "@/lib/customers/scoring/service";
+import {
+  buildCustomerListPagination,
+  listCustomersForUserPaginated,
+} from "@/lib/customers/queries";
+import {
+  filterCustomersWithScores,
+  getCustomerIdsWithFollowUps,
+  getCustomersWithScores,
+} from "@/lib/customers/scoring/service";
 import { getEffectiveSettings } from "@/lib/settings/effective";
+import { CUSTOMER_LIST_ACTIVE_SORT_MODE } from "@/lib/customers/customer-list-sort";
 import type { User } from "../../../drizzle/schema/users";
 
 const staffB = { id: SEED_IDS.staffB, role: "staff" } as User;
 const adminUser = { id: SEED_IDS.admin, role: "admin" } as User;
+
+function readCustomersPageSource(): string {
+  return readFileSync("src/app/(dashboard)/customers/page.tsx", "utf8");
+}
+
+function extractScoringBranch(source: string): string {
+  const start = source.indexOf("if (hasScoringFilter)");
+  const end = source.indexOf("} else {", start);
+  assert.ok(start >= 0 && end > start);
+  return source.slice(start, end);
+}
+
+function extractPaginatedBranch(source: string): string {
+  const start = source.indexOf("} else {", source.indexOf("if (hasScoringFilter)"));
+  const end = source.indexOf("return (", start);
+  assert.ok(start >= 0 && end > start);
+  return source.slice(start, end);
+}
 
 describe("customers page Phase 2A load path", () => {
   let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -41,7 +67,7 @@ describe("customers page Phase 2A load path", () => {
   });
 
   it("page parallelizes reclamation risk and settings", () => {
-    const page = readFileSync("src/app/(dashboard)/customers/page.tsx", "utf8");
+    const page = readCustomersPageSource();
     assert.match(
       page,
       /Promise\.all\(\[\s*resolveReclamationRiskCustomerIds/,
@@ -50,17 +76,35 @@ describe("customers page Phase 2A load path", () => {
   });
 
   it("page parallelizes creator options with paginated list for admin", () => {
-    const page = readFileSync("src/app/(dashboard)/customers/page.tsx", "utf8");
+    const page = readCustomersPageSource();
     assert.match(page, /listCustomerCreatorsForAdmin/);
     assert.match(page, /listCustomersForUserPaginated/);
     assert.match(page, /creatorOptionsPromise/);
   });
 
-  it("page uses shared assignee map instead of getAssigneeCustomerIdsForUser", () => {
-    const page = readFileSync("src/app/(dashboard)/customers/page.tsx", "utf8");
-    assert.match(page, /getAssigneeCustomerIdsFromRecords/);
-    assert.match(page, /assigneesByCustomerId/);
-    assert.doesNotMatch(page, /getAssigneeCustomerIdsForUser/);
+  it("non-scoring paginated path uses one shared full assignee map", () => {
+    const branch = extractPaginatedBranch(readCustomersPageSource());
+    assert.match(branch, /listCustomerAssigneesByCustomerIds/);
+    assert.match(branch, /getAssigneeCustomerIdsFromRecords/);
+    assert.doesNotMatch(branch, /getAssigneeCustomerIdsForUser/);
+    const fullAssigneeCalls = (
+      branch.match(/listCustomerAssigneesByCustomerIds/g) ?? []
+    ).length;
+    assert.equal(fullAssigneeCalls, 1);
+  });
+
+  it("scoring path uses user assignee membership for candidates only", () => {
+    const branch = extractScoringBranch(readCustomersPageSource());
+    assert.match(branch, /getAssigneeCustomerIdsForUser/);
+    assert.doesNotMatch(
+      branch,
+      /listCustomerAssigneesByCustomerIds\(db,\s*customerIds\)/,
+    );
+    assert.match(branch, /pageViewIds/);
+    assert.match(
+      branch,
+      /listCustomerAssigneesByCustomerIds\(\s*db,\s*pageViewIds/,
+    );
   });
 
   it("list-rows supports preloaded assignee map", () => {
@@ -89,6 +133,121 @@ describe("customers page Phase 2A load path", () => {
     );
 
     assert.deepEqual(fromRecords, fromQuery);
+  });
+
+  it("paginated path performs one full assignee read for page customer IDs", async () => {
+    const fullLoadCalls: string[][] = [];
+
+    const result = await listCustomersForUserPaginated(staffB, {}, 1);
+    const customerIds = result.items.map((item) => item.id);
+
+    const assigneesByCustomerId = await listCustomerAssigneesByCustomerIds(
+      db,
+      customerIds,
+    );
+    fullLoadCalls.push(customerIds);
+
+    const settings = await getEffectiveSettings(db);
+    const views = getCustomersWithScores(
+      staffB,
+      result.items,
+      new Set(),
+      settings,
+      new Date(),
+      getAssigneeCustomerIdsFromRecords(
+        staffB.id,
+        customerIds,
+        assigneesByCustomerId,
+      ),
+    );
+
+    await buildCustomerListRows(db, views, { assigneesByCustomerId });
+
+    assert.equal(fullLoadCalls.length, 1);
+    assert.deepEqual(fullLoadCalls[0], customerIds);
+  });
+
+  it("scoring path queries user membership for candidates then full map for pageViews only", async () => {
+    const userMembershipCalls: string[][] = [];
+    const fullLoadCalls: string[][] = [];
+
+    const settings = await getEffectiveSettings(db);
+    const listQueryOptions = {
+      sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
+      automaticReclaimDays: settings.automaticReclaimDays,
+    };
+    const [pageOne, pageTwo] = await Promise.all([
+      listCustomersForUserPaginated(adminUser, {}, 1),
+      listCustomersForUserPaginated(adminUser, {}, 2),
+    ]);
+    const customers = [...pageOne.items, ...pageTwo.items];
+    const customerIds = customers.map((customer) => customer.id);
+
+    const [followUpSet, assigneeIds] = await Promise.all([
+      getCustomerIdsWithFollowUps(db, customerIds),
+      (async () => {
+        userMembershipCalls.push(customerIds);
+        return getAssigneeCustomerIdsForUser(db, adminUser.id, customerIds);
+      })(),
+    ]);
+
+    const views = filterCustomersWithScores(
+      getCustomersWithScores(
+        adminUser,
+        customers,
+        followUpSet,
+        settings,
+        new Date(),
+        assigneeIds,
+      ),
+      { completenessBelow: 100 },
+    );
+    const pagination = buildCustomerListPagination(views.length, 1);
+    const offset = (pagination.page - 1) * pagination.pageSize;
+    const pageViews = views.slice(offset, offset + pagination.pageSize);
+    const pageViewIds = pageViews.map((view) => view.id);
+
+    const assigneesByCustomerId = await (async () => {
+      fullLoadCalls.push(pageViewIds);
+      return listCustomerAssigneesByCustomerIds(db, pageViewIds);
+    })();
+
+    await buildCustomerListRows(db, pageViews, { assigneesByCustomerId });
+
+    assert.equal(userMembershipCalls.length, 1);
+    assert.deepEqual(userMembershipCalls[0], customerIds);
+    assert.equal(fullLoadCalls.length, 1);
+    assert.deepEqual(fullLoadCalls[0], pageViewIds);
+    assert.ok(pageViewIds.length <= pagination.pageSize);
+  });
+
+  it("heat filter scoring semantics remain available on bounded assignee path", async () => {
+    const settings = await getEffectiveSettings(db);
+    const listQueryOptions = {
+      sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
+      automaticReclaimDays: settings.automaticReclaimDays,
+    };
+    const result = await listCustomersForUserPaginated(adminUser, {}, 1);
+    const customers = result.items;
+    const customerIds = customers.map((customer) => customer.id);
+    const [followUpSet, assigneeIds] = await Promise.all([
+      getCustomerIdsWithFollowUps(db, customerIds),
+      getAssigneeCustomerIdsForUser(db, adminUser.id, customerIds),
+    ]);
+    const views = filterCustomersWithScores(
+      getCustomersWithScores(
+        adminUser,
+        customers,
+        followUpSet,
+        settings,
+        new Date(),
+        assigneeIds,
+      ),
+      { heat: "high" },
+    );
+    for (const view of views) {
+      assert.equal(view.heatLevel, "high");
+    }
   });
 
   it("buildCustomerListRows renders assignee names from preloaded map", async () => {

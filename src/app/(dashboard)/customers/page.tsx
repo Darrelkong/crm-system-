@@ -22,6 +22,7 @@ import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import {
+  getAssigneeCustomerIdsForUser,
   getAssigneeCustomerIdsFromRecords,
   listCustomerAssigneesByCustomerIds,
 } from "@/lib/customers/assignees";
@@ -132,15 +133,10 @@ export default async function CustomersPage({ searchParams }: Props) {
     creatorOptions = resolvedCreatorOptions;
 
     const customerIds = customers.map((customer) => customer.id);
-    const [followUpSet, assigneesByCustomerId] = await Promise.all([
+    const [followUpSet, assigneeIds] = await Promise.all([
       getCustomerIdsWithFollowUps(db, customerIds),
-      listCustomerAssigneesByCustomerIds(db, customerIds),
+      getAssigneeCustomerIdsForUser(db, user.id, customerIds),
     ]);
-    const assigneeIds = getAssigneeCustomerIdsFromRecords(
-      user.id,
-      customerIds,
-      assigneesByCustomerId,
-    );
     const views = filterCustomersWithScores(
       getCustomersWithScores(
         user,
@@ -155,6 +151,11 @@ export default async function CustomersPage({ searchParams }: Props) {
     pagination = buildCustomerListPagination(views.length, page);
     const offset = (pagination.page - 1) * pagination.pageSize;
     const pageViews = views.slice(offset, offset + pagination.pageSize);
+    const pageViewIds = pageViews.map((view) => view.id);
+    const assigneesByCustomerId = await listCustomerAssigneesByCustomerIds(
+      db,
+      pageViewIds,
+    );
     initialRows = await buildCustomerListRows(db, pageViews, {
       assigneesByCustomerId,
     });
