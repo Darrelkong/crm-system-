@@ -56,4 +56,14 @@ describe("pwa foundation safety", () => {
     assert.match(helpSource, /HomeScreenInstallGuide/);
     assert.doesNotMatch(helpSource, /modal/i);
   });
+
+  it("keeps manifest identity and PNG icon paths unchanged", () => {
+    const manifestSource = readFileSync(
+      join(ROOT, "src/app/manifest.ts"),
+      "utf8",
+    );
+    assert.match(manifestSource, /ECHFRONT CRM/);
+    assert.match(manifestSource, /apple-touch-icon\.png/);
+    assert.doesNotMatch(manifestSource, /\.svg/);
+  });
 });
