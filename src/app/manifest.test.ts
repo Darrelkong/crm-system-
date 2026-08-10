@@ -65,6 +65,7 @@ describe("crm pwa apple metadata", () => {
     assert.match(layoutSource, /title:\s*"ECHFRONT"/);
     assert.match(layoutSource, /viewportFit:\s*"cover"/);
     assert.match(layoutSource, /startupImage/);
+    assert.match(layoutSource, /CRM_APPLE_STARTUP_IMAGES/);
   });
 
   it("ships apple touch icon PNG asset", () => {

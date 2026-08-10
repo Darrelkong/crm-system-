@@ -13,8 +13,12 @@ import {
 } from "./boot-splash-bootstrap";
 import { isStandaloneDisplayMode } from "./standalone";
 import {
-  shouldActivateStartupPreview,
-} from "./startup-timing";
+  CRM_APPLE_STARTUP_IMAGE_1170,
+  CRM_APPLE_STARTUP_IMAGE_1284,
+  CRM_APPLE_STARTUP_IMAGE_1320,
+  CRM_APPLE_STARTUP_IMAGES,
+} from "./apple-startup-images";
+import { shouldActivateStartupPreview } from "./startup-timing";
 
 function splashVisibleForEnvironment(input: {
   displayModeStandalone: boolean;
@@ -177,9 +181,22 @@ describe("boot splash standalone scope", () => {
       join(process.cwd(), "src/app/layout.tsx"),
       "utf8",
     );
-    assert.match(layout, /startupImage/);
-    assert.match(layout, /iphone-portrait-1170x2532-light\.png/);
-    assert.match(layout, /iphone-portrait-1284x2778-light\.png/);
+    assert.match(layout, /CRM_APPLE_STARTUP_IMAGES/);
+    assert.ok(
+      CRM_APPLE_STARTUP_IMAGES?.some(
+        (entry) => entry.url === CRM_APPLE_STARTUP_IMAGE_1170,
+      ),
+    );
+    assert.ok(
+      CRM_APPLE_STARTUP_IMAGES?.some(
+        (entry) => entry.url === CRM_APPLE_STARTUP_IMAGE_1284,
+      ),
+    );
+    assert.ok(
+      CRM_APPLE_STARTUP_IMAGES?.some(
+        (entry) => entry.url === CRM_APPLE_STARTUP_IMAGE_1320,
+      ),
+    );
   });
 
   it("does not use standalone detection for auth", () => {

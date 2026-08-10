@@ -8,6 +8,7 @@ import {
 import { CrmThemeSync } from "@/components/theme/crm-theme-sync";
 import { DEFAULT_LOCALE } from "@/i18n/config";
 import { I18nProvider } from "@/i18n/provider";
+import { CRM_APPLE_STARTUP_IMAGES } from "@/lib/pwa/apple-startup-images";
 import { CRM_BOOT_SPLASH_INIT_SCRIPT } from "@/lib/pwa/boot-splash-bootstrap";
 import {
   CRM_THEME_BOOTSTRAP_SCRIPT,
@@ -38,18 +39,7 @@ export const metadata: Metadata = {
     capable: true,
     title: "ECHFRONT",
     statusBarStyle: "default",
-    startupImage: [
-      {
-        url: "/startup/iphone-portrait-1170x2532-light.png",
-        media:
-          "(device-width: 390px) and (device-height: 844px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
-      },
-      {
-        url: "/startup/iphone-portrait-1284x2778-light.png",
-        media:
-          "(device-width: 428px) and (device-height: 926px) and (-webkit-device-pixel-ratio: 3) and (orientation: portrait)",
-      },
-    ],
+    startupImage: CRM_APPLE_STARTUP_IMAGES,
   },
 };
 
