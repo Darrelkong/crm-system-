@@ -5,6 +5,7 @@ export const INSTALL_PORTAL_MANIFEST_PATH = "/install/manifest.webmanifest";
 export const INSTALL_PORTAL_APPLE_TOUCH_ICON = "/install/apple-touch-icon.png";
 export const INSTALL_PORTAL_ICON_192 = "/install/icon-192.png";
 export const INSTALL_PORTAL_ICON_512 = "/install/icon-512.png";
+export const INSTALL_PORTAL_FAVICON = INSTALL_PORTAL_ICON_192;
 export const INSTALL_PORTAL_THEME_COLOR = CRM_THEME_COLOR_LIGHT;
 
 export const INSTALL_PORTAL_MANIFEST_ID = "https://crm.echfronthk.com/";
@@ -309,6 +310,7 @@ export function buildInstallPortalHtml(
   const crmUrl = INSTALL_PORTAL_CRM_ENTRY_URL;
   const manifestPath = INSTALL_PORTAL_MANIFEST_PATH;
   const appleTouchIcon = INSTALL_PORTAL_APPLE_TOUCH_ICON;
+  const favicon = INSTALL_PORTAL_FAVICON;
   const themeColor = INSTALL_PORTAL_THEME_COLOR;
   const platformDetectorScript = buildInstallPortalPlatformDetectorScript();
   const pageTitle = escapeHtml(INSTALL_PORTAL_COPY[initialLocale].pageTitle);
@@ -323,6 +325,8 @@ export function buildInstallPortalHtml(
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="ECHFRONT">
   <title>${pageTitle}</title>
+  <link rel="icon" href="${favicon}" type="image/png" sizes="192x192">
+  <link rel="shortcut icon" href="${favicon}" type="image/png">
   <link rel="apple-touch-icon" href="${appleTouchIcon}">
   <link rel="manifest" href="${manifestPath}">
   <style>

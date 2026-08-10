@@ -12,6 +12,7 @@ import {
   INSTALL_PORTAL_APPLE_TOUCH_ICON,
   INSTALL_PORTAL_COPY,
   INSTALL_PORTAL_CRM_ENTRY_URL,
+  INSTALL_PORTAL_FAVICON,
   INSTALL_PORTAL_ICON_192,
   INSTALL_PORTAL_ICON_512,
   INSTALL_PORTAL_MANIFEST_DESCRIPTION,
@@ -66,6 +67,28 @@ describe("crm install portal document", () => {
     assert.match(html, /width:\s*100%/);
     assert.match(html, /@media \(min-width: 40rem\)/);
     assert.match(html, /name="robots" content="noindex, nofollow"/);
+  });
+
+  it("declares an explicit install-scoped favicon without root fallback", () => {
+    const html = buildInstallPortalHtml("en");
+
+    assert.match(html, /rel="icon" href="\/install\/icon-192\.png"/);
+    assert.match(html, /rel="icon"[^>]*type="image\/png"/);
+    assert.match(html, /rel="icon"[^>]*sizes="192x192"/);
+    assert.match(html, /rel="shortcut icon" href="\/install\/icon-192\.png"/);
+    assert.match(html, /rel="shortcut icon"[^>]*type="image\/png"/);
+    assert.equal(INSTALL_PORTAL_FAVICON, INSTALL_PORTAL_ICON_192);
+    assert.doesNotMatch(html, /href="\/favicon\.ico"/);
+    assert.doesNotMatch(html, /href="\/icons\//);
+    assert.match(
+      html,
+      /rel="apple-touch-icon" href="\/install\/apple-touch-icon\.png"/,
+    );
+    assert.match(html, /rel="manifest" href="\/install\/manifest\.webmanifest"/);
+    assert.match(html, /href="\/"/);
+    assert.doesNotMatch(html, /\/_next\//);
+    assert.doesNotMatch(html, /\/api\//);
+    assert.doesNotMatch(html, /CF_Authorization/i);
   });
 
   it("does not depend on protected global static paths for core operation", () => {
