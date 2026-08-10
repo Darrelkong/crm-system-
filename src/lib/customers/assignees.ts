@@ -133,3 +133,19 @@ export async function getAssigneeCustomerIdsForUser(
 
   return new Set(rows.map((row) => row.customerId));
 }
+
+/** Derive assignee customer IDs from an already-loaded assignee map (no extra D1 read). */
+export function getAssigneeCustomerIdsFromRecords(
+  userId: string,
+  customerIds: string[],
+  assigneesByCustomerId: Map<string, CustomerAssigneeRecord[]>,
+): Set<string> {
+  const result = new Set<string>();
+  for (const customerId of customerIds) {
+    const records = assigneesByCustomerId.get(customerId) ?? [];
+    if (records.some((record) => record.userId === userId)) {
+      result.add(customerId);
+    }
+  }
+  return result;
+}

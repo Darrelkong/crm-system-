@@ -2,7 +2,10 @@ import type { Database } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { CustomerWithScores } from "@/lib/customers/scoring/service";
 import type { ReclamationCountdownDisplay } from "@/lib/reclamation/countdown-display";
-import { listCustomerAssigneesByCustomerIds } from "@/lib/customers/assignees";
+import {
+  listCustomerAssigneesByCustomerIds,
+  type CustomerAssigneeRecord,
+} from "@/lib/customers/assignees";
 import { resolveUserDisplayNames } from "@/lib/customers/user-labels";
 
 export type CustomerListRowData = {
@@ -65,15 +68,19 @@ export function toCustomerListRow(
   };
 }
 
+export type BuildCustomerListRowsOptions = {
+  assigneesByCustomerId?: Map<string, CustomerAssigneeRecord[]>;
+};
+
 export async function buildCustomerListRows(
   db: Database,
   items: CustomerWithScores[],
+  options?: BuildCustomerListRowsOptions,
 ): Promise<CustomerListRowData[]> {
   const customerIds = items.map((item) => item.id);
-  const assigneesByCustomerId = await listCustomerAssigneesByCustomerIds(
-    db,
-    customerIds,
-  );
+  const assigneesByCustomerId =
+    options?.assigneesByCustomerId ??
+    (await listCustomerAssigneesByCustomerIds(db, customerIds));
 
   const userIds = new Set<string>();
   for (const item of items) {

@@ -22,7 +22,8 @@ import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import {
-  getAssigneeCustomerIdsForUser,
+  getAssigneeCustomerIdsFromRecords,
+  listCustomerAssigneesByCustomerIds,
 } from "@/lib/customers/assignees";
 import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
 import { parseReclamationRiskParam } from "@/lib/customers/work-view-filter";
@@ -72,11 +73,12 @@ export default async function CustomersPage({ searchParams }: Props) {
     user,
     params.reclamationRisk,
   );
-  const reclamationCustomerIds = await resolveReclamationRiskCustomerIds(
-    db,
-    user,
-    reclamationScope,
-  );
+
+  const [reclamationCustomerIds, settings] = await Promise.all([
+    resolveReclamationRiskCustomerIds(db, user, reclamationScope),
+    getEffectiveSettings(db),
+  ]);
+
   const listFilter = {
     ...parseCustomerListFilter(user, {
       status: params.status,
@@ -90,7 +92,6 @@ export default async function CustomersPage({ searchParams }: Props) {
       : {}),
   };
   const showArchived = listFilter.status === "archived";
-  const settings = await getEffectiveSettings(db);
   const listQueryOptions = {
     sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
     automaticReclaimDays: settings.automaticReclaimDays,
@@ -112,24 +113,33 @@ export default async function CustomersPage({ searchParams }: Props) {
   const hasScoringFilter =
     scoringFilter.heat != null || scoringFilter.completenessBelow != null;
 
+  const creatorOptionsPromise =
+    user.role === "admin"
+      ? listCustomerCreatorsForAdmin(
+          showArchived ? { status: "archived" } : {},
+        )
+      : Promise.resolve([]);
+
   let initialRows: Awaited<ReturnType<typeof buildCustomerListRows>> = [];
   let pagination;
+  let creatorOptions: Awaited<typeof creatorOptionsPromise> = [];
 
   if (hasScoringFilter) {
-    const customers = await listCustomersForUser(
-      user,
-      listFilter,
-      10_000,
-      listQueryOptions,
-    );
-    const followUpSet = await getCustomerIdsWithFollowUps(
-      db,
-      customers.map((c) => c.id),
-    );
-    const assigneeIds = await getAssigneeCustomerIdsForUser(
-      db,
+    const [customers, resolvedCreatorOptions] = await Promise.all([
+      listCustomersForUser(user, listFilter, 10_000, listQueryOptions),
+      creatorOptionsPromise,
+    ]);
+    creatorOptions = resolvedCreatorOptions;
+
+    const customerIds = customers.map((customer) => customer.id);
+    const [followUpSet, assigneesByCustomerId] = await Promise.all([
+      getCustomerIdsWithFollowUps(db, customerIds),
+      listCustomerAssigneesByCustomerIds(db, customerIds),
+    ]);
+    const assigneeIds = getAssigneeCustomerIdsFromRecords(
       user.id,
-      customers.map((customer) => customer.id),
+      customerIds,
+      assigneesByCustomerId,
     );
     const views = filterCustomersWithScores(
       getCustomersWithScores(
@@ -145,22 +155,30 @@ export default async function CustomersPage({ searchParams }: Props) {
     pagination = buildCustomerListPagination(views.length, page);
     const offset = (pagination.page - 1) * pagination.pageSize;
     const pageViews = views.slice(offset, offset + pagination.pageSize);
-    initialRows = await buildCustomerListRows(db, pageViews);
+    initialRows = await buildCustomerListRows(db, pageViews, {
+      assigneesByCustomerId,
+    });
   } else {
-    const result = await listCustomersForUserPaginated(
-      user,
-      listFilter,
-      page,
-      listQueryOptions,
-    );
-    const followUpSet = await getCustomerIdsWithFollowUps(
-      db,
-      result.items.map((c) => c.id),
-    );
-    const assigneeIds = await getAssigneeCustomerIdsForUser(
-      db,
+    const [result, resolvedCreatorOptions] = await Promise.all([
+      listCustomersForUserPaginated(
+        user,
+        listFilter,
+        page,
+        listQueryOptions,
+      ),
+      creatorOptionsPromise,
+    ]);
+    creatorOptions = resolvedCreatorOptions;
+
+    const customerIds = result.items.map((customer) => customer.id);
+    const [followUpSet, assigneesByCustomerId] = await Promise.all([
+      getCustomerIdsWithFollowUps(db, customerIds),
+      listCustomerAssigneesByCustomerIds(db, customerIds),
+    ]);
+    const assigneeIds = getAssigneeCustomerIdsFromRecords(
       user.id,
-      result.items.map((customer) => customer.id),
+      customerIds,
+      assigneesByCustomerId,
     );
     const views = getCustomersWithScores(
       user,
@@ -170,16 +188,11 @@ export default async function CustomersPage({ searchParams }: Props) {
       new Date(),
       assigneeIds,
     );
-    initialRows = await buildCustomerListRows(db, views);
+    initialRows = await buildCustomerListRows(db, views, {
+      assigneesByCustomerId,
+    });
     pagination = result.pagination;
   }
-
-  const creatorOptions =
-    user.role === "admin"
-      ? await listCustomerCreatorsForAdmin(
-          showArchived ? { status: "archived" } : {},
-        )
-      : [];
 
   return (
     <CustomersListClient

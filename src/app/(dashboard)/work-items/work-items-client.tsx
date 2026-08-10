@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { useCallback, useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,7 @@ type Props = {
   initialTab: WorkItemsTab;
   initialView: TasksView | NotificationsView;
   initialStaffId: string | null;
+  initialTasks: WorkItemTaskRow[];
   taskCounts: WorkItemTaskCounts;
   pendingCount: number;
   attentionCount: number;
@@ -57,6 +58,7 @@ export function WorkItemsClient({
   initialTab,
   initialView,
   initialStaffId,
+  initialTasks,
   taskCounts: initialTaskCounts,
   pendingCount: initialPendingCount,
   attentionCount: initialAttentionCount,
@@ -114,8 +116,8 @@ export function WorkItemsClient({
         (data.unreadCount ?? 0) + (data.pendingCount ?? 0),
     );
   }, []);
-  const [tasks, setTasks] = useState<WorkItemTaskRow[]>([]);
-  const [tasksLoading, setTasksLoading] = useState(activeTab === "tasks");
+  const [tasks, setTasks] = useState<WorkItemTaskRow[]>(initialTasks);
+  const [tasksLoading, setTasksLoading] = useState(false);
   const [tasksError, setTasksError] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const completingRef = useRef<string | null>(null);
@@ -162,11 +164,6 @@ export function WorkItemsClient({
       setTasksLoading(false);
     }
   }, [activeTab, tasksView, staffId, userRole, t]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch tasks when view changes
-    void loadTasks();
-  }, [loadTasks]);
 
   const currentReturnPath = useMemo(() => {
     const qs = searchParams.toString();

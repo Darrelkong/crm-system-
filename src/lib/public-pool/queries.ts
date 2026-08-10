@@ -452,10 +452,20 @@ export async function listRandomClaimCandidatesForStaff(
   };
 }
 
-export async function formatPublicPoolListForUser(user: User) {
+export type FormatPublicPoolListOptions = {
+  /** When provided for staff, skips an internal getStaffClaimStatus read. */
+  staffStatus?: StaffClaimStatus | null;
+};
+
+export async function formatPublicPoolListForUser(
+  user: User,
+  options?: FormatPublicPoolListOptions,
+) {
   const customers = await listPublicPoolCustomers();
   const staffStatus =
-    user.role === "staff" ? await getStaffClaimStatus(user.id) : null;
+    user.role === "staff"
+      ? (options?.staffStatus ?? (await getStaffClaimStatus(user.id)))
+      : null;
 
   const followUpSet = await getCustomerIdsWithFollowUps(
     getDb(),

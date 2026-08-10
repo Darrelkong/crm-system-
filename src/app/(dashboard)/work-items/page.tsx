@@ -10,10 +10,12 @@ import {
 import {
   countWorkItemTasks,
   listWorkItemStaffOptions,
+  listWorkItemTasks,
 } from "@/lib/tasks/service";
 import {
   buildWorkItemsHref,
   parseWorkItemsState,
+  type TasksView,
 } from "@/lib/work-items/url-state";
 import { WorkItemsClient } from "./work-items-client";
 
@@ -21,12 +23,27 @@ type Props = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
+const TASK_VIEWS = new Set<TasksView>(["open", "today", "overdue", "completed"]);
+
 function firstParam(
   value: string | string[] | undefined,
 ): string | undefined {
   if (typeof value === "string") return value;
   if (Array.isArray(value) && typeof value[0] === "string") return value[0];
   return undefined;
+}
+
+function resolveTasksView(
+  tab: ReturnType<typeof parseWorkItemsState>["tab"],
+  view: ReturnType<typeof parseWorkItemsState>["view"],
+): TasksView {
+  if (
+    tab === "tasks" &&
+    TASK_VIEWS.has(view as TasksView)
+  ) {
+    return view as TasksView;
+  }
+  return "open";
 }
 
 export default async function WorkItemsPage({ searchParams }: Props) {
@@ -46,22 +63,34 @@ export default async function WorkItemsPage({ searchParams }: Props) {
   }
 
   const db = getDb();
-  const [taskCounts, pendingCount, attentionCount, staffOptions] =
+  const staffIdForTasks = user.role === "admin" ? state.staffId : null;
+  const tasksView = resolveTasksView(state.tab, state.view);
+  const isTasksTab = state.tab === "tasks";
+
+  const [initialTasks, taskCounts, pendingCount, attentionCount, staffOptions] =
     await Promise.all([
-    countWorkItemTasks(user, {
-      staffId: user.role === "admin" ? state.staffId : null,
-    }),
-    getPendingActionCount(db, user.id),
-    getWorkItemsAttentionCount(db, user.id),
-    user.role === "admin" ? listWorkItemStaffOptions() : Promise.resolve([]),
-  ]);
+      isTasksTab
+        ? listWorkItemTasks(user, {
+            view: tasksView,
+            staffId: staffIdForTasks,
+          })
+        : Promise.resolve([]),
+      countWorkItemTasks(user, {
+        staffId: staffIdForTasks,
+      }),
+      getPendingActionCount(db, user.id),
+      getWorkItemsAttentionCount(db, user.id),
+      user.role === "admin" ? listWorkItemStaffOptions() : Promise.resolve([]),
+    ]);
 
   return (
     <WorkItemsClient
+      key={`${state.tab}:${tasksView}:${staffIdForTasks ?? ""}`}
       userRole={user.role}
       initialTab={state.tab}
       initialView={state.view}
       initialStaffId={state.staffId}
+      initialTasks={initialTasks}
       taskCounts={taskCounts}
       pendingCount={pendingCount}
       attentionCount={attentionCount}

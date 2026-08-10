@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { requireAuthCached } from "@/lib/auth/request-cache";
-import { formatPublicPoolListForUser } from "@/lib/public-pool/queries";
 import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
 import type { AdminClaimStatus } from "@/lib/public-pool/constants";
+import { formatPublicPoolListForUser } from "@/lib/public-pool/queries";
 import { PublicPoolPageClient } from "./public-pool-page-client";
 
 const ADMIN_CLAIM_STATUS: AdminClaimStatus = {
@@ -17,12 +17,16 @@ const ADMIN_CLAIM_STATUS: AdminClaimStatus = {
 
 export default async function PublicPoolPage() {
   const user = await requireAuthCached();
-  const items = await formatPublicPoolListForUser(user);
+
+  const staffClaimStatus =
+    user.role === "staff" ? await getStaffClaimStatus(user.id) : null;
+
+  const items = await formatPublicPoolListForUser(user, {
+    staffStatus: staffClaimStatus,
+  });
 
   const claimStatus =
-    user.role === "staff"
-      ? await getStaffClaimStatus(user.id)
-      : ADMIN_CLAIM_STATUS;
+    user.role === "staff" ? staffClaimStatus! : ADMIN_CLAIM_STATUS;
 
   return (
     <PublicPoolPageClient

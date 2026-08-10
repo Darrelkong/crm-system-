@@ -16,6 +16,14 @@ export type ParsedWorkItemsState = {
   staffId: string | null;
 };
 
+/** Stable key for matching SSR task rows to the active tasks view + staff filter. */
+export function buildWorkItemsTasksRequestKey(
+  view: TasksView,
+  staffId: string | null,
+): string {
+  return `${view}:${staffId ?? ""}`;
+}
+
 function firstParam(
   value: string | string[] | undefined | null,
 ): string | undefined {
