@@ -2,7 +2,7 @@
   "id": "https://crm.echfronthk.com/",
   "name": "ECHFRONT CRM",
   "short_name": "ECHFRONT",
-  "description": "ECHFRONT CRM — internal client management",
+  "description": "ECHFRONT CRM - internal client management",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

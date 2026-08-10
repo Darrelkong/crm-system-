@@ -7,11 +7,14 @@ import { GET } from "@/app/install/route";
 import {
   buildInstallPortalHtml,
   buildInstallPortalManifest,
+  buildInstallPortalPlatformDetectorScript,
+  classifyInstallPortalPlatform,
   INSTALL_PORTAL_APPLE_TOUCH_ICON,
   INSTALL_PORTAL_COPY,
   INSTALL_PORTAL_CRM_ENTRY_URL,
   INSTALL_PORTAL_ICON_192,
   INSTALL_PORTAL_ICON_512,
+  INSTALL_PORTAL_MANIFEST_DESCRIPTION,
   INSTALL_PORTAL_MANIFEST_DISPLAY,
   INSTALL_PORTAL_MANIFEST_ID,
   INSTALL_PORTAL_MANIFEST_NAME,
@@ -56,6 +59,12 @@ describe("crm install portal document", () => {
     assert.doesNotMatch(html, /CF_Authorization/i);
     assert.doesNotMatch(html, /email/i);
     assert.doesNotMatch(html, /session/i);
+    assert.match(html, /name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/);
+    assert.doesNotMatch(html, /user-scalable=no/);
+    assert.doesNotMatch(html, /maximum-scale=1/);
+    assert.match(html, /overflow-x:\s*hidden/);
+    assert.match(html, /width:\s*100%/);
+    assert.match(html, /@media \(min-width: 40rem\)/);
     assert.match(html, /name="robots" content="noindex, nofollow"/);
   });
 
@@ -94,6 +103,9 @@ describe("crm install portal manifest", () => {
     assert.equal(manifest.start_url, INSTALL_PORTAL_MANIFEST_START_URL);
     assert.equal(manifest.scope, INSTALL_PORTAL_MANIFEST_SCOPE);
     assert.equal(manifest.display, INSTALL_PORTAL_MANIFEST_DISPLAY);
+    assert.equal(manifest.description, INSTALL_PORTAL_MANIFEST_DESCRIPTION);
+    assert.equal(staticManifest.description, "ECHFRONT CRM - internal client management");
+    assert.doesNotMatch(staticManifest.description, /â€"/);
     assert.equal(manifest.start_url, "/");
     assert.equal(manifest.scope, "/");
     assert.equal(staticManifest.start_url, "/");
@@ -108,6 +120,205 @@ describe("crm install portal manifest", () => {
   });
 });
 
+describe("crm install portal platform classification", () => {
+  it("classifies normal iPhone user agents as ios", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+        platform: "iPhone",
+        maxTouchPoints: 5,
+      }),
+      "ios",
+    );
+  });
+
+  it("classifies older normal iPhone user agents as ios", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1",
+        platform: "iPhone",
+        maxTouchPoints: 5,
+      }),
+      "ios",
+    );
+  });
+
+  it("classifies normal iPad user agents as ios", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (iPad; CPU OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+        platform: "iPad",
+        maxTouchPoints: 5,
+      }),
+      "ios",
+    );
+  });
+
+  it("classifies iPadOS Macintosh user agents with touch as ios", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        platform: "MacIntel",
+        maxTouchPoints: 5,
+      }),
+      "ios",
+    );
+  });
+
+  it("classifies Apple mobile desktop-style user agents with touch as ios", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+        platform: "MacIntel",
+        maxTouchPoints: 2,
+      }),
+      "ios",
+    );
+  });
+
+  it("classifies real Mac Safari without touch as desktop", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15",
+        platform: "MacIntel",
+        maxTouchPoints: 0,
+      }),
+      "desktop",
+    );
+  });
+
+  it("classifies real Mac Chrome without touch as desktop", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        platform: "MacIntel",
+        maxTouchPoints: 0,
+      }),
+      "desktop",
+    );
+  });
+
+  it("classifies Windows desktop browsers as desktop", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        platform: "Win32",
+        maxTouchPoints: 0,
+      }),
+      "desktop",
+    );
+  });
+
+  it("does not classify Windows touchscreen devices as ios", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        platform: "Win32",
+        maxTouchPoints: 10,
+      }),
+      "desktop",
+    );
+  });
+
+  it("classifies Linux desktop browsers as desktop", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        platform: "Linux x86_64",
+        maxTouchPoints: 0,
+      }),
+      "desktop",
+    );
+  });
+
+  it("classifies Android Chrome as android", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+        platform: "Linux armv8l",
+        maxTouchPoints: 5,
+      }),
+      "android",
+    );
+  });
+
+  it("classifies Android tablets as android", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: false,
+        userAgent:
+          "Mozilla/5.0 (Linux; Android 14; SM-X710) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+        platform: "Linux armv8l",
+        maxTouchPoints: 5,
+      }),
+      "android",
+    );
+  });
+
+  it("classifies standalone iOS as standalone", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: true,
+        navigatorStandalone: true,
+        userAgent:
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1",
+        platform: "iPhone",
+        maxTouchPoints: 5,
+      }),
+      "standalone",
+    );
+  });
+
+  it("classifies standalone Android as standalone", () => {
+    assert.equal(
+      classifyInstallPortalPlatform({
+        displayModeStandalone: true,
+        userAgent:
+          "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36",
+        platform: "Linux armv8l",
+        maxTouchPoints: 5,
+      }),
+      "standalone",
+    );
+  });
+
+  it("embeds the same detector logic in the standalone HTML script", () => {
+    const html = buildInstallPortalHtml("en");
+    assert.match(html, /function detectPlatform\(\)/);
+    assert.match(html, /maxTouchPoints/);
+    assert.match(html, /Macintosh/i);
+    assert.match(html, /MacIntel/);
+    assert.match(html, /iPhone\|iPad\|iPod/);
+    assert.match(html, /Android/i);
+    assert.equal(
+      buildInstallPortalPlatformDetectorScript().includes("maxTouchPoints > 1"),
+      true,
+    );
+  });
+});
+
 describe("crm install portal platform behavior", () => {
   const source = readFileSync(
     join(ROOT, "src/lib/pwa/install-portal.ts"),
@@ -115,12 +326,14 @@ describe("crm install portal platform behavior", () => {
   );
 
   it("supports iOS, Android, desktop, and standalone categories", () => {
+    assert.match(source, /classifyInstallPortalPlatform/);
     assert.match(source, /return "ios"/);
     assert.match(source, /return "android"/);
     assert.match(source, /return "desktop"/);
     assert.match(source, /return "standalone"/);
     assert.match(source, /display-mode: standalone/);
     assert.match(source, /navigator\.standalone/);
+    assert.match(source, /maxTouchPoints > 1/);
   });
 
   it("uses beforeinstallprompt progressive enhancement with manual fallback", () => {

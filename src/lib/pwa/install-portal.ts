@@ -22,6 +22,69 @@ export type InstallPortalPlatform =
   | "desktop"
   | "standalone";
 
+export type InstallPortalDetectionInput = {
+  displayModeStandalone: boolean;
+  navigatorStandalone?: boolean;
+  userAgent: string;
+  platform: string;
+  maxTouchPoints: number;
+};
+
+export const INSTALL_PORTAL_MANIFEST_DESCRIPTION =
+  "ECHFRONT CRM - internal client management";
+
+export function classifyInstallPortalPlatform(
+  input: InstallPortalDetectionInput,
+): InstallPortalPlatform {
+  if (input.displayModeStandalone || input.navigatorStandalone === true) {
+    return "standalone";
+  }
+
+  const userAgent = input.userAgent;
+  if (/Android/i.test(userAgent)) {
+    return "android";
+  }
+
+  if (/iPhone|iPad|iPod/i.test(userAgent)) {
+    return "ios";
+  }
+
+  const isAppleDesktopUserAgent =
+    /Macintosh/i.test(userAgent) || input.platform === "MacIntel";
+  if (isAppleDesktopUserAgent && input.maxTouchPoints > 1) {
+    return "ios";
+  }
+
+  return "desktop";
+}
+
+export function buildInstallPortalPlatformDetectorScript(): string {
+  return `function detectPlatform() {
+  try {
+    if (window.matchMedia("(display-mode: standalone)").matches) {
+      return "standalone";
+    }
+    if (window.navigator.standalone === true) {
+      return "standalone";
+    }
+  } catch (e) {}
+  var ua = navigator.userAgent || "";
+  if (/Android/i.test(ua)) {
+    return "android";
+  }
+  if (/iPhone|iPad|iPod/i.test(ua)) {
+    return "ios";
+  }
+  var platform = navigator.platform || "";
+  var maxTouchPoints = navigator.maxTouchPoints || 0;
+  var isAppleDesktopUa = /Macintosh/i.test(ua) || platform === "MacIntel";
+  if (isAppleDesktopUa && maxTouchPoints > 1) {
+    return "ios";
+  }
+  return "desktop";
+}`;
+}
+
 type InstallPortalCopy = {
   pageTitle: string;
   productName: string;
@@ -62,9 +125,9 @@ export const INSTALL_PORTAL_COPY: Record<InstallPortalLocale, InstallPortalCopy>
       enterCrm: "Enter CRM",
       languageLabel: "Language",
       ios: {
-        heading: "Add ECHFRONT CRM to your Home Screen",
+        heading: "Add ECHFRONT CRM to your iPhone or iPad Home Screen",
         description:
-          "After installation, open CRM directly from the ECHFRONT icon on your Home Screen.",
+          "After installation, open CRM directly from the ECHFRONT icon on your Apple device Home Screen.",
         steps: [
           "Tap the browser Share button",
           'Choose "Add to Home Screen"',
@@ -103,9 +166,9 @@ export const INSTALL_PORTAL_COPY: Record<InstallPortalLocale, InstallPortalCopy>
       enterCrm: "進入 CRM",
       languageLabel: "語言",
       ios: {
-        heading: "將 ECHFRONT CRM 加入主畫面",
+        heading: "將 ECHFRONT CRM 加入 iPhone 或 iPad 主畫面",
         description:
-          "安裝後，您可以直接從主畫面的 ECHFRONT 圖標開啟 CRM。",
+          "安裝後，您可以直接從 Apple 裝置主畫面的 ECHFRONT 圖標開啟 CRM。",
         steps: [
           "點擊瀏覽器的「分享」",
           "選擇「加入主畫面」",
@@ -142,9 +205,9 @@ export const INSTALL_PORTAL_COPY: Record<InstallPortalLocale, InstallPortalCopy>
       enterCrm: "进入 CRM",
       languageLabel: "语言",
       ios: {
-        heading: "将 ECHFRONT CRM 添加到主屏幕",
+        heading: "将 ECHFRONT CRM 添加到 iPhone 或 iPad 主屏幕",
         description:
-          "安装后，您可以直接从主屏幕的 ECHFRONT 图标打开 CRM。",
+          "安装后，您可以直接从 Apple 设备主屏幕的 ECHFRONT 图标打开 CRM。",
         steps: [
           "点击浏览器的“分享”",
           "选择“添加到主屏幕”",
@@ -200,7 +263,7 @@ export function buildInstallPortalManifest() {
     id: INSTALL_PORTAL_MANIFEST_ID,
     name: INSTALL_PORTAL_MANIFEST_NAME,
     short_name: INSTALL_PORTAL_MANIFEST_SHORT_NAME,
-    description: "ECHFRONT CRM — internal client management",
+    description: INSTALL_PORTAL_MANIFEST_DESCRIPTION,
     start_url: INSTALL_PORTAL_MANIFEST_START_URL,
     scope: INSTALL_PORTAL_MANIFEST_SCOPE,
     display: INSTALL_PORTAL_MANIFEST_DISPLAY,
@@ -247,6 +310,7 @@ export function buildInstallPortalHtml(
   const manifestPath = INSTALL_PORTAL_MANIFEST_PATH;
   const appleTouchIcon = INSTALL_PORTAL_APPLE_TOUCH_ICON;
   const themeColor = INSTALL_PORTAL_THEME_COLOR;
+  const platformDetectorScript = buildInstallPortalPlatformDetectorScript();
   const pageTitle = escapeHtml(INSTALL_PORTAL_COPY[initialLocale].pageTitle);
 
   return `<!DOCTYPE html>
@@ -277,27 +341,41 @@ export function buildInstallPortalHtml(
     html, body {
       margin: 0;
       min-height: 100%;
+      width: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
       background: var(--bg);
       color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      font-size: 16px;
       line-height: 1.5;
+      -webkit-text-size-adjust: 100%;
+      text-size-adjust: 100%;
     }
     body {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: center;
-      padding: max(1rem, env(safe-area-inset-top)) 1rem max(1rem, env(safe-area-inset-bottom));
+      padding:
+        max(1rem, env(safe-area-inset-top))
+        max(1rem, env(safe-area-inset-left))
+        max(1rem, env(safe-area-inset-bottom))
+        max(1rem, env(safe-area-inset-right));
     }
     .portal {
       width: 100%;
-      max-width: 34rem;
+      max-width: 24rem;
+      min-width: 0;
     }
     .card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 1.25rem;
+      border-radius: 1rem;
       box-shadow: var(--shadow);
-      padding: 1.75rem 1.5rem 1.5rem;
+      padding: 1.25rem 1rem 1rem;
+      width: 100%;
+      min-width: 0;
+      overflow-wrap: anywhere;
     }
     .brand {
       display: flex;
@@ -314,9 +392,10 @@ export function buildInstallPortalHtml(
     }
     .brand h1 {
       margin: 0;
-      font-size: 1.375rem;
+      font-size: 1.25rem;
       font-weight: 700;
       letter-spacing: 0.02em;
+      overflow-wrap: anywhere;
     }
     .lang {
       display: flex;
@@ -347,13 +426,15 @@ export function buildInstallPortalHtml(
     }
     .panel h2 {
       margin: 0 0 0.75rem;
-      font-size: 1.125rem;
+      font-size: 1.0625rem;
       font-weight: 600;
+      overflow-wrap: anywhere;
     }
     .panel p {
       margin: 0 0 1rem;
       color: var(--muted);
-      font-size: 0.95rem;
+      font-size: 0.9375rem;
+      overflow-wrap: anywhere;
     }
     ol {
       margin: 0 0 1.25rem;
@@ -362,6 +443,7 @@ export function buildInstallPortalHtml(
     }
     ol li {
       margin: 0.4rem 0;
+      overflow-wrap: anywhere;
     }
     .actions {
       display: flex;
@@ -404,18 +486,43 @@ export function buildInstallPortalHtml(
       padding-top: 1rem;
       border-top: 1px solid var(--border);
       color: var(--muted);
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       text-align: center;
+      overflow-wrap: anywhere;
     }
     .hint {
       margin-top: 0.75rem;
       color: var(--muted);
-      font-size: 0.875rem;
+      font-size: 0.8125rem;
       text-align: center;
+      overflow-wrap: anywhere;
     }
     @media (min-width: 40rem) {
+      body {
+        align-items: center;
+        padding:
+          max(1.5rem, env(safe-area-inset-top))
+          max(1.5rem, env(safe-area-inset-left))
+          max(1.5rem, env(safe-area-inset-bottom))
+          max(1.5rem, env(safe-area-inset-right));
+      }
+      .portal {
+        max-width: 34rem;
+      }
       .card {
+        border-radius: 1.25rem;
         padding: 2rem 2rem 1.75rem;
+      }
+      .brand h1 {
+        font-size: 1.375rem;
+      }
+      .panel h2 {
+        font-size: 1.125rem;
+      }
+      .panel p,
+      .security,
+      .hint {
+        font-size: 0.95rem;
       }
     }
   </style>
@@ -493,24 +600,7 @@ export function buildInstallPortalHtml(
       } catch (e) {}
     }
 
-    function detectPlatform() {
-      try {
-        if (window.matchMedia("(display-mode: standalone)").matches) {
-          return "standalone";
-        }
-        if (window.navigator.standalone === true) {
-          return "standalone";
-        }
-      } catch (e) {}
-      var ua = navigator.userAgent || "";
-      if (/iPhone|iPod|iPad/i.test(ua)) {
-        return "ios";
-      }
-      if (/Android/i.test(ua)) {
-        return "android";
-      }
-      return "desktop";
-    }
+    ${platformDetectorScript}
 
     function t() {
       return COPY[currentLang] || COPY["zh-Hant"];
