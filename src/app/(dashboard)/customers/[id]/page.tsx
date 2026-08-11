@@ -20,8 +20,15 @@ import { resolveCustomerUserLabels, resolveCustomerAssigneeNames } from "@/lib/c
 import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
+import {
+  measureAsync,
+  perfNow,
+  shouldEnableCustomerDetailPerf,
+  type CustomerDetailPerfTimings,
+} from "@/lib/customers/customer-detail-perf";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { CustomerDetailClient } from "./customer-detail-client";
+import { CustomerDetailPerfPanel } from "./customer-detail-perf-panel";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
@@ -37,6 +44,7 @@ function firstSearchParam(
 }
 
 export default async function CustomerDetailPage({ params, searchParams }: Props) {
+  const pageStart = perfNow();
   const { id } = await params;
   const query = await searchParams;
   const returnToRaw = firstSearchParam(query.returnTo);
@@ -44,8 +52,18 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     parseSafeWorkItemsReturnTo(returnToRaw) ??
     parseSafeFollowUpsReturnTo(returnToRaw) ??
     "/customers";
-  const user = await requireAuthCached();
-  const customer = await getCustomerById(id);
+
+  const { result: user, durationMs: authMs } = await measureAsync(() =>
+    requireAuthCached(),
+  );
+  const enablePerf = shouldEnableCustomerDetailPerf(
+    user.role,
+    firstSearchParam(query.perf),
+  );
+
+  const { result: customer, durationMs: customerLookupMs } = await measureAsync(
+    () => getCustomerById(id),
+  );
 
   if (!customer) {
     return (
@@ -57,10 +75,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   }
 
   const db = getDb();
-  const pendingOnHoldApproval = await getPendingOnHoldCreateApprovalForCustomer(
-    db,
-    id,
-  );
+  const { result: pendingOnHoldApproval, durationMs: pendingApprovalMs } =
+    await measureAsync(() => getPendingOnHoldCreateApprovalForCustomer(db, id));
   if (pendingOnHoldApproval) {
     return (
       <CustomerStatePanel
@@ -84,15 +100,15 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   }
 
   let scoresView;
-  const accessOptions = await resolveCustomerAccessOptions(db, user, id);
+  let scoringMs = 0;
+  const { result: accessOptions, durationMs: accessResolutionMs } =
+    await measureAsync(() => resolveCustomerAccessOptions(db, user, id));
   try {
-    scoresView = await enrichCustomerResponse(
-      db,
-      user,
-      customer,
-      new Date(),
-      accessOptions,
+    const scored = await measureAsync(() =>
+      enrichCustomerResponse(db, user, customer, new Date(), accessOptions),
     );
+    scoresView = scored.result;
+    scoringMs = scored.durationMs;
   } catch (err) {
     if (err instanceof PermissionError) {
       return (
@@ -127,11 +143,17 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
 
   let sharedFollowUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
     Promise.resolve([]);
+  let sharedFollowUpsMeasurePromise: Promise<{ durationMs: number }> =
+    Promise.resolve({ durationMs: 0 });
   let shouldPreloadFollowUpsForTimeline = false;
   try {
     assertCanViewCustomerTimeline(user, customer, accessOptions);
     shouldPreloadFollowUpsForTimeline = true;
-    sharedFollowUpsPromise = listFollowUpsByCustomerId(id);
+    const measured = measureAsync(() => listFollowUpsByCustomerId(id));
+    sharedFollowUpsMeasurePromise = measured.then(({ durationMs }) => ({
+      durationMs,
+    }));
+    sharedFollowUpsPromise = measured.then(({ result }) => result);
   } catch {
     // timeline access denied; getCustomerTimeline will throw
   }
@@ -149,96 +171,123 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     const preloadedFollowUps = shouldPreloadFollowUpsForTimeline
       ? await sharedFollowUpsPromise
       : undefined;
-    return getCustomerTimeline(db, user, customer, accessOptions, {
-      preloadedFollowUps,
-    });
+    const { result, durationMs } = await measureAsync(() =>
+      getCustomerTimeline(db, user, customer, accessOptions, {
+        preloadedFollowUps,
+      }),
+    );
+    return { result, durationMs };
   })();
 
+  const secondaryStart = perfNow();
   const [
-    showConfirmNameButton,
+    confirmTimed,
     followUps,
-    timeline,
-    userLabels,
-    assigneeNames,
+    timelineTimed,
+    userLabelsTimed,
+    assigneeNamesTimed,
   ] = await Promise.all([
-    canConfirmPendingCustomerName(db, user, customer),
+    measureAsync(() => canConfirmPendingCustomerName(db, user, customer)),
     followUpsForClientPromise,
     timelinePromise,
-    resolveCustomerUserLabels(db, customer),
-    resolveCustomerAssigneeNames(db, id),
+    measureAsync(() => resolveCustomerUserLabels(db, customer)),
+    measureAsync(() => resolveCustomerAssigneeNames(db, id)),
   ]);
+  const secondaryTotalMs = perfNow() - secondaryStart;
+  const followUpsMeasured = await sharedFollowUpsMeasurePromise;
+  const timeline = timelineTimed.result;
+
+  const perfTimings: CustomerDetailPerfTimings | null = enablePerf
+    ? {
+        serverDataReadyTotalMs: perfNow() - pageStart,
+        authMs,
+        customerLookupMs,
+        pendingApprovalMs,
+        accessResolutionMs,
+        scoringMs,
+        secondaryTotalMs,
+        followUpsMs: followUpsMeasured.durationMs,
+        timelineMs: timelineTimed.durationMs,
+        confirmNameMs: confirmTimed.durationMs,
+        userLabelsMs: userLabelsTimed.durationMs,
+        assigneeNamesMs: assigneeNamesTimed.durationMs,
+      }
+    : null;
 
   return (
-    <CustomerDetailClient
-      isAdmin={user.role === "admin"}
-      view={{
-        id: view.id,
-        customerCode: user.role === "admin" ? view.customerCode : undefined,
-        customerName: view.customerName,
-        nameStatus: view.nameStatus,
-        customerType: view.customerType,
-        salesStage: view.salesStage,
-        lifecycleStatus: customer.lifecycleStatus,
-        source: view.source,
-        status: view.status,
-        isMasked: !!view.isMasked,
-        isArchived: !!view.isArchived,
-        isPinned: view.isPinned,
-        accessLevel: view.accessLevel,
-        phone: view.phone,
-        phoneCountryCode: view.phoneCountryCode,
-        wechatId: view.wechatId,
-        email: view.email,
-        sourceRemark: view.sourceRemark,
-        requestedProjectCode: view.requestedProjectCode,
-        requestedProjectName: view.requestedProjectName,
-        notes: view.notes,
-        preferredName: view.preferredName,
-        gender: view.gender,
-        ageRange: view.ageRange,
-        preferredLanguage: view.preferredLanguage,
-        preferredContactMethod: view.preferredContactMethod,
-        occupation: view.occupation,
-        companyName: view.companyName,
-        jobTitle: view.jobTitle,
-        targetCountryOrRegion: view.targetCountryOrRegion,
-        primaryConcern: view.primaryConcern,
-        ownerId: view.ownerId,
-        ownerName: userLabels.ownerName,
-        assigneeNames,
-        createdByName: userLabels.createdByName,
-        lastFollowUpAt: view.lastFollowUpAt,
-        lastValidFollowUpAt: view.lastValidFollowUpAt,
-        neverContacted: view.neverContacted,
-        nextFollowUpAt: view.nextFollowUpAt,
-        overdueFollowUp: view.overdueFollowUp,
-        createdAt: view.createdAt,
-        updatedAt: view.updatedAt,
-        heatLevel: view.heatLevel,
-        completenessScore: view.completenessScore,
-        heatReasonKeys: view.heatReasonKeys,
-        completenessMissingFields: view.completenessMissingFields,
-      }}
-      followUps={followUps.map((fu) => ({
-        id: fu.id,
-        followUpTime: fu.followUpTime,
-        channel: fu.channel,
-        outcome: fu.outcome,
-        isValidFollowUp: fu.isValidFollowUp,
-        summary: fu.summary,
-        nextFollowUpAt: fu.nextFollowUpAt,
-      }))}
-      timelineItems={timeline.items}
-      timelineAccessLevel={timeline.accessLevel}
-      showEditButton={showEditButton}
-      showReleaseButton={showReleaseButton}
-      showFollowUpButton={showFollowUpButton}
-      showApprovalButton={showApprovalButton}
-      showLifecycleCompleteButton={showLifecycleCompleteButton}
-      showConfirmNameButton={showConfirmNameButton}
-      showManageAssigneesButton={showManageAssigneesButton}
-      showRequestAssigneesButton={showRequestAssigneesButton}
-      returnHref={safeReturnHref}
-    />
+    <>
+      <CustomerDetailClient
+        isAdmin={user.role === "admin"}
+        view={{
+          id: view.id,
+          customerCode: user.role === "admin" ? view.customerCode : undefined,
+          customerName: view.customerName,
+          nameStatus: view.nameStatus,
+          customerType: view.customerType,
+          salesStage: view.salesStage,
+          lifecycleStatus: customer.lifecycleStatus,
+          source: view.source,
+          status: view.status,
+          isMasked: !!view.isMasked,
+          isArchived: !!view.isArchived,
+          isPinned: view.isPinned,
+          accessLevel: view.accessLevel,
+          phone: view.phone,
+          phoneCountryCode: view.phoneCountryCode,
+          wechatId: view.wechatId,
+          email: view.email,
+          sourceRemark: view.sourceRemark,
+          requestedProjectCode: view.requestedProjectCode,
+          requestedProjectName: view.requestedProjectName,
+          notes: view.notes,
+          preferredName: view.preferredName,
+          gender: view.gender,
+          ageRange: view.ageRange,
+          preferredLanguage: view.preferredLanguage,
+          preferredContactMethod: view.preferredContactMethod,
+          occupation: view.occupation,
+          companyName: view.companyName,
+          jobTitle: view.jobTitle,
+          targetCountryOrRegion: view.targetCountryOrRegion,
+          primaryConcern: view.primaryConcern,
+          ownerId: view.ownerId,
+          ownerName: userLabelsTimed.result.ownerName,
+          assigneeNames: assigneeNamesTimed.result,
+          createdByName: userLabelsTimed.result.createdByName,
+          lastFollowUpAt: view.lastFollowUpAt,
+          lastValidFollowUpAt: view.lastValidFollowUpAt,
+          neverContacted: view.neverContacted,
+          nextFollowUpAt: view.nextFollowUpAt,
+          overdueFollowUp: view.overdueFollowUp,
+          createdAt: view.createdAt,
+          updatedAt: view.updatedAt,
+          heatLevel: view.heatLevel,
+          completenessScore: view.completenessScore,
+          heatReasonKeys: view.heatReasonKeys,
+          completenessMissingFields: view.completenessMissingFields,
+        }}
+        followUps={followUps.map((fu) => ({
+          id: fu.id,
+          followUpTime: fu.followUpTime,
+          channel: fu.channel,
+          outcome: fu.outcome,
+          isValidFollowUp: fu.isValidFollowUp,
+          summary: fu.summary,
+          nextFollowUpAt: fu.nextFollowUpAt,
+        }))}
+        timelineItems={timeline.items}
+        timelineAccessLevel={timeline.accessLevel}
+        showEditButton={showEditButton}
+        showReleaseButton={showReleaseButton}
+        showFollowUpButton={showFollowUpButton}
+        showApprovalButton={showApprovalButton}
+        showLifecycleCompleteButton={showLifecycleCompleteButton}
+        showConfirmNameButton={confirmTimed.result}
+        showManageAssigneesButton={showManageAssigneesButton}
+        showRequestAssigneesButton={showRequestAssigneesButton}
+        returnHref={safeReturnHref}
+      />
+      {perfTimings ? <CustomerDetailPerfPanel timings={perfTimings} /> : null}
+    </>
   );
 }

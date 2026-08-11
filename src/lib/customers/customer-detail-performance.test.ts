@@ -79,11 +79,11 @@ describe("customer detail Phase 2B1 orchestration", () => {
 describe("customer detail Phase 2B2 follow-up dedup", () => {
   it("loads follow-ups once for timeline and passes preloaded rows", () => {
     const section = extractPostAccessSection(readDetailPageSource());
-    assert.match(section, /sharedFollowUpsPromise = listFollowUpsByCustomerId/);
+    assert.match(section, /measureAsync\(\(\) => listFollowUpsByCustomerId/);
     assert.match(section, /preloadedFollowUps/);
     assert.match(section, /followUpsForClientPromise/);
     const fullFollowUpLoads = (
-      section.match(/sharedFollowUpsPromise = listFollowUpsByCustomerId/g) ?? []
+      section.match(/listFollowUpsByCustomerId\(id\)/g) ?? []
     ).length;
     assert.equal(fullFollowUpLoads, 1);
   });
