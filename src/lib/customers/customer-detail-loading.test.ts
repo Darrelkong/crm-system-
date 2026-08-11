@@ -65,8 +65,7 @@ describe("customer detail Phase 2B5 loading boundary", () => {
 
   it("preserves customer list navigation hrefs without prefetch changes", () => {
     const source = readCustomersListClientSource();
-    assert.match(source, /customerDetailHref\(c\.id\)/g);
-    assert.match(source, /href=\{detailHref\}/g);
+    assert.match(source, /href=\{`\/customers\/\$\{c\.id\}`\}/g);
     assert.doesNotMatch(source, /prefetch=/);
     assert.doesNotMatch(source, /router\.prefetch/);
   });
