@@ -30,6 +30,7 @@ import { ui } from "@/lib/ui/classes";
 import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-stage-badges";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
+import { CustomerNavigationPerfProbe } from "./customer-navigation-perf-probe";
 
 const cd = ui.customerDetail;
 
@@ -243,7 +244,9 @@ export function CustomerDetailClient({
   });
 
   return (
-    <div className="mx-auto max-w-6xl">
+    <>
+      <CustomerNavigationPerfProbe />
+      <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
@@ -589,6 +592,7 @@ export function CustomerDetailClient({
           <CustomerAiInsightPanel key={id} customerId={id} isAdmin={isAdmin} />
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

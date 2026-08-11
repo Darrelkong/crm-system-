@@ -52,6 +52,10 @@ import {
   replaceCustomerListBrowserPath,
   type CustomerListFetchParams,
 } from "@/lib/customers/customer-list-fetch";
+import {
+  recordNavigationClickMark,
+  recordNavigationPointerDownMark,
+} from "@/lib/customers/customer-navigation-perf";
 import { ui } from "@/lib/ui/classes";
 
 export type CustomerListRow = CustomerListRowData;
@@ -69,6 +73,7 @@ type Props = {
   filterSalesStage?: string;
   filterOwnerId?: string;
   filterReclamationRisk?: string;
+  enableNavigationPerf?: boolean;
 };
 
 type ApiCustomerItem = CustomerListRow & {
@@ -123,6 +128,7 @@ export function CustomersListClient({
   filterSalesStage,
   filterOwnerId,
   filterReclamationRisk,
+  enableNavigationPerf = false,
 }: Props) {
   const { t, salesStage, status } = useCustomerLabels();
   const { t: tCommon, locale } = useTranslation();
@@ -321,6 +327,13 @@ export function CustomersListClient({
 
   const clearFiltersHref = buildCustomerListHref(listHrefParams(1));
 
+  const navigationPerfHandlers = enableNavigationPerf
+    ? {
+        onPointerDown: () => recordNavigationPointerDownMark(),
+        onClick: () => recordNavigationClickMark(),
+      }
+    : {};
+
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
     return currentLocale === "en" ? "en" : "zh";
   }
@@ -360,7 +373,11 @@ export function CustomersListClient({
             locale={locale}
             pendingLabel={tCommon("customers.namePendingBadge")}
             renderName={(displayName) => (
-              <Link href={`/customers/${c.id}`} className={ui.customerName}>
+              <Link
+                href={`/customers/${c.id}`}
+                className={ui.customerName}
+                {...navigationPerfHandlers}
+              >
                 {displayName}
               </Link>
             )}
@@ -433,6 +450,7 @@ export function CustomersListClient({
       <Link
         href={`/customers/${c.id}`}
         className="interactive-card block p-4 active:scale-[0.99]"
+        {...navigationPerfHandlers}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">

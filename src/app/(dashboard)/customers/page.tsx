@@ -33,6 +33,7 @@ import {
   CUSTOMER_LIST_ACTIVE_SORT_MODE,
   shouldStripCustomerListSortParam,
 } from "@/lib/customers/customer-list-sort";
+import { shouldEnableCustomerNavigationPerf } from "@/lib/customers/customer-navigation-perf";
 
 type Props = {
   searchParams: Promise<{
@@ -46,6 +47,7 @@ type Props = {
     salesStage?: string;
     ownerId?: string;
     sort?: string;
+    perf?: string;
   }>;
 };
 
@@ -195,12 +197,18 @@ export default async function CustomersPage({ searchParams }: Props) {
     pagination = result.pagination;
   }
 
+  const enableNavigationPerf = shouldEnableCustomerNavigationPerf(
+    user.role,
+    params.perf,
+  );
+
   return (
     <CustomersListClient
       initialRows={initialRows}
       pagination={pagination}
       showArchived={showArchived}
       isAdmin={user.role === "admin"}
+      enableNavigationPerf={enableNavigationPerf}
       filterCreatedBy={listFilter.createdBy}
       creatorOptions={creatorOptions}
       heatFilter={scoringFilter.heat}
