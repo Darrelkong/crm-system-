@@ -124,23 +124,29 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     customer.status !== "archived" &&
     customer.status !== "public_pool" &&
     !customer.deletedAt;
-  const showConfirmNameButton = await canConfirmPendingCustomerName(
-    db,
-    user,
-    customer,
-  );
 
-  let followUps: Awaited<ReturnType<typeof listFollowUpsByCustomerId>> = [];
+  let followUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
+    Promise.resolve([]);
   try {
     assertCanViewFollowUps(user, customer, accessOptions);
-    followUps = await listFollowUpsByCustomerId(id);
+    followUpsPromise = listFollowUpsByCustomerId(id);
   } catch {
     // masked or denied — no follow-up list
   }
 
-  const timeline = await getCustomerTimeline(db, user, customer, accessOptions);
-  const userLabels = await resolveCustomerUserLabels(db, customer);
-  const assigneeNames = await resolveCustomerAssigneeNames(db, id);
+  const [
+    showConfirmNameButton,
+    followUps,
+    timeline,
+    userLabels,
+    assigneeNames,
+  ] = await Promise.all([
+    canConfirmPendingCustomerName(db, user, customer),
+    followUpsPromise,
+    getCustomerTimeline(db, user, customer, accessOptions),
+    resolveCustomerUserLabels(db, customer),
+    resolveCustomerAssigneeNames(db, id),
+  ]);
 
   return (
     <CustomerDetailClient
