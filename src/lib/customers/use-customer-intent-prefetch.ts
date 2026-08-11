@@ -4,10 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CUSTOMER_INTENT_MOBILE_MIN_RATIO,
-  CUSTOMER_INTENT_MOBILE_ROOT_MARGIN,
   CustomerIntentPrefetchController,
   isCoarsePointerEnvironment,
-  isMobileViewportProminent,
 } from "@/lib/customers/customer-intent-prefetch";
 
 type Options = {
@@ -24,10 +22,6 @@ export function useCustomerIntentPrefetch({ listBlocked }: Options) {
   useEffect(() => {
     routerRef.current = router;
   }, [router]);
-
-  useEffect(() => {
-    listBlockedRef.current = listBlocked;
-  }, [listBlocked]);
 
   // Controller callbacks read refs only when prefetch intent fires, not during render.
   // eslint-disable-next-line react-hooks/refs -- lazy singleton init for list mount
@@ -57,6 +51,13 @@ export function useCustomerIntentPrefetch({ listBlocked }: Options) {
   });
 
   useEffect(() => {
+    listBlockedRef.current = listBlocked;
+    if (listBlocked) {
+      controller.cancelMobilePrefetching();
+    }
+  }, [listBlocked, controller]);
+
+  useEffect(() => {
     return () => {
       controller.dispose();
       observerRef.current?.disconnect();
@@ -80,21 +81,17 @@ export function useCustomerIntentPrefetch({ listBlocked }: Options) {
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
+        const viewportCenterY = window.innerHeight / 2;
         for (const entry of entries) {
           const href = elementHrefsRef.current.get(entry.target);
           if (!href) {
             continue;
           }
-          if (isMobileViewportProminent(entry)) {
-            controller.scheduleMobileDwell(href);
-          } else {
-            controller.cancelMobileDwell(href);
-          }
+          controller.updateMobileCardVisibility(href, entry, viewportCenterY);
         }
       },
       {
         root: null,
-        rootMargin: CUSTOMER_INTENT_MOBILE_ROOT_MARGIN,
         threshold: [0, CUSTOMER_INTENT_MOBILE_MIN_RATIO, 0.75, 1],
       },
     );
@@ -122,7 +119,7 @@ export function useCustomerIntentPrefetch({ listBlocked }: Options) {
         return () => {
           observer.unobserve(element);
           elementHrefsRef.current.delete(element);
-          controller.cancelMobileDwell(href);
+          controller.removeMobileCard(href);
         };
       },
     }),
