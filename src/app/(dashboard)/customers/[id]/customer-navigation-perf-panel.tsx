@@ -1,4 +1,5 @@
 import {
+  formatBytes,
   formatNavigationPerfValue,
   type NavigationPerfMetrics,
 } from "@/lib/customers/customer-navigation-perf";
@@ -71,8 +72,56 @@ export function CustomerNavigationPerfPanel({ metrics }: Props) {
           value={formatNavigationPerfValue(metrics.routeResponseEndToCommitMs)}
         />
         <Row
+          label="Resource size timing supported"
+          value={metrics.resourceSizeTimingSupport}
+        />
+        <Row
+          label="Route transfer size"
+          value={formatBytes(metrics.routeTransferSize)}
+        />
+        <Row
+          label="Route encoded body size"
+          value={formatBytes(metrics.routeEncodedBodySize)}
+        />
+        <Row
+          label="Route decoded body size"
+          value={formatBytes(metrics.routeDecodedBodySize)}
+        />
+        <Row
+          label="Route protocol"
+          value={metrics.routeProtocol ?? "N/A"}
+        />
+        <Row
+          label="Route zero-transfer evidence"
+          value={metrics.routeZeroTransferEvidence}
+        />
+        <Row
           label="Post-click script requests"
           value={String(metrics.postClickScriptCount)}
+        />
+        <Row
+          label="Post-click script transfer total"
+          value={formatBytes(metrics.postClickScriptTransferTotal)}
+        />
+        <Row
+          label="Post-click script encoded total"
+          value={formatBytes(metrics.postClickScriptEncodedTotal)}
+        />
+        <Row
+          label="Post-click script decoded total"
+          value={formatBytes(metrics.postClickScriptDecodedTotal)}
+        />
+        <Row
+          label="Largest post-click script transfer"
+          value={formatBytes(metrics.largestPostClickScriptTransfer)}
+        />
+        <Row
+          label="Largest post-click script encoded"
+          value={formatBytes(metrics.largestPostClickScriptEncoded)}
+        />
+        <Row
+          label="Post-click scripts with zero transfer"
+          value={String(metrics.postClickScriptsWithZeroTransfer)}
         />
         <Row
           label="Click → last script response end"
@@ -87,6 +136,11 @@ export function CustomerNavigationPerfPanel({ metrics }: Props) {
           value={formatNavigationPerfValue(metrics.commitToSecondFrameMs)}
         />
       </dl>
+      <p className="mt-3 text-[11px] text-sky-800">
+        Resource sizes come from browser PerformanceResourceTiming. Zero
+        transferSize may indicate a cached/local response but does not prove a
+        specific cache mechanism.
+      </p>
     </section>
   );
 }

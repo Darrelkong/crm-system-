@@ -7,10 +7,15 @@ import {
   NAVIGATION_PERF_MAX_AGE_MS,
   consumeNavigationMarker,
   deriveNavigationPerfMetrics,
+  detectResourceSizeTimingSupport,
+  formatBytes,
   isNavigationMarkerStale,
   markerContainsOnlyAllowedFields,
+  maxResourceField,
   parseNavigationMarker,
+  routeZeroTransferEvidence,
   shouldEnableCustomerNavigationPerf,
+  sumResourceField,
   writeNavigationMarker,
   type NavigationPerfMarker,
   type ResourceTimingLike,
@@ -37,6 +42,13 @@ function readNavigationPerfProbeSource(): string {
 function readCustomerDetailClientSource(): string {
   return readFileSync(
     "src/app/(dashboard)/customers/[id]/customer-detail-client.tsx",
+    "utf8",
+  );
+}
+
+function readNavigationPerfPanelSource(): string {
+  return readFileSync(
+    "src/app/(dashboard)/customers/[id]/customer-navigation-perf-panel.tsx",
     "utf8",
   );
 }
@@ -315,5 +327,169 @@ describe("customer navigation Phase 2B4 diagnostic", () => {
   it("parses valid navigation markers", () => {
     const parsed = parseNavigationMarker(JSON.stringify(marker));
     assert.deepEqual(parsed, marker);
+  });
+
+  it("maps extended PerformanceResourceTiming fields in probe", () => {
+    const probe = readNavigationPerfProbeSource();
+    assert.match(probe, /transferSize: entry\.transferSize/);
+    assert.match(probe, /encodedBodySize: entry\.encodedBodySize/);
+    assert.match(probe, /decodedBodySize: entry\.decodedBodySize/);
+    assert.match(probe, /nextHopProtocol: entry\.nextHopProtocol/);
+  });
+
+  it("derives route size and protocol metrics", () => {
+    const clickEpochMs = 2000;
+    const metrics = deriveNavigationPerfMetrics(
+      { ...marker, clickEpochMs },
+      2600,
+      "/customers/abc",
+      [
+        {
+          name: "https://example.com/customers/abc",
+          initiatorType: "fetch",
+          startTime: 950,
+          requestStart: 1000,
+          responseStart: 1200,
+          responseEnd: 1500,
+          transferSize: 100_000,
+          encodedBodySize: 90_000,
+          decodedBodySize: 250_000,
+          nextHopProtocol: "h2",
+        },
+      ],
+      1000,
+      "https://example.com",
+    );
+
+    assert.equal(metrics.routeTransferSize, 100_000);
+    assert.equal(metrics.routeEncodedBodySize, 90_000);
+    assert.equal(metrics.routeDecodedBodySize, 250_000);
+    assert.equal(metrics.routeProtocol, "h2");
+    assert.equal(formatBytes(metrics.routeTransferSize), "97.7 KiB");
+    assert.equal(metrics.resourceSizeTimingSupport, "YES");
+  });
+
+  it("reports route zero-transfer evidence observational states", () => {
+    assert.equal(routeZeroTransferEvidence(0, 250_000), "YES");
+    assert.equal(routeZeroTransferEvidence(100_000, 250_000), "NO");
+    assert.equal(routeZeroTransferEvidence(undefined, 250_000), "N/A");
+  });
+
+  it("aggregates post-click script size metrics only", () => {
+    const clickEpochMs = 2000;
+    const resources: ResourceTimingLike[] = [
+      {
+        name: "https://example.com/_next/static/chunks/a.js",
+        initiatorType: "script",
+        startTime: 1050,
+        responseEnd: 1200,
+        transferSize: 40_000,
+        encodedBodySize: 35_000,
+        decodedBodySize: 120_000,
+      },
+      {
+        name: "https://example.com/_next/static/chunks/b.js",
+        initiatorType: "script",
+        startTime: 1100,
+        responseEnd: 1400,
+        transferSize: 0,
+        encodedBodySize: 0,
+        decodedBodySize: 80_000,
+      },
+      {
+        name: "https://example.com/_next/static/chunks/old.js",
+        initiatorType: "script",
+        startTime: 500,
+        responseEnd: 700,
+        transferSize: 10_000,
+        encodedBodySize: 9_000,
+        decodedBodySize: 20_000,
+      },
+      {
+        name: "https://example.com/customers/abc",
+        initiatorType: "fetch",
+        startTime: 1000,
+        requestStart: 1000,
+        responseStart: 1200,
+        responseEnd: 1500,
+        transferSize: 100_000,
+        encodedBodySize: 90_000,
+        decodedBodySize: 250_000,
+      },
+    ];
+
+    const metrics = deriveNavigationPerfMetrics(
+      { ...marker, clickEpochMs },
+      2500,
+      "/customers/abc",
+      resources,
+      1000,
+      "https://example.com",
+    );
+
+    assert.equal(metrics.postClickScriptCount, 2);
+    assert.equal(metrics.postClickScriptTransferTotal, 40_000);
+    assert.equal(metrics.postClickScriptEncodedTotal, 35_000);
+    assert.equal(metrics.postClickScriptDecodedTotal, 200_000);
+    assert.equal(metrics.largestPostClickScriptTransfer, 40_000);
+    assert.equal(metrics.largestPostClickScriptEncoded, 35_000);
+    assert.equal(metrics.postClickScriptsWithZeroTransfer, 1);
+    assert.equal(metrics.routeZeroTransferEvidence, "NO");
+  });
+
+  it("sums and maxes resource fields deterministically", () => {
+    const resources: ResourceTimingLike[] = [
+      { name: "a", initiatorType: "script", startTime: 1, transferSize: 10 },
+      { name: "b", initiatorType: "script", startTime: 2, transferSize: 30 },
+    ];
+    assert.equal(sumResourceField(resources, "transferSize"), 40);
+    assert.equal(maxResourceField(resources, "transferSize"), 30);
+  });
+
+  it("detects resource size timing support states", () => {
+    const fullRoute: ResourceTimingLike = {
+      name: "route",
+      initiatorType: "fetch",
+      startTime: 1,
+      transferSize: 1,
+      encodedBodySize: 1,
+      decodedBodySize: 1,
+    };
+    const partialScript: ResourceTimingLike = {
+      name: "script",
+      initiatorType: "script",
+      startTime: 2,
+      transferSize: 1,
+    };
+    assert.equal(detectResourceSizeTimingSupport(fullRoute, []), "YES");
+    assert.equal(
+      detectResourceSizeTimingSupport(fullRoute, [partialScript]),
+      "PARTIAL",
+    );
+    assert.equal(detectResourceSizeTimingSupport(null, []), "NO");
+  });
+
+  it("panel output does not expose resource URLs or identifiers", () => {
+    const panel = readNavigationPerfPanelSource();
+    const helper = readFileSync(
+      "src/lib/customers/customer-navigation-perf.ts",
+      "utf8",
+    );
+    const forbidden = [
+      "customerId",
+      "customerName",
+      "customerCode",
+      "userId",
+      "sessionId",
+      "https://",
+      ".js",
+      "pathname",
+      "userAgent",
+    ];
+    for (const term of forbidden) {
+      assert.doesNotMatch(panel, new RegExp(term, "i"));
+    }
+    assert.doesNotMatch(helper, /console\.(info|log|debug|warn)\(/);
+    assert.match(panel, /Resource sizes come from browser PerformanceResourceTiming/);
   });
 });

@@ -12,6 +12,10 @@ export type NavigationPerfMarker = {
 
 export type RouteResourceState = "after-click" | "before-click" | "not-observed";
 
+export type ResourceSizeTimingSupport = "YES" | "PARTIAL" | "NO";
+
+export type ZeroTransferEvidence = "YES" | "NO" | "N/A";
+
 export type NavigationPerfMetrics = {
   pointerToClickMs: number | null;
   clickToCommitMs: number;
@@ -26,6 +30,18 @@ export type NavigationPerfMetrics = {
   clickToLastScriptResponseEndMs: number | null;
   commitToNextFrameMs: number | null;
   commitToSecondFrameMs: number | null;
+  resourceSizeTimingSupport: ResourceSizeTimingSupport;
+  routeTransferSize: number | null;
+  routeEncodedBodySize: number | null;
+  routeDecodedBodySize: number | null;
+  routeProtocol: string | null;
+  routeZeroTransferEvidence: ZeroTransferEvidence;
+  postClickScriptTransferTotal: number | null;
+  postClickScriptEncodedTotal: number | null;
+  postClickScriptDecodedTotal: number | null;
+  largestPostClickScriptTransfer: number | null;
+  largestPostClickScriptEncoded: number | null;
+  postClickScriptsWithZeroTransfer: number;
 };
 
 export type ResourceTimingLike = {
@@ -35,6 +51,10 @@ export type ResourceTimingLike = {
   requestStart?: number;
   responseStart?: number;
   responseEnd?: number;
+  transferSize?: number;
+  encodedBodySize?: number;
+  decodedBodySize?: number;
+  nextHopProtocol?: string;
 };
 
 const ALLOWED_MARKER_KEYS = new Set([
@@ -225,6 +245,138 @@ function closestRouteCandidate(
   return best;
 }
 
+type ResourceSizeField = "transferSize" | "encodedBodySize" | "decodedBodySize";
+
+function hasResourceSizeValue(
+  value: number | null | undefined,
+): value is number {
+  return typeof value === "number" && !Number.isNaN(value);
+}
+
+function entrySizeSupport(
+  entry: ResourceTimingLike,
+): "full" | "partial" | "none" {
+  const fields = [
+    entry.transferSize,
+    entry.encodedBodySize,
+    entry.decodedBodySize,
+  ];
+  const defined = fields.filter((field) => hasResourceSizeValue(field));
+  if (defined.length === 0) {
+    return "none";
+  }
+  if (defined.length === 3) {
+    return "full";
+  }
+  return "partial";
+}
+
+export function detectResourceSizeTimingSupport(
+  routeCandidate: ResourceTimingLike | null,
+  postClickScripts: ResourceTimingLike[],
+): ResourceSizeTimingSupport {
+  const entries = [
+    ...(routeCandidate ? [routeCandidate] : []),
+    ...postClickScripts,
+  ];
+  if (entries.length === 0) {
+    return "NO";
+  }
+
+  let anyFull = false;
+  let anyPartial = false;
+  let anyNone = false;
+  for (const entry of entries) {
+    const support = entrySizeSupport(entry);
+    if (support === "full") {
+      anyFull = true;
+    } else if (support === "partial") {
+      anyPartial = true;
+    } else {
+      anyNone = true;
+    }
+  }
+
+  if (anyFull && !anyPartial && !anyNone) {
+    return "YES";
+  }
+  if (!anyFull && !anyPartial) {
+    return "NO";
+  }
+  return "PARTIAL";
+}
+
+export function routeZeroTransferEvidence(
+  transferSize: number | undefined,
+  decodedBodySize: number | undefined,
+): ZeroTransferEvidence {
+  if (!hasResourceSizeValue(transferSize) || !hasResourceSizeValue(decodedBodySize)) {
+    return "N/A";
+  }
+  return transferSize === 0 && decodedBodySize > 0 ? "YES" : "NO";
+}
+
+export function sumResourceField(
+  resources: ResourceTimingLike[],
+  field: ResourceSizeField,
+): number | null {
+  let sum = 0;
+  let hasValue = false;
+  for (const resource of resources) {
+    const value = resource[field];
+    if (hasResourceSizeValue(value)) {
+      sum += value;
+      hasValue = true;
+    }
+  }
+  return hasValue ? sum : null;
+}
+
+export function maxResourceField(
+  resources: ResourceTimingLike[],
+  field: ResourceSizeField,
+): number | null {
+  let max: number | null = null;
+  for (const resource of resources) {
+    const value = resource[field];
+    if (!hasResourceSizeValue(value)) {
+      continue;
+    }
+    if (max == null || value > max) {
+      max = value;
+    }
+  }
+  return max;
+}
+
+export function formatBytes(bytes: number | null | undefined): string {
+  if (!hasResourceSizeValue(bytes)) {
+    return "N/A";
+  }
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const kib = bytes / 1024;
+  if (kib < 1024) {
+    return `${Math.round(kib * 10) / 10} KiB`;
+  }
+  const mib = kib / 1024;
+  return `${Math.round(mib * 100) / 100} MiB`;
+}
+
+function countZeroTransferScripts(resources: ResourceTimingLike[]): number {
+  let count = 0;
+  for (const resource of resources) {
+    if (
+      routeZeroTransferEvidence(resource.transferSize, resource.decodedBodySize) ===
+      "YES"
+    ) {
+      count += 1;
+    }
+  }
+  return count;
+}
+
 export function deriveNavigationPerfMetrics(
   marker: NavigationPerfMarker,
   commitEpochMs: number,
@@ -318,6 +470,11 @@ export function deriveNavigationPerfMetrics(
     }
   }
 
+  const resourceSizeTimingSupport = detectResourceSizeTimingSupport(
+    routeCandidate,
+    postClickScripts,
+  );
+
   return {
     pointerToClickMs,
     clickToCommitMs,
@@ -332,6 +489,46 @@ export function deriveNavigationPerfMetrics(
     clickToLastScriptResponseEndMs,
     commitToNextFrameMs: null,
     commitToSecondFrameMs: null,
+    resourceSizeTimingSupport,
+    routeTransferSize: hasResourceSizeValue(routeCandidate?.transferSize)
+      ? routeCandidate.transferSize
+      : null,
+    routeEncodedBodySize: hasResourceSizeValue(routeCandidate?.encodedBodySize)
+      ? routeCandidate.encodedBodySize
+      : null,
+    routeDecodedBodySize: hasResourceSizeValue(routeCandidate?.decodedBodySize)
+      ? routeCandidate.decodedBodySize
+      : null,
+    routeProtocol: routeCandidate?.nextHopProtocol?.trim()
+      ? routeCandidate.nextHopProtocol
+      : null,
+    routeZeroTransferEvidence: routeCandidate
+      ? routeZeroTransferEvidence(
+          routeCandidate.transferSize,
+          routeCandidate.decodedBodySize,
+        )
+      : "N/A",
+    postClickScriptTransferTotal: sumResourceField(
+      postClickScripts,
+      "transferSize",
+    ),
+    postClickScriptEncodedTotal: sumResourceField(
+      postClickScripts,
+      "encodedBodySize",
+    ),
+    postClickScriptDecodedTotal: sumResourceField(
+      postClickScripts,
+      "decodedBodySize",
+    ),
+    largestPostClickScriptTransfer: maxResourceField(
+      postClickScripts,
+      "transferSize",
+    ),
+    largestPostClickScriptEncoded: maxResourceField(
+      postClickScripts,
+      "encodedBodySize",
+    ),
+    postClickScriptsWithZeroTransfer: countZeroTransferScripts(postClickScripts),
   };
 }
 

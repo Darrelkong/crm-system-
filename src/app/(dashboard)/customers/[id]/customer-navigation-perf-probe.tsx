@@ -41,6 +41,10 @@ export function CustomerNavigationPerfProbe({ enabled }: Props) {
       requestStart: entry.requestStart,
       responseStart: entry.responseStart,
       responseEnd: entry.responseEnd,
+      transferSize: entry.transferSize,
+      encodedBodySize: entry.encodedBodySize,
+      decodedBodySize: entry.decodedBodySize,
+      nextHopProtocol: entry.nextHopProtocol,
     }));
 
     const base = deriveNavigationPerfMetrics(
