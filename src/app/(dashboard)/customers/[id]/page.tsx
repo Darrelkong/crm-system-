@@ -141,6 +141,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     customer.status !== "public_pool" &&
     !customer.deletedAt;
 
+  const secondaryStart = perfNow();
+
   let sharedFollowUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
     Promise.resolve([]);
   let sharedFollowUpsMeasurePromise: Promise<{ durationMs: number }> =
@@ -179,7 +181,6 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     return { result, durationMs };
   })();
 
-  const secondaryStart = perfNow();
   const [
     confirmTimed,
     followUps,

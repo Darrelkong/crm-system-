@@ -122,6 +122,22 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
     assert.match(source, /assertCanViewFollowUps/);
   });
 
+  it("starts secondaryTotal timing before any secondary async work", () => {
+    const source = readDetailPageSource();
+    const secondaryStartIndex = source.indexOf("const secondaryStart = perfNow();");
+    const sharedFollowUpLoadIndex = source.indexOf(
+      "measureAsync(() => listFollowUpsByCustomerId(id))",
+    );
+    const timelinePromiseIndex = source.indexOf("const timelinePromise = (async () => {");
+    const parallelIndex = source.indexOf("await Promise.all([");
+    assert.ok(secondaryStartIndex >= 0);
+    if (sharedFollowUpLoadIndex >= 0) {
+      assert.ok(secondaryStartIndex < sharedFollowUpLoadIndex);
+    }
+    assert.ok(secondaryStartIndex < timelinePromiseIndex);
+    assert.ok(secondaryStartIndex < parallelIndex);
+  });
+
   it("preserves secondary Promise.all parallelism", () => {
     const source = readDetailPageSource();
     const section = source.slice(
