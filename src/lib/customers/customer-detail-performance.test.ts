@@ -19,7 +19,7 @@ import {
   resolveCustomerUserLabels,
 } from "@/lib/customers/user-labels";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
-import { getCustomerTimeline } from "@/lib/customers/timeline/service";
+import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
 import type { User } from "../../../drizzle/schema/users";
 
 const adminUser = { id: SEED_IDS.admin, role: "admin" } as User;
@@ -50,8 +50,8 @@ describe("customer detail Phase 2B1 orchestration", () => {
     const section = extractPostAccessSection(readDetailPageSource());
     const parallelBlock = section.slice(section.indexOf("await Promise.all(["));
     assert.match(parallelBlock, /canConfirmPendingCustomerName/);
-    assert.match(parallelBlock, /followUpsPromise/);
-    assert.match(parallelBlock, /getCustomerTimeline/);
+    assert.match(parallelBlock, /followUpsForClientPromise/);
+    assert.match(parallelBlock, /timelinePromise/);
     assert.match(parallelBlock, /resolveCustomerUserLabels/);
     assert.match(parallelBlock, /resolveCustomerAssigneeNames/);
     const parallelCount = (section.match(/await Promise\.all\(\[/g) ?? []).length;
@@ -60,11 +60,10 @@ describe("customer detail Phase 2B1 orchestration", () => {
 
   it("follow-up list is gated by assertCanViewFollowUps before promise creation", () => {
     const section = extractPostAccessSection(readDetailPageSource());
-    const followUpGateIndex = section.indexOf("assertCanViewFollowUps");
-    const followUpPromiseIndex = section.indexOf("followUpsPromise = listFollowUpsByCustomerId");
-    assert.ok(followUpGateIndex >= 0);
-    assert.ok(followUpPromiseIndex > followUpGateIndex);
-    assert.match(section, /catch \{\s*\/\/ masked or denied/);
+    const clientBlockStart = section.indexOf("const followUpsForClientPromise");
+    const clientBlock = section.slice(clientBlockStart);
+    assert.match(clientBlock, /assertCanViewFollowUps/);
+    assert.match(clientBlock, /return \[\]/);
   });
 
   it("does not parallelize before pending on-hold or public-pool gates", () => {
@@ -74,6 +73,31 @@ describe("customer detail Phase 2B1 orchestration", () => {
     const poolGateIndex = source.indexOf("isStaffUnclaimedPublicPoolCustomer");
     assert.ok(parallelIndex > onHoldIndex);
     assert.ok(parallelIndex > poolGateIndex);
+  });
+});
+
+describe("customer detail Phase 2B2 follow-up dedup", () => {
+  it("loads follow-ups once for timeline and passes preloaded rows", () => {
+    const section = extractPostAccessSection(readDetailPageSource());
+    assert.match(section, /sharedFollowUpsPromise = listFollowUpsByCustomerId/);
+    assert.match(section, /preloadedFollowUps/);
+    assert.match(section, /followUpsForClientPromise/);
+    const fullFollowUpLoads = (
+      section.match(/sharedFollowUpsPromise = listFollowUpsByCustomerId/g) ?? []
+    ).length;
+    assert.equal(fullFollowUpLoads, 1);
+  });
+
+  it("keeps dedicated follow-up UI gated by assertCanViewFollowUps", () => {
+    const section = extractPostAccessSection(readDetailPageSource());
+    assert.match(section, /assertCanViewFollowUps/);
+    assert.match(section, /followUpsForClientPromise/);
+  });
+
+  it("preloads follow-ups for timeline when timeline access is allowed", () => {
+    const section = extractPostAccessSection(readDetailPageSource());
+    assert.match(section, /assertCanViewCustomerTimeline/);
+    assert.match(section, /shouldPreloadFollowUpsForTimeline = true/);
   });
 });
 
@@ -111,14 +135,34 @@ describe("customer detail Phase 2B1 permissions and data", () => {
       accessOptions,
     );
 
-    let followUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
+    let sharedFollowUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
       Promise.resolve([]);
+    let shouldPreloadFollowUpsForTimeline = false;
     try {
-      assertCanViewFollowUps(user, customer, accessOptions);
-      followUpsPromise = listFollowUpsByCustomerId(customerId);
+      assertCanViewCustomerTimeline(user, customer, accessOptions);
+      shouldPreloadFollowUpsForTimeline = true;
+      sharedFollowUpsPromise = listFollowUpsByCustomerId(customerId);
     } catch {
-      // masked or denied
+      // timeline access denied
     }
+
+    const followUpsForClientPromise = (async () => {
+      try {
+        assertCanViewFollowUps(user, customer, accessOptions);
+        return await sharedFollowUpsPromise;
+      } catch {
+        return [];
+      }
+    })();
+
+    const timelinePromise = (async () => {
+      const preloadedFollowUps = shouldPreloadFollowUpsForTimeline
+        ? await sharedFollowUpsPromise
+        : undefined;
+      return getCustomerTimeline(db, user, customer, accessOptions, {
+        preloadedFollowUps,
+      });
+    })();
 
     const [
       showConfirmNameButton,
@@ -128,8 +172,8 @@ describe("customer detail Phase 2B1 permissions and data", () => {
       assigneeNames,
     ] = await Promise.all([
       canConfirmPendingCustomerName(db, user, customer),
-      followUpsPromise,
-      getCustomerTimeline(db, user, customer, accessOptions),
+      followUpsForClientPromise,
+      timelinePromise,
       resolveCustomerUserLabels(db, customer),
       resolveCustomerAssigneeNames(db, customerId),
     ]);

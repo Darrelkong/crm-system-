@@ -19,7 +19,7 @@ import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
 import { resolveCustomerUserLabels, resolveCustomerAssigneeNames } from "@/lib/customers/user-labels";
 import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
-import { getCustomerTimeline } from "@/lib/customers/timeline/service";
+import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { CustomerDetailClient } from "./customer-detail-client";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
@@ -125,14 +125,34 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     customer.status !== "public_pool" &&
     !customer.deletedAt;
 
-  let followUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
+  let sharedFollowUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
     Promise.resolve([]);
+  let shouldPreloadFollowUpsForTimeline = false;
   try {
-    assertCanViewFollowUps(user, customer, accessOptions);
-    followUpsPromise = listFollowUpsByCustomerId(id);
+    assertCanViewCustomerTimeline(user, customer, accessOptions);
+    shouldPreloadFollowUpsForTimeline = true;
+    sharedFollowUpsPromise = listFollowUpsByCustomerId(id);
   } catch {
-    // masked or denied — no follow-up list
+    // timeline access denied; getCustomerTimeline will throw
   }
+
+  const followUpsForClientPromise = (async () => {
+    try {
+      assertCanViewFollowUps(user, customer, accessOptions);
+      return await sharedFollowUpsPromise;
+    } catch {
+      return [];
+    }
+  })();
+
+  const timelinePromise = (async () => {
+    const preloadedFollowUps = shouldPreloadFollowUpsForTimeline
+      ? await sharedFollowUpsPromise
+      : undefined;
+    return getCustomerTimeline(db, user, customer, accessOptions, {
+      preloadedFollowUps,
+    });
+  })();
 
   const [
     showConfirmNameButton,
@@ -142,8 +162,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     assigneeNames,
   ] = await Promise.all([
     canConfirmPendingCustomerName(db, user, customer),
-    followUpsPromise,
-    getCustomerTimeline(db, user, customer, accessOptions),
+    followUpsForClientPromise,
+    timelinePromise,
     resolveCustomerUserLabels(db, customer),
     resolveCustomerAssigneeNames(db, id),
   ]);

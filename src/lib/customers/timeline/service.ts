@@ -52,6 +52,30 @@ const TASK_EVENT_TITLE_KEYS = {
 
 const EMPTY_MARKER = "__empty__";
 
+export type GetCustomerTimelineOptions = {
+  preloadedFollowUps?: Array<typeof schema.followUps.$inferSelect>;
+};
+
+export async function loadTaskAuditsForCustomer(
+  db: Database,
+  customerId: string,
+): Promise<Array<typeof schema.auditLogs.$inferSelect>> {
+  const rows = await db
+    .select({ audit: schema.auditLogs })
+    .from(schema.auditLogs)
+    .innerJoin(
+      schema.tasks,
+      and(
+        eq(schema.auditLogs.entityType, "task"),
+        eq(schema.auditLogs.entityId, schema.tasks.id),
+      ),
+    )
+    .where(eq(schema.tasks.customerId, customerId))
+    .orderBy(desc(schema.auditLogs.createdAt));
+
+  return rows.map((row) => row.audit);
+}
+
 function isMaskedTimeline(accessLevel: ReturnType<typeof getCustomerAccessLevel>): boolean {
   return accessLevel === "masked" || accessLevel === "archived_basic";
 }
@@ -406,14 +430,24 @@ export async function getCustomerTimeline(
   db: Database,
   user: User,
   customer: Customer,
-  options?: CustomerAccessOptions,
+  accessOptions?: CustomerAccessOptions,
+  options?: GetCustomerTimelineOptions,
 ): Promise<TimelineResponse> {
-  const accessLevel = assertCanViewCustomerTimeline(user, customer, options);
+  const accessLevel = assertCanViewCustomerTimeline(user, customer, accessOptions);
   const visibility: Visibility = isMaskedTimeline(accessLevel) ? "masked" : "full";
 
   const customerId = customer.id;
 
-  const [customerAudits, fieldChanges, followUps, tasks, approvals] =
+  const followUpsLoader =
+    options?.preloadedFollowUps !== undefined
+      ? Promise.resolve(options.preloadedFollowUps)
+      : db
+          .select()
+          .from(schema.followUps)
+          .where(eq(schema.followUps.customerId, customerId))
+          .orderBy(desc(schema.followUps.followUpTime));
+
+  const [customerAudits, fieldChanges, followUps, tasks, approvals, taskAudits] =
     await Promise.all([
       db
         .select()
@@ -430,11 +464,7 @@ export async function getCustomerTimeline(
         .from(schema.fieldChangeLogs)
         .where(eq(schema.fieldChangeLogs.customerId, customerId))
         .orderBy(desc(schema.fieldChangeLogs.changedAt)),
-      db
-        .select()
-        .from(schema.followUps)
-        .where(eq(schema.followUps.customerId, customerId))
-        .orderBy(desc(schema.followUps.followUpTime)),
+      followUpsLoader,
       db
         .select()
         .from(schema.tasks)
@@ -445,22 +475,8 @@ export async function getCustomerTimeline(
         .from(schema.approvals)
         .where(eq(schema.approvals.customerId, customerId))
         .orderBy(desc(schema.approvals.createdAt)),
+      loadTaskAuditsForCustomer(db, customerId),
     ]);
-
-  const taskIds = tasks.map((t) => t.id);
-  const taskAudits =
-    taskIds.length > 0
-      ? await db
-          .select()
-          .from(schema.auditLogs)
-          .where(
-            and(
-              eq(schema.auditLogs.entityType, "task"),
-              inArray(schema.auditLogs.entityId, taskIds),
-            ),
-          )
-          .orderBy(desc(schema.auditLogs.createdAt))
-      : [];
 
   const actorIds: Array<string | null | undefined> = [
     ...customerAudits.map((r) => r.userId),
