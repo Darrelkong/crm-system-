@@ -56,6 +56,8 @@ import {
   recordNavigationClickMark,
   recordNavigationPointerDownMark,
 } from "@/lib/customers/customer-navigation-perf";
+import { customerDetailHref } from "@/lib/customers/customer-intent-prefetch";
+import { useCustomerIntentPrefetch } from "@/lib/customers/use-customer-intent-prefetch";
 import { ui } from "@/lib/ui/classes";
 
 export type CustomerListRow = CustomerListRowData;
@@ -334,6 +336,10 @@ export function CustomersListClient({
       }
     : {};
 
+  const intentPrefetch = useCustomerIntentPrefetch({
+    listBlocked: searching || listLoading || showInitialListLoading,
+  });
+
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
     return currentLocale === "en" ? "en" : "zh";
   }
@@ -364,6 +370,7 @@ export function CustomersListClient({
   }
 
   function CustomerNameLink({ c }: { c: CustomerListRow }) {
+    const detailHref = customerDetailHref(c.id);
     return (
       <span className="inline-flex flex-col gap-0.5">
         <span className="inline-flex items-center gap-2">
@@ -374,8 +381,12 @@ export function CustomersListClient({
             pendingLabel={tCommon("customers.namePendingBadge")}
             renderName={(displayName) => (
               <Link
-                href={`/customers/${c.id}`}
+                href={detailHref}
                 className={ui.customerName}
+                onMouseEnter={() => intentPrefetch.onDesktopIntentEnter(detailHref)}
+                onMouseLeave={intentPrefetch.onDesktopIntentLeave}
+                onFocus={() => intentPrefetch.onDesktopIntentEnter(detailHref)}
+                onBlur={intentPrefetch.onDesktopIntentLeave}
                 {...navigationPerfHandlers}
               >
                 {displayName}
@@ -437,6 +448,8 @@ export function CustomersListClient({
   }
 
   function CustomerMobileCard({ c }: { c: CustomerListRow }) {
+    const detailHref = customerDetailHref(c.id);
+    const cardRef = useRef<HTMLAnchorElement>(null);
     const project = formatProjectNameForList(
       resolveRequestedProjectDisplayName({
         requestedProjectCode: c.requestedProjectCode,
@@ -446,9 +459,14 @@ export function CustomersListClient({
     );
     const staff = assignedStaffDisplay(c);
 
+    useEffect(() => {
+      return intentPrefetch.registerMobileCard(cardRef.current, detailHref);
+    }, [detailHref]);
+
     return (
       <Link
-        href={`/customers/${c.id}`}
+        ref={cardRef}
+        href={detailHref}
         className="interactive-card block p-4 active:scale-[0.99]"
         {...navigationPerfHandlers}
       >

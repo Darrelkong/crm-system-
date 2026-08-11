@@ -90,7 +90,8 @@ describe("customer navigation Phase 2B4 diagnostic", () => {
 
   it("keeps customer detail href unchanged and without perf query", () => {
     const source = readCustomersListClientSource();
-    assert.match(source, /href=\{`\/customers\/\$\{c\.id\}`\}/g);
+    assert.match(source, /customerDetailHref\(c\.id\)/g);
+    assert.match(source, /href=\{detailHref\}/g);
     assert.doesNotMatch(source, /\/customers\/\$\{c\.id\}\?perf=1/);
     assert.doesNotMatch(source, /navPerf=1/);
   });
