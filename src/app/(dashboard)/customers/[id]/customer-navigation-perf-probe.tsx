@@ -10,10 +10,18 @@ import {
 } from "@/lib/customers/customer-navigation-perf";
 import { CustomerNavigationPerfPanel } from "./customer-navigation-perf-panel";
 
-export function CustomerNavigationPerfProbe() {
+type Props = {
+  enabled: boolean;
+};
+
+export function CustomerNavigationPerfProbe({ enabled }: Props) {
   const [metrics, setMetrics] = useState<NavigationPerfMetrics | null>(null);
 
   useLayoutEffect(() => {
+    if (!enabled) {
+      return;
+    }
+
     const commitEpochMs = epochNow();
     const marker = consumeNavigationMarker(commitEpochMs);
     if (!marker) {
@@ -55,7 +63,7 @@ export function CustomerNavigationPerfProbe() {
         });
       });
     });
-  }, []);
+  }, [enabled]);
 
   if (!metrics) {
     return null;

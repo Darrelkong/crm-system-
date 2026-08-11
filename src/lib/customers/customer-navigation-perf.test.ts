@@ -27,6 +27,20 @@ function readCustomersListClientSource(): string {
   );
 }
 
+function readNavigationPerfProbeSource(): string {
+  return readFileSync(
+    "src/app/(dashboard)/customers/[id]/customer-navigation-perf-probe.tsx",
+    "utf8",
+  );
+}
+
+function readCustomerDetailClientSource(): string {
+  return readFileSync(
+    "src/app/(dashboard)/customers/[id]/customer-detail-client.tsx",
+    "utf8",
+  );
+}
+
 const marker: NavigationPerfMarker = {
   version: NAVIGATION_PERF_MARKER_VERSION,
   source: "customer-list",
@@ -74,6 +88,23 @@ describe("customer navigation Phase 2B4 diagnostic", () => {
     assert.match(source, /recordNavigationPointerDownMark/);
     assert.match(source, /recordNavigationClickMark/);
     assert.match(source, /\{\.\.\.navigationPerfHandlers\}/);
+  });
+
+  it("gates CustomerNavigationPerfProbe to admin via isAdmin", () => {
+    const detailClient = readCustomerDetailClientSource();
+    const probe = readNavigationPerfProbeSource();
+    assert.match(detailClient, /<CustomerNavigationPerfProbe enabled=\{isAdmin\} \/>/);
+    assert.match(probe, /enabled: boolean/);
+    assert.match(probe, /if \(!enabled\)/);
+  });
+
+  it("disabled probe does not consume navigation marker", () => {
+    const probe = readNavigationPerfProbeSource();
+    const effectBody = probe.slice(probe.indexOf("useLayoutEffect(() => {"));
+    const enabledGuardIndex = effectBody.indexOf("if (!enabled)");
+    const consumeIndex = effectBody.indexOf("consumeNavigationMarker");
+    assert.ok(enabledGuardIndex >= 0);
+    assert.ok(consumeIndex > enabledGuardIndex);
   });
 
   it("stores only allowed timing metadata in navigation marker", () => {

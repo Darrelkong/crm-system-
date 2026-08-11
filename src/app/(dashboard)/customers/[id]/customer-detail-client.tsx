@@ -245,7 +245,7 @@ export function CustomerDetailClient({
 
   return (
     <>
-      <CustomerNavigationPerfProbe />
+      <CustomerNavigationPerfProbe enabled={isAdmin} />
       <div className="mx-auto max-w-6xl">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
