@@ -59,6 +59,7 @@ const zhHant: Messages = {
     assignedStaff: "負責團隊成員",
     permission: "權限",
     prevPage: "上一頁",
+    next: "下一步",
     nextPage: "下一頁",
   },
   auth: {
@@ -323,7 +324,7 @@ const zhHant: Messages = {
     addFamilyMember: "新增家庭成員",
     familyEmptyState: "尚未新增家庭成員。",
     familyEmptyStateHint: "家庭成員將作為獨立客戶管理，不會共享業務狀態。",
-    familyWizardStep: "第 {step} / {total} 步",
+    familyWizardStep: "第 {{step}} / {{total}} 步",
     familyRelationshipLabel: "他/她與當前客戶的關係",
     familyRelationshipPlaceholder: "選擇關係",
     familyRelationshipHelper: "僅用於家庭成員；朋友、同事等請作為獨立客戶管理。",

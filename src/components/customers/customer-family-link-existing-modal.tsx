@@ -221,6 +221,10 @@ export function CustomerFamilyLinkExistingModal({
   const requiresApproval =
     selectedVisible?.linkMode === "approval" || protectedLookup != null;
 
+  if (!open) {
+    return null;
+  }
+
   return (
     <ModalOverlay onClose={onClose}>
       <ModalPanel className="max-h-[90vh] overflow-y-auto sm:max-w-lg">

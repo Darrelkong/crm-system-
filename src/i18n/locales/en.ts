@@ -57,6 +57,7 @@ const en = {
     assignedStaff: "Assigned Team Member",
     permission: "Permission",
     prevPage: "Previous",
+    next: "Next",
     nextPage: "Next",
   },
   auth: {
@@ -338,7 +339,7 @@ const en = {
     familyEmptyState: "No family members added yet.",
     familyEmptyStateHint:
       "Family members are managed as independent customers and do not share business status.",
-    familyWizardStep: "Step {step} / {total}",
+    familyWizardStep: "Step {{step}} / {{total}}",
     familyRelationshipLabel: "Their relationship to the current customer",
     familyRelationshipPlaceholder: "Select relationship",
     familyRelationshipHelper:
