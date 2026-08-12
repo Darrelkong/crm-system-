@@ -11,6 +11,9 @@ export const BACKUP_TABLE_NAMES = [
   "customer_contacts",
   "customer_contact_identifiers",
   "customer_assignees",
+  "customer_households",
+  "customer_household_members",
+  "customer_household_relationships",
   "customer_tags",
   "customer_ai_insights",
   /** After insights — FK: customer_id, ai_insight_id, created_by. */

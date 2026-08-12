@@ -29,6 +29,9 @@ const NEW_BACKUP_TABLES = [
   "customer_code_counter",
   "login_ip_email_restrictions",
   "customer_contact_identifiers",
+  "customer_households",
+  "customer_household_members",
+  "customer_household_relationships",
 ] as const;
 
 const CORE_BACKUP_TABLES = [

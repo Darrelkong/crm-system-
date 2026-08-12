@@ -49,6 +49,13 @@ export async function collectBackupTableData(
     .select()
     .from(schema.customerContactIdentifiers);
   const customerAssignees = await db.select().from(schema.customerAssignees);
+  const customerHouseholds = await db.select().from(schema.customerHouseholds);
+  const customerHouseholdMembers = await db
+    .select()
+    .from(schema.customerHouseholdMembers);
+  const customerHouseholdRelationships = await db
+    .select()
+    .from(schema.customerHouseholdRelationships);
   const customerTags = await db.select().from(schema.customerTags);
   const customerAiInsights = await db.select().from(schema.customerAiInsights);
   const aiInsightFeedback = await db.select().from(schema.aiInsightFeedback);
@@ -86,6 +93,13 @@ export async function collectBackupTableData(
       toSnakeRow(r as Row),
     ),
     customer_assignees: customerAssignees.map((r) => toSnakeRow(r as Row)),
+    customer_households: customerHouseholds.map((r) => toSnakeRow(r as Row)),
+    customer_household_members: customerHouseholdMembers.map((r) =>
+      toSnakeRow(r as Row),
+    ),
+    customer_household_relationships: customerHouseholdRelationships.map((r) =>
+      toSnakeRow(r as Row),
+    ),
     customer_tags: customerTags.map((r) => toSnakeRow(r as Row)),
     customer_ai_insights: customerAiInsights.map((r) => toSnakeRow(r as Row)),
     ai_insight_feedback: aiInsightFeedback.map((r) => toSnakeRow(r as Row)),
