@@ -1,0 +1,36 @@
+export const FAMILY_ERROR_CODES = {
+  SOURCE_NOT_ELIGIBLE: "FAMILY_SOURCE_NOT_ELIGIBLE",
+  TARGET_NOT_FOUND: "FAMILY_TARGET_NOT_FOUND",
+  TARGET_NOT_ELIGIBLE: "FAMILY_TARGET_NOT_ELIGIBLE",
+  SELF_LINK_NOT_ALLOWED: "FAMILY_SELF_LINK_NOT_ALLOWED",
+  HOUSEHOLD_CONFLICT: "FAMILY_HOUSEHOLD_CONFLICT",
+  RELATIONSHIP_CONFLICT: "FAMILY_RELATIONSHIP_CONFLICT",
+  INVALID_HOUSEHOLD_STATE: "FAMILY_INVALID_HOUSEHOLD_STATE",
+  PROTECTED_MATCH_AMBIGUOUS: "FAMILY_PROTECTED_MATCH_AMBIGUOUS",
+  LINK_ALREADY_EXISTS: "FAMILY_LINK_ALREADY_EXISTS",
+  LINK_APPROVAL_REQUIRED: "FAMILY_LINK_APPROVAL_REQUIRED",
+  LINK_USE_DEDICATED_ENDPOINT: "FAMILY_LINK_USE_DEDICATED_ENDPOINT",
+  DUPLICATE_PENDING: "FAMILY_DUPLICATE_PENDING",
+  INVALID_RELATIONSHIP: "FAMILY_INVALID_RELATIONSHIP",
+} as const;
+
+export type FamilyErrorCode =
+  (typeof FAMILY_ERROR_CODES)[keyof typeof FAMILY_ERROR_CODES];
+
+export class FamilyLinkError extends Error {
+  constructor(
+    public readonly status: number,
+    message: string,
+    public readonly errorCode: FamilyErrorCode,
+  ) {
+    super(message);
+    this.name = "FamilyLinkError";
+  }
+}
+
+export function familyErrorResponse(error: FamilyLinkError): Response {
+  return Response.json(
+    { error: error.message, errorCode: error.errorCode },
+    { status: error.status },
+  );
+}

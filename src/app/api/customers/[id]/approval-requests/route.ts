@@ -50,6 +50,16 @@ export async function POST(request: Request, context: RouteContext) {
 
     const body = (await request.json()) as ApprovalRequestInput;
 
+    if (body.requestType === "link_family_customer") {
+      return Response.json(
+        {
+          error: "请使用家庭成员关联专用入口提交",
+          errorCode: "FAMILY_LINK_USE_DEDICATED_ENDPOINT",
+        },
+        { status: 400 },
+      );
+    }
+
     try {
       const result = await createApprovalRequest(customer, user, body, {
         ipAddress,

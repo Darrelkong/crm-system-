@@ -9,6 +9,7 @@ export const APPROVAL_REQUEST_TYPE_LABELS: Record<ApprovalRequestType, string> =
   create_on_hold_customer: "申请新增搁置客户",
   update_customer_assignees: "调整负责团队成员",
   paid_customer: "申请已付款",
+  link_family_customer: "关联家庭客户",
 };
 
 export const APPROVAL_STATUS_LABELS = {

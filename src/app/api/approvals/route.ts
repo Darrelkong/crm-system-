@@ -3,6 +3,10 @@ export const dynamic = "force-dynamic";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { getDb } from "@/lib/db";
 import { listApprovalsForUser } from "@/lib/approvals/queries";
+import {
+  loadFamilyLinkAdminDetails,
+  sanitizeApprovalListItemForUser,
+} from "@/lib/approvals/family-link-serialization";
 import type { ApprovalStatus } from "../../../../drizzle/schema/approvals";
 
 export async function GET(request: Request) {
@@ -21,8 +25,16 @@ export async function GET(request: Request) {
 
     const db = getDb();
     const items = await listApprovalsForUser(db, user, statusFilter);
+    const familyAdminDetails =
+      user.role === "admin"
+        ? await loadFamilyLinkAdminDetails(db, items)
+        : undefined;
 
-    return Response.json({ items, total: items.length });
+    const serialized = items.map((item) =>
+      sanitizeApprovalListItemForUser(user, item, familyAdminDetails),
+    );
+
+    return Response.json({ items: serialized, total: serialized.length });
   } catch (error) {
     return authErrorResponse(error);
   }

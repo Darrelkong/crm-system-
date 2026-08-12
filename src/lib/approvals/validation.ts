@@ -61,6 +61,15 @@ export function validateApprovalRequestInput(
     return { ok: false, fieldErrors };
   }
 
+  if (requestType === "link_family_customer") {
+    fieldErrors.push({
+      field: "requestType",
+      message: "请使用家庭成员关联专用入口提交",
+      code: "FAMILY_LINK_USE_DEDICATED_ENDPOINT",
+    });
+    return { ok: false, fieldErrors };
+  }
+
   if (requestType === "transfer_customer") {
     if (!input.targetUserId?.trim()) {
       fieldErrors.push({ field: "targetUserId", message: "转移目标员工必填" });

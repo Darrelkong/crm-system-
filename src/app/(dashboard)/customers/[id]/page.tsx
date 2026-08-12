@@ -34,6 +34,7 @@ import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pendi
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
 import { getCustomerHouseholdDetailSummary } from "@/lib/customers/households/detail-summary";
+import { canManageCustomerFamily } from "@/lib/customers/households/family-permissions";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -162,6 +163,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
 
   const view = scoresView;
   const showEditButton = canEditCustomer(user, customer);
+  const showManageFamilyButton = canManageCustomerFamily(user, customer);
   const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
@@ -356,6 +358,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         showRequestAssigneesButton={showRequestAssigneesButton}
         returnHref={safeReturnHref}
         familySummary={familySummary}
+        showManageFamilyButton={showManageFamilyButton}
       />
       {perfTimings ? <CustomerDetailPerfPanel timings={perfTimings} /> : null}
     </>

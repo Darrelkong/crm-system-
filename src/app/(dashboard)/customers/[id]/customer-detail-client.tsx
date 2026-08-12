@@ -31,7 +31,8 @@ import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-st
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 import { CustomerNavigationPerfProbe } from "./customer-navigation-perf-probe";
-import { CustomerFamilyReadOnlySection } from "@/components/customers/customer-family-readonly-section";
+import { CustomerFamilySection } from "@/components/customers/customer-family-section";
+import { CustomerFamilyLinkExistingModal } from "@/components/customers/customer-family-link-existing-modal";
 import type { CustomerFamilyDetailSummary } from "@/lib/customers/households/detail-summary";
 
 const cd = ui.customerDetail;
@@ -112,6 +113,7 @@ type Props = {
   /** Server-validated back href: /follow-ups?... or /customers. */
   returnHref: string;
   familySummary?: CustomerFamilyDetailSummary | null;
+  showManageFamilyButton?: boolean;
 };
 
 function DetailRow({
@@ -213,11 +215,13 @@ export function CustomerDetailClient({
   showRequestAssigneesButton,
   returnHref,
   familySummary = null,
+  showManageFamilyButton = false,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
   const { locale } = useTranslation();
   const id = view.id;
+  const [familyModalOpen, setFamilyModalOpen] = useState(false);
 
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
     return currentLocale === "en" ? "en" : "zh";
@@ -379,14 +383,25 @@ export function CustomerDetailClient({
             </dl>
           </SectionCard>
 
-          {familySummary ? (
+          {(showManageFamilyButton || familySummary) && (
             <SectionCard title={t("customers.familyAndContacts")}>
-              <CustomerFamilyReadOnlySection
+              <CustomerFamilySection
                 currentCustomerName={view.customerName}
                 summary={familySummary}
+                canManage={showManageFamilyButton}
+                onAddFamilyMember={() => setFamilyModalOpen(true)}
               />
             </SectionCard>
-          ) : null}
+          )}
+
+          {showManageFamilyButton && (
+            <CustomerFamilyLinkExistingModal
+              customerId={id}
+              currentCustomerName={view.customerName}
+              open={familyModalOpen}
+              onClose={() => setFamilyModalOpen(false)}
+            />
+          )}
 
           {!view.isMasked && (
             <SectionCard title={t("customers.contactInfo")}>

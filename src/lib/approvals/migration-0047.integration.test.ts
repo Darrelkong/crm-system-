@@ -49,7 +49,7 @@ interface MigrationTestEnv {
   configPath: string;
 }
 
-interface ApprovalRow {
+interface ApprovalRow extends Record<string, unknown> {
   id: string;
   request_type: string;
   status: string;

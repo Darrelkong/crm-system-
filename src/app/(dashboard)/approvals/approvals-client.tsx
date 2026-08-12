@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import type { ApprovalListItem } from "@/lib/approvals/queries";
+import type { SerializedApprovalListItem } from "@/lib/approvals/family-link-serialization";
+import { LinkFamilyCustomerApprovalDetail } from "@/components/approvals/link-family-customer-detail";
 import type { ApprovalRequestType, ApprovalStatus } from "../../../../drizzle/schema/approvals";
 import { EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,7 @@ const STATUS_FILTERS = ["pending", "approved", "rejected", "all"] as const;
 export function ApprovalsClient({ isAdmin }: Props) {
   const { t, locale } = useTranslation();
   const { approvalType, approvalStatus } = useCustomerLabels();
-  const [items, setItems] = useState<ApprovalListItem[]>([]);
+  const [items, setItems] = useState<SerializedApprovalListItem[]>([]);
   const [statusFilter, setStatusFilter] = useState<ApprovalStatus | "all">("pending");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +49,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
       const query = filter === "all" ? "" : `?status=${filter}`;
       const res = await fetch(`/api/approvals${query}`);
       const data = (await res.json()) as {
-        items?: ApprovalListItem[];
+        items?: SerializedApprovalListItem[];
         error?: string;
         errorCode?: string;
         code?: string;
@@ -215,7 +216,8 @@ export function ApprovalsClient({ isAdmin }: Props) {
                 <dd>{selected.requestedByName}</dd>
               </div>
               {selected.requestType !== "create_on_hold_customer" &&
-                selected.requestType !== "update_customer_assignees" && (
+                selected.requestType !== "update_customer_assignees" &&
+                selected.requestType !== "link_family_customer" && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.reason")}</dt>
                   <dd className="whitespace-pre-wrap">{selected.reason}</dd>
@@ -227,7 +229,9 @@ export function ApprovalsClient({ isAdmin }: Props) {
                   <dd>{selected.targetUserName}</dd>
                 </div>
               )}
-              {selected.relatedCustomerIds && selected.relatedCustomerIds.length > 0 && (
+              {selected.relatedCustomerIds &&
+                selected.relatedCustomerIds.length > 0 &&
+                selected.requestType !== "link_family_customer" && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.relatedCustomerIds")}</dt>
                   <dd>{selected.relatedCustomerIds.join(", ")}</dd>
@@ -236,13 +240,19 @@ export function ApprovalsClient({ isAdmin }: Props) {
               {selected.requestType === "create_on_hold_customer" ? (
                 <CreateOnHoldCustomerApprovalDetail
                   reason={selected.reason}
-                  payload={selected.payload}
+                  payload={selected.payload ?? null}
                   nameStatus={selected.nameStatus}
                 />
               ) : selected.requestType === "update_customer_assignees" ? (
                 <UpdateCustomerAssigneesApprovalDetail
                   reason={selected.reason}
-                  payload={selected.payload}
+                  payload={selected.payload ?? null}
+                />
+              ) : selected.requestType === "link_family_customer" ? (
+                <LinkFamilyCustomerApprovalDetail
+                  isAdmin={isAdmin}
+                  sourceCustomerName={selected.customerName}
+                  familyLinkAdminDetail={selected.familyLinkAdminDetail}
                 />
               ) : (
                 selected.payload && (

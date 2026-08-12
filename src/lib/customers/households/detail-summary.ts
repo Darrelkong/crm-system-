@@ -4,6 +4,7 @@ import type { Customer } from "../../../../drizzle/schema/customers";
 import type { User } from "../../../../drizzle/schema/users";
 import {
   HOUSEHOLD_RELATIONSHIP_INVERSE,
+  HOUSEHOLD_RELATIONSHIP_TYPES,
   type HouseholdRelationshipInverseLabel,
   type HouseholdRelationshipType,
 } from "../../../../drizzle/schema/household-relationship-types";
@@ -53,6 +54,53 @@ function canIdentifyFamilyMember(
 ): boolean {
   const level = getCustomerAccessLevel(user, member as Customer, { isAssignee });
   return level === "full" || level === "archived_basic";
+}
+
+const RELATIONSHIP_DISPLAY_ORDER: Record<string, number> = {
+  spouse: 0,
+  father: 1,
+  mother: 2,
+  parent: 3,
+  son: 4,
+  daughter: 5,
+  child: 6,
+  brother: 7,
+  sister: 8,
+  sibling: 9,
+  grandfather: 10,
+  grandmother: 11,
+  grandparent: 12,
+  grandson: 13,
+  granddaughter: 14,
+  grandchild: 15,
+  other_relative: 16,
+};
+
+function relationshipSortKey(
+  relationshipType: CustomerFamilyMemberRelationship | null,
+): number {
+  if (!relationshipType) {
+    return HOUSEHOLD_RELATIONSHIP_TYPES.length + 1;
+  }
+  return RELATIONSHIP_DISPLAY_ORDER[relationshipType] ?? HOUSEHOLD_RELATIONSHIP_TYPES.length;
+}
+
+function sortFamilyMembers(
+  members: CustomerFamilyDetailSummary["members"],
+): CustomerFamilyDetailSummary["members"] {
+  return [...members].sort((left, right) => {
+    const order =
+      relationshipSortKey(left.relationshipType) -
+      relationshipSortKey(right.relationshipType);
+    if (order !== 0) {
+      return order;
+    }
+    const nameOrder = left.customerName.localeCompare(right.customerName, "zh-Hans");
+    if (nameOrder !== 0) {
+      return nameOrder;
+    }
+    return left.customerId.localeCompare(right.customerId);
+  });
 }
 
 export async function getCustomerHouseholdDetailSummary(
@@ -153,5 +201,5 @@ export async function getCustomerHouseholdDetailSummary(
     });
   }
 
-  return { members, hasProtectedMembers };
+  return { members: sortFamilyMembers(members), hasProtectedMembers };
 }

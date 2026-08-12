@@ -46,6 +46,7 @@ import {
 import {
   executeApprovedAssigneeUpdate,
 } from "@/lib/customers/assignees-approval";
+import { approveFamilyLinkApprovalRequest } from "@/lib/customers/households/family-link-approval";
 import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
 import {
   AssigneeMutationError,
@@ -764,6 +765,51 @@ export async function approveApprovalRequest(
   const customer = customerRows[0];
   if (!customer) {
     throw new ApprovalError(404, "关联客户不存在");
+  }
+
+  if (approval.requestType === "link_family_customer") {
+    await approveFamilyLinkApprovalRequest(
+      db,
+      approval,
+      reviewer,
+      adminComment,
+    );
+
+    await writeAuditLog({
+      userId: reviewer.id,
+      action: APPROVAL_AUDIT_ACTIONS.approved,
+      entityType: "approval",
+      entityId: approvalId,
+      ipAddress: audit?.ipAddress,
+      userAgent: audit?.userAgent,
+      metadata: {
+        requestType: approval.requestType,
+        customerId: approval.customerId,
+        requestedBy: approval.requestedBy,
+      },
+    });
+
+    await markApprovalPendingNotificationsReadSafely(
+      db,
+      approvalId,
+      "approved",
+    );
+
+    const comment = adminComment?.trim();
+    await notifyApplicant(
+      db,
+      approval,
+      "approval.approved",
+      "notificationTypes.approval_approved",
+      comment
+        ? "notificationMessages.approvalApprovedWithComment"
+        : "notificationMessages.approvalApproved",
+      {
+        approvalType: approval.requestType,
+        adminComment: comment ?? "",
+      },
+    );
+    return;
   }
 
   const now = new Date().toISOString();
