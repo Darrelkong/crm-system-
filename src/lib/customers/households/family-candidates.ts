@@ -1,10 +1,11 @@
-import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import type { Customer } from "../../../../drizzle/schema/customers";
 import type { User } from "../../../../drizzle/schema/users";
 import {
   normalizeCustomerEmail,
   normalizeCustomerPhone,
   normalizeCustomerWechat,
+  normalizePhoneNationalNumber,
 } from "@/lib/customers/contact-normalization";
 import { buildSearchWhere } from "@/lib/customers/queries";
 import { schema, type Database } from "@/lib/db";
@@ -17,6 +18,7 @@ import {
 
 const CANDIDATE_LIMIT = 8;
 const MIN_BROAD_SEARCH_LENGTH = 2;
+const PHONE_EXACT_SCAN_LIMIT = 12;
 
 export type FamilyCandidateVisible = {
   isMasked: false;
@@ -44,6 +46,53 @@ export type ProtectedLookup = {
   value: string;
 };
 
+export type FamilyCandidateSearchMode = "broad" | "exact";
+
+export type FamilyCandidateSearchInput = {
+  q: string;
+  mode: FamilyCandidateSearchMode;
+  kind?: ProtectedLookupKind;
+};
+
+const PROTECTED_LOOKUP_KINDS = new Set<ProtectedLookupKind>([
+  "customerCode",
+  "phone",
+  "wechatId",
+  "email",
+]);
+
+export function parseFamilyCandidateSearchInput(raw: {
+  q?: string | null;
+  mode?: string | null;
+  kind?: string | null;
+}): FamilyCandidateSearchInput {
+  const q = (raw.q ?? "").trim();
+  const mode: FamilyCandidateSearchMode = raw.mode === "exact" ? "exact" : "broad";
+
+  if (mode === "broad") {
+    return { q, mode };
+  }
+
+  const kind = raw.kind;
+  if (!kind || !PROTECTED_LOOKUP_KINDS.has(kind as ProtectedLookupKind)) {
+    throw new FamilyLinkError(
+      400,
+      "无效的精确查找方式",
+      FAMILY_ERROR_CODES.INVALID_SEARCH_PARAMS,
+    );
+  }
+
+  if (!q) {
+    throw new FamilyLinkError(
+      400,
+      "请输入查找内容",
+      FAMILY_ERROR_CODES.INVALID_SEARCH_PARAMS,
+    );
+  }
+
+  return { q, mode, kind: kind as ProtectedLookupKind };
+}
+
 function staffVisibleWhere(user: User) {
   if (user.role === "admin") {
     return undefined;
@@ -66,37 +115,6 @@ function baseCandidateWhere(sourceId: string) {
     isNull(schema.customers.deletedAt),
     sql`${schema.customers.status} != 'archived'`,
   );
-}
-
-function detectProtectedLookup(
-  query: string,
-): ProtectedLookup | null {
-  const trimmed = query.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  if (/^EF\d{6}$/i.test(trimmed)) {
-    return { kind: "customerCode", value: trimmed.toUpperCase() };
-  }
-
-  const email = normalizeCustomerEmail(trimmed);
-  if (email && trimmed.includes("@")) {
-    return { kind: "email", value: email };
-  }
-
-  const wechat = normalizeCustomerWechat(trimmed);
-  if (wechat && /^[a-zA-Z]/.test(trimmed)) {
-    return { kind: "wechatId", value: wechat };
-  }
-
-  const phone = normalizeCustomerPhone("+86", trimmed) ??
-    normalizeCustomerPhone(null, trimmed);
-  if (phone && /^\+?\d[\d\s-]{5,}$/.test(trimmed)) {
-    return { kind: "phone", value: phone };
-  }
-
-  return null;
 }
 
 function assigneeExistsSql(userId: string) {
@@ -150,37 +168,80 @@ async function mapVisibleCandidate(
   return mapVisibleCandidateFromRow(user, customer, isAssignee);
 }
 
-export async function searchFamilyCandidates(
+function customerPhoneIdentity(customer: Customer): string | null {
+  return normalizeCustomerPhone(customer.phoneCountryCode, customer.phone);
+}
+
+type PhoneExactInput =
+  | { variant: "international"; identity: string }
+  | { variant: "national"; national: string };
+
+export function parsePhoneExactInput(raw: string): PhoneExactInput | null {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const compact = trimmed.replace(/[\s\-()（）]/g, "");
+  if (compact.startsWith("+")) {
+    const digits = compact.slice(1).replace(/\D/g, "");
+    if (digits.length < 5) {
+      return null;
+    }
+    return { variant: "international", identity: `+${digits}` };
+  }
+
+  if (!/^[\d\s\-()（）+]{5,}$/.test(trimmed)) {
+    return null;
+  }
+
+  const national = normalizePhoneNationalNumber(trimmed);
+  if (!national || national.length < 5) {
+    return null;
+  }
+
+  return { variant: "national", national };
+}
+
+function buildExactLookup(kind: ProtectedLookupKind, q: string): ProtectedLookup {
+  switch (kind) {
+    case "customerCode":
+      return { kind, value: q.trim().toUpperCase() };
+    case "email": {
+      const email = normalizeCustomerEmail(q);
+      if (!email) {
+        throw new FamilyLinkError(
+          400,
+          "无效的邮箱格式",
+          FAMILY_ERROR_CODES.INVALID_SEARCH_PARAMS,
+        );
+      }
+      return { kind, value: email };
+    }
+    case "wechatId": {
+      const wechat = normalizeCustomerWechat(q);
+      if (!wechat) {
+        throw new FamilyLinkError(
+          400,
+          "无效的微信号",
+          FAMILY_ERROR_CODES.INVALID_SEARCH_PARAMS,
+        );
+      }
+      return { kind, value: wechat };
+    }
+    case "phone":
+      return { kind, value: q.trim() };
+  }
+}
+
+async function searchBroadFamilyCandidates(
   db: Database,
   user: User,
   source: Customer,
   query: string,
 ): Promise<FamilyCandidateResult[]> {
   const trimmed = query.trim();
-  if (!trimmed) {
-    return [];
-  }
-
-  const protectedLookup = detectProtectedLookup(trimmed);
-  if (protectedLookup) {
-    const exactRows = await findEligibleExactMatches(db, source.id, protectedLookup);
-    if (exactRows.length === 1) {
-      const visible = await mapVisibleCandidate(db, user, exactRows[0]!);
-      if (visible) {
-        return [visible];
-      }
-    }
-
-    const protectedResult = await resolveProtectedExactLookup(
-      db,
-      user,
-      source.id,
-      protectedLookup,
-    );
-    return protectedResult ? [protectedResult] : [];
-  }
-
-  if (trimmed.length < MIN_BROAD_SEARCH_LENGTH) {
+  if (!trimmed || trimmed.length < MIN_BROAD_SEARCH_LENGTH) {
     return [];
   }
 
@@ -215,6 +276,52 @@ export async function searchFamilyCandidates(
   }
 
   return results;
+}
+
+async function searchExactFamilyCandidates(
+  db: Database,
+  user: User,
+  source: Customer,
+  kind: ProtectedLookupKind,
+  query: string,
+): Promise<FamilyCandidateResult[]> {
+  const lookup = buildExactLookup(kind, query);
+  const exactRows = await findEligibleExactMatches(db, source.id, lookup);
+
+  if (exactRows.length === 1) {
+    const visible = await mapVisibleCandidate(db, user, exactRows[0]!);
+    if (visible) {
+      return [visible];
+    }
+  }
+
+  const protectedResult = await resolveProtectedExactLookup(
+    db,
+    user,
+    source.id,
+    lookup,
+  );
+  return protectedResult ? [protectedResult] : [];
+}
+
+export async function searchFamilyCandidates(
+  db: Database,
+  user: User,
+  source: Customer,
+  input: FamilyCandidateSearchInput,
+): Promise<FamilyCandidateResult[]> {
+  if (input.mode === "exact") {
+    if (!input.kind) {
+      throw new FamilyLinkError(
+        400,
+        "无效的精确查找方式",
+        FAMILY_ERROR_CODES.INVALID_SEARCH_PARAMS,
+      );
+    }
+    return searchExactFamilyCandidates(db, user, source, input.kind, input.q);
+  }
+
+  return searchBroadFamilyCandidates(db, user, source, input.q);
 }
 
 export async function resolveProtectedExactLookup(
@@ -264,17 +371,82 @@ export async function resolveProtectedExactLookup(
   return { isMasked: true, requiresApproval: true };
 }
 
+async function findPhoneExactMatches(
+  db: Database,
+  sourceId: string,
+  rawPhone: string,
+): Promise<Customer[]> {
+  const parsed = parsePhoneExactInput(rawPhone);
+  if (!parsed) {
+    return [];
+  }
+
+  const base = and(
+    baseCandidateWhere(sourceId),
+    isNotNull(schema.customers.phone),
+  );
+
+  if (parsed.variant === "international") {
+    const rows = await db
+      .select()
+      .from(schema.customers)
+      .where(
+        and(
+          base,
+          isNotNull(schema.customers.phone),
+          isNotNull(schema.customers.phoneCountryCode),
+          sql`replace(replace(${schema.customers.phoneCountryCode} || ${schema.customers.phone}, ' ', ''), '-', '') = ${parsed.identity}`,
+        ),
+      )
+      .limit(3);
+
+    return rows.filter(
+      (customer) => customerPhoneIdentity(customer) === parsed.identity,
+    );
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.customers)
+    .where(
+      and(
+        base,
+        sql`replace(replace(replace(replace(${schema.customers.phone}, ' ', ''), '-', ''), '(', ''), ')', '') = ${parsed.national}`,
+      ),
+    )
+    .limit(PHONE_EXACT_SCAN_LIMIT);
+
+  const matches = rows.filter(
+    (customer) => normalizePhoneNationalNumber(customer.phone) === parsed.national,
+  );
+
+  const identities = new Set(
+    matches
+      .map((customer) => customerPhoneIdentity(customer))
+      .filter((identity): identity is string => identity != null),
+  );
+
+  if (identities.size > 1) {
+    throw new FamilyLinkError(
+      409,
+      "请联系管理员确认目标客户",
+      FAMILY_ERROR_CODES.PROTECTED_MATCH_AMBIGUOUS,
+    );
+  }
+
+  return matches;
+}
+
 async function findEligibleExactMatches(
   db: Database,
   sourceId: string,
   lookup: ProtectedLookup,
 ): Promise<Customer[]> {
-  const base = and(
-    baseCandidateWhere(sourceId),
-    eq(schema.customers.customerType, "individual"),
-    isNull(schema.customers.deletedAt),
-    sql`${schema.customers.status} != 'archived'`,
-  );
+  const base = baseCandidateWhere(sourceId);
+
+  if (lookup.kind === "phone") {
+    return findPhoneExactMatches(db, sourceId, lookup.value);
+  }
 
   let identifierWhere;
   switch (lookup.kind) {
@@ -290,13 +462,8 @@ async function findEligibleExactMatches(
     case "wechatId":
       identifierWhere = sql`lower(${schema.customers.wechatId}) = ${lookup.value}`;
       break;
-    case "phone": {
-      const phoneIdentity = lookup.value;
-      identifierWhere = sql`(
-        ${schema.customers.phoneCountryCode} || ${schema.customers.phone}
-      ) = ${phoneIdentity.replace(/\s/g, "")} OR ${schema.customers.phone} = ${lookup.value}`;
-      break;
-    }
+    default:
+      return [];
   }
 
   return db

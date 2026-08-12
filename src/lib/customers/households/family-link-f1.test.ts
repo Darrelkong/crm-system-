@@ -72,6 +72,25 @@ async function countHouseholdState(db: ReturnType<typeof drizzle<typeof schema>>
   };
 }
 
+function broadSearch(
+  db: ReturnType<typeof drizzle<typeof schema>>,
+  user: User,
+  source: typeof schema.customers.$inferSelect,
+  q: string,
+) {
+  return searchFamilyCandidates(db, user, source, { q, mode: "broad" });
+}
+
+function exactSearch(
+  db: ReturnType<typeof drizzle<typeof schema>>,
+  user: User,
+  source: typeof schema.customers.$inferSelect,
+  kind: "customerCode" | "phone" | "wechatId" | "email",
+  q: string,
+) {
+  return searchFamilyCandidates(db, user, source, { q, mode: "exact", kind });
+}
+
 function wrapD1WithQueryCounter(rawDb: {
   prepare: (query: string) => unknown;
   batch: (statements: readonly unknown[]) => Promise<unknown>;
@@ -398,11 +417,11 @@ describe("family link F1 hardening", () => {
     )[0]!;
 
     queryCounter.reset();
-    await searchFamilyCandidates(db, staffA, source, "99Ow");
+    await broadSearch(db, staffA, source, "99Ow");
     const narrowCount = queryCounter.count;
 
     queryCounter.reset();
-    const results = await searchFamilyCandidates(db, staffA, source, "99Own Visible");
+    const results = await broadSearch(db, staffA, source, "99Own Visible");
     const broadCount = queryCounter.count;
 
     assert.equal(broadCount, narrowCount);
@@ -421,7 +440,7 @@ describe("family link F1 hardening", () => {
     )[0]!;
 
     queryCounter.reset();
-    await searchFamilyCandidates(db, staffA, source, "F1");
+    await broadSearch(db, staffA, source, "F1");
     const multiCount = queryCounter.count;
 
     assert.ok(multiCount <= 2);
@@ -432,7 +451,7 @@ describe("family link F1 hardening", () => {
       await db.select().from(schema.customers).where(eq(schema.customers.id, STALE_A)).limit(1)
     )[0]!;
 
-    const results = await searchFamilyCandidates(db, staffA, source, "Protected Hidden");
+    const results = await broadSearch(db, staffA, source, "Protected Hidden");
     assert.equal(results.length, 0);
   });
 
@@ -441,7 +460,7 @@ describe("family link F1 hardening", () => {
       await db.select().from(schema.customers).where(eq(schema.customers.id, STALE_A)).limit(1)
     )[0]!;
 
-    const results = await searchFamilyCandidates(db, staffA, source, "EF888881");
+    const results = await exactSearch(db, staffA, source, "customerCode", "EF888881");
     assert.equal(results.length, 1);
     const row = results[0]!;
     assert.equal(row.isMasked, true);

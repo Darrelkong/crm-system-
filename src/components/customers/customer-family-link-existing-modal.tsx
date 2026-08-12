@@ -24,10 +24,14 @@ type ProtectedCandidate = {
 
 type Candidate = VisibleCandidate | ProtectedCandidate;
 
+type ProtectedLookupKind = "customerCode" | "phone" | "wechatId" | "email";
+
 type ProtectedLookup = {
-  kind: "customerCode" | "phone" | "wechatId" | "email";
+  kind: ProtectedLookupKind;
   value: string;
 };
+
+type SearchMode = "broad" | ProtectedLookupKind;
 
 type Props = {
   customerId: string;
@@ -46,6 +50,7 @@ export function CustomerFamilyLinkExistingModal({
   const { t } = useCustomerLabels();
   const [step, setStep] = useState(1);
   const [relationshipType, setRelationshipType] = useState("");
+  const [searchMode, setSearchMode] = useState<SearchMode>("broad");
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
@@ -68,9 +73,19 @@ export function CustomerFamilyLinkExistingModal({
     [t],
   );
 
+  const searchPlaceholder = useMemo(() => {
+    if (searchMode === "broad") {
+      return t("customers.familySearchPlaceholder");
+    }
+    return t("customers.familyExactSearchPlaceholder");
+  }, [searchMode, t]);
+
+  const minQueryLength = searchMode === "broad" ? 2 : 1;
+
   const reset = useCallback(() => {
     setStep(1);
     setRelationshipType("");
+    setSearchMode("broad");
     setQuery("");
     setDebouncedQuery("");
     setCandidates([]);
@@ -91,7 +106,7 @@ export function CustomerFamilyLinkExistingModal({
   }, [query]);
 
   useEffect(() => {
-    if (!open || step !== 2 || debouncedQuery.length < 2) {
+    if (!open || step !== 2 || debouncedQuery.length < minQueryLength) {
       setCandidates([]);
       return;
     }
@@ -100,9 +115,15 @@ export function CustomerFamilyLinkExistingModal({
     setLoading(true);
     setError(null);
 
-    void fetch(
-      `/api/customers/${customerId}/family/candidates?q=${encodeURIComponent(debouncedQuery)}`,
-    )
+    const params = new URLSearchParams({ q: debouncedQuery });
+    if (searchMode === "broad") {
+      params.set("mode", "broad");
+    } else {
+      params.set("mode", "exact");
+      params.set("kind", searchMode);
+    }
+
+    void fetch(`/api/customers/${customerId}/family/candidates?${params.toString()}`)
       .then(async (res) => {
         const data = (await res.json()) as {
           candidates?: Candidate[];
@@ -130,17 +151,15 @@ export function CustomerFamilyLinkExistingModal({
     return () => {
       cancelled = true;
     };
-  }, [open, step, debouncedQuery, customerId, t]);
+  }, [open, step, debouncedQuery, customerId, t, searchMode, minQueryLength]);
 
   function selectCandidate(candidate: Candidate) {
     if (candidate.isMasked) {
-      const lookupKind = detectLookupKind(query);
-      if (!lookupKind) {
-        setError(t("customers.familyProtectedLookupRequired"));
+      if (searchMode === "broad") {
         return;
       }
       setSelectedVisible(null);
-      setProtectedLookup({ kind: lookupKind, value: query.trim() });
+      setProtectedLookup({ kind: searchMode, value: query.trim() });
     } else {
       setSelectedVisible(candidate);
       setProtectedLookup(null);
@@ -238,12 +257,34 @@ export function CustomerFamilyLinkExistingModal({
         {step === 2 && (
           <div className="mt-4 space-y-4">
             <Field>
+              <Label htmlFor="family-search-mode">
+                {t("customers.familySearchModeLabel")}
+              </Label>
+              <Select
+                id="family-search-mode"
+                value={searchMode}
+                onChange={(event) => {
+                  setSearchMode(event.target.value as SearchMode);
+                  setCandidates([]);
+                  setError(null);
+                }}
+              >
+                <option value="broad">{t("customers.familySearchModeBroad")}</option>
+                <option value="customerCode">
+                  {t("customers.familySearchModeCustomerCode")}
+                </option>
+                <option value="phone">{t("customers.familySearchModePhone")}</option>
+                <option value="wechatId">{t("customers.familySearchModeWechat")}</option>
+                <option value="email">{t("customers.familySearchModeEmail")}</option>
+              </Select>
+            </Field>
+            <Field>
               <Label htmlFor="family-search">{t("customers.familySearchLabel")}</Label>
               <Input
                 id="family-search"
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder={t("customers.familySearchPlaceholder")}
+                placeholder={searchPlaceholder}
               />
             </Field>
             {loading && (
@@ -280,7 +321,7 @@ export function CustomerFamilyLinkExistingModal({
                   </button>
                 </li>
               ))}
-              {!loading && debouncedQuery.length >= 2 && candidates.length === 0 && (
+              {!loading && debouncedQuery.length >= minQueryLength && candidates.length === 0 && (
                 <li className="px-3 py-4 text-sm crm-text-secondary">
                   {t("customers.familySearchNoResults")}
                 </li>
@@ -355,13 +396,4 @@ export function CustomerFamilyLinkExistingModal({
       </ModalPanel>
     </ModalOverlay>
   );
-}
-
-function detectLookupKind(value: string): ProtectedLookup["kind"] | null {
-  const trimmed = value.trim();
-  if (/^EF\d{6}$/i.test(trimmed)) return "customerCode";
-  if (trimmed.includes("@")) return "email";
-  if (/^[a-zA-Z]/.test(trimmed)) return "wechatId";
-  if (/^\+?\d[\d\s-]{5,}$/.test(trimmed)) return "phone";
-  return null;
 }

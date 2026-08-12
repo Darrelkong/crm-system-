@@ -9,7 +9,10 @@ import {
   familyErrorResponse,
 } from "@/lib/customers/households/errors";
 import { assertCanManageCustomerFamily } from "@/lib/customers/households/family-permissions";
-import { searchFamilyCandidates } from "@/lib/customers/households/family-candidates";
+import {
+  parseFamilyCandidateSearchInput,
+  searchFamilyCandidates,
+} from "@/lib/customers/households/family-candidates";
 import { PermissionError } from "@/lib/permissions/customers";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -19,7 +22,11 @@ export async function GET(request: Request, context: RouteContext) {
     const user = await requireAuth(request);
     const { id } = await context.params;
     const url = new URL(request.url);
-    const q = url.searchParams.get("q") ?? "";
+    const searchInput = parseFamilyCandidateSearchInput({
+      q: url.searchParams.get("q"),
+      mode: url.searchParams.get("mode"),
+      kind: url.searchParams.get("kind"),
+    });
 
     const source = await getCustomerById(id);
     if (!source) {
@@ -51,7 +58,7 @@ export async function GET(request: Request, context: RouteContext) {
     }
 
     const db = getDb();
-    const candidates = await searchFamilyCandidates(db, user, source, q);
+    const candidates = await searchFamilyCandidates(db, user, source, searchInput);
     return Response.json({ candidates });
   } catch (error) {
     if (error instanceof FamilyLinkError) {
