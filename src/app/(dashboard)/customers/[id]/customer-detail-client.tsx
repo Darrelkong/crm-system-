@@ -31,6 +31,8 @@ import { shouldShowPendingSecondConversionBadge } from "@/lib/customers/sales-st
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
 import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-project-display";
 import { CustomerNavigationPerfProbe } from "./customer-navigation-perf-probe";
+import { CustomerFamilyReadOnlySection } from "@/components/customers/customer-family-readonly-section";
+import type { CustomerFamilyDetailSummary } from "@/lib/customers/households/detail-summary";
 
 const cd = ui.customerDetail;
 
@@ -109,6 +111,7 @@ type Props = {
   showRequestAssigneesButton: boolean;
   /** Server-validated back href: /follow-ups?... or /customers. */
   returnHref: string;
+  familySummary?: CustomerFamilyDetailSummary | null;
 };
 
 function DetailRow({
@@ -209,6 +212,7 @@ export function CustomerDetailClient({
   showManageAssigneesButton,
   showRequestAssigneesButton,
   returnHref,
+  familySummary = null,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
@@ -374,6 +378,15 @@ export function CustomerDetailClient({
               )}
             </dl>
           </SectionCard>
+
+          {familySummary ? (
+            <SectionCard title={t("customers.familyAndContacts")}>
+              <CustomerFamilyReadOnlySection
+                currentCustomerName={view.customerName}
+                summary={familySummary}
+              />
+            </SectionCard>
+          ) : null}
 
           {!view.isMasked && (
             <SectionCard title={t("customers.contactInfo")}>

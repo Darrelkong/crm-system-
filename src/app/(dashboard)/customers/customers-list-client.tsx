@@ -462,16 +462,18 @@ export function CustomersListClient({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              {c.hasHouseholdIcon && (
-                <CustomerFamilyIcon label={t("customers.familyCustomer")} />
-              )}
-              <CustomerNameLabel
-                customerName={c.customerName}
-                nameStatus={c.nameStatus}
-                locale={locale}
-                pendingLabel={tCommon("customers.namePendingBadge")}
-                nameClassName={`truncate font-semibold ${ui.customerName}`}
-              />
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                {c.hasHouseholdIcon && (
+                  <CustomerFamilyIcon label={t("customers.familyCustomer")} />
+                )}
+                <CustomerNameLabel
+                  customerName={c.customerName}
+                  nameStatus={c.nameStatus}
+                  locale={locale}
+                  pendingLabel={tCommon("customers.namePendingBadge")}
+                  nameClassName={`truncate font-semibold ${ui.customerName}`}
+                />
+              </span>
               {c.isPinned && <PinnedBadge />}
             </div>
             {isAdmin && c.customerCode && (

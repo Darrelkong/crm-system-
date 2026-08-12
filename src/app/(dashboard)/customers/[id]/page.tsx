@@ -33,6 +33,7 @@ import { CustomerDetailPerfPanel } from "./customer-detail-perf-panel";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
+import { getCustomerHouseholdDetailSummary } from "@/lib/customers/households/detail-summary";
 
 type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
 
@@ -240,6 +241,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     followUps,
     timelineTimed,
     displayNamesTimed,
+    familySummaryTimed,
   ] = await Promise.all([
     measureAsync(() =>
       canConfirmPendingCustomerName(db, user, customer, {
@@ -254,6 +256,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         resolveCustomerDetailDisplayNames(db, customer, assigneesForDisplay),
       );
     })(),
+    measureAsync(() => getCustomerHouseholdDetailSummary(db, user, customer)),
   ]);
   const secondaryTotalMs = perfNow() - secondaryStart;
   const followUpsMeasured = preloadedFullFollowUps
@@ -261,6 +264,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     : await sharedFollowUpsMeasurePromise;
   const timeline = timelineTimed.result;
   const displayNames = displayNamesTimed.result;
+  const familySummary = familySummaryTimed.result;
 
   const perfTimings: CustomerDetailPerfTimings | null = enablePerf
     ? {
@@ -351,6 +355,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         showManageAssigneesButton={showManageAssigneesButton}
         showRequestAssigneesButton={showRequestAssigneesButton}
         returnHref={safeReturnHref}
+        familySummary={familySummary}
       />
       {perfTimings ? <CustomerDetailPerfPanel timings={perfTimings} /> : null}
     </>
