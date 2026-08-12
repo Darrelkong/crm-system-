@@ -99,6 +99,33 @@ function detectProtectedLookup(
   return null;
 }
 
+function assigneeExistsSql(userId: string) {
+  return sql`EXISTS (
+    SELECT 1 FROM customer_assignees ca
+    WHERE ca.customer_id = ${schema.customers.id}
+      AND ca.user_id = ${userId}
+  )`;
+}
+
+function mapVisibleCandidateFromRow(
+  user: User,
+  customer: Customer,
+  isAssignee: boolean,
+): FamilyCandidateVisible | null {
+  const accessLevel = getCustomerAccessLevel(user, customer, { isAssignee });
+  if (accessLevel !== "full") {
+    return null;
+  }
+
+  return {
+    isMasked: false,
+    customerId: customer.id,
+    customerName: customer.customerName,
+    customerCode: customer.customerCode ?? null,
+    linkMode: resolveFamilyLinkMode(user, customer, isAssignee),
+  };
+}
+
 async function mapVisibleCandidate(
   db: Database,
   user: User,
@@ -120,18 +147,7 @@ async function mapVisibleCandidate(
         ).length > 0
       : false;
 
-  const accessLevel = getCustomerAccessLevel(user, customer, { isAssignee });
-  if (accessLevel !== "full") {
-    return null;
-  }
-
-  return {
-    isMasked: false,
-    customerId: customer.id,
-    customerName: customer.customerName,
-    customerCode: customer.customerCode ?? null,
-    linkMode: resolveFamilyLinkMode(user, customer, isAssignee),
-  };
+  return mapVisibleCandidateFromRow(user, customer, isAssignee);
 }
 
 export async function searchFamilyCandidates(
@@ -175,14 +191,24 @@ export async function searchFamilyCandidates(
   );
 
   const rows = await db
-    .select()
+    .select({
+      customer: schema.customers,
+      isAssignee:
+        user.role === "staff"
+          ? sql<number>`CASE WHEN ${assigneeExistsSql(user.id)} THEN 1 ELSE 0 END`
+          : sql<number>`0`,
+    })
     .from(schema.customers)
     .where(where)
     .limit(CANDIDATE_LIMIT);
 
   const results: FamilyCandidateVisible[] = [];
   for (const row of rows) {
-    const candidate = await mapVisibleCandidate(db, user, row);
+    const candidate = mapVisibleCandidateFromRow(
+      user,
+      row.customer,
+      row.isAssignee === 1,
+    );
     if (candidate) {
       results.push(candidate);
     }

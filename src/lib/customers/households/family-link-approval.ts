@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 import type { Customer } from "../../../../drizzle/schema/customers";
 import type { HouseholdRelationshipType } from "../../../../drizzle/schema/household-relationship-types";
 import type { User } from "../../../../drizzle/schema/users";
 import { APPROVAL_AUDIT_ACTIONS } from "@/lib/approvals/constants";
 import { ApprovalError } from "@/lib/approvals/service";
+import { getApprovalById } from "@/lib/approvals/queries";
 import { isArchivedCustomer } from "@/lib/customers/archived";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { schema, type Database } from "@/lib/db";
@@ -99,20 +100,43 @@ export async function findPendingFamilyLinkPair(
       and(
         eq(schema.approvals.requestType, "link_family_customer"),
         eq(schema.approvals.status, "pending"),
+        or(
+          and(
+            eq(schema.approvals.customerId, sourceId),
+            sql`json_extract(${schema.approvals.relatedCustomerIds}, '$[0]') = ${targetId}`,
+          ),
+          and(
+            eq(schema.approvals.customerId, targetId),
+            sql`json_extract(${schema.approvals.relatedCustomerIds}, '$[0]') = ${sourceId}`,
+          ),
+        ),
       ),
-    );
+    )
+    .limit(1);
 
-  return (
-    rows.find((row) => {
-      const related = parseJsonArray(row.relatedCustomerIds);
-      const relatedId = related?.[0];
-      if (!relatedId) return false;
-      return (
-        (row.customerId === sourceId && relatedId === targetId) ||
-        (row.customerId === targetId && relatedId === sourceId)
-      );
-    }) ?? null
-  );
+  return rows[0] ?? null;
+}
+
+function buildPendingFamilyPairNotExistsSql(
+  sourceId: string,
+  targetId: string,
+) {
+  return sql`NOT EXISTS (
+    SELECT 1
+    FROM approvals a
+    WHERE a.request_type = 'link_family_customer'
+      AND a.status = 'pending'
+      AND (
+        (
+          a.customer_id = ${sourceId}
+          AND json_extract(a.related_customer_ids, '$[0]') = ${targetId}
+        )
+        OR (
+          a.customer_id = ${targetId}
+          AND json_extract(a.related_customer_ids, '$[0]') = ${sourceId}
+        )
+      )
+  )`;
 }
 
 async function notifyAdminsFamilyPending(
@@ -254,20 +278,48 @@ export async function createFamilyLinkApprovalRequest(
 
   const now = new Date().toISOString();
   const id = crypto.randomUUID();
+  const relatedCustomerIdsJson = JSON.stringify([target.id]);
+  const payloadJson = JSON.stringify({ relationshipType });
 
-  await db.insert(schema.approvals).values({
-    id,
-    requestType: "link_family_customer",
-    status: "pending",
-    customerId: source.id,
-    requestedBy: user.id,
-    targetUserId: null,
-    relatedCustomerIds: JSON.stringify([target.id]),
-    payload: JSON.stringify({ relationshipType }),
-    reason: FAMILY_LINK_REASON,
-    createdAt: now,
-    updatedAt: now,
-  });
+  const insertResult = await db.insert(schema.approvals).select(
+    sql`
+      SELECT
+        ${id} AS id,
+        ${"link_family_customer"} AS request_type,
+        ${"pending"} AS status,
+        ${source.id} AS customer_id,
+        ${user.id} AS requested_by,
+        NULL AS target_user_id,
+        ${relatedCustomerIdsJson} AS related_customer_ids,
+        ${payloadJson} AS payload,
+        ${FAMILY_LINK_REASON} AS reason,
+        NULL AS admin_comment,
+        NULL AS reviewed_by,
+        NULL AS reviewed_at,
+        ${now} AS created_at,
+        ${now} AS updated_at
+      WHERE ${buildPendingFamilyPairNotExistsSql(source.id, target.id)}
+    `,
+  );
+
+  const inserted = await getApprovalById(db, id);
+  if (!inserted) {
+    const racedDuplicate = await findPendingFamilyLinkPair(db, source.id, target.id);
+    if (racedDuplicate) {
+      throw new FamilyLinkError(
+        409,
+        "该家庭关联申请已在审批中",
+        FAMILY_ERROR_CODES.DUPLICATE_PENDING,
+      );
+    }
+    throw new FamilyLinkError(
+      409,
+      "该家庭关联申请已在审批中",
+      FAMILY_ERROR_CODES.DUPLICATE_PENDING,
+    );
+  }
+
+  void insertResult;
 
   await writeAuditLog({
     userId: user.id,
@@ -377,7 +429,7 @@ export async function submitFamilyLinkRequest(
 
 export async function approveFamilyLinkApprovalRequest(
   db: Database,
-  approval: {
+  approvalInput: {
     id: string;
     customerId: string;
     requestedBy: string;
@@ -388,6 +440,11 @@ export async function approveFamilyLinkApprovalRequest(
   reviewer: User,
   adminComment?: string,
 ): Promise<void> {
+  const approval = await getApprovalById(db, approvalInput.id);
+  if (!approval) {
+    throw new ApprovalError(404, "审批申请不存在");
+  }
+
   if (approval.status !== "pending") {
     throw new ApprovalError(409, "该申请已处理，不能重复审批");
   }
@@ -423,13 +480,6 @@ export async function approveFamilyLinkApprovalRequest(
   }
 
   const now = new Date().toISOString();
-  const approvalUpdate = buildApprovalPendingToApprovedStatement(
-    db,
-    approval.id,
-    reviewer.id,
-    adminComment?.trim() || null,
-    now,
-  );
 
   try {
     await executeFamilyLink(db, {
@@ -442,7 +492,12 @@ export async function approveFamilyLinkApprovalRequest(
         requestedBy: approval.requestedBy,
         reviewedBy: reviewer.id,
       },
-      approvalUpdateStatement: approvalUpdate,
+      approvalCas: {
+        approvalId: approval.id,
+        reviewerId: reviewer.id,
+        adminComment: adminComment?.trim() || null,
+        now,
+      },
     });
   } catch (error) {
     if (error instanceof FamilyLinkError) {

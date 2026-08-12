@@ -1,9 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Customer } from "../../../../drizzle/schema/customers";
 import type { HouseholdRelationshipType } from "../../../../drizzle/schema/household-relationship-types";
 import type { User } from "../../../../drizzle/schema/users";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { schema, type Database } from "@/lib/db";
+import { extractChanges } from "@/lib/reclamation/auto-reclaim-cas";
 import { FAMILY_ERROR_CODES, FamilyLinkError } from "./errors";
 import {
   inverseRelationshipForAudit,
@@ -21,6 +22,13 @@ type FamilyLinkAuditContext = {
   approvalId?: string;
   requestedBy?: string;
   reviewedBy?: string;
+};
+
+export type FamilyLinkApprovalCas = {
+  approvalId: string;
+  reviewerId: string;
+  adminComment: string | null;
+  now: string;
 };
 
 function mapPlanError(plan: FamilyLinkPlan): FamilyLinkError | null {
@@ -48,6 +56,97 @@ function mapPlanError(plan: FamilyLinkPlan): FamilyLinkError | null {
   }
 }
 
+function approvalPendingGuardFrom(approvalId: string) {
+  return sql`
+    FROM approvals
+    WHERE id = ${approvalId}
+      AND status = 'pending'
+  `;
+}
+
+function buildGuardedHouseholdInsert(
+  db: Database,
+  approvalId: string,
+  values: {
+    id: string;
+    createdFromCustomerId: string;
+    createdBy: string;
+    now: string;
+  },
+) {
+  return db.insert(schema.customerHouseholds).select(
+    sql`
+      SELECT
+        ${values.id} AS id,
+        'active' AS status,
+        ${values.createdFromCustomerId} AS created_from_customer_id,
+        NULL AS remark,
+        ${values.createdBy} AS created_by,
+        ${values.now} AS created_at,
+        ${values.now} AS updated_at,
+        NULL AS dissolved_at,
+        NULL AS dissolved_by
+      ${approvalPendingGuardFrom(approvalId)}
+    `,
+  );
+}
+
+function buildGuardedMemberInsert(
+  db: Database,
+  approvalId: string,
+  values: {
+    id: string;
+    householdId: string;
+    customerId: string;
+    joinedBy: string;
+    now: string;
+  },
+) {
+  return db.insert(schema.customerHouseholdMembers).select(
+    sql`
+      SELECT
+        ${values.id} AS id,
+        ${values.householdId} AS household_id,
+        ${values.customerId} AS customer_id,
+        ${values.now} AS joined_at,
+        ${values.joinedBy} AS joined_by,
+        NULL AS left_at,
+        NULL AS removed_by
+      ${approvalPendingGuardFrom(approvalId)}
+    `,
+  );
+}
+
+function buildGuardedRelationshipInsert(
+  db: Database,
+  approvalId: string,
+  values: {
+    id: string;
+    householdId: string;
+    fromCustomerId: string;
+    toCustomerId: string;
+    relationshipType: HouseholdRelationshipType;
+    createdBy: string;
+    now: string;
+  },
+) {
+  return db.insert(schema.customerHouseholdRelationships).select(
+    sql`
+      SELECT
+        ${values.id} AS id,
+        ${values.householdId} AS household_id,
+        ${values.fromCustomerId} AS from_customer_id,
+        ${values.toCustomerId} AS to_customer_id,
+        ${values.relationshipType} AS relationship_type,
+        NULL AS remark,
+        ${values.createdBy} AS created_by,
+        ${values.now} AS created_at,
+        ${values.now} AS updated_at
+      ${approvalPendingGuardFrom(approvalId)}
+    `,
+  );
+}
+
 function buildFamilyLinkStatements(
   db: Database,
   params: {
@@ -57,49 +156,102 @@ function buildFamilyLinkStatements(
     relationshipType: HouseholdRelationshipType;
     actorId: string;
     now: string;
+    approvalId?: string;
   },
 ) {
-  const { plan, sourceId, targetId, relationshipType, actorId, now } = params;
+  const { plan, sourceId, targetId, relationshipType, actorId, now, approvalId } =
+    params;
   const statements: unknown[] = [];
+  const guarded = approvalId != null;
 
   let householdId: string | null = null;
 
+  const insertHousehold = (
+    id: string,
+    createdFromCustomerId: string,
+  ) => {
+    if (guarded) {
+      statements.push(
+        buildGuardedHouseholdInsert(db, approvalId, {
+          id,
+          createdFromCustomerId,
+          createdBy: actorId,
+          now,
+        }),
+      );
+    } else {
+      statements.push(
+        db.insert(schema.customerHouseholds).values({
+          id,
+          status: "active",
+          createdFromCustomerId,
+          createdBy: actorId,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    }
+  };
+
+  const insertMember = (id: string, hhId: string, customerId: string) => {
+    if (guarded) {
+      statements.push(
+        buildGuardedMemberInsert(db, approvalId, {
+          id,
+          householdId: hhId,
+          customerId,
+          joinedBy: actorId,
+          now,
+        }),
+      );
+    } else {
+      statements.push(
+        db.insert(schema.customerHouseholdMembers).values({
+          id,
+          householdId: hhId,
+          customerId,
+          joinedAt: now,
+          joinedBy: actorId,
+        }),
+      );
+    }
+  };
+
+  const insertRelationship = (id: string, hhId: string) => {
+    if (guarded) {
+      statements.push(
+        buildGuardedRelationshipInsert(db, approvalId, {
+          id,
+          householdId: hhId,
+          fromCustomerId: sourceId,
+          toCustomerId: targetId,
+          relationshipType,
+          createdBy: actorId,
+          now,
+        }),
+      );
+    } else {
+      statements.push(
+        db.insert(schema.customerHouseholdRelationships).values({
+          id,
+          householdId: hhId,
+          fromCustomerId: sourceId,
+          toCustomerId: targetId,
+          relationshipType,
+          createdBy: actorId,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    }
+  };
+
   if (plan.kind === "create_household") {
     householdId = crypto.randomUUID();
-    statements.push(
-      db.insert(schema.customerHouseholds).values({
-        id: householdId,
-        status: "active",
-        createdFromCustomerId: sourceId,
-        createdBy: actorId,
-        createdAt: now,
-        updatedAt: now,
-      }),
-      db.insert(schema.customerHouseholdMembers).values({
-        id: crypto.randomUUID(),
-        householdId,
-        customerId: sourceId,
-        joinedAt: now,
-        joinedBy: actorId,
-      }),
-      db.insert(schema.customerHouseholdMembers).values({
-        id: crypto.randomUUID(),
-        householdId,
-        customerId: targetId,
-        joinedAt: now,
-        joinedBy: actorId,
-      }),
-      db.insert(schema.customerHouseholdRelationships).values({
-        id: crypto.randomUUID(),
-        householdId,
-        fromCustomerId: sourceId,
-        toCustomerId: targetId,
-        relationshipType,
-        createdBy: actorId,
-        createdAt: now,
-        updatedAt: now,
-      }),
-    );
+    insertHousehold(householdId, sourceId);
+    insertMember(crypto.randomUUID(), householdId, sourceId);
+    insertMember(crypto.randomUUID(), householdId, targetId);
+    insertRelationship(crypto.randomUUID(), householdId);
   } else if (
     plan.kind === "add_target_to_source_household" ||
     plan.kind === "add_source_to_target_household" ||
@@ -108,41 +260,14 @@ function buildFamilyLinkStatements(
     householdId = plan.householdId;
 
     if (plan.kind === "add_target_to_source_household") {
-      statements.push(
-        db.insert(schema.customerHouseholdMembers).values({
-          id: crypto.randomUUID(),
-          householdId,
-          customerId: targetId,
-          joinedAt: now,
-          joinedBy: actorId,
-        }),
-      );
+      insertMember(crypto.randomUUID(), householdId, targetId);
     }
 
     if (plan.kind === "add_source_to_target_household") {
-      statements.push(
-        db.insert(schema.customerHouseholdMembers).values({
-          id: crypto.randomUUID(),
-          householdId,
-          customerId: sourceId,
-          joinedAt: now,
-          joinedBy: actorId,
-        }),
-      );
+      insertMember(crypto.randomUUID(), householdId, sourceId);
     }
 
-    statements.push(
-      db.insert(schema.customerHouseholdRelationships).values({
-        id: crypto.randomUUID(),
-        householdId,
-        fromCustomerId: sourceId,
-        toCustomerId: targetId,
-        relationshipType,
-        createdBy: actorId,
-        createdAt: now,
-        updatedAt: now,
-      }),
-    );
+    insertRelationship(crypto.randomUUID(), householdId);
   } else if (plan.kind === "already_linked") {
     householdId = plan.householdId;
   } else {
@@ -212,6 +337,28 @@ async function writeFamilyLinkAudit(
   );
 }
 
+function mapBatchUniqueConstraintError(error: unknown): FamilyLinkError | null {
+  const message = error instanceof Error ? error.message : String(error);
+  if (!/UNIQUE constraint failed/i.test(message)) {
+    return null;
+  }
+  if (/customer_household_members/i.test(message)) {
+    return new FamilyLinkError(
+      409,
+      "家庭成员状态冲突",
+      FAMILY_ERROR_CODES.HOUSEHOLD_CONFLICT,
+    );
+  }
+  if (/customer_household_relationships/i.test(message)) {
+    return new FamilyLinkError(
+      409,
+      "该客户已是家庭成员",
+      FAMILY_ERROR_CODES.LINK_ALREADY_EXISTS,
+    );
+  }
+  return null;
+}
+
 export async function executeFamilyLink(
   db: Database,
   params: {
@@ -220,7 +367,7 @@ export async function executeFamilyLink(
     relationshipType: HouseholdRelationshipType;
     actor: User;
     auditContext?: FamilyLinkAuditContext;
-    approvalUpdateStatement?: unknown;
+    approvalCas?: FamilyLinkApprovalCas;
   },
 ): Promise<FamilyLinkExecutionResult> {
   if (params.source.id === params.target.id) {
@@ -243,7 +390,7 @@ export async function executeFamilyLink(
     throw planError;
   }
 
-  const now = new Date().toISOString();
+  const now = params.approvalCas?.now ?? new Date().toISOString();
   const { statements, householdId } = buildFamilyLinkStatements(db, {
     plan,
     sourceId: params.source.id,
@@ -251,34 +398,45 @@ export async function executeFamilyLink(
     relationshipType: params.relationshipType,
     actorId: params.actor.id,
     now,
+    approvalId: params.approvalCas?.approvalId,
   });
 
-  if (params.approvalUpdateStatement) {
-    statements.push(params.approvalUpdateStatement);
+  if (params.approvalCas) {
+    statements.push(
+      buildApprovalPendingToApprovedStatement(
+        db,
+        params.approvalCas.approvalId,
+        params.approvalCas.reviewerId,
+        params.approvalCas.adminComment,
+        now,
+      ),
+    );
   }
 
   if (statements.length > 0) {
     try {
-      await db.batch(
+      const batchResults = (await db.batch(
         statements as unknown as Parameters<Database["batch"]>[0],
-      );
+      )) as readonly unknown[];
+
+      if (params.approvalCas) {
+        const casResult = batchResults[batchResults.length - 1];
+        const changes = extractChanges(casResult);
+        if (changes !== 1) {
+          throw new FamilyLinkError(
+            409,
+            "该申请已处理，不能重复审批",
+            FAMILY_ERROR_CODES.APPROVAL_ALREADY_PROCESSED,
+          );
+        }
+      }
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      if (/UNIQUE constraint failed/i.test(message)) {
-        if (/customer_household_members/i.test(message)) {
-          throw new FamilyLinkError(
-            409,
-            "家庭成员状态冲突",
-            FAMILY_ERROR_CODES.HOUSEHOLD_CONFLICT,
-          );
-        }
-        if (/customer_household_relationships/i.test(message)) {
-          throw new FamilyLinkError(
-            409,
-            "该客户已是家庭成员",
-            FAMILY_ERROR_CODES.LINK_ALREADY_EXISTS,
-          );
-        }
+      if (error instanceof FamilyLinkError) {
+        throw error;
+      }
+      const uniqueError = mapBatchUniqueConstraintError(error);
+      if (uniqueError) {
+        throw uniqueError;
       }
       throw error;
     }
