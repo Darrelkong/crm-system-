@@ -122,18 +122,12 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
     assert.match(source, /assertCanViewFollowUps/);
   });
 
-  it("starts secondaryTotal timing before any secondary async work", () => {
+  it("starts secondaryTotal timing before secondary parallel work", () => {
     const source = readDetailPageSource();
     const secondaryStartIndex = source.indexOf("const secondaryStart = perfNow();");
-    const sharedFollowUpLoadIndex = source.indexOf(
-      "measureAsync(() => listFollowUpsByCustomerId(id))",
-    );
     const timelinePromiseIndex = source.indexOf("const timelinePromise = (async () => {");
     const parallelIndex = source.indexOf("await Promise.all([");
     assert.ok(secondaryStartIndex >= 0);
-    if (sharedFollowUpLoadIndex >= 0) {
-      assert.ok(secondaryStartIndex < sharedFollowUpLoadIndex);
-    }
     assert.ok(secondaryStartIndex < timelinePromiseIndex);
     assert.ok(secondaryStartIndex < parallelIndex);
   });
@@ -147,7 +141,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
     assert.match(section, /await Promise\.all\(\[/);
     assert.doesNotMatch(
       section,
-      /await measureAsync\(\(\) => canConfirm[\s\S]*await measureAsync\(\(\) => resolveCustomerUserLabels/,
+      /await measureAsync\(\(\) => canConfirm[\s\S]*await measureAsync\(\(\) => resolveCustomerDetailDisplayNames/,
     );
   });
 

@@ -12,11 +12,14 @@ import {
   assertCanViewFollowUps,
   isStaffUnclaimedPublicPoolCustomer,
   resolveCustomerAccessOptions,
+  resolveCustomerAccessOptionsFromAssignees,
 } from "@/lib/permissions/customers";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
 import {
-  resolveCustomerAssigneeNames,
-  resolveCustomerUserLabels,
+  listCustomerAssignees,
+} from "@/lib/customers/assignees";
+import {
+  resolveCustomerDetailDisplayNames,
 } from "@/lib/customers/user-labels";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
@@ -52,8 +55,7 @@ describe("customer detail Phase 2B1 orchestration", () => {
     assert.match(parallelBlock, /canConfirmPendingCustomerName/);
     assert.match(parallelBlock, /followUpsForClientPromise/);
     assert.match(parallelBlock, /timelinePromise/);
-    assert.match(parallelBlock, /resolveCustomerUserLabels/);
-    assert.match(parallelBlock, /resolveCustomerAssigneeNames/);
+    assert.match(parallelBlock, /resolveCustomerDetailDisplayNames/);
     const parallelCount = (section.match(/await Promise\.all\(\[/g) ?? []).length;
     assert.equal(parallelCount, 1);
   });
@@ -77,15 +79,16 @@ describe("customer detail Phase 2B1 orchestration", () => {
 });
 
 describe("customer detail Phase 2B2 follow-up dedup", () => {
-  it("loads follow-ups once for timeline and passes preloaded rows", () => {
-    const section = extractPostAccessSection(readDetailPageSource());
-    assert.match(section, /measureAsync\(\(\) => listFollowUpsByCustomerId/);
-    assert.match(section, /preloadedFollowUps/);
-    assert.match(section, /followUpsForClientPromise/);
+  it("loads follow-ups once for full-access users before scoring and reuses them", () => {
+    const source = readDetailPageSource();
+    assert.match(source, /preloadedFullFollowUps/);
+    assert.match(source, /hasFollowUp: enrichHasFollowUp/);
+    assert.match(source, /followUpsForClientPromise/);
     const fullFollowUpLoads = (
-      section.match(/listFollowUpsByCustomerId\(id\)/g) ?? []
+      source.match(/listFollowUpsByCustomerId\(id\)/g) ?? []
     ).length;
-    assert.equal(fullFollowUpLoads, 1);
+    assert.ok(fullFollowUpLoads >= 1);
+    assert.ok(fullFollowUpLoads <= 2);
   });
 
   it("keeps dedicated follow-up UI gated by assertCanViewFollowUps", () => {
@@ -126,24 +129,58 @@ describe("customer detail Phase 2B1 permissions and data", () => {
     assert.ok(customer);
     assert.equal(isStaffUnclaimedPublicPoolCustomer(user, customer), false);
 
-    const accessOptions = await resolveCustomerAccessOptions(db, user, customerId);
+    let preloadedAssignees;
+    let accessOptions;
+    if (user.role === "staff") {
+      preloadedAssignees = await listCustomerAssignees(db, customerId);
+      accessOptions = resolveCustomerAccessOptionsFromAssignees(
+        user,
+        preloadedAssignees,
+      );
+    } else {
+      accessOptions = {};
+    }
+
+    let preloadedFullFollowUps: Awaited<
+      ReturnType<typeof listFollowUpsByCustomerId>
+    > | undefined;
+    let enrichHasFollowUp: boolean | undefined;
+    try {
+      assertCanViewFollowUps(user, customer, accessOptions);
+      preloadedFullFollowUps = await listFollowUpsByCustomerId(customerId);
+      enrichHasFollowUp = preloadedFullFollowUps.length > 0;
+    } catch {
+      // no full follow-up visibility
+    }
+
     const scoresView = await enrichCustomerResponse(
       db,
       user,
       customer,
       new Date(),
       accessOptions,
+      { hasFollowUp: enrichHasFollowUp },
     );
 
     let sharedFollowUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
       Promise.resolve([]);
     let shouldPreloadFollowUpsForTimeline = false;
-    try {
-      assertCanViewCustomerTimeline(user, customer, accessOptions);
-      shouldPreloadFollowUpsForTimeline = true;
-      sharedFollowUpsPromise = listFollowUpsByCustomerId(customerId);
-    } catch {
-      // timeline access denied
+    if (preloadedFullFollowUps) {
+      sharedFollowUpsPromise = Promise.resolve(preloadedFullFollowUps);
+      try {
+        assertCanViewCustomerTimeline(user, customer, accessOptions);
+        shouldPreloadFollowUpsForTimeline = true;
+      } catch {
+        // timeline access denied
+      }
+    } else {
+      try {
+        assertCanViewCustomerTimeline(user, customer, accessOptions);
+        shouldPreloadFollowUpsForTimeline = true;
+        sharedFollowUpsPromise = listFollowUpsByCustomerId(customerId);
+      } catch {
+        // timeline access denied
+      }
     }
 
     const followUpsForClientPromise = (async () => {
@@ -164,18 +201,21 @@ describe("customer detail Phase 2B1 permissions and data", () => {
       });
     })();
 
+    const assigneesForDisplay =
+      preloadedAssignees ?? (await listCustomerAssignees(db, customerId));
+
     const [
       showConfirmNameButton,
       followUps,
       timeline,
-      userLabels,
-      assigneeNames,
+      displayNames,
     ] = await Promise.all([
-      canConfirmPendingCustomerName(db, user, customer),
+      canConfirmPendingCustomerName(db, user, customer, {
+        preloadedAssignees,
+      }),
       followUpsForClientPromise,
       timelinePromise,
-      resolveCustomerUserLabels(db, customer),
-      resolveCustomerAssigneeNames(db, customerId),
+      resolveCustomerDetailDisplayNames(db, customer, assigneesForDisplay),
     ]);
 
     return {
@@ -183,8 +223,11 @@ describe("customer detail Phase 2B1 permissions and data", () => {
       showConfirmNameButton,
       followUps,
       timeline,
-      userLabels,
-      assigneeNames,
+      userLabels: {
+        ownerName: displayNames.ownerName,
+        createdByName: displayNames.createdByName,
+      },
+      assigneeNames: displayNames.assigneeNames,
     };
   }
 

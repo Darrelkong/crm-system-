@@ -8,7 +8,7 @@ import {
   canAddFollowUp,
   canReleaseToPool,
   assertCanViewFollowUps,
-  resolveCustomerAccessOptions,
+  resolveCustomerAccessOptionsFromAssignees,
   canManageCustomerAssignees,
   canRequestCustomerAssigneeUpdate,
   isStaffUnclaimedPublicPoolCustomer,
@@ -16,7 +16,8 @@ import {
 import { canConfirmPendingCustomerName } from "@/lib/customers/confirm-name";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
-import { resolveCustomerUserLabels, resolveCustomerAssigneeNames } from "@/lib/customers/user-labels";
+import { resolveCustomerDetailDisplayNames } from "@/lib/customers/user-labels";
+import { listCustomerAssignees } from "@/lib/customers/assignees";
 import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
@@ -101,11 +102,46 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
 
   let scoresView;
   let scoringMs = 0;
-  const { result: accessOptions, durationMs: accessResolutionMs } =
-    await measureAsync(() => resolveCustomerAccessOptions(db, user, id));
+  const staffAssigneeSnapshot =
+    user.role === "staff"
+      ? await measureAsync(async () => {
+          const assignees = await listCustomerAssignees(db, id);
+          return {
+            assignees,
+            accessOptions: resolveCustomerAccessOptionsFromAssignees(
+              user,
+              assignees,
+            ),
+          };
+        })
+      : null;
+
+  const accessOptions =
+    staffAssigneeSnapshot?.result.accessOptions ?? {};
+  const accessResolutionMs = staffAssigneeSnapshot?.durationMs ?? 0;
+  const preloadedAssignees = staffAssigneeSnapshot?.result.assignees;
+
+  let preloadedFullFollowUps: Awaited<
+    ReturnType<typeof listFollowUpsByCustomerId>
+  > | undefined;
+  let enrichHasFollowUp: boolean | undefined;
+
+  try {
+    assertCanViewFollowUps(user, customer, accessOptions);
+    const followUpMeasured = await measureAsync(() =>
+      listFollowUpsByCustomerId(id),
+    );
+    preloadedFullFollowUps = followUpMeasured.result;
+    enrichHasFollowUp = followUpMeasured.result.length > 0;
+  } catch {
+    // No full follow-up visibility — scoring keeps the existence probe.
+  }
+
   try {
     const scored = await measureAsync(() =>
-      enrichCustomerResponse(db, user, customer, new Date(), accessOptions),
+      enrichCustomerResponse(db, user, customer, new Date(), accessOptions, {
+        hasFollowUp: enrichHasFollowUp,
+      }),
     );
     scoresView = scored.result;
     scoringMs = scored.durationMs;
@@ -148,17 +184,35 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   let sharedFollowUpsMeasurePromise: Promise<{ durationMs: number }> =
     Promise.resolve({ durationMs: 0 });
   let shouldPreloadFollowUpsForTimeline = false;
-  try {
-    assertCanViewCustomerTimeline(user, customer, accessOptions);
-    shouldPreloadFollowUpsForTimeline = true;
-    const measured = measureAsync(() => listFollowUpsByCustomerId(id));
-    sharedFollowUpsMeasurePromise = measured.then(({ durationMs }) => ({
-      durationMs,
-    }));
-    sharedFollowUpsPromise = measured.then(({ result }) => result);
-  } catch {
-    // timeline access denied; getCustomerTimeline will throw
+
+  if (preloadedFullFollowUps) {
+    sharedFollowUpsPromise = Promise.resolve(preloadedFullFollowUps);
+    try {
+      assertCanViewCustomerTimeline(user, customer, accessOptions);
+      shouldPreloadFollowUpsForTimeline = true;
+    } catch {
+      // timeline access denied; getCustomerTimeline will throw
+    }
+  } else {
+    try {
+      assertCanViewCustomerTimeline(user, customer, accessOptions);
+      shouldPreloadFollowUpsForTimeline = true;
+      const measured = measureAsync(() => listFollowUpsByCustomerId(id));
+      sharedFollowUpsMeasurePromise = measured.then(({ durationMs }) => ({
+        durationMs,
+      }));
+      sharedFollowUpsPromise = measured.then(({ result }) => result);
+    } catch {
+      // timeline access denied; getCustomerTimeline will throw
+    }
   }
+
+  const assigneesForDisplayPromise =
+    preloadedAssignees !== undefined
+      ? Promise.resolve(preloadedAssignees)
+      : measureAsync(() => listCustomerAssignees(db, id)).then(
+          ({ result }) => result,
+        );
 
   const followUpsForClientPromise = (async () => {
     try {
@@ -185,18 +239,28 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     confirmTimed,
     followUps,
     timelineTimed,
-    userLabelsTimed,
-    assigneeNamesTimed,
+    displayNamesTimed,
   ] = await Promise.all([
-    measureAsync(() => canConfirmPendingCustomerName(db, user, customer)),
+    measureAsync(() =>
+      canConfirmPendingCustomerName(db, user, customer, {
+        preloadedAssignees,
+      }),
+    ),
     followUpsForClientPromise,
     timelinePromise,
-    measureAsync(() => resolveCustomerUserLabels(db, customer)),
-    measureAsync(() => resolveCustomerAssigneeNames(db, id)),
+    (async () => {
+      const assigneesForDisplay = await assigneesForDisplayPromise;
+      return measureAsync(() =>
+        resolveCustomerDetailDisplayNames(db, customer, assigneesForDisplay),
+      );
+    })(),
   ]);
   const secondaryTotalMs = perfNow() - secondaryStart;
-  const followUpsMeasured = await sharedFollowUpsMeasurePromise;
+  const followUpsMeasured = preloadedFullFollowUps
+    ? { durationMs: 0 }
+    : await sharedFollowUpsMeasurePromise;
   const timeline = timelineTimed.result;
+  const displayNames = displayNamesTimed.result;
 
   const perfTimings: CustomerDetailPerfTimings | null = enablePerf
     ? {
@@ -210,8 +274,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         followUpsMs: followUpsMeasured.durationMs,
         timelineMs: timelineTimed.durationMs,
         confirmNameMs: confirmTimed.durationMs,
-        userLabelsMs: userLabelsTimed.durationMs,
-        assigneeNamesMs: assigneeNamesTimed.durationMs,
+        userLabelsMs: displayNamesTimed.durationMs,
+        assigneeNamesMs: displayNamesTimed.durationMs,
       }
     : null;
 
@@ -252,9 +316,9 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
           targetCountryOrRegion: view.targetCountryOrRegion,
           primaryConcern: view.primaryConcern,
           ownerId: view.ownerId,
-          ownerName: userLabelsTimed.result.ownerName,
-          assigneeNames: assigneeNamesTimed.result,
-          createdByName: userLabelsTimed.result.createdByName,
+          ownerName: displayNames.ownerName,
+          assigneeNames: displayNames.assigneeNames,
+          createdByName: displayNames.createdByName,
           lastFollowUpAt: view.lastFollowUpAt,
           lastValidFollowUpAt: view.lastValidFollowUpAt,
           neverContacted: view.neverContacted,

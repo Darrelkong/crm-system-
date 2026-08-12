@@ -93,6 +93,14 @@ export async function getCustomerAssigneeUserIds(
   return assignees.map((row) => row.userId);
 }
 
+/** Request-local assignee membership check (no D1 read). */
+export function isCustomerAssigneeFromRecords(
+  assignees: CustomerAssigneeRecord[],
+  userId: string,
+): boolean {
+  return assignees.some((record) => record.userId === userId);
+}
+
 export async function isCustomerAssignee(
   db: Database,
   customerId: string,

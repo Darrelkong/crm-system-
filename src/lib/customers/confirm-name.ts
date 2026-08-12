@@ -6,7 +6,10 @@ import {
   type CustomerNameStatus,
 } from "@/lib/customers/name-status";
 import { isValidCustomerName } from "@/lib/customers/validation";
-import { listCustomerAssignees } from "@/lib/customers/assignees";
+import {
+  listCustomerAssignees,
+  type CustomerAssigneeRecord,
+} from "@/lib/customers/assignees";
 import { isArchivedCustomer } from "@/lib/customers/archived";
 import { isPublicPoolCustomer } from "@/lib/permissions/customers";
 import { schema, type Database } from "@/lib/db";
@@ -152,6 +155,53 @@ function assertCustomerEligibleForConfirm(customer: Customer): void {
   }
 }
 
+function assertStaffConfirmNameAssigneeEligibility(
+  actor: User,
+  customer: Customer,
+  assignees: CustomerAssigneeRecord[],
+): void {
+  if (customer.ownerId === actor.id) {
+    return;
+  }
+
+  const self = assignees.find((row) => row.userId === actor.id);
+  if (self && self.role !== "collaborator") {
+    return;
+  }
+
+  throw new ConfirmNameError(
+    "PERMISSION_DENIED",
+    "无权确认该客户姓名",
+    403,
+  );
+}
+
+/**
+ * Read-only confirm-name permission from a request-local assignee snapshot.
+ */
+export function assertCanConfirmPendingCustomerNameFromAssignees(
+  actor: User,
+  customer: Customer,
+  assignees: CustomerAssigneeRecord[],
+): void {
+  assertActorEligible(actor);
+  assertCustomerEligibleForConfirm(customer);
+
+  if (actor.role === "admin") {
+    return;
+  }
+
+  if (actor.role !== "staff") {
+    throw new ConfirmNameError(
+      "PERMISSION_DENIED",
+      "无权确认该客户姓名",
+      403,
+    );
+  }
+
+  assertStaffConfirmNameAssigneeEligibility(actor, customer, assignees);
+}
+
 /**
  * Permission for one-shot pending → confirmed name update.
  * Allows Admin, owner, and active non-collaborator assignees.
@@ -177,30 +227,26 @@ export async function assertCanConfirmPendingCustomerName(
     );
   }
 
-  if (customer.ownerId === actor.id) {
-    return;
-  }
-
   const assignees = await listCustomerAssignees(db, customer.id);
-  const self = assignees.find((row) => row.userId === actor.id);
-  if (self && self.role !== "collaborator") {
-    return;
-  }
-
-  throw new ConfirmNameError(
-    "PERMISSION_DENIED",
-    "无权确认该客户姓名",
-    403,
-  );
+  assertStaffConfirmNameAssigneeEligibility(actor, customer, assignees);
 }
 
 export async function canConfirmPendingCustomerName(
   db: Database,
   actor: User,
   customer: Customer,
+  options?: { preloadedAssignees?: CustomerAssigneeRecord[] },
 ): Promise<boolean> {
   try {
-    await assertCanConfirmPendingCustomerName(db, actor, customer);
+    if (options?.preloadedAssignees) {
+      assertCanConfirmPendingCustomerNameFromAssignees(
+        actor,
+        customer,
+        options.preloadedAssignees,
+      );
+    } else {
+      await assertCanConfirmPendingCustomerName(db, actor, customer);
+    }
     return true;
   } catch {
     return false;

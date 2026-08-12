@@ -318,15 +318,24 @@ export async function computeScoringSummaryForStaff(
   return { highChurnRiskCustomers, lowCompletenessCustomers };
 }
 
+export type EnrichCustomerResponseOptions = {
+  /** When set, skips the follow-up existence probe (same request preloaded full list). */
+  hasFollowUp?: boolean;
+};
+
 export async function enrichCustomerResponse(
   db: Database,
   user: User,
   customer: Customer,
   now: Date = new Date(),
   accessOptions?: CustomerAccessOptions,
+  enrichOptions?: EnrichCustomerResponseOptions,
 ): Promise<CustomerWithScores> {
   const settings = await getEffectiveSettings(db);
-  const followUpSet = await getCustomerIdsWithFollowUps(db, [customer.id]);
+  const followUpSet =
+    enrichOptions?.hasFollowUp === undefined
+      ? await getCustomerIdsWithFollowUps(db, [customer.id])
+      : new Set(enrichOptions.hasFollowUp ? [customer.id] : []);
   const resolvedOptions =
     accessOptions ??
     (user.role === "staff"

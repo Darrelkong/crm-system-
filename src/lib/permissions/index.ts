@@ -20,6 +20,7 @@ export {
   toCustomerFullView,
   getCustomerListScope,
   resolveCustomerAccessOptions,
+  resolveCustomerAccessOptionsFromAssignees,
   type CustomerAccessOptions,
   PermissionError,
   type CustomerAccessLevel,

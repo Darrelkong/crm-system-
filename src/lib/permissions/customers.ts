@@ -1,4 +1,8 @@
-import { isCustomerAssignee } from "@/lib/customers/assignees";
+import {
+  isCustomerAssignee,
+  isCustomerAssigneeFromRecords,
+  type CustomerAssigneeRecord,
+} from "@/lib/customers/assignees";
 import type { CustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import type { Database } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
@@ -12,6 +16,20 @@ import {
 export type CustomerAccessOptions = {
   isAssignee?: boolean;
 };
+
+/** Derive access options from an already-loaded assignee snapshot (no D1 read). */
+export function resolveCustomerAccessOptionsFromAssignees(
+  user: User,
+  assignees: CustomerAssigneeRecord[],
+): CustomerAccessOptions {
+  if (user.role === "admin") {
+    return {};
+  }
+
+  return isCustomerAssigneeFromRecords(assignees, user.id)
+    ? { isAssignee: true }
+    : {};
+}
 
 export async function resolveCustomerAccessOptions(
   db: Database,
