@@ -6,6 +6,7 @@ import {
   listCustomerAssigneesByCustomerIds,
   type CustomerAssigneeRecord,
 } from "@/lib/customers/assignees";
+import { getCustomerIdsWithHouseholdIcon } from "@/lib/customers/households/list-indicator";
 import { resolveUserDisplayNames } from "@/lib/customers/user-labels";
 
 export type CustomerListRowData = {
@@ -32,13 +33,14 @@ export type CustomerListRowData = {
   createdAt: string;
   /** Auto-release countdown badge; null when ineligible or collaborative. */
   reclamationCountdown: ReclamationCountdownDisplay | null;
+  hasHouseholdIcon: boolean;
 };
 
 export function toCustomerListRow(
   customer: CustomerWithScores,
   ownerName: string | null,
   assigneeNames: string[] = [],
-  options?: { isCollaborative?: boolean },
+  options?: { isCollaborative?: boolean; hasHouseholdIcon?: boolean },
 ): CustomerListRowData {
   return {
     id: customer.id,
@@ -65,11 +67,13 @@ export function toCustomerListRow(
     reclamationCountdown: options?.isCollaborative
       ? null
       : (customer.reclamationCountdown ?? null),
+    hasHouseholdIcon: options?.hasHouseholdIcon ?? false,
   };
 }
 
 export type BuildCustomerListRowsOptions = {
   assigneesByCustomerId?: Map<string, CustomerAssigneeRecord[]>;
+  householdIconCustomerIds?: ReadonlySet<string>;
 };
 
 export async function buildCustomerListRows(
@@ -78,9 +82,14 @@ export async function buildCustomerListRows(
   options?: BuildCustomerListRowsOptions,
 ): Promise<CustomerListRowData[]> {
   const customerIds = items.map((item) => item.id);
-  const assigneesByCustomerId =
-    options?.assigneesByCustomerId ??
-    (await listCustomerAssigneesByCustomerIds(db, customerIds));
+  const [assigneesByCustomerId, householdIconCustomerIds] = await Promise.all([
+    options?.assigneesByCustomerId !== undefined
+      ? Promise.resolve(options.assigneesByCustomerId)
+      : listCustomerAssigneesByCustomerIds(db, customerIds),
+    options?.householdIconCustomerIds !== undefined
+      ? Promise.resolve(options.householdIconCustomerIds)
+      : getCustomerIdsWithHouseholdIcon(db, customerIds),
+  ]);
 
   const userIds = new Set<string>();
   for (const item of items) {
@@ -107,7 +116,10 @@ export async function buildCustomerListRows(
       item,
       item.ownerId ? (nameMap.get(item.ownerId) ?? null) : null,
       assigneeNames,
-      { isCollaborative },
+      {
+        isCollaborative,
+        hasHouseholdIcon: householdIconCustomerIds.has(item.id),
+      },
     );
   });
 }

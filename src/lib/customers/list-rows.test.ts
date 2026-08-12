@@ -239,6 +239,28 @@ describe("toCustomerListRow pin fields", () => {
     assert.equal(row.lifecycleStatus, "completed");
     assert.equal(row.salesStage, "paid");
   });
+
+  it("includes hasHouseholdIcon when preloaded", () => {
+    const customer = makeCustomer({
+      id: "c-family",
+      customerName: "Family client",
+    });
+    const view = makeScoredView(adminUser, customer);
+    const row = toCustomerListRow(view, "Staff A", [], {
+      hasHouseholdIcon: true,
+    });
+    assert.equal(row.hasHouseholdIcon, true);
+  });
+
+  it("defaults hasHouseholdIcon to false", () => {
+    const customer = makeCustomer({
+      id: "c-solo",
+      customerName: "Solo client",
+    });
+    const view = makeScoredView(adminUser, customer);
+    const row = toCustomerListRow(view, "Staff A");
+    assert.equal(row.hasHouseholdIcon, false);
+  });
 });
 
 describe("D-2b list filtering unchanged", () => {

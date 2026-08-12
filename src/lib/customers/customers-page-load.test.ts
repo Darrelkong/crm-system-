@@ -85,6 +85,7 @@ describe("customers page Phase 2A load path", () => {
   it("non-scoring paginated path uses one shared full assignee map", () => {
     const branch = extractPaginatedBranch(readCustomersPageSource());
     assert.match(branch, /listCustomerAssigneesByCustomerIds/);
+    assert.match(branch, /getCustomerIdsWithHouseholdIcon/);
     assert.match(branch, /getAssigneeCustomerIdsFromRecords/);
     assert.doesNotMatch(branch, /getAssigneeCustomerIdsForUser/);
     const fullAssigneeCalls = (
@@ -105,12 +106,17 @@ describe("customers page Phase 2A load path", () => {
       branch,
       /listCustomerAssigneesByCustomerIds\(\s*db,\s*pageViewIds/,
     );
+    assert.match(branch, /getCustomerIdsWithHouseholdIcon\(db, pageViewIds\)/);
+    assert.match(branch, /Promise\.all\(\[/);
   });
 
   it("list-rows supports preloaded assignee map", () => {
     const listRows = readFileSync("src/lib/customers/list-rows.ts", "utf8");
     assert.match(listRows, /assigneesByCustomerId\?:/);
+    assert.match(listRows, /householdIconCustomerIds\?:/);
     assert.match(listRows, /options\?\.assigneesByCustomerId/);
+    assert.match(listRows, /getCustomerIdsWithHouseholdIcon/);
+    assert.match(listRows, /Promise\.all/);
   });
 
   it("getAssigneeCustomerIdsFromRecords matches getAssigneeCustomerIdsForUser", async () => {

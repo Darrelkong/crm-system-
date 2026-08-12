@@ -9,6 +9,7 @@ import {
   HeatBadge,
 } from "@/components/customers/customer-scores-cards";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
+import { CustomerFamilyIcon } from "@/components/customers/customer-family-icon";
 import { ReclamationCountdownBadge } from "@/components/customers/reclamation-countdown-badge";
 import { Button } from "@/components/ui/button";
 import { Badge, EmptyState } from "@/components/ui/card";
@@ -112,6 +113,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     pinnedAt: item.pinnedAt ?? null,
     createdAt: item.createdAt,
     reclamationCountdown: item.reclamationCountdown ?? null,
+    hasHouseholdIcon: item.hasHouseholdIcon ?? false,
   };
 }
 
@@ -367,21 +369,26 @@ export function CustomersListClient({
     return (
       <span className="inline-flex flex-col gap-0.5">
         <span className="inline-flex items-center gap-2">
-          <CustomerNameLabel
-            customerName={c.customerName}
-            nameStatus={c.nameStatus}
-            locale={locale}
-            pendingLabel={tCommon("customers.namePendingBadge")}
-            renderName={(displayName) => (
-              <Link
-                href={`/customers/${c.id}`}
-                className={ui.customerName}
-                {...navigationPerfHandlers}
-              >
-                {displayName}
-              </Link>
+          <span className="inline-flex min-w-0 items-center gap-1.5">
+            {c.hasHouseholdIcon && (
+              <CustomerFamilyIcon label={t("customers.familyCustomer")} />
             )}
-          />
+            <CustomerNameLabel
+              customerName={c.customerName}
+              nameStatus={c.nameStatus}
+              locale={locale}
+              pendingLabel={tCommon("customers.namePendingBadge")}
+              renderName={(displayName) => (
+                <Link
+                  href={`/customers/${c.id}`}
+                  className={ui.customerName}
+                  {...navigationPerfHandlers}
+                >
+                  {displayName}
+                </Link>
+              )}
+            />
+          </span>
           {c.isPinned && <PinnedBadge />}
         </span>
         {isAdmin && c.customerCode && (
@@ -455,6 +462,9 @@ export function CustomersListClient({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
+              {c.hasHouseholdIcon && (
+                <CustomerFamilyIcon label={t("customers.familyCustomer")} />
+              )}
               <CustomerNameLabel
                 customerName={c.customerName}
                 nameStatus={c.nameStatus}

@@ -26,6 +26,7 @@ import {
   getAssigneeCustomerIdsFromRecords,
   listCustomerAssigneesByCustomerIds,
 } from "@/lib/customers/assignees";
+import { getCustomerIdsWithHouseholdIcon } from "@/lib/customers/households/list-indicator";
 import { resolveReclamationRiskCustomerIds } from "@/lib/reclamation/work-items-sync";
 import { parseReclamationRiskParam } from "@/lib/customers/work-view-filter";
 import {
@@ -154,12 +155,13 @@ export default async function CustomersPage({ searchParams }: Props) {
     const offset = (pagination.page - 1) * pagination.pageSize;
     const pageViews = views.slice(offset, offset + pagination.pageSize);
     const pageViewIds = pageViews.map((view) => view.id);
-    const assigneesByCustomerId = await listCustomerAssigneesByCustomerIds(
-      db,
-      pageViewIds,
-    );
+    const [assigneesByCustomerId, householdIconCustomerIds] = await Promise.all([
+      listCustomerAssigneesByCustomerIds(db, pageViewIds),
+      getCustomerIdsWithHouseholdIcon(db, pageViewIds),
+    ]);
     initialRows = await buildCustomerListRows(db, pageViews, {
       assigneesByCustomerId,
+      householdIconCustomerIds,
     });
   } else {
     const [result, resolvedCreatorOptions] = await Promise.all([
@@ -174,10 +176,12 @@ export default async function CustomersPage({ searchParams }: Props) {
     creatorOptions = resolvedCreatorOptions;
 
     const customerIds = result.items.map((customer) => customer.id);
-    const [followUpSet, assigneesByCustomerId] = await Promise.all([
-      getCustomerIdsWithFollowUps(db, customerIds),
-      listCustomerAssigneesByCustomerIds(db, customerIds),
-    ]);
+    const [followUpSet, assigneesByCustomerId, householdIconCustomerIds] =
+      await Promise.all([
+        getCustomerIdsWithFollowUps(db, customerIds),
+        listCustomerAssigneesByCustomerIds(db, customerIds),
+        getCustomerIdsWithHouseholdIcon(db, customerIds),
+      ]);
     const assigneeIds = getAssigneeCustomerIdsFromRecords(
       user.id,
       customerIds,
@@ -193,6 +197,7 @@ export default async function CustomersPage({ searchParams }: Props) {
     );
     initialRows = await buildCustomerListRows(db, views, {
       assigneesByCustomerId,
+      householdIconCustomerIds,
     });
     pagination = result.pagination;
   }

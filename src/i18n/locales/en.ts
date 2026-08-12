@@ -327,6 +327,7 @@ const en = {
     pendingNameMrEnLabel: "Mr. X",
     pendingNameMsEnLabel: "Ms. X",
     namePendingBadge: "Name pending confirmation",
+    familyCustomer: "Family Customer",
     confirmRealName: "Confirm real name",
     confirmRealNameConfirm: "Confirm",
     confirmNamePlaceholder: "Enter the customer’s real name",

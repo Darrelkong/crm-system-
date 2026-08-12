@@ -313,6 +313,7 @@ const zhHans: Messages = {
     pendingNameMrEnLabel: "Mr. X",
     pendingNameMsEnLabel: "Ms. X",
     namePendingBadge: "姓名待确认",
+    familyCustomer: "家庭客户",
     confirmRealName: "确认真实姓名",
     confirmRealNameConfirm: "确认",
     confirmNamePlaceholder: "请输入客户真实姓名",
