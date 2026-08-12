@@ -338,6 +338,7 @@ const zhHant: Messages = {
     familySearchModeEmail: "Email 精確查找",
     familyExactSearchPlaceholder: "請輸入精確值",
     familySearchNoResults: "未找到匹配客戶。",
+    familyCandidateCreatedAt: "建立時間：{{time}}",
     familyProtectedCandidateTitle: "受權限保護的現有客戶",
     familyProtectedCandidateSubtitle: "詳細資料不可見",
     familyRequiresApproval: "需要管理員審核",

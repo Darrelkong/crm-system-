@@ -7,13 +7,14 @@ import { Field, Input, Label, Select } from "@/components/ui/form";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { resolveApiError } from "@/i18n/resolve-api-error";
+import { formatHongKongDateTime } from "@/lib/timezone";
 import { HOUSEHOLD_RELATIONSHIP_TYPES } from "../../../drizzle/schema/household-relationship-types";
 
 type VisibleCandidate = {
   isMasked: false;
   customerId: string;
   customerName: string;
-  customerCode: string | null;
+  createdAt: string;
   linkMode: "direct" | "approval";
 };
 
@@ -312,9 +313,11 @@ export function CustomerFamilyLinkExistingModal({
                     ) : (
                       <div className="min-w-0">
                         <p className="truncate text-sm crm-text">{candidate.customerName}</p>
-                        {candidate.customerCode && (
-                          <p className="mt-0.5 text-xs crm-text-muted">{candidate.customerCode}</p>
-                        )}
+                        <p className="mt-0.5 text-xs crm-text-muted">
+                          {t("customers.familyCandidateCreatedAt", {
+                            time: formatHongKongDateTime(candidate.createdAt),
+                          })}
+                        </p>
                       </div>
                     )}
                     {(candidate.isMasked || candidate.linkMode === "approval") && (

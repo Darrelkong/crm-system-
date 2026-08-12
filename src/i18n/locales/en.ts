@@ -354,6 +354,7 @@ const en = {
     familySearchModeEmail: "Exact email",
     familyExactSearchPlaceholder: "Enter the exact value",
     familySearchNoResults: "No matching customers found.",
+    familyCandidateCreatedAt: "Created: {{time}}",
     familyProtectedCandidateTitle: "Protected existing customer",
     familyProtectedCandidateSubtitle: "Details are not visible",
     familyRequiresApproval: "Requires admin review",

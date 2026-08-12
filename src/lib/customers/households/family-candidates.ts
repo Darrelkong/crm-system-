@@ -24,7 +24,7 @@ export type FamilyCandidateVisible = {
   isMasked: false;
   customerId: string;
   customerName: string;
-  customerCode: string | null;
+  createdAt: string;
   linkMode: "direct" | "approval";
 };
 
@@ -139,7 +139,7 @@ function mapVisibleCandidateFromRow(
     isMasked: false,
     customerId: customer.id,
     customerName: customer.customerName,
-    customerCode: customer.customerCode ?? null,
+    createdAt: customer.createdAt,
     linkMode: resolveFamilyLinkMode(user, customer, isAssignee),
   };
 }
