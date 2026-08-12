@@ -9,11 +9,7 @@
     "global_fetch_strictly_public"
   ],
   "observability": {
-    "enabled": true,
-    "traces": {
-      "enabled": true,
-      "head_sampling_rate": 1
-    }
+    "enabled": true
   },
   "assets": {
     "directory": ".open-next/assets",
