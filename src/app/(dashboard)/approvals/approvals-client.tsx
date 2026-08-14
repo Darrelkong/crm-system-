@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { SerializedApprovalListItem } from "@/lib/approvals/family-link-serialization";
 import { LinkFamilyCustomerApprovalDetail } from "@/components/approvals/link-family-customer-detail";
+import { FamilyManagementApprovalDetail } from "@/components/approvals/family-management-approval-detail";
 import type { ApprovalRequestType, ApprovalStatus } from "../../../../drizzle/schema/approvals";
 import { EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -217,7 +218,9 @@ export function ApprovalsClient({ isAdmin }: Props) {
               </div>
               {selected.requestType !== "create_on_hold_customer" &&
                 selected.requestType !== "update_customer_assignees" &&
-                selected.requestType !== "link_family_customer" && (
+                selected.requestType !== "link_family_customer" &&
+                selected.requestType !== "update_family_relationship" &&
+                selected.requestType !== "unlink_family_customer" && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.reason")}</dt>
                   <dd className="whitespace-pre-wrap">{selected.reason}</dd>
@@ -231,7 +234,9 @@ export function ApprovalsClient({ isAdmin }: Props) {
               )}
               {selected.relatedCustomerIds &&
                 selected.relatedCustomerIds.length > 0 &&
-                selected.requestType !== "link_family_customer" && (
+                selected.requestType !== "link_family_customer" &&
+                selected.requestType !== "update_family_relationship" &&
+                selected.requestType !== "unlink_family_customer" && (
                 <div>
                   <dt className="text-[#6B7890]">{t("approvals.relatedCustomerIds")}</dt>
                   <dd>{selected.relatedCustomerIds.join(", ")}</dd>
@@ -253,6 +258,13 @@ export function ApprovalsClient({ isAdmin }: Props) {
                   isAdmin={isAdmin}
                   sourceCustomerName={selected.customerName}
                   familyLinkAdminDetail={selected.familyLinkAdminDetail}
+                />
+              ) : selected.requestType === "update_family_relationship" ||
+                selected.requestType === "unlink_family_customer" ? (
+                <FamilyManagementApprovalDetail
+                  isAdmin={isAdmin}
+                  sourceCustomerName={selected.customerName}
+                  familyManagementAdminDetail={selected.familyManagementAdminDetail}
                 />
               ) : (
                 selected.payload && (

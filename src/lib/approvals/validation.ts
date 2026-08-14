@@ -70,6 +70,18 @@ export function validateApprovalRequestInput(
     return { ok: false, fieldErrors };
   }
 
+  if (
+    requestType === "update_family_relationship" ||
+    requestType === "unlink_family_customer"
+  ) {
+    fieldErrors.push({
+      field: "requestType",
+      message: "请使用家庭关系管理专用入口提交",
+      code: "FAMILY_MANAGEMENT_USE_DEDICATED_ENDPOINT",
+    });
+    return { ok: false, fieldErrors };
+  }
+
   if (requestType === "transfer_customer") {
     if (!input.targetUserId?.trim()) {
       fieldErrors.push({ field: "targetUserId", message: "转移目标员工必填" });

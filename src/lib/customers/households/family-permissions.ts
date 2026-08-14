@@ -108,3 +108,94 @@ export function resolveFamilyLinkMode(
     ? "direct"
     : "approval";
 }
+
+function isExistingFamilySourceEligible(customer: Customer): boolean {
+  return customer.customerType === "individual" && customer.deletedAt == null;
+}
+
+function isExistingFamilyTargetPresent(customer: Customer): boolean {
+  return customer.deletedAt == null;
+}
+
+export function canManageExistingFamilySource(
+  user: User,
+  customer: Customer,
+): boolean {
+  if (!isExistingFamilySourceEligible(customer)) {
+    return false;
+  }
+
+  if (user.role === "admin") {
+    return true;
+  }
+
+  try {
+    assertCanEditCustomer(user, customer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function assertCanManageExistingFamilySource(
+  user: User,
+  customer: Customer,
+): void {
+  if (!isExistingFamilySourceEligible(customer)) {
+    throw new FamilyLinkError(
+      400,
+      "当前客户无法管理家庭成员",
+      FAMILY_ERROR_CODES.SOURCE_NOT_ELIGIBLE,
+    );
+  }
+
+  if (user.role === "admin") {
+    return;
+  }
+
+  try {
+    assertCanEditCustomer(user, customer);
+  } catch (error) {
+    if (error instanceof PermissionError) {
+      throw new FamilyLinkError(
+        error.status,
+        error.message,
+        FAMILY_ERROR_CODES.SOURCE_NOT_ELIGIBLE,
+      );
+    }
+    throw error;
+  }
+}
+
+export function canDirectManageExistingFamilyTarget(
+  user: User,
+  target: Customer,
+  isAssignee: boolean,
+): boolean {
+  if (user.role === "admin") {
+    return isExistingFamilyTargetPresent(target);
+  }
+
+  if (
+    !isExistingFamilyTargetPresent(target) ||
+    target.customerType !== "individual" ||
+    isPublicPoolCustomer(target)
+  ) {
+    return false;
+  }
+
+  return (
+    getCustomerAccessLevel(user, target, { isAssignee }) === "full" &&
+    target.ownerId === user.id
+  );
+}
+
+export function resolveExistingFamilyManagementMode(
+  user: User,
+  target: Customer,
+  isAssignee: boolean,
+): "direct" | "approval" {
+  return canDirectManageExistingFamilyTarget(user, target, isAssignee)
+    ? "direct"
+    : "approval";
+}

@@ -47,6 +47,7 @@ import {
   executeApprovedAssigneeUpdate,
 } from "@/lib/customers/assignees-approval";
 import { approveFamilyLinkApprovalRequest } from "@/lib/customers/households/family-link-approval";
+import { approveFamilyManagementRequest } from "@/lib/customers/households/family-management-approval";
 import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
 import {
   AssigneeMutationError,
@@ -807,6 +808,54 @@ export async function approveApprovalRequest(
       {
         approvalType: approval.requestType,
         adminComment: comment ?? "",
+      },
+    );
+    return;
+  }
+
+  if (
+    approval.requestType === "update_family_relationship" ||
+    approval.requestType === "unlink_family_customer"
+  ) {
+    await approveFamilyManagementRequest(
+      db,
+      approval,
+      reviewer,
+      adminComment,
+    );
+
+    await writeAuditLog({
+      userId: reviewer.id,
+      action: APPROVAL_AUDIT_ACTIONS.approved,
+      entityType: "approval",
+      entityId: approvalId,
+      ipAddress: audit?.ipAddress,
+      userAgent: audit?.userAgent,
+      metadata: {
+        requestType: approval.requestType,
+        customerId: approval.customerId,
+        requestedBy: approval.requestedBy,
+      },
+    });
+
+    await markApprovalPendingNotificationsReadSafely(
+      db,
+      approvalId,
+      "approved",
+    );
+
+    const mgmtComment = adminComment?.trim();
+    await notifyApplicant(
+      db,
+      approval,
+      "approval.approved",
+      "notificationTypes.approval_approved",
+      mgmtComment
+        ? "notificationMessages.approvalApprovedWithComment"
+        : "notificationMessages.approvalApproved",
+      {
+        approvalType: approval.requestType,
+        adminComment: mgmtComment ?? "",
       },
     );
     return;

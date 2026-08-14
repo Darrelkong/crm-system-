@@ -115,6 +115,7 @@ type Props = {
   returnHref: string;
   familySummary?: CustomerFamilyDetailSummary | null;
   showManageFamilyButton?: boolean;
+  showManageExistingFamilyButton?: boolean;
 };
 
 function DetailRow({
@@ -217,6 +218,7 @@ export function CustomerDetailClient({
   returnHref,
   familySummary = null,
   showManageFamilyButton = false,
+  showManageExistingFamilyButton = false,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
@@ -388,9 +390,11 @@ export function CustomerDetailClient({
           {(showManageFamilyButton || familySummary) && (
             <SectionCard title={t("customers.familyAndContacts")}>
               <CustomerFamilySection
+                customerId={id}
                 currentCustomerName={view.customerName}
                 summary={familySummary}
                 canManage={showManageFamilyButton}
+                canManageExistingFamily={showManageExistingFamilyButton}
                 onAddFamilyMember={() => setFamilyChooserOpen(true)}
               />
             </SectionCard>

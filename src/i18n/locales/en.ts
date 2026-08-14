@@ -370,6 +370,25 @@ const en = {
     familyReviewCurrent: "Current customer",
     familyReviewTarget: "Target customer",
     familyReviewRelationship: "Family relationship",
+    familyEditRelationship: "Edit family relationship",
+    familySetRelationship: "Set family relationship",
+    familyUnlinkAction: "Unlink from family",
+    familyUnlinkTitle: "Unlink from family?",
+    familyUnlinkBody: "Remove \"{{name}}\" from the current household.",
+    familyUnlinkNoDelete:
+      "This does not delete any customer data and does not affect owner, sales stage, follow-ups, or tasks.",
+    familyUnlinkRelationshipNote:
+      "Family relationships between this member and others in the household will be removed.",
+    familyUnlinkDissolveNote:
+      "If only one active member would remain after removal, the household will be dissolved automatically.",
+    familySubmittedForApproval: "Submitted for admin approval",
+    familyCurrentRelationship: "Current relationship",
+    familyRequestedRelationship: "Requested relationship",
+    familyNewRelationship: "Change to",
+    familyWithConnector: "with",
+    familyRelationshipParentDisplay: "Parent",
+    familyMemberActions: "Family member actions",
+    familyReviewRequest: "Request",
     familyDirectReviewCopy:
       "After linking, both customers remain independently managed and will not share owner, sales stage, follow-ups, or other business data.",
     familyApprovalReviewCopy:
@@ -1108,6 +1127,8 @@ const en = {
       update_customer_assignees: "Update Responsible Team Members",
       paid_customer: "Mark as Paid Request",
       link_family_customer: "Link Family Customer",
+      update_family_relationship: "Update Family Relationship",
+      unlink_family_customer: "Unlink from Family",
     },
   },
   customerStatuses: {
@@ -3200,6 +3221,12 @@ const en = {
     familyLinkApprovalRequired: "Admin approval is required to link this customer.",
     familyDuplicatePending: "A family link request for this pair is already pending.",
     familyInvalidRelationship: "Invalid family relationship.",
+    familyManagementUseDedicatedEndpoint:
+      "Please use the dedicated family management entry for this request.",
+    familyTargetNotInHousehold: "This customer is not a member of the current household.",
+    familyApprovalStale: "The household state changed while approval was pending.",
+    familyCompanyMemberEditForbidden:
+      "Company customers cannot have family relationships set. Please unlink instead.",
     saveFailed: "Failed to save.",
     deleteFailed: "Failed to delete client.",
     clientNameRequired: "Client name is required.",

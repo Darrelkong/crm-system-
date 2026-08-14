@@ -5,6 +5,13 @@ export type FamilyLinkAdminDetail = {
   relationshipType: string;
 };
 
+export type FamilyManagementAdminDetail = {
+  targetCustomerName: string;
+  currentRelationship: string | null;
+  requestedRelationship: string | null;
+  action: "update_relationship" | "unlink";
+};
+
 export type SerializedApprovalListItem = Omit<
   ApprovalListItem,
   "relatedCustomerIds" | "payload"
@@ -12,22 +19,40 @@ export type SerializedApprovalListItem = Omit<
   relatedCustomerIds?: string[] | null;
   payload?: Record<string, unknown> | null;
   familyLinkAdminDetail?: FamilyLinkAdminDetail;
+  familyManagementAdminDetail?: FamilyManagementAdminDetail;
 };
+
+const FAMILY_PRIVACY_REQUEST_TYPES = new Set([
+  "link_family_customer",
+  "update_family_relationship",
+  "unlink_family_customer",
+]);
 
 export function sanitizeApprovalListItemForUser(
   user: { role: string },
   item: ApprovalListItem,
-  familyAdminDetails?: Map<string, FamilyLinkAdminDetail>,
+  options?: {
+    familyLinkAdminDetails?: Map<string, FamilyLinkAdminDetail>;
+    familyManagementAdminDetails?: Map<string, FamilyManagementAdminDetail>;
+  },
 ): SerializedApprovalListItem {
-  if (item.requestType !== "link_family_customer") {
+  if (!FAMILY_PRIVACY_REQUEST_TYPES.has(item.requestType)) {
     return item;
   }
 
   if (user.role === "admin") {
-    const detail = familyAdminDetails?.get(item.id);
+    if (item.requestType === "link_family_customer") {
+      return {
+        ...item,
+        familyLinkAdminDetail: options?.familyLinkAdminDetails?.get(item.id),
+      };
+    }
+
     return {
       ...item,
-      familyLinkAdminDetail: detail,
+      familyManagementAdminDetail: options?.familyManagementAdminDetails?.get(
+        item.id,
+      ),
     };
   }
 
@@ -65,7 +90,7 @@ export async function loadFamilyLinkAdminDetails(
   }
 
   const { schema } = await import("@/lib/db");
-  const { inArray, eq } = await import("drizzle-orm");
+  const { inArray } = await import("drizzle-orm");
 
   const customers = await db
     .select({
@@ -87,6 +112,71 @@ export async function loadFamilyLinkAdminDetails(
     details.set(item.id, {
       targetCustomerName: nameById.get(targetId) ?? "—",
       relationshipType,
+    });
+  }
+
+  return details;
+}
+
+export async function loadFamilyManagementAdminDetails(
+  db: import("@/lib/db").Database,
+  items: ApprovalListItem[],
+): Promise<Map<string, FamilyManagementAdminDetail>> {
+  const familyItems = items.filter(
+    (item) =>
+      item.requestType === "update_family_relationship" ||
+      item.requestType === "unlink_family_customer",
+  );
+
+  const targetIds = [
+    ...new Set(
+      familyItems
+        .map((item) => item.relatedCustomerIds?.[0])
+        .filter((id): id is string => !!id),
+    ),
+  ];
+
+  const details = new Map<string, FamilyManagementAdminDetail>();
+  if (targetIds.length === 0) {
+    return details;
+  }
+
+  const { schema } = await import("@/lib/db");
+  const { inArray } = await import("drizzle-orm");
+
+  const customers = await db
+    .select({
+      id: schema.customers.id,
+      customerName: schema.customers.customerName,
+    })
+    .from(schema.customers)
+    .where(inArray(schema.customers.id, targetIds));
+
+  const nameById = new Map(customers.map((row) => [row.id, row.customerName]));
+
+  for (const item of familyItems) {
+    const targetId = item.relatedCustomerIds?.[0];
+    if (!targetId) continue;
+
+    const payload = item.payload ?? {};
+    const currentRelationship =
+      typeof payload.expectedRelationshipType === "string"
+        ? payload.expectedRelationshipType
+        : null;
+    const requestedRelationship =
+      item.requestType === "update_family_relationship" &&
+      typeof payload.requestedRelationshipType === "string"
+        ? payload.requestedRelationshipType
+        : null;
+
+    details.set(item.id, {
+      targetCustomerName: nameById.get(targetId) ?? "—",
+      currentRelationship,
+      requestedRelationship,
+      action:
+        item.requestType === "unlink_family_customer"
+          ? "unlink"
+          : "update_relationship",
     });
   }
 

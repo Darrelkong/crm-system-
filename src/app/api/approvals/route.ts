@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { listApprovalsForUser } from "@/lib/approvals/queries";
 import {
   loadFamilyLinkAdminDetails,
+  loadFamilyManagementAdminDetails,
   sanitizeApprovalListItemForUser,
 } from "@/lib/approvals/family-link-serialization";
 import type { ApprovalStatus } from "../../../../drizzle/schema/approvals";
@@ -25,13 +26,20 @@ export async function GET(request: Request) {
 
     const db = getDb();
     const items = await listApprovalsForUser(db, user, statusFilter);
-    const familyAdminDetails =
+    const familyLinkAdminDetails =
       user.role === "admin"
         ? await loadFamilyLinkAdminDetails(db, items)
         : undefined;
+    const familyManagementAdminDetails =
+      user.role === "admin"
+        ? await loadFamilyManagementAdminDetails(db, items)
+        : undefined;
 
     const serialized = items.map((item) =>
-      sanitizeApprovalListItemForUser(user, item, familyAdminDetails),
+      sanitizeApprovalListItemForUser(user, item, {
+        familyLinkAdminDetails,
+        familyManagementAdminDetails,
+      }),
     );
 
     return Response.json({ items: serialized, total: serialized.length });

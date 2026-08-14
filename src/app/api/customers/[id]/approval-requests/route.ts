@@ -60,6 +60,19 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    if (
+      body.requestType === "update_family_relationship" ||
+      body.requestType === "unlink_family_customer"
+    ) {
+      return Response.json(
+        {
+          error: "请使用家庭关系管理专用入口提交",
+          errorCode: "FAMILY_MANAGEMENT_USE_DEDICATED_ENDPOINT",
+        },
+        { status: 400 },
+      );
+    }
+
     try {
       const result = await createApprovalRequest(customer, user, body, {
         ipAddress,

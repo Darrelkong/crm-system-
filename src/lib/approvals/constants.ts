@@ -10,6 +10,8 @@ export const APPROVAL_REQUEST_TYPE_LABELS: Record<ApprovalRequestType, string> =
   update_customer_assignees: "调整负责团队成员",
   paid_customer: "申请已付款",
   link_family_customer: "关联家庭客户",
+  update_family_relationship: "修改家庭关系",
+  unlink_family_customer: "解除家庭关联",
 };
 
 export const APPROVAL_STATUS_LABELS = {
