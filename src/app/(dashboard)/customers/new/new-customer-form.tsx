@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,9 @@ import {
   createEmptyCustomerCreateFormData,
   formatDraftSavedClock,
   isCustomerCreateDraftMeaningful,
+  getCustomerCreateDraftScopeIdentity,
   loadCustomerCreateDraft,
+  resolveCustomerCreateDraftScope,
   type CustomerCreateDraftFormData,
   type CustomerCreateDraftScope,
 } from "@/lib/customers/customer-create-draft";
@@ -113,9 +115,17 @@ export function NewCustomerForm({
   const router = useRouter();
   const { t, salesStage, customerType } = useCustomerLabels();
   const { locale } = useTranslation();
-  const draftScope: CustomerCreateDraftScope = familyContext
-    ? { kind: "family", sourceCustomerId: familyContext.sourceCustomerId }
-    : { kind: "standard" };
+  const draftScope = useMemo(
+    () =>
+      resolveCustomerCreateDraftScope({
+        familySourceCustomerId: familyContext?.sourceCustomerId,
+      }),
+    [familyContext?.sourceCustomerId],
+  );
+  const draftScopeIdentity = useMemo(
+    () => getCustomerCreateDraftScopeIdentity(draftScope),
+    [draftScope],
+  );
   const createEndpoint = familyContext
     ? `/api/customers/${familyContext.sourceCustomerId}/family/create-new`
     : "/api/customers";
@@ -146,7 +156,6 @@ export function NewCustomerForm({
     useState(false);
   const draftAutosaveRef = useRef(
     createCustomerCreateDraftAutosave({
-      draftScope,
       onPersisted: (result) => {
         if (result.ok) {
           setDraftSavedAt(result.value ? result.value.savedAt : null);
@@ -191,15 +200,15 @@ export function NewCustomerForm({
       });
     }
     autosave.setReady(true);
-  }, [userId, draftScope]);
+  }, [userId, draftScopeIdentity]);
 
   useEffect(() => {
     const autosave = draftAutosaveRef.current;
-    autosave.schedule(userId, form, submitting);
+    autosave.schedule(userId, form, submitting, draftScope);
     return () => {
       autosave.cancelPending();
     };
-  }, [form, userId, submitting]);
+  }, [form, userId, submitting, draftScopeIdentity, draftScope]);
 
   useEffect(() => {
     const autosave = draftAutosaveRef.current;
@@ -279,7 +288,7 @@ export function NewCustomerForm({
   }
 
   function discardDraft() {
-    draftAutosaveRef.current.discard(userId);
+    draftAutosaveRef.current.discard(userId, draftScope);
     setForm(toFormState(createEmptyCustomerCreateFormData()));
     setDraftSavedAt(null);
     setPendingDraft(null);
@@ -288,7 +297,7 @@ export function NewCustomerForm({
 
   /** Accepted by the server: never write drafts again on this instance. */
   function finalizeAcceptedSubmission(): void {
-    draftAutosaveRef.current.finalizeAccepted(userId);
+    draftAutosaveRef.current.finalizeAccepted(userId, draftScope);
     setDraftSavedAt(null);
   }
 

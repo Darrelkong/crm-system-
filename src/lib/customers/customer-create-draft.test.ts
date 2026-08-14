@@ -4,13 +4,16 @@ import {
   CUSTOMER_CREATE_DRAFT_TTL_MS,
   CUSTOMER_CREATE_DRAFT_VERSION,
   buildCustomerCreateDraftPayload,
+  clearAllCustomerCreateDraftsForUser,
   clearCustomerCreateDraft,
   clearCustomerCreateDraftForLastUser,
   createEmptyCustomerCreateFormData,
   formatDraftSavedClock,
+  getCustomerCreateDraftScopeIdentity,
   isCustomerCreateDraftMeaningful,
   loadCustomerCreateDraft,
   parseCustomerCreateDraftPayload,
+  resolveCustomerCreateDraftScope,
   saveCustomerCreateDraft,
 } from "./customer-create-draft";
 
@@ -222,6 +225,139 @@ describe("customer-create-draft", () => {
     );
     const parsed = parseCustomerCreateDraftPayload(payload, "user-b", 1_000);
     assert.equal(parsed.ok, false);
+  });
+
+  it("clearCustomerCreateDraftForLastUser clears standard and family drafts for last saver only", () => {
+    saveCustomerCreateDraft(
+      "user-a",
+      { ...createEmptyCustomerCreateFormData(), customerName: "A standard" },
+      1_000,
+    );
+    saveCustomerCreateDraft(
+      "user-a",
+      { ...createEmptyCustomerCreateFormData(), customerName: "A family 1" },
+      1_100,
+      { kind: "family", sourceCustomerId: "source-1" },
+    );
+    saveCustomerCreateDraft(
+      "user-a",
+      { ...createEmptyCustomerCreateFormData(), customerName: "A family 2" },
+      1_200,
+      { kind: "family", sourceCustomerId: "source-2" },
+    );
+    saveCustomerCreateDraft(
+      "user-b",
+      { ...createEmptyCustomerCreateFormData(), customerName: "B standard" },
+      2_000,
+    );
+    saveCustomerCreateDraft(
+      "user-b",
+      { ...createEmptyCustomerCreateFormData(), customerName: "B family" },
+      2_100,
+      { kind: "family", sourceCustomerId: "source-b" },
+    );
+    localStorage.setItem("unrelated:key", "keep");
+
+    clearCustomerCreateDraftForLastUser();
+
+    assert.equal(loadCustomerCreateDraft("user-b", 2_200).ok, false);
+    assert.equal(
+      loadCustomerCreateDraft("user-b", 2_200, {
+        kind: "family",
+        sourceCustomerId: "source-b",
+      }).ok,
+      false,
+    );
+    const aStandard = loadCustomerCreateDraft("user-a", 2_200);
+    assert.equal(aStandard.ok && aStandard.value.form.customerName, "A standard");
+    assert.equal(
+      loadCustomerCreateDraft("user-a", 2_200, {
+        kind: "family",
+        sourceCustomerId: "source-1",
+      }).ok,
+      true,
+    );
+    assert.equal(
+      loadCustomerCreateDraft("user-a", 2_200, {
+        kind: "family",
+        sourceCustomerId: "source-2",
+      }).ok,
+      true,
+    );
+    assert.equal(localStorage.getItem("unrelated:key"), "keep");
+  });
+
+  it("isolates standard and family drafts in all directions", () => {
+    const standard = { ...createEmptyCustomerCreateFormData(), customerName: "Standard" };
+    const familyA = { ...createEmptyCustomerCreateFormData(), customerName: "Family A" };
+    const familyB = { ...createEmptyCustomerCreateFormData(), customerName: "Family B" };
+
+    saveCustomerCreateDraft("user-a", standard, 1_000);
+    saveCustomerCreateDraft("user-a", familyA, 1_100, {
+      kind: "family",
+      sourceCustomerId: "source-a",
+    });
+    saveCustomerCreateDraft("user-a", familyB, 1_200, {
+      kind: "family",
+      sourceCustomerId: "source-b",
+    });
+
+    assert.equal(loadCustomerCreateDraft("user-a", 1_300).ok, true);
+    const loadedStandard = loadCustomerCreateDraft("user-a", 1_300);
+    assert.equal(loadedStandard.ok && loadedStandard.value.form.customerName, "Standard");
+
+    const loadedFamilyA = loadCustomerCreateDraft("user-a", 1_300, {
+      kind: "family",
+      sourceCustomerId: "source-a",
+    });
+    assert.equal(loadedFamilyA.ok && loadedFamilyA.value.form.customerName, "Family A");
+
+    const loadedFamilyB = loadCustomerCreateDraft("user-a", 1_300, {
+      kind: "family",
+      sourceCustomerId: "source-b",
+    });
+    assert.equal(loadedFamilyB.ok && loadedFamilyB.value.form.customerName, "Family B");
+  });
+
+  it("clearAllCustomerCreateDraftsForUser removes every scoped draft for one user", () => {
+    saveCustomerCreateDraft(
+      "user-a",
+      { ...createEmptyCustomerCreateFormData(), customerName: "A" },
+      1_000,
+    );
+    saveCustomerCreateDraft(
+      "user-a",
+      { ...createEmptyCustomerCreateFormData(), customerName: "A family" },
+      1_100,
+      { kind: "family", sourceCustomerId: "source-a" },
+    );
+    clearAllCustomerCreateDraftsForUser("user-a");
+    assert.equal(loadCustomerCreateDraft("user-a", 1_200).ok, false);
+    assert.equal(
+      loadCustomerCreateDraft("user-a", 1_200, {
+        kind: "family",
+        sourceCustomerId: "source-a",
+      }).ok,
+      false,
+    );
+  });
+
+  it("draft scope identity is stable for equivalent logical scopes", () => {
+    const standard = resolveCustomerCreateDraftScope({});
+    const family = resolveCustomerCreateDraftScope({
+      familySourceCustomerId: "source-1",
+    });
+    assert.equal(getCustomerCreateDraftScopeIdentity(standard), "standard");
+    assert.equal(
+      getCustomerCreateDraftScopeIdentity(family),
+      "family:source-1",
+    );
+    assert.equal(
+      getCustomerCreateDraftScopeIdentity(
+        resolveCustomerCreateDraftScope({ familySourceCustomerId: "source-1" }),
+      ),
+      getCustomerCreateDraftScopeIdentity(family),
+    );
   });
 
   it("clearCustomerCreateDraftForLastUser clears only last saver", () => {

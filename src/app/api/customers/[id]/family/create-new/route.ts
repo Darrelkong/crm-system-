@@ -56,6 +56,16 @@ export async function POST(request: Request, context: RouteContext) {
           );
         }
 
+        if (outcome.kind === "internal_error") {
+          return Response.json(
+            {
+              error: "服务器错误，请稍后重试",
+              errorCode: "INTERNAL_ERROR",
+            },
+            { status: 500 },
+          );
+        }
+
         if (outcome.kind === "duplicate") {
           return Response.json(
             {

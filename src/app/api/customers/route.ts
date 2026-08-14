@@ -163,6 +163,16 @@ export async function POST(request: Request) {
       db,
     });
 
+    if (prepared.kind === "internal_error") {
+      return Response.json(
+        {
+          error: "服务器错误，请稍后重试",
+          errorCode: "INTERNAL_ERROR",
+        },
+        { status: 500 },
+      );
+    }
+
     if (prepared.kind === "validation") {
       await writeAuditLog({
         userId: user.id,
@@ -171,19 +181,6 @@ export async function POST(request: Request) {
         userAgent,
         metadata: prepared.auditMetadata ?? { fieldErrors: prepared.fieldErrors },
       });
-      if (
-        prepared.auditMetadata?.errorCode === "INTERNAL_ERROR" ||
-        (prepared.fieldErrors.length === 0 &&
-          prepared.auditMetadata?.errorCode)
-      ) {
-        return Response.json(
-          {
-            error: "服务器错误，请稍后重试",
-            errorCode: "INTERNAL_ERROR",
-          },
-          { status: 500 },
-        );
-      }
       return Response.json(
         { error: "输入校验失败", errorCode: "VALIDATION_FAILED", fieldErrors: prepared.fieldErrors },
         { status: 400 },

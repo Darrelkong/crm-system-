@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../../drizzle/schema";
@@ -38,6 +38,7 @@ const B5_TEST_PHONES = [
   "13888776004",
   "13888776005",
   "13888776006",
+  "13888776007",
 ];
 const B5_TEST_NAMES = ["王小明", "王建国", "赵六", "孙七", "周八"];
 
@@ -147,6 +148,35 @@ async function countRows(
   ]);
   return {
     customers: customers.length,
+    households: households.length,
+    members: members.length,
+    relationships: relationships.length,
+  };
+}
+
+async function countAtomicProofTables(db: TestDb) {
+  const [
+    customers,
+    assignees,
+    identifiers,
+    households,
+    members,
+    relationships,
+  ] = await Promise.all([
+    db.select().from(schema.customers),
+    db.select().from(schema.customerAssignees),
+    db.select().from(schema.customerContactIdentifiers),
+    db.select().from(schema.customerHouseholds),
+    db
+      .select()
+      .from(schema.customerHouseholdMembers)
+      .where(isNull(schema.customerHouseholdMembers.leftAt)),
+    db.select().from(schema.customerHouseholdRelationships),
+  ]);
+  return {
+    customers: customers.length,
+    assignees: assignees.length,
+    identifiers: identifiers.length,
     households: households.length,
     members: members.length,
     relationships: relationships.length,
@@ -532,11 +562,12 @@ describe("family link B5 create new customer", () => {
     assert.ok(relationships.length >= 1);
   });
 
-  it("rolls back customer writes when family batch append fails", async () => {
+  it("rolls back all customer and family writes when batch violates PK", async () => {
     const source = (
       await db.select().from(schema.customers).where(eq(schema.customers.id, ROLLBACK_SOURCE)).limit(1)
     )[0]!;
-    const beforeCount = (
+    const before = await countAtomicProofTables(db);
+    const beforePhoneRows = (
       await db.select().from(schema.customers).where(eq(schema.customers.phone, "13888776004"))
     ).length;
 
@@ -553,26 +584,104 @@ describe("family link B5 create new customer", () => {
             email: "b5_004@example.com",
           }),
           allowedSourceKeys,
-          testAppendStatements: [
-            db.run(sql`INSERT INTO not_a_real_table DEFAULT VALUES`),
+          testAppendStatements: ({ db: batchDb, targetId }) => [
+            batchDb.insert(schema.customers).values({
+              id: targetId,
+              customerCode: "B5_DUP_ROLLBACK",
+              customerName: "B5 Dup Rollback",
+              customerType: "individual",
+              phoneCountryCode: "+86",
+              source: "referral",
+              salesStage: "new_lead",
+              ownerId: SEED_IDS.staffA,
+              status: "active",
+              createdBy: SEED_IDS.staffA,
+              updatedBy: SEED_IDS.staffA,
+              createdAt: NOW,
+              updatedAt: NOW,
+            }),
           ],
         }),
     );
 
-    const afterCount = (
+    const after = await countAtomicProofTables(db);
+    assert.deepEqual(after, before);
+    const afterPhoneRows = (
       await db.select().from(schema.customers).where(eq(schema.customers.phone, "13888776004"))
     ).length;
-    assert.equal(afterCount, beforeCount);
+    assert.equal(afterPhoneRows, beforePhoneRows);
+  });
 
-    const orphanAssignees = await db
+  it("allows only one concurrent create for identical contact identity", async () => {
+    const source = (
+      await db.select().from(schema.customers).where(eq(schema.customers.id, ROLLBACK_SOURCE)).limit(1)
+    )[0]!;
+    const body = createBody({
+      customerName: "郑十一",
+      phone: "13888776007",
+      wechatId: "b5_wx_007",
+      email: "b5_007@example.com",
+    });
+
+    const [first, second] = await Promise.all([
+      createFamilyMemberCustomer({
+        db,
+        source,
+        actor: staffA,
+        body,
+        allowedSourceKeys,
+      }),
+      createFamilyMemberCustomer({
+        db,
+        source,
+        actor: staffA,
+        body,
+        allowedSourceKeys,
+      }),
+    ]);
+
+    const outcomes = [first, second];
+    const successes = outcomes.filter((outcome) => "ok" in outcome && outcome.ok);
+    const duplicates = outcomes.filter(
+      (outcome) => "kind" in outcome && outcome.kind === "duplicate",
+    );
+    assert.equal(successes.length, 1);
+    assert.equal(duplicates.length, 1);
+
+    const created = await db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.phone, "13888776007"));
+    assert.equal(created.length, 1);
+
+    const assignees = await db
       .select()
       .from(schema.customerAssignees)
-      .innerJoin(
-        schema.customers,
-        eq(schema.customerAssignees.customerId, schema.customers.id),
-      )
-      .where(eq(schema.customers.phone, "13888776004"));
-    assert.equal(orphanAssignees.length, 0);
+      .where(eq(schema.customerAssignees.customerId, created[0]!.id));
+    assert.equal(assignees.length, 1);
+
+    const identifiers = await db
+      .select()
+      .from(schema.customerContactIdentifiers)
+      .where(eq(schema.customerContactIdentifiers.customerId, created[0]!.id));
+    assert.ok(identifiers.length >= 1);
+
+    const members = await db
+      .select()
+      .from(schema.customerHouseholdMembers)
+      .where(eq(schema.customerHouseholdMembers.customerId, created[0]!.id));
+    assert.equal(members.length, 1);
+
+    const relationships = await db
+      .select()
+      .from(schema.customerHouseholdRelationships)
+      .where(
+        and(
+          eq(schema.customerHouseholdRelationships.fromCustomerId, ROLLBACK_SOURCE),
+          eq(schema.customerHouseholdRelationships.toCustomerId, created[0]!.id),
+        ),
+      );
+    assert.equal(relationships.length, 1);
   });
 });
 
@@ -600,6 +709,9 @@ describe("B5 shared customer create service regression", () => {
     const route = readFileSync("src/app/api/customers/route.ts", "utf8");
     assert.match(route, /prepareCustomerCreation/);
     assert.match(route, /executePreparedCustomerCreation/);
+    const service = readFileSync("src/lib/customers/create-customer-service.ts", "utf8");
+    assert.match(service, /finalizePreparedCustomerCreation/);
+    assert.match(service, /kind: "internal_error"/);
   });
 
   it("standard POST /api/customers create still succeeds via shared service", async () => {

@@ -28,17 +28,21 @@ export type DraftAutosaveController = {
     userId: string,
     form: CustomerCreateDraftFormData,
     submitting: boolean,
+    scope?: CustomerCreateDraftScope,
   ) => void;
   cancelPending: () => void;
   /**
    * Permanent for this controller instance: block writes, cancel timer, clear storage.
    * Idempotent.
    */
-  finalizeAccepted: (userId: string) => void;
+  finalizeAccepted: (
+    userId: string,
+    scope?: CustomerCreateDraftScope,
+  ) => void;
   /**
    * Discard draft but keep autosave enabled for later edits.
    */
-  discard: (userId: string) => void;
+  discard: (userId: string, scope?: CustomerCreateDraftScope) => void;
   dispose: () => void;
 };
 
@@ -47,7 +51,6 @@ export type CreateDraftAutosaveOptions = {
   setTimeoutFn?: typeof setTimeout;
   clearTimeoutFn?: typeof clearTimeout;
   onPersisted?: (result: DraftAutosavePersistResult) => void;
-  draftScope?: CustomerCreateDraftScope;
 };
 
 export function createCustomerCreateDraftAutosave(
@@ -57,7 +60,6 @@ export function createCustomerCreateDraftAutosave(
   const setTimeoutFn = options.setTimeoutFn ?? setTimeout;
   const clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
   const onPersisted = options.onPersisted;
-  const draftScope = options.draftScope ?? { kind: "standard" as const };
 
   let ready = false;
   let writeBlocked = false;
@@ -78,16 +80,24 @@ export function createCustomerCreateDraftAutosave(
     writeBlocked = false;
   }
 
+  function resolveScope(
+    scope?: CustomerCreateDraftScope,
+  ): CustomerCreateDraftScope {
+    return scope ?? { kind: "standard" };
+  }
+
   function schedule(
     userId: string,
     form: CustomerCreateDraftFormData,
     submitting: boolean,
+    scope?: CustomerCreateDraftScope,
   ): void {
     if (writeBlocked || !ready || submitting) {
       return;
     }
 
     cancelPending();
+    const resolvedScope = resolveScope(scope);
 
     timer = setTimeoutFn(() => {
       timer = null;
@@ -95,20 +105,28 @@ export function createCustomerCreateDraftAutosave(
       if (writeBlocked || !ready) {
         return;
       }
-      const result = saveCustomerCreateDraft(userId, form, Date.now(), draftScope);
+      const result = saveCustomerCreateDraft(
+        userId,
+        form,
+        Date.now(),
+        resolvedScope,
+      );
       onPersisted?.(result);
     }, debounceMs);
   }
 
-  function finalizeAccepted(userId: string): void {
+  function finalizeAccepted(
+    userId: string,
+    scope?: CustomerCreateDraftScope,
+  ): void {
     writeBlocked = true;
     cancelPending();
-    clearCustomerCreateDraft(userId, draftScope);
+    clearCustomerCreateDraft(userId, resolveScope(scope));
   }
 
-  function discard(userId: string): void {
+  function discard(userId: string, scope?: CustomerCreateDraftScope): void {
     cancelPending();
-    clearCustomerCreateDraft(userId, draftScope);
+    clearCustomerCreateDraft(userId, resolveScope(scope));
     writeBlocked = false;
     ready = true;
   }

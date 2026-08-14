@@ -1,4 +1,5 @@
 import type { User } from "../../../drizzle/schema/users";
+import { eq } from "drizzle-orm";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getDb, schema, type Database } from "@/lib/db";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
@@ -58,6 +59,7 @@ export type PrepareCustomerCreationResult =
       fieldErrors: ValidationFieldError[];
       auditMetadata?: Record<string, unknown>;
     }
+  | { kind: "internal_error" }
   | { kind: "duplicate"; duplicates: Awaited<ReturnType<typeof checkCustomerDuplicates>> }
   | {
       kind: "name_duplicate";
@@ -96,6 +98,18 @@ function resolveOwnerId(
   return user.role === "admin"
     ? (typeof body.ownerId === "string" ? body.ownerId : user.id)
     : user.id;
+}
+
+async function loadCreatedCustomer(db: Database | undefined, id: string) {
+  if (db) {
+    const rows = await db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+  return getCustomerById(id);
 }
 
 export async function prepareCustomerCreation(input: {
@@ -177,11 +191,7 @@ export async function prepareCustomerCreation(input: {
           input.actor,
         );
       } catch {
-        return {
-          kind: "validation",
-          fieldErrors: [],
-          auditMetadata: { errorCode: "INTERNAL_ERROR" },
-        };
+        return { kind: "internal_error" };
       }
       if (nameDuplicates.length > 0) {
         const confirm = parseConfirmDuplicateName(input.body.confirmDuplicateName);
@@ -352,38 +362,29 @@ export async function prepareCustomerCreation(input: {
   };
 }
 
-export async function executePreparedCustomerCreation(input: {
-  db: Database;
+export async function finalizePreparedCustomerCreation(input: {
+  db?: Database;
   actor: User;
-  statements: unknown[];
   meta: CustomerCreatePreparedMeta;
   audit?: CustomerCreateAuditContext;
+  createdMetadata?: Record<string, unknown>;
+  /** B5 writes customer.created before on-hold pending audit; normal create does not. */
+  auditCreatedOnOnHold?: boolean;
 }): Promise<ExecuteCustomerCreationResult> {
-  const { db, actor, statements, meta, audit } = input;
-
-  try {
-    await db.batch(
-      statements as unknown as Parameters<Database["batch"]>[0],
-    );
-  } catch (batchError) {
-    const mapped = await resolveIdentifierConstraintAsDuplicates(
-      batchError,
-      {
-        phoneCountryCode: meta.payload.phoneCountryCode,
-        phone: meta.payload.phone,
-        wechatId: meta.payload.wechatId,
-        email: meta.payload.email,
-      },
-      actor,
-    );
-    if (mapped) {
-      throw duplicateCustomerConflictResponse(mapped.duplicates);
-    }
-    throw batchError;
-  }
+  const {
+    db,
+    actor,
+    meta,
+    audit,
+    createdMetadata,
+    auditCreatedOnOnHold = false,
+  } = input;
+  const writeLog = db
+    ? (entry: Parameters<typeof writeAuditLog>[0]) => writeAuditLog(entry, db)
+    : writeAuditLog;
 
   if (meta.pendingOnHoldApproval) {
-    const customer = await getCustomerById(meta.id);
+    const customer = await loadCreatedCustomer(db, meta.id);
     if (!customer) {
       throw new Error("CUSTOMER_CREATE_MISSING_AFTER_BATCH");
     }
@@ -416,7 +417,29 @@ export async function executePreparedCustomerCreation(input: {
       },
     );
 
-    await writeAuditLog({
+    if (auditCreatedOnOnHold) {
+      await writeLog({
+        userId: actor.id,
+        action: "customer.created",
+        entityType: "customer",
+        entityId: meta.id,
+        ipAddress: audit?.ipAddress ?? undefined,
+        userAgent: audit?.userAgent ?? undefined,
+        metadata: {
+          customerName: meta.createInput.customerName,
+          customerCode: meta.customerCode,
+          source: meta.createInput.source,
+          ownerId: meta.ownerId,
+          nameStatus: meta.nameStatus,
+          ...(createdMetadata ?? {}),
+          ...(meta.duplicateNameWarningConfirmed
+            ? { duplicateNameWarningConfirmed: true }
+            : {}),
+        },
+      });
+    }
+
+    await writeLog({
       userId: actor.id,
       action: "customer.create_on_hold.pending",
       entityType: "customer",
@@ -438,7 +461,7 @@ export async function executePreparedCustomerCreation(input: {
     return { kind: "pending_approval", id: meta.id, approvalId };
   }
 
-  await writeAuditLog({
+  await writeLog({
     userId: actor.id,
     action: "customer.created",
     entityType: "customer",
@@ -451,6 +474,7 @@ export async function executePreparedCustomerCreation(input: {
       source: meta.createInput.source,
       ownerId: meta.ownerId,
       nameStatus: meta.nameStatus,
+      ...(createdMetadata ?? {}),
       ...(meta.duplicateNameWarningConfirmed
         ? { duplicateNameWarningConfirmed: true }
         : {}),
@@ -458,6 +482,44 @@ export async function executePreparedCustomerCreation(input: {
   });
 
   return { kind: "created", id: meta.id };
+}
+
+export async function executePreparedCustomerCreation(input: {
+  db: Database;
+  actor: User;
+  statements: unknown[];
+  meta: CustomerCreatePreparedMeta;
+  audit?: CustomerCreateAuditContext;
+}): Promise<ExecuteCustomerCreationResult> {
+  const { db, actor, statements, meta, audit } = input;
+
+  try {
+    await db.batch(
+      statements as unknown as Parameters<Database["batch"]>[0],
+    );
+  } catch (batchError) {
+    const mapped = await resolveIdentifierConstraintAsDuplicates(
+      batchError,
+      {
+        phoneCountryCode: meta.payload.phoneCountryCode,
+        phone: meta.payload.phone,
+        wechatId: meta.payload.wechatId,
+        email: meta.payload.email,
+      },
+      actor,
+    );
+    if (mapped) {
+      throw duplicateCustomerConflictResponse(mapped.duplicates);
+    }
+    throw batchError;
+  }
+
+  return finalizePreparedCustomerCreation({
+    db,
+    actor,
+    meta,
+    audit,
+  });
 }
 
 export { ApprovalError, duplicateCustomerConflictResponse };

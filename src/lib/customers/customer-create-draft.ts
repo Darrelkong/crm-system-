@@ -51,6 +51,24 @@ export type CustomerCreateDraftScope =
   | { kind: "standard" }
   | { kind: "family"; sourceCustomerId: string };
 
+/** Stable string identity for React effect dependencies and scope comparisons. */
+export function getCustomerCreateDraftScopeIdentity(
+  scope: CustomerCreateDraftScope,
+): string {
+  return scope.kind === "family"
+    ? `family:${scope.sourceCustomerId}`
+    : "standard";
+}
+
+export function resolveCustomerCreateDraftScope(input: {
+  familySourceCustomerId?: string;
+}): CustomerCreateDraftScope {
+  if (input.familySourceCustomerId) {
+    return { kind: "family", sourceCustomerId: input.familySourceCustomerId };
+  }
+  return { kind: "standard" };
+}
+
 function draftKey(
   userId: string,
   scope: CustomerCreateDraftScope = { kind: "standard" },
@@ -293,8 +311,55 @@ export function clearCustomerCreateDraft(
   }
 }
 
+/** Lists standard + family draft storage keys for one CRM user. */
+export function listCustomerCreateDraftKeysForUser(userId: string): string[] {
+  const keys = [`${CUSTOMER_CREATE_DRAFT_KEY_PREFIX}${userId}`];
+  if (typeof localStorage === "undefined") {
+    return keys;
+  }
+
+  const familyPrefix = `${CUSTOMER_CREATE_DRAFT_KEY_PREFIX}family:`;
+  const suffix = `:${userId}`;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith(familyPrefix) && key.endsWith(suffix)) {
+        keys.push(key);
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  return keys;
+}
+
+/** Clears standard and all family create drafts for one CRM user. */
+export function clearAllCustomerCreateDraftsForUser(userId: string): void {
+  if (typeof localStorage === "undefined") {
+    return;
+  }
+
+  for (const key of listCustomerCreateDraftKeysForUser(userId)) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }
+
+  try {
+    const last = localStorage.getItem(CUSTOMER_CREATE_DRAFT_LAST_USER_KEY);
+    if (last === userId) {
+      localStorage.removeItem(CUSTOMER_CREATE_DRAFT_LAST_USER_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 /**
- * Best-effort logout cleanup: clears the draft for the last user who saved one.
+ * Best-effort logout cleanup: clears all create drafts for the last user who saved one.
  * Does not clear other users' drafts on the same device.
  */
 export function clearCustomerCreateDraftForLastUser(): void {
@@ -305,7 +370,7 @@ export function clearCustomerCreateDraftForLastUser(): void {
   try {
     const last = localStorage.getItem(CUSTOMER_CREATE_DRAFT_LAST_USER_KEY);
     if (last) {
-      clearCustomerCreateDraft(last);
+      clearAllCustomerCreateDraftsForUser(last);
     }
   } catch {
     // ignore

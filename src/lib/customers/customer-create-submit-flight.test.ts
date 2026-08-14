@@ -45,6 +45,33 @@ describe("customer create submit single-flight", () => {
     assert.equal(flight.isInFlight(), true);
   });
 
+  it("family endpoint uses single-flight and blocks same-tick duplicate POST", async () => {
+    const flight = createCustomerCreateSubmitFlight();
+    let fetchCount = 0;
+    const endpoint = "/api/customers/source-1/family/create-new";
+    const fetchImpl: typeof fetch = async (url) => {
+      assert.equal(url, endpoint);
+      fetchCount += 1;
+      await delay(20);
+      return new Response(JSON.stringify({ ok: true, id: "family-new", familyLinked: true }), {
+        status: 201,
+      });
+    };
+
+    const body = {
+      customerName: "Family Member",
+      relationshipType: "father",
+    };
+    const [first, second] = await Promise.all([
+      postCustomerCreateOnce({ flight, body, endpoint, fetchImpl }),
+      postCustomerCreateOnce({ flight, body, endpoint, fetchImpl }),
+    ]);
+
+    assert.equal(fetchCount, 1);
+    assert.equal(first.status, "response");
+    assert.equal(second.status, "blocked");
+  });
+
   it("same-tick double postCustomerCreateOnce only fetches once", async () => {
     const flight = createCustomerCreateSubmitFlight();
     let fetchCount = 0;

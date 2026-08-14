@@ -105,6 +105,40 @@ describe("customer-create-draft-autosave race", () => {
     });
   });
 
+  it("writes family scope drafts without touching standard storage", () => {
+    const timers = createFakeTimers();
+    const autosave = createCustomerCreateDraftAutosave({
+      debounceMs: CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS,
+      setTimeoutFn: timers.setTimeoutFn as unknown as typeof setTimeout,
+      clearTimeoutFn: timers.clearTimeoutFn as unknown as typeof clearTimeout,
+    });
+    const standard = { ...meaningfulForm(), customerName: "Standard only" };
+    const family = { ...meaningfulForm(), customerName: "Family scoped" };
+
+    autosave.setReady(true);
+    autosave.schedule("user-race", family, false, {
+      kind: "family",
+      sourceCustomerId: "source-1",
+    });
+    timers.advance(CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS + 10);
+
+    assert.equal(loadCustomerCreateDraft("user-race").ok, false);
+    const loadedFamily = loadCustomerCreateDraft("user-race", Date.now(), {
+      kind: "family",
+      sourceCustomerId: "source-1",
+    });
+    assert.equal(loadedFamily.ok, true);
+    if (loadedFamily.ok) {
+      assert.equal(loadedFamily.value.form.customerName, "Family scoped");
+    }
+
+    autosave.schedule("user-race", standard, false, { kind: "standard" });
+    timers.advance(CUSTOMER_CREATE_DRAFT_DEBOUNCE_MS + 10);
+    const loadedStandard = loadCustomerCreateDraft("user-race");
+    assert.equal(loadedStandard.ok && loadedStandard.value.form.customerName, "Standard only");
+    autosave.dispose();
+  });
+
   it("does not rewrite draft after finalizeAccepted even when timers advance and submitting resumes", () => {
     const timers = createFakeTimers();
     const persisted: unknown[] = [];

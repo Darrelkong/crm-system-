@@ -83,6 +83,7 @@ export function FamilyNewCustomerClient({
       </div>
 
       <NewCustomerForm
+        key={sourceCustomerId}
         tags={tags}
         userId={userId}
         familyContext={{

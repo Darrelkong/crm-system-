@@ -2,6 +2,7 @@ import type { Customer } from "../../../../drizzle/schema/customers";
 import type { User } from "../../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
 import {
+  finalizePreparedCustomerCreation,
   prepareCustomerCreation,
   type CustomerCreateAuditContext,
   type CustomerCreatePreparedMeta,
@@ -10,7 +11,6 @@ import { FAMILY_ERROR_CODES, FamilyLinkError } from "./errors";
 import { assertCanManageCustomerFamily } from "./family-permissions";
 import {
   buildFamilyLinkStatements,
-  loadCustomerById,
   writeFamilyLinkAudit,
 } from "./link-existing";
 import {
@@ -52,7 +52,8 @@ export type FamilyCreateNewOutcome =
       kind: "name_duplicate";
       normalizedName: string;
       duplicates: unknown[];
-    };
+    }
+  | { kind: "internal_error" };
 
 function mapPlanError(plan: Awaited<ReturnType<typeof planFamilyLink>>): FamilyLinkError | null {
   switch (plan.kind) {
@@ -158,7 +159,9 @@ export async function createFamilyMemberCustomer(input: {
   body: FamilyCreateNewBody;
   allowedSourceKeys: string[];
   audit?: CustomerCreateAuditContext;
-  testAppendStatements?: unknown[];
+  testAppendStatements?:
+    | unknown[]
+    | ((ctx: { db: Database; targetId: string }) => unknown[]);
 }): Promise<FamilyCreateNewOutcome> {
   assertCanManageCustomerFamily(input.actor, input.source);
   assertIndividualCustomerType(input.body);
@@ -187,6 +190,9 @@ export async function createFamilyMemberCustomer(input: {
 
   if (prepared.kind === "validation") {
     return { kind: "validation", fieldErrors: prepared.fieldErrors };
+  }
+  if (prepared.kind === "internal_error") {
+    return { kind: "internal_error" };
   }
   if (prepared.kind === "duplicate") {
     return { kind: "duplicate", duplicates: prepared.duplicates };
@@ -233,10 +239,15 @@ export async function createFamilyMemberCustomer(input: {
     },
   );
 
+  const appendStatements =
+    typeof input.testAppendStatements === "function"
+      ? input.testAppendStatements({ db: input.db, targetId })
+      : (input.testAppendStatements ?? []);
+
   const batchStatements = [
     ...prepared.statements,
     ...familyStatements,
-    ...(input.testAppendStatements ?? []),
+    ...appendStatements,
   ];
 
   try {
@@ -265,6 +276,15 @@ export async function createFamilyMemberCustomer(input: {
   }
 
   const target = buildTargetCustomerForAudit(prepared.meta);
+  const finalizeResult = await finalizePreparedCustomerCreation({
+    db: input.db,
+    actor: input.actor,
+    meta: prepared.meta,
+    audit: input.audit,
+    createdMetadata: { familySourceCustomerId: input.source.id },
+    auditCreatedOnOnHold: true,
+  });
+
   await writeFamilyLinkAudit(input.db, {
     source: input.source,
     target,
@@ -274,123 +294,16 @@ export async function createFamilyMemberCustomer(input: {
     actor: input.actor,
   });
 
-  if (prepared.meta.pendingOnHoldApproval) {
-    const { createApprovalRequest } = await import("@/lib/approvals/service");
-    const { buildOnHoldCreateApprovalPayload } = await import(
-      "@/lib/customers/on-hold-create-pending"
-    );
-    const { writeAuditLog } = await import("@/lib/audit/audit-log");
-    const customer = await loadCustomerById(input.db, targetId);
-    if (!customer) {
-      throw new Error("CUSTOMER_CREATE_MISSING_AFTER_BATCH");
-    }
-
-    const { id: approvalId } = await createApprovalRequest(
-      customer,
-      input.actor,
-      {
-        requestType: "create_on_hold_customer",
-        reason: prepared.meta.validatedOnHoldReason!,
-        payload: buildOnHoldCreateApprovalPayload({
-          requestedSalesStage: prepared.meta.requestedSalesStage,
-          onHoldReason: prepared.meta.validatedOnHoldReason!,
-          customerName: prepared.meta.createInput.customerName!,
-          customerType: prepared.meta.createInput.customerType!,
-          phoneCountryCode: prepared.meta.createInput.phoneCountryCode!,
-          phone: prepared.meta.createInput.phone,
-          wechatId: prepared.meta.createInput.wechatId,
-          email: prepared.meta.createInput.email,
-          source: prepared.meta.createInput.source!,
-          sourceRemark: prepared.meta.createInput.sourceRemark,
-          requestedProjectCode: prepared.meta.payload.requestedProjectCode,
-          requestedProjectName: prepared.meta.payload.requestedProjectName,
-          notes: prepared.meta.createInput.notes,
-        }),
-      },
-      {
-        ipAddress: input.audit?.ipAddress ?? undefined,
-        userAgent: input.audit?.userAgent ?? undefined,
-      },
-    );
-
-    await writeAuditLog(
-      {
-        userId: input.actor.id,
-        action: "customer.created",
-        entityType: "customer",
-        entityId: targetId,
-        ipAddress: input.audit?.ipAddress ?? undefined,
-        userAgent: input.audit?.userAgent ?? undefined,
-        metadata: {
-          customerName: prepared.meta.createInput.customerName,
-          customerCode: prepared.meta.customerCode,
-          source: prepared.meta.createInput.source,
-          ownerId: prepared.meta.ownerId,
-          nameStatus: prepared.meta.nameStatus,
-          familySourceCustomerId: input.source.id,
-          ...(prepared.meta.duplicateNameWarningConfirmed
-            ? { duplicateNameWarningConfirmed: true }
-            : {}),
-        },
-      },
-      input.db,
-    );
-
-    await writeAuditLog(
-      {
-        userId: input.actor.id,
-        action: "customer.create_on_hold.pending",
-        entityType: "customer",
-        entityId: targetId,
-        ipAddress: input.audit?.ipAddress ?? undefined,
-        userAgent: input.audit?.userAgent ?? undefined,
-        metadata: {
-          customerName: prepared.meta.createInput.customerName,
-          customerCode: prepared.meta.customerCode,
-          approvalId,
-          requestedSalesStage: prepared.meta.requestedSalesStage,
-          nameStatus: prepared.meta.nameStatus,
-          ...(prepared.meta.duplicateNameWarningConfirmed
-            ? { duplicateNameWarningConfirmed: true }
-            : {}),
-        },
-      },
-      input.db,
-    );
-
+  if (finalizeResult.kind === "pending_approval") {
     return {
       ok: true,
-      id: targetId,
+      id: finalizeResult.id,
       familyLinked: true,
       pendingApproval: true,
-      approvalId,
+      approvalId: finalizeResult.approvalId,
       message: "ON_HOLD_APPROVAL_REQUIRED",
     };
   }
 
-  const { writeAuditLog } = await import("@/lib/audit/audit-log");
-  await writeAuditLog(
-    {
-      userId: input.actor.id,
-      action: "customer.created",
-      entityType: "customer",
-      entityId: targetId,
-      ipAddress: input.audit?.ipAddress ?? undefined,
-      userAgent: input.audit?.userAgent ?? undefined,
-      metadata: {
-        customerName: prepared.meta.createInput.customerName,
-        customerCode: prepared.meta.customerCode,
-        source: prepared.meta.createInput.source,
-        ownerId: prepared.meta.ownerId,
-        nameStatus: prepared.meta.nameStatus,
-        familySourceCustomerId: input.source.id,
-        ...(prepared.meta.duplicateNameWarningConfirmed
-          ? { duplicateNameWarningConfirmed: true }
-          : {}),
-      },
-    },
-    input.db,
-  );
-
-  return { ok: true, id: targetId, familyLinked: true };
+  return { ok: true, id: finalizeResult.id, familyLinked: true };
 }
