@@ -65,17 +65,34 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   );
 
   const db = getDb();
+  const isStaff = user.role === "staff";
   const bootstrapStart = perfNow();
-  const [customerTimed, pendingFlagsTimed, assigneesTimed] = await Promise.all([
-    measureAsync(() => getCustomerById(id)),
-    measureAsync(() => getCustomerPendingApprovalFlags(db, id)),
-    measureAsync(() => listCustomerAssignees(db, id)),
-  ]);
+  let customerTimed;
+  let pendingFlagsTimed;
+  let assigneesTimed: {
+    result: Awaited<ReturnType<typeof listCustomerAssignees>> | undefined;
+    durationMs: number;
+  };
+
+  if (isStaff) {
+    [customerTimed, pendingFlagsTimed, assigneesTimed] = await Promise.all([
+      measureAsync(() => getCustomerById(id)),
+      measureAsync(() => getCustomerPendingApprovalFlags(db, id)),
+      measureAsync(() => listCustomerAssignees(db, id)),
+    ]);
+  } else {
+    [customerTimed, pendingFlagsTimed] = await Promise.all([
+      measureAsync(() => getCustomerById(id)),
+      measureAsync(() => getCustomerPendingApprovalFlags(db, id)),
+    ]);
+    assigneesTimed = { result: undefined, durationMs: 0 };
+  }
+
   const bootstrapMs = perfNow() - bootstrapStart;
   const customer = customerTimed.result;
   const pendingFlags = pendingFlagsTimed.result;
   const pendingApprovalMs = pendingFlagsTimed.durationMs;
-  const preloadedAssignees = assigneesTimed.result;
+  const preloadedAssignees = isStaff ? assigneesTimed.result : undefined;
 
   if (!customer) {
     return (
@@ -108,12 +125,10 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     );
   }
 
-  const accessOptions =
-    user.role === "staff"
-      ? resolveCustomerAccessOptionsFromAssignees(user, preloadedAssignees)
-      : {};
-  const accessResolutionMs =
-    user.role === "staff" ? assigneesTimed.durationMs : 0;
+  const accessOptions = isStaff
+    ? resolveCustomerAccessOptionsFromAssignees(user, preloadedAssignees!)
+    : {};
+  const accessResolutionMs = isStaff ? assigneesTimed.durationMs : 0;
 
   const secondaryStart = perfNow();
 
@@ -152,12 +167,17 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   );
   const confirmNamePromise = measureAsync(() =>
     canConfirmPendingCustomerName(db, user, customer, {
-      preloadedAssignees,
+      preloadedAssignees: isStaff ? preloadedAssignees : undefined,
     }),
   );
-  const displayNamesPromise = measureAsync(() =>
-    resolveCustomerDetailDisplayNames(db, customer, preloadedAssignees),
-  );
+  const displayNamesPromise = isStaff
+    ? measureAsync(() =>
+        resolveCustomerDetailDisplayNames(db, customer, preloadedAssignees!),
+      )
+    : measureAsync(async () => {
+        const assignees = await listCustomerAssignees(db, id);
+        return resolveCustomerDetailDisplayNames(db, customer, assignees);
+      });
 
   const timelinePromise = (async () => {
     const followUpChain = await followUpsChainPromise;

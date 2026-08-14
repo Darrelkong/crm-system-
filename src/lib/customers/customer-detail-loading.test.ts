@@ -62,11 +62,40 @@ describe("customer detail Phase 2B5 loading boundary", () => {
     assert.match(source, /LoadingSpinner/);
     assert.match(source, /max-w-6xl/);
   });
+});
 
-  it("preserves customer list navigation hrefs without prefetch changes", () => {
+describe("customer detail F3 prefetch hardening", () => {
+  it("disables viewport prefetch on desktop Customer Detail links", () => {
     const source = readCustomersListClientSource();
-    assert.match(source, /href=\{`\/customers\/\$\{c\.id\}`\}/g);
-    assert.doesNotMatch(source, /prefetch=/);
+    const desktopBlock = source.slice(
+      source.indexOf("function CustomerNameLink"),
+      source.indexOf("function ProjectNameCell"),
+    );
+    assert.match(desktopBlock, /href=\{`\/customers\/\$\{c\.id\}`\}/);
+    assert.match(desktopBlock, /prefetch=\{false\}/);
+  });
+
+  it("disables viewport prefetch on mobile Customer Detail card links", () => {
+    const source = readCustomersListClientSource();
+    const mobileBlock = source.slice(
+      source.indexOf("function CustomerMobileCard"),
+      source.indexOf("return (\n    <div>"),
+    );
+    assert.match(mobileBlock, /href=\{`\/customers\/\$\{c\.id\}`\}/);
+    assert.match(mobileBlock, /prefetch=\{false\}/);
+  });
+
+  it("does not add manual Customer Detail prefetch loops", () => {
+    const source = readCustomersListClientSource();
     assert.doesNotMatch(source, /router\.prefetch/);
+    assert.doesNotMatch(source, /IntersectionObserver/);
+    assert.doesNotMatch(source, /onPointerDown=.*prefetch/);
+    assert.doesNotMatch(source, /onMouseEnter=.*prefetch/);
+  });
+
+  it("keeps Next.js Link for Customer Detail navigation", () => {
+    const source = readCustomersListClientSource();
+    assert.match(source, /<Link/);
+    assert.doesNotMatch(source, /<a\s+href=\{`\/customers\/\$\{c\.id\}`\}/);
   });
 });

@@ -84,17 +84,36 @@ describe("customer detail F2 pending approval summary", () => {
   });
 });
 
-describe("customer detail F2 bootstrap parallelism", () => {
-  it("starts customer, pending flags, and assignees together", () => {
+describe("customer detail F3 role-aware bootstrap", () => {
+  it("staff starts customer, pending flags, and assignees together", () => {
     const source = readDetailPageSource();
     const bootstrap = source.slice(
-      source.indexOf("const bootstrapStart"),
-      source.indexOf("if (!customer)"),
+      source.indexOf("if (isStaff)"),
+      source.indexOf("const bootstrapMs"),
     );
+    assert.match(bootstrap, /if \(isStaff\)/);
     assert.match(bootstrap, /await Promise\.all\(\[/);
     assert.match(bootstrap, /getCustomerById\(id\)/);
     assert.match(bootstrap, /getCustomerPendingApprovalFlags/);
     assert.match(bootstrap, /listCustomerAssignees\(db, id\)/);
+  });
+
+  it("admin bootstrap loads customer and pending flags without assignees", () => {
+    const source = readDetailPageSource();
+    const adminBootstrap = source.slice(
+      source.indexOf("} else {"),
+      source.indexOf("const bootstrapMs"),
+    );
+    assert.match(adminBootstrap, /getCustomerById\(id\)/);
+    assert.match(adminBootstrap, /getCustomerPendingApprovalFlags/);
+    assert.doesNotMatch(adminBootstrap, /listCustomerAssignees\(db, id\)/);
+  });
+
+  it("admin loads assignees only for display names in secondary work", () => {
+    const source = readDetailPageSource();
+    assert.match(source, /displayNamesPromise = isStaff/);
+    assert.match(source, /listCustomerAssignees\(db, id\)/);
+    assert.match(source, /resolveCustomerDetailDisplayNames\(db, customer, assignees\)/);
   });
 
   it("starts family, confirm-name, and display names during scoring chain", () => {

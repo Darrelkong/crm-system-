@@ -381,6 +381,7 @@ export function CustomersListClient({
               renderName={(displayName) => (
                 <Link
                   href={`/customers/${c.id}`}
+                  prefetch={false}
                   className={ui.customerName}
                   {...navigationPerfHandlers}
                 >
@@ -456,6 +457,7 @@ export function CustomersListClient({
     return (
       <Link
         href={`/customers/${c.id}`}
+        prefetch={false}
         className="interactive-card block p-4 active:scale-[0.99]"
         {...navigationPerfHandlers}
       >

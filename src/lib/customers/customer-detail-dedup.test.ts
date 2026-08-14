@@ -36,8 +36,9 @@ function readDetailPageSource(): string {
 }
 
 describe("B7-D1 customer detail assignee dedup", () => {
-  it("page loads assignees once during bootstrap before access resolution", () => {
+  it("staff loads assignees once during bootstrap before access resolution", () => {
     const source = readDetailPageSource();
+    assert.match(source, /if \(isStaff\)/);
     assert.match(source, /listCustomerAssignees\(db, id\)/);
     assert.match(source, /resolveCustomerAccessOptionsFromAssignees/);
     assert.match(source, /preloadedAssignees/);
@@ -48,12 +49,23 @@ describe("B7-D1 customer detail assignee dedup", () => {
     assert.doesNotMatch(source, /resolveCustomerAssigneeNames\(db, id\)/);
   });
 
+  it("admin defers assignee load to display-name secondary work", () => {
+    const source = readDetailPageSource();
+    assert.match(source, /displayNamesPromise = isStaff/);
+    assert.match(
+      source,
+      /resolveCustomerDetailDisplayNames\(db, customer, assignees\)/,
+    );
+  });
+
   it("staff path uses preloaded assignees for confirm-name and display names", () => {
     const source = readDetailPageSource();
-    assert.match(source, /const preloadedAssignees = assigneesTimed\.result/);
-    assert.match(source, /preloadedAssignees,/);
+    assert.match(source, /preloadedAssignees: isStaff \? preloadedAssignees/);
     assert.match(source, /displayNamesPromise/);
-    assert.match(source, /resolveCustomerDetailDisplayNames\(db, customer, preloadedAssignees\)/);
+    assert.match(
+      source,
+      /resolveCustomerDetailDisplayNames\(db, customer, preloadedAssignees!/,
+    );
   });
 
   it("resolveCustomerAccessOptionsFromAssignees matches DB helper semantics", async () => {
