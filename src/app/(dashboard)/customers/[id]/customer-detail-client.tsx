@@ -116,6 +116,7 @@ type Props = {
   familySummary?: CustomerFamilyDetailSummary | null;
   showManageFamilyButton?: boolean;
   showManageExistingFamilyButton?: boolean;
+  pendingPriorityApproval?: boolean;
 };
 
 function DetailRow({
@@ -219,6 +220,7 @@ export function CustomerDetailClient({
   familySummary = null,
   showManageFamilyButton = false,
   showManageExistingFamilyButton = false,
+  pendingPriorityApproval = false,
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
@@ -297,7 +299,15 @@ export function CustomerDetailClient({
           {showLifecycleCompleteButton && (
             <CustomerLifecycleCompleteModal customerId={id} />
           )}
-          {showApprovalButton && <CustomerApprovalRequests customerId={id} />}
+          {showApprovalButton && (
+            <CustomerApprovalRequests
+              customerId={id}
+              isPinned={view.isPinned}
+              salesStage={view.salesStage}
+              isAdmin={isAdmin}
+              pendingPriorityApproval={pendingPriorityApproval}
+            />
+          )}
           {showReleaseButton && <ReleaseToPoolButton customerId={id} />}
           {showFollowUpButton && (
             <Link href={`/customers/${id}/follow-ups/new`}>

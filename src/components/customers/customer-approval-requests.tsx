@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
@@ -17,11 +17,31 @@ import { ui } from "@/lib/ui/classes";
 
 type StaffUser = { id: string; displayName: string; email: string };
 
-const REQUEST_TYPES: ApprovalRequestType[] = [
-  ...CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES,
-];
+type PriorityMode = "set" | "unset" | null;
 
-export function CustomerApprovalRequests({ customerId }: { customerId: string }) {
+type Props = {
+  customerId: string;
+  isPinned: boolean;
+  salesStage: string;
+  isAdmin: boolean;
+  pendingPriorityApproval: boolean;
+};
+
+function isPriorityRequestType(
+  type: ApprovalRequestType,
+): type is "set_priority_customer" | "unset_priority_customer" {
+  return (
+    type === "set_priority_customer" || type === "unset_priority_customer"
+  );
+}
+
+export function CustomerApprovalRequests({
+  customerId,
+  isPinned,
+  salesStage,
+  isAdmin,
+  pendingPriorityApproval,
+}: Props) {
   const router = useRouter();
   const { t, approvalType } = useCustomerLabels();
   const [open, setOpen] = useState(false);
@@ -36,6 +56,25 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const priorityMode: PriorityMode = useMemo(() => {
+    if (pendingPriorityApproval) return null;
+    if (!isPinned) return "set";
+    if (salesStage === "on_hold") return null;
+    return "unset";
+  }, [pendingPriorityApproval, isPinned, salesStage]);
+
+  const requestTypes = useMemo(() => {
+    const types: ApprovalRequestType[] = [...CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES];
+    if (priorityMode === "set") {
+      types.push("set_priority_customer");
+    } else if (priorityMode === "unset") {
+      types.push("unset_priority_customer");
+    }
+    return types;
+  }, [priorityMode]);
+
+  const isPriorityRequest = isPriorityRequestType(requestType);
+
   useEffect(() => {
     if (!open) return;
     void fetch("/api/users/staff")
@@ -44,9 +83,84 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
       .catch(() => setStaffUsers([]));
   }, [open]);
 
+  function priorityActionLabel(type: "set" | "unset"): string {
+    if (isAdmin) {
+      return type === "set"
+        ? t("customers.prioritySetDirect")
+        : t("customers.priorityUnsetDirect");
+    }
+    return type === "set"
+      ? t("customers.prioritySetRequest")
+      : t("customers.priorityUnsetRequest");
+  }
+
+  function priorityCurrentStateMessage(): string | null {
+    if (!isPriorityRequest) return null;
+    if (requestType === "set_priority_customer") {
+      return t("customers.priorityCurrentNotPriority");
+    }
+    return t("customers.priorityCurrentIsPriority");
+  }
+
+  function submitButtonLabel(): string {
+    if (!isPriorityRequest) {
+      return submitting ? t("customers.submitting") : t("customers.submitRequest");
+    }
+    if (isAdmin) {
+      if (submitting) return t("customers.submitting");
+      return requestType === "set_priority_customer"
+        ? t("customers.priorityConfirmSet")
+        : t("customers.priorityConfirmUnset");
+    }
+    return submitting ? t("customers.submitting") : t("customers.submitRequest");
+  }
+
   async function handleSubmit() {
     setSubmitting(true);
     setError(null);
+
+    if (isPriorityRequest) {
+      const action = requestType === "set_priority_customer" ? "set" : "unset";
+      if (!isAdmin && !reason.trim()) {
+        setError(t("customers.approvalReasonRequired"));
+        setSubmitting(false);
+        return;
+      }
+
+      try {
+        const res = await fetch(`/api/customers/${customerId}/priority`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action,
+            reason: reason.trim() || undefined,
+          }),
+        });
+        const data = (await res.json()) as {
+          error?: string;
+          errorCode?: string;
+          fieldErrors?: { field: string; message: string; code?: string }[];
+        };
+
+        if (res.ok) {
+          setOpen(false);
+          router.refresh();
+          return;
+        }
+
+        if (data.fieldErrors?.length) {
+          setError(data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "));
+          return;
+        }
+
+        setError(resolveApiError(t, data));
+      } catch {
+        setError(t("common.networkError"));
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
 
     const body: Record<string, unknown> = {
       requestType,
@@ -108,6 +222,25 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
     }
   }
 
+  const reasonRequired = !isPriorityRequest || !isAdmin;
+  const canSubmit =
+    (!reasonRequired || reason.trim().length > 0) &&
+    !submitting &&
+    !(isPriorityRequest && pendingPriorityApproval);
+
+  if (pendingPriorityApproval && !open) {
+    return (
+      <div className="flex flex-col items-end gap-1">
+        <Button type="button" variant="secondary" disabled>
+          {t("customers.submitApproval")}
+        </Button>
+        <p className="max-w-xs text-right text-xs text-[#6B7890]">
+          {t("customers.priorityApprovalPending")}
+        </p>
+      </div>
+    );
+  }
+
   if (!open) {
     return (
       <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
@@ -123,6 +256,12 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
           {t("customers.submitApprovalTitle")}
         </h3>
 
+        {isPinned && salesStage === "on_hold" && (
+          <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            {t("customers.priorityOnHoldExplanation")}
+          </p>
+        )}
+
         {error && (
           <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
         )}
@@ -135,25 +274,59 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
               value={requestType}
               onChange={(e) => setRequestType(e.target.value as ApprovalRequestType)}
             >
-              {REQUEST_TYPES.map((typeKey) => (
+              {requestTypes.map((typeKey) => (
                 <option key={typeKey} value={typeKey}>
-                  {approvalType(typeKey)}
+                  {isPriorityRequestType(typeKey)
+                    ? priorityActionLabel(
+                        typeKey === "set_priority_customer" ? "set" : "unset",
+                      )
+                    : approvalType(typeKey)}
                 </option>
               ))}
             </Select>
           </Field>
 
+          {isPriorityRequest && priorityCurrentStateMessage() && (
+            <div className="rounded-lg border border-[#E8EDF2] bg-[#F8FAFC] px-3 py-2 text-sm text-[#172033]">
+              <p className="text-xs font-medium text-[#6B7890]">
+                {t("customers.priorityCurrentStateLabel")}
+              </p>
+              <p className="mt-1">{priorityCurrentStateMessage()}</p>
+            </div>
+          )}
+
           <Field>
             <Label htmlFor="approval-reason">
-              {t("customers.approvalReason")} <span className="text-red-500">*</span>
+              {t("customers.approvalReason")}{" "}
+              {reasonRequired && <span className="text-red-500">*</span>}
             </Label>
             <Input
               id="approval-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={t("customers.approvalReasonPlaceholder")}
+              placeholder={
+                isPriorityRequest
+                  ? requestType === "set_priority_customer"
+                    ? t("customers.prioritySetReasonPlaceholder")
+                    : t("customers.priorityUnsetReasonPlaceholder")
+                  : t("customers.approvalReasonPlaceholder")
+              }
             />
           </Field>
+
+          {isPriorityRequest && !isAdmin && (
+            <p className="text-xs text-[#6B7890]">
+              {t("customers.priorityStaffSubmitNote")}
+            </p>
+          )}
+
+          {isPriorityRequest && isAdmin && (
+            <p className="text-xs text-[#6B7890]">
+              {requestType === "set_priority_customer"
+                ? t("customers.priorityAdminSetNote")
+                : t("customers.priorityAdminUnsetNote")}
+            </p>
+          )}
 
           {requestType === "transfer_customer" && (
             <Field>
@@ -227,10 +400,10 @@ export function CustomerApprovalRequests({ customerId }: { customerId: string })
           </Button>
           <Button
             type="button"
-            disabled={!reason.trim() || submitting}
+            disabled={!canSubmit}
             onClick={() => void handleSubmit()}
           >
-            {submitting ? t("customers.submitting") : t("customers.submitRequest")}
+            {submitButtonLabel()}
           </Button>
         </div>
       </ModalPanel>

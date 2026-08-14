@@ -73,6 +73,19 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
+    if (
+      body.requestType === "set_priority_customer" ||
+      body.requestType === "unset_priority_customer"
+    ) {
+      return Response.json(
+        {
+          error: "请使用优先客户专用入口提交",
+          errorCode: "PRIORITY_USE_DEDICATED_ENDPOINT",
+        },
+        { status: 400 },
+      );
+    }
+
     try {
       const result = await createApprovalRequest(customer, user, body, {
         ipAddress,

@@ -12,6 +12,8 @@ export function PinnedBadge({ className }: { className?: string }) {
         "inline-flex shrink-0 items-center rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-200",
         className,
       )}
+      title={t("customers.pinnedBadge")}
+      aria-label={t("customers.pinnedBadge")}
     >
       {t("customers.pinnedBadge")}
     </span>

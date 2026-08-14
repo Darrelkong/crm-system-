@@ -498,7 +498,29 @@ const en = {
     masked: "Masked",
     fullData: "Full",
     archivedBadge: "Archived",
-    pinnedBadge: "Pinned",
+    pinnedBadge: "Priority Customer",
+    prioritySetDirect: "Set as Priority Customer",
+    priorityUnsetDirect: "Remove Priority",
+    prioritySetRequest: "Request Set as Priority Customer",
+    priorityUnsetRequest: "Request Remove Priority",
+    priorityCurrentStateLabel: "Current status",
+    priorityCurrentNotPriority: "This customer is not currently a Priority Customer.",
+    priorityCurrentIsPriority: "This customer is currently a Priority Customer.",
+    prioritySetReasonPlaceholder:
+      "Explain why this customer should be set as a Priority Customer",
+    priorityUnsetReasonPlaceholder:
+      "Explain why this customer's Priority status should be removed",
+    priorityConfirmSet: "Confirm Set as Priority Customer",
+    priorityConfirmUnset: "Confirm Remove Priority",
+    priorityAdminSetNote:
+      "This action takes effect immediately. The customer will appear ahead of others in the customer list.",
+    priorityAdminUnsetNote:
+      "This action takes effect immediately and does not delete customer data or change sales stage, assignees, follow-ups, or tasks.",
+    priorityStaffSubmitNote: "After submission, an admin will review this request.",
+    priorityApprovalPending: "A Priority Customer request is already pending review.",
+    priorityOnHoldExplanation:
+      "Because this customer is On Hold, they automatically remain a Priority Customer. Move the customer out of On Hold before removing Priority status.",
+    approvalReasonRequired: "Request reason is required.",
     onHoldApprovalPendingTitle: "On-Hold Customer Requires Approval",
     onHoldApprovalPendingMessage:
       "The selected customer status is On Hold. This customer must be reviewed and approved before it can be created. Please wait for approval.",
@@ -1129,6 +1151,8 @@ const en = {
       link_family_customer: "Link Family Customer",
       update_family_relationship: "Update Family Relationship",
       unlink_family_customer: "Unlink from Family",
+      set_priority_customer: "Set as Priority Customer",
+      unset_priority_customer: "Remove Priority Customer",
     },
   },
   customerStatuses: {

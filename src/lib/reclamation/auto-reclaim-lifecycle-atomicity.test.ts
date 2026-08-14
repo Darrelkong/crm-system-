@@ -95,6 +95,7 @@ function makeReclaimCustomer(
     deletedReason: null,
     isPinned: 0,
     pinnedAt: null,
+    pinnedSource: null,
     collaborativeDissolvedAt: null,
     lifecycleStatus: null,
     lifecycleCompletedAt: null,
@@ -549,6 +550,7 @@ describe("auto reclaim lifecycle atomicity DB", () => {
         .set({
           isPinned: 1,
           pinnedAt: FIXED_NOW.toISOString(),
+    pinnedSource: null,
           updatedAt: FIXED_NOW.toISOString(),
         })
         .where(eq(schema.customers.id, RECLAIM_RACE_ID));

@@ -31,6 +31,7 @@ import { CustomerStatePanel } from "@/components/customers/customer-state-panel"
 import { CustomerDetailClient } from "./customer-detail-client";
 import { CustomerDetailPerfPanel } from "./customer-detail-perf-panel";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
+import { findPendingPriorityApproval } from "@/lib/customers/priority-customer-approval";
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
 import { getCustomerHouseholdDetailSummary } from "@/lib/customers/households/detail-summary";
@@ -168,6 +169,9 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
+  const pendingPriorityApproval = showApprovalButton
+    ? !!(await findPendingPriorityApproval(db, id))
+    : false;
   const showManageAssigneesButton = canManageCustomerAssignees(user, customer);
   const showRequestAssigneesButton = canRequestCustomerAssigneeUpdate(
     user,
@@ -361,6 +365,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         familySummary={familySummary}
         showManageFamilyButton={showManageFamilyButton}
         showManageExistingFamilyButton={showManageExistingFamilyButton}
+        pendingPriorityApproval={pendingPriorityApproval}
       />
       {perfTimings ? <CustomerDetailPerfPanel timings={perfTimings} /> : null}
     </>

@@ -14,6 +14,8 @@ export const APPROVAL_REQUEST_TYPES = [
   "link_family_customer",
   "update_family_relationship",
   "unlink_family_customer",
+  "set_priority_customer",
+  "unset_priority_customer",
 ] as const;
 
 export type ApprovalRequestType = (typeof APPROVAL_REQUEST_TYPES)[number];

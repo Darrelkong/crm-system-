@@ -48,6 +48,12 @@ import {
 } from "@/lib/customers/assignees-approval";
 import { approveFamilyLinkApprovalRequest } from "@/lib/customers/households/family-link-approval";
 import { approveFamilyManagementRequest } from "@/lib/customers/households/family-management-approval";
+import {
+  approvePriorityCustomerRequest,
+  assertPriorityApprovalCanExecute,
+  writeAutomaticPriorityAudit,
+} from "@/lib/customers/priority-customer-approval";
+import { buildSalesStageUpdateWithPriority } from "@/lib/customers/priority-stage-update";
 import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
 import {
   AssigneeMutationError,
@@ -394,13 +400,16 @@ async function executeApprovedAction(
     }
 
     case "closed_won": {
+      const stageUpdate = buildSalesStageUpdateWithPriority(
+        customer,
+        "closed_won",
+        reviewer.id,
+        now,
+      );
+
       await db
         .update(schema.customers)
-        .set({
-          salesStage: "closed_won",
-          updatedBy: reviewer.id,
-          updatedAt: now,
-        })
+        .set(stageUpdate.update)
         .where(eq(schema.customers.id, customer.id));
 
       await writeFieldChangeLogEntry(
@@ -410,6 +419,16 @@ async function executeApprovedAction(
         "closed_won",
         reviewer.id,
       );
+
+      if (stageUpdate.priorityAudit) {
+        await writeAutomaticPriorityAudit(db, {
+          customerId: customer.id,
+          actorId: reviewer.id,
+          action: stageUpdate.priorityAudit.action,
+          previous: stageUpdate.priorityAudit.previous,
+          next: stageUpdate.priorityAudit.next,
+        });
+      }
 
       await writeAuditLog(
         {
@@ -497,13 +516,16 @@ async function executeApprovedAction(
     }
 
     case "paid_customer": {
+      const stageUpdate = buildSalesStageUpdateWithPriority(
+        customer,
+        "paid",
+        reviewer.id,
+        now,
+      );
+
       await db
         .update(schema.customers)
-        .set({
-          salesStage: "paid",
-          updatedBy: reviewer.id,
-          updatedAt: now,
-        })
+        .set(stageUpdate.update)
         .where(eq(schema.customers.id, customer.id));
 
       await writeFieldChangeLogEntry(
@@ -513,6 +535,16 @@ async function executeApprovedAction(
         "paid",
         reviewer.id,
       );
+
+      if (stageUpdate.priorityAudit) {
+        await writeAutomaticPriorityAudit(db, {
+          customerId: customer.id,
+          actorId: reviewer.id,
+          action: stageUpdate.priorityAudit.action,
+          previous: stageUpdate.priorityAudit.previous,
+          next: stageUpdate.priorityAudit.next,
+        });
+      }
 
       await writeAuditLog(
         {
@@ -578,6 +610,29 @@ async function executeRejectedAction(
   reviewer: User,
   adminComment?: string,
 ): Promise<void> {
+  if (
+    approval.requestType === "set_priority_customer" ||
+    approval.requestType === "unset_priority_customer"
+  ) {
+    await writeAuditLog(
+      {
+        userId: reviewer.id,
+        action: APPROVAL_AUDIT_ACTIONS.priorityRejected,
+        entityType: "approval",
+        entityId: approval.id,
+        metadata: {
+          customerId: customer.id,
+          customerName: customer.customerName,
+          requestType: approval.requestType,
+          requestedBy: approval.requestedBy,
+          adminComment: adminComment?.trim() || null,
+        },
+      },
+      db,
+    );
+    return;
+  }
+
   if (approval.requestType !== "create_on_hold_customer") {
     return;
   }
@@ -856,6 +911,82 @@ export async function approveApprovalRequest(
       {
         approvalType: approval.requestType,
         adminComment: mgmtComment ?? "",
+      },
+    );
+    return;
+  }
+
+  if (
+    approval.requestType === "set_priority_customer" ||
+    approval.requestType === "unset_priority_customer"
+  ) {
+    assertPriorityApprovalCanExecute(approval, customer);
+
+    const priorityNow = new Date().toISOString();
+    const priorityUpdateResult = await db
+      .update(schema.approvals)
+      .set({
+        status: "approved",
+        adminComment: adminComment?.trim() || null,
+        reviewedBy: reviewer.id,
+        reviewedAt: priorityNow,
+        updatedAt: priorityNow,
+      })
+      .where(
+        and(
+          eq(schema.approvals.id, approvalId),
+          eq(schema.approvals.status, "pending"),
+        ),
+      );
+
+    const priorityChanges = extractChanges(priorityUpdateResult);
+    if (priorityChanges === 0) {
+      throw new ApprovalError(409, "该申请已处理，不能重复审批");
+    }
+    if (priorityChanges !== null && priorityChanges !== 1) {
+      throw new ApprovalError(409, "该申请已处理，不能重复审批");
+    }
+
+    await approvePriorityCustomerRequest(
+      db,
+      approval,
+      customer,
+      reviewer,
+      adminComment,
+    );
+
+    await writeAuditLog({
+      userId: reviewer.id,
+      action: APPROVAL_AUDIT_ACTIONS.approved,
+      entityType: "approval",
+      entityId: approvalId,
+      ipAddress: audit?.ipAddress,
+      userAgent: audit?.userAgent,
+      metadata: {
+        requestType: approval.requestType,
+        customerId: approval.customerId,
+        requestedBy: approval.requestedBy,
+      },
+    });
+
+    await markApprovalPendingNotificationsReadSafely(
+      db,
+      approvalId,
+      "approved",
+    );
+
+    const priorityComment = adminComment?.trim();
+    await notifyApplicant(
+      db,
+      approval,
+      "approval.approved",
+      "notificationTypes.approval_approved",
+      priorityComment
+        ? "notificationMessages.approvalApprovedWithComment"
+        : "notificationMessages.approvalApproved",
+      {
+        approvalType: approval.requestType,
+        adminComment: priorityComment ?? "",
       },
     );
     return;

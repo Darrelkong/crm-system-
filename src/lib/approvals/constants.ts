@@ -12,6 +12,8 @@ export const APPROVAL_REQUEST_TYPE_LABELS: Record<ApprovalRequestType, string> =
   link_family_customer: "关联家庭客户",
   update_family_relationship: "修改家庭关系",
   unlink_family_customer: "解除家庭关联",
+  set_priority_customer: "申请设为优先客户",
+  unset_priority_customer: "申请取消优先客户",
 };
 
 export const APPROVAL_STATUS_LABELS = {
@@ -35,6 +37,15 @@ export const APPROVAL_AUDIT_ACTIONS = {
   customerOnHoldCreateRejected: "customer.on_hold_create.rejected",
   customerAssigneesUpdatedViaApproval: "customer.assignees.updated_via_approval",
   customerPaidApproved: "customer.paid.approved",
+  priorityAutoSetOnHold: "customer.priority.auto_set_on_hold",
+  priorityAutoRemovedLeaveOnHold: "customer.priority.auto_removed_leave_on_hold",
+  priorityAdminSet: "customer.priority.admin_set",
+  priorityAdminRemoved: "customer.priority.admin_removed",
+  prioritySetRequested: "customer.priority.set_requested",
+  priorityUnsetRequested: "customer.priority.unset_requested",
+  priorityApprovedSet: "customer.priority.approved_set",
+  priorityApprovedUnset: "customer.priority.approved_unset",
+  priorityRejected: "customer.priority.rejected",
 } as const;
 
 export const APPROVAL_NOTIFICATION_TITLES = {

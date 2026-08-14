@@ -15,6 +15,7 @@ describe("pending on-hold access helpers", () => {
     assert.equal(update.salesStage, "on_hold");
     assert.equal(update.isPinned, 1);
     assert.equal(update.pinnedAt, now);
+    assert.equal(update.pinnedSource, "on_hold_auto");
     assert.equal(update.updatedAt, now);
   });
 

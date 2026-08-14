@@ -41,6 +41,7 @@ export type OnHoldCreateApprovedCustomerUpdate = {
   salesStage: "on_hold";
   isPinned: 1;
   pinnedAt: string;
+  pinnedSource: "on_hold_auto";
   updatedAt: string;
 };
 
@@ -51,6 +52,7 @@ export function buildOnHoldCreateApprovedCustomerUpdate(
     salesStage: "on_hold",
     isPinned: 1,
     pinnedAt: now,
+    pinnedSource: "on_hold_auto",
     updatedAt: now,
   };
 }

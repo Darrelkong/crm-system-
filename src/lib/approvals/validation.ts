@@ -82,6 +82,18 @@ export function validateApprovalRequestInput(
     return { ok: false, fieldErrors };
   }
 
+  if (
+    requestType === "set_priority_customer" ||
+    requestType === "unset_priority_customer"
+  ) {
+    fieldErrors.push({
+      field: "requestType",
+      message: "请使用优先客户专用入口提交",
+      code: "PRIORITY_USE_DEDICATED_ENDPOINT",
+    });
+    return { ok: false, fieldErrors };
+  }
+
   if (requestType === "transfer_customer") {
     if (!input.targetUserId?.trim()) {
       fieldErrors.push({ field: "targetUserId", message: "转移目标员工必填" });

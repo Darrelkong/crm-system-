@@ -83,6 +83,7 @@ function makeCustomer(
     deletedReason: null,
     isPinned: 0,
     pinnedAt: null,
+    pinnedSource: null,
     collaborativeDissolvedAt: null,
     lifecycleStatus: null,
     lifecycleCompletedAt: null,

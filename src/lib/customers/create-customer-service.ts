@@ -29,6 +29,7 @@ import {
 } from "@/lib/customers/on-hold-create-pending";
 import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
 import { getCustomerById } from "@/lib/customers/queries";
+import { buildOnHoldCreatePriorityFields } from "@/lib/customers/priority-customer";
 import {
   createApprovalRequest,
   ApprovalError,
@@ -313,6 +314,9 @@ export async function prepareCustomerCreation(input: {
     primaryConcern: payload.primaryConcern,
     salesStage: payload.salesStage,
     status: payload.status,
+    ...(payload.salesStage === "on_hold" && !pendingOnHoldApproval
+      ? buildOnHoldCreatePriorityFields(now)
+      : {}),
     ownerId,
     createdBy: input.actor.id,
     updatedBy: input.actor.id,

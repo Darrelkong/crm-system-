@@ -1,6 +1,15 @@
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
+export const PINNED_SOURCES = [
+  "on_hold_auto",
+  "admin_direct",
+  "approval",
+  "legacy",
+] as const;
+
+export type PinnedSource = (typeof PINNED_SOURCES)[number];
+
 export const CUSTOMER_STATUSES = [
   "active",
   "inactive",
@@ -69,6 +78,7 @@ export const customers = sqliteTable(
     deletedReason: text("deleted_reason"),
     isPinned: integer("is_pinned").notNull().default(0),
     pinnedAt: text("pinned_at"),
+    pinnedSource: text("pinned_source", { enum: PINNED_SOURCES }),
     /** Set when collaborative ownership is dissolved (future C-4/C-5). Nullable until then. */
     collaborativeDissolvedAt: text("collaborative_dissolved_at"),
     /** Post-paid lifecycle: null or "completed" (CUSTOMER-FLOW-3A). */

@@ -5,6 +5,7 @@ import Link from "next/link";
 import type { SerializedApprovalListItem } from "@/lib/approvals/family-link-serialization";
 import { LinkFamilyCustomerApprovalDetail } from "@/components/approvals/link-family-customer-detail";
 import { FamilyManagementApprovalDetail } from "@/components/approvals/family-management-approval-detail";
+import { PriorityCustomerApprovalDetail } from "@/components/approvals/priority-customer-approval-detail";
 import type { ApprovalRequestType, ApprovalStatus } from "../../../../drizzle/schema/approvals";
 import { EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -218,6 +219,8 @@ export function ApprovalsClient({ isAdmin }: Props) {
               </div>
               {selected.requestType !== "create_on_hold_customer" &&
                 selected.requestType !== "update_customer_assignees" &&
+                selected.requestType !== "set_priority_customer" &&
+                selected.requestType !== "unset_priority_customer" &&
                 selected.requestType !== "link_family_customer" &&
                 selected.requestType !== "update_family_relationship" &&
                 selected.requestType !== "unlink_family_customer" && (
@@ -266,6 +269,9 @@ export function ApprovalsClient({ isAdmin }: Props) {
                   sourceCustomerName={selected.customerName}
                   familyManagementAdminDetail={selected.familyManagementAdminDetail}
                 />
+              ) : selected.requestType === "set_priority_customer" ||
+                selected.requestType === "unset_priority_customer" ? (
+                <PriorityCustomerApprovalDetail reason={selected.reason} />
               ) : (
                 selected.payload && (
                   <div>

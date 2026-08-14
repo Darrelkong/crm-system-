@@ -38,6 +38,8 @@ import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-pro
 import { archiveCustomerToRecycleBin } from "@/lib/recycle-bin/archive-customer";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
+import { mergePriorityFieldsForStageTransition, priorityAuditSnapshot } from "@/lib/customers/priority-customer";
+import { writeAutomaticPriorityAudit } from "@/lib/customers/priority-customer-approval";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -296,6 +298,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     const isArchiving =
       updateStatus === "archived" && existing.status !== "archived";
 
+    const priorityTransition = mergePriorityFieldsForStageTransition(
+      existing.salesStage,
+      payload.salesStage,
+      existing,
+      now,
+    );
+
     const customerUpdateValues = {
       customerName: payload.customerName,
       customerType: payload.customerType,
@@ -322,6 +331,7 @@ export async function PATCH(request: Request, context: RouteContext) {
       status: payload.status,
       updatedBy: user.id,
       updatedAt: now,
+      ...(priorityTransition.patch ?? {}),
     };
 
     const identifierSync = buildReplaceCustomerIdentifierStatements(db, {
@@ -432,6 +442,19 @@ export async function PATCH(request: Request, context: RouteContext) {
     const persistResult = await persistCustomerAndIdentifiers();
     if (persistResult.kind === "duplicate") {
       return duplicateCustomerConflictResponse(persistResult.duplicates);
+    }
+
+    if (priorityTransition.patch && priorityTransition.auditAction) {
+      await writeAutomaticPriorityAudit(db, {
+        customerId: id,
+        actorId: user.id,
+        action: priorityTransition.auditAction,
+        previous: priorityAuditSnapshot(existing),
+        next: priorityAuditSnapshot({
+          ...existing,
+          ...priorityTransition.patch,
+        }),
+      });
     }
 
     await writeAuditLog({
