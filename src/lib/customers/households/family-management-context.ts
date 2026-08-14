@@ -9,6 +9,7 @@ import {
   type CustomerFamilyMemberRelationship,
 } from "./detail-summary";
 import { FAMILY_ERROR_CODES, FamilyLinkError } from "./errors";
+import { relationshipMatchesSubmittedPerspective } from "./link-plan";
 
 export type RelationshipOrientation =
   | "none"
@@ -226,4 +227,73 @@ export function buildUnlinkSnapshot(context: FamilyManagementContext): {
     targetMembershipJoinedAt: context.targetMembership.joinedAt,
     expectedActiveMemberCount: context.activeMemberCount,
   };
+}
+
+export function isDirectOrientationNoChange(
+  context: FamilyManagementContext,
+  relationshipType: HouseholdRelationshipType,
+): boolean {
+  if (context.relationshipOrientation !== "direct") {
+    return false;
+  }
+
+  return (
+    relationshipMatchesSubmittedPerspective(
+      relationshipType,
+      context.directRelationship?.relationshipType ?? null,
+      context.reverseRelationship?.relationshipType ?? null,
+    ) === "match"
+  );
+}
+
+export function requiresRelationshipMutation(
+  context: FamilyManagementContext,
+  relationshipType: HouseholdRelationshipType,
+): boolean {
+  if (context.relationshipOrientation === "invalid_both_directions") {
+    throw new FamilyLinkError(
+      409,
+      "家庭关系状态异常，请联系管理员处理",
+      FAMILY_ERROR_CODES.INVALID_HOUSEHOLD_STATE,
+    );
+  }
+
+  if (context.target.customerType === "company") {
+    throw new FamilyLinkError(
+      400,
+      "公司客户不能设置家庭关系，请解除家庭关联",
+      FAMILY_ERROR_CODES.COMPANY_MEMBER_EDIT_FORBIDDEN,
+    );
+  }
+
+  if (isDirectOrientationNoChange(context, relationshipType)) {
+    return false;
+  }
+
+  return true;
+}
+
+export function resolveSourcePerspectiveFromSnapshot(payload: {
+  expectedRelationshipState?: unknown;
+  expectedRelationshipType?: unknown;
+}): CustomerFamilyMemberRelationship | null {
+  const state = payload.expectedRelationshipState;
+  if (state === "none" || state === "invalid_both_directions") {
+    return null;
+  }
+
+  const relationshipType =
+    typeof payload.expectedRelationshipType === "string"
+      ? payload.expectedRelationshipType
+      : null;
+
+  if (state === "direct") {
+    return relationshipType as HouseholdRelationshipType | null;
+  }
+
+  if (state === "reverse") {
+    return resolveRelationshipFromCurrentPerspective(null, relationshipType as HouseholdRelationshipType);
+  }
+
+  return null;
 }

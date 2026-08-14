@@ -1,21 +1,17 @@
 import { and, eq, sql } from "drizzle-orm";
-import type { Customer } from "../../../../drizzle/schema/customers";
 import type { HouseholdRelationshipType } from "../../../../drizzle/schema/household-relationship-types";
 import type { User } from "../../../../drizzle/schema/users";
 import { schema, type Database } from "@/lib/db";
 import { extractChanges } from "@/lib/reclamation/auto-reclaim-cas";
 import { FAMILY_ERROR_CODES, FamilyLinkError } from "./errors";
 import {
-  buildRelationshipSnapshot,
   loadFamilyManagementContext,
+  requiresRelationshipMutation,
   type FamilyManagementContext,
   type RelationshipOrientation,
 } from "./family-management-context";
 import { writeFamilyRelationshipUpdatedAudit } from "./family-management-audit";
-import {
-  isValidHouseholdRelationshipType,
-  relationshipMatchesSubmittedPerspective,
-} from "./link-plan";
+import { isValidHouseholdRelationshipType } from "./link-plan";
 import {
   buildFamilyManagementApprovalCas,
   type RelationshipApprovalSnapshot,
@@ -39,6 +35,33 @@ function approvalApprovedGuardFrom(approvalId: string) {
   `;
 }
 
+function activeMembershipGuard(
+  householdId: string,
+  sourceId: string,
+  targetId: string,
+) {
+  return sql`EXISTS (
+    SELECT 1
+    FROM customer_households h
+    WHERE h.id = ${householdId}
+      AND h.status = 'active'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM customer_household_members sm
+    WHERE sm.household_id = ${householdId}
+      AND sm.customer_id = ${sourceId}
+      AND sm.left_at IS NULL
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM customer_household_members tm
+    WHERE tm.household_id = ${householdId}
+      AND tm.customer_id = ${targetId}
+      AND tm.left_at IS NULL
+  )`;
+}
+
 function buildRelationshipUpdateStatements(
   db: Database,
   context: FamilyManagementContext,
@@ -51,61 +74,76 @@ function buildRelationshipUpdateStatements(
     context;
   const statements: unknown[] = [];
   const guarded = approvalId != null;
+  const membershipGuard = activeMembershipGuard(
+    householdId,
+    source.id,
+    target.id,
+  );
 
   if (reverseRelationship) {
-    if (guarded) {
-      statements.push(
-        db.delete(schema.customerHouseholdRelationships).where(
-          and(
-            eq(schema.customerHouseholdRelationships.id, reverseRelationship.id),
-            sql`EXISTS (
-              SELECT 1 FROM approvals
-              WHERE id = ${approvalId}
-                AND status = 'approved'
-            )`,
-          ),
-        ),
-      );
-    } else {
-      statements.push(
-        db
-          .delete(schema.customerHouseholdRelationships)
-          .where(eq(schema.customerHouseholdRelationships.id, reverseRelationship.id)),
-      );
-    }
+    const reverseWhere = and(
+      eq(schema.customerHouseholdRelationships.id, reverseRelationship.id),
+      eq(
+        schema.customerHouseholdRelationships.fromCustomerId,
+        reverseRelationship.fromCustomerId,
+      ),
+      eq(
+        schema.customerHouseholdRelationships.toCustomerId,
+        reverseRelationship.toCustomerId,
+      ),
+      eq(
+        schema.customerHouseholdRelationships.relationshipType,
+        reverseRelationship.relationshipType,
+      ),
+      eq(
+        schema.customerHouseholdRelationships.updatedAt,
+        reverseRelationship.updatedAt,
+      ),
+      guarded
+        ? sql`EXISTS (
+            SELECT 1 FROM approvals
+            WHERE id = ${approvalId}
+              AND status = 'approved'
+          )`
+        : membershipGuard,
+    );
+
+    statements.push(
+      db
+        .delete(schema.customerHouseholdRelationships)
+        .where(reverseWhere),
+    );
   }
 
   if (directRelationship) {
-    if (guarded) {
-      statements.push(
-        db
-          .update(schema.customerHouseholdRelationships)
-          .set({
-            relationshipType,
-            updatedAt: now,
-          })
-          .where(
-            and(
-              eq(schema.customerHouseholdRelationships.id, directRelationship.id),
-              sql`EXISTS (
-                SELECT 1 FROM approvals
-                WHERE id = ${approvalId}
-                  AND status = 'approved'
-              )`,
-            ),
-          ),
-      );
-    } else {
-      statements.push(
-        db
-          .update(schema.customerHouseholdRelationships)
-          .set({
-            relationshipType,
-            updatedAt: now,
-          })
-          .where(eq(schema.customerHouseholdRelationships.id, directRelationship.id)),
-      );
-    }
+    const directWhere = and(
+      eq(schema.customerHouseholdRelationships.id, directRelationship.id),
+      eq(
+        schema.customerHouseholdRelationships.relationshipType,
+        directRelationship.relationshipType,
+      ),
+      eq(
+        schema.customerHouseholdRelationships.updatedAt,
+        directRelationship.updatedAt,
+      ),
+      guarded
+        ? sql`EXISTS (
+            SELECT 1 FROM approvals
+            WHERE id = ${approvalId}
+              AND status = 'approved'
+          )`
+        : membershipGuard,
+    );
+
+    statements.push(
+      db
+        .update(schema.customerHouseholdRelationships)
+        .set({
+          relationshipType,
+          updatedAt: now,
+        })
+        .where(directWhere),
+    );
   } else {
     const relationshipId = crypto.randomUUID();
     if (guarded) {
@@ -128,16 +166,46 @@ function buildRelationshipUpdateStatements(
       );
     } else {
       statements.push(
-        db.insert(schema.customerHouseholdRelationships).values({
-          id: relationshipId,
-          householdId,
-          fromCustomerId: source.id,
-          toCustomerId: target.id,
-          relationshipType,
-          createdBy: actorId,
-          createdAt: now,
-          updatedAt: now,
-        }),
+        db.insert(schema.customerHouseholdRelationships).select(
+          sql`
+            SELECT
+              ${relationshipId} AS id,
+              ${householdId} AS household_id,
+              ${source.id} AS from_customer_id,
+              ${target.id} AS to_customer_id,
+              ${relationshipType} AS relationship_type,
+              NULL AS remark,
+              ${actorId} AS created_by,
+              ${now} AS created_at,
+              ${now} AS updated_at
+            FROM customer_households h
+            WHERE h.id = ${householdId}
+              AND h.status = 'active'
+              AND EXISTS (
+                SELECT 1
+                FROM customer_household_members sm
+                WHERE sm.household_id = ${householdId}
+                  AND sm.customer_id = ${source.id}
+                  AND sm.left_at IS NULL
+              )
+              AND EXISTS (
+                SELECT 1
+                FROM customer_household_members tm
+                WHERE tm.household_id = ${householdId}
+                  AND tm.customer_id = ${target.id}
+                  AND tm.left_at IS NULL
+              )
+              AND NOT EXISTS (
+                SELECT 1
+                FROM customer_household_relationships r
+                WHERE r.household_id = ${householdId}
+                  AND (
+                    (r.from_customer_id = ${source.id} AND r.to_customer_id = ${target.id})
+                    OR (r.from_customer_id = ${target.id} AND r.to_customer_id = ${source.id})
+                  )
+              )
+          `,
+        ),
       );
     }
   }
@@ -145,45 +213,19 @@ function buildRelationshipUpdateStatements(
   return statements;
 }
 
-function assertRelationshipUpdateAllowed(
-  context: FamilyManagementContext,
-  relationshipType: HouseholdRelationshipType,
-): RelationshipUpdateResult | null {
-  if (context.relationshipOrientation === "invalid_both_directions") {
+function assertDirectMutationApplied(
+  batchResults: readonly unknown[],
+  mutationStartIndex: number,
+): void {
+  const firstMutationResult = batchResults[mutationStartIndex];
+  const changes = extractChanges(firstMutationResult);
+  if (changes !== 1) {
     throw new FamilyLinkError(
       409,
-      "家庭关系状态异常，请联系管理员处理",
-      FAMILY_ERROR_CODES.INVALID_HOUSEHOLD_STATE,
+      "家庭状态已变更，无法更新关系",
+      FAMILY_ERROR_CODES.APPROVAL_STALE,
     );
   }
-
-  if (context.target.customerType === "company") {
-    throw new FamilyLinkError(
-      400,
-      "公司客户不能设置家庭关系，请解除家庭关联",
-      FAMILY_ERROR_CODES.COMPANY_MEMBER_EDIT_FORBIDDEN,
-    );
-  }
-
-  const match = relationshipMatchesSubmittedPerspective(
-    relationshipType,
-    context.directRelationship?.relationshipType ?? null,
-    context.reverseRelationship?.relationshipType ?? null,
-  );
-
-  if (match === "match") {
-    if (context.relationshipOrientation === "reverse") {
-      return null;
-    }
-    return { kind: "no_change" };
-  }
-
-  if (match === "conflict" && context.relationshipOrientation !== "none") {
-    // Allow explicit normalization from reverse to direct with new type.
-    return null;
-  }
-
-  return null;
 }
 
 export async function executeRelationshipUpdate(
@@ -202,6 +244,10 @@ export async function executeRelationshipUpdate(
     };
     snapshot?: RelationshipApprovalSnapshot;
     testAppendStatements?: (ctx: { db: Database }) => unknown[];
+    testAfterContextLoad?: (ctx: {
+      db: Database;
+      context: FamilyManagementContext;
+    }) => Promise<void>;
   },
 ): Promise<RelationshipUpdateResult> {
   const context = await loadFamilyManagementContext(
@@ -210,26 +256,27 @@ export async function executeRelationshipUpdate(
     params.targetId,
   );
 
-  const noChange = assertRelationshipUpdateAllowed(context, params.relationshipType);
-  if (noChange) {
-    return noChange;
+  if (params.testAfterContextLoad) {
+    await params.testAfterContextLoad({ db, context });
+  }
+
+  const mutationRequired = requiresRelationshipMutation(
+    context,
+    params.relationshipType,
+  );
+
+  if (!params.approvalCas && !mutationRequired) {
+    return { kind: "no_change" };
   }
 
   const now = params.approvalCas?.now ?? new Date().toISOString();
   const previousOrientation = context.relationshipOrientation;
   const previousRelationship = context.currentPerspectiveRelationship;
 
-  const statements = buildRelationshipUpdateStatements(
-    db,
-    context,
-    params.relationshipType,
-    params.actor.id,
-    now,
-    params.approvalCas?.approvalId,
-  );
+  const statements: unknown[] = [];
 
   if (params.approvalCas) {
-    statements.unshift(
+    statements.push(
       buildFamilyManagementApprovalCas(db, {
         approvalId: params.approvalCas.approvalId,
         reviewerId: params.approvalCas.reviewerId,
@@ -240,41 +287,69 @@ export async function executeRelationshipUpdate(
     );
   }
 
+  if (mutationRequired) {
+    statements.push(
+      ...buildRelationshipUpdateStatements(
+        db,
+        context,
+        params.relationshipType,
+        params.actor.id,
+        now,
+        params.approvalCas?.approvalId,
+      ),
+    );
+  }
+
   if (params.testAppendStatements) {
     statements.push(...params.testAppendStatements({ db }));
   }
 
-  if (statements.length > 0) {
-    const batchResults = (await db.batch(
-      statements as unknown as Parameters<Database["batch"]>[0],
-    )) as readonly unknown[];
+  if (statements.length === 0) {
+    throw new FamilyLinkError(
+      409,
+      "家庭状态已变更，无法更新关系",
+      FAMILY_ERROR_CODES.APPROVAL_STALE,
+    );
+  }
 
-    if (params.approvalCas) {
-      const casResult = batchResults[0];
-      const changes = extractChanges(casResult);
-      if (changes !== 1) {
-        throw new FamilyLinkError(
-          409,
-          "家庭审批状态已变更，无法继续处理",
-          FAMILY_ERROR_CODES.APPROVAL_STALE,
-        );
-      }
+  const batchResults = (await db.batch(
+    statements as unknown as Parameters<Database["batch"]>[0],
+  )) as readonly unknown[];
+
+  if (params.approvalCas) {
+    const casResult = batchResults[0];
+    const changes = extractChanges(casResult);
+    if (changes !== 1) {
+      throw new FamilyLinkError(
+        409,
+        "家庭审批状态已变更，无法继续处理",
+        FAMILY_ERROR_CODES.APPROVAL_STALE,
+      );
     }
   }
 
-  await writeFamilyRelationshipUpdatedAudit(db, {
-    source: context.source,
-    target: context.target,
-    householdId: context.householdId,
-    previousRelationship,
-    newRelationship: params.relationshipType,
-    relationshipOrientationNormalized:
-      previousOrientation === "none" ? "none" : previousOrientation,
-    actor: params.actor,
-    auditContext: params.auditContext,
-  });
+  if (mutationRequired) {
+    const mutationStartIndex = params.approvalCas ? 1 : 0;
+    if (!params.approvalCas) {
+      assertDirectMutationApplied(batchResults, mutationStartIndex);
+    }
 
-  return { kind: "updated" };
+    await writeFamilyRelationshipUpdatedAudit(db, {
+      source: context.source,
+      target: context.target,
+      householdId: context.householdId,
+      previousRelationship,
+      newRelationship: params.relationshipType,
+      relationshipOrientationNormalized:
+        previousOrientation === "none" ? "none" : previousOrientation,
+      actor: params.actor,
+      auditContext: params.auditContext,
+    });
+
+    return { kind: "updated" };
+  }
+
+  return { kind: "no_change" };
 }
 
 export function parseRelationshipTypeInput(

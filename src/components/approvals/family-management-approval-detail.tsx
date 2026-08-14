@@ -18,6 +18,19 @@ function DetailRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatRelationshipLabel(
+  t: (key: string) => string,
+  relationship: string | null | undefined,
+): string {
+  if (!relationship) {
+    return "—";
+  }
+  if (relationship === "parent") {
+    return t("customers.familyRelationshipParentDisplay");
+  }
+  return t(`householdRelationships.${relationship}`);
+}
+
 export function FamilyManagementApprovalDetail({
   isAdmin,
   sourceCustomerName,
@@ -65,23 +78,17 @@ export function FamilyManagementApprovalDetail({
         <>
           <DetailRow
             label={t("customers.familyCurrentRelationship")}
-            value={
-              familyManagementAdminDetail?.currentRelationship
-                ? t(
-                    `householdRelationships.${familyManagementAdminDetail.currentRelationship}`,
-                  )
-                : "—"
-            }
+            value={formatRelationshipLabel(
+              t,
+              familyManagementAdminDetail?.currentRelationship,
+            )}
           />
           <DetailRow
             label={t("customers.familyRequestedRelationship")}
-            value={
-              familyManagementAdminDetail?.requestedRelationship
-                ? t(
-                    `householdRelationships.${familyManagementAdminDetail.requestedRelationship}`,
-                  )
-                : "—"
-            }
+            value={formatRelationshipLabel(
+              t,
+              familyManagementAdminDetail?.requestedRelationship,
+            )}
           />
         </>
       )}

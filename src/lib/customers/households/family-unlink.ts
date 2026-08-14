@@ -34,6 +34,7 @@ function buildUnlinkStatements(
   db: Database,
   params: {
     householdId: string;
+    sourceId: string;
     targetId: string;
     targetMembershipId: string;
     activeMemberCount: number;
@@ -44,6 +45,7 @@ function buildUnlinkStatements(
 ): unknown[] {
   const {
     householdId,
+    sourceId,
     targetId,
     targetMembershipId,
     activeMemberCount,
@@ -53,6 +55,26 @@ function buildUnlinkStatements(
   } = params;
   const statements: unknown[] = [];
   const guarded = approvalId != null;
+  const membershipGuard = sql`EXISTS (
+    SELECT 1
+    FROM customer_households h
+    WHERE h.id = ${householdId}
+      AND h.status = 'active'
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM customer_household_members sm
+    WHERE sm.household_id = ${householdId}
+      AND sm.customer_id = ${sourceId}
+      AND sm.left_at IS NULL
+  )
+  AND EXISTS (
+    SELECT 1
+    FROM customer_household_members tm
+    WHERE tm.household_id = ${householdId}
+      AND tm.customer_id = ${targetId}
+      AND tm.left_at IS NULL
+  )`;
 
   if (activeMemberCount === 2) {
     if (guarded) {
@@ -70,11 +92,14 @@ function buildUnlinkStatements(
                 WHERE m.household_id = ${householdId}
                   AND m.left_at IS NULL
               ) = 2`,
-              sql`EXISTS (
-                SELECT 1 FROM approvals
-                WHERE id = ${approvalId}
-                  AND status = 'approved'
-              )`,
+              membershipGuard,
+              guarded
+                ? sql`EXISTS (
+                    SELECT 1 FROM approvals
+                    WHERE id = ${approvalId}
+                      AND status = 'approved'
+                  )`
+                : sql`1 = 1`,
             ),
           ),
       );
@@ -93,6 +118,7 @@ function buildUnlinkStatements(
                 WHERE m.household_id = ${householdId}
                   AND m.left_at IS NULL
               ) = 2`,
+              membershipGuard,
             ),
           ),
       );
@@ -165,11 +191,20 @@ function buildUnlinkStatements(
             and(
               eq(schema.customerHouseholdMembers.id, targetMembershipId),
               isNull(schema.customerHouseholdMembers.leftAt),
-              sql`EXISTS (
-                SELECT 1 FROM approvals
-                WHERE id = ${approvalId}
-                  AND status = 'approved'
-              )`,
+              sql`(
+                SELECT COUNT(*)
+                FROM customer_household_members m
+                WHERE m.household_id = ${householdId}
+                  AND m.left_at IS NULL
+              ) = ${activeMemberCount}`,
+              membershipGuard,
+              guarded
+                ? sql`EXISTS (
+                    SELECT 1 FROM approvals
+                    WHERE id = ${approvalId}
+                      AND status = 'approved'
+                  )`
+                : sql`1 = 1`,
             ),
           ),
       );
@@ -198,6 +233,13 @@ function buildUnlinkStatements(
             and(
               eq(schema.customerHouseholdMembers.id, targetMembershipId),
               isNull(schema.customerHouseholdMembers.leftAt),
+              sql`(
+                SELECT COUNT(*)
+                FROM customer_household_members m
+                WHERE m.household_id = ${householdId}
+                  AND m.left_at IS NULL
+              ) = ${activeMemberCount}`,
+              membershipGuard,
             ),
           ),
       );
@@ -235,6 +277,10 @@ export async function executeFamilyUnlink(
     };
     snapshot?: UnlinkApprovalSnapshot;
     testAppendStatements?: (ctx: { db: Database }) => unknown[];
+    testAfterContextLoad?: (ctx: {
+      db: Database;
+      context: Awaited<ReturnType<typeof loadFamilyManagementContext>>;
+    }) => Promise<void>;
   },
 ): Promise<UnlinkResult> {
   const context = await loadFamilyManagementContext(
@@ -242,6 +288,10 @@ export async function executeFamilyUnlink(
     params.sourceId,
     params.targetId,
   );
+
+  if (params.testAfterContextLoad) {
+    await params.testAfterContextLoad({ db, context });
+  }
 
   const relationshipCount = (
     await db
@@ -267,6 +317,7 @@ export async function executeFamilyUnlink(
   const now = params.approvalCas?.now ?? new Date().toISOString();
   const statements = buildUnlinkStatements(db, {
     householdId: context.householdId,
+    sourceId: params.sourceId,
     targetId: params.targetId,
     targetMembershipId: context.targetMembership.id,
     activeMemberCount: context.activeMemberCount,
@@ -306,16 +357,10 @@ export async function executeFamilyUnlink(
       );
     }
   } else {
-    const membershipResult = batchResults[0];
+    const membershipResult = batchResults[params.approvalCas ? 1 : 0];
     const membershipChanges = extractChanges(membershipResult);
-    if (membershipChanges !== 2 && context.activeMemberCount === 2) {
-      throw new FamilyLinkError(
-        409,
-        "家庭成员状态已变更，无法解除关联",
-        FAMILY_ERROR_CODES.INVALID_HOUSEHOLD_STATE,
-      );
-    }
-    if (membershipChanges !== 1 && context.activeMemberCount !== 2) {
+    const expectedChanges = context.activeMemberCount === 2 ? 2 : 1;
+    if (membershipChanges !== expectedChanges) {
       throw new FamilyLinkError(
         409,
         "家庭成员状态已变更，无法解除关联",

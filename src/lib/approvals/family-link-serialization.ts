@@ -1,4 +1,5 @@
 import type { ApprovalListItem } from "./queries";
+import { resolveSourcePerspectiveFromSnapshot } from "@/lib/customers/households/family-management-context";
 
 export type FamilyLinkAdminDetail = {
   targetCustomerName: string;
@@ -159,10 +160,7 @@ export async function loadFamilyManagementAdminDetails(
     if (!targetId) continue;
 
     const payload = item.payload ?? {};
-    const currentRelationship =
-      typeof payload.expectedRelationshipType === "string"
-        ? payload.expectedRelationshipType
-        : null;
+    const currentRelationship = resolveSourcePerspectiveFromSnapshot(payload);
     const requestedRelationship =
       item.requestType === "update_family_relationship" &&
       typeof payload.requestedRelationshipType === "string"

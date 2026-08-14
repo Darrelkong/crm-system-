@@ -24,6 +24,7 @@ import {
 import {
   buildRelationshipSnapshot,
   buildUnlinkSnapshot,
+  isDirectOrientationNoChange,
   loadFamilyManagementContext,
 } from "./family-management-context";
 import {
@@ -267,6 +268,10 @@ export async function submitFamilyRelationshipUpdate(
   const context = await loadFamilyManagementContext(db, source.id, targetId);
   const isAssignee = user.role === "staff" ? await isTargetAssignee(db, user.id, targetId) : false;
   const mode = resolveExistingFamilyManagementMode(user, target, isAssignee);
+
+  if (mode === "approval" && isDirectOrientationNoChange(context, relationshipType)) {
+    return { mode: "direct", kind: "no_change" };
+  }
 
   if (mode === "direct") {
     const result = await executeRelationshipUpdate(db, {
