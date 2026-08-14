@@ -44,6 +44,7 @@ export type GuardedCustomerCreatePostResult =
 export async function postCustomerCreateOnce(options: {
   flight: CustomerCreateSubmitFlight;
   body: unknown;
+  endpoint?: string;
   fetchImpl?: typeof fetch;
   /** Called synchronously after the flight lock is acquired, before any await. */
   onAcquired?: () => void;
@@ -55,8 +56,9 @@ export async function postCustomerCreateOnce(options: {
   options.onAcquired?.();
 
   const fetchImpl = options.fetchImpl ?? fetch;
+  const endpoint = options.endpoint ?? "/api/customers";
   try {
-    const response = await fetchImpl("/api/customers", {
+    const response = await fetchImpl(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(options.body),

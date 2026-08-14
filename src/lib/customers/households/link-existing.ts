@@ -147,7 +147,7 @@ function buildGuardedRelationshipInsert(
   );
 }
 
-function buildFamilyLinkStatements(
+export function buildFamilyLinkStatements(
   db: Database,
   params: {
     plan: FamilyLinkPlan;
@@ -277,7 +277,7 @@ function buildFamilyLinkStatements(
   return { statements, householdId };
 }
 
-async function writeFamilyLinkAudit(
+export async function writeFamilyLinkAudit(
   db: Database,
   params: {
     source: Customer;

@@ -17,6 +17,7 @@ import {
   isCustomerCreateDraftMeaningful,
   loadCustomerCreateDraft,
   type CustomerCreateDraftFormData,
+  type CustomerCreateDraftScope,
 } from "@/lib/customers/customer-create-draft";
 import { createCustomerCreateDraftAutosave } from "@/lib/customers/customer-create-draft-autosave";
 import {
@@ -60,6 +61,12 @@ import { type CustomerProfileFormFields } from "@/lib/customers/customer-profile
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
+export type NewCustomerFormFamilyContext = {
+  sourceCustomerId: string;
+  relationshipType: string;
+  onRequireRelationship: () => boolean;
+};
+
 type DuplicateMatch = {
   field: string;
   matchedField?: string;
@@ -97,13 +104,21 @@ function toFormState(data: CustomerCreateDraftFormData): FormState {
 export function NewCustomerForm({
   tags,
   userId,
+  familyContext,
 }: {
   tags: CustomerTagOption[];
   userId: string;
+  familyContext?: NewCustomerFormFamilyContext;
 }) {
   const router = useRouter();
   const { t, salesStage, customerType } = useCustomerLabels();
   const { locale } = useTranslation();
+  const draftScope: CustomerCreateDraftScope = familyContext
+    ? { kind: "family", sourceCustomerId: familyContext.sourceCustomerId }
+    : { kind: "standard" };
+  const createEndpoint = familyContext
+    ? `/api/customers/${familyContext.sourceCustomerId}/family/create-new`
+    : "/api/customers";
   const [submitting, setSubmitting] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [serverError, setServerError] = useState<string | null>(null);
@@ -131,6 +146,7 @@ export function NewCustomerForm({
     useState(false);
   const draftAutosaveRef = useRef(
     createCustomerCreateDraftAutosave({
+      draftScope,
       onPersisted: (result) => {
         if (result.ok) {
           setDraftSavedAt(result.value ? result.value.savedAt : null);
@@ -155,23 +171,27 @@ export function NewCustomerForm({
     autosave.cancelPending();
     autosave.resetWriteBlock();
 
-    const loaded = loadCustomerCreateDraft(userId);
+    const loaded = loadCustomerCreateDraft(userId, Date.now(), draftScope);
     if (loaded.ok && isCustomerCreateDraftMeaningful(loaded.value.form)) {
-      setPendingDraft(loaded.value.form);
-      setShowDraftRestoreModal(true);
+      queueMicrotask(() => {
+        setPendingDraft(loaded.value.form);
+        setShowDraftRestoreModal(true);
+      });
       autosave.setReady(false);
       return;
     }
 
     if (loaded.ok && !isCustomerCreateDraftMeaningful(loaded.value.form)) {
-      clearCustomerCreateDraft(userId);
+      clearCustomerCreateDraft(userId, draftScope);
     }
 
     if (!loaded.ok && loaded.reason === "unavailable") {
-      setDraftStorageUnavailable(true);
+      queueMicrotask(() => {
+        setDraftStorageUnavailable(true);
+      });
     }
     autosave.setReady(true);
-  }, [userId]);
+  }, [userId, draftScope]);
 
   useEffect(() => {
     const autosave = draftAutosaveRef.current;
@@ -283,6 +303,12 @@ export function NewCustomerForm({
   ) {
     const body = {
       ...(onHoldReason ? { ...form, onHoldReason } : { ...form }),
+      ...(familyContext
+        ? {
+            customerType: "individual" as const,
+            relationshipType: familyContext.relationshipType,
+          }
+        : {}),
       ...(options?.confirmDuplicateName
         ? { confirmDuplicateName: options.confirmDuplicateName }
         : {}),
@@ -290,6 +316,7 @@ export function NewCustomerForm({
     const gated = await postCustomerCreateOnce({
       flight: submitFlightRef.current,
       body,
+      endpoint: createEndpoint,
       onAcquired: () => {
         setSubmitting(true);
         setFieldErrors({});
@@ -416,6 +443,11 @@ export function NewCustomerForm({
       return;
     }
     if (showIncompleteContactModal || showCreateConfirmModal) {
+      return;
+    }
+
+    if (familyContext && !familyContext.relationshipType) {
+      familyContext.onRequireRelationship();
       return;
     }
 
@@ -602,17 +634,23 @@ export function NewCustomerForm({
 
         <Field>
           <Label htmlFor="customerType">{t("customers.clientType")}</Label>
-          <Select
-            id="customerType"
-            value={form.customerType}
-            onChange={(e) => set("customerType", e.target.value)}
-          >
-            {CUSTOMER_TYPES.map((typeKey) => (
-              <option key={typeKey} value={typeKey}>
-                {customerType(typeKey)}
-              </option>
-            ))}
-          </Select>
+          {familyContext ? (
+            <p id="customerType" className="text-sm crm-text">
+              {customerType("individual")}
+            </p>
+          ) : (
+            <Select
+              id="customerType"
+              value={form.customerType}
+              onChange={(e) => set("customerType", e.target.value)}
+            >
+              {CUSTOMER_TYPES.map((typeKey) => (
+                <option key={typeKey} value={typeKey}>
+                  {customerType(typeKey)}
+                </option>
+              ))}
+            </Select>
+          )}
         </Field>
 
         <Field>

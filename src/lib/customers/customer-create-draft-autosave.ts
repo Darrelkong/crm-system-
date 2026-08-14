@@ -9,6 +9,7 @@ import {
   saveCustomerCreateDraft,
   type CustomerCreateDraftFormData,
   type CustomerCreateDraftPayload,
+  type CustomerCreateDraftScope,
 } from "@/lib/customers/customer-create-draft";
 
 export type DraftAutosavePersistResult =
@@ -46,6 +47,7 @@ export type CreateDraftAutosaveOptions = {
   setTimeoutFn?: typeof setTimeout;
   clearTimeoutFn?: typeof clearTimeout;
   onPersisted?: (result: DraftAutosavePersistResult) => void;
+  draftScope?: CustomerCreateDraftScope;
 };
 
 export function createCustomerCreateDraftAutosave(
@@ -55,6 +57,7 @@ export function createCustomerCreateDraftAutosave(
   const setTimeoutFn = options.setTimeoutFn ?? setTimeout;
   const clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
   const onPersisted = options.onPersisted;
+  const draftScope = options.draftScope ?? { kind: "standard" as const };
 
   let ready = false;
   let writeBlocked = false;
@@ -92,7 +95,7 @@ export function createCustomerCreateDraftAutosave(
       if (writeBlocked || !ready) {
         return;
       }
-      const result = saveCustomerCreateDraft(userId, form);
+      const result = saveCustomerCreateDraft(userId, form, Date.now(), draftScope);
       onPersisted?.(result);
     }, debounceMs);
   }
@@ -100,12 +103,12 @@ export function createCustomerCreateDraftAutosave(
   function finalizeAccepted(userId: string): void {
     writeBlocked = true;
     cancelPending();
-    clearCustomerCreateDraft(userId);
+    clearCustomerCreateDraft(userId, draftScope);
   }
 
   function discard(userId: string): void {
     cancelPending();
-    clearCustomerCreateDraft(userId);
+    clearCustomerCreateDraft(userId, draftScope);
     writeBlocked = false;
     ready = true;
   }

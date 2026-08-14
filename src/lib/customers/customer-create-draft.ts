@@ -47,7 +47,17 @@ export type DraftStorageResult<T> =
   | { ok: true; value: T }
   | { ok: false; reason: "unavailable" | "invalid" | "expired" | "missing" };
 
-function draftKey(userId: string): string {
+export type CustomerCreateDraftScope =
+  | { kind: "standard" }
+  | { kind: "family"; sourceCustomerId: string };
+
+function draftKey(
+  userId: string,
+  scope: CustomerCreateDraftScope = { kind: "standard" },
+): string {
+  if (scope.kind === "family") {
+    return `${CUSTOMER_CREATE_DRAFT_KEY_PREFIX}family:${scope.sourceCustomerId}:${userId}`;
+  }
   return `${CUSTOMER_CREATE_DRAFT_KEY_PREFIX}${userId}`;
 }
 
@@ -193,20 +203,21 @@ export function saveCustomerCreateDraft(
   userId: string,
   form: CustomerCreateDraftFormData,
   savedAt: number = Date.now(),
+  scope: CustomerCreateDraftScope = { kind: "standard" },
 ): DraftStorageResult<CustomerCreateDraftPayload | null> {
   if (typeof localStorage === "undefined") {
     return { ok: false, reason: "unavailable" };
   }
 
   if (!isCustomerCreateDraftMeaningful(form)) {
-    clearCustomerCreateDraft(userId);
+    clearCustomerCreateDraft(userId, scope);
     return { ok: true, value: null };
   }
 
   const payload = buildCustomerCreateDraftPayload(userId, form, savedAt);
 
   try {
-    localStorage.setItem(draftKey(userId), JSON.stringify(payload));
+    localStorage.setItem(draftKey(userId, scope), JSON.stringify(payload));
     localStorage.setItem(CUSTOMER_CREATE_DRAFT_LAST_USER_KEY, userId);
     return { ok: true, value: payload };
   } catch {
@@ -217,6 +228,7 @@ export function saveCustomerCreateDraft(
 export function loadCustomerCreateDraft(
   userId: string,
   nowMs: number = Date.now(),
+  scope: CustomerCreateDraftScope = { kind: "standard" },
 ): DraftStorageResult<CustomerCreateDraftPayload> {
   if (typeof localStorage === "undefined") {
     return { ok: false, reason: "unavailable" };
@@ -224,7 +236,7 @@ export function loadCustomerCreateDraft(
 
   let rawText: string | null;
   try {
-    rawText = localStorage.getItem(draftKey(userId));
+    rawText = localStorage.getItem(draftKey(userId, scope));
   } catch {
     return { ok: false, reason: "unavailable" };
   }
@@ -238,7 +250,7 @@ export function loadCustomerCreateDraft(
     parsed = JSON.parse(rawText);
   } catch {
     try {
-      localStorage.removeItem(draftKey(userId));
+      localStorage.removeItem(draftKey(userId, scope));
     } catch {
       // ignore
     }
@@ -248,7 +260,7 @@ export function loadCustomerCreateDraft(
   const result = parseCustomerCreateDraftPayload(parsed, userId, nowMs);
   if (!result.ok) {
     if (result.reason === "expired" || result.reason === "invalid") {
-      clearCustomerCreateDraft(userId);
+      clearCustomerCreateDraft(userId, scope);
     }
     return result;
   }
@@ -257,13 +269,16 @@ export function loadCustomerCreateDraft(
 }
 
 /** Clears only the draft for the given userId. Never wipes all localStorage. */
-export function clearCustomerCreateDraft(userId: string): void {
+export function clearCustomerCreateDraft(
+  userId: string,
+  scope: CustomerCreateDraftScope = { kind: "standard" },
+): void {
   if (typeof localStorage === "undefined") {
     return;
   }
 
   try {
-    localStorage.removeItem(draftKey(userId));
+    localStorage.removeItem(draftKey(userId, scope));
   } catch {
     // ignore
   }

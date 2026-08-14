@@ -336,6 +336,15 @@ const en = {
     familyProtectedMember: "Other family member",
     familyProtectedAccess: "Protected by access permissions",
     addFamilyMember: "Add Family Member",
+    familyMemberChooserSubtitle: "Choose how to add a family member",
+    familyLinkExistingAction: "Link existing customer",
+    familyLinkExistingDescription: "Add an existing CRM customer to this household",
+    familyCreateNewAction: "Create new customer",
+    familyCreateNewDescription:
+      "Create a new independent customer, then add them to this household automatically",
+    familyCreatePageTitle: "Add Family Member · Create New Customer",
+    familyCreateBackToDetail: "Back to customer detail",
+    familyRelationshipRequired: "Please select a family relationship",
     familyEmptyState: "No family members added yet.",
     familyEmptyStateHint:
       "Family members are managed as independent customers and do not share business status.",

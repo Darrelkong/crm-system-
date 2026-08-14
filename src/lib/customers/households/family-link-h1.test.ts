@@ -40,19 +40,22 @@ describe("H1 family modal visibility", () => {
 });
 
 describe("H1 customer detail family modal wiring", () => {
-  it("initializes familyModalOpen to false", () => {
+  it("initializes family modal and chooser closed", () => {
     const client = read("src/app/(dashboard)/customers/[id]/customer-detail-client.tsx");
     assert.match(client, /useState\(false\)/);
     assert.match(client, /familyModalOpen/);
+    assert.match(client, /familyChooserOpen/);
   });
 
-  it("opens modal only from Add Family Member action", () => {
+  it("opens chooser from Add Family Member and link-existing modal from chooser", () => {
     const client = read("src/app/(dashboard)/customers/[id]/customer-detail-client.tsx");
-    assert.match(client, /onAddFamilyMember=\{\(\) => setFamilyModalOpen\(true\)\}/);
+    assert.match(client, /onAddFamilyMember=\{\(\) => setFamilyChooserOpen\(true\)\}/);
     assert.match(client, /open=\{familyModalOpen\}/);
+    assert.match(client, /open=\{familyChooserOpen\}/);
     assert.match(client, /onClose=\{\(\) => setFamilyModalOpen\(false\)\}/);
-    const openTrueCalls = client.match(/setFamilyModalOpen\(true\)/g) ?? [];
-    assert.equal(openTrueCalls.length, 1, "modal must open only from Add Family Member");
+    assert.match(client, /CustomerFamilyMemberChooserModal/);
+    const modalOpenCalls = client.match(/setFamilyModalOpen\(true\)/g) ?? [];
+    assert.equal(modalOpenCalls.length, 1, "link-existing modal opens only from chooser");
   });
 });
 

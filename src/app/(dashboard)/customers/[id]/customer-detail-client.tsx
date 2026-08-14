@@ -33,6 +33,7 @@ import { resolveRequestedProjectDisplayName } from "@/lib/customers/requested-pr
 import { CustomerNavigationPerfProbe } from "./customer-navigation-perf-probe";
 import { CustomerFamilySection } from "@/components/customers/customer-family-section";
 import { CustomerFamilyLinkExistingModal } from "@/components/customers/customer-family-link-existing-modal";
+import { CustomerFamilyMemberChooserModal } from "@/components/customers/customer-family-member-chooser-modal";
 import type { CustomerFamilyDetailSummary } from "@/lib/customers/households/detail-summary";
 
 const cd = ui.customerDetail;
@@ -222,6 +223,7 @@ export function CustomerDetailClient({
   const { locale } = useTranslation();
   const id = view.id;
   const [familyModalOpen, setFamilyModalOpen] = useState(false);
+  const [familyChooserOpen, setFamilyChooserOpen] = useState(false);
 
   function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
     return currentLocale === "en" ? "en" : "zh";
@@ -389,18 +391,26 @@ export function CustomerDetailClient({
                 currentCustomerName={view.customerName}
                 summary={familySummary}
                 canManage={showManageFamilyButton}
-                onAddFamilyMember={() => setFamilyModalOpen(true)}
+                onAddFamilyMember={() => setFamilyChooserOpen(true)}
               />
             </SectionCard>
           )}
 
           {showManageFamilyButton && (
-            <CustomerFamilyLinkExistingModal
-              customerId={id}
-              currentCustomerName={view.customerName}
-              open={familyModalOpen}
-              onClose={() => setFamilyModalOpen(false)}
-            />
+            <>
+              <CustomerFamilyMemberChooserModal
+                customerId={id}
+                open={familyChooserOpen}
+                onClose={() => setFamilyChooserOpen(false)}
+                onLinkExisting={() => setFamilyModalOpen(true)}
+              />
+              <CustomerFamilyLinkExistingModal
+                customerId={id}
+                currentCustomerName={view.customerName}
+                open={familyModalOpen}
+                onClose={() => setFamilyModalOpen(false)}
+              />
+            </>
           )}
 
           {!view.isMasked && (

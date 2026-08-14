@@ -1,25 +1,8 @@
 export const dynamic = "force-dynamic";
 
-import { getDb, schema } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { writeAuditLog } from "@/lib/audit/audit-log";
-import { validateCustomerInput } from "@/lib/customers/validation";
-import { parseCustomerBody } from "@/lib/customers/parse-input";
-import { checkCustomerDuplicates } from "@/lib/customers/duplicate-check";
-import {
-  checkCustomerNameDuplicates,
-  duplicateCustomerNameConflictResponse,
-} from "@/lib/customers/name-duplicate-check";
-import {
-  normalizeCustomerNameForDuplicateMatch,
-  parseConfirmDuplicateName,
-} from "@/lib/customers/name-duplicate";
-import { buildReplaceCustomerIdentifierStatements } from "@/lib/customers/contact-identifiers";
-import {
-  duplicateCustomerConflictResponse,
-  resolveIdentifierConstraintAsDuplicates,
-} from "@/lib/customers/contact-identifier-conflict";
-import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import {
   listCustomersForUser,
   listCustomersForUserPaginated,
@@ -40,24 +23,15 @@ import { getRequestMeta } from "@/lib/auth/cookies";
 import {
   parseCustomerListSortParam,
 } from "@/lib/customers/customer-list-sort";
-import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
-import { buildInsertPrimaryAssigneeStatement } from "@/lib/customers/primary-assignee";
+import { approvalErrorResponse } from "@/lib/approvals/service";
 import {
-  buildOnHoldCreateApprovalPayload,
-  isStaffOnHoldCreatePending,
-  resolvePersistedSalesStageForCreate,
-  validateOnHoldReason,
-} from "@/lib/customers/on-hold-create-pending";
-import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
-import {
-  createApprovalRequest,
-  approvalErrorResponse,
+  prepareCustomerCreation,
+  executePreparedCustomerCreation,
   ApprovalError,
-} from "@/lib/approvals/service";
-import { getCustomerById } from "@/lib/customers/queries";
+} from "@/lib/customers/create-customer-service";
 
 export async function GET(request: Request) {
   try {
@@ -178,362 +152,89 @@ export async function POST(request: Request) {
   try {
     const user = await requireAuth(request);
     const { ipAddress, userAgent } = getRequestMeta(request);
-
     const body = (await request.json()) as Record<string, unknown>;
-    const input = parseCustomerBody(body, { forCreate: true });
-    // Create defaults status to active; strip status from validation default
-    const createInput = { ...input, status: "active" };
-
     const db = getDb();
     const allowedSourceKeys = await getActiveCustomerTagKeys(db);
 
-    const fieldErrors = validateCustomerInput(createInput, {
-      requireSalesStage: true,
+    const prepared = await prepareCustomerCreation({
+      actor: user,
+      body,
       allowedSourceKeys,
-      userRole: user.role === "admin" ? "admin" : "staff",
-      enforceCreateNameStatusRules: true,
+      db,
     });
-    if (fieldErrors.length > 0) {
+
+    if (prepared.kind === "validation") {
       await writeAuditLog({
         userId: user.id,
         action: "customer.create_failed.validation",
         ipAddress,
         userAgent,
-        metadata: { fieldErrors },
+        metadata: prepared.auditMetadata ?? { fieldErrors: prepared.fieldErrors },
       });
+      if (
+        prepared.auditMetadata?.errorCode === "INTERNAL_ERROR" ||
+        (prepared.fieldErrors.length === 0 &&
+          prepared.auditMetadata?.errorCode)
+      ) {
+        return Response.json(
+          {
+            error: "服务器错误，请稍后重试",
+            errorCode: "INTERNAL_ERROR",
+          },
+          { status: 500 },
+        );
+      }
       return Response.json(
-        { error: "输入校验失败", errorCode: "VALIDATION_FAILED", fieldErrors },
+        { error: "输入校验失败", errorCode: "VALIDATION_FAILED", fieldErrors: prepared.fieldErrors },
         { status: 400 },
       );
     }
 
-    // Staff owner is always forced to current user; admin defaults to self
-    const ownerId =
-      user.role === "admin"
-        ? (typeof body.ownerId === "string" ? body.ownerId : user.id)
-        : user.id;
-
-    const duplicates = await checkCustomerDuplicates(
-      {
-        phoneCountryCode: createInput.phoneCountryCode,
-        phone: createInput.phone,
-        wechatId: createInput.wechatId,
-        email: createInput.email,
-      },
-      user,
-    );
-
-    if (duplicates.length > 0) {
-      // Phase 1: duplicate 409 must not write CRM audit / customer / approval data.
+    if (prepared.kind === "duplicate") {
       return Response.json(
         {
           error: "存在重复客户",
           errorCode: "DUPLICATE_CUSTOMER",
           code: "duplicate_customer",
           duplicate: true,
-          duplicates,
+          duplicates: prepared.duplicates,
         },
         { status: 409 },
       );
     }
 
-    const nameStatus =
-      createInput.nameStatus === "pending" ? "pending" : "confirmed";
-    let duplicateNameWarningConfirmed = false;
-
-    if (nameStatus === "confirmed") {
-      const normalizedName = normalizeCustomerNameForDuplicateMatch(
-        createInput.customerName,
-      );
-      if (normalizedName) {
-        let nameDuplicates;
-        try {
-          nameDuplicates = await checkCustomerNameDuplicates(
-            normalizedName,
-            user,
-          );
-        } catch {
-          return Response.json(
-            {
-              error: "服务器错误，请稍后重试",
-              errorCode: "INTERNAL_ERROR",
-            },
-            { status: 500 },
-          );
-        }
-        if (nameDuplicates.length > 0) {
-          const confirm = parseConfirmDuplicateName(body.confirmDuplicateName);
-          if (confirm !== normalizedName) {
-            return duplicateCustomerNameConflictResponse({
-              normalizedName,
-              duplicates: nameDuplicates,
-            });
-          }
-          duplicateNameWarningConfirmed = true;
-        }
-      }
+    if (prepared.kind === "name_duplicate") {
+      return prepared.response;
     }
-
-    const now = new Date().toISOString();
-    const id = crypto.randomUUID();
-    const customerCode = await allocateCustomerCode(db);
-    const requestedSalesStage = createInput.salesStage!;
-    const pendingOnHoldApproval = isStaffOnHoldCreatePending(
-      user.role,
-      requestedSalesStage,
-    );
-
-    let validatedOnHoldReason: string | undefined;
-    if (pendingOnHoldApproval) {
-      const reasonValidation = validateOnHoldReason(body.onHoldReason);
-      if (!reasonValidation.ok) {
-        await writeAuditLog({
-          userId: user.id,
-          action: "customer.create_failed.validation",
-          ipAddress,
-          userAgent,
-          metadata: {
-            errorCode: reasonValidation.errorCode,
-            field: "onHoldReason",
-          },
-        });
-        return Response.json(
-          {
-            error: "输入校验失败",
-            errorCode: reasonValidation.errorCode,
-            fieldErrors: [
-              {
-                field: "onHoldReason",
-                code: reasonValidation.errorCode,
-                message:
-                  reasonValidation.errorCode === "ON_HOLD_REASON_REQUIRED"
-                    ? "请填写搁置申请理由"
-                    : "搁置申请理由至少需要 8 个字",
-              },
-            ],
-          },
-          { status: 400 },
-        );
-      }
-      validatedOnHoldReason = reasonValidation.value;
-    }
-
-    const persistedSalesStage = resolvePersistedSalesStageForCreate(
-      user.role,
-      requestedSalesStage,
-    );
-
-    const projectResolved = resolveRequestedProjectForPersist({
-      requestedProjectCode: createInput.requestedProjectCode,
-      requestedProjectName: createInput.requestedProjectName,
-      mode: "create",
-    });
-    if (!projectResolved.ok) {
-      await writeAuditLog({
-        userId: user.id,
-        action: "customer.create_failed.validation",
-        ipAddress,
-        userAgent,
-        metadata: { fieldErrors: projectResolved.fieldErrors },
-      });
-      return Response.json(
-        {
-          error: "输入校验失败",
-          errorCode: "VALIDATION_FAILED",
-          fieldErrors: projectResolved.fieldErrors,
-        },
-        { status: 400 },
-      );
-    }
-
-    const payload = buildCustomerUpdatePayload({
-      customerName: createInput.customerName!,
-      customerType: createInput.customerType!,
-      phoneCountryCode: createInput.phoneCountryCode!,
-      phone: createInput.phone ?? null,
-      wechatId: createInput.wechatId ?? null,
-      email: createInput.email ?? null,
-      source: createInput.source!,
-      sourceRemark: createInput.sourceRemark ?? null,
-      requestedProjectCode: projectResolved.value.requestedProjectCode,
-      requestedProjectName: projectResolved.value.requestedProjectName,
-      notes: createInput.notes ?? null,
-      salesStage: persistedSalesStage,
-      status: "active",
-      preferredName: createInput.preferredName,
-      gender: createInput.gender,
-      ageRange: createInput.ageRange,
-      preferredLanguage: createInput.preferredLanguage,
-      preferredContactMethod: createInput.preferredContactMethod,
-      occupation: createInput.occupation,
-      companyName: createInput.companyName,
-      jobTitle: createInput.jobTitle,
-      targetCountryOrRegion: createInput.targetCountryOrRegion,
-      primaryConcern: createInput.primaryConcern,
-    });
-
-    const insertCustomerStmt = db.insert(schema.customers).values({
-      id,
-      customerCode,
-      customerName: payload.customerName,
-      nameStatus,
-      customerType: payload.customerType,
-      phoneCountryCode: payload.phoneCountryCode,
-      phone: payload.phone,
-      wechatId: payload.wechatId,
-      email: payload.email,
-      source: payload.source,
-      sourceRemark: payload.sourceRemark,
-      requestedProjectCode: payload.requestedProjectCode,
-      requestedProjectName: payload.requestedProjectName,
-      notes: payload.notes,
-      preferredName: payload.preferredName,
-      gender: payload.gender,
-      ageRange: payload.ageRange,
-      preferredLanguage: payload.preferredLanguage,
-      preferredContactMethod: payload.preferredContactMethod,
-      occupation: payload.occupation,
-      companyName: payload.companyName,
-      jobTitle: payload.jobTitle,
-      targetCountryOrRegion: payload.targetCountryOrRegion,
-      primaryConcern: payload.primaryConcern,
-      salesStage: payload.salesStage,
-      status: payload.status,
-      ownerId,
-      createdBy: user.id,
-      updatedBy: user.id,
-      reclamationCycleStartedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    });
-
-    // Owner ⇔ primary assignee must be written atomically (see PRIMARY-ASSIGNEE-INVARIANT).
-    const insertPrimaryAssigneeStmt = buildInsertPrimaryAssigneeStatement(db, {
-      customerId: id,
-      ownerId,
-      assignedBy: user.id,
-      now,
-    });
-
-    const identifierSync = buildReplaceCustomerIdentifierStatements(db, {
-      customerId: id,
-      phoneCountryCode: payload.phoneCountryCode,
-      phone: payload.phone,
-      wechatId: payload.wechatId,
-      email: payload.email,
-      secondaryContacts: [],
-      now,
-    });
 
     try {
-      await db.batch(
-        [
-          insertCustomerStmt,
-          insertPrimaryAssigneeStmt,
-          ...identifierSync.statements,
-        ] as unknown as Parameters<typeof db.batch>[0],
-      );
-    } catch (batchError) {
-      const mapped = await resolveIdentifierConstraintAsDuplicates(
-        batchError,
-        {
-          phoneCountryCode: payload.phoneCountryCode,
-          phone: payload.phone,
-          wechatId: payload.wechatId,
-          email: payload.email,
-        },
-        user,
-      );
-      if (mapped) {
-        return duplicateCustomerConflictResponse(mapped.duplicates);
-      }
-      throw batchError;
-    }
+      const result = await executePreparedCustomerCreation({
+        db,
+        actor: user,
+        statements: prepared.statements,
+        meta: prepared.meta,
+        audit: { ipAddress, userAgent },
+      });
 
-    if (pendingOnHoldApproval) {
-      const customer = await getCustomerById(id);
-      if (!customer) {
+      if (result.kind === "pending_approval") {
         return Response.json(
-          { error: "服务器错误", errorCode: "SERVER_ERROR" },
-          { status: 500 },
+          {
+            ok: true,
+            pendingApproval: true,
+            approvalId: result.approvalId,
+            message: "ON_HOLD_APPROVAL_REQUIRED",
+          },
+          { status: 201 },
         );
       }
 
-      const { id: approvalId } = await createApprovalRequest(
-        customer,
-        user,
-        {
-          requestType: "create_on_hold_customer",
-          reason: validatedOnHoldReason!,
-          payload: buildOnHoldCreateApprovalPayload({
-            requestedSalesStage,
-            onHoldReason: validatedOnHoldReason!,
-            customerName: createInput.customerName!,
-            customerType: createInput.customerType!,
-            phoneCountryCode: createInput.phoneCountryCode!,
-            phone: createInput.phone,
-            wechatId: createInput.wechatId,
-            email: createInput.email,
-            source: createInput.source!,
-            sourceRemark: createInput.sourceRemark,
-            requestedProjectCode: projectResolved.value.requestedProjectCode,
-            requestedProjectName: projectResolved.value.requestedProjectName,
-            notes: createInput.notes,
-          }),
-        },
-        { ipAddress, userAgent },
-      );
-
-      await writeAuditLog({
-        userId: user.id,
-        action: "customer.create_on_hold.pending",
-        entityType: "customer",
-        entityId: id,
-        ipAddress,
-        userAgent,
-        metadata: {
-          customerName: createInput.customerName,
-          customerCode,
-          approvalId,
-          requestedSalesStage,
-          nameStatus,
-          ...(duplicateNameWarningConfirmed
-            ? { duplicateNameWarningConfirmed: true }
-            : {}),
-        },
-      });
-
-      return Response.json(
-        {
-          ok: true,
-          pendingApproval: true,
-          approvalId,
-          message: "ON_HOLD_APPROVAL_REQUIRED",
-        },
-        { status: 201 },
-      );
+      return Response.json({ ok: true, id: result.id }, { status: 201 });
+    } catch (error) {
+      if (error instanceof Response) {
+        return error;
+      }
+      throw error;
     }
-
-    await writeAuditLog({
-      userId: user.id,
-      action: "customer.created",
-      entityType: "customer",
-      entityId: id,
-      ipAddress,
-      userAgent,
-      metadata: {
-        customerName: createInput.customerName,
-        customerCode,
-        source: createInput.source,
-        ownerId,
-        nameStatus,
-        ...(duplicateNameWarningConfirmed
-          ? { duplicateNameWarningConfirmed: true }
-          : {}),
-      },
-    });
-
-    return Response.json({ ok: true, id }, { status: 201 });
   } catch (error) {
     if (error instanceof ApprovalError) {
       return approvalErrorResponse(error);
