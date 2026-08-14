@@ -52,6 +52,7 @@ import {
   approvePriorityCustomerRequest,
   assertPriorityApprovalCanExecute,
   writeAutomaticPriorityAudit,
+  writePriorityApprovalSuccessAudit,
 } from "@/lib/customers/priority-customer-approval";
 import { buildSalesStageUpdateWithPriority } from "@/lib/customers/priority-stage-update";
 import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
@@ -922,31 +923,6 @@ export async function approveApprovalRequest(
   ) {
     assertPriorityApprovalCanExecute(approval, customer);
 
-    const priorityNow = new Date().toISOString();
-    const priorityUpdateResult = await db
-      .update(schema.approvals)
-      .set({
-        status: "approved",
-        adminComment: adminComment?.trim() || null,
-        reviewedBy: reviewer.id,
-        reviewedAt: priorityNow,
-        updatedAt: priorityNow,
-      })
-      .where(
-        and(
-          eq(schema.approvals.id, approvalId),
-          eq(schema.approvals.status, "pending"),
-        ),
-      );
-
-    const priorityChanges = extractChanges(priorityUpdateResult);
-    if (priorityChanges === 0) {
-      throw new ApprovalError(409, "该申请已处理，不能重复审批");
-    }
-    if (priorityChanges !== null && priorityChanges !== 1) {
-      throw new ApprovalError(409, "该申请已处理，不能重复审批");
-    }
-
     await approvePriorityCustomerRequest(
       db,
       approval,
@@ -954,6 +930,8 @@ export async function approveApprovalRequest(
       reviewer,
       adminComment,
     );
+
+    await writePriorityApprovalSuccessAudit(db, approval, customer, reviewer);
 
     await writeAuditLog({
       userId: reviewer.id,

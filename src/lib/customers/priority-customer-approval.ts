@@ -28,6 +28,18 @@ import {
   shouldSkipUnsetPriorityMutation,
   type PriorityRequestType,
 } from "./priority-customer";
+import {
+  buildAdminDirectRemoveCustomerMutation,
+  buildAdminDirectSetCustomerMutation,
+  executeAtomicPriorityApproval,
+  parsePriorityApprovalSnapshot,
+  toPriorityAdminSnapshot,
+} from "./priority-customer-cas";
+
+export {
+  executeAtomicPriorityApproval,
+  parsePriorityApprovalSnapshot,
+} from "./priority-customer-cas";
 
 export class PriorityCustomerError extends Error {
   constructor(
@@ -265,15 +277,39 @@ export async function adminDirectSetPriority(
   const now = new Date().toISOString();
   const patch = buildAdminSetPriorityFields(now);
   const previous = priorityAuditSnapshot(customer);
+  const snapshot = toPriorityAdminSnapshot(customer);
 
-  await db
-    .update(schema.customers)
-    .set({
-      ...patch,
-      updatedBy: admin.id,
-      updatedAt: now,
-    })
-    .where(eq(schema.customers.id, customer.id));
+  const updateResult = await buildAdminDirectSetCustomerMutation(db, {
+    customerId: customer.id,
+    adminId: admin.id,
+    now,
+    snapshot,
+  });
+
+  const changes = extractChanges(updateResult);
+  if (changes === 0) {
+    const refreshed = await db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, customer.id))
+      .limit(1);
+    const current = refreshed[0];
+    if (current && current.isPinned === 1) {
+      return "no_change";
+    }
+    throw new PriorityCustomerError(
+      409,
+      "客户优先状态已变更，无法继续处理",
+      PRIORITY_ERROR_CODES.STALE_PRIORITY_APPROVAL,
+    );
+  }
+  if (changes !== null && changes !== 1) {
+    throw new PriorityCustomerError(
+      409,
+      "客户优先状态已变更，无法继续处理",
+      PRIORITY_ERROR_CODES.STALE_PRIORITY_APPROVAL,
+    );
+  }
 
   await writeAuditLog(
     {
@@ -326,15 +362,50 @@ export async function adminDirectRemovePriority(
   const now = new Date().toISOString();
   const patch = buildAdminRemovePriorityFields();
   const previous = priorityAuditSnapshot(customer);
+  const snapshot = toPriorityAdminSnapshot(customer);
 
-  await db
-    .update(schema.customers)
-    .set({
-      ...patch,
-      updatedBy: admin.id,
-      updatedAt: now,
-    })
-    .where(eq(schema.customers.id, customer.id));
+  const updateResult = await buildAdminDirectRemoveCustomerMutation(db, {
+    customerId: customer.id,
+    adminId: admin.id,
+    now,
+    snapshot,
+  });
+
+  const changes = extractChanges(updateResult);
+  if (changes === 0) {
+    const refreshed = await db
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, customer.id))
+      .limit(1);
+    const current = refreshed[0];
+    if (!current || current.isPinned !== 1) {
+      throw new PriorityCustomerError(
+        409,
+        "此客户目前不是优先客户，无需取消",
+        PRIORITY_ERROR_CODES.NOT_PRIORITY,
+      );
+    }
+    if (!canRemovePriorityForStage(current.salesStage)) {
+      throw new PriorityCustomerError(
+        409,
+        "搁置中的客户会自动保持为优先客户。如需取消，请先将客户移出「搁置」阶段。",
+        PRIORITY_ERROR_CODES.ON_HOLD_REQUIRES_PRIORITY,
+      );
+    }
+    throw new PriorityCustomerError(
+      409,
+      "客户优先状态已变更，无法继续处理",
+      PRIORITY_ERROR_CODES.STALE_PRIORITY_APPROVAL,
+    );
+  }
+  if (changes !== null && changes !== 1) {
+    throw new PriorityCustomerError(
+      409,
+      "客户优先状态已变更，无法继续处理",
+      PRIORITY_ERROR_CODES.STALE_PRIORITY_APPROVAL,
+    );
+  }
 
   await writeAuditLog(
     {
@@ -363,28 +434,17 @@ function parsePriorityApprovalPayload(approval: Approval): {
   expectedPinnedSource: string | null;
   expectedSalesStage: string;
 } | null {
-  if (!approval.payload) return null;
-  try {
-    const parsed = JSON.parse(approval.payload) as Record<string, unknown>;
-    if (
-      typeof parsed.expectedIsPinned !== "boolean" ||
-      typeof parsed.expectedSalesStage !== "string"
-    ) {
-      return null;
-    }
-    return {
-      expectedIsPinned: parsed.expectedIsPinned,
-      expectedPinnedSource:
-        typeof parsed.expectedPinnedSource === "string"
-          ? parsed.expectedPinnedSource
-          : parsed.expectedPinnedSource == null
-            ? null
-            : null,
-      expectedSalesStage: parsed.expectedSalesStage,
-    };
-  } catch {
-    return null;
-  }
+  return parsePriorityApprovalSnapshot(approval);
+}
+
+function isCustomerEligibleForPriorityExecution(
+  customer: Customer,
+): boolean {
+  return (
+    customer.deletedAt == null &&
+    customer.status !== "archived" &&
+    customer.status !== "public_pool"
+  );
 }
 
 function snapshotStillValid(
@@ -422,6 +482,14 @@ export function assertPriorityApprovalCanExecute(
     );
   }
 
+  if (!isCustomerEligibleForPriorityExecution(customer)) {
+    throw new ApprovalError(
+      409,
+      "客户优先状态已变更，无法继续处理此审批",
+      PRIORITY_ERROR_CODES.STALE_PRIORITY_APPROVAL,
+    );
+  }
+
   if (approval.requestType === "unset_priority_customer") {
     if (shouldSkipUnsetPriorityMutation(customer)) {
       throw new ApprovalError(
@@ -433,32 +501,17 @@ export function assertPriorityApprovalCanExecute(
   }
 }
 
-export async function approvePriorityCustomerRequest(
+export async function writePriorityApprovalSuccessAudit(
   db: Database,
   approval: Approval,
   customer: Customer,
   reviewer: User,
-  adminComment?: string | null,
-): Promise<"updated" | "no_change"> {
-  assertPriorityApprovalCanExecute(approval, customer);
-
+): Promise<void> {
   const now = new Date().toISOString();
+  const previous = priorityAuditSnapshot(customer);
 
   if (approval.requestType === "set_priority_customer") {
-    if (shouldSkipSetPriorityMutation(customer)) {
-      return "no_change";
-    }
     const patch = buildApprovalSetPriorityFields(now);
-    const previous = priorityAuditSnapshot(customer);
-    await db
-      .update(schema.customers)
-      .set({
-        ...patch,
-        updatedBy: reviewer.id,
-        updatedAt: now,
-      })
-      .where(eq(schema.customers.id, customer.id));
-
     await writeAuditLog(
       {
         userId: reviewer.id,
@@ -474,28 +527,10 @@ export async function approvePriorityCustomerRequest(
       },
       db,
     );
-    return "updated";
-  }
-
-  if (shouldSkipUnsetPriorityMutation(customer)) {
-    throw new ApprovalError(
-      409,
-      "客户优先状态已变更，无法继续处理此审批",
-      PRIORITY_ERROR_CODES.STALE_PRIORITY_APPROVAL,
-    );
+    return;
   }
 
   const patch = buildAdminRemovePriorityFields();
-  const previous = priorityAuditSnapshot(customer);
-  await db
-    .update(schema.customers)
-    .set({
-      ...patch,
-      updatedBy: reviewer.id,
-      updatedAt: now,
-    })
-    .where(eq(schema.customers.id, customer.id));
-
   await writeAuditLog(
     {
       userId: reviewer.id,
@@ -511,8 +546,26 @@ export async function approvePriorityCustomerRequest(
     },
     db,
   );
+}
 
-  return "updated";
+export async function approvePriorityCustomerRequest(
+  db: Database,
+  approval: Approval,
+  customer: Customer,
+  reviewer: User,
+  adminComment?: string | null,
+  options?: {
+    testAppendStatements?: (ctx: { db: Database }) => unknown[];
+  },
+): Promise<"updated"> {
+  assertPriorityApprovalCanExecute(approval, customer);
+  return executeAtomicPriorityApproval(
+    db,
+    approval,
+    reviewer,
+    adminComment,
+    options,
+  );
 }
 
 export async function writeAutomaticPriorityAudit(

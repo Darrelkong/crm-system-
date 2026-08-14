@@ -228,19 +228,6 @@ export function CustomerApprovalRequests({
     !submitting &&
     !(isPriorityRequest && pendingPriorityApproval);
 
-  if (pendingPriorityApproval && !open) {
-    return (
-      <div className="flex flex-col items-end gap-1">
-        <Button type="button" variant="secondary" disabled>
-          {t("customers.submitApproval")}
-        </Button>
-        <p className="max-w-xs text-right text-xs text-[#6B7890]">
-          {t("customers.priorityApprovalPending")}
-        </p>
-      </div>
-    );
-  }
-
   if (!open) {
     return (
       <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
@@ -255,6 +242,12 @@ export function CustomerApprovalRequests({
         <h3 className={ui.customerDetail.subsectionTitle}>
           {t("customers.submitApprovalTitle")}
         </h3>
+
+        {pendingPriorityApproval && (
+          <p className="mt-3 rounded-lg bg-slate-50 px-3 py-2 text-sm text-[#6B7890]">
+            {t("customers.priorityApprovalPending")}
+          </p>
+        )}
 
         {isPinned && salesStage === "on_hold" && (
           <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">

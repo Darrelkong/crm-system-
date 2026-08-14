@@ -3350,6 +3350,17 @@ const en = {
       "A collaborator update request is already pending approval.",
     assigneeApprovalForbidden: "You cannot submit a collaborator update request.",
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data.",
+    customerAlreadyPriority: "This client is already a Priority Customer.",
+    customerNotPriority: "This client is not currently a Priority Customer.",
+    customerOnHoldRequiresPriority:
+      "Clients on hold remain Priority Customers automatically. Move the client out of On Hold before removing Priority status.",
+    priorityApprovalAlreadyPending:
+      "A Priority Customer request is already pending review.",
+    priorityApprovalStale:
+      "The client's Priority status has changed and this request can no longer be processed.",
+    invalidPriorityAction: "This Priority Customer action is not valid.",
+    priorityUseDedicatedEndpoint:
+      "Please use the Priority Customer dedicated entry to submit this request.",
     transferTargetRequired: "Please select a target team member",
     transferTargetInvalid: "The selected target team member is invalid",
     transferTargetSameAsOwner:

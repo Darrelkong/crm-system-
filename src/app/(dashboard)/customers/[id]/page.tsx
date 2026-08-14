@@ -169,9 +169,9 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
-  const pendingPriorityApproval = showApprovalButton
-    ? !!(await findPendingPriorityApproval(db, id))
-    : false;
+  const pendingPriorityApprovalPromise = showApprovalButton
+    ? findPendingPriorityApproval(db, id).then((row) => !!row)
+    : Promise.resolve(false);
   const showManageAssigneesButton = canManageCustomerAssignees(user, customer);
   const showRequestAssigneesButton = canRequestCustomerAssigneeUpdate(
     user,
@@ -249,6 +249,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     timelineTimed,
     displayNamesTimed,
     familySummaryTimed,
+    pendingPriorityApproval,
   ] = await Promise.all([
     measureAsync(() =>
       canConfirmPendingCustomerName(db, user, customer, {
@@ -264,6 +265,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
       );
     })(),
     measureAsync(() => getCustomerHouseholdDetailSummary(db, user, customer)),
+    pendingPriorityApprovalPromise,
   ]);
   const secondaryTotalMs = perfNow() - secondaryStart;
   const followUpsMeasured = preloadedFullFollowUps
