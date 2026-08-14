@@ -74,15 +74,6 @@ export function CustomerFamilyEditRelationshipModal({
       return;
     }
 
-    if (
-      currentRelationship &&
-      currentRelationship !== "parent" &&
-      relationshipType === currentRelationship
-    ) {
-      onClose();
-      return;
-    }
-
     setSubmitting(true);
     setError(null);
 
