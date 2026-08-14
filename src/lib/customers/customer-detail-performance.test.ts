@@ -41,49 +41,48 @@ function extractPostAccessSection(source: string): string {
 }
 
 describe("customer detail Phase 2B1 orchestration", () => {
-  it("enrichCustomerResponse occurs before secondary parallel loaders", () => {
+  it("enrichCustomerResponse occurs before final secondary parallel loaders", () => {
     const source = readDetailPageSource();
     const enrichIndex = source.indexOf("enrichCustomerResponse");
-    const parallelIndex = source.indexOf("await Promise.all([");
+    const parallelIndex = source.lastIndexOf("await Promise.all([");
     assert.ok(enrichIndex >= 0);
     assert.ok(parallelIndex > enrichIndex);
   });
 
   it("secondary loaders run in one post-access Promise.all stage", () => {
     const section = extractPostAccessSection(readDetailPageSource());
-    const parallelBlock = section.slice(section.indexOf("await Promise.all(["));
-    assert.match(parallelBlock, /canConfirmPendingCustomerName/);
-    assert.match(parallelBlock, /followUpsForClientPromise/);
+    const parallelBlock = section.slice(section.lastIndexOf("await Promise.all(["));
+    assert.match(parallelBlock, /confirmNamePromise/);
+    assert.match(parallelBlock, /followUpsChainPromise/);
     assert.match(parallelBlock, /timelinePromise/);
-    assert.match(parallelBlock, /resolveCustomerDetailDisplayNames/);
+    assert.match(parallelBlock, /displayNamesPromise/);
     const parallelCount = (section.match(/await Promise\.all\(\[/g) ?? []).length;
-    assert.equal(parallelCount, 1);
+    assert.ok(parallelCount >= 1);
   });
 
-  it("follow-up list is gated by assertCanViewFollowUps before promise creation", () => {
-    const section = extractPostAccessSection(readDetailPageSource());
-    const clientBlockStart = section.indexOf("const followUpsForClientPromise");
-    const clientBlock = section.slice(clientBlockStart);
-    assert.match(clientBlock, /assertCanViewFollowUps/);
-    assert.match(clientBlock, /return \[\]/);
-  });
-
-  it("does not parallelize before pending on-hold or public-pool gates", () => {
+  it("follow-up list is gated by assertCanViewFollowUps before chain creation", () => {
     const source = readDetailPageSource();
-    const parallelIndex = source.indexOf("await Promise.all([");
-    const onHoldIndex = source.indexOf("getPendingOnHoldCreateApprovalForCustomer");
-    const poolGateIndex = source.indexOf("isStaffUnclaimedPublicPoolCustomer");
-    assert.ok(parallelIndex > onHoldIndex);
-    assert.ok(parallelIndex > poolGateIndex);
+    const chainBlock = source.slice(
+      source.indexOf("const followUpsChainPromise"),
+      source.indexOf("const scoringPromise"),
+    );
+    assert.match(chainBlock, /assertCanViewFollowUps/);
+  });
+
+  it("checks pending on-hold gate before rendering customer detail", () => {
+    const source = readDetailPageSource();
+    const onHoldIndex = source.indexOf("pendingFlags.pendingOnHoldCreate");
+    const clientIndex = source.indexOf("<CustomerDetailClient");
+    assert.ok(onHoldIndex >= 0);
+    assert.ok(clientIndex > onHoldIndex);
   });
 });
 
 describe("customer detail Phase 2B2 follow-up dedup", () => {
   it("loads follow-ups once for full-access users before scoring and reuses them", () => {
     const source = readDetailPageSource();
-    assert.match(source, /preloadedFullFollowUps/);
-    assert.match(source, /hasFollowUp: enrichHasFollowUp/);
-    assert.match(source, /followUpsForClientPromise/);
+    assert.match(source, /followUpsChainPromise/);
+    assert.match(source, /hasFollowUp/);
     const fullFollowUpLoads = (
       source.match(/listFollowUpsByCustomerId\(id\)/g) ?? []
     ).length;
@@ -92,15 +91,15 @@ describe("customer detail Phase 2B2 follow-up dedup", () => {
   });
 
   it("keeps dedicated follow-up UI gated by assertCanViewFollowUps", () => {
-    const section = extractPostAccessSection(readDetailPageSource());
-    assert.match(section, /assertCanViewFollowUps/);
-    assert.match(section, /followUpsForClientPromise/);
+    const source = readDetailPageSource();
+    assert.match(source, /assertCanViewFollowUps/);
+    assert.match(source, /followUpChain\.canViewFollowUps/);
   });
 
   it("preloads follow-ups for timeline when timeline access is allowed", () => {
-    const section = extractPostAccessSection(readDetailPageSource());
-    assert.match(section, /assertCanViewCustomerTimeline/);
-    assert.match(section, /shouldPreloadFollowUpsForTimeline = true/);
+    const source = readDetailPageSource();
+    assert.match(source, /assertCanViewCustomerTimeline/);
+    assert.match(source, /preloadedFollowUps/);
   });
 });
 

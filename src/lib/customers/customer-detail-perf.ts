@@ -2,6 +2,7 @@ export type CustomerDetailPerfTimings = {
   serverDataReadyTotalMs: number;
   authMs: number;
   customerLookupMs: number;
+  bootstrapMs: number;
   pendingApprovalMs: number;
   accessResolutionMs: number;
   scoringMs: number;

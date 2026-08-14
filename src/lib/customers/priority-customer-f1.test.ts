@@ -322,15 +322,19 @@ describe("priority customer F1 i18n", () => {
 
 describe("priority customer F1 UI regression", () => {
   it("does not globally disable submit approval when priority pending", () => {
-    const src = readFileSync(
-      join(process.cwd(), "src/components/customers/customer-approval-requests.tsx"),
+    const entry = readFileSync(
+      join(process.cwd(), "src/components/customers/customer-approval-requests-entry.tsx"),
+      "utf8",
+    );
+    const modal = readFileSync(
+      join(process.cwd(), "src/components/customers/customer-approval-requests-modal.tsx"),
       "utf8",
     );
     assert.doesNotMatch(
-      src,
+      entry,
       /disabled=\{[^}]*pendingPriorityApproval/,
     );
-    assert.match(src, /priorityApprovalPending/);
-    assert.match(src, /CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES/);
+    assert.match(modal, /priorityApprovalPending/);
+    assert.match(modal, /CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES/);
   });
 });

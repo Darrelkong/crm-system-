@@ -30,8 +30,7 @@ import {
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
 import { CustomerDetailClient } from "./customer-detail-client";
 import { CustomerDetailPerfPanel } from "./customer-detail-perf-panel";
-import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
-import { findPendingPriorityApproval } from "@/lib/customers/priority-customer-approval";
+import { getCustomerPendingApprovalFlags } from "@/lib/customers/customer-pending-approval-flags";
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
 import { getCustomerHouseholdDetailSummary } from "@/lib/customers/households/detail-summary";
@@ -65,9 +64,18 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     firstSearchParam(query.perf),
   );
 
-  const { result: customer, durationMs: customerLookupMs } = await measureAsync(
-    () => getCustomerById(id),
-  );
+  const db = getDb();
+  const bootstrapStart = perfNow();
+  const [customerTimed, pendingFlagsTimed, assigneesTimed] = await Promise.all([
+    measureAsync(() => getCustomerById(id)),
+    measureAsync(() => getCustomerPendingApprovalFlags(db, id)),
+    measureAsync(() => listCustomerAssignees(db, id)),
+  ]);
+  const bootstrapMs = perfNow() - bootstrapStart;
+  const customer = customerTimed.result;
+  const pendingFlags = pendingFlagsTimed.result;
+  const pendingApprovalMs = pendingFlagsTimed.durationMs;
+  const preloadedAssignees = assigneesTimed.result;
 
   if (!customer) {
     return (
@@ -78,10 +86,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     );
   }
 
-  const db = getDb();
-  const { result: pendingOnHoldApproval, durationMs: pendingApprovalMs } =
-    await measureAsync(() => getPendingOnHoldCreateApprovalForCustomer(db, id));
-  if (pendingOnHoldApproval) {
+  if (pendingFlags.pendingOnHoldCreate) {
     return (
       <CustomerStatePanel
         titleKey="customers.onHoldCreatePendingTitle"
@@ -103,49 +108,81 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     );
   }
 
-  let scoresView;
-  let scoringMs = 0;
-  const staffAssigneeSnapshot =
-    user.role === "staff"
-      ? await measureAsync(async () => {
-          const assignees = await listCustomerAssignees(db, id);
-          return {
-            assignees,
-            accessOptions: resolveCustomerAccessOptionsFromAssignees(
-              user,
-              assignees,
-            ),
-          };
-        })
-      : null;
-
   const accessOptions =
-    staffAssigneeSnapshot?.result.accessOptions ?? {};
-  const accessResolutionMs = staffAssigneeSnapshot?.durationMs ?? 0;
-  const preloadedAssignees = staffAssigneeSnapshot?.result.assignees;
+    user.role === "staff"
+      ? resolveCustomerAccessOptionsFromAssignees(user, preloadedAssignees)
+      : {};
+  const accessResolutionMs =
+    user.role === "staff" ? assigneesTimed.durationMs : 0;
 
-  let preloadedFullFollowUps: Awaited<
-    ReturnType<typeof listFollowUpsByCustomerId>
-  > | undefined;
-  let enrichHasFollowUp: boolean | undefined;
+  const secondaryStart = perfNow();
 
-  try {
-    assertCanViewFollowUps(user, customer, accessOptions);
-    const followUpMeasured = await measureAsync(() =>
-      listFollowUpsByCustomerId(id),
-    );
-    preloadedFullFollowUps = followUpMeasured.result;
-    enrichHasFollowUp = followUpMeasured.result.length > 0;
-  } catch {
-    // No full follow-up visibility — scoring keeps the existence probe.
-  }
+  const followUpsChainPromise = (async () => {
+    try {
+      assertCanViewFollowUps(user, customer, accessOptions);
+      const measured = await measureAsync(() => listFollowUpsByCustomerId(id));
+      return {
+        followUps: measured.result,
+        hasFollowUp: measured.result.length > 0,
+        durationMs: measured.durationMs,
+        canViewFollowUps: true,
+      };
+    } catch {
+      return {
+        followUps: undefined as
+          | Awaited<ReturnType<typeof listFollowUpsByCustomerId>>
+          | undefined,
+        hasFollowUp: undefined as boolean | undefined,
+        durationMs: 0,
+        canViewFollowUps: false,
+      };
+    }
+  })();
 
-  try {
-    const scored = await measureAsync(() =>
+  const scoringPromise = followUpsChainPromise.then(({ hasFollowUp }) =>
+    measureAsync(() =>
       enrichCustomerResponse(db, user, customer, new Date(), accessOptions, {
-        hasFollowUp: enrichHasFollowUp,
+        hasFollowUp,
+      }),
+    ),
+  );
+
+  const familySummaryPromise = measureAsync(() =>
+    getCustomerHouseholdDetailSummary(db, user, customer),
+  );
+  const confirmNamePromise = measureAsync(() =>
+    canConfirmPendingCustomerName(db, user, customer, {
+      preloadedAssignees,
+    }),
+  );
+  const displayNamesPromise = measureAsync(() =>
+    resolveCustomerDetailDisplayNames(db, customer, preloadedAssignees),
+  );
+
+  const timelinePromise = (async () => {
+    const followUpChain = await followUpsChainPromise;
+    let preloadedFollowUps = followUpChain.followUps;
+    if (!preloadedFollowUps) {
+      try {
+        assertCanViewCustomerTimeline(user, customer, accessOptions);
+        const measured = await measureAsync(() => listFollowUpsByCustomerId(id));
+        preloadedFollowUps = measured.result;
+      } catch {
+        preloadedFollowUps = undefined;
+      }
+    }
+    const { result, durationMs } = await measureAsync(() =>
+      getCustomerTimeline(db, user, customer, accessOptions, {
+        preloadedFollowUps,
       }),
     );
+    return { result, durationMs };
+  })();
+
+  let scoresView;
+  let scoringMs = 0;
+  try {
+    const scored = await scoringPromise;
     scoresView = scored.result;
     scoringMs = scored.durationMs;
   } catch (err) {
@@ -169,9 +206,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
-  const pendingPriorityApprovalPromise = showApprovalButton
-    ? findPendingPriorityApproval(db, id).then((row) => !!row)
-    : Promise.resolve(false);
+  const pendingPriorityApproval =
+    showApprovalButton && pendingFlags.pendingPriority;
   const showManageAssigneesButton = canManageCustomerAssignees(user, customer);
   const showRequestAssigneesButton = canRequestCustomerAssigneeUpdate(
     user,
@@ -185,92 +221,23 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     customer.status !== "public_pool" &&
     !customer.deletedAt;
 
-  const secondaryStart = perfNow();
-
-  let sharedFollowUpsPromise: ReturnType<typeof listFollowUpsByCustomerId> =
-    Promise.resolve([]);
-  let sharedFollowUpsMeasurePromise: Promise<{ durationMs: number }> =
-    Promise.resolve({ durationMs: 0 });
-  let shouldPreloadFollowUpsForTimeline = false;
-
-  if (preloadedFullFollowUps) {
-    sharedFollowUpsPromise = Promise.resolve(preloadedFullFollowUps);
-    try {
-      assertCanViewCustomerTimeline(user, customer, accessOptions);
-      shouldPreloadFollowUpsForTimeline = true;
-    } catch {
-      // timeline access denied; getCustomerTimeline will throw
-    }
-  } else {
-    try {
-      assertCanViewCustomerTimeline(user, customer, accessOptions);
-      shouldPreloadFollowUpsForTimeline = true;
-      const measured = measureAsync(() => listFollowUpsByCustomerId(id));
-      sharedFollowUpsMeasurePromise = measured.then(({ durationMs }) => ({
-        durationMs,
-      }));
-      sharedFollowUpsPromise = measured.then(({ result }) => result);
-    } catch {
-      // timeline access denied; getCustomerTimeline will throw
-    }
-  }
-
-  const assigneesForDisplayPromise =
-    preloadedAssignees !== undefined
-      ? Promise.resolve(preloadedAssignees)
-      : measureAsync(() => listCustomerAssignees(db, id)).then(
-          ({ result }) => result,
-        );
-
-  const followUpsForClientPromise = (async () => {
-    try {
-      assertCanViewFollowUps(user, customer, accessOptions);
-      return await sharedFollowUpsPromise;
-    } catch {
-      return [];
-    }
-  })();
-
-  const timelinePromise = (async () => {
-    const preloadedFollowUps = shouldPreloadFollowUpsForTimeline
-      ? await sharedFollowUpsPromise
-      : undefined;
-    const { result, durationMs } = await measureAsync(() =>
-      getCustomerTimeline(db, user, customer, accessOptions, {
-        preloadedFollowUps,
-      }),
-    );
-    return { result, durationMs };
-  })();
-
   const [
+    followUpChain,
     confirmTimed,
-    followUps,
     timelineTimed,
     displayNamesTimed,
     familySummaryTimed,
-    pendingPriorityApproval,
   ] = await Promise.all([
-    measureAsync(() =>
-      canConfirmPendingCustomerName(db, user, customer, {
-        preloadedAssignees,
-      }),
-    ),
-    followUpsForClientPromise,
+    followUpsChainPromise,
+    confirmNamePromise,
     timelinePromise,
-    (async () => {
-      const assigneesForDisplay = await assigneesForDisplayPromise;
-      return measureAsync(() =>
-        resolveCustomerDetailDisplayNames(db, customer, assigneesForDisplay),
-      );
-    })(),
-    measureAsync(() => getCustomerHouseholdDetailSummary(db, user, customer)),
-    pendingPriorityApprovalPromise,
+    displayNamesPromise,
+    familySummaryPromise,
   ]);
   const secondaryTotalMs = perfNow() - secondaryStart;
-  const followUpsMeasured = preloadedFullFollowUps
-    ? { durationMs: 0 }
-    : await sharedFollowUpsMeasurePromise;
+  const followUps = followUpChain.canViewFollowUps
+    ? (followUpChain.followUps ?? [])
+    : [];
   const timeline = timelineTimed.result;
   const displayNames = displayNamesTimed.result;
   const familySummary = familySummaryTimed.result;
@@ -279,12 +246,13 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     ? {
         serverDataReadyTotalMs: perfNow() - pageStart,
         authMs,
-        customerLookupMs,
+        customerLookupMs: customerTimed.durationMs,
+        bootstrapMs,
         pendingApprovalMs,
         accessResolutionMs,
         scoringMs,
         secondaryTotalMs,
-        followUpsMs: followUpsMeasured.durationMs,
+        followUpsMs: followUpChain.durationMs,
         timelineMs: timelineTimed.durationMs,
         confirmNameMs: confirmTimed.durationMs,
         userLabelsMs: displayNamesTimed.durationMs,

@@ -36,7 +36,7 @@ function readDetailPageSource(): string {
 }
 
 describe("B7-D1 customer detail assignee dedup", () => {
-  it("page loads staff assignees once before access resolution", () => {
+  it("page loads assignees once during bootstrap before access resolution", () => {
     const source = readDetailPageSource();
     assert.match(source, /listCustomerAssignees\(db, id\)/);
     assert.match(source, /resolveCustomerAccessOptionsFromAssignees/);
@@ -50,13 +50,10 @@ describe("B7-D1 customer detail assignee dedup", () => {
 
   it("staff path uses preloaded assignees for confirm-name and display names", () => {
     const source = readDetailPageSource();
-    assert.match(source, /const preloadedAssignees = staffAssigneeSnapshot/);
+    assert.match(source, /const preloadedAssignees = assigneesTimed\.result/);
     assert.match(source, /preloadedAssignees,/);
-    assert.match(source, /assigneesForDisplayPromise/);
-    assert.match(
-      source,
-      /preloadedAssignees !== undefined[\s\S]*Promise\.resolve\(preloadedAssignees\)/,
-    );
+    assert.match(source, /displayNamesPromise/);
+    assert.match(source, /resolveCustomerDetailDisplayNames\(db, customer, preloadedAssignees\)/);
   });
 
   it("resolveCustomerAccessOptionsFromAssignees matches DB helper semantics", async () => {
@@ -187,19 +184,18 @@ describe("B7-D1 customer detail display-name dedup", () => {
 });
 
 describe("B7-D1 follow-up scoring dedup", () => {
-  it("preloads full follow-ups only after access and before scoring", () => {
+  it("loads follow-ups in chain after access and feeds scoring", () => {
     const source = readDetailPageSource();
     const body = source.slice(source.indexOf("export default async function"));
-    const followUpGateIndex = body.indexOf(
-      "assertCanViewFollowUps(user, customer, accessOptions)",
-    );
-    const preloadIndex = body.indexOf(
-      "preloadedFullFollowUps = followUpMeasured.result",
+    const accessIndex = body.indexOf("resolveCustomerAccessOptionsFromAssignees");
+    const chainBlock = body.slice(
+      body.indexOf("const followUpsChainPromise"),
+      body.indexOf("const scoringPromise"),
     );
     const enrichIndex = body.indexOf("enrichCustomerResponse(db, user, customer");
-    assert.ok(followUpGateIndex >= 0);
-    assert.ok(preloadIndex > followUpGateIndex);
-    assert.ok(enrichIndex > preloadIndex);
-    assert.match(source, /hasFollowUp: enrichHasFollowUp/);
+    assert.ok(accessIndex >= 0);
+    assert.match(chainBlock, /assertCanViewFollowUps/);
+    assert.ok(enrichIndex > body.indexOf("const followUpsChainPromise"));
+    assert.match(source, /hasFollowUp/);
   });
 });

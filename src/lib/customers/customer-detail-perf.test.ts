@@ -107,7 +107,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
     const source = readDetailPageSource();
     const parallelIndex = source.indexOf("await Promise.all([");
     const enrichIndex = source.indexOf("enrichCustomerResponse");
-    const onHoldIndex = source.indexOf("getPendingOnHoldCreateApprovalForCustomer");
+    const onHoldIndex = source.indexOf("getCustomerPendingApprovalFlags");
     const poolGateIndex = source.indexOf("isStaffUnclaimedPublicPoolCustomer");
     assert.ok(parallelIndex > enrichIndex);
     assert.ok(parallelIndex > onHoldIndex);
@@ -116,7 +116,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
 
   it("preserves B2 shared follow-up preload path", () => {
     const source = readDetailPageSource();
-    assert.match(source, /sharedFollowUpsPromise/);
+    assert.match(source, /followUpsChainPromise/);
     assert.match(source, /preloadedFollowUps/);
     assert.match(source, /assertCanViewCustomerTimeline/);
     assert.match(source, /assertCanViewFollowUps/);
@@ -126,7 +126,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
     const source = readDetailPageSource();
     const secondaryStartIndex = source.indexOf("const secondaryStart = perfNow();");
     const timelinePromiseIndex = source.indexOf("const timelinePromise = (async () => {");
-    const parallelIndex = source.indexOf("await Promise.all([");
+    const parallelIndex = source.lastIndexOf("await Promise.all([");
     assert.ok(secondaryStartIndex >= 0);
     assert.ok(secondaryStartIndex < timelinePromiseIndex);
     assert.ok(secondaryStartIndex < parallelIndex);
@@ -147,8 +147,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
 
   it("times timeline after preloaded follow-ups without double-counting", () => {
     const source = readDetailPageSource();
-    assert.match(source, /sharedFollowUpsMeasurePromise/);
-    assert.match(source, /followUpsMs: followUpsMeasured\.durationMs/);
+    assert.match(source, /followUpsMs: followUpChain\.durationMs/);
     assert.match(source, /timelineMs: timelineTimed\.durationMs/);
     assert.match(
       readPerfPanelSource(),
