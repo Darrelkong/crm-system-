@@ -12,6 +12,10 @@ import {
 } from "@/lib/public-pool/display";
 import { getStaffClaimStatus } from "./claim-limits";
 import {
+  recordPublicPoolCustomerListPhysicalLoad,
+  recordPublicPoolFollowUpPhysicalLoad,
+} from "./public-pool-instrumentation";
+import {
   RANDOM_CLAIM_CANDIDATE_BATCH_SIZE,
   RANDOM_CLAIM_CANDIDATE_MAX_SCAN_ROWS,
   RANDOM_CLAIM_CANDIDATE_SCAN_PAGE_SIZE,
@@ -452,25 +456,50 @@ export async function listRandomClaimCandidatesForStaff(
   };
 }
 
+async function loadPublicPoolListCustomerData(db: Database) {
+  recordPublicPoolCustomerListPhysicalLoad();
+  const customers = await listPublicPoolCustomers();
+  recordPublicPoolFollowUpPhysicalLoad();
+  const followUpSet = await getCustomerIdsWithFollowUps(
+    db,
+    customers.map((customer) => customer.id),
+  );
+  return { customers, followUpSet };
+}
+
+function resolveStaffStatusPromise(
+  user: User,
+  staffStatus?: StaffClaimStatus | Promise<StaffClaimStatus> | null,
+): Promise<StaffClaimStatus | null> {
+  if (user.role !== "staff") {
+    return Promise.resolve(null);
+  }
+  if (staffStatus !== undefined) {
+    return Promise.resolve(staffStatus);
+  }
+  return getStaffClaimStatus(user.id);
+}
+
 export type FormatPublicPoolListOptions = {
   /** When provided for staff, skips an internal getStaffClaimStatus read. */
-  staffStatus?: StaffClaimStatus | null;
+  staffStatus?: StaffClaimStatus | Promise<StaffClaimStatus> | null;
 };
 
 export async function formatPublicPoolListForUser(
   user: User,
   options?: FormatPublicPoolListOptions,
 ) {
-  const customers = await listPublicPoolCustomers();
-  const staffStatus =
-    user.role === "staff"
-      ? (options?.staffStatus ?? (await getStaffClaimStatus(user.id)))
-      : null;
-
-  const followUpSet = await getCustomerIdsWithFollowUps(
-    getDb(),
-    customers.map((customer) => customer.id),
+  const db = getDb();
+  const staffStatusPromise = resolveStaffStatusPromise(
+    user,
+    options?.staffStatus,
   );
+  const customerDataPromise = loadPublicPoolListCustomerData(db);
+
+  const [staffStatus, { customers, followUpSet }] = await Promise.all([
+    staffStatusPromise,
+    customerDataPromise,
+  ]);
 
   return customers.map((customer) => {
     const claim = evaluateCustomerClaimEligibility(

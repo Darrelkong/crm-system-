@@ -46,22 +46,34 @@ describe("public pool page claim-status dedup", () => {
     await dispose?.();
   });
 
-  it("page loads claim status once and passes it to list formatter", () => {
+  it("page starts claim status and list formatting concurrently", () => {
     const page = readFileSync(
       "src/app/(dashboard)/public-pool/page.tsx",
       "utf8",
     );
     assert.match(page, /getStaffClaimStatus/);
-    assert.match(page, /formatPublicPoolListForUser\(user,\s*\{/);
-    assert.match(page, /staffStatus:\s*staffClaimStatus/);
-    const getStatusCount = (page.match(/await getStaffClaimStatus/g) ?? []).length;
+    assert.match(page, /staffStatusPromise/);
+    assert.match(page, /Promise\.all\(/);
+    assert.match(page, /staffStatus:\s*staffStatusPromise/);
+    const codeLines = page
+      .split("\n")
+      .filter((line) => !line.trim().startsWith("import "));
+    const getStatusCount = codeLines.join("\n").match(/getStaffClaimStatus\(/g)?.length ?? 0;
     assert.equal(getStatusCount, 1);
+    assert.doesNotMatch(
+      page,
+      /await getStaffClaimStatus[\s\S]*?formatPublicPoolListForUser/,
+    );
   });
 
-  it("queries formatter accepts preloaded staffStatus", () => {
+  it("queries formatter accepts preloaded staffStatus or Promise", () => {
     const queries = readFileSync("src/lib/public-pool/queries.ts", "utf8");
     assert.match(queries, /options\?\.staffStatus/);
-    assert.match(queries, /options\?\.staffStatus \?\? \(await getStaffClaimStatus/);
+    assert.match(
+      queries,
+      /staffStatus\?: StaffClaimStatus \| Promise<StaffClaimStatus> \| null/,
+    );
+    assert.match(queries, /Promise\.all\(/);
   });
 
   it("formatPublicPoolListForUser uses provided staffStatus for eligibility", async () => {
