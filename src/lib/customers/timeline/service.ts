@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
@@ -54,6 +54,8 @@ const EMPTY_MARKER = "__empty__";
 
 export type GetCustomerTimelineOptions = {
   preloadedFollowUps?: Array<typeof schema.followUps.$inferSelect>;
+  /** Shared follow-up load started before Timeline; avoids duplicate query. */
+  followUpsPromise?: Promise<Array<typeof schema.followUps.$inferSelect> | undefined>;
 };
 
 export async function loadTaskAuditsForCustomer(
@@ -104,21 +106,54 @@ export function assertCanViewCustomerTimeline(
   return level;
 }
 
-async function loadActorNames(
+/**
+ * Bounded actor display-name map for a customer without waiting for Timeline
+ * event rows. Includes all actor sources used when building Timeline items.
+ */
+export async function loadActorNamesForCustomer(
   db: Database,
-  userIds: Array<string | null | undefined>,
+  customerId: string,
+  createdBy: string | null,
 ): Promise<Map<string, string>> {
-  const ids = [...new Set(userIds.filter((id): id is string => !!id))];
-  if (ids.length === 0) {
-    return new Map();
-  }
+  const createdByUnion = createdBy
+    ? sql`UNION SELECT ${createdBy} AS actor_id`
+    : sql``;
+
   const rows = await db
     .select({
       id: schema.users.id,
       displayName: schema.users.displayName,
     })
     .from(schema.users)
-    .where(inArray(schema.users.id, ids));
+    .where(
+      sql`${schema.users.id} IN (
+        SELECT actor_id FROM (
+          SELECT user_id AS actor_id FROM audit_logs
+          WHERE entity_type = 'customer' AND entity_id = ${customerId} AND user_id IS NOT NULL
+          UNION
+          SELECT al.user_id AS actor_id FROM audit_logs al
+          INNER JOIN tasks t ON al.entity_type = 'task' AND al.entity_id = t.id
+          WHERE t.customer_id = ${customerId} AND al.user_id IS NOT NULL
+          UNION
+          SELECT changed_by AS actor_id FROM field_change_logs
+          WHERE customer_id = ${customerId} AND changed_by IS NOT NULL
+          UNION
+          SELECT user_id AS actor_id FROM follow_ups
+          WHERE customer_id = ${customerId} AND user_id IS NOT NULL
+          UNION
+          SELECT created_by AS actor_id FROM tasks
+          WHERE customer_id = ${customerId} AND created_by IS NOT NULL
+          UNION
+          SELECT requested_by AS actor_id FROM approvals
+          WHERE customer_id = ${customerId} AND requested_by IS NOT NULL
+          UNION
+          SELECT reviewed_by AS actor_id FROM approvals
+          WHERE customer_id = ${customerId} AND reviewed_by IS NOT NULL
+          ${createdByUnion}
+        )
+      )`,
+    );
+
   return new Map(rows.map((row) => [row.id, row.displayName]));
 }
 
@@ -441,55 +476,53 @@ export async function getCustomerTimeline(
   const followUpsLoader =
     options?.preloadedFollowUps !== undefined
       ? Promise.resolve(options.preloadedFollowUps)
-      : db
+      : options?.followUpsPromise ??
+        db
           .select()
           .from(schema.followUps)
           .where(eq(schema.followUps.customerId, customerId))
           .orderBy(desc(schema.followUps.followUpTime));
 
-  const [customerAudits, fieldChanges, followUps, tasks, approvals, taskAudits] =
-    await Promise.all([
-      db
-        .select()
-        .from(schema.auditLogs)
-        .where(
-          and(
-            eq(schema.auditLogs.entityType, "customer"),
-            eq(schema.auditLogs.entityId, customerId),
-          ),
-        )
-        .orderBy(desc(schema.auditLogs.createdAt)),
-      db
-        .select()
-        .from(schema.fieldChangeLogs)
-        .where(eq(schema.fieldChangeLogs.customerId, customerId))
-        .orderBy(desc(schema.fieldChangeLogs.changedAt)),
-      followUpsLoader,
-      db
-        .select()
-        .from(schema.tasks)
-        .where(eq(schema.tasks.customerId, customerId))
-        .orderBy(desc(schema.tasks.createdAt)),
-      db
-        .select()
-        .from(schema.approvals)
-        .where(eq(schema.approvals.customerId, customerId))
-        .orderBy(desc(schema.approvals.createdAt)),
-      loadTaskAuditsForCustomer(db, customerId),
-    ]);
+  const [
+    customerAudits,
+    fieldChanges,
+    followUps,
+    tasks,
+    approvals,
+    taskAudits,
+    actorMap,
+  ] = await Promise.all([
+    db
+      .select()
+      .from(schema.auditLogs)
+      .where(
+        and(
+          eq(schema.auditLogs.entityType, "customer"),
+          eq(schema.auditLogs.entityId, customerId),
+        ),
+      )
+      .orderBy(desc(schema.auditLogs.createdAt)),
+    db
+      .select()
+      .from(schema.fieldChangeLogs)
+      .where(eq(schema.fieldChangeLogs.customerId, customerId))
+      .orderBy(desc(schema.fieldChangeLogs.changedAt)),
+    followUpsLoader,
+    db
+      .select()
+      .from(schema.tasks)
+      .where(eq(schema.tasks.customerId, customerId))
+      .orderBy(desc(schema.tasks.createdAt)),
+    db
+      .select()
+      .from(schema.approvals)
+      .where(eq(schema.approvals.customerId, customerId))
+      .orderBy(desc(schema.approvals.createdAt)),
+    loadTaskAuditsForCustomer(db, customerId),
+    loadActorNamesForCustomer(db, customerId, customer.createdBy),
+  ]);
 
-  const actorIds: Array<string | null | undefined> = [
-    ...customerAudits.map((r) => r.userId),
-    ...taskAudits.map((r) => r.userId),
-    ...fieldChanges.map((r) => r.changedBy),
-    ...followUps.map((r) => r.userId),
-    ...tasks.map((r) => r.createdBy),
-    ...approvals.map((r) => r.requestedBy),
-    ...approvals.map((r) => r.reviewedBy),
-    customer.createdBy,
-  ];
-
-  const actorMap = await loadActorNames(db, actorIds);
+  const resolvedFollowUps = followUps ?? [];
 
   const items: TimelineItem[] = [];
 
@@ -568,7 +601,7 @@ export async function getCustomerTimeline(
     items.push(...filtered);
   }
 
-  for (const row of followUps) {
+  for (const row of resolvedFollowUps) {
     items.push(buildFollowUpItem(row, actorMap, visibility));
   }
 

@@ -12,6 +12,11 @@ export type CustomerDetailPerfTimings = {
   confirmNameMs: number;
   userLabelsMs: number;
   assigneeNamesMs: number;
+  authSessionReadMs?: number;
+  authPolicyReadMs?: number;
+  authInitialParallelMs?: number;
+  authDeviceMs?: number;
+  authTouchMs?: number;
 };
 
 export function shouldEnableCustomerDetailPerf(

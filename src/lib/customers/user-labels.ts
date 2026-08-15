@@ -1,6 +1,7 @@
-import { inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import {
   listCustomerAssignees,
+  sortCustomerAssigneeRecords,
   type CustomerAssigneeRecord,
 } from "@/lib/customers/assignees";
 import type { Database } from "@/lib/db";
@@ -82,6 +83,78 @@ export async function resolveCustomerDetailDisplayNames(
     customer.createdBy,
     ...assignees.map((assignee) => assignee.userId),
   ]);
+
+  return {
+    ownerName: customer.ownerId
+      ? (nameMap.get(customer.ownerId) ?? null)
+      : null,
+    createdByName: customer.createdBy
+      ? (nameMap.get(customer.createdBy) ?? null)
+      : null,
+    assigneeNames: formatAssigneeDisplayNames(assignees, nameMap),
+  };
+}
+
+/**
+ * Admin Customer Detail display names in one effective D1 network wait:
+ * assignees+names and owner/creator lookups run in parallel.
+ */
+export async function resolveAdminCustomerDetailDisplayNames(
+  db: Database,
+  customerId: string,
+  customer: { ownerId: string | null; createdBy: string | null },
+): Promise<CustomerDetailDisplayNames> {
+  const [assigneeRows, ownerCreatorRows] = await Promise.all([
+    db
+      .select({
+        assignee: schema.customerAssignees,
+        displayName: schema.users.displayName,
+      })
+      .from(schema.customerAssignees)
+      .leftJoin(
+        schema.users,
+        eq(schema.customerAssignees.userId, schema.users.id),
+      )
+      .where(eq(schema.customerAssignees.customerId, customerId)),
+    (async () => {
+      const ids = [customer.ownerId, customer.createdBy].filter(
+        (id): id is string => !!id,
+      );
+      if (ids.length === 0) {
+        return [] as Array<{ id: string; displayName: string }>;
+      }
+      return db
+        .select({
+          id: schema.users.id,
+          displayName: schema.users.displayName,
+        })
+        .from(schema.users)
+        .where(inArray(schema.users.id, ids));
+    })(),
+  ]);
+
+  const assignees = sortCustomerAssigneeRecords(
+    assigneeRows.map((row) => ({
+      id: row.assignee.id,
+      customerId: row.assignee.customerId,
+      userId: row.assignee.userId,
+      role: row.assignee.role,
+      assignedBy: row.assignee.assignedBy ?? null,
+      assignedAt: row.assignee.assignedAt,
+      createdAt: row.assignee.createdAt,
+      updatedAt: row.assignee.updatedAt,
+    })),
+  );
+
+  const nameMap = new Map<string, string>();
+  for (const row of assigneeRows) {
+    if (row.displayName) {
+      nameMap.set(row.assignee.userId, row.displayName);
+    }
+  }
+  for (const row of ownerCreatorRows) {
+    nameMap.set(row.id, row.displayName);
+  }
 
   return {
     ownerName: customer.ownerId

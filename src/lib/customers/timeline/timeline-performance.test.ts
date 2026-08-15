@@ -12,6 +12,7 @@ import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { resolveCustomerAccessOptions } from "@/lib/permissions/customers";
 import {
   getCustomerTimeline,
+  loadActorNamesForCustomer,
   loadTaskAuditsForCustomer,
 } from "@/lib/customers/timeline/service";
 import type { User } from "../../../../drizzle/schema/users";
@@ -23,12 +24,13 @@ function readTimelineServiceSource(): string {
 }
 
 describe("timeline Phase 2B2 critical path", () => {
-  it("loads task audits in the first Promise.all stage", () => {
+  it("loads task audits and actor names in the first Promise.all stage", () => {
     const source = readTimelineServiceSource();
     const stageOneStart = source.indexOf("await Promise.all([");
-    const stageOneEnd = source.indexOf("const actorIds", stageOneStart);
+    const stageOneEnd = source.indexOf("const resolvedFollowUps", stageOneStart);
     const stageOne = source.slice(stageOneStart, stageOneEnd);
     assert.match(stageOne, /loadTaskAuditsForCustomer/);
+    assert.match(stageOne, /loadActorNamesForCustomer/);
     assert.doesNotMatch(
       stageOne,
       /const taskIds = tasks\.map/,
@@ -108,6 +110,39 @@ describe("timeline Phase 2B2 equivalence", () => {
         createdAt: row.createdAt,
       })),
     );
+  });
+
+  it("loadActorNamesForCustomer resolves same actor names as event-derived IDs", async () => {
+    const db = getDb();
+    const customer = await getCustomerById(SEED_IDS.customerStaffA);
+    assert.ok(customer);
+    const accessOptions = await resolveCustomerAccessOptions(
+      db,
+      adminUser,
+      customer.id,
+    );
+
+    const timeline = await getCustomerTimeline(
+      db,
+      adminUser,
+      customer,
+      accessOptions,
+    );
+    const actorMap = await loadActorNamesForCustomer(
+      db,
+      customer.id,
+      customer.createdBy,
+    );
+
+    for (const item of timeline.items) {
+      if (item.actorIsSystem) continue;
+      if (!item.actorName) continue;
+      const names = [...actorMap.values()];
+      assert.ok(
+        names.includes(item.actorName),
+        `missing actor name ${item.actorName}`,
+      );
+    }
   });
 
   it("timeline output is unchanged when follow-ups are preloaded", async () => {

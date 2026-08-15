@@ -109,11 +109,10 @@ describe("customer detail F3 role-aware bootstrap", () => {
     assert.doesNotMatch(adminBootstrap, /listCustomerAssignees\(db, id\)/);
   });
 
-  it("admin loads assignees only for display names in secondary work", () => {
+  it("admin loads display names in one parallel secondary resolver", () => {
     const source = readDetailPageSource();
     assert.match(source, /displayNamesPromise = isStaff/);
-    assert.match(source, /listCustomerAssignees\(db, id\)/);
-    assert.match(source, /resolveCustomerDetailDisplayNames\(db, customer, assignees\)/);
+    assert.match(source, /resolveAdminCustomerDetailDisplayNames\(db, id, customer\)/);
   });
 
   it("starts family, confirm-name, and display names during scoring chain", () => {

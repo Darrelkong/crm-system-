@@ -24,6 +24,8 @@ import {
   getGlobalIdlePolicy,
   isStaffSessionBlockedByReverifyEpoch,
 } from "@/lib/settings/global-idle-exemption";
+import { recordAuthValidationPerf } from "@/lib/auth/validation-perf";
+import { perfNow } from "@/lib/customers/customer-detail-perf";
 
 export type SessionWithUser = {
   sessionId: string;
@@ -94,7 +96,7 @@ export async function validateSessionToken(
   const tokenHash = await hashSessionToken(token);
   const nowIso = new Date().toISOString();
 
-  const rows = await db
+  const sessionQuery = db
     .select({
       sessionId: schema.sessions.id,
       session: schema.sessions,
@@ -104,6 +106,27 @@ export async function validateSessionToken(
     .innerJoin(schema.users, eq(schema.sessions.userId, schema.users.id))
     .where(eq(schema.sessions.tokenHash, tokenHash))
     .limit(1);
+  const policyQuery = getGlobalIdlePolicy(db);
+
+  const parallelStart = perfNow();
+  const [sessionTimed, policyTimed] = await Promise.all([
+    (async () => {
+      const start = perfNow();
+      const rows = await sessionQuery;
+      return { rows, durationMs: perfNow() - start };
+    })(),
+    (async () => {
+      const start = perfNow();
+      const policy = await policyQuery;
+      return { policy, durationMs: perfNow() - start };
+    })(),
+  ]);
+  const initialParallelMs = perfNow() - parallelStart;
+  const rows = sessionTimed.rows;
+  const policy = policyTimed.policy;
+
+  let authDeviceMs = 0;
+  let authTouchMs = 0;
 
   const row = rows[0];
   if (!row) {
@@ -127,11 +150,6 @@ export async function validateSessionToken(
     return { ok: false, reason: "inactive_user" };
   }
 
-  // One D1 read for both keys. Request-level dedupe of full session validation
-  // is handled by getRequestValidation (React cache) in SSR; this call stays
-  // uncached so setting changes apply on the next validateSessionToken.
-  const policy = await getGlobalIdlePolicy(db);
-
   // Staff sessions created at/before the reverify epoch must complete Access again.
   // Do not set revokedAt — this is distinct from SESSION_REVOKED / other-device login.
   if (
@@ -150,11 +168,13 @@ export async function validateSessionToken(
 
   // Admin accounts are never blocked by device authorization status.
   if (row.session.deviceIdHash && row.user.role !== "admin") {
+    const deviceStart = perfNow();
     const deviceAllowed = await isDeviceAllowedForStaffSession(
       row.user,
       row.session.deviceIdHash,
       db,
     );
+    authDeviceMs = perfNow() - deviceStart;
     if (!deviceAllowed) {
       if (!isSessionRevoked(row.session)) {
         await revokeSessionById(db, row.sessionId, nowIso);
@@ -191,8 +211,18 @@ export async function validateSessionToken(
   }
 
   if (options?.touch !== false && shouldTouchSessionActivity(row.session)) {
+    const touchStart = perfNow();
     await touchSessionActivity(db, row.sessionId, nowIso);
+    authTouchMs = perfNow() - touchStart;
   }
+
+  recordAuthValidationPerf({
+    authSessionReadMs: sessionTimed.durationMs,
+    authPolicyReadMs: policyTimed.durationMs,
+    authInitialParallelMs: initialParallelMs,
+    authDeviceMs,
+    authTouchMs,
+  });
 
   return {
     ok: true,

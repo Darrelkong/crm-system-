@@ -117,7 +117,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
   it("preserves B2 shared follow-up preload path", () => {
     const source = readDetailPageSource();
     assert.match(source, /followUpsChainPromise/);
-    assert.match(source, /preloadedFollowUps/);
+    assert.match(source, /followUpsPromise: timelineFollowUpsPromise/);
     assert.match(source, /assertCanViewCustomerTimeline/);
     assert.match(source, /assertCanViewFollowUps/);
   });
@@ -125,7 +125,7 @@ describe("customer detail Phase 2B3 perf diagnostic", () => {
   it("starts secondaryTotal timing before secondary parallel work", () => {
     const source = readDetailPageSource();
     const secondaryStartIndex = source.indexOf("const secondaryStart = perfNow();");
-    const timelinePromiseIndex = source.indexOf("const timelinePromise = (async () => {");
+    const timelinePromiseIndex = source.indexOf("const timelinePromise = measureAsync");
     const parallelIndex = source.lastIndexOf("await Promise.all([");
     assert.ok(secondaryStartIndex >= 0);
     assert.ok(secondaryStartIndex < timelinePromiseIndex);

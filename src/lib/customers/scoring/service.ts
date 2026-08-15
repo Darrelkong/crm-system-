@@ -321,6 +321,8 @@ export async function computeScoringSummaryForStaff(
 export type EnrichCustomerResponseOptions = {
   /** When set, skips the follow-up existence probe (same request preloaded full list). */
   hasFollowUp?: boolean;
+  /** When set, skips getEffectiveSettings for this request. */
+  preloadedSettings?: EffectiveSettings;
 };
 
 export async function enrichCustomerResponse(
@@ -331,7 +333,8 @@ export async function enrichCustomerResponse(
   accessOptions?: CustomerAccessOptions,
   enrichOptions?: EnrichCustomerResponseOptions,
 ): Promise<CustomerWithScores> {
-  const settings = await getEffectiveSettings(db);
+  const settings =
+    enrichOptions?.preloadedSettings ?? (await getEffectiveSettings(db));
   const followUpSet =
     enrichOptions?.hasFollowUp === undefined
       ? await getCustomerIdsWithFollowUps(db, [customer.id])

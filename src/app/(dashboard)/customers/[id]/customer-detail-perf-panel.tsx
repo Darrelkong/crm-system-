@@ -13,6 +13,11 @@ const ROWS: Array<{
 }> = [
   { key: "serverDataReadyTotalMs", label: "Server data-ready total" },
   { key: "authMs", label: "Auth" },
+  { key: "authSessionReadMs", label: "Auth session read" },
+  { key: "authPolicyReadMs", label: "Auth policy read" },
+  { key: "authInitialParallelMs", label: "Auth initial parallel" },
+  { key: "authDeviceMs", label: "Auth device check" },
+  { key: "authTouchMs", label: "Auth session touch" },
   { key: "customerLookupMs", label: "Customer lookup" },
   { key: "bootstrapMs", label: "Bootstrap parallel" },
   { key: "pendingApprovalMs", label: "Pending approval flags" },
@@ -40,10 +45,14 @@ export function CustomerDetailPerfPanel({ timings }: Props) {
         transfer, browser render, or client hydration.
       </p>
       <dl className="grid gap-1 font-mono">
-        {ROWS.map(({ key, label }) => (
+        {ROWS.filter(
+          ({ key }) =>
+            timings[key] !== undefined &&
+            (typeof timings[key] !== "number" || timings[key] >= 0),
+        ).map(({ key, label }) => (
           <div key={key} className="flex items-baseline justify-between gap-4">
             <dt>{label}</dt>
-            <dd className="tabular-nums">{roundPerfMs(timings[key])}</dd>
+            <dd className="tabular-nums">{roundPerfMs(timings[key] as number)}</dd>
           </div>
         ))}
       </dl>

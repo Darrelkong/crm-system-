@@ -99,7 +99,7 @@ describe("customer detail Phase 2B2 follow-up dedup", () => {
   it("preloads follow-ups for timeline when timeline access is allowed", () => {
     const source = readDetailPageSource();
     assert.match(source, /assertCanViewCustomerTimeline/);
-    assert.match(source, /preloadedFollowUps/);
+    assert.match(source, /followUpsPromise: timelineFollowUpsPromise/);
   });
 });
 
@@ -192,11 +192,12 @@ describe("customer detail Phase 2B1 permissions and data", () => {
     })();
 
     const timelinePromise = (async () => {
-      const preloadedFollowUps = shouldPreloadFollowUpsForTimeline
-        ? await sharedFollowUpsPromise
+      const followUpsPromise = shouldPreloadFollowUpsForTimeline
+        ? sharedFollowUpsPromise
         : undefined;
       return getCustomerTimeline(db, user, customer, accessOptions, {
-        preloadedFollowUps,
+        followUpsPromise,
+      });
       });
     })();
 

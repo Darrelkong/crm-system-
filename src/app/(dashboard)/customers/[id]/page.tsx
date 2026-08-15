@@ -16,11 +16,13 @@ import {
 import { canConfirmPendingCustomerName } from "@/lib/customers/confirm-name";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
-import { resolveCustomerDetailDisplayNames } from "@/lib/customers/user-labels";
+import { resolveAdminCustomerDetailDisplayNames, resolveCustomerDetailDisplayNames } from "@/lib/customers/user-labels";
 import { listCustomerAssignees } from "@/lib/customers/assignees";
 import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
 import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
+import { getEffectiveSettings } from "@/lib/settings/effective";
+import { getAuthValidationPerf } from "@/lib/auth/validation-perf";
 import {
   measureAsync,
   perfNow,
@@ -132,6 +134,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
 
   const secondaryStart = perfNow();
 
+  const effectiveSettingsPromise = getEffectiveSettings(db);
+
   const followUpsChainPromise = (async () => {
     try {
       assertCanViewFollowUps(user, customer, accessOptions);
@@ -154,10 +158,14 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     }
   })();
 
-  const scoringPromise = followUpsChainPromise.then(({ hasFollowUp }) =>
+  const scoringPromise = Promise.all([
+    followUpsChainPromise,
+    effectiveSettingsPromise,
+  ]).then(([chain, settings]) =>
     measureAsync(() =>
       enrichCustomerResponse(db, user, customer, new Date(), accessOptions, {
-        hasFollowUp,
+        hasFollowUp: chain.hasFollowUp,
+        preloadedSettings: settings,
       }),
     ),
   );
@@ -174,30 +182,29 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     ? measureAsync(() =>
         resolveCustomerDetailDisplayNames(db, customer, preloadedAssignees!),
       )
-    : measureAsync(async () => {
-        const assignees = await listCustomerAssignees(db, id);
-        return resolveCustomerDetailDisplayNames(db, customer, assignees);
-      });
+    : measureAsync(() =>
+        resolveAdminCustomerDetailDisplayNames(db, id, customer),
+      );
 
-  const timelinePromise = (async () => {
+  const timelineFollowUpsPromise = (async () => {
     const followUpChain = await followUpsChainPromise;
-    let preloadedFollowUps = followUpChain.followUps;
-    if (!preloadedFollowUps) {
-      try {
-        assertCanViewCustomerTimeline(user, customer, accessOptions);
-        const measured = await measureAsync(() => listFollowUpsByCustomerId(id));
-        preloadedFollowUps = measured.result;
-      } catch {
-        preloadedFollowUps = undefined;
-      }
+    if (followUpChain.followUps !== undefined) {
+      return followUpChain.followUps;
     }
-    const { result, durationMs } = await measureAsync(() =>
-      getCustomerTimeline(db, user, customer, accessOptions, {
-        preloadedFollowUps,
-      }),
-    );
-    return { result, durationMs };
+    try {
+      assertCanViewCustomerTimeline(user, customer, accessOptions);
+      const measured = await measureAsync(() => listFollowUpsByCustomerId(id));
+      return measured.result;
+    } catch {
+      return undefined;
+    }
   })();
+
+  const timelinePromise = measureAsync(() =>
+    getCustomerTimeline(db, user, customer, accessOptions, {
+      followUpsPromise: timelineFollowUpsPromise,
+    }),
+  );
 
   let scoresView;
   let scoringMs = 0;
@@ -277,6 +284,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         confirmNameMs: confirmTimed.durationMs,
         userLabelsMs: displayNamesTimed.durationMs,
         assigneeNamesMs: displayNamesTimed.durationMs,
+        ...(getAuthValidationPerf() ?? {}),
       }
     : null;
 

@@ -32,6 +32,12 @@ function toAssigneeRecord(
 function sortAssignees(
   records: CustomerAssigneeRecord[],
 ): CustomerAssigneeRecord[] {
+  return sortCustomerAssigneeRecords(records);
+}
+
+export function sortCustomerAssigneeRecords(
+  records: CustomerAssigneeRecord[],
+): CustomerAssigneeRecord[] {
   return [...records].sort((a, b) => {
     const roleOrder =
       (a.role === "primary" ? 0 : 1) - (b.role === "primary" ? 0 : 1);

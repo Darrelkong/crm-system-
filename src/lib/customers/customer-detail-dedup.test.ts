@@ -17,6 +17,7 @@ import {
 } from "@/lib/customers/confirm-name";
 import {
   formatAssigneeDisplayNames,
+  resolveAdminCustomerDetailDisplayNames,
   resolveCustomerAssigneeNames,
   resolveCustomerAssigneeNamesFromRecords,
   resolveCustomerDetailDisplayNames,
@@ -54,7 +55,7 @@ describe("B7-D1 customer detail assignee dedup", () => {
     assert.match(source, /displayNamesPromise = isStaff/);
     assert.match(
       source,
-      /resolveCustomerDetailDisplayNames\(db, customer, assignees\)/,
+      /resolveAdminCustomerDetailDisplayNames\(db, id, customer\)/,
     );
   });
 
@@ -160,6 +161,26 @@ describe("B7-D1 customer detail display-name dedup", () => {
     assert.deepEqual(combined.assigneeNames, assigneeNames);
   });
 
+  it("admin parallel resolver matches sequential owner/creator/assignee output", async () => {
+    const customer = await getDb()
+      .select()
+      .from(schema.customers)
+      .where(eq(schema.customers.id, SEED_IDS.customerStaffA))
+      .limit(1);
+    const row = customer[0];
+    assert.ok(row);
+
+    const assignees = await listCustomerAssignees(db, SEED_IDS.customerStaffA);
+    const sequential = await resolveCustomerDetailDisplayNames(db, row, assignees);
+    const parallel = await resolveAdminCustomerDetailDisplayNames(
+      db,
+      SEED_IDS.customerStaffA,
+      row,
+    );
+
+    assert.deepEqual(parallel, sequential);
+  });
+
   it("preserves assignee display-name ordering", async () => {
     const assignees = await listCustomerAssignees(db, SEED_IDS.customerStaffA);
     const combined = await resolveCustomerDetailDisplayNames(
@@ -209,5 +230,7 @@ describe("B7-D1 follow-up scoring dedup", () => {
     assert.match(chainBlock, /assertCanViewFollowUps/);
     assert.ok(enrichIndex > body.indexOf("const followUpsChainPromise"));
     assert.match(source, /hasFollowUp/);
+    assert.match(source, /effectiveSettingsPromise/);
+    assert.match(source, /preloadedSettings: settings/);
   });
 });
