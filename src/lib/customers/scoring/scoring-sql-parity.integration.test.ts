@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { and, eq, inArray, like, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, like, sql, type SQL } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../../drizzle/schema";
@@ -9,16 +9,17 @@ import type { User } from "../../../../drizzle/schema/users";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
 import {
+  buildCustomerListWhere,
   buildCustomerListPagination,
   buildSearchWhere,
   CUSTOMER_LIST_PAGE_SIZE,
+  resolveCustomerListOrderBy,
 } from "@/lib/customers/queries";
 import { calculateCustomerHeat } from "@/lib/customers/scoring/heat";
 import { calculateDataCompletenessScore } from "@/lib/customers/scoring/completeness";
 import {
   filterScoredCustomerIdsReference,
   measureLegacyScoringPath,
-  orderCustomersForListReference,
   paginateCustomerIdsReference,
   scoreCustomersForFilterReference,
 } from "@/lib/customers/scoring/scoring-list-reference";
@@ -27,7 +28,10 @@ import {
   countCustomersMatchingScoringFilter,
   explainScoringFilterQueryPlan,
   listCustomerIdsMatchingScoringFilter,
+  listCustomerIdsMatchingScoringFilterPaginated,
+  type ScoringQueryPlanDatabase,
 } from "@/lib/customers/scoring/scoring-list-sql";
+import { sqlFieldHasText } from "@/lib/customers/scoring/scoring-sql-primitives";
 import {
   getScoringSqlInstrumentation,
   recordCandidateScoringPath,
@@ -65,8 +69,15 @@ const DEFAULT_SETTINGS: EffectiveSettings = {
   businessTimezone: "Asia/Hong_Kong",
   inactivityLogoutMinutes: Number(SETTING_DEFAULTS.inactivity_logout_minutes),
 };
+const RECENCY_SETTINGS: EffectiveSettings = {
+  ...DEFAULT_SETTINGS,
+  automaticReclaimDays: 100,
+  reclaimWarningDaysBefore: 10,
+  reclaimWarningThresholdDays: 90,
+};
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
+let rawD1: ScoringQueryPlanDatabase;
 let disposeProxy: (() => Promise<void>) | undefined;
 
 function fixtureId(suffix: string): string {
@@ -138,6 +149,12 @@ function fixtureBaseWhere() {
 
 async function deleteFixtureCustomers() {
   await db
+    .delete(schema.approvals)
+    .where(like(schema.approvals.id, `${FIXTURE_PREFIX}%`));
+  await db
+    .delete(schema.customerAssignees)
+    .where(like(schema.customerAssignees.id, `${FIXTURE_PREFIX}%`));
+  await db
     .delete(schema.followUps)
     .where(like(schema.followUps.id, `${FIXTURE_PREFIX}%`));
   await db
@@ -166,23 +183,77 @@ async function insertFollowUp(customerId: string, idSuffix: string) {
   });
 }
 
+async function insertAssignee(
+  customerId: string,
+  userId: string,
+  idSuffix: string,
+) {
+  const now = FIXED_NOW.toISOString();
+  await db.insert(schema.customerAssignees).values({
+    id: fixtureId(`as-${idSuffix}`),
+    customerId,
+    userId,
+    role: "collaborator",
+    assignedBy: SEED_IDS.admin,
+    assignedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
+async function insertPendingOnHoldApproval(
+  customerId: string,
+  idSuffix: string,
+) {
+  const now = FIXED_NOW.toISOString();
+  await db.insert(schema.approvals).values({
+    id: fixtureId(`ap-${idSuffix}`),
+    requestType: "create_on_hold_customer",
+    status: "pending",
+    customerId,
+    requestedBy: SEED_IDS.staffA,
+    reason: "parity fixture",
+    createdAt: now,
+    updatedAt: now,
+  });
+}
+
 async function assertIdParity(
   customers: Customer[],
   followUpSet: Set<string>,
   filter: { heat?: HeatLevel; completenessBelow?: number },
+  options: {
+    settings?: EffectiveSettings;
+    now?: Date;
+    baseWhere?: SQL;
+  } = {},
 ) {
+  const settings = options.settings ?? DEFAULT_SETTINGS;
+  const now = options.now ?? FIXED_NOW;
   const scored = scoreCustomersForFilterReference(
     customers,
     followUpSet,
-    DEFAULT_SETTINGS,
-    FIXED_NOW,
+    settings,
+    now,
   );
   const legacyIds = filterScoredCustomerIdsReference(scored, filter).sort();
+  const baseWhere = and(
+    options.baseWhere ?? fixtureBaseWhere(),
+    inArray(
+      schema.customers.id,
+      customers.map((customer) => customer.id),
+    ),
+  );
   const sqlIds = (
-    await listCustomerIdsMatchingScoringFilter(db, fixtureBaseWhere(), filter, {
-      settings: DEFAULT_SETTINGS,
-      now: FIXED_NOW,
-    })
+    await listCustomerIdsMatchingScoringFilter(
+      db,
+      baseWhere,
+      filter,
+      {
+        settings,
+        now,
+      },
+    )
   ).sort();
 
   assert.deepEqual(
@@ -192,13 +263,43 @@ async function assertIdParity(
   );
 }
 
+async function assertHeatPartition(
+  customers: Customer[],
+  settings: EffectiveSettings = DEFAULT_SETTINGS,
+  now: Date = FIXED_NOW,
+) {
+  for (const customer of customers) {
+    const sqlMatches: HeatLevel[] = [];
+    for (const heat of HEAT_LEVELS) {
+      const ids = await listCustomerIdsMatchingScoringFilter(
+        db,
+        eq(schema.customers.id, customer.id),
+        { heat },
+        { settings, now },
+      );
+      if (ids.includes(customer.id)) {
+        sqlMatches.push(heat);
+      }
+    }
+    const jsHeat = calculateCustomerHeat(customer, settings, now).heatLevel;
+    assert.deepEqual(
+      sqlMatches,
+      [jsHeat],
+      `${customer.id} must match exactly one SQL heat class`,
+    );
+  }
+}
+
 describe("customer list scoring SQL parity (PRE)", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const persistPath = process.env.CRM_SCORING_SQL_D1_PERSIST_PATH;
+    const proxy = await getPlatformProxy<{ DB: ScoringQueryPlanDatabase }>({
       configPath: "./wrangler.jsonc",
+      ...(persistPath ? { persist: { path: persistPath } } : {}),
     });
-    db = drizzle(proxy.env.DB, { schema });
+    rawD1 = proxy.env.DB;
+    db = drizzle(rawD1, { schema });
     bindTestDatabase(db);
     disposeProxy = proxy.dispose;
   });
@@ -211,64 +312,97 @@ describe("customer list scoring SQL parity (PRE)", () => {
   });
 
   describe("heat fixtures", () => {
-    const heatFixtures: Customer[] = [
-      makeFixture("h01", {
+    const defaultHeatFixtures: Customer[] = [
+      makeFixture("h-silent-null", {
         lastValidFollowUpAt: null,
         createdAt: daysAgoIso(2),
       }),
-      makeFixture("h02", { lastValidFollowUpAt: daysAgoIso(1) }),
-      makeFixture("h03", { lastValidFollowUpAt: msAgoIso(7 * MS_PER_DAY) }),
-      makeFixture("h04", {
-        lastValidFollowUpAt: msAgoIso(7 * MS_PER_DAY + 1),
+      makeFixture("h-silent-empty", {
+        lastValidFollowUpAt: "",
+        createdAt: daysAgoIso(2),
       }),
-      makeFixture("h05", { lastValidFollowUpAt: msAgoIso(14 * MS_PER_DAY) }),
-      makeFixture("h06", {
-        lastValidFollowUpAt: msAgoIso(14 * MS_PER_DAY + 1),
-      }),
-      makeFixture("h07", { salesStage: "interested" }),
-      makeFixture("h08", { salesStage: "proposal" }),
-      makeFixture("h09", { salesStage: "negotiation" }),
-      makeFixture("h10", { salesStage: "contacted" }),
-      makeFixture("h11", { nextFollowUpAt: daysFromNowIso(2) }),
-      makeFixture("h12", { nextFollowUpAt: daysAgoIso(1) }),
-      makeFixture("h13", { nextFollowUpAt: null }),
-      makeFixture("h14", {
+      makeFixture("h-high", { lastValidFollowUpAt: daysAgoIso(1) }),
+      makeFixture("h-churn-idle", {
         lastValidFollowUpAt: daysAgoIso(
           DEFAULT_SETTINGS.reclaimWarningThresholdDays,
         ),
       }),
-      makeFixture("h15", {
-        lastValidFollowUpAt: daysAgoIso(
-          Math.max(1, DEFAULT_SETTINGS.automaticReclaimDays - 1),
-        ),
-      }),
-      makeFixture("h16", {
+      makeFixture("h-cycle-wins", {
         lastValidFollowUpAt: daysAgoIso(10),
         reclamationCycleStartedAt: daysAgoIso(2),
       }),
-      makeFixture("h17", {
-        lastValidFollowUpAt: daysAgoIso(10),
+      makeFixture("h-low-invalid-last", {
+        lastValidFollowUpAt: "not-a-date",
         createdAt: daysAgoIso(2),
+        salesStage: "contacted",
       }),
-      makeFixture("h18", {
-        lastValidFollowUpAt: daysAgoIso(3),
-        createdAt: "2026-07-02T16:00:00.000Z",
+      makeFixture("h-cycle-invalid", {
+        reclamationCycleStartedAt: "not-a-date",
+        lastValidFollowUpAt: daysAgoIso(1),
       }),
-      makeFixture("h19", {
-        lastValidFollowUpAt: "2026-07-02T16:00:00.000Z",
-        createdAt: daysAgoIso(30),
+      makeFixture("h-created-invalid", {
+        reclamationCycleStartedAt: null,
+        lastValidFollowUpAt: null,
+        createdAt: "not-a-date",
       }),
-      makeFixture("h20", { lastValidFollowUpAt: daysFromNowIso(2) }),
-      makeFixture("h21", {
-        nextFollowUpAt: FIXED_NOW.toISOString(),
+      makeFixture("h-next-invalid", {
+        lastValidFollowUpAt: null,
+        createdAt: daysAgoIso(2),
+        nextFollowUpAt: "not-a-date",
       }),
-      makeFixture("h22", {
+      makeFixture("h-next-empty", {
+        lastValidFollowUpAt: null,
+        createdAt: daysAgoIso(2),
+        nextFollowUpAt: "",
+      }),
+      makeFixture("h-next-before", {
+        lastValidFollowUpAt: null,
+        createdAt: daysAgoIso(2),
         nextFollowUpAt: new Date(FIXED_NOW.getTime() - 1).toISOString(),
       }),
-      makeFixture("h23", {
+      makeFixture("h-next-equal", {
+        lastValidFollowUpAt: null,
+        createdAt: daysAgoIso(2),
+        nextFollowUpAt: FIXED_NOW.toISOString(),
+      }),
+      makeFixture("h-next-after", {
+        lastValidFollowUpAt: null,
+        createdAt: daysAgoIso(2),
         nextFollowUpAt: new Date(FIXED_NOW.getTime() + 1).toISOString(),
       }),
     ];
+    const recencyFixtures: Customer[] = [
+      makeFixture("h-r7", {
+        lastValidFollowUpAt: msAgoIso(7 * MS_PER_DAY),
+      }),
+      makeFixture("h-r8-minus", {
+        lastValidFollowUpAt: msAgoIso(8 * MS_PER_DAY - 1),
+      }),
+      makeFixture("h-r8", {
+        lastValidFollowUpAt: msAgoIso(8 * MS_PER_DAY),
+      }),
+      makeFixture("h-r14", {
+        lastValidFollowUpAt: msAgoIso(14 * MS_PER_DAY),
+      }),
+      makeFixture("h-r15-minus", {
+        lastValidFollowUpAt: msAgoIso(15 * MS_PER_DAY - 1),
+      }),
+      makeFixture("h-r15", {
+        lastValidFollowUpAt: msAgoIso(15 * MS_PER_DAY),
+      }),
+      makeFixture("h-future", { lastValidFollowUpAt: daysFromNowIso(2) }),
+    ];
+    const heatFixtures = [...defaultHeatFixtures, ...recencyFixtures];
+
+    const expectedIsolatedBoundaries = new Map<string, HeatLevel>([
+      [fixtureId("h-next-before"), "high_churn_risk"],
+      [fixtureId("h-next-equal"), "medium"],
+      [fixtureId("h-next-after"), "medium"],
+      [fixtureId("h-low-invalid-last"), "low"],
+      [fixtureId("h-r8"), "medium"],
+      [fixtureId("h-r15"), "silent"],
+      [fixtureId("h-future"), "high"],
+    ]);
 
     before(async () => {
       await deleteFixtureCustomers();
@@ -277,41 +411,141 @@ describe("customer list scoring SQL parity (PRE)", () => {
 
     for (const heat of HEAT_LEVELS) {
       it(`heat filter parity: ${heat}`, async () => {
-        await assertIdParity(heatFixtures, new Set(), { heat });
+        await assertIdParity(defaultHeatFixtures, new Set(), { heat });
+        await assertIdParity(recencyFixtures, new Set(), { heat }, {
+          settings: RECENCY_SETTINGS,
+        });
       });
     }
 
-    it("priority: high_churn_risk excludes lower heat classes", async () => {
-      const churnIds = new Set(
-        heatFixtures
-          .filter(
-            (c) =>
-              calculateCustomerHeat(c, DEFAULT_SETTINGS, FIXED_NOW).heatLevel ===
-              "high_churn_risk",
-          )
-          .map((c) => c.id),
-      );
-      for (const heat of ["high", "medium", "silent", "low"] as const) {
-        const sqlIds = await listCustomerIdsMatchingScoringFilter(
-          db,
-          fixtureBaseWhere(),
-          { heat },
-          { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
+    it("every heat fixture matches exactly one SQL class equal to JS", async () => {
+      await assertHeatPartition(defaultHeatFixtures);
+      await assertHeatPartition(recencyFixtures, RECENCY_SETTINGS);
+    });
+
+    it("isolates low, malformed, recency, future, and next-follow-up boundaries", () => {
+      for (const customer of heatFixtures) {
+        const expected = expectedIsolatedBoundaries.get(customer.id);
+        if (!expected) continue;
+        const settings = customer.id.startsWith(fixtureId("h-r"))
+          || customer.id === fixtureId("h-future")
+          ? RECENCY_SETTINGS
+          : DEFAULT_SETTINGS;
+        assert.equal(
+          calculateCustomerHeat(customer, settings, FIXED_NOW).heatLevel,
+          expected,
+          customer.id,
         );
-        for (const id of sqlIds) {
-          assert.equal(
-            churnIds.has(id),
-            false,
-            `${id} must not appear in ${heat} when it is high_churn_risk`,
-          );
-        }
+      }
+    });
+
+    it("preserves HK calendar-day anchor boundaries in SQL", async () => {
+      const hkNow = new Date("2026-07-03T16:00:00.000Z");
+      const hkSettings = {
+        ...RECENCY_SETTINGS,
+        reclaimWarningThresholdDays: 1,
+      };
+      const hkFixtures = [
+        makeFixture("h-hk-same", {
+          lastValidFollowUpAt: "2026-07-03T16:00:00.000Z",
+        }),
+        makeFixture("h-hk-prev-ms", {
+          lastValidFollowUpAt: "2026-07-03T15:59:59.999Z",
+        }),
+        makeFixture("h-hk-future", {
+          lastValidFollowUpAt: "2026-07-04T16:00:00.000Z",
+        }),
+      ];
+      await deleteFixtureCustomers();
+      await insertFixtures(hkFixtures);
+      await assertHeatPartition(hkFixtures, hkSettings, hkNow);
+      for (const heat of HEAT_LEVELS) {
+        await assertIdParity(hkFixtures, new Set(), { heat }, {
+          settings: hkSettings,
+          now: hkNow,
+        });
       }
     });
   });
 
   describe("completeness fixtures", () => {
-    const completenessFixtures: Customer[] = [
-      makeFixture("c00", {
+    const scoreFixture = (target: number) => {
+      const useContact = target >= 90;
+      let tenPointFields = (target - (useContact ? 20 : 0)) / 10;
+      const overrides: Partial<Customer> = {
+        customerName: "",
+        phone: useContact ? "13800000000" : null,
+        wechatId: null,
+        email: null,
+        source: "",
+        salesStage: "",
+        ownerId: null,
+        notes: null,
+        nextFollowUpAt: null,
+        status: "active",
+      };
+      const award = (apply: () => void) => {
+        if (tenPointFields <= 0) return;
+        apply();
+        tenPointFields -= 1;
+      };
+      award(() => {
+        overrides.customerName = "Name";
+      });
+      award(() => {
+        overrides.email = "a@b.com";
+      });
+      award(() => {
+        overrides.source = "referral";
+      });
+      award(() => {
+        overrides.salesStage = "new_lead";
+      });
+      award(() => {
+        overrides.ownerId = SEED_IDS.staffA;
+      });
+      award(() => {
+        overrides.notes = "note";
+      });
+      award(() => {
+        overrides.nextFollowUpAt = daysFromNowIso(1);
+      });
+      const hasFollowUp = tenPointFields > 0;
+      if (hasFollowUp) tenPointFields -= 1;
+      assert.equal(tenPointFields, 0);
+      return {
+        customer: makeFixture(`c${target}`, overrides),
+        hasFollowUp,
+      };
+    };
+    const scoredFixtures = Array.from({ length: 11 }, (_, index) =>
+      scoreFixture(index * 10),
+    );
+    const completenessFixtures = scoredFixtures.map((item) => item.customer);
+    completenessFixtures.push(
+      makeFixture("c-phone", {
+        customerName: "",
+        phone: "13800000000",
+        wechatId: null,
+        email: null,
+        source: "",
+        salesStage: "",
+        ownerId: null,
+        notes: null,
+        nextFollowUpAt: null,
+      }),
+      makeFixture("c-wechat", {
+        customerName: "",
+        phone: null,
+        wechatId: "wx123",
+        email: null,
+        source: "",
+        salesStage: "",
+        ownerId: null,
+        notes: null,
+        nextFollowUpAt: null,
+      }),
+      makeFixture("c-public-pool", {
         customerName: "",
         phone: null,
         wechatId: null,
@@ -323,112 +557,25 @@ describe("customer list scoring SQL parity (PRE)", () => {
         nextFollowUpAt: null,
         status: "public_pool",
       }),
-      makeFixture("c10", {
-        customerName: "Name",
-        phone: null,
-        wechatId: null,
-        email: null,
-        source: "",
-        salesStage: "",
-        ownerId: null,
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-      makeFixture("c20", {
-        customerName: "Name",
-        phone: "13800000000",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: SEED_IDS.staffA,
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-      makeFixture("c50", {
-        customerName: "Name",
-        phone: "13800000000",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: null,
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-      makeFixture("c60", {
-        customerName: "Name",
-        phone: "13800000000",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: null,
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-      makeFixture("c70", {
-        customerName: "Name",
-        phone: "13800000000",
-        email: "a@b.com",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: SEED_IDS.staffA,
-        notes: "note",
-        nextFollowUpAt: daysFromNowIso(1),
-      }),
-      makeFixture("c100", {
-        customerName: "Name",
-        phone: "13800000000",
-        email: "a@b.com",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: SEED_IDS.staffA,
-        notes: "note",
-        nextFollowUpAt: daysFromNowIso(1),
-      }),
-      makeFixture("cws", {
-        customerName: "   ",
-        phone: "\t",
-        wechatId: "  ",
-        email: "  ",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: SEED_IDS.staffA,
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-      makeFixture("cwx", {
-        customerName: "Name",
-        phone: null,
-        wechatId: "wx123",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: null,
-        status: "public_pool",
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-      makeFixture("cno", {
-        customerName: "Name",
-        phone: "13800000000",
-        source: "referral",
-        salesStage: "new_lead",
-        ownerId: null,
-        notes: null,
-        nextFollowUpAt: null,
-      }),
-    ];
+    );
 
     let followUpSet = new Set<string>();
 
     before(async () => {
       await deleteFixtureCustomers();
       await insertFixtures(completenessFixtures);
-      await insertFollowUp(fixtureId("c60"), "c60");
-      await insertFollowUp(fixtureId("c70"), "c70");
-      await insertFollowUp(fixtureId("c100"), "c100");
+      for (const item of scoredFixtures) {
+        if (item.hasFollowUp) {
+          await insertFollowUp(item.customer.id, item.customer.id.slice(-4));
+        }
+      }
       followUpSet = await getCustomerIdsWithFollowUps(
         db,
         completenessFixtures.map((c) => c.id),
       );
     });
 
-    for (const threshold of [0, 10, 50, 60, 70, 100]) {
+    for (const threshold of Array.from({ length: 12 }, (_, index) => index * 10)) {
       it(`completenessBelow=${threshold} parity`, async () => {
         await assertIdParity(completenessFixtures, followUpSet, {
           completenessBelow: threshold,
@@ -443,13 +590,56 @@ describe("customer list scoring SQL parity (PRE)", () => {
         DEFAULT_SETTINGS,
         FIXED_NOW,
       );
-      const exact60 = scored.find((s) => s.id === fixtureId("c60"));
-      assert.ok(exact60);
-      assert.equal(exact60.completenessScore, 60);
-      const below60 = filterScoredCustomerIdsReference(scored, {
-        completenessBelow: 60,
-      });
-      assert.equal(below60.includes(fixtureId("c60")), false);
+      for (let target = 0; target <= 100; target += 10) {
+        const exact = scored.find((s) => s.id === fixtureId(`c${target}`));
+        assert.ok(exact);
+        assert.equal(exact.completenessScore, target);
+        const below = filterScoredCustomerIdsReference(scored, {
+          completenessBelow: target,
+        });
+        assert.equal(below.includes(exact.id), false);
+      }
+      assert.equal(
+        scored.find((s) => s.id === fixtureId("c-public-pool"))
+          ?.completenessScore,
+        0,
+      );
+    });
+
+    it("matches ECMAScript trim across local D1 whitespace classes", async () => {
+      const values: Array<string | null> = [
+        null,
+        "",
+        " ",
+        "\t",
+        "\n",
+        "\r",
+        "\u000b",
+        "\u000c",
+        "\u00a0",
+        "\u1680",
+        "\u2000",
+        "\u200a",
+        "\u2028",
+        "\u2029",
+        "\u202f",
+        "\u205f",
+        "\u3000",
+        "\ufeff",
+        " \t\u00a0\u3000\ufeff",
+        "\u00a0text\u3000",
+        "text\u202f",
+        "ASCII",
+        "中文",
+      ];
+      for (const value of values) {
+        const row = await db.get<{ hasText: number }>(sql`SELECT CASE
+            WHEN ${sqlFieldHasText(sql`${value}`)} THEN 1
+            ELSE 0
+          END AS hasText`);
+        const jsHasText = !!value && value.trim().length > 0;
+        assert.equal(row?.hasText === 1, jsHasText, JSON.stringify(value));
+      }
     });
   });
 
@@ -524,11 +714,18 @@ describe("customer list scoring SQL parity (PRE)", () => {
   });
 
   describe("ordering and pagination parity", () => {
-    const paginationFixtures = Array.from({ length: 12 }, (_, index) =>
+    const paginationFixtures = Array.from({ length: 85 }, (_, index) =>
       makeFixture(`p${String(index).padStart(2, "0")}`, {
         customerName: `Page Fixture ${index}`,
-        lastValidFollowUpAt: daysAgoIso(index + 1),
-        createdAt: daysAgoIso(30 + index),
+        lastValidFollowUpAt: daysAgoIso(1),
+        reclamationCycleStartedAt:
+          index >= 3 && index < 12 ? daysAgoIso(35) : daysAgoIso(1),
+        createdAt: daysAgoIso(30),
+        isPinned: index < 3 ? 1 : 0,
+        pinnedAt:
+          index < 3
+            ? new Date(FIXED_NOW.getTime() - index).toISOString()
+            : null,
       }),
     );
 
@@ -537,11 +734,25 @@ describe("customer list scoring SQL parity (PRE)", () => {
       await insertFixtures(paginationFixtures);
     });
 
-    it("page 1 / page 2 / last page / beyond pageCount / zero matches", async () => {
+    it("proves three real pages, normalization, ordering, ties, and zero matches", async () => {
       const followUpSet = new Set<string>();
-      const filter = { heat: "high" as const };
+      const filter = { completenessBelow: 100 };
+      const baseWhere = and(
+        fixtureBaseWhere(),
+        buildCustomerListWhere(adminUser),
+      );
+      const ordered = await db
+        .select()
+        .from(schema.customers)
+        .where(baseWhere)
+        .orderBy(
+          ...resolveCustomerListOrderBy({
+            now: FIXED_NOW,
+            automaticReclaimDays: DEFAULT_SETTINGS.automaticReclaimDays,
+          }),
+        );
       const scored = scoreCustomersForFilterReference(
-        paginationFixtures,
+        ordered,
         followUpSet,
         DEFAULT_SETTINGS,
         FIXED_NOW,
@@ -549,135 +760,217 @@ describe("customer list scoring SQL parity (PRE)", () => {
       const matchingIds = new Set(
         filterScoredCustomerIdsReference(scored, filter),
       );
-      const ordered = orderCustomersForListReference(
-        paginationFixtures,
-        FIXED_NOW,
-      );
 
       const legacyTotal = [...matchingIds].length;
-      const sqlTotal = await countCustomersMatchingScoringFilter(
-        db,
-        fixtureBaseWhere(),
-        filter,
-        { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
-      );
-      assert.equal(sqlTotal, legacyTotal);
+      assert.equal(legacyTotal, 85);
+      assert.deepEqual(ordered.slice(0, 3).map((row) => row.id), [
+        fixtureId("p00"),
+        fixtureId("p01"),
+        fixtureId("p02"),
+      ]);
 
-      const pagesToCheck = [1, 2, Math.ceil(legacyTotal / CUSTOMER_LIST_PAGE_SIZE) || 1, 99];
+      const pagesToCheck = [1, 2, 3, 99];
       for (const page of pagesToCheck) {
         const legacyPage = paginateCustomerIdsReference(
           ordered,
           matchingIds,
           page,
         );
-        const offset = (legacyPage.pagination.page - 1) * CUSTOMER_LIST_PAGE_SIZE;
-        const sqlPageIds = await listCustomerIdsMatchingScoringFilter(
+        const sqlPage =
+          await listCustomerIdsMatchingScoringFilterPaginated(
           db,
-          fixtureBaseWhere(),
+          baseWhere,
           filter,
+          page,
           {
             settings: DEFAULT_SETTINGS,
             now: FIXED_NOW,
-            limit: CUSTOMER_LIST_PAGE_SIZE,
-            offset,
           },
         );
-        assert.deepEqual(sqlPageIds, legacyPage.pageIds);
-        assert.equal(legacyPage.pagination.total, legacyTotal);
-        assert.equal(
-          legacyPage.pagination.pageCount,
-          buildCustomerListPagination(legacyTotal, page).pageCount,
-        );
+        assert.deepEqual(sqlPage.ids, legacyPage.pageIds);
+        assert.deepEqual(sqlPage.pagination, legacyPage.pagination);
       }
+      assert.equal(buildCustomerListPagination(legacyTotal, 99).page, 3);
+
+      const zero = await listCustomerIdsMatchingScoringFilterPaginated(
+        db,
+        baseWhere,
+        { completenessBelow: 0 },
+        99,
+        { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
+      );
+      assert.deepEqual(zero.ids, []);
+      assert.deepEqual(zero.pagination, {
+        page: 1,
+        pageSize: CUSTOMER_LIST_PAGE_SIZE,
+        total: 0,
+        pageCount: 1,
+      });
     });
   });
 
   describe("search + scoring composition", () => {
+    const searchFixtures = [
+      makeFixture("s-confirmed", {
+        customerName: "Literal % _ \\ Confirmed",
+        nameStatus: "confirmed",
+      }),
+      makeFixture("s-pending", {
+        customerName: "X先生",
+        nameStatus: "pending",
+        phone: "55500000000",
+      }),
+      makeFixture("s-other", {
+        customerName: "Ordinary Alpha",
+        nameStatus: "confirmed",
+      }),
+    ];
+
     before(async () => {
       await deleteFixtureCustomers();
-      await insertFixtures([
-        makeFixture("s01", {
-          customerName: "Alpha Search Target",
-          lastValidFollowUpAt: daysAgoIso(1),
-        }),
-        makeFixture("s02", {
-          customerName: "Beta Other",
-          lastValidFollowUpAt: daysAgoIso(1),
-        }),
-        makeFixture("s03", {
-          customerName: "Alpha Silent",
-          lastValidFollowUpAt: daysAgoIso(20),
-        }),
-      ]);
+      await insertFixtures(searchFixtures);
     });
 
-    it("search q + heat filter parity", async () => {
-      const searchWhere = buildSearchWhere("Alpha");
-      const baseWhere = and(fixtureBaseWhere(), searchWhere);
-      const filter = { heat: "high" as const };
-      const followUpSet = new Set<string>();
-
-      const dbCustomers = await db
-        .select()
-        .from(schema.customers)
-        .where(baseWhere);
-      const legacyIds = filterScoredCustomerIdsReference(
-        scoreCustomersForFilterReference(
-          dbCustomers,
-          followUpSet,
-          DEFAULT_SETTINGS,
-          FIXED_NOW,
-        ),
-        filter,
-      ).sort();
-
-      const sqlIds = (
-        await listCustomerIdsMatchingScoringFilter(db, baseWhere, filter, {
-          settings: DEFAULT_SETTINGS,
-          now: FIXED_NOW,
-        })
-      ).sort();
-
-      assert.deepEqual(sqlIds, legacyIds);
+    it("preserves escaped LIKE and pending-name semantics with scoring", async () => {
+      const cases: Array<{ term: string; expected: string[] }> = [
+        { term: "Alpha", expected: [fixtureId("s-other")] },
+        { term: "%", expected: [fixtureId("s-confirmed")] },
+        { term: "_", expected: [fixtureId("s-confirmed")] },
+        { term: "\\", expected: [fixtureId("s-confirmed")] },
+        { term: "Confirmed", expected: [fixtureId("s-confirmed")] },
+        { term: "X先生", expected: [] },
+        { term: "555", expected: [fixtureId("s-pending")] },
+      ];
+      for (const { term, expected } of cases) {
+        const baseWhere = and(
+          fixtureBaseWhere(),
+          buildCustomerListWhere(adminUser),
+          buildSearchWhere(term),
+        );
+        const filter = { completenessBelow: 100 };
+        const dbCustomers = await db
+          .select()
+          .from(schema.customers)
+          .where(baseWhere);
+        const legacyIds = filterScoredCustomerIdsReference(
+          scoreCustomersForFilterReference(
+            dbCustomers,
+            new Set(),
+            DEFAULT_SETTINGS,
+            FIXED_NOW,
+          ),
+          filter,
+        ).sort();
+        const sqlIds = (
+          await listCustomerIdsMatchingScoringFilter(db, baseWhere, filter, {
+            settings: DEFAULT_SETTINGS,
+            now: FIXED_NOW,
+          })
+        ).sort();
+        assert.deepEqual(legacyIds, expected, term);
+        assert.deepEqual(sqlIds, expected, term);
+      }
     });
   });
 
   describe("permission scope composition", () => {
+    const permissionFixtures = [
+      makeFixture("perm-owned", { ownerId: SEED_IDS.staffA }),
+      makeFixture("perm-collab", { ownerId: SEED_IDS.staffB }),
+      makeFixture("perm-private", { ownerId: SEED_IDS.staffB }),
+      makeFixture("perm-inactive", {
+        ownerId: SEED_IDS.staffA,
+        status: "inactive",
+      }),
+      makeFixture("perm-pool", {
+        ownerId: SEED_IDS.staffA,
+        status: "public_pool",
+      }),
+      makeFixture("perm-arch", {
+        ownerId: SEED_IDS.staffA,
+        status: "archived",
+      }),
+      makeFixture("perm-pending", { ownerId: SEED_IDS.staffA }),
+    ];
+
     before(async () => {
       await deleteFixtureCustomers();
-      await insertFixtures([
-        makeFixture("perm-a", {
-          ownerId: SEED_IDS.staffA,
-          lastValidFollowUpAt: daysAgoIso(1),
-        }),
-        makeFixture("perm-b", {
-          ownerId: SEED_IDS.staffB,
-          lastValidFollowUpAt: daysAgoIso(1),
-        }),
-        makeFixture("perm-arch", {
-          ownerId: SEED_IDS.staffA,
-          status: "archived",
-          lastValidFollowUpAt: daysAgoIso(10),
-        }),
-      ]);
+      await insertFixtures(permissionFixtures);
+      await insertAssignee(
+        fixtureId("perm-collab"),
+        SEED_IDS.staffA,
+        "perm-collab",
+      );
+      await insertPendingOnHoldApproval(
+        fixtureId("perm-pending"),
+        "perm-pending",
+      );
     });
 
-    it("staff owner scope does not leak other staff customers", async () => {
-      const staffScope = and(
-        fixtureBaseWhere(),
-        eq(schema.customers.ownerId, staffUser.id),
-        eq(schema.customers.status, "active"),
-      );
+    it("composes scoring with exact staff and admin list predicates", async () => {
       const filter = { heat: "high" as const };
-      const sqlIds = await listCustomerIdsMatchingScoringFilter(
-        db,
-        staffScope,
-        filter,
-        { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
-      );
-      assert.deepEqual(sqlIds.sort(), [fixtureId("perm-a")].sort());
-      assert.equal(sqlIds.includes(fixtureId("perm-b")), false);
-      assert.equal(sqlIds.includes(fixtureId("perm-arch")), false);
+      const scopes: Array<{
+        label: string;
+        baseWhere: SQL;
+        expected: string[];
+      }> = [
+        {
+          label: "staff",
+          baseWhere: and(
+            fixtureBaseWhere(),
+            buildCustomerListWhere(staffUser),
+          )!,
+          expected: ["perm-owned", "perm-collab", "perm-inactive"].map(
+            fixtureId,
+          ),
+        },
+        {
+          label: "admin-default",
+          baseWhere: and(
+            fixtureBaseWhere(),
+            buildCustomerListWhere(adminUser),
+          )!,
+          expected: [
+            "perm-owned",
+            "perm-collab",
+            "perm-private",
+            "perm-inactive",
+          ].map(fixtureId),
+        },
+        {
+          label: "admin-archived",
+          baseWhere: and(
+            fixtureBaseWhere(),
+            buildCustomerListWhere(adminUser, { status: "archived" }),
+          )!,
+          expected: [fixtureId("perm-arch")],
+        },
+      ];
+      for (const scope of scopes) {
+        const scopedCustomers = await db
+          .select()
+          .from(schema.customers)
+          .where(scope.baseWhere);
+        const legacyIds = filterScoredCustomerIdsReference(
+          scoreCustomersForFilterReference(
+            scopedCustomers,
+            new Set(),
+            DEFAULT_SETTINGS,
+            FIXED_NOW,
+          ),
+          filter,
+        ).sort();
+        const sqlIds = (
+          await listCustomerIdsMatchingScoringFilter(
+            db,
+            scope.baseWhere,
+            filter,
+            { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
+          )
+        ).sort();
+        assert.deepEqual(legacyIds, scope.expected.sort(), scope.label);
+        assert.deepEqual(sqlIds, legacyIds, scope.label);
+      }
     });
   });
 
@@ -786,14 +1079,54 @@ describe("customer list scoring SQL parity (PRE)", () => {
       assert.ok(count >= 0);
     });
 
-    it("EXPLAIN QUERY PLAN returns rows (report-only)", async () => {
-      const plan = await explainScoringFilterQueryPlan(
-        db,
+    it("executes actual EXPLAIN QUERY PLAN for representative queries", async () => {
+      const productionBase = and(
         fixtureBaseWhere(),
-        { heat: "medium" },
-        { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
+        buildCustomerListWhere(adminUser),
       );
-      assert.ok(plan.length > 0);
+      const cases = [
+        {
+          label: "heat",
+          baseWhere: productionBase,
+          filter: { heat: "medium" as const },
+        },
+        {
+          label: "completeness",
+          baseWhere: productionBase,
+          filter: { completenessBelow: 70 },
+        },
+        {
+          label: "combined",
+          baseWhere: productionBase,
+          filter: { heat: "high" as const, completenessBelow: 70 },
+        },
+        {
+          label: "search+combined",
+          baseWhere: and(productionBase, buildSearchWhere("%")),
+          filter: { heat: "high" as const, completenessBelow: 70 },
+        },
+      ];
+      for (const item of cases) {
+        const plan = await explainScoringFilterQueryPlan(
+          db,
+          rawD1,
+          item.baseWhere,
+          item.filter,
+          { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
+        );
+        assert.ok(plan.length > 0, item.label);
+        assert.ok(
+          plan.some((row) => /SCAN|SEARCH/.test(row.detail)),
+          item.label,
+        );
+        assert.equal(
+          plan.some((row) => row.detail === "query-executed-on-local-d1"),
+          false,
+        );
+        console.info(
+          `[scoring-plan:${item.label}] ${plan.map((row) => row.detail).join(" | ")}`,
+        );
+      }
     });
   });
 

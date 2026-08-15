@@ -49,13 +49,13 @@ export {
   buildCustomerListReclaimOrderBy,
 } from "@/lib/customers/list-sort-reclaim";
 
-type ListQueryOptions = {
+export type ListQueryOptions = {
   sortMode?: CustomerListSortMode;
   automaticReclaimDays?: number;
   now?: Date;
 };
 
-function resolveListOrderBy(options: ListQueryOptions = {}) {
+export function resolveCustomerListOrderBy(options: ListQueryOptions = {}) {
   const now = options.now ?? new Date();
   const sortMode = options.sortMode ?? "default";
   if (sortMode === "reclaim_soonest") {
@@ -268,7 +268,7 @@ function buildOwnerWhere(
   );
 }
 
-function buildListWhere(
+export function buildCustomerListWhere(
   user: User,
   filter: CustomerListFilter = {},
 ): SQL | undefined {
@@ -323,8 +323,8 @@ export async function listCustomersForUser(
   options: ListQueryOptions = {},
 ) {
   const db = getDb();
-  const whereClause = buildListWhere(user, filter);
-  const orderBy = resolveListOrderBy(options);
+  const whereClause = buildCustomerListWhere(user, filter);
+  const orderBy = resolveCustomerListOrderBy(options);
 
   return db
     .select()
@@ -341,11 +341,11 @@ export async function listCustomersForUserPaginated(
   options: ListQueryOptions = {},
 ): Promise<PaginatedCustomerListResult> {
   const db = getDb();
-  const whereClause = buildListWhere(user, filter);
+  const whereClause = buildCustomerListWhere(user, filter);
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
-  const orderBy = resolveListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy(options);
 
   const items =
     total === 0
@@ -375,10 +375,10 @@ export async function searchCustomersForUser(
 
   const db = getDb();
   const whereClause = combineWhere(
-    buildListWhere(user, filter),
+    buildCustomerListWhere(user, filter),
     buildSearchWhere(term),
   );
-  const orderBy = resolveListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy(options);
 
   return db
     .select()
@@ -402,13 +402,13 @@ export async function searchCustomersForUserPaginated(
 
   const db = getDb();
   const whereClause = combineWhere(
-    buildListWhere(user, filter),
+    buildCustomerListWhere(user, filter),
     buildSearchWhere(term),
   );
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
-  const orderBy = resolveListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy(options);
 
   const items =
     total === 0

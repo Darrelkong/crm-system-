@@ -8,27 +8,29 @@ import type { HeatLevel } from "./types";
 
 const c = schema.customers;
 const AS_INTEGER = sql.raw("AS INTEGER");
+const ECMASCRIPT_TRIM_CHARACTERS =
+  "\u0009\u000a\u000b\u000c\u000d\u0020\u00a0\u1680" +
+  "\u2000\u2001\u2002\u2003\u2004\u2005\u2006\u2007\u2008\u2009\u200a" +
+  "\u2028\u2029\u202f\u205f\u3000\ufeff";
 
 /**
  * Matches JS `hasText()` used by calculateDataCompletenessScore.
- *
- * Production writes trim customer text fields on save (see validation.ts).
- * SQLite `trim()` removes ASCII space (0x20) only; full-width / Unicode
- * whitespace is rejected or normalized before persistence.
+ * SQLite's second `trim` argument is a character set, so this explicitly
+ * mirrors the ECMAScript WhiteSpace + LineTerminator set.
  */
 export function sqlFieldHasText(column: AnyColumn | SQL): SQL {
   return sql`(
     ${column} IS NOT NULL
-    AND length(
-      trim(
-        replace(
-          replace(
-            replace(${column}, char(9), ''),
-            char(10), ''),
-          char(13), '')
-      )
-    ) > 0
+    AND length(trim(${column}, ${ECMASCRIPT_TRIM_CHARACTERS})) > 0
   )`;
+}
+
+function sqlStringIsTruthy(column: AnyColumn): SQL {
+  return sql`(${column} IS NOT NULL AND ${column} != '')`;
+}
+
+function sqlStringIsFalsy(column: AnyColumn): SQL {
+  return sql`(${column} IS NULL OR ${column} = '')`;
 }
 
 /** Matches calculateCustomerHeat `daysSince()`: Math.floor(ms / MS_PER_DAY). */
@@ -43,7 +45,10 @@ export function buildUtcDaysSinceSql(
 export function buildDaysWithoutValidSql(now: Date = new Date()): SQL {
   const hkToday = getBusinessDateYmd(now, HONG_KONG_TIMEZONE);
   const cycleAnchor = sql`COALESCE(${c.reclamationCycleStartedAt}, ${c.lastValidFollowUpAt}, ${c.createdAt})`;
-  return sql`CAST((julianday(${hkToday}) - julianday(date(datetime(${cycleAnchor}, '+8 hours')))) ${AS_INTEGER})`;
+  return sql`COALESCE(
+    CAST((julianday(${hkToday}) - julianday(date(datetime(${cycleAnchor}, '+8 hours')))) ${AS_INTEGER}),
+    0
+  )`;
 }
 
 /** SQL expression replicating calculateDataCompletenessScore point sum. */
@@ -84,7 +89,7 @@ function buildNotHighChurnRiskSql(
 
   return sql`(
     ${idleDays} < ${warningThreshold}
-    AND (${c.nextFollowUpAt} IS NULL OR ${c.nextFollowUpAt} >= ${nowIso})
+    AND (${sqlStringIsFalsy(c.nextFollowUpAt)} OR ${c.nextFollowUpAt} >= ${nowIso})
     AND ${idleDays} < ${nearReclaimThreshold}
   )`;
 }
@@ -98,12 +103,16 @@ function buildNotHighTierSql(
   const highEngagement = buildHighEngagementStagesSql();
 
   return sql`(
-    (${c.lastValidFollowUpAt} IS NULL OR ${daysSinceLastValid} > 7)
-    AND ${c.salesStage} NOT IN (${highEngagement})
+    (
+      ${sqlStringIsFalsy(c.lastValidFollowUpAt)}
+      OR ${daysSinceLastValid} > 7
+      OR ${daysSinceLastValid} IS NULL
+    )
+    AND (${c.salesStage} IS NULL OR ${c.salesStage} NOT IN (${highEngagement}))
     AND NOT (
-      ${c.nextFollowUpAt} IS NOT NULL
+      ${sqlStringIsTruthy(c.nextFollowUpAt)}
       AND ${c.nextFollowUpAt} >= ${nowIso}
-      AND ${c.lastValidFollowUpAt} IS NOT NULL
+      AND ${sqlStringIsTruthy(c.lastValidFollowUpAt)}
     )
   )`;
 }
@@ -116,8 +125,12 @@ function buildNotMediumTierSql(
   const daysSinceLastValid = buildUtcDaysSinceSql(c.lastValidFollowUpAt, nowIso);
 
   return sql`(
-    (${c.lastValidFollowUpAt} IS NULL OR ${daysSinceLastValid} > 14)
-    AND (${c.nextFollowUpAt} IS NULL OR ${c.nextFollowUpAt} < ${nowIso})
+    (
+      ${sqlStringIsFalsy(c.lastValidFollowUpAt)}
+      OR ${daysSinceLastValid} > 14
+      OR ${daysSinceLastValid} IS NULL
+    )
+    AND (${sqlStringIsFalsy(c.nextFollowUpAt)} OR ${c.nextFollowUpAt} < ${nowIso})
   )`;
 }
 
@@ -129,8 +142,8 @@ function buildNotSilentTierSql(
   const daysSinceLastValid = buildUtcDaysSinceSql(c.lastValidFollowUpAt, nowIso);
 
   return sql`(
-    ${c.lastValidFollowUpAt} IS NOT NULL
-    AND (${daysSinceLastValid} <= 14)
+    ${sqlStringIsTruthy(c.lastValidFollowUpAt)}
+    AND (${daysSinceLastValid} <= 14 OR ${daysSinceLastValid} IS NULL)
   )`;
 }
 
@@ -146,7 +159,7 @@ export function buildHighChurnRiskSql(
 
   return sql`(
     ${idleDays} >= ${warningThreshold}
-    OR (${c.nextFollowUpAt} IS NOT NULL AND ${c.nextFollowUpAt} < ${nowIso})
+    OR (${sqlStringIsTruthy(c.nextFollowUpAt)} AND ${c.nextFollowUpAt} < ${nowIso})
     OR ${idleDays} >= ${nearReclaimThreshold}
   )`;
 }
@@ -160,12 +173,12 @@ function buildHighTierSql(
   const highEngagement = buildHighEngagementStagesSql();
 
   return sql`(
-    (${c.lastValidFollowUpAt} IS NOT NULL AND ${daysSinceLastValid} <= 7)
+    (${sqlStringIsTruthy(c.lastValidFollowUpAt)} AND ${daysSinceLastValid} <= 7)
     OR ${c.salesStage} IN (${highEngagement})
     OR (
-      ${c.nextFollowUpAt} IS NOT NULL
+      ${sqlStringIsTruthy(c.nextFollowUpAt)}
       AND ${c.nextFollowUpAt} >= ${nowIso}
-      AND ${c.lastValidFollowUpAt} IS NOT NULL
+      AND ${sqlStringIsTruthy(c.lastValidFollowUpAt)}
     )
   )`;
 }
@@ -178,9 +191,9 @@ function buildMediumTierSql(
   const daysSinceLastValid = buildUtcDaysSinceSql(c.lastValidFollowUpAt, nowIso);
 
   return sql`(
-    (${c.lastValidFollowUpAt} IS NOT NULL AND ${daysSinceLastValid} <= 14)
+    (${sqlStringIsTruthy(c.lastValidFollowUpAt)} AND ${daysSinceLastValid} <= 14)
     OR (
-      ${c.nextFollowUpAt} IS NOT NULL
+      ${sqlStringIsTruthy(c.nextFollowUpAt)}
       AND ${c.nextFollowUpAt} >= ${nowIso}
     )
   )`;
@@ -194,7 +207,7 @@ function buildSilentTierSql(
   const daysSinceLastValid = buildUtcDaysSinceSql(c.lastValidFollowUpAt, nowIso);
 
   return sql`(
-    ${c.lastValidFollowUpAt} IS NULL
+    ${sqlStringIsFalsy(c.lastValidFollowUpAt)}
     OR ${daysSinceLastValid} > 14
   )`;
 }
