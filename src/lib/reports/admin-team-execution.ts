@@ -15,6 +15,10 @@ import {
   recordAdminDashboardSettingsPhysicalLoad,
 } from "./admin-dashboard-request-instrumentation";
 import {
+  recordTeamFollowUpPeriodPhysicalLoad,
+  recordTeamStagePeriodPhysicalLoad,
+} from "./admin-team-execution-instrumentation";
+import {
   getHongKongSeriesUtcBounds,
   TREND_RANGE_DAYS,
   type TrendRangeDays,
@@ -58,6 +62,157 @@ type StaffMemberRow = {
   email: string;
 };
 
+export type TeamPeriodBounds = Record<
+  TrendRangeDays,
+  { startIso: string; endExclusiveIso: string }
+>;
+
+export type TeamPeriodMaps = Record<TrendRangeDays, Map<string, number>>;
+
+function emptyTeamPeriodMaps(): TeamPeriodMaps {
+  return { 7: new Map(), 30: new Map(), 90: new Map() };
+}
+
+function followUpRowsToPeriodMaps(
+  rows: Array<{
+    userId: string;
+    validFollowUps7: number;
+    validFollowUps30: number;
+    validFollowUps90: number;
+  }>,
+): TeamPeriodMaps {
+  const maps = emptyTeamPeriodMaps();
+  for (const row of rows) {
+    maps[7].set(row.userId, Number(row.validFollowUps7 ?? 0));
+    maps[30].set(row.userId, Number(row.validFollowUps30 ?? 0));
+    maps[90].set(row.userId, Number(row.validFollowUps90 ?? 0));
+  }
+  return maps;
+}
+
+function stageRowsToPeriodMaps(
+  rows: Array<{
+    actorId: string;
+    stageProgress7: number;
+    stageProgress30: number;
+    stageProgress90: number;
+  }>,
+): TeamPeriodMaps {
+  const maps = emptyTeamPeriodMaps();
+  for (const row of rows) {
+    maps[7].set(row.actorId, Number(row.stageProgress7 ?? 0));
+    maps[30].set(row.actorId, Number(row.stageProgress30 ?? 0));
+    maps[90].set(row.actorId, Number(row.stageProgress90 ?? 0));
+  }
+  return maps;
+}
+
+/** One bounded follow-up scan for 7/30/90 valid follow-up counts per staff actor. */
+export async function loadConsolidatedValidFollowUpPeriodMaps(
+  db: Database,
+  actorIds: string[],
+  periodBounds: TeamPeriodBounds,
+): Promise<TeamPeriodMaps> {
+  if (actorIds.length === 0) {
+    return emptyTeamPeriodMaps();
+  }
+
+  recordTeamFollowUpPeriodPhysicalLoad();
+
+  const start7 = periodBounds[7].startIso;
+  const start30 = periodBounds[30].startIso;
+  const start90 = periodBounds[90].startIso;
+  const endExclusiveIso = periodBounds[7].endExclusiveIso;
+
+  const rows = await db
+    .select({
+      userId: schema.followUps.userId,
+      validFollowUps7:
+        sql<number>`sum(case when ${schema.followUps.followUpTime} >= ${start7} then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+      validFollowUps30:
+        sql<number>`sum(case when ${schema.followUps.followUpTime} >= ${start30} then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+      validFollowUps90: count().mapWith(Number),
+    })
+    .from(schema.followUps)
+    .where(
+      and(
+        inArray(schema.followUps.userId, actorIds),
+        eq(schema.followUps.isValidFollowUp, 1),
+        gte(schema.followUps.followUpTime, start90),
+        lt(schema.followUps.followUpTime, endExclusiveIso),
+      ),
+    )
+    .groupBy(schema.followUps.userId);
+
+  return followUpRowsToPeriodMaps(rows);
+}
+
+/** One bounded stage-change scan for 7/30/90 distinct customer counts per actor. */
+export async function loadConsolidatedStageProgressPeriodMaps(
+  db: Database,
+  actorIds: string[],
+  periodBounds: TeamPeriodBounds,
+): Promise<TeamPeriodMaps> {
+  if (actorIds.length === 0) {
+    return emptyTeamPeriodMaps();
+  }
+
+  recordTeamStagePeriodPhysicalLoad();
+
+  const start7 = periodBounds[7].startIso;
+  const start30 = periodBounds[30].startIso;
+  const start90 = periodBounds[90].startIso;
+  const endExclusiveIso = periodBounds[7].endExclusiveIso;
+
+  const rows = await db
+    .select({
+      actorId: schema.fieldChangeLogs.changedBy,
+      stageProgress7:
+        sql<number>`count(distinct case when ${schema.fieldChangeLogs.changedAt} >= ${start7} then ${schema.fieldChangeLogs.customerId} end)`.mapWith(
+          Number,
+        ),
+      stageProgress30:
+        sql<number>`count(distinct case when ${schema.fieldChangeLogs.changedAt} >= ${start30} then ${schema.fieldChangeLogs.customerId} end)`.mapWith(
+          Number,
+        ),
+      stageProgress90:
+        sql<number>`count(distinct case when ${schema.fieldChangeLogs.changedAt} >= ${start90} then ${schema.fieldChangeLogs.customerId} end)`.mapWith(
+          Number,
+        ),
+    })
+    .from(schema.fieldChangeLogs)
+    .where(
+      and(
+        eq(schema.fieldChangeLogs.fieldName, "sales_stage"),
+        inArray(schema.fieldChangeLogs.changedBy, actorIds),
+        gte(schema.fieldChangeLogs.changedAt, start90),
+        lt(schema.fieldChangeLogs.changedAt, endExclusiveIso),
+      ),
+    )
+    .groupBy(schema.fieldChangeLogs.changedBy);
+
+  return stageRowsToPeriodMaps(rows);
+}
+
+async function loadTeamPeriodActivityMaps(
+  db: Database,
+  actorIds: string[],
+  periodBounds: TeamPeriodBounds,
+): Promise<{
+  followUps: TeamPeriodMaps;
+  stageProgress: TeamPeriodMaps;
+}> {
+  const [followUps, stageProgress] = await Promise.all([
+    loadConsolidatedValidFollowUpPeriodMaps(db, actorIds, periodBounds),
+    loadConsolidatedStageProgressPeriodMaps(db, actorIds, periodBounds),
+  ]);
+  return { followUps, stageProgress };
+}
+
 export function sortTeamMembersStable<T extends StaffMemberRow>(rows: T[]): T[] {
   return [...rows].sort((a, b) => {
     const byName = a.displayName.localeCompare(b.displayName, "en", {
@@ -92,64 +247,6 @@ async function countCustomersByOwner(
   );
 }
 
-async function countValidFollowUpsByActor(
-  db: Database,
-  actorIds: string[],
-  startIso: string,
-  endExclusiveIso: string,
-): Promise<Map<string, number>> {
-  if (actorIds.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .select({
-      userId: schema.followUps.userId,
-      value: count().mapWith(Number),
-    })
-    .from(schema.followUps)
-    .where(
-      and(
-        inArray(schema.followUps.userId, actorIds),
-        eq(schema.followUps.isValidFollowUp, 1),
-        gte(schema.followUps.followUpTime, startIso),
-        lt(schema.followUps.followUpTime, endExclusiveIso),
-      ),
-    )
-    .groupBy(schema.followUps.userId);
-
-  return new Map(rows.map((row) => [row.userId, Number(row.value ?? 0)]));
-}
-
-async function countStageProgressByActor(
-  db: Database,
-  actorIds: string[],
-  startIso: string,
-  endExclusiveIso: string,
-): Promise<Map<string, number>> {
-  if (actorIds.length === 0) {
-    return new Map();
-  }
-  const rows = await db
-    .select({
-      actorId: schema.fieldChangeLogs.changedBy,
-      value: sql<number>`count(distinct ${schema.fieldChangeLogs.customerId})`.mapWith(
-        Number,
-      ),
-    })
-    .from(schema.fieldChangeLogs)
-    .where(
-      and(
-        eq(schema.fieldChangeLogs.fieldName, "sales_stage"),
-        inArray(schema.fieldChangeLogs.changedBy, actorIds),
-        gte(schema.fieldChangeLogs.changedAt, startIso),
-        lt(schema.fieldChangeLogs.changedAt, endExclusiveIso),
-      ),
-    )
-    .groupBy(schema.fieldChangeLogs.changedBy);
-
-  return new Map(rows.map((row) => [row.actorId, Number(row.value ?? 0)]));
-}
-
 function buildOwnerHref(ownerId: string, workView?: "overdue"): string {
   const params = new URLSearchParams();
   params.set("ownerId", ownerId);
@@ -180,26 +277,14 @@ export async function getAdminTeamExecutionOverview(
     settings = await getEffectiveSettings(db);
   }
 
-  const periodBounds = Object.fromEntries(
-    TREND_RANGE_DAYS.map((days) => [
-      days,
-      getHongKongSeriesUtcBounds(now, days),
-    ]),
-  ) as Record<TrendRangeDays, ReturnType<typeof getHongKongSeriesUtcBounds>>;
+  const periodBounds: TeamPeriodBounds = {
+    7: getHongKongSeriesUtcBounds(now, 7),
+    30: getHongKongSeriesUtcBounds(now, 30),
+    90: getHongKongSeriesUtcBounds(now, 90),
+  };
 
-  const periodFollowUpMaps = await Promise.all(
-    TREND_RANGE_DAYS.map((days) => {
-      const { startIso, endExclusiveIso } = periodBounds[days];
-      return countValidFollowUpsByActor(db, staffIds, startIso, endExclusiveIso);
-    }),
-  );
-
-  const periodStageMaps = await Promise.all(
-    TREND_RANGE_DAYS.map((days) => {
-      const { startIso, endExclusiveIso } = periodBounds[days];
-      return countStageProgressByActor(db, staffIds, startIso, endExclusiveIso);
-    }),
-  );
+  const { followUps: periodFollowUpMaps, stageProgress: periodStageMaps } =
+    await loadTeamPeriodActivityMaps(db, staffIds, periodBounds);
 
   const resolveReclamationSnapshots = async (): Promise<
     ReclamationRiskSnapshot[]
@@ -247,12 +332,12 @@ export async function getAdminTeamExecutionOverview(
 
   const members: TeamMemberExecutionRow[] = staff.map((member) => {
     const periodActivity = {} as TeamMemberExecutionRow["periodActivity"];
-    TREND_RANGE_DAYS.forEach((days, index) => {
+    for (const days of TREND_RANGE_DAYS) {
       periodActivity[days] = {
-        validFollowUps: periodFollowUpMaps[index]!.get(member.id) ?? 0,
-        stageProgressCustomers: periodStageMaps[index]!.get(member.id) ?? 0,
+        validFollowUps: periodFollowUpMaps[days].get(member.id) ?? 0,
+        stageProgressCustomers: periodStageMaps[days].get(member.id) ?? 0,
       };
-    });
+    }
 
     return {
       userId: member.id,
