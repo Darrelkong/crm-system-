@@ -12,15 +12,13 @@ import {
   listCustomerAssigneesByCustomerIds,
 } from "@/lib/customers/assignees";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
+import { listCustomersForUserPaginated } from "@/lib/customers/queries";
+import { getCustomersWithScores } from "@/lib/customers/scoring/service";
+import { loadScoredCustomerListPage } from "@/lib/customers/scoring/scoring-list-runtime";
 import {
-  buildCustomerListPagination,
-  listCustomersForUserPaginated,
-} from "@/lib/customers/queries";
-import {
-  filterCustomersWithScores,
-  getCustomerIdsWithFollowUps,
-  getCustomersWithScores,
-} from "@/lib/customers/scoring/service";
+  getScoringSqlInstrumentation,
+  resetScoringSqlInstrumentation,
+} from "@/lib/customers/scoring/scoring-sql-instrumentation";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { CUSTOMER_LIST_ACTIVE_SORT_MODE } from "@/lib/customers/customer-list-sort";
 import type { User } from "../../../drizzle/schema/users";
@@ -94,19 +92,14 @@ describe("customers page Phase 2A load path", () => {
     assert.equal(fullAssigneeCalls, 1);
   });
 
-  it("scoring path uses user assignee membership for candidates only", () => {
+  it("scoring path uses the shared page-bounded runtime loader", () => {
     const branch = extractScoringBranch(readCustomersPageSource());
-    assert.match(branch, /getAssigneeCustomerIdsForUser/);
-    assert.doesNotMatch(
-      branch,
-      /listCustomerAssigneesByCustomerIds\(db,\s*customerIds\)/,
-    );
-    assert.match(branch, /pageViewIds/);
-    assert.match(
-      branch,
-      /listCustomerAssigneesByCustomerIds\(\s*db,\s*pageViewIds/,
-    );
-    assert.match(branch, /getCustomerIdsWithHouseholdIcon\(db, pageViewIds\)/);
+    assert.match(branch, /loadScoredCustomerListPage/);
+    assert.match(branch, /scoringNow/);
+    assert.match(branch, /result\.assigneesByCustomerId/);
+    assert.match(branch, /result\.householdIconCustomerIds/);
+    assert.doesNotMatch(branch, /listCustomersForUser/);
+    assert.doesNotMatch(branch, /getAssigneeCustomerIdsForUser/);
     assert.match(branch, /Promise\.all\(\[/);
   });
 
@@ -173,85 +166,71 @@ describe("customers page Phase 2A load path", () => {
     assert.deepEqual(fullLoadCalls[0], customerIds);
   });
 
-  it("scoring path queries user membership for candidates then full map for pageViews only", async () => {
-    const userMembershipCalls: string[][] = [];
-    const fullLoadCalls: string[][] = [];
-
+  it("runtime scoring path hydrates, supports, and scores only one page", async () => {
+    resetScoringSqlInstrumentation();
     const settings = await getEffectiveSettings(db);
-    const listQueryOptions = {
-      sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
-      automaticReclaimDays: settings.automaticReclaimDays,
-    };
-    const [pageOne, pageTwo] = await Promise.all([
-      listCustomersForUserPaginated(adminUser, {}, 1),
-      listCustomersForUserPaginated(adminUser, {}, 2),
-    ]);
-    const customers = [...pageOne.items, ...pageTwo.items];
-    const customerIds = customers.map((customer) => customer.id);
-
-    const [followUpSet, assigneeIds] = await Promise.all([
-      getCustomerIdsWithFollowUps(db, customerIds),
-      (async () => {
-        userMembershipCalls.push(customerIds);
-        return getAssigneeCustomerIdsForUser(db, adminUser.id, customerIds);
-      })(),
-    ]);
-
-    const views = filterCustomersWithScores(
-      getCustomersWithScores(
-        adminUser,
-        customers,
-        followUpSet,
-        settings,
-        new Date(),
-        assigneeIds,
-      ),
+    const scoringNow = new Date();
+    const result = await loadScoredCustomerListPage(
+      db,
+      adminUser,
+      {},
       { completenessBelow: 100 },
+      1,
+      {
+        settings,
+        now: scoringNow,
+        sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
+        automaticReclaimDays: settings.automaticReclaimDays,
+      },
     );
-    const pagination = buildCustomerListPagination(views.length, 1);
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    const pageViews = views.slice(offset, offset + pagination.pageSize);
-    const pageViewIds = pageViews.map((view) => view.id);
+    await buildCustomerListRows(db, result.items, {
+      assigneesByCustomerId: result.assigneesByCustomerId,
+      householdIconCustomerIds: result.householdIconCustomerIds,
+    });
 
-    const assigneesByCustomerId = await (async () => {
-      fullLoadCalls.push(pageViewIds);
-      return listCustomerAssigneesByCustomerIds(db, pageViewIds);
-    })();
-
-    await buildCustomerListRows(db, pageViews, { assigneesByCustomerId });
-
-    assert.equal(userMembershipCalls.length, 1);
-    assert.deepEqual(userMembershipCalls[0], customerIds);
-    assert.equal(fullLoadCalls.length, 1);
-    assert.deepEqual(fullLoadCalls[0], pageViewIds);
-    assert.ok(pageViewIds.length <= pagination.pageSize);
+    const instrumentation = getScoringSqlInstrumentation();
+    assert.equal(instrumentation.scoringCustomerPagePhysicalLoads, 1);
+    assert.equal(instrumentation.scoringFallbackCountPhysicalLoads, 0);
+    assert.equal(instrumentation.scoringFallbackPagePhysicalLoads, 0);
+    assert.ok(instrumentation.scoringVisibleRowsHydrated <= 40);
+    assert.equal(
+      instrumentation.scoringVisibleRowsScored,
+      instrumentation.scoringVisibleRowsHydrated,
+    );
+    const expectedSupportLoads = result.items.length > 0 ? 1 : 0;
+    assert.equal(
+      instrumentation.scoringFollowUpPhysicalLoads,
+      expectedSupportLoads,
+    );
+    assert.equal(
+      instrumentation.scoringAssigneePhysicalLoads,
+      expectedSupportLoads,
+    );
+    assert.equal(
+      instrumentation.scoringHouseholdPhysicalLoads,
+      expectedSupportLoads,
+    );
+    assert.ok(instrumentation.scoringFollowUpIdsConsidered <= 40);
+    assert.ok(instrumentation.scoringAssigneeIdsConsidered <= 40);
+    assert.ok(instrumentation.scoringHouseholdIdsConsidered <= 40);
   });
 
   it("heat filter scoring semantics remain available on bounded assignee path", async () => {
     const settings = await getEffectiveSettings(db);
-    const listQueryOptions = {
-      sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
-      automaticReclaimDays: settings.automaticReclaimDays,
-    };
-    const result = await listCustomersForUserPaginated(adminUser, {}, 1);
-    const customers = result.items;
-    const customerIds = customers.map((customer) => customer.id);
-    const [followUpSet, assigneeIds] = await Promise.all([
-      getCustomerIdsWithFollowUps(db, customerIds),
-      getAssigneeCustomerIdsForUser(db, adminUser.id, customerIds),
-    ]);
-    const views = filterCustomersWithScores(
-      getCustomersWithScores(
-        adminUser,
-        customers,
-        followUpSet,
-        settings,
-        new Date(),
-        assigneeIds,
-      ),
+    const result = await loadScoredCustomerListPage(
+      db,
+      adminUser,
+      {},
       { heat: "high" },
+      1,
+      {
+        settings,
+        now: new Date(),
+        sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
+        automaticReclaimDays: settings.automaticReclaimDays,
+      },
     );
-    for (const view of views) {
+    for (const view of result.items) {
       assert.equal(view.heatLevel, "high");
     }
   });

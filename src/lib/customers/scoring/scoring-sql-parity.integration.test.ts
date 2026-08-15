@@ -14,7 +14,14 @@ import {
   buildSearchWhere,
   CUSTOMER_LIST_PAGE_SIZE,
   resolveCustomerListOrderBy,
+  type CustomerListFilter,
 } from "@/lib/customers/queries";
+import {
+  getAssigneeCustomerIdsForUser,
+  listCustomerAssigneesByCustomerIds,
+} from "@/lib/customers/assignees";
+import { getCustomerIdsWithHouseholdIcon } from "@/lib/customers/households/list-indicator";
+import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import { calculateCustomerHeat } from "@/lib/customers/scoring/heat";
 import { calculateDataCompletenessScore } from "@/lib/customers/scoring/completeness";
 import {
@@ -24,11 +31,14 @@ import {
   scoreCustomersForFilterReference,
 } from "@/lib/customers/scoring/scoring-list-reference";
 import {
+  CUSTOMER_SCORING_FILTER_CANDIDATE_LIMIT,
   combineCustomerListWhere,
   countCustomersMatchingScoringFilter,
-  explainScoringFilterQueryPlan,
+  explainRuntimeScoringPageQueryPlan,
   listCustomerIdsMatchingScoringFilter,
   listCustomerIdsMatchingScoringFilterPaginated,
+  listCustomersMatchingScoringFilterPaginated,
+  listCustomersMatchingScoringFilterPaginatedForTest,
   type ScoringQueryPlanDatabase,
 } from "@/lib/customers/scoring/scoring-list-sql";
 import {
@@ -41,7 +51,13 @@ import {
   recordLegacyScoringPath,
   resetScoringSqlInstrumentation,
 } from "@/lib/customers/scoring/scoring-sql-instrumentation";
-import { getCustomerIdsWithFollowUps } from "@/lib/customers/scoring/service";
+import {
+  filterCustomersWithScores,
+  getCustomerIdsWithFollowUps,
+  getCustomersWithScores,
+  type ScoringListFilter,
+} from "@/lib/customers/scoring/service";
+import { loadScoredCustomerListPage } from "@/lib/customers/scoring/scoring-list-runtime";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
 import type { EffectiveSettings } from "@/lib/settings/effective";
@@ -293,6 +309,128 @@ async function assertHeatPartition(
   }
 }
 
+async function loadLegacyScoringRows(
+  user: User,
+  listFilter: CustomerListFilter,
+  scoringFilter: ScoringListFilter,
+  page: number,
+  options: {
+    searchQuery?: string;
+    settings?: EffectiveSettings;
+    now?: Date;
+  } = {},
+) {
+  const settings = options.settings ?? DEFAULT_SETTINGS;
+  const now = options.now ?? FIXED_NOW;
+  const searchTerm = options.searchQuery?.trim() ?? "";
+  const whereClause = combineCustomerListWhere(
+    buildCustomerListWhere(user, listFilter),
+    searchTerm ? buildSearchWhere(searchTerm) : undefined,
+  );
+  const customers = await db
+    .select()
+    .from(schema.customers)
+    .where(whereClause)
+    .orderBy(
+      ...resolveCustomerListOrderBy({
+        now,
+        automaticReclaimDays: settings.automaticReclaimDays,
+      }),
+    )
+    .limit(CUSTOMER_SCORING_FILTER_CANDIDATE_LIMIT);
+  const customerIds = customers.map((customer) => customer.id);
+  const [followUpSet, assigneeIds] = await Promise.all([
+    getCustomerIdsWithFollowUps(db, customerIds),
+    getAssigneeCustomerIdsForUser(db, user.id, customerIds),
+  ]);
+  const matching = filterCustomersWithScores(
+    getCustomersWithScores(
+      user,
+      customers,
+      followUpSet,
+      settings,
+      now,
+      assigneeIds,
+    ),
+    scoringFilter,
+  );
+  const pagination = buildCustomerListPagination(matching.length, page);
+  const offset = (pagination.page - 1) * pagination.pageSize;
+  const pageItems = matching.slice(offset, offset + pagination.pageSize);
+  const pageIds = pageItems.map((item) => item.id);
+  const [assigneesByCustomerId, householdIconCustomerIds] = await Promise.all([
+    listCustomerAssigneesByCustomerIds(db, pageIds),
+    getCustomerIdsWithHouseholdIcon(db, pageIds),
+  ]);
+  const rows = await buildCustomerListRows(db, pageItems, {
+    assigneesByCustomerId,
+    householdIconCustomerIds,
+  });
+  return { rows, pagination };
+}
+
+async function loadRuntimeScoringRows(
+  user: User,
+  listFilter: CustomerListFilter,
+  scoringFilter: ScoringListFilter,
+  page: number,
+  options: {
+    searchQuery?: string;
+    settings?: EffectiveSettings;
+    now?: Date;
+  } = {},
+) {
+  const settings = options.settings ?? DEFAULT_SETTINGS;
+  const now = options.now ?? FIXED_NOW;
+  const result = await loadScoredCustomerListPage(
+    db,
+    user,
+    listFilter,
+    scoringFilter,
+    page,
+    {
+      settings,
+      now,
+      automaticReclaimDays: settings.automaticReclaimDays,
+      searchQuery: options.searchQuery,
+    },
+  );
+  const rows = await buildCustomerListRows(db, result.items, {
+    assigneesByCustomerId: result.assigneesByCustomerId,
+    householdIconCustomerIds: result.householdIconCustomerIds,
+  });
+  return { rows, pagination: result.pagination };
+}
+
+async function assertRuntimeRowsMatchLegacy(
+  user: User,
+  listFilter: CustomerListFilter,
+  scoringFilter: ScoringListFilter,
+  page: number,
+  options: {
+    searchQuery?: string;
+    settings?: EffectiveSettings;
+    now?: Date;
+  } = {},
+) {
+  const legacy = await loadLegacyScoringRows(
+    user,
+    listFilter,
+    scoringFilter,
+    page,
+    options,
+  );
+  const runtime = await loadRuntimeScoringRows(
+    user,
+    listFilter,
+    scoringFilter,
+    page,
+    options,
+  );
+  assert.deepEqual(runtime.pagination, legacy.pagination);
+  assert.deepEqual(runtime.rows, legacy.rows);
+}
+
 describe("customer list scoring SQL parity (PRE)", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
@@ -469,6 +607,7 @@ describe("customer list scoring SQL parity (PRE)", () => {
         });
       }
     });
+
   });
 
   describe("completeness fixtures", () => {
@@ -762,6 +901,15 @@ describe("customer list scoring SQL parity (PRE)", () => {
         await assertIdParity(combinedFixtures, followUpSet, filter);
       });
     }
+
+    it("matches legacy row output for combined scoring filters", async () => {
+      await assertRuntimeRowsMatchLegacy(
+        adminUser,
+        {},
+        { heat: "high", completenessBelow: 70 },
+        1,
+      );
+    });
   });
 
   describe("ordering and pagination parity", () => {
@@ -858,6 +1006,187 @@ describe("customer list scoring SQL parity (PRE)", () => {
         pageCount: 1,
       });
     });
+
+    it("uses window totals on valid pages and fallback only out of range", async () => {
+      const filter = { completenessBelow: 100 };
+      const ordered = await db
+        .select()
+        .from(schema.customers)
+        .where(fixtureBaseWhere())
+        .orderBy(
+          ...resolveCustomerListOrderBy({
+            now: FIXED_NOW,
+            automaticReclaimDays: DEFAULT_SETTINGS.automaticReclaimDays,
+          }),
+        );
+      const matchingIds = new Set(
+        filterScoredCustomerIdsReference(
+          scoreCustomersForFilterReference(
+            ordered,
+            new Set(),
+            DEFAULT_SETTINGS,
+            FIXED_NOW,
+          ),
+          filter,
+        ),
+      );
+      const options = { settings: DEFAULT_SETTINGS, now: FIXED_NOW };
+
+      for (const page of [1, 2]) {
+        resetScoringSqlInstrumentation();
+        const expected = paginateCustomerIdsReference(
+          ordered,
+          matchingIds,
+          page,
+        );
+        const result = await listCustomersMatchingScoringFilterPaginated(
+          db,
+          adminUser,
+          {},
+          filter,
+          page,
+          options,
+        );
+        assert.deepEqual(
+          result.items.map((customer) => customer.id),
+          expected.pageIds,
+        );
+        assert.deepEqual(result.pagination, expected.pagination);
+        const instrumentation = getScoringSqlInstrumentation();
+        assert.equal(instrumentation.scoringCustomerPagePhysicalLoads, 1);
+        assert.equal(instrumentation.scoringFallbackCountPhysicalLoads, 0);
+        assert.equal(instrumentation.scoringFallbackPagePhysicalLoads, 0);
+      }
+
+      resetScoringSqlInstrumentation();
+      const outOfRange = await listCustomersMatchingScoringFilterPaginated(
+        db,
+        adminUser,
+        {},
+        filter,
+        99,
+        options,
+      );
+      const expectedLast = paginateCustomerIdsReference(
+        ordered,
+        matchingIds,
+        99,
+      );
+      assert.deepEqual(
+        outOfRange.items.map((customer) => customer.id),
+        expectedLast.pageIds,
+      );
+      assert.deepEqual(outOfRange.pagination, expectedLast.pagination);
+      let instrumentation = getScoringSqlInstrumentation();
+      assert.equal(instrumentation.scoringCustomerPagePhysicalLoads, 1);
+      assert.equal(instrumentation.scoringFallbackCountPhysicalLoads, 1);
+      assert.equal(instrumentation.scoringFallbackPagePhysicalLoads, 1);
+
+      resetScoringSqlInstrumentation();
+      const zero = await listCustomersMatchingScoringFilterPaginated(
+        db,
+        adminUser,
+        {},
+        { completenessBelow: 0 },
+        1,
+        options,
+      );
+      assert.deepEqual(zero.items, []);
+      assert.equal(zero.pagination.total, 0);
+      instrumentation = getScoringSqlInstrumentation();
+      assert.equal(instrumentation.scoringCustomerPagePhysicalLoads, 1);
+      assert.equal(instrumentation.scoringFallbackCountPhysicalLoads, 0);
+      assert.equal(instrumentation.scoringFallbackPagePhysicalLoads, 0);
+
+      resetScoringSqlInstrumentation();
+      const emptyRuntime = await loadScoredCustomerListPage(
+        db,
+        adminUser,
+        {},
+        { completenessBelow: 0 },
+        1,
+        options,
+      );
+      assert.deepEqual(emptyRuntime.items, []);
+      instrumentation = getScoringSqlInstrumentation();
+      assert.equal(instrumentation.scoringFollowUpPhysicalLoads, 0);
+      assert.equal(instrumentation.scoringAssigneePhysicalLoads, 0);
+      assert.equal(instrumentation.scoringHouseholdPhysicalLoads, 0);
+    });
+
+    it("matches legacy ordered row output across pages and normalization", async () => {
+      for (const page of [1, 2, 3, 99]) {
+        await assertRuntimeRowsMatchLegacy(
+          adminUser,
+          {},
+          { completenessBelow: 100 },
+          page,
+        );
+      }
+      await assertRuntimeRowsMatchLegacy(
+        adminUser,
+        {},
+        { completenessBelow: 0 },
+        1,
+      );
+    });
+  });
+
+  describe("runtime candidate ceiling", () => {
+    const ceilingFixtures = Array.from({ length: 6 }, (_, index) =>
+      makeFixture(`limit-${index + 1}`, {
+        createdAt: `2026-01-01T00:00:0${index}.000Z`,
+        ...(index === 5
+          ? {
+              customerName: "",
+              phone: null,
+              wechatId: null,
+              email: null,
+              source: "",
+              salesStage: "",
+              ownerId: null,
+              notes: null,
+              nextFollowUpAt: null,
+            }
+          : {}),
+      }),
+    );
+
+    before(async () => {
+      await deleteFixtureCustomers();
+      await insertFixtures(ceilingFixtures);
+    });
+
+    it("limits base candidates before applying scoring", async () => {
+      assert.equal(CUSTOMER_SCORING_FILTER_CANDIDATE_LIMIT, 10_000);
+      const common = {
+        settings: DEFAULT_SETTINGS,
+        now: FIXED_NOW,
+      };
+      const limited = await listCustomersMatchingScoringFilterPaginatedForTest(
+        db,
+        adminUser,
+        {},
+        { completenessBelow: 10 },
+        1,
+        { ...common, candidateLimit: 5 },
+      );
+      assert.equal(limited.pagination.total, 0);
+      assert.deepEqual(limited.items, []);
+
+      const expanded = await listCustomersMatchingScoringFilterPaginatedForTest(
+        db,
+        adminUser,
+        {},
+        { completenessBelow: 10 },
+        1,
+        { ...common, candidateLimit: 6 },
+      );
+      assert.deepEqual(
+        expanded.items.map((customer) => customer.id),
+        [fixtureId("limit-6")],
+      );
+    });
   });
 
   describe("search + scoring composition", () => {
@@ -920,6 +1249,18 @@ describe("customer list scoring SQL parity (PRE)", () => {
         ).sort();
         assert.deepEqual(legacyIds, expected, term);
         assert.deepEqual(sqlIds, expected, term);
+      }
+    });
+
+    it("matches legacy API-style search row output", async () => {
+      for (const searchQuery of ["Alpha", "%", "_", "\\", "555"]) {
+        await assertRuntimeRowsMatchLegacy(
+          adminUser,
+          {},
+          { completenessBelow: 100 },
+          1,
+          { searchQuery },
+        );
       }
     });
   });
@@ -1023,6 +1364,27 @@ describe("customer list scoring SQL parity (PRE)", () => {
         assert.deepEqual(sqlIds, legacyIds, scope.label);
       }
     });
+
+    it("matches legacy row output for staff, collaborator, and archived admin", async () => {
+      await assertRuntimeRowsMatchLegacy(
+        staffUser,
+        {},
+        { heat: "high" },
+        1,
+      );
+      await assertRuntimeRowsMatchLegacy(
+        adminUser,
+        {},
+        { heat: "high" },
+        1,
+      );
+      await assertRuntimeRowsMatchLegacy(
+        adminUser,
+        { status: "archived" },
+        { heat: "high" },
+        1,
+      );
+    });
   });
 
   describe("scale / data-volume proof", () => {
@@ -1069,46 +1431,40 @@ describe("customer list scoring SQL parity (PRE)", () => {
       );
       recordLegacyScoringPath(legacy.stats);
 
-      const sqlTotal = await countCustomersMatchingScoringFilter(
+      const runtime = await loadScoredCustomerListPage(
         db,
-        fixtureBaseWhere(),
+        adminUser,
+        {},
         filter,
-        { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
-      );
-      const sqlPageIds = await listCustomerIdsMatchingScoringFilter(
-        db,
-        fixtureBaseWhere(),
-        filter,
+        1,
         {
           settings: DEFAULT_SETTINGS,
           now: FIXED_NOW,
-          limit: CUSTOMER_LIST_PAGE_SIZE,
-          offset: 0,
+          automaticReclaimDays: DEFAULT_SETTINGS.automaticReclaimDays,
         },
       );
-      recordCandidateScoringPath({
-        rowsReturned: sqlPageIds.length,
-        rowsScoredInJs: sqlPageIds.length,
-        d1Statements: 2,
-      });
 
       const inst = getScoringSqlInstrumentation();
       assert.equal(legacy.stats.customersHydrated, SCALE_COUNT);
+      assert.equal(legacy.stats.followUpIdsConsidered, SCALE_COUNT);
+      assert.equal(legacy.stats.assigneeIdsConsidered, SCALE_COUNT);
       assert.ok(inst.legacyCustomersScoredInJs >= SCALE_COUNT);
-      assert.ok(inst.candidateRowsReturned <= CUSTOMER_LIST_PAGE_SIZE);
-      assert.equal(inst.candidateRowsScoredInJs, inst.candidateRowsReturned);
-      assert.equal(sqlTotal, legacy.matchingIds.length);
-      assert.deepEqual(
-        new Set(legacy.matchingIds),
-        new Set(
-          await listCustomerIdsMatchingScoringFilter(
-            db,
-            fixtureBaseWhere(),
-            filter,
-            { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
-          ),
-        ),
+      assert.equal(inst.legacyFollowUpIdsConsidered, SCALE_COUNT);
+      assert.equal(inst.legacyAssigneeIdsConsidered, SCALE_COUNT);
+      assert.ok(
+        inst.scoringVisibleRowsHydrated <= CUSTOMER_LIST_PAGE_SIZE,
       );
+      assert.equal(
+        inst.scoringVisibleRowsScored,
+        inst.scoringVisibleRowsHydrated,
+      );
+      assert.ok(inst.scoringFollowUpIdsConsidered <= CUSTOMER_LIST_PAGE_SIZE);
+      assert.ok(inst.scoringAssigneeIdsConsidered <= CUSTOMER_LIST_PAGE_SIZE);
+      assert.ok(inst.scoringHouseholdIdsConsidered <= CUSTOMER_LIST_PAGE_SIZE);
+      assert.equal(runtime.pagination.total, legacy.matchingIds.length);
+      assert.equal(inst.scoringCustomerPagePhysicalLoads, 1);
+      assert.equal(inst.scoringFallbackCountPhysicalLoads, 0);
+      assert.equal(inst.scoringFallbackPagePhysicalLoads, 0);
     });
   });
 
@@ -1116,7 +1472,16 @@ describe("customer list scoring SQL parity (PRE)", () => {
     before(async () => {
       await deleteFixtureCustomers();
       await insertFixtures([
-        makeFixture("qp01", { lastValidFollowUpAt: daysAgoIso(1) }),
+        makeFixture("qp01", {
+          ownerId: SEED_IDS.staffA,
+          lastValidFollowUpAt: daysAgoIso(1),
+          nextFollowUpAt: "2026-07-03T13:00:00.000Z",
+        }),
+        makeFixture("qp02", {
+          ownerId: SEED_IDS.staffA,
+          lastValidFollowUpAt: daysAgoIso(1),
+          nextFollowUpAt: "2026-07-03T13:00:00.000Z",
+        }),
       ]);
     });
 
@@ -1130,40 +1495,102 @@ describe("customer list scoring SQL parity (PRE)", () => {
       assert.ok(count >= 0);
     });
 
-    it("executes actual EXPLAIN QUERY PLAN for representative queries", async () => {
-      const productionBase = and(
-        fixtureBaseWhere(),
-        buildCustomerListWhere(adminUser),
+    it("keeps composed runtime filters within D1's bind-variable limit", async () => {
+      const reclamationCustomerIds = [
+        fixtureId("qp01"),
+        ...Array.from(
+          { length: 24 },
+          (_, index) => `missing-reclamation-${index}`,
+        ),
+      ];
+      let boundParameterCount = 0;
+      const capturingD1: ScoringQueryPlanDatabase = {
+        prepare(query: string) {
+          const statement = rawD1.prepare(query);
+          return {
+            bind(...params: unknown[]) {
+              boundParameterCount = params.length;
+              const bound = statement.bind(...params);
+              return {
+                all<T>() {
+                  return bound.all<T>();
+                },
+              };
+            },
+          };
+        },
+      };
+      const listFilter: CustomerListFilter = {
+        reclamationCustomerIds,
+        salesStage: "new_lead",
+        workView: "dueToday",
+      };
+      const scoringFilter = {
+        heat: "high" as const,
+        completenessBelow: 100,
+      };
+      const options = {
+        settings: DEFAULT_SETTINGS,
+        now: FIXED_NOW,
+        searchQuery: "Fixture",
+      };
+
+      await explainRuntimeScoringPageQueryPlan(
+        db,
+        capturingD1,
+        staffUser,
+        listFilter,
+        scoringFilter,
+        options,
       );
+      assert.ok(boundParameterCount <= 100, String(boundParameterCount));
+
+      const result = await listCustomersMatchingScoringFilterPaginated(
+        db,
+        staffUser,
+        listFilter,
+        scoringFilter,
+        1,
+        options,
+      );
+      assert.deepEqual(
+        result.items.map((customer) => customer.id),
+        [fixtureId("qp01")],
+      );
+    });
+
+    it("executes actual EXPLAIN QUERY PLAN for representative queries", async () => {
       const cases = [
         {
           label: "heat",
-          baseWhere: productionBase,
           filter: { heat: "medium" as const },
         },
         {
           label: "completeness",
-          baseWhere: productionBase,
           filter: { completenessBelow: 70 },
         },
         {
           label: "combined",
-          baseWhere: productionBase,
           filter: { heat: "high" as const, completenessBelow: 70 },
         },
         {
           label: "search+combined",
-          baseWhere: and(productionBase, buildSearchWhere("%")),
           filter: { heat: "high" as const, completenessBelow: 70 },
+          searchQuery: "%",
         },
       ];
       for (const item of cases) {
-        const plan = await explainScoringFilterQueryPlan(
+        const plan = await explainRuntimeScoringPageQueryPlan(
           db,
           rawD1,
-          item.baseWhere,
+          adminUser,
+          {},
           item.filter,
-          { settings: DEFAULT_SETTINGS, now: FIXED_NOW },
+          {
+            settings: DEFAULT_SETTINGS,
+            now: FIXED_NOW,
+            searchQuery: item.searchQuery,
+          },
         );
         assert.ok(plan.length > 0, item.label);
         assert.ok(
@@ -1175,7 +1602,7 @@ describe("customer list scoring SQL parity (PRE)", () => {
           false,
         );
         console.info(
-          `[scoring-plan:${item.label}] ${plan.map((row) => row.detail).join(" | ")}`,
+          `[runtime-scoring-plan:${item.label}] ${plan.map((row) => row.detail).join(" | ")}`,
         );
       }
     });
@@ -1191,6 +1618,32 @@ describe("customer list scoring SQL parity (PRE)", () => {
       );
       assert.equal(pageSource.includes("scoring-list-sql"), false);
       assert.equal(apiSource.includes("scoring-list-sql"), false);
+      assert.equal(pageSource.includes("scoring-list-runtime"), true);
+      assert.equal(apiSource.includes("scoring-list-runtime"), true);
+      const apiGetSource = apiSource.slice(
+        0,
+        apiSource.indexOf("export async function POST"),
+      );
+      assert.equal(apiGetSource.includes("loadScoredCustomerListPage"), true);
+      assert.equal(apiGetSource.includes("10_000"), false);
+      assert.equal(apiGetSource.includes("filterCustomersWithScores"), false);
+      assert.equal(
+        apiGetSource.includes("result.assigneesByCustomerId"),
+        true,
+      );
+      assert.equal(
+        apiGetSource.includes("result.householdIconCustomerIds"),
+        true,
+      );
+      for (const responseField of [
+        "items: rows",
+        "page: result.pagination.page",
+        "pageSize: result.pagination.pageSize",
+        "total: result.pagination.total",
+        "pageCount: result.pagination.pageCount",
+      ]) {
+        assert.equal(apiGetSource.includes(responseField), true, responseField);
+      }
       assert.equal(
         typeof listCustomerIdsMatchingScoringFilter,
         "function",

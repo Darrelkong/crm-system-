@@ -4,17 +4,15 @@ import { redirect } from "next/navigation";
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import {
   listCustomerCreatorsForAdmin,
-  listCustomersForUser,
   listCustomersForUserPaginated,
   parseCustomerListFilter,
   parseCustomerListPageParams,
-  buildCustomerListPagination,
 } from "@/lib/customers/queries";
 import {
-  filterCustomersWithScores,
   getCustomerIdsWithFollowUps,
   getCustomersWithScores,
 } from "@/lib/customers/scoring/service";
+import { loadScoredCustomerListPage } from "@/lib/customers/scoring/scoring-list-runtime";
 import { HEAT_LEVELS } from "@/lib/customers/scoring/types";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getDb } from "@/lib/db";
@@ -22,7 +20,6 @@ import type { HeatLevel } from "@/lib/customers/scoring/types";
 import { CustomersListClient } from "./customers-list-client";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import {
-  getAssigneeCustomerIdsForUser,
   getAssigneeCustomerIdsFromRecords,
   listCustomerAssigneesByCustomerIds,
 } from "@/lib/customers/assignees";
@@ -129,40 +126,29 @@ export default async function CustomersPage({ searchParams }: Props) {
   let creatorOptions: Awaited<typeof creatorOptionsPromise> = [];
 
   if (hasScoringFilter) {
-    const [customers, resolvedCreatorOptions] = await Promise.all([
-      listCustomersForUser(user, listFilter, 10_000, listQueryOptions),
+    const scoringNow = new Date();
+    const [result, resolvedCreatorOptions] = await Promise.all([
+      loadScoredCustomerListPage(
+        db,
+        user,
+        listFilter,
+        scoringFilter,
+        page,
+        {
+          settings,
+          now: scoringNow,
+          ...listQueryOptions,
+        },
+      ),
       creatorOptionsPromise,
     ]);
     creatorOptions = resolvedCreatorOptions;
 
-    const customerIds = customers.map((customer) => customer.id);
-    const [followUpSet, assigneeIds] = await Promise.all([
-      getCustomerIdsWithFollowUps(db, customerIds),
-      getAssigneeCustomerIdsForUser(db, user.id, customerIds),
-    ]);
-    const views = filterCustomersWithScores(
-      getCustomersWithScores(
-        user,
-        customers,
-        followUpSet,
-        settings,
-        new Date(),
-        assigneeIds,
-      ),
-      scoringFilter,
-    );
-    pagination = buildCustomerListPagination(views.length, page);
-    const offset = (pagination.page - 1) * pagination.pageSize;
-    const pageViews = views.slice(offset, offset + pagination.pageSize);
-    const pageViewIds = pageViews.map((view) => view.id);
-    const [assigneesByCustomerId, householdIconCustomerIds] = await Promise.all([
-      listCustomerAssigneesByCustomerIds(db, pageViewIds),
-      getCustomerIdsWithHouseholdIcon(db, pageViewIds),
-    ]);
-    initialRows = await buildCustomerListRows(db, pageViews, {
-      assigneesByCustomerId,
-      householdIconCustomerIds,
+    initialRows = await buildCustomerListRows(db, result.items, {
+      assigneesByCustomerId: result.assigneesByCustomerId,
+      householdIconCustomerIds: result.householdIconCustomerIds,
     });
+    pagination = result.pagination;
   } else {
     const [result, resolvedCreatorOptions] = await Promise.all([
       listCustomersForUserPaginated(

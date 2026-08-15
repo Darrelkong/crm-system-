@@ -88,6 +88,7 @@ export function paginateCustomerIdsReference(
 export type LegacyScoringPathStats = {
   customersHydrated: number;
   followUpIdsConsidered: number;
+  assigneeIdsConsidered: number;
   customersScoredInJs: number;
 };
 
@@ -111,7 +112,8 @@ export function measureLegacyScoringPath(
     matchingIds: filterScoredCustomerIdsReference(scored, filter),
     stats: {
       customersHydrated: customers.length,
-      followUpIdsConsidered: followUpSet.size,
+      followUpIdsConsidered: customers.length,
+      assigneeIdsConsidered: customers.length,
       customersScoredInJs: scored.length,
     },
   };

@@ -4,20 +4,17 @@ import { getDb } from "@/lib/db";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import {
-  listCustomersForUser,
   listCustomersForUserPaginated,
-  searchCustomersForUser,
   searchCustomersForUserPaginated,
   parseCustomerListFilter,
   parseCustomerListPageParams,
-  buildCustomerListPagination,
 } from "@/lib/customers/queries";
 import {
-  filterCustomersWithScores,
   getCustomerIdsWithFollowUps,
   getCustomersWithScores,
   parseScoringListFilter,
 } from "@/lib/customers/scoring/service";
+import { loadScoredCustomerListPage } from "@/lib/customers/scoring/scoring-list-runtime";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
 import {
@@ -66,40 +63,31 @@ export async function GET(request: Request) {
     };
 
     if (hasScoringFilter) {
-      const customers = searchQuery
-        ? await searchCustomersForUser(user, searchQuery, listFilter, 10_000, listQueryOptions)
-        : await listCustomersForUser(user, listFilter, 10_000, listQueryOptions);
-      const followUpSet = await getCustomerIdsWithFollowUps(
+      const scoringNow = new Date();
+      const result = await loadScoredCustomerListPage(
         db,
-        customers.map((c) => c.id),
-      );
-      const assigneeIds = await getAssigneeCustomerIdsForUser(
-        db,
-        user.id,
-        customers.map((customer) => customer.id),
-      );
-      const items = filterCustomersWithScores(
-        getCustomersWithScores(
-          user,
-          customers,
-          followUpSet,
-          settings,
-          new Date(),
-          assigneeIds,
-        ),
+        user,
+        listFilter,
         scoringFilter,
+        page,
+        {
+          settings,
+          now: scoringNow,
+          searchQuery,
+          ...listQueryOptions,
+        },
       );
-      const pagination = buildCustomerListPagination(items.length, page);
-      const offset = (pagination.page - 1) * pagination.pageSize;
-      const pageItems = items.slice(offset, offset + pagination.pageSize);
-      const rows = await buildCustomerListRows(db, pageItems);
+      const rows = await buildCustomerListRows(db, result.items, {
+        assigneesByCustomerId: result.assigneesByCustomerId,
+        householdIconCustomerIds: result.householdIconCustomerIds,
+      });
 
       return Response.json({
         items: rows,
-        page: pagination.page,
-        pageSize: pagination.pageSize,
-        total: pagination.total,
-        pageCount: pagination.pageCount,
+        page: result.pagination.page,
+        pageSize: result.pagination.pageSize,
+        total: result.pagination.total,
+        pageCount: result.pagination.pageCount,
       });
     }
 

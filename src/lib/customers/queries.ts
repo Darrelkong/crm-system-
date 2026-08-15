@@ -209,6 +209,7 @@ export function excludePendingOnHoldCreateApprovalWhere(): SQL {
 
 function buildReclamationRiskWhere(
   filter: CustomerListFilter,
+  compactBindings = false,
 ): SQL | undefined {
   if (!filter.reclamationCustomerIds) {
     return undefined;
@@ -216,17 +217,23 @@ function buildReclamationRiskWhere(
   if (filter.reclamationCustomerIds.length === 0) {
     return sql`1 = 0`;
   }
+  if (compactBindings) {
+    const customerIdsJson = JSON.stringify(filter.reclamationCustomerIds);
+    return sql`${schema.customers.id} IN (
+      SELECT value FROM json_each(${customerIdsJson})
+    )`;
+  }
   return inArray(schema.customers.id, filter.reclamationCustomerIds);
 }
 
 function buildWorkViewFilterWhere(
   user: User,
   filter: CustomerListFilter,
+  now: Date = new Date(),
 ): SQL | undefined {
   if (!filter.workView) {
     return undefined;
   }
-  const now = new Date();
   const { end: todayEnd } = getBusinessTodayRange(now, HONG_KONG_TIMEZONE);
   const tomorrowStart = new Date(
     new Date(todayEnd).getTime() + 1,
@@ -271,14 +278,15 @@ function buildOwnerWhere(
 export function buildCustomerListWhere(
   user: User,
   filter: CustomerListFilter = {},
+  options: { now?: Date; compactReclamationBindings?: boolean } = {},
 ): SQL | undefined {
   return combineWhere(
     buildPermissionWhere(user, filter),
     buildCreatedByWhere(user, filter),
     buildSalesStageWhere(filter),
     buildOwnerWhere(user, filter),
-    buildReclamationRiskWhere(filter),
-    buildWorkViewFilterWhere(user, filter),
+    buildReclamationRiskWhere(filter, options.compactReclamationBindings),
+    buildWorkViewFilterWhere(user, filter, options.now),
     excludePendingOnHoldCreateApprovalWhere(),
   );
 }
