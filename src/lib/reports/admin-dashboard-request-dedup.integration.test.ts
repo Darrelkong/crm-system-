@@ -29,6 +29,60 @@ const admin = {
 
 const FIXED_NOW = new Date("2026-08-08T12:00:00.000Z");
 
+const KPI_TEST_CUSTOMER = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb01";
+const KPI_TEST_ARCHIVED = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb02";
+const KPI_TEST_DELETED = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbb03";
+const KPI_TEST_APPROVAL_A = "cccccccc-cccc-cccc-cccc-cccccccccc01";
+const KPI_TEST_APPROVAL_B = "cccccccc-cccc-cccc-cccc-cccccccccc02";
+
+async function cleanupKpiTestRows(): Promise<void> {
+  for (const id of [KPI_TEST_APPROVAL_A, KPI_TEST_APPROVAL_B]) {
+    await db.delete(schema.approvals).where(eq(schema.approvals.id, id));
+  }
+  for (const id of [KPI_TEST_CUSTOMER, KPI_TEST_ARCHIVED, KPI_TEST_DELETED]) {
+    await db.delete(schema.customers).where(eq(schema.customers.id, id));
+  }
+}
+
+async function insertKpiTestCustomer(
+  id: string,
+  overrides: Partial<typeof schema.customers.$inferInsert> = {},
+): Promise<void> {
+  const nowIso = FIXED_NOW.toISOString();
+  await db.insert(schema.customers).values({
+    id,
+    customerName: `[TEST KPI] ${id.slice(-4)}`,
+    nameStatus: "confirmed",
+    customerType: "individual",
+    phoneCountryCode: "+86",
+    phone: `1380000${id.slice(-4)}`,
+    source: "referral",
+    salesStage: "lead",
+    ownerId: SEED_IDS.staffA,
+    status: "active",
+    createdBy: SEED_IDS.admin,
+    updatedBy: SEED_IDS.admin,
+    isPinned: 0,
+    createdAt: nowIso,
+    updatedAt: nowIso,
+    ...overrides,
+  });
+}
+
+async function insertKpiTestApproval(id: string): Promise<void> {
+  const nowIso = FIXED_NOW.toISOString();
+  await db.insert(schema.approvals).values({
+    id,
+    requestType: "delete_customer",
+    status: "pending",
+    customerId: KPI_TEST_CUSTOMER,
+    requestedBy: SEED_IDS.staffA,
+    reason: "[TEST KPI] pending approval",
+    createdAt: nowIso,
+    updatedAt: nowIso,
+  });
+}
+
 async function upsertSetting(key: string, value: string): Promise<void> {
   const existing = await db
     .select({ key: schema.systemSettings.key })
@@ -112,6 +166,9 @@ describe("admin dashboard request dedup DB", () => {
     const instrumentation = getAdminDashboardRequestInstrumentation();
     assert.equal(instrumentation.settingsPhysicalLoads, 3);
     assert.equal(instrumentation.reclamationSnapshotPhysicalLoads, 2);
+    assert.equal(instrumentation.sharedKpiPhysicalLoads, 0);
+    assert.equal(instrumentation.totalCustomersPhysicalLoads, 2);
+    assert.equal(instrumentation.pendingApprovalsPhysicalLoads, 2);
   });
 
   it("shared admin dashboard request data loads settings and snapshots once", async () => {
@@ -119,6 +176,22 @@ describe("admin dashboard request dedup DB", () => {
     const instrumentation = getAdminDashboardRequestInstrumentation();
     assert.equal(instrumentation.settingsPhysicalLoads, 1);
     assert.equal(instrumentation.reclamationSnapshotPhysicalLoads, 1);
+    assert.equal(instrumentation.sharedKpiPhysicalLoads, 1);
+    assert.equal(instrumentation.totalCustomersPhysicalLoads, 1);
+    assert.equal(instrumentation.pendingApprovalsPhysicalLoads, 1);
+  });
+
+  it("shared KPI totals match between legacy stats and summary metrics", async () => {
+    const shared = await runSharedAdminDashboardLoads(FIXED_NOW);
+    assert.equal(shared.summary.role, "admin");
+    assert.equal(
+      shared.legacyStats.totalCustomers,
+      shared.summary.metrics.totalCustomers,
+    );
+    assert.equal(
+      shared.legacyStats.pendingApprovals,
+      shared.summary.metrics.pendingApprovals,
+    );
   });
 
   it("matches admin summary metrics between legacy and shared request data", async () => {
@@ -191,5 +264,57 @@ describe("admin dashboard request dedup DB", () => {
         }),
       /reclamation snapshots unavailable/,
     );
+  });
+
+  it("excludes archived customers from shared totalCustomers identically in stats and summary", async () => {
+    await cleanupKpiTestRows();
+    const baseline = await runSharedAdminDashboardLoads(FIXED_NOW);
+    await insertKpiTestCustomer(KPI_TEST_ARCHIVED, { status: "archived" });
+    const withArchived = await runSharedAdminDashboardLoads(FIXED_NOW);
+    assert.equal(
+      withArchived.legacyStats.totalCustomers,
+      baseline.legacyStats.totalCustomers,
+    );
+    assert.equal(
+      withArchived.summary.metrics.totalCustomers,
+      baseline.summary.metrics.totalCustomers,
+    );
+    await cleanupKpiTestRows();
+  });
+
+  it("includes soft-deleted non-archived customers in totalCustomers identically", async () => {
+    await cleanupKpiTestRows();
+    const baseline = await runSharedAdminDashboardLoads(FIXED_NOW);
+    await insertKpiTestCustomer(KPI_TEST_DELETED, {
+      deletedAt: FIXED_NOW.toISOString(),
+    });
+    const withDeleted = await runSharedAdminDashboardLoads(FIXED_NOW);
+    assert.equal(
+      withDeleted.legacyStats.totalCustomers,
+      baseline.legacyStats.totalCustomers + 1,
+    );
+    assert.equal(
+      withDeleted.summary.metrics.totalCustomers,
+      withDeleted.legacyStats.totalCustomers,
+    );
+    await cleanupKpiTestRows();
+  });
+
+  it("counts multiple pending approvals identically in stats and summary", async () => {
+    await cleanupKpiTestRows();
+    await insertKpiTestCustomer(KPI_TEST_CUSTOMER);
+    const baseline = await runSharedAdminDashboardLoads(FIXED_NOW);
+    await insertKpiTestApproval(KPI_TEST_APPROVAL_A);
+    await insertKpiTestApproval(KPI_TEST_APPROVAL_B);
+    const withApprovals = await runSharedAdminDashboardLoads(FIXED_NOW);
+    assert.equal(
+      withApprovals.legacyStats.pendingApprovals,
+      baseline.legacyStats.pendingApprovals + 2,
+    );
+    assert.equal(
+      withApprovals.summary.metrics.pendingApprovals,
+      withApprovals.legacyStats.pendingApprovals,
+    );
+    await cleanupKpiTestRows();
   });
 });

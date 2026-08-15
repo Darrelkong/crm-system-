@@ -30,9 +30,15 @@ import type {
   CreatorNewCustomerCount,
 } from "./types";
 import type { EffectiveSettings } from "@/lib/settings/effective";
+import type { SharedAdminDashboardKpis } from "./admin-dashboard-shared-kpis";
+import {
+  countAdminDashboardPendingApprovals,
+  countAdminDashboardTotalCustomers,
+} from "./admin-dashboard-shared-kpis";
 
 export type AdminDashboardStatsRequestOptions = {
   settings?: EffectiveSettings;
+  sharedKpis?: SharedAdminDashboardKpis;
 };
 
 function sortCreatorNewCustomerRows(
@@ -68,22 +74,24 @@ export async function getAdminDashboardStats(
   const tomorrowStart = new Date(new Date(todayEnd).getTime() + 1).toISOString();
 
   const [
-    totalCustomersRow,
+    totalCustomers,
+    pendingApprovals,
     activeCustomersRow,
     publicPoolRow,
     archivedRow,
     todayTasksRow,
     overdueTasksRow,
-    pendingApprovalsRow,
     followUpsRow,
     validFollowUpsRow,
     closedWonRow,
     autoReclaimedRow,
   ] = await Promise.all([
-    db
-      .select({ value: count() })
-      .from(schema.customers)
-      .where(ne(schema.customers.status, "archived")),
+    requestOptions?.sharedKpis
+      ? Promise.resolve(requestOptions.sharedKpis.totalCustomers)
+      : countAdminDashboardTotalCustomers(db),
+    requestOptions?.sharedKpis
+      ? Promise.resolve(requestOptions.sharedKpis.pendingApprovals)
+      : countAdminDashboardPendingApprovals(db),
     db
       .select({ value: count() })
       .from(schema.customers)
@@ -117,10 +125,6 @@ export async function getAdminDashboardStats(
           lt(schema.tasks.dueAt, nowIso),
         ),
       ),
-    db
-      .select({ value: count() })
-      .from(schema.approvals)
-      .where(eq(schema.approvals.status, "pending")),
     db
       .select({ value: count() })
       .from(schema.followUps)
@@ -268,13 +272,13 @@ export async function getAdminDashboardStats(
   const scoringSummary = await computeScoringSummaryForAdmin(db, now, settings);
 
   return {
-    totalCustomers: totalCustomersRow[0]?.value ?? 0,
+    totalCustomers,
     activeCustomers: activeCustomersRow[0]?.value ?? 0,
     publicPoolCustomers: publicPoolRow[0]?.value ?? 0,
     archivedCustomers: archivedRow[0]?.value ?? 0,
     todayOpenTasks: todayTasksRow[0]?.value ?? 0,
     overdueTasks: overdueTasksRow[0]?.value ?? 0,
-    pendingApprovals: pendingApprovalsRow[0]?.value ?? 0,
+    pendingApprovals,
     newCustomersThisMonth,
     followUpsThisMonth: followUpsRow[0]?.value ?? 0,
     validFollowUpsThisMonth: validFollowUpsRow[0]?.value ?? 0,

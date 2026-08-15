@@ -7,6 +7,7 @@ import {
   loadAdminDashboardSharedSettings,
   type AdminDashboardReclamationData,
 } from "./admin-dashboard-request-data";
+import { loadSharedAdminDashboardKpis } from "./admin-dashboard-shared-kpis";
 import { getAdminTeamExecutionOverview } from "./admin-team-execution";
 import { getDashboardSummary } from "./dashboard-summary";
 import { getDashboardStageDistribution } from "./dashboard-stage-distribution";
@@ -39,6 +40,7 @@ export type AdminDashboardOrchestrationResult = {
 
 export type AdminDashboardOrchestrationHooks = {
   loadSettings?: (db: Database) => Promise<EffectiveSettings>;
+  loadSharedKpis?: typeof loadSharedAdminDashboardKpis;
   loadReclamation?: (
     db: Database,
     now: Date,
@@ -58,6 +60,8 @@ export async function loadAdminDashboardReports(
   hooks: AdminDashboardOrchestrationHooks = {},
 ): Promise<AdminDashboardOrchestrationResult> {
   const loadSettings = hooks.loadSettings ?? loadAdminDashboardSharedSettings;
+  const loadSharedKpis =
+    hooks.loadSharedKpis ?? loadSharedAdminDashboardKpis;
   const loadReclamation =
     hooks.loadReclamation ?? loadAdminDashboardReclamationData;
   const getTrends = hooks.getTrends ?? getDashboardTrends;
@@ -79,14 +83,16 @@ export async function loadAdminDashboardReports(
     .catch(() => ({ distribution: null, error: true as const }));
 
   const settings = await loadSettings(db);
+  const sharedKpis = await loadSharedKpis(db);
 
-  const legacyStatsPromise = getStats(db, now, { settings });
+  const legacyStatsPromise = getStats(db, now, { settings, sharedKpis });
 
   const reclamationPromise = loadReclamation(db, now, settings);
 
   const summaryPromise = reclamationPromise.then((reclamationData) =>
     getSummary(db, user, now, {
       settings,
+      sharedKpis,
       ...reclamationData,
     }),
   );

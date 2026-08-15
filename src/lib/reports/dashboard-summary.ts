@@ -24,9 +24,15 @@ import type {
   StaffDashboardSummary,
 } from "./dashboard-summary-types";
 import type { ReclamationRiskSnapshot } from "@/lib/reclamation/risk-snapshot";
+import type { SharedAdminDashboardKpis } from "./admin-dashboard-shared-kpis";
+import {
+  countAdminDashboardPendingApprovals,
+  countAdminDashboardTotalCustomers,
+} from "./admin-dashboard-shared-kpis";
 
 export type DashboardSummaryRequestOptions = {
   settings?: EffectiveSettings;
+  sharedKpis?: SharedAdminDashboardKpis;
   reclamationSnapshots?: ReclamationRiskSnapshot[];
   reclamationSnapshotsFailed?: boolean;
 };
@@ -219,6 +225,7 @@ async function getAdminMetrics(
   user: User,
   now: Date,
   timezone: ReportsTimezone,
+  sharedKpis?: SharedAdminDashboardKpis,
 ): Promise<AdminDashboardSummary["metrics"]> {
   const nowIso = now.toISOString();
   const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
@@ -230,17 +237,16 @@ async function getAdminMetrics(
   ).toISOString();
 
   const [
-    totalCustomersRow,
+    totalCustomers,
     newCustomersTodayRow,
     validFollowUpsTodayRow,
-    pendingApprovalsRow,
+    pendingApprovals,
     overdueRow,
     publicPoolTodayRow,
   ] = await Promise.all([
-    db
-      .select({ value: count() })
-      .from(schema.customers)
-      .where(ne(schema.customers.status, "archived")),
+    sharedKpis
+      ? Promise.resolve(sharedKpis.totalCustomers)
+      : countAdminDashboardTotalCustomers(db),
     db
       .select({ value: count() })
       .from(schema.customers)
@@ -262,10 +268,9 @@ async function getAdminMetrics(
           lt(schema.followUps.followUpTime, tomorrowStart),
         ),
       ),
-    db
-      .select({ value: count() })
-      .from(schema.approvals)
-      .where(eq(schema.approvals.status, "pending")),
+    sharedKpis
+      ? Promise.resolve(sharedKpis.pendingApprovals)
+      : countAdminDashboardPendingApprovals(db),
     db
       .select({ value: count() })
       .from(schema.customers)
@@ -277,10 +282,10 @@ async function getAdminMetrics(
   ]);
 
   return {
-    totalCustomers: totalCustomersRow[0]?.value ?? 0,
+    totalCustomers,
     newCustomersToday: newCustomersTodayRow[0]?.value ?? 0,
     validFollowUpsToday: validFollowUpsTodayRow[0]?.value ?? 0,
-    pendingApprovals: pendingApprovalsRow[0]?.value ?? 0,
+    pendingApprovals,
     autoReleaseWithin7Days: 0,
     autoReleaseTomorrow: 0,
     overdueFollowUps: overdueRow[0]?.value ?? 0,
@@ -326,7 +331,7 @@ export async function getDashboardSummary(
 
   if (user.role === "admin") {
     const [baseMetrics, reclamationRisk] = await Promise.all([
-      getAdminMetrics(db, user, now, timezone),
+      getAdminMetrics(db, user, now, timezone, requestOptions?.sharedKpis),
       buildReclamationRiskSummary(
         db,
         user,
