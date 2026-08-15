@@ -48,9 +48,12 @@ describe("work-items Phase 2A initial load", () => {
   it("SSR page loads task rows and counts in parallel", () => {
     const page = read("src/app/(dashboard)/work-items/page.tsx");
     assert.match(page, /listWorkItemTasks/);
-    assert.match(page, /countWorkItemTasks/);
+    assert.match(page, /countWorkItemTasks|countOpenWorkItemTasks/);
+    assert.match(page, /getNotificationBadgeCounts/);
     assert.match(page, /Promise\.all/);
     assert.match(page, /initialTasks=/);
+    assert.doesNotMatch(page, /getPendingActionCount/);
+    assert.doesNotMatch(page, /getWorkItemsAttentionCount/);
     assert.match(page, /key=\{`\$\{state\.tab\}:\$\{tasksView\}:\$\{staffIdForTasks/);
   });
 

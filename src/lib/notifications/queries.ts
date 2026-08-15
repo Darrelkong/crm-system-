@@ -12,6 +12,14 @@ import {
   NOTIFICATION_ACTION_STATE,
 } from "./action-state";
 import { parseNotificationMessage } from "./i18n-storage";
+import { recordNotificationBadgeAggregatePhysicalLoad } from "./notification-badge-instrumentation";
+
+export type NotificationBadgeCounts = {
+  unreadCount: number;
+  pendingCount: number;
+  unreadNonPendingCount: number;
+  attentionCount: number;
+};
 
 export type NotificationListItem = {
   id: string;
@@ -171,6 +179,44 @@ export async function getPendingActionCount(
     .from(schema.notifications)
     .where(pendingActionCountWhere(userId));
   return row[0]?.value ?? 0;
+}
+
+/** One aggregate query for Work Items badge counts and unread-count API. */
+export async function getNotificationBadgeCounts(
+  db: Database,
+  userId: string,
+): Promise<NotificationBadgeCounts> {
+  recordNotificationBadgeAggregatePhysicalLoad();
+
+  const [row] = await db
+    .select({
+      unreadCount:
+        sql<number>`sum(case when ${schema.notifications.isRead} = 0 then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+      pendingCount:
+        sql<number>`sum(case when ${schema.notifications.actionState} = ${NOTIFICATION_ACTION_STATE.pending} then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+      unreadNonPendingCount:
+        sql<number>`sum(case when ${schema.notifications.isRead} = 0 and ${schema.notifications.actionState} != ${NOTIFICATION_ACTION_STATE.pending} then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+    })
+    .from(schema.notifications)
+    .where(
+      and(eq(schema.notifications.userId, userId), visibleNotificationCondition()),
+    );
+
+  const pendingCount = Number(row?.pendingCount ?? 0);
+  const unreadNonPendingCount = Number(row?.unreadNonPendingCount ?? 0);
+
+  return {
+    unreadCount: Number(row?.unreadCount ?? 0),
+    pendingCount,
+    unreadNonPendingCount,
+    attentionCount: pendingCount + unreadNonPendingCount,
+  };
 }
 
 export async function getPendingActionCountsByUserIds(

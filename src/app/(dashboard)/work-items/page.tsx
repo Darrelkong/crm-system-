@@ -3,14 +3,13 @@ export const dynamic = "force-dynamic";
 import { redirect } from "next/navigation";
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
+import { getNotificationBadgeCounts } from "@/lib/notifications/queries";
 import {
-  getPendingActionCount,
-  getWorkItemsAttentionCount,
-} from "@/lib/notifications/queries";
-import {
+  countOpenWorkItemTasks,
   countWorkItemTasks,
   listWorkItemStaffOptions,
   listWorkItemTasks,
+  loadWorkItemSettings,
 } from "@/lib/tasks/service";
 import {
   buildWorkItemsHref,
@@ -66,21 +65,34 @@ export default async function WorkItemsPage({ searchParams }: Props) {
   const staffIdForTasks = user.role === "admin" ? state.staffId : null;
   const tasksView = resolveTasksView(state.tab, state.view);
   const isTasksTab = state.tab === "tasks";
+  const settingsPromise = isTasksTab ? loadWorkItemSettings(db) : undefined;
 
-  const [initialTasks, taskCounts, pendingCount, attentionCount, staffOptions] =
+  const taskCountsPromise = isTasksTab
+    ? countWorkItemTasks(user, {
+        staffId: staffIdForTasks,
+        settings: settingsPromise,
+      })
+    : countOpenWorkItemTasks(user, { staffId: staffIdForTasks }).then((open) => ({
+        open,
+        today: 0,
+        overdue: 0,
+        completed: 0,
+      }));
+
+  const [initialTasks, taskCounts, notificationBadges, staffOptions] =
     await Promise.all([
       isTasksTab
         ? listWorkItemTasks(user, {
             view: tasksView,
             staffId: staffIdForTasks,
+            settings: settingsPromise,
           })
         : Promise.resolve([]),
-      countWorkItemTasks(user, {
-        staffId: staffIdForTasks,
-      }),
-      getPendingActionCount(db, user.id),
-      getWorkItemsAttentionCount(db, user.id),
-      user.role === "admin" ? listWorkItemStaffOptions() : Promise.resolve([]),
+      taskCountsPromise,
+      getNotificationBadgeCounts(db, user.id),
+      isTasksTab && user.role === "admin"
+        ? listWorkItemStaffOptions()
+        : Promise.resolve([]),
     ]);
 
   return (
@@ -92,8 +104,8 @@ export default async function WorkItemsPage({ searchParams }: Props) {
       initialStaffId={state.staffId}
       initialTasks={initialTasks}
       taskCounts={taskCounts}
-      pendingCount={pendingCount}
-      attentionCount={attentionCount}
+      pendingCount={notificationBadges.pendingCount}
+      attentionCount={notificationBadges.attentionCount}
       staffOptions={staffOptions}
     />
   );

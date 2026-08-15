@@ -151,8 +151,10 @@ export type {
 } from "./work-items-query";
 
 export {
+  countOpenWorkItemTasks,
   countWorkItemTasks,
   listWorkItemTasks,
   listWorkItemStaffOptions,
   getTaskDueBounds,
+  loadWorkItemSettings,
 } from "./work-items-query";

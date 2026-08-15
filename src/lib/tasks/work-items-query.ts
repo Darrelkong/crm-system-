@@ -3,11 +3,45 @@ import type { SQL } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { getCustomerAccessLevel } from "@/lib/permissions/customers";
 import { getBusinessTodayRange } from "@/lib/reports/dates";
-import { getEffectiveSettings } from "@/lib/settings/effective";
+import { getEffectiveSettings, type EffectiveSettings } from "@/lib/settings/effective";
 import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import type { TasksView } from "@/lib/work-items/url-state";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
+import {
+  recordWorkItemOpenBadgePhysicalLoad,
+  recordWorkItemSettingsPhysicalLoad,
+  recordWorkItemTaskCountPhysicalLoad,
+} from "./work-items-instrumentation";
+
+export type EffectiveSettingsInput =
+  | EffectiveSettings
+  | Promise<EffectiveSettings>;
+
+export type WorkItemsQueryOptions = {
+  staffId?: string | null;
+  now?: Date;
+  settings?: EffectiveSettingsInput;
+};
+
+/** Load effective settings once per Work Items SSR request (Tasks tab). */
+export function loadWorkItemSettings(
+  db: Parameters<typeof getEffectiveSettings>[0],
+): Promise<EffectiveSettings> {
+  recordWorkItemSettingsPhysicalLoad();
+  return getEffectiveSettings(db);
+}
+
+async function resolveWorkItemsSettings(
+  db: Parameters<typeof getEffectiveSettings>[0],
+  settings?: EffectiveSettingsInput,
+): Promise<EffectiveSettings> {
+  if (settings !== undefined) {
+    return Promise.resolve(settings);
+  }
+  recordWorkItemSettingsPhysicalLoad();
+  return getEffectiveSettings(db);
+}
 
 /** Mutual-exclusive today/overdue bounds (HKT calendar + server now). */
 export function getTaskDueBounds(
@@ -95,19 +129,33 @@ function viewWhere(
   return eq(schema.tasks.status, "open");
 }
 
-function combineWhere(...parts: Array<SQL | undefined>): SQL | undefined {
+export function combineWhere(...parts: Array<SQL | undefined>): SQL | undefined {
   const present = parts.filter((p): p is SQL => p != null);
   if (present.length === 0) return undefined;
   if (present.length === 1) return present[0];
   return and(...present);
 }
 
+export async function countOpenWorkItemTasks(
+  user: User,
+  options: { staffId?: string | null } = {},
+): Promise<number> {
+  const db = getDb();
+  recordWorkItemOpenBadgePhysicalLoad();
+  const scope = assigneeScope(user, options.staffId ?? null);
+  const row = await db
+    .select({ value: count() })
+    .from(schema.tasks)
+    .where(combineWhere(eq(schema.tasks.status, "open"), scope));
+  return row[0]?.value ?? 0;
+}
+
 export async function countWorkItemTasks(
   user: User,
-  options: { staffId?: string | null; now?: Date } = {},
+  options: WorkItemsQueryOptions = {},
 ): Promise<WorkItemTaskCounts> {
   const db = getDb();
-  const settings = await getEffectiveSettings(db);
+  const settings = await resolveWorkItemsSettings(db, options.settings);
   const now = options.now ?? new Date();
   const { nowIso, tomorrowStart } = getTaskDueBounds(
     now,
@@ -115,49 +163,41 @@ export async function countWorkItemTasks(
   );
   const scope = assigneeScope(user, options.staffId ?? null);
 
-  const [openRow, todayRow, overdueRow, completedRow] = await Promise.all([
-    db
-      .select({ value: count() })
-      .from(schema.tasks)
-      .where(combineWhere(eq(schema.tasks.status, "open"), scope)),
-    db
-      .select({ value: count() })
-      .from(schema.tasks)
-      .where(
-        combineWhere(
-          and(
-            eq(schema.tasks.status, "open"),
-            isNotNull(schema.tasks.dueAt),
-            gte(schema.tasks.dueAt, nowIso),
-            lt(schema.tasks.dueAt, tomorrowStart),
-          ),
-          scope,
+  recordWorkItemTaskCountPhysicalLoad();
+
+  let countQuery = db
+    .select({
+      open:
+        sql<number>`sum(case when ${schema.tasks.status} = 'open' then 1 else 0 end)`.mapWith(
+          Number,
         ),
-      ),
-    db
-      .select({ value: count() })
-      .from(schema.tasks)
-      .where(
-        combineWhere(
-          and(
-            eq(schema.tasks.status, "open"),
-            isNotNull(schema.tasks.dueAt),
-            lt(schema.tasks.dueAt, nowIso),
-          ),
-          scope,
+      today:
+        sql<number>`sum(case when ${schema.tasks.status} = 'open' and ${schema.tasks.dueAt} is not null and ${schema.tasks.dueAt} >= ${nowIso} and ${schema.tasks.dueAt} < ${tomorrowStart} then 1 else 0 end)`.mapWith(
+          Number,
         ),
-      ),
-    db
-      .select({ value: count() })
-      .from(schema.tasks)
-      .where(combineWhere(eq(schema.tasks.status, "completed"), scope)),
-  ]);
+      overdue:
+        sql<number>`sum(case when ${schema.tasks.status} = 'open' and ${schema.tasks.dueAt} is not null and ${schema.tasks.dueAt} < ${nowIso} then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+      completed:
+        sql<number>`sum(case when ${schema.tasks.status} = 'completed' then 1 else 0 end)`.mapWith(
+          Number,
+        ),
+    })
+    .from(schema.tasks)
+    .$dynamic();
+
+  if (scope) {
+    countQuery = countQuery.where(scope);
+  }
+
+  const [row] = await countQuery;
 
   return {
-    open: openRow[0]?.value ?? 0,
-    today: todayRow[0]?.value ?? 0,
-    overdue: overdueRow[0]?.value ?? 0,
-    completed: completedRow[0]?.value ?? 0,
+    open: Number(row?.open ?? 0),
+    today: Number(row?.today ?? 0),
+    overdue: Number(row?.overdue ?? 0),
+    completed: Number(row?.completed ?? 0),
   };
 }
 
@@ -167,10 +207,11 @@ export async function listWorkItemTasks(
     view: TasksView;
     staffId?: string | null;
     now?: Date;
+    settings?: EffectiveSettingsInput;
   },
 ): Promise<WorkItemTaskRow[]> {
   const db = getDb();
-  const settings = await getEffectiveSettings(db);
+  const settings = await resolveWorkItemsSettings(db, options.settings);
   const now = options.now ?? new Date();
   const { nowIso, tomorrowStart } = getTaskDueBounds(
     now,
