@@ -9,6 +9,7 @@ import {
   HeatBadge,
 } from "@/components/customers/customer-scores-cards";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
+import { CustomerDetailNavLink } from "@/components/customers/customer-detail-nav-link";
 import { CustomerFamilyIcon } from "@/components/customers/customer-family-icon";
 import { ReclamationCountdownBadge } from "@/components/customers/reclamation-countdown-badge";
 import { Button } from "@/components/ui/button";
@@ -379,14 +380,15 @@ export function CustomersListClient({
               locale={locale}
               pendingLabel={tCommon("customers.namePendingBadge")}
               renderName={(displayName) => (
-                <Link
+                <CustomerDetailNavLink
                   href={`/customers/${c.id}`}
-                  prefetch={false}
+                  variant="desktop"
                   className={ui.customerName}
-                  {...navigationPerfHandlers}
+                  navigationPerfHandlers={navigationPerfHandlers}
+                  enableNavigationPerf={enableNavigationPerf}
                 >
                   {displayName}
-                </Link>
+                </CustomerDetailNavLink>
               )}
             />
           </span>
@@ -455,11 +457,11 @@ export function CustomersListClient({
     const staff = assignedStaffDisplay(c);
 
     return (
-      <Link
+      <CustomerDetailNavLink
         href={`/customers/${c.id}`}
-        prefetch={false}
-        className="interactive-card block p-4 active:scale-[0.99]"
-        {...navigationPerfHandlers}
+        variant="mobile"
+        navigationPerfHandlers={navigationPerfHandlers}
+        enableNavigationPerf={enableNavigationPerf}
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -500,7 +502,7 @@ export function CustomersListClient({
           {c.overdueFollowUp && <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>}
           <ReclamationCountdownBadge countdown={c.reclamationCountdown} />
         </div>
-      </Link>
+      </CustomerDetailNavLink>
     );
   }
 

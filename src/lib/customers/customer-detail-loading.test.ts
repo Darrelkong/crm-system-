@@ -16,6 +16,13 @@ function readCustomersListClientSource(): string {
   );
 }
 
+function readCustomerDetailNavLinkSource(): string {
+  return readFileSync(
+    "src/components/customers/customer-detail-nav-link.tsx",
+    "utf8",
+  );
+}
+
 describe("customer detail Phase 2B5 loading boundary", () => {
   it("adds loading.tsx only for customer detail route", () => {
     assert.equal(
@@ -64,25 +71,29 @@ describe("customer detail Phase 2B5 loading boundary", () => {
   });
 });
 
-describe("customer detail F3 prefetch hardening", () => {
-  it("disables viewport prefetch on desktop Customer Detail links", () => {
+describe("customer detail F4 paid navigation UX", () => {
+  it("uses Next Link for desktop Customer Detail navigation without prefetch=false", () => {
     const source = readCustomersListClientSource();
     const desktopBlock = source.slice(
       source.indexOf("function CustomerNameLink"),
       source.indexOf("function ProjectNameCell"),
     );
+    assert.match(desktopBlock, /CustomerDetailNavLink/);
     assert.match(desktopBlock, /href=\{`\/customers\/\$\{c\.id\}`\}/);
-    assert.match(desktopBlock, /prefetch=\{false\}/);
+    assert.doesNotMatch(desktopBlock, /prefetch=\{false\}/);
+    assert.doesNotMatch(desktopBlock, /<a\s+href=/);
   });
 
-  it("disables viewport prefetch on mobile Customer Detail card links", () => {
+  it("uses Next Link for mobile Customer Detail navigation without prefetch=false", () => {
     const source = readCustomersListClientSource();
     const mobileBlock = source.slice(
       source.indexOf("function CustomerMobileCard"),
       source.indexOf("return (\n    <div>"),
     );
+    assert.match(mobileBlock, /CustomerDetailNavLink/);
     assert.match(mobileBlock, /href=\{`\/customers\/\$\{c\.id\}`\}/);
-    assert.match(mobileBlock, /prefetch=\{false\}/);
+    assert.doesNotMatch(mobileBlock, /prefetch=\{false\}/);
+    assert.doesNotMatch(mobileBlock, /<a\s+href=/);
   });
 
   it("does not add manual Customer Detail prefetch loops", () => {
@@ -93,9 +104,20 @@ describe("customer detail F3 prefetch hardening", () => {
     assert.doesNotMatch(source, /onMouseEnter=.*prefetch/);
   });
 
-  it("keeps Next.js Link for Customer Detail navigation", () => {
+  it("wires immediate pending feedback through useLinkStatus", () => {
+    const navLink = readCustomerDetailNavLinkSource();
+    assert.match(navLink, /useLinkStatus/);
+    assert.match(navLink, /from "next\/link"/);
+    assert.match(navLink, /role="status"/);
+    assert.match(navLink, /aria-live="polite"/);
+    assert.match(navLink, /sr-only/);
+    assert.match(navLink, /LoadingSpinner/);
+  });
+
+  it("preserves navigation perf handlers on Customer Detail links", () => {
     const source = readCustomersListClientSource();
-    assert.match(source, /<Link/);
-    assert.doesNotMatch(source, /<a\s+href=\{`\/customers\/\$\{c\.id\}`\}/);
+    assert.match(source, /recordNavigationPointerDownMark/);
+    assert.match(source, /recordNavigationClickMark/);
+    assert.match(source, /navigationPerfHandlers=\{navigationPerfHandlers\}/);
   });
 });

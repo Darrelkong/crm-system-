@@ -7,6 +7,7 @@ export type NavigationPerfMarker = {
   source: "customer-list";
   pointerDownEpochMs?: number;
   clickEpochMs: number;
+  linkPendingEpochMs?: number;
   createdAtEpochMs: number;
 };
 
@@ -62,6 +63,7 @@ const ALLOWED_MARKER_KEYS = new Set([
   "source",
   "pointerDownEpochMs",
   "clickEpochMs",
+  "linkPendingEpochMs",
   "createdAtEpochMs",
 ]);
 
@@ -118,6 +120,9 @@ export function parseNavigationMarker(raw: string): NavigationPerfMarker | null 
     if (typeof value.pointerDownEpochMs === "number") {
       marker.pointerDownEpochMs = value.pointerDownEpochMs;
     }
+    if (typeof value.linkPendingEpochMs === "number") {
+      marker.linkPendingEpochMs = value.linkPendingEpochMs;
+    }
     return marker;
   } catch {
     return null;
@@ -147,6 +152,7 @@ export function recordNavigationPointerDownMark(): void {
     source: "customer-list",
     pointerDownEpochMs: now,
     clickEpochMs: existing?.clickEpochMs ?? now,
+    linkPendingEpochMs: existing?.linkPendingEpochMs,
     createdAtEpochMs: existing?.createdAtEpochMs ?? now,
   });
 }
@@ -159,7 +165,23 @@ export function recordNavigationClickMark(): void {
     source: "customer-list",
     pointerDownEpochMs: existing?.pointerDownEpochMs ?? now,
     clickEpochMs: now,
+    linkPendingEpochMs: existing?.linkPendingEpochMs,
     createdAtEpochMs: existing?.createdAtEpochMs ?? now,
+  });
+}
+
+export function recordNavigationLinkPendingMark(): void {
+  const now = epochNow();
+  const existing = readRawMarker();
+  if (!existing) {
+    return;
+  }
+  if (typeof existing.linkPendingEpochMs === "number") {
+    return;
+  }
+  writeNavigationMarker({
+    ...existing,
+    linkPendingEpochMs: now,
   });
 }
 

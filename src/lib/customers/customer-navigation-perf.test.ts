@@ -99,7 +99,8 @@ describe("customer navigation Phase 2B4 diagnostic", () => {
     const source = readCustomersListClientSource();
     assert.match(source, /recordNavigationPointerDownMark/);
     assert.match(source, /recordNavigationClickMark/);
-    assert.match(source, /\{\.\.\.navigationPerfHandlers\}/);
+    assert.match(source, /navigationPerfHandlers=\{navigationPerfHandlers\}/);
+    assert.match(source, /CustomerDetailNavLink/);
   });
 
   it("gates CustomerNavigationPerfProbe to admin via isAdmin", () => {
