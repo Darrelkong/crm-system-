@@ -31,7 +31,10 @@ import {
   listCustomerIdsMatchingScoringFilterPaginated,
   type ScoringQueryPlanDatabase,
 } from "@/lib/customers/scoring/scoring-list-sql";
-import { sqlFieldHasText } from "@/lib/customers/scoring/scoring-sql-primitives";
+import {
+  buildCompletenessScoreSql,
+  sqlFieldHasText,
+} from "@/lib/customers/scoring/scoring-sql-primitives";
 import {
   getScoringSqlInstrumentation,
   recordCandidateScoringPath,
@@ -557,6 +560,28 @@ describe("customer list scoring SQL parity (PRE)", () => {
         nextFollowUpAt: null,
         status: "public_pool",
       }),
+      makeFixture("c-wechat-nul", {
+        customerName: "",
+        phone: null,
+        wechatId: "\u0000",
+        email: null,
+        source: "",
+        salesStage: "",
+        ownerId: null,
+        notes: null,
+        nextFollowUpAt: null,
+      }),
+      makeFixture("c-wechat-nbsp", {
+        customerName: "",
+        phone: null,
+        wechatId: "\u00a0",
+        email: null,
+        source: "",
+        salesStage: "",
+        ownerId: null,
+        notes: null,
+        nextFollowUpAt: null,
+      }),
     );
 
     let followUpSet = new Set<string>();
@@ -631,6 +656,13 @@ describe("customer list scoring SQL parity (PRE)", () => {
         "text\u202f",
         "ASCII",
         "中文",
+        "\u0000",
+        "\u0000a",
+        "a\u0000",
+        " \u0000 ",
+        "\u00a0\u0000\u3000",
+        "\u0000\u00a0",
+        "\u0000中文",
       ];
       for (const value of values) {
         const row = await db.get<{ hasText: number }>(sql`SELECT CASE
@@ -639,6 +671,25 @@ describe("customer list scoring SQL parity (PRE)", () => {
           END AS hasText`);
         const jsHasText = !!value && value.trim().length > 0;
         assert.equal(row?.hasText === 1, jsHasText, JSON.stringify(value));
+      }
+    });
+
+    it("matches JS phone/wechat completeness for NUL and NBSP-only WeChat", async () => {
+      const cases = [
+        { id: fixtureId("c-wechat-nul"), expectedScore: 20 },
+        { id: fixtureId("c-wechat-nbsp"), expectedScore: 0 },
+      ];
+      for (const { id, expectedScore } of cases) {
+        const customer = completenessFixtures.find((row) => row.id === id);
+        assert.ok(customer, id);
+        const jsScore = calculateDataCompletenessScore(customer, false)
+          .completenessScore;
+        assert.equal(jsScore, expectedScore, id);
+        const sqlRow = await db
+          .select({ score: buildCompletenessScoreSql() })
+          .from(schema.customers)
+          .where(eq(schema.customers.id, id));
+        assert.equal(Number(sqlRow[0]?.score ?? -1), jsScore, id);
       }
     });
   });

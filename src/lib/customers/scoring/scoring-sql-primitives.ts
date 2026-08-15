@@ -21,7 +21,7 @@ const ECMASCRIPT_TRIM_CHARACTERS =
 export function sqlFieldHasText(column: AnyColumn | SQL): SQL {
   return sql`(
     ${column} IS NOT NULL
-    AND length(trim(${column}, ${ECMASCRIPT_TRIM_CHARACTERS})) > 0
+    AND trim(${column}, ${ECMASCRIPT_TRIM_CHARACTERS}) <> ''
   )`;
 }
 
