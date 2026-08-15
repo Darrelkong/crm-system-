@@ -30,15 +30,12 @@ import type {
   CreatorNewCustomerCount,
 } from "./types";
 import type { EffectiveSettings } from "@/lib/settings/effective";
-import type { SharedAdminDashboardKpis } from "./admin-dashboard-shared-kpis";
-import {
-  countAdminDashboardPendingApprovals,
-  countAdminDashboardTotalCustomers,
-} from "./admin-dashboard-shared-kpis";
+import type { SharedAdminDashboardKpisInput } from "./admin-dashboard-shared-kpis";
+import { sharedKpiCountPromises } from "./admin-dashboard-shared-kpis";
 
 export type AdminDashboardStatsRequestOptions = {
   settings?: EffectiveSettings;
-  sharedKpis?: SharedAdminDashboardKpis;
+  sharedKpis?: SharedAdminDashboardKpisInput;
 };
 
 function sortCreatorNewCustomerRows(
@@ -73,6 +70,9 @@ export async function getAdminDashboardStats(
   );
   const tomorrowStart = new Date(new Date(todayEnd).getTime() + 1).toISOString();
 
+  const { totalCustomers: totalCustomersPromise, pendingApprovals: pendingApprovalsPromise } =
+    sharedKpiCountPromises(db, requestOptions?.sharedKpis);
+
   const [
     totalCustomers,
     pendingApprovals,
@@ -86,12 +86,8 @@ export async function getAdminDashboardStats(
     closedWonRow,
     autoReclaimedRow,
   ] = await Promise.all([
-    requestOptions?.sharedKpis
-      ? Promise.resolve(requestOptions.sharedKpis.totalCustomers)
-      : countAdminDashboardTotalCustomers(db),
-    requestOptions?.sharedKpis
-      ? Promise.resolve(requestOptions.sharedKpis.pendingApprovals)
-      : countAdminDashboardPendingApprovals(db),
+    totalCustomersPromise,
+    pendingApprovalsPromise,
     db
       .select({ value: count() })
       .from(schema.customers)

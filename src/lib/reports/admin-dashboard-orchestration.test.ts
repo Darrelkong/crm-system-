@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 import type { EffectiveSettings } from "@/lib/settings/effective";
 import { loadAdminDashboardReports } from "./admin-dashboard-orchestration";
 import type { AdminDashboardReclamationData } from "./admin-dashboard-request-data";
-import type { SharedAdminDashboardKpis } from "./admin-dashboard-shared-kpis";
+import type { SharedAdminDashboardKpis, SharedAdminDashboardKpisInput } from "./admin-dashboard-shared-kpis";
 import type { DashboardSummary } from "./dashboard-summary-types";
 import type { AdminDashboardStats } from "./types";
 import type { DashboardTrendsPayload } from "./dashboard-trends-types";
@@ -220,16 +220,18 @@ describe("admin dashboard orchestration", () => {
     assert.equal(result.teamResult.error, false);
   });
 
-  it("loads shared KPIs once and passes them to legacy stats and summary", async () => {
+  it("loads shared KPIs once and passes the same promise to legacy stats and summary", async () => {
     let sharedKpiLoads = 0;
-    let statsSharedKpis: SharedAdminDashboardKpis | undefined;
-    let summarySharedKpis: SharedAdminDashboardKpis | undefined;
+    let sharedKpisPromise: Promise<SharedAdminDashboardKpis> | undefined;
+    let statsSharedKpis: SharedAdminDashboardKpisInput | undefined;
+    let summarySharedKpis: SharedAdminDashboardKpisInput | undefined;
 
     await loadAdminDashboardReports(mockDb, admin, now, {
       loadSettings: async () => mockSettings,
-      loadSharedKpis: async () => {
+      loadSharedKpis: () => {
         sharedKpiLoads += 1;
-        return mockSharedKpis;
+        sharedKpisPromise ??= Promise.resolve(mockSharedKpis);
+        return sharedKpisPromise;
       },
       loadReclamation: async () => ({ reclamationSnapshots: [] }),
       getTrends: async () => mockTrends,
@@ -246,7 +248,61 @@ describe("admin dashboard orchestration", () => {
     });
 
     assert.equal(sharedKpiLoads, 1);
-    assert.deepEqual(statsSharedKpis, mockSharedKpis);
-    assert.deepEqual(summarySharedKpis, mockSharedKpis);
+    assert.ok(sharedKpisPromise);
+    assert.strictEqual(statsSharedKpis, sharedKpisPromise);
+    assert.strictEqual(summarySharedKpis, sharedKpisPromise);
+    assert.deepEqual(await statsSharedKpis, mockSharedKpis);
+    assert.deepEqual(await summarySharedKpis, mockSharedKpis);
+  });
+
+  it("starts reclamation without waiting for shared KPI resolution", async () => {
+    const events: string[] = [];
+    const sharedKpiGate = defer<SharedAdminDashboardKpis>();
+
+    const loadPromise = loadAdminDashboardReports(mockDb, admin, now, {
+      loadSettings: async () => {
+        events.push("settings-done");
+        return mockSettings;
+      },
+      loadSharedKpis: async () => {
+        events.push("shared-kpis-start");
+        const result = await sharedKpiGate.promise;
+        events.push("shared-kpis-done");
+        return result;
+      },
+      loadReclamation: async () => {
+        events.push("reclamation-start");
+        return { reclamationSnapshots: [] };
+      },
+      getTrends: async () => mockTrends,
+      getStage: async () => mockStage,
+      getStats: async () => {
+        events.push("legacy-stats");
+        return mockStats;
+      },
+      getSummary: async () => mockSummary,
+      getTeam: async () => mockTeam,
+    });
+
+    await yieldToEventLoop();
+
+    assert.ok(events.includes("settings-done"));
+    assert.ok(events.includes("shared-kpis-start"));
+    assert.ok(events.includes("reclamation-start"));
+    assert.ok(events.includes("legacy-stats"));
+    assert.equal(events.includes("shared-kpis-done"), false);
+    assert.ok(
+      events.indexOf("reclamation-start") < events.indexOf("shared-kpis-done") ||
+        events.indexOf("shared-kpis-done") === -1,
+    );
+
+    sharedKpiGate.resolve(mockSharedKpis);
+    await loadPromise;
+
+    assert.ok(events.includes("shared-kpis-done"));
+    assert.ok(
+      events.indexOf("reclamation-start") < events.indexOf("shared-kpis-done"),
+      "reclamation should start before shared KPIs finish",
+    );
   });
 });

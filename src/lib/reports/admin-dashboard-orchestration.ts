@@ -83,16 +83,19 @@ export async function loadAdminDashboardReports(
     .catch(() => ({ distribution: null, error: true as const }));
 
   const settings = await loadSettings(db);
-  const sharedKpis = await loadSharedKpis(db);
+  const sharedKpisPromise = loadSharedKpis(db);
 
-  const legacyStatsPromise = getStats(db, now, { settings, sharedKpis });
+  const legacyStatsPromise = getStats(db, now, {
+    settings,
+    sharedKpis: sharedKpisPromise,
+  });
 
   const reclamationPromise = loadReclamation(db, now, settings);
 
   const summaryPromise = reclamationPromise.then((reclamationData) =>
     getSummary(db, user, now, {
       settings,
-      sharedKpis,
+      sharedKpis: sharedKpisPromise,
       ...reclamationData,
     }),
   );

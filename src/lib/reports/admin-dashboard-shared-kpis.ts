@@ -12,6 +12,31 @@ export type SharedAdminDashboardKpis = {
   pendingApprovals: number;
 };
 
+export type SharedAdminDashboardKpisInput =
+  | SharedAdminDashboardKpis
+  | Promise<SharedAdminDashboardKpis>;
+
+/** Resolve shared KPI scalars for parallel count batches. */
+export function sharedKpiCountPromises(
+  db: Database,
+  sharedKpis?: SharedAdminDashboardKpisInput,
+): {
+  totalCustomers: Promise<number>;
+  pendingApprovals: Promise<number>;
+} {
+  if (!sharedKpis) {
+    return {
+      totalCustomers: countAdminDashboardTotalCustomers(db),
+      pendingApprovals: countAdminDashboardPendingApprovals(db),
+    };
+  }
+  const resolved = Promise.resolve(sharedKpis);
+  return {
+    totalCustomers: resolved.then((kpis) => kpis.totalCustomers),
+    pendingApprovals: resolved.then((kpis) => kpis.pendingApprovals),
+  };
+}
+
 /** Non-archived customers — same predicate as legacy stats and summary admin metrics. */
 export async function countAdminDashboardTotalCustomers(
   db: Database,

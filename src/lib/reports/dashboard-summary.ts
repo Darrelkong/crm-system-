@@ -24,15 +24,12 @@ import type {
   StaffDashboardSummary,
 } from "./dashboard-summary-types";
 import type { ReclamationRiskSnapshot } from "@/lib/reclamation/risk-snapshot";
-import type { SharedAdminDashboardKpis } from "./admin-dashboard-shared-kpis";
-import {
-  countAdminDashboardPendingApprovals,
-  countAdminDashboardTotalCustomers,
-} from "./admin-dashboard-shared-kpis";
+import type { SharedAdminDashboardKpisInput } from "./admin-dashboard-shared-kpis";
+import { sharedKpiCountPromises } from "./admin-dashboard-shared-kpis";
 
 export type DashboardSummaryRequestOptions = {
   settings?: EffectiveSettings;
-  sharedKpis?: SharedAdminDashboardKpis;
+  sharedKpis?: SharedAdminDashboardKpisInput;
   reclamationSnapshots?: ReclamationRiskSnapshot[];
   reclamationSnapshotsFailed?: boolean;
 };
@@ -225,7 +222,7 @@ async function getAdminMetrics(
   user: User,
   now: Date,
   timezone: ReportsTimezone,
-  sharedKpis?: SharedAdminDashboardKpis,
+  sharedKpis?: SharedAdminDashboardKpisInput,
 ): Promise<AdminDashboardSummary["metrics"]> {
   const nowIso = now.toISOString();
   const { start: todayStart, end: todayEnd } = getBusinessTodayRange(
@@ -236,6 +233,9 @@ async function getAdminMetrics(
     new Date(todayEnd).getTime() + 1,
   ).toISOString();
 
+  const { totalCustomers: totalCustomersPromise, pendingApprovals: pendingApprovalsPromise } =
+    sharedKpiCountPromises(db, sharedKpis);
+
   const [
     totalCustomers,
     newCustomersTodayRow,
@@ -244,9 +244,7 @@ async function getAdminMetrics(
     overdueRow,
     publicPoolTodayRow,
   ] = await Promise.all([
-    sharedKpis
-      ? Promise.resolve(sharedKpis.totalCustomers)
-      : countAdminDashboardTotalCustomers(db),
+    totalCustomersPromise,
     db
       .select({ value: count() })
       .from(schema.customers)
@@ -268,9 +266,7 @@ async function getAdminMetrics(
           lt(schema.followUps.followUpTime, tomorrowStart),
         ),
       ),
-    sharedKpis
-      ? Promise.resolve(sharedKpis.pendingApprovals)
-      : countAdminDashboardPendingApprovals(db),
+    pendingApprovalsPromise,
     db
       .select({ value: count() })
       .from(schema.customers)
