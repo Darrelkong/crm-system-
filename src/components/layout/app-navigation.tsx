@@ -26,6 +26,7 @@ import {
   isSameNavTarget,
   useNavigationPending,
 } from "@/components/layout/navigation-pending";
+import { MobileBottomNavLink } from "@/components/layout/mobile-bottom-nav-link";
 import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
 
 const WORK_ITEMS_HREF_PREFIX = "/work-items";
@@ -344,29 +345,24 @@ export function MobileBottomNav({
 
           return (
             <li key={item.href} className="flex-1">
-              <Link
+              <MobileBottomNavLink
                 href={item.href}
-                onClick={() =>
+                isActive={isActive}
+                isPending={isPending}
+                onNavigate={() =>
                   beginNavigationPending(navigationPending, item.href, activePath)
                 }
-                className={cn(
-                  isActive
-                    ? "mobile-nav-active flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors duration-200"
-                    : "mobile-nav-inactive flex min-h-11 w-full flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1.5 text-[10px] font-medium transition-colors duration-200",
-                  isPending && !isActive && "nav-item-pending",
-                )}
-              >
-                <span className="relative">
-                  <Icon className="h-5 w-5" />
-                  {isWorkItemsNavHref(item.href) && (
+                icon={Icon}
+                label={t(item.labelKey)}
+                badge={
+                  isWorkItemsNavHref(item.href) ? (
                     <NotificationCountBadge
                       count={unreadCount}
                       variant="overlay"
                     />
-                  )}
-                </span>
-                <span className="max-w-full truncate">{t(item.labelKey)}</span>
-              </Link>
+                  ) : undefined
+                }
+              />
             </li>
           );
         })}

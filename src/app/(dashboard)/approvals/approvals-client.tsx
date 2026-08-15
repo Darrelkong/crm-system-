@@ -18,6 +18,7 @@ import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { CreateOnHoldCustomerApprovalDetail } from "@/components/approvals/create-on-hold-customer-detail";
 import { UpdateCustomerAssigneesApprovalDetail } from "@/components/approvals/update-customer-assignees-detail";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
+import { ListRowSkeleton } from "@/components/ui/skeleton";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Props = {
@@ -124,7 +125,12 @@ export function ApprovalsClient({ isAdmin }: Props) {
       )}
 
       {loading ? (
-        <p className="text-sm text-[#6B7890]">{t("common.loading")}</p>
+        <div className="space-y-3" aria-busy="true">
+          {Array.from({ length: 4 }, (_, index) => (
+            <ListRowSkeleton key={index} lines={2} />
+          ))}
+          <span className="sr-only">{t("common.loading")}</span>
+        </div>
       ) : items.length === 0 ? (
         <EmptyState message={t("approvals.noRequests")} />
       ) : (

@@ -24,14 +24,14 @@ function readCustomerDetailNavLinkSource(): string {
 }
 
 describe("customer detail Phase 2B5 loading boundary", () => {
-  it("adds loading.tsx only for customer detail route", () => {
+  it("keeps dedicated loading.tsx for customer detail and adds hub list loading", () => {
     assert.equal(
       existsSync("src/app/(dashboard)/customers/[id]/loading.tsx"),
       true,
     );
     assert.equal(
       existsSync("src/app/(dashboard)/customers/loading.tsx"),
-      false,
+      true,
     );
     assert.equal(existsSync("src/app/(dashboard)/loading.tsx"), false);
     assert.equal(existsSync("src/app/loading.tsx"), false);
