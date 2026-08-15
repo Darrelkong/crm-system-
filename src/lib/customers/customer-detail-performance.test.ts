@@ -198,7 +198,6 @@ describe("customer detail Phase 2B1 permissions and data", () => {
       return getCustomerTimeline(db, user, customer, accessOptions, {
         followUpsPromise,
       });
-      });
     })();
 
     const assigneesForDisplay =

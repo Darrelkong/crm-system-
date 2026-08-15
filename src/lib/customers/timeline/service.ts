@@ -107,17 +107,56 @@ export function assertCanViewCustomerTimeline(
 }
 
 /**
+ * Cloudflare D1 rejects compound SELECTs with more than this many UNION branches.
+ * F5 production regression: SQLITE_ERROR "too many terms in compound SELECT".
+ */
+export const D1_MAX_COMPOUND_SELECT_TERMS = 5;
+
+/**
  * Bounded actor display-name map for a customer without waiting for Timeline
  * event rows. Includes all actor sources used when building Timeline items.
+ *
+ * Actor-id discovery uses two D1-safe compound subqueries (4 + 3 UNION terms)
+ * plus optional createdBy, then one users lookup.
  */
 export async function loadActorNamesForCustomer(
   db: Database,
   customerId: string,
   createdBy: string | null,
 ): Promise<Map<string, string>> {
-  const createdByUnion = createdBy
-    ? sql`UNION SELECT ${createdBy} AS actor_id`
-    : sql``;
+  const actorIdsGroupA = sql`(
+    SELECT actor_id FROM (
+      SELECT user_id AS actor_id FROM audit_logs
+      WHERE entity_type = 'customer' AND entity_id = ${customerId} AND user_id IS NOT NULL
+      UNION
+      SELECT al.user_id AS actor_id FROM audit_logs al
+      INNER JOIN tasks t ON al.entity_type = 'task' AND al.entity_id = t.id
+      WHERE t.customer_id = ${customerId} AND al.user_id IS NOT NULL
+      UNION
+      SELECT changed_by AS actor_id FROM field_change_logs
+      WHERE customer_id = ${customerId} AND changed_by IS NOT NULL
+      UNION
+      SELECT user_id AS actor_id FROM follow_ups
+      WHERE customer_id = ${customerId} AND user_id IS NOT NULL
+    )
+  )`;
+
+  const actorIdsGroupB = sql`(
+    SELECT actor_id FROM (
+      SELECT created_by AS actor_id FROM tasks
+      WHERE customer_id = ${customerId} AND created_by IS NOT NULL
+      UNION
+      SELECT requested_by AS actor_id FROM approvals
+      WHERE customer_id = ${customerId} AND requested_by IS NOT NULL
+      UNION
+      SELECT reviewed_by AS actor_id FROM approvals
+      WHERE customer_id = ${customerId} AND reviewed_by IS NOT NULL
+    )
+  )`;
+
+  const createdByFilter = createdBy
+    ? sql`${schema.users.id} = ${createdBy}`
+    : sql`0`;
 
   const rows = await db
     .select({
@@ -126,32 +165,9 @@ export async function loadActorNamesForCustomer(
     })
     .from(schema.users)
     .where(
-      sql`${schema.users.id} IN (
-        SELECT actor_id FROM (
-          SELECT user_id AS actor_id FROM audit_logs
-          WHERE entity_type = 'customer' AND entity_id = ${customerId} AND user_id IS NOT NULL
-          UNION
-          SELECT al.user_id AS actor_id FROM audit_logs al
-          INNER JOIN tasks t ON al.entity_type = 'task' AND al.entity_id = t.id
-          WHERE t.customer_id = ${customerId} AND al.user_id IS NOT NULL
-          UNION
-          SELECT changed_by AS actor_id FROM field_change_logs
-          WHERE customer_id = ${customerId} AND changed_by IS NOT NULL
-          UNION
-          SELECT user_id AS actor_id FROM follow_ups
-          WHERE customer_id = ${customerId} AND user_id IS NOT NULL
-          UNION
-          SELECT created_by AS actor_id FROM tasks
-          WHERE customer_id = ${customerId} AND created_by IS NOT NULL
-          UNION
-          SELECT requested_by AS actor_id FROM approvals
-          WHERE customer_id = ${customerId} AND requested_by IS NOT NULL
-          UNION
-          SELECT reviewed_by AS actor_id FROM approvals
-          WHERE customer_id = ${customerId} AND reviewed_by IS NOT NULL
-          ${createdByUnion}
-        )
-      )`,
+      sql`${schema.users.id} IN ${actorIdsGroupA}
+        OR ${schema.users.id} IN ${actorIdsGroupB}
+        OR ${createdByFilter}`,
     );
 
   return new Map(rows.map((row) => [row.id, row.displayName]));
