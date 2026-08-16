@@ -98,6 +98,18 @@ function assertWellFormed(state: CustomerState, label: string): void {
   }
 }
 
+const INVALID_CALENDAR_TIMESTAMPS = [
+  "2026-02-29T12:00:00Z",
+  "2026-02-30T12:00:00Z",
+  "2026-04-31T12:00:00Z",
+  "2026-00-10T12:00:00Z",
+  "2026-13-01T12:00:00Z",
+  "2026-01-00T12:00:00Z",
+  "2026-01-01T24:00:00Z",
+  "2026-01-01T23:60:00Z",
+  "2026-01-01T23:59:60Z",
+] as const;
+
 const MALFORMED_TIMESTAMPS = [
   "",
   "   ",
@@ -110,6 +122,7 @@ const MALFORMED_TIMESTAMPS = [
   "null",
   "undefined",
   "\u0000",
+  ...INVALID_CALENDAR_TIMESTAMPS,
 ] as const;
 
 describe("Y-11 — fixture premise: every entry is genuinely unparseable", () => {
@@ -119,23 +132,54 @@ describe("Y-11 — fixture premise: every entry is genuinely unparseable", () =>
     });
   }
 
-  it("documents what the shared parser deliberately accepts", () => {
-    // `parseUtcDate` is the existing production parser, shared with the frozen
-    // reclamation helpers. V2 reuses it so both agree on borderline strings:
-    // an offset-less instant is read as UTC, and a rolled-over calendar date is
-    // accepted by the runtime's legacy parse.
-    assert.equal(
-      parseStateInstant("2026-08-16T12:00:00")?.toISOString(),
-      "2026-08-16T12:00:00.000Z",
-    );
-    assert.equal(
-      parseStateInstant("2026-02-30T12:00:00Z")?.toISOString(),
-      "2026-03-02T12:00:00.000Z",
-    );
-    assert.equal(
-      parseStateInstant("2026-08-16 12:00:00")?.toISOString(),
-      "2026-08-16T12:00:00.000Z",
-    );
+  const validTimestamps = [
+    {
+      label: "valid leap-year February 29",
+      value: "2024-02-29T23:59:59.999Z",
+      expected: "2024-02-29T23:59:59.999Z",
+    },
+    {
+      label: "valid January month end",
+      value: "2026-01-31T23:59:59Z",
+      expected: "2026-01-31T23:59:59.000Z",
+    },
+    {
+      label: "valid April month end",
+      value: "2026-04-30T23:59:59Z",
+      expected: "2026-04-30T23:59:59.000Z",
+    },
+    {
+      label: "timezone-offset instant",
+      value: "2026-08-16T12:00:00+08:00",
+      expected: "2026-08-16T04:00:00.000Z",
+    },
+    {
+      label: "Z instant",
+      value: "2026-08-16T12:00:00Z",
+      expected: "2026-08-16T12:00:00.000Z",
+    },
+    {
+      label: "intentional offset-less T form",
+      value: "2026-08-16T12:00:00",
+      expected: "2026-08-16T12:00:00.000Z",
+    },
+    {
+      label: "intentional offset-less SQLite form",
+      value: "2026-08-16 12:00:00",
+      expected: "2026-08-16T12:00:00.000Z",
+    },
+  ] as const;
+
+  for (const { label, value, expected } of validTimestamps) {
+    it(`accepts ${label}`, () => {
+      assert.equal(parseStateInstant(value)?.toISOString(), expected);
+    });
+  }
+
+  it("rejects every impossible calendar/time value instead of rolling it over", () => {
+    for (const value of INVALID_CALENDAR_TIMESTAMPS) {
+      assert.equal(parseStateInstant(value), null, value);
+    }
   });
 });
 
@@ -259,6 +303,9 @@ describe("R2 §C — a malformed valid-interaction timestamp behaves exactly as 
           salesStage: stage,
           createdAt: hoursAgoIso(100),
           lastValidFollowUpAt: null,
+          // Isolate the frozen reclamation parser, which intentionally does not
+          // use parseStateInstant and is outside the R2 §C correction.
+          reclamationCycleStartedAt: hkDaysAgoIso(0),
         }),
       );
       for (const value of MALFORMED_TIMESTAMPS) {
@@ -267,6 +314,7 @@ describe("R2 §C — a malformed valid-interaction timestamp behaves exactly as 
             salesStage: stage,
             createdAt: hoursAgoIso(100),
             lastValidFollowUpAt: value,
+            reclamationCycleStartedAt: hkDaysAgoIso(0),
           }),
         );
         assert.deepEqual(malformed.firstContact, absent.firstContact, value);
@@ -300,6 +348,30 @@ describe("R2 §C — a malformed valid-interaction timestamp behaves exactly as 
       false,
       "no unparseable code outside the First Contact anchor",
     );
+  });
+
+  it("keeps the final R2 never-contacted behavior for impossible calendar dates", () => {
+    for (const value of INVALID_CALENDAR_TIMESTAMPS) {
+      const state = evaluate(
+        stateFacts({
+          salesStage: "contacted",
+          createdAt: hoursAgoIso(100),
+          lastValidFollowUpAt: value,
+          followUpOutcomes: [
+            outcome("no_reply", hoursAgoIso(1)),
+            outcome("no_reply", hoursAgoIso(2)),
+            outcome("lost_contact", hoursAgoIso(3)),
+          ],
+        }),
+      );
+
+      assert.equal(state.firstContact.state, "critical", value);
+      assert.equal(state.followUpSla.state, "not_started", value);
+      assert.equal(state.engagementHealth.state, "not_started", value);
+      assert.equal(state.churnRisk.level, "low", value);
+      assert.deepEqual(state.churnRisk.families, [], value);
+      assertWellFormed(state, value);
+    }
   });
 
   it("leaves the reclamation dimension on its own frozen helper", () => {

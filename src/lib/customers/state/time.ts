@@ -26,6 +26,91 @@ export const DEFAULT_STATE_TIMEZONE: BusinessTimezone = HONG_KONG_TIMEZONE;
 const MS_PER_HOUR = 60 * 60 * 1000;
 
 /**
+ * CRM timestamps are ISO calendar values with either `T` or SQLite's space
+ * separator. The shared `parseUtcDate` contract also permits an absent offset
+ * and interprets that form as UTC.
+ *
+ * Capture the calendar/time fields before delegating because JavaScript's
+ * parser normalizes some impossible dates (for example February 30) instead of
+ * rejecting them. This remains the one canonical validator for every V2
+ * timestamp and does not change the frozen shared/reclamation parser.
+ */
+const STATE_INSTANT_PATTERN =
+  /^(\d{4})-(\d{2})-(\d{2})(?:(?:T| )(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(?:(Z)|([+-])(\d{2}):?(\d{2}))?)?$/;
+
+function isLeapYear(year: number): boolean {
+  return year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+}
+
+function daysInMonth(year: number, month: number): number {
+  const monthLengths = [
+    31,
+    isLeapYear(year) ? 29 : 28,
+    31,
+    30,
+    31,
+    30,
+    31,
+    31,
+    30,
+    31,
+    30,
+    31,
+  ] as const;
+  return monthLengths[month - 1] ?? 0;
+}
+
+function hasValidStateInstantParts(value: string): boolean {
+  const match = STATE_INSTANT_PATTERN.exec(value);
+  if (!match) return false;
+
+  const [
+    ,
+    rawYear,
+    rawMonth,
+    rawDay,
+    rawHour,
+    rawMinute,
+    rawSecond,
+    rawFraction,
+    utcDesignator,
+    offsetSign,
+    rawOffsetHour,
+    rawOffsetMinute,
+  ] = match;
+  const year = Number(rawYear);
+  const month = Number(rawMonth);
+  const day = Number(rawDay);
+
+  if (month < 1 || month > 12) return false;
+  if (day < 1 || day > daysInMonth(year, month)) return false;
+
+  if (rawHour !== undefined) {
+    const hour = Number(rawHour);
+    const minute = Number(rawMinute);
+    const second = rawSecond === undefined ? 0 : Number(rawSecond);
+    if (hour > 23 || minute > 59 || second > 59) return false;
+  }
+
+  if (offsetSign !== undefined) {
+    if (Number(rawOffsetHour) > 23 || Number(rawOffsetMinute) > 59) return false;
+  }
+
+  // Match the existing `parseUtcDate` naive-UTC contract exactly: offset-less
+  // fractional seconds are supported only in the stored three-digit form.
+  if (
+    utcDesignator === undefined &&
+    offsetSign === undefined &&
+    rawFraction !== undefined &&
+    rawFraction.length !== 3
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * RULE R-D / R2 §C — the single canonical parse used for every V2 timestamp.
  * Returns `null` for absent, blank, and malformed values alike so that a
  * malformed value has exactly the same state semantics as an absent one.
@@ -34,7 +119,9 @@ export function parseStateInstant(
   value: string | null | undefined,
 ): Date | null {
   if (typeof value !== "string") return null;
-  return parseUtcDate(value);
+  const trimmed = value.trim();
+  if (!trimmed || !hasValidStateInstantParts(trimmed)) return null;
+  return parseUtcDate(trimmed);
 }
 
 /** RULE R-A — fractional elapsed hours from `anchor` to `now`. */
