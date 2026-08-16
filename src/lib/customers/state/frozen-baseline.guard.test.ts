@@ -242,14 +242,18 @@ describe("Y-9 — reclamation immutability guard against the approved baseline",
     const changedScripts = Object.keys({ ...baselineScripts, ...currentScripts })
       .filter((key) => baselineScripts[key] !== currentScripts[key])
       .sort();
-    assert.deepEqual(changedScripts, ["test:state-v2", "test:unit"]);
+    assert.deepEqual(changedScripts, ["test:state-v2", "test:state-v2-sql", "test:unit"]);
     assert.equal(baselineScripts["test:state-v2"], undefined);
+    assert.equal(baselineScripts["test:state-v2-sql"], undefined);
     assert.equal(
       currentScripts["test:unit"],
       `${baselineScripts["test:unit"]} && npm run test:state-v2`,
       "test:unit must only append the C1 suite",
     );
-    for (const path of currentScripts["test:state-v2"].split(" ")) {
+    for (const path of [
+      ...currentScripts["test:state-v2"].split(" "),
+      ...currentScripts["test:state-v2-sql"].split(" "),
+    ]) {
       if (!path.endsWith(".test.ts")) continue;
       assert.ok(path.startsWith(`${STATE_DIR}/`), path);
     }

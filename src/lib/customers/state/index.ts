@@ -126,4 +126,25 @@ export {
   getStateCalendarDayDifference,
   parseStateInstant,
 } from "./time";
+export {
+  buildStateDimensionColumns,
+  buildStateListFilterSql,
+  buildProfileVerdictSql,
+  buildProfileScoreSql,
+  type StateListFilter,
+} from "./state-sql-dimensions";
+export {
+  countCustomersMatchingStateFilter,
+  listCustomerIdsMatchingStateFilter,
+  listCustomerIdsMatchingStateFilterPaginated,
+  selectStateDimensionsForCustomers,
+  CUSTOMER_STATE_FILTER_CANDIDATE_LIMIT,
+} from "./state-list-sql";
+export {
+  evaluateCustomerStateReference,
+  filterCustomerIdsReference,
+  buildStateFactsFromCustomerRow,
+} from "./state-list-reference";
+export type { StateDimensionSnapshot } from "./state-list-reference";
+export { buildStateSqlClock, buildStateInstantSql } from "./state-sql-primitives";
 export { anyPresent, countPresent, hasStateText } from "./text";
