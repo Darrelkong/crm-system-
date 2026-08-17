@@ -8,6 +8,7 @@ export type QuickEntryCanonicalSubmissionRow = {
   wechatId: string | null;
   requestedProjectCode: string;
   requestedProjectName: string;
+  source: string;
   initialFollowUpNote: string | null;
   supplementalNote: string | null;
 };
@@ -41,6 +42,7 @@ export function buildQuickEntryCanonicalSubmissionObject(
       wechatId: row.wechatId,
       requestedProjectCode: row.requestedProjectCode,
       requestedProjectName: row.requestedProjectName,
+      source: row.source,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,
     })),

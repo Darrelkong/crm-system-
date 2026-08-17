@@ -19,6 +19,7 @@ const ROW_ALLOWED = new Set([
   "wechatId",
   "requestedProjectCode",
   "requestedProjectName",
+  "source",
   "initialFollowUpNote",
   "supplementalNote",
 ]);
@@ -34,7 +35,6 @@ const FORBIDDEN_FIELDS = new Set([
   "actorId",
   "userId",
   "ownerId",
-  "source",
   "status",
   "salesStage",
   "createdBy",
@@ -162,7 +162,7 @@ export function parseQuickEntryBatchRequest(
       }
     }
 
-    if (!("clientRowId" in row) || !("customerName" in row) || !("requestedProjectCode" in row)) {
+    if (!("clientRowId" in row) || !("customerName" in row) || !("requestedProjectCode" in row) || !("source" in row)) {
       return reject(
         QUICK_ENTRY_SUBMISSION_ERROR_CODES.BATCH_INVALID,
         "row 缺少必填字段",
@@ -193,11 +193,18 @@ export function parseQuickEntryBatchRequest(
         "requestedProjectCode 无效",
       );
     }
+    if (typeof row.source !== "string") {
+      return reject(
+        QUICK_ENTRY_SUBMISSION_ERROR_CODES.BATCH_INVALID,
+        "source 无效",
+      );
+    }
 
     const parsed: QuickEntryBatchCustomerRowInput = {
       clientRowId: clientRowId.value,
       customerName: row.customerName,
       requestedProjectCode: row.requestedProjectCode,
+      source: row.source,
     };
 
     if ("nameStatus" in row) {

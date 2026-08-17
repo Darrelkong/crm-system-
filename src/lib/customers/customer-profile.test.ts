@@ -47,6 +47,7 @@ function baseCustomer(overrides: Partial<Customer> = {}): Customer {
     email: null,
     source: "referral",
     sourceRemark: null,
+    entryMethod: null,
     requestedProjectName: null,
     requestedProjectCode: null,
     notes: "首次溝通備註內容足夠長度",

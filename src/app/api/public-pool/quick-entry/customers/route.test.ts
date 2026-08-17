@@ -43,6 +43,7 @@ const validBody = {
       phone: "13800138000",
       requestedProjectCode: "hk_bank_account",
       requestedProjectName: "加拿大移民项目",
+      source: "xiaohongshu",
     },
   ],
 };

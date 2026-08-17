@@ -182,6 +182,8 @@ describe("row limits and validation", () => {
     row.requestedProjectCode = "hk_bank_account";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.phone = "13800138000";
+    assert.equal(validateQuickEntryFormRows([row]).ok, false);
+    row.source = "xiaohongshu";
     assert.equal(validateQuickEntryFormRows([row]).ok, true);
   });
 
@@ -189,6 +191,7 @@ describe("row limits and validation", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.requestedProjectCode = "hk_bank_account";
     row.phone = "13800138000";
+    row.source = "xiaohongshu";
 
     row.customerName = "X先生";
     row.nameStatus = "confirmed";
@@ -279,10 +282,12 @@ describe("request body security", () => {
     const row = createEmptyQuickEntryRow(() => uuidA);
     row.customerName = "张三";
     row.requestedProjectCode = "hk_bank_account";
+    row.source = "xiaohongshu";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.phone = "1380013800";
     assert.equal(validateQuickEntryFormRows([row]).ok, false);
     row.phone = "13800138000";
+    row.source = "xiaohongshu";
     assert.equal(validateQuickEntryFormRows([row]).ok, true);
     row.phone = "";
     row.wechatId = "wx_ok";
@@ -560,6 +565,7 @@ describe("quick entry V2 Phase C batch accordion helpers", () => {
     row.customerName = "张三";
     row.phone = "13800138000";
     row.requestedProjectCode = "hk_bank_account";
+    row.source = "xiaohongshu";
     assert.equal(deriveQuickEntryCardBadge(row), "ready");
     assert.equal(
       deriveQuickEntryCardBadge(row, { hasFieldErrors: true }),

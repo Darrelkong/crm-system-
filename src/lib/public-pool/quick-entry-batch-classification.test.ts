@@ -54,6 +54,7 @@ describe("normalizeQuickEntryCustomerInput", () => {
       phoneCountryCode: null,
       requestedProjectCode: "hk_bank_account",
       requestedProjectName: "  加拿大移民项目  ",
+      source: "xiaohongshu",
       initialFollowUpNote: "  备注  ",
       supplementalNote: "   ",
     };
@@ -134,6 +135,7 @@ describe("classifyQuickEntryBatchRows", () => {
       wechatId,
       requestedProjectCode: "hk_bank_account",
       requestedProjectName: "移民项目咨询",
+      source: "xiaohongshu",
     });
     return {
       rowIndex,
@@ -145,6 +147,7 @@ describe("classifyQuickEntryBatchRows", () => {
         wechatId,
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "移民项目咨询",
+        source: "xiaohongshu",
       }),
     };
   }

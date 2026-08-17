@@ -19,12 +19,14 @@ import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
 import { cn } from "@/lib/cn";
 import { QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE } from "@/lib/public-pool/quick-entry-customer-validation";
+import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
 import {
   BatchAccordionForm,
   BatchResultsPanel,
   batchResultsHasIncomplete,
 } from "./quick-entry-batch-ui";
 import { QuickEntryNameProjectFields } from "./quick-entry-name-project-fields";
+import { QuickEntrySourceField } from "./quick-entry-source-field";
 import {
   QUICK_ENTRY_CUSTOMERS_API_PATH,
   QUICK_ENTRY_STATUS_API_PATH,
@@ -57,6 +59,7 @@ import {
   prepareContinueEntryRow,
   prepareRetryBatchFromIncomplete,
   quickEntryDuplicateFieldMessageKey,
+  resolveQuickEntrySourceDisplayLabel,
   resolveQuickEntryPanelMode,
   shouldShowQuickEntryEntry,
   validateQuickEntryFormRows,
@@ -107,6 +110,10 @@ function errorMessageForCode(
     QUICK_ENTRY_WECHAT_INVALID: "publicPool.quickEntry.errors.wechatInvalid",
     QUICK_ENTRY_PROJECT_REQUIRED: "publicPool.quickEntry.errors.projectRequired",
     QUICK_ENTRY_PROJECT_INVALID: "publicPool.quickEntry.errors.projectInvalid",
+    QUICK_ENTRY_SOURCE_REQUIRED: "publicPool.quickEntry.errors.sourceRequired",
+    QUICK_ENTRY_SOURCE_INVALID: "publicPool.quickEntry.errors.sourceInvalid",
+    QUICK_ENTRY_SOURCE_REMARK_REQUIRED:
+      "publicPool.quickEntry.errors.sourceRemarkRequired",
     QUICK_ENTRY_NOTE_TOO_LONG: "publicPool.quickEntry.errors.noteTooLong",
     QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED:
       "publicPool.quickEntry.errors.generic",
@@ -120,6 +127,7 @@ function errorMessageForCode(
 function fieldDomId(rowId: string, field: QuickEntryFieldKey): string {
   if (field === "customerName") return `${rowId}-name`;
   if (field === "requestedProjectName") return `${rowId}-project`;
+  if (field === "source") return `${rowId}-source`;
   if (field === "phone" || field === "contact") return `${rowId}-phone`;
   return `${rowId}-wechat`;
 }
@@ -134,6 +142,9 @@ export function StaffQuickEntryPanel(_props: Props) {
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   const [status, setStatus] = useState<QuickEntryStatus | null>(null);
+  const [sourceMenuOptions, setSourceMenuOptions] = useState<
+    CustomerSourceMenuOption[]
+  >([]);
   const [statusLoading, setStatusLoading] = useState(true);
   const [statusError, setStatusError] = useState(false);
   const [open, setOpen] = useState(false);
@@ -227,6 +238,22 @@ export function StaffQuickEntryPanel(_props: Props) {
   useEffect(() => {
     void loadStatus();
   }, [loadStatus]);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void fetch("/api/customer-tags")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { options?: CustomerSourceMenuOption[] } | null) => {
+        if (!cancelled && data && Array.isArray(data.options)) {
+          setSourceMenuOptions(data.options);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   function focusField(rowId: string, field: QuickEntryFieldKey | null) {
     if (!field) return;
@@ -1089,6 +1116,7 @@ export function StaffQuickEntryPanel(_props: Props) {
               setNoteOpen={setNoteOpen}
               submitting={submitting}
               updateRow={updateRow}
+              sourceMenuOptions={sourceMenuOptions}
               t={t}
               locale={locale}
             />
@@ -1119,6 +1147,7 @@ export function StaffQuickEntryPanel(_props: Props) {
               processingRetryAfter={processingRetryAfter}
               onRetry={() => void handleSubmit("batch")}
               onNewBatch={handleNewBatch}
+              sourceMenuOptions={sourceMenuOptions}
               t={t}
               locale={locale}
             />
@@ -1141,6 +1170,7 @@ export function StaffQuickEntryPanel(_props: Props) {
                 closePanelForce();
               }}
               onClose={closePanelForce}
+              sourceMenuOptions={sourceMenuOptions}
               t={t}
               mapError={(code) => errorMessageForCode(t, code)}
             />
@@ -1161,6 +1191,7 @@ export function StaffQuickEntryPanel(_props: Props) {
               }}
               onClose={closePanelForce}
               showActions={false}
+              sourceMenuOptions={sourceMenuOptions}
               t={t}
               mapError={(code) => errorMessageForCode(t, code)}
             />
@@ -1379,6 +1410,7 @@ function SingleEntryForm({
   setNoteOpen,
   submitting,
   updateRow,
+  sourceMenuOptions,
   t,
   locale,
 }: {
@@ -1388,6 +1420,7 @@ function SingleEntryForm({
   setNoteOpen: (open: boolean) => void;
   submitting: boolean;
   updateRow: (id: string, patch: Partial<QuickEntryFormRow>) => void;
+  sourceMenuOptions: CustomerSourceMenuOption[];
   t: TFn;
   locale: Locale;
 }) {
@@ -1402,6 +1435,15 @@ function SingleEntryForm({
         fieldErrors={fieldErrors}
         disabled={submitting}
         updateRow={updateRow}
+      />
+      <QuickEntrySourceField
+        rowId={row.clientRowId}
+        value={row.source}
+        onChange={(source) => updateRow(row.clientRowId, { source })}
+        options={sourceMenuOptions}
+        disabled={submitting}
+        fieldError={Boolean(fieldErrors?.source)}
+        t={t}
       />
       <div className="grid gap-3 md:grid-cols-2">
         <div>
@@ -1509,6 +1551,7 @@ function SingleResultView({
   onNewBatch,
   onViewPool,
   onClose,
+  sourceMenuOptions,
   t,
   mapError,
 }: {
@@ -1520,10 +1563,14 @@ function SingleResultView({
   onNewBatch: () => void;
   onViewPool: () => void;
   onClose: () => void;
+  sourceMenuOptions: CustomerSourceMenuOption[];
   t: TFn;
   mapError: (code: string) => string;
 }) {
   if (kind === "success" && result?.status === "created") {
+    const sourceLabel = draft?.source
+      ? resolveQuickEntrySourceDisplayLabel(draft.source, sourceMenuOptions)
+      : "";
     return (
       <div className="qe-result-card space-y-3">
         <h3 className="text-lg font-semibold text-[var(--color-crm-text)]">
@@ -1543,9 +1590,13 @@ function SingleResultView({
         <p className="text-sm text-[var(--color-crm-text)]">
           {t("publicPool.quickEntry.resultSuccessPool")}
         </p>
-        <p className="text-xs text-[var(--color-crm-text-secondary)]">
-          {t("publicPool.quickEntry.resultSource")}
-        </p>
+        {sourceLabel ? (
+          <p className="text-xs text-[var(--color-crm-text-secondary)]">
+            {t("publicPool.quickEntry.resultCustomerSource", {
+              source: sourceLabel,
+            })}
+          </p>
+        ) : null}
         <p className="text-xs text-[var(--color-crm-text-secondary)]">
           {t("publicPool.quickEntry.reviseNeedsNewBatch")}
         </p>

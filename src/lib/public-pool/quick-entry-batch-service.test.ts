@@ -7,6 +7,7 @@ import * as schema from "../../../drizzle/schema";
 import type { User } from "../../../drizzle/schema/users";
 import { bindTestDatabase } from "@/lib/db";
 import { PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY } from "@/lib/constants/customer-sources";
+import { QUICK_ENTRY_ENTRY_METHOD } from "@/lib/public-pool/quick-entry-entry-method";
 import { processQuickEntryCustomerSubmission } from "@/lib/public-pool/quick-entry-batch-service";
 import { QUICK_ENTRY_CUSTOMER_AUDIT_ACTION } from "@/lib/public-pool/quick-entry-customer-service";
 import {
@@ -59,20 +60,7 @@ async function cleanup() {
     );
   await db
     .delete(schema.customers)
-    .where(
-      and(
-        eq(schema.customers.createdBy, ACTOR_A),
-        eq(schema.customers.source, PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY),
-      ),
-    );
-  await db
-    .delete(schema.customers)
-    .where(
-      and(
-        eq(schema.customers.createdBy, ACTOR_B),
-        eq(schema.customers.source, PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY),
-      ),
-    );
+    .where(inArray(schema.customers.createdBy, [ACTOR_A, ACTOR_B]));
   await db.delete(schema.users).where(eq(schema.users.id, ACTOR_A));
   await db.delete(schema.users).where(eq(schema.users.id, ACTOR_B));
 }
@@ -180,6 +168,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930001001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now: new Date("2026-07-22T19:00:00.000Z"),
@@ -205,6 +194,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930002001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
         {
           clientRowId: "r2",
@@ -213,6 +203,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930002002",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
         {
           clientRowId: "r3",
@@ -221,6 +212,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930002001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
         {
           clientRowId: "r4",
@@ -229,6 +221,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930001001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now: new Date("2026-07-22T19:05:00.000Z"),
@@ -266,7 +259,8 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
       )[0];
       assert.equal(customer?.status, "public_pool");
       assert.equal(customer?.ownerId, null);
-      assert.equal(customer?.source, PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY);
+      assert.equal(customer?.source, "xiaohongshu");
+      assert.equal(customer?.entryMethod, QUICK_ENTRY_ENTRY_METHOD);
       assert.equal(customer?.deletedAt, null);
       assert.equal(customer?.releaserUserId, null);
       assert.equal(customer?.claimedBy, null);
@@ -323,6 +317,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930003001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now,
@@ -344,6 +339,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930003001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now: new Date("2026-07-22T20:01:00.000Z"),
@@ -366,6 +362,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930003001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now: new Date("2026-07-22T20:02:00.000Z"),
@@ -390,6 +387,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930003002",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now: new Date("2026-07-22T20:03:00.000Z"),
@@ -419,6 +417,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
         wechatId: null,
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         initialFollowUpNote: null,
         supplementalNote: null,
       },
@@ -431,6 +430,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
         wechatId: null,
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         initialFollowUpNote: null,
         supplementalNote: null,
       },
@@ -476,6 +476,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930004001",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
         {
           clientRowId: "p2",
@@ -484,6 +485,7 @@ describe("processQuickEntryCustomerSubmission — DB", () => {
           phone: "13930004002",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         },
       ],
       now: staleNow,

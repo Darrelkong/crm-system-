@@ -3,6 +3,8 @@ import {
   isPendingNamePlaceholder,
   type CustomerNameStatus,
 } from "@/lib/customers/name-status";
+import { CUSTOMER_SOURCE_OTHER_KEY } from "@/lib/constants/customer-sources";
+import { assertWritableCustomerSourceKey } from "@/lib/customer-sources/keys";
 import { resolveRequestedProjectForPersist } from "@/lib/customers/requested-project-resolve";
 import {
   hasSubstantiveContent,
@@ -40,6 +42,9 @@ export const QUICK_ENTRY_CUSTOMER_ERROR_CODES = {
   PROJECT_REQUIRED: "QUICK_ENTRY_PROJECT_REQUIRED",
   PROJECT_INVALID: "QUICK_ENTRY_PROJECT_INVALID",
   NOTE_TOO_LONG: "QUICK_ENTRY_NOTE_TOO_LONG",
+  SOURCE_REQUIRED: "QUICK_ENTRY_SOURCE_REQUIRED",
+  SOURCE_INVALID: "QUICK_ENTRY_SOURCE_INVALID",
+  SOURCE_REMARK_REQUIRED: "QUICK_ENTRY_SOURCE_REMARK_REQUIRED",
   VALIDATION_FAILED: "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
 } as const;
 
@@ -56,6 +61,8 @@ export type QuickEntryCustomerInput = {
   requestedProjectCode?: string | null;
   /** Required when code is `other`; ignored for standard catalog codes. */
   requestedProjectName?: string | null;
+  /** Real customer source leaf key (required for Phase 2+). */
+  source?: string | null;
   initialFollowUpNote?: string | null;
   supplementalNote?: string | null;
 };
@@ -73,6 +80,7 @@ export type QuickEntryCanonicalCustomerFields = {
   email: string | null;
   requestedProjectCode: string;
   requestedProjectName: string;
+  source: string;
   initialFollowUpNote: string | null;
   supplementalNote: string | null;
 };
@@ -86,6 +94,7 @@ export type QuickEntryCustomerNormalized = {
   email: string | null;
   requestedProjectCode: string;
   requestedProjectName: string;
+  source: string;
   /** Maps to customers.notes */
   notes: string | null;
   /** Maps to customers.sourceRemark */
@@ -157,6 +166,9 @@ export function normalizeQuickEntryCustomerInput(
       ? input.requestedProjectName.trim()
       : "";
 
+  const source =
+    typeof input.source === "string" ? input.source.trim() : "";
+
   const initialFollowUpNote =
     typeof input.initialFollowUpNote === "string" ||
     input.initialFollowUpNote == null
@@ -178,6 +190,7 @@ export function normalizeQuickEntryCustomerInput(
     email,
     requestedProjectCode,
     requestedProjectName,
+    source,
     initialFollowUpNote,
     supplementalNote,
   };
@@ -195,6 +208,7 @@ export function canonicalToNormalizedCustomer(
     email: canonical.email,
     requestedProjectCode: canonical.requestedProjectCode,
     requestedProjectName: canonical.requestedProjectName,
+    source: canonical.source,
     notes: canonical.initialFollowUpNote,
     sourceRemark: canonical.supplementalNote,
   };
@@ -204,12 +218,35 @@ export function isValidQuickEntryCnPhone(phone: string): boolean {
   return QUICK_ENTRY_CN_PHONE_RE.test(phone);
 }
 
+export function validateQuickEntryCustomerSourceKey(
+  source: string | null | undefined,
+  selectableKeys: readonly string[],
+): QuickEntryValidationError | null {
+  const trimmed = typeof source === "string" ? source.trim() : "";
+  if (!trimmed) {
+    return {
+      field: "source",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.SOURCE_REQUIRED,
+      message: "请选择客户来源",
+    };
+  }
+  if (!assertWritableCustomerSourceKey(trimmed, selectableKeys)) {
+    return {
+      field: "source",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.SOURCE_INVALID,
+      message: "请从固定字典选择客户来源",
+    };
+  }
+  return null;
+}
+
 /**
  * Server-side validator for public-pool quick-entry customer create.
  * Aligns name + requested-project rules with full customer create.
  */
 export function validateQuickEntryCustomerInput(
   input: unknown,
+  options?: { selectableSourceKeys?: readonly string[] },
 ): QuickEntryValidationResult {
   const errors: QuickEntryValidationError[] = [];
 
@@ -272,6 +309,13 @@ export function validateQuickEntryCustomerInput(
       message: "补充备注无效",
     });
   }
+  if (record.source != null && typeof record.source !== "string") {
+    errors.push({
+      field: "source",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.SOURCE_INVALID,
+      message: "客户来源无效",
+    });
+  }
   if (
     record.nameStatus != null &&
     typeof record.nameStatus === "string" &&
@@ -321,6 +365,10 @@ export function validateQuickEntryCustomerInput(
       typeof record.requestedProjectName === "string"
         ? record.requestedProjectName
         : "",
+    source:
+      typeof record.source === "string" || record.source == null
+        ? (record.source as string | null | undefined)
+        : null,
     initialFollowUpNote:
       typeof record.initialFollowUpNote === "string" ||
       record.initialFollowUpNote == null
@@ -472,6 +520,33 @@ export function validateQuickEntryCustomerInput(
     });
   }
 
+  if (!canonical.source) {
+    errors.push({
+      field: "source",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.SOURCE_REQUIRED,
+      message: "请选择客户来源",
+    });
+  } else if (options?.selectableSourceKeys) {
+    const sourceError = validateQuickEntryCustomerSourceKey(
+      canonical.source,
+      options.selectableSourceKeys,
+    );
+    if (sourceError) {
+      errors.push(sourceError);
+    }
+  }
+
+  if (
+    canonical.source === CUSTOMER_SOURCE_OTHER_KEY &&
+    !canonical.supplementalNote
+  ) {
+    errors.push({
+      field: "supplementalNote",
+      errorCode: QUICK_ENTRY_CUSTOMER_ERROR_CODES.SOURCE_REMARK_REQUIRED,
+      message: "来源为「其他」时，备注必填",
+    });
+  }
+
   if (errors.length > 0) {
     return { ok: false, errors };
   }
@@ -500,6 +575,7 @@ export function validateQuickEntryCustomerInput(
       email: canonical.email,
       requestedProjectCode: projectResolved.value.requestedProjectCode,
       requestedProjectName: projectResolved.value.requestedProjectName ?? "",
+      source: canonical.source,
       initialFollowUpNote: canonical.initialFollowUpNote,
       supplementalNote: canonical.supplementalNote,
     }),

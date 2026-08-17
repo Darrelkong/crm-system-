@@ -7,7 +7,8 @@ import {
   isGlobalContactIdentifierUniqueConstraintError,
 } from "@/lib/customers/contact-identifiers";
 import { userMustChangePassword } from "@/lib/auth/change-password";
-import { PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY } from "@/lib/constants/customer-sources";
+import { getSelectableCustomerSourceKeys } from "@/lib/customer-sources/keys";
+import { QUICK_ENTRY_ENTRY_METHOD } from "@/lib/public-pool/quick-entry-entry-method";
 import {
   validateQuickEntryCustomerInput,
   type QuickEntryCustomerInput,
@@ -114,7 +115,24 @@ export async function prepareDirectPublicPoolCustomerCreation(input: {
     };
   }
 
-  const validated = validateQuickEntryCustomerInput(input.customer);
+  const preValidated = validateQuickEntryCustomerInput(input.customer);
+  if (!preValidated.ok) {
+    return {
+      kind: "invalid",
+      errorCode:
+        preValidated.errors[0]?.errorCode ??
+        "QUICK_ENTRY_CUSTOMER_VALIDATION_FAILED",
+      message: "输入校验失败",
+      field: preValidated.errors[0]?.field,
+      validationErrors: preValidated.errors,
+    };
+  }
+
+  const database = input.db ?? getDb();
+  const selectableSourceKeys = await getSelectableCustomerSourceKeys(database);
+  const validated = validateQuickEntryCustomerInput(input.customer, {
+    selectableSourceKeys,
+  });
   if (!validated.ok) {
     return {
       kind: "invalid",
@@ -127,7 +145,6 @@ export async function prepareDirectPublicPoolCustomerCreation(input: {
     };
   }
 
-  const database = input.db ?? getDb();
   const normalized = validated.value;
   const actor = input.actor;
 
@@ -168,7 +185,8 @@ export async function prepareDirectPublicPoolCustomerCreation(input: {
     phone: normalized.phone,
     wechatId: normalized.wechatId,
     email: normalized.email,
-    source: PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY,
+    source: normalized.source,
+    entryMethod: QUICK_ENTRY_ENTRY_METHOD,
     sourceRemark: normalized.sourceRemark,
     requestedProjectCode: normalized.requestedProjectCode,
     requestedProjectName: normalized.requestedProjectName,
@@ -204,7 +222,8 @@ export async function prepareDirectPublicPoolCustomerCreation(input: {
     ipAddress: null,
     userAgent: null,
     metadata: JSON.stringify({
-      source: PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY,
+      source: normalized.source,
+      entryMethod: QUICK_ENTRY_ENTRY_METHOD,
       salesStage: "contacted",
       status: "public_pool",
       creationMethod: "quick_entry",
@@ -280,7 +299,10 @@ export async function createCustomerDirectlyInPublicPool(input: {
     );
   } catch (batchError) {
     if (isGlobalContactIdentifierUniqueConstraintError(batchError)) {
-      const validated = validateQuickEntryCustomerInput(input.customer);
+      const selectableSourceKeys = await getSelectableCustomerSourceKeys(database);
+      const validated = validateQuickEntryCustomerInput(input.customer, {
+        selectableSourceKeys,
+      });
       if (validated.ok) {
         const dup = await findSafeDuplicate(validated.value, input.actor);
         if (dup) {

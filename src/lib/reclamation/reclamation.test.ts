@@ -61,6 +61,7 @@ function buildCustomer(
     email: null,
     source: "referral",
     sourceRemark: null,
+    entryMethod: null,
     requestedProjectName: null,
     notes: null,
     salesStage,

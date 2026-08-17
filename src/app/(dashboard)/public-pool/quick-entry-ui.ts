@@ -8,6 +8,8 @@ import {
   type CustomerNameStatus,
 } from "@/lib/customers/name-status";
 import { isRequestedProjectOtherCode } from "@/lib/constants/requested-projects";
+import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
+import { resolveSourceMenuDisplayPath } from "@/lib/customer-sources/menu";
 import { hasSubstantiveContent } from "@/lib/customers/validation";
 import {
   QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
@@ -46,6 +48,7 @@ export type QuickEntryFormRow = {
   wechatId: string;
   requestedProjectCode: string | null;
   requestedProjectName: string;
+  source: string;
   initialFollowUpNote: string;
   supplementalNote: string;
 };
@@ -137,12 +140,34 @@ export function quickEntryDuplicateFieldMessageKey(
   }
 }
 
+export function resolveQuickEntrySourceDisplayLabel(
+  sourceKey: string,
+  options: CustomerSourceMenuOption[],
+): string {
+  if (!sourceKey) return "";
+  for (const option of options) {
+    if (option.kind === "direct" || option.kind === "custom") {
+      if (option.tagKey === sourceKey) return option.label;
+    } else if (option.kind === "group") {
+      const child = option.children.find((c) => c.tagKey === sourceKey);
+      if (child) {
+        return (
+          resolveSourceMenuDisplayPath(child.tagKey, child.label)?.displayLabel ??
+          child.label
+        );
+      }
+    }
+  }
+  return resolveSourceMenuDisplayPath(sourceKey)?.displayLabel ?? sourceKey;
+}
+
 export type QuickEntryClientRowError =
   | "name_required"
   | "name_invalid"
   | "name_placeholder_forbidden"
   | "project_required"
   | "project_invalid"
+  | "source_required"
   | "contact_required"
   | "phone_invalid";
 
@@ -150,6 +175,7 @@ export type QuickEntryFieldKey =
   | "customerName"
   | "requestedProjectCode"
   | "requestedProjectName"
+  | "source"
   | "phone"
   | "wechatId"
   | "contact";
@@ -187,7 +213,6 @@ const FORBIDDEN_BODY_KEYS = [
   "userId",
   "ownerId",
   "owner",
-  "source",
   "status",
   "salesStage",
   "createdBy",
@@ -213,6 +238,7 @@ const ALLOWED_ROW_KEYS = new Set([
   "wechatId",
   "requestedProjectCode",
   "requestedProjectName",
+  "source",
   "initialFollowUpNote",
   "supplementalNote",
 ]);
@@ -241,6 +267,7 @@ export function createEmptyQuickEntryRow(
     wechatId: "",
     requestedProjectCode: null,
     requestedProjectName: "",
+    source: "",
     initialFollowUpNote: "",
     supplementalNote: "",
   };
@@ -275,6 +302,7 @@ export function clearQuickEntryRow(
     wechatId: "",
     requestedProjectCode: null,
     requestedProjectName: "",
+    source: "",
     initialFollowUpNote: "",
     supplementalNote: "",
   };
@@ -288,6 +316,7 @@ export function isQuickEntryRowDirty(row: QuickEntryFormRow): boolean {
       row.wechatId.trim() ||
       row.requestedProjectCode ||
       row.requestedProjectName.trim() ||
+      row.source.trim() ||
       row.initialFollowUpNote.trim() ||
       row.supplementalNote.trim(),
   );
@@ -328,6 +357,7 @@ const FIELD_ERROR_PRIORITY: QuickEntryFieldKey[] = [
   "customerName",
   "requestedProjectCode",
   "requestedProjectName",
+  "source",
   "phone",
   "contact",
   "wechatId",
@@ -369,6 +399,10 @@ function validateOneQuickEntryRow(row: QuickEntryFormRow): QuickEntryFieldErrors
     } else if (!hasSubstantiveContent(project, 4)) {
       errors.requestedProjectName = "project_invalid";
     }
+  }
+
+  if (!row.source.trim()) {
+    errors.source = "source_required";
   }
 
   const phone = row.phone.trim();
@@ -489,6 +523,7 @@ export function buildCustomersRequestBody(
         customerName: row.customerName.trim(),
         nameStatus: row.nameStatus,
         requestedProjectCode: row.requestedProjectCode ?? "",
+        source: row.source.trim(),
         phoneCountryCode: QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE,
       };
       const projectName = optionalStringField(row.requestedProjectName);
