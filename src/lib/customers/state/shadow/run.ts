@@ -24,6 +24,10 @@ import {
   recordShadowRequestSkippedUnsampled,
   recordShadowSkippedInsufficientFacts,
 } from "./telemetry";
+import {
+  maybeEmitShadowTelemetryLog,
+  noteShadowCustomersComparedForEmit,
+} from "./telemetry-log";
 
 export type StateV2ShadowRoute = "list" | "detail";
 
@@ -68,30 +72,31 @@ export function maybeRunStateV2ShadowBatch(
   input: StateV2ShadowBatchInput,
 ): void {
   recordShadowRequestConsidered();
-
-  if (!isStateV2ShadowGloballyEnabled()) {
-    recordShadowRequestSkippedDisabled();
-    return;
-  }
-
-  if (isShadowCircuitOpen()) {
-    recordShadowRequestSkippedCircuitOpen();
-    return;
-  }
-
-  if (!isShadowSampleRequest(input.requestSeed)) {
-    recordShadowRequestSkippedUnsampled();
-    return;
-  }
-
-  if (input.customers.length > MAX_SHADOW_CUSTOMERS_PER_REQUEST) {
-    recordShadowSkippedInsufficientFacts();
-    return;
-  }
-
-  recordShadowRequestSampled();
+  let comparedThisBatch = 0;
 
   try {
+    if (!isStateV2ShadowGloballyEnabled()) {
+      recordShadowRequestSkippedDisabled();
+      return;
+    }
+
+    if (isShadowCircuitOpen()) {
+      recordShadowRequestSkippedCircuitOpen();
+      return;
+    }
+
+    if (!isShadowSampleRequest(input.requestSeed)) {
+      recordShadowRequestSkippedUnsampled();
+      return;
+    }
+
+    if (input.customers.length > MAX_SHADOW_CUSTOMERS_PER_REQUEST) {
+      recordShadowSkippedInsufficientFacts();
+      return;
+    }
+
+    recordShadowRequestSampled();
+
     const now = input.now ?? new Date();
     for (const entry of input.customers) {
       if (
@@ -116,11 +121,15 @@ export function maybeRunStateV2ShadowBatch(
 
       recordLegacyToV2Comparisons(entry.legacyScores, snapshot);
       recordShadowCustomerCompared();
+      comparedThisBatch += 1;
     }
     recordShadowSuccess();
   } catch {
     recordShadowError();
     recordShadowFailure();
+  } finally {
+    noteShadowCustomersComparedForEmit(comparedThisBatch);
+    maybeEmitShadowTelemetryLog(input.now?.getTime());
   }
 }
 

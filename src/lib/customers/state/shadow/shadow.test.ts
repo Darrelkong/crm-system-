@@ -9,6 +9,7 @@ import {
 } from "@/lib/customers/scoring/service";
 import { calculateCustomerHeat } from "@/lib/customers/scoring/heat";
 import {
+  assertShadowAggregateLogHasNoPii,
   assertShadowTelemetryHasNoPii,
   buildStateV2ShadowDetailRequestSeed,
   buildStateV2ShadowListRequestSeed,
@@ -16,9 +17,13 @@ import {
   getShadowTelemetrySnapshot,
   hashShadowSeed,
   isShadowSampleRequest,
+  isStateV2ShadowGloballyEnabled,
   maybeRunStateV2ShadowBatch,
   resetShadowCircuitForTests,
   resetShadowTelemetryForTests,
+  resetShadowTelemetryLogForTests,
+  setShadowLogSinkForTests,
+  SHADOW_CUSTOMERS_EMIT_THRESHOLD,
 } from "./index";
 
 const DEFAULT_SETTINGS: EffectiveSettings = {
@@ -116,6 +121,26 @@ describe("Customer State V2 production shadow (C3)", () => {
     }
     resetShadowTelemetryForTests();
     resetShadowCircuitForTests();
+    resetShadowTelemetryLogForTests();
+  });
+
+  it("missing env disables shadow (fail-closed)", () => {
+    delete process.env.CRM_STATE_SHADOW;
+    assert.equal(isStateV2ShadowGloballyEnabled(), false);
+  });
+
+  it("env=1 enables shadow", () => {
+    process.env.CRM_STATE_SHADOW = "1";
+    assert.equal(isStateV2ShadowGloballyEnabled(), true);
+  });
+
+  it("env=0 or other values disable shadow", () => {
+    process.env.CRM_STATE_SHADOW = "0";
+    assert.equal(isStateV2ShadowGloballyEnabled(), false);
+    process.env.CRM_STATE_SHADOW = "true";
+    assert.equal(isStateV2ShadowGloballyEnabled(), false);
+    process.env.CRM_STATE_SHADOW = "production";
+    assert.equal(isStateV2ShadowGloballyEnabled(), false);
   });
 
   it("samples deterministically at ~5%", () => {
@@ -385,5 +410,103 @@ describe("Customer State V2 production shadow (C3)", () => {
     );
     const detailSeed = buildStateV2ShadowDetailRequestSeed("user-1", "a");
     assert.equal(detailSeed, "detail:user-1:a");
+  });
+
+  it("emits bounded aggregate logs without PII after threshold", () => {
+    process.env.CRM_STATE_SHADOW = "1";
+    const logs: string[] = [];
+    setShadowLogSinkForTests((line) => {
+      logs.push(line);
+    });
+
+    const customer = makeCustomer("cust-log");
+    const legacy = getCustomerScores(
+      customer,
+      { hasFollowUp: false },
+      DEFAULT_SETTINGS,
+      FIXED_NOW,
+    );
+    const seed = sampledSeed("aggregate-log");
+
+    for (let index = 0; index < SHADOW_CUSTOMERS_EMIT_THRESHOLD; index += 1) {
+      maybeRunStateV2ShadowBatch({
+        requestSeed: seed,
+        route: "list",
+        settings: DEFAULT_SETTINGS,
+        now: FIXED_NOW,
+        customers: [{ customer, legacyScores: legacy, hasFollowUp: false }],
+      });
+    }
+
+    assert.equal(logs.length, 1);
+    const payload = JSON.parse(logs[0]!) as {
+      type: string;
+      customersCompared: number;
+      comparisons: Record<string, number>;
+    };
+    assert.equal(payload.type, "state_v2_shadow_aggregate");
+    assert.equal(payload.customersCompared, SHADOW_CUSTOMERS_EMIT_THRESHOLD);
+    assert.ok(Object.keys(payload.comparisons).length > 0);
+    assertShadowAggregateLogHasNoPii(logs[0]!);
+  });
+
+  it("does not emit one log line per request", () => {
+    process.env.CRM_STATE_SHADOW = "1";
+    const logs: string[] = [];
+    setShadowLogSinkForTests((line) => {
+      logs.push(line);
+    });
+
+    const customer = makeCustomer("cust-no-spam");
+    const legacy = getCustomerScores(
+      customer,
+      { hasFollowUp: false },
+      DEFAULT_SETTINGS,
+      FIXED_NOW,
+    );
+    const seed = sampledSeed("no-spam");
+
+    for (let index = 0; index < SHADOW_CUSTOMERS_EMIT_THRESHOLD - 1; index += 1) {
+      maybeRunStateV2ShadowBatch({
+        requestSeed: seed,
+        route: "list",
+        settings: DEFAULT_SETTINGS,
+        now: FIXED_NOW,
+        customers: [{ customer, legacyScores: legacy, hasFollowUp: false }],
+      });
+    }
+
+    assert.equal(logs.length, 0);
+  });
+
+  it("logging exceptions cannot fail shadow or primary path", () => {
+    process.env.CRM_STATE_SHADOW = "1";
+    setShadowLogSinkForTests(() => {
+      throw new Error("log sink failure");
+    });
+
+    const customer = makeCustomer("cust-log-fail");
+    const legacy = getCustomerScores(
+      customer,
+      { hasFollowUp: false },
+      DEFAULT_SETTINGS,
+      FIXED_NOW,
+    );
+    const seed = sampledSeed("log-fail");
+
+    assert.doesNotThrow(() => {
+      for (let index = 0; index < SHADOW_CUSTOMERS_EMIT_THRESHOLD; index += 1) {
+        maybeRunStateV2ShadowBatch({
+          requestSeed: seed,
+          route: "list",
+          settings: DEFAULT_SETTINGS,
+          now: FIXED_NOW,
+          customers: [{ customer, legacyScores: legacy, hasFollowUp: false }],
+        });
+      }
+    });
+
+    const snapshot = getShadowTelemetrySnapshot();
+    assert.equal(snapshot.customersCompared, SHADOW_CUSTOMERS_EMIT_THRESHOLD);
   });
 });

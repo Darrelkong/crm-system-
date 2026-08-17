@@ -14,6 +14,14 @@ export {
   type ShadowTelemetryCounters,
   type ShadowComparisonCategory,
 } from "./telemetry";
+export {
+  maybeEmitShadowTelemetryLog,
+  setShadowLogSinkForTests,
+  resetShadowTelemetryLogForTests,
+  assertShadowAggregateLogHasNoPii,
+  SHADOW_CUSTOMERS_EMIT_THRESHOLD,
+  SHADOW_TIME_EMIT_MS,
+} from "./telemetry-log";
 export { recordLegacyToV2Comparisons } from "./compare";
 export {
   maybeRunStateV2ShadowBatch,
