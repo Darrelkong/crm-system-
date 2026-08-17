@@ -3,7 +3,10 @@ import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
 import { getCustomerById } from "@/lib/customers/queries";
 import { canManageCustomerFamily } from "@/lib/customers/households/family-permissions";
-import { listActiveCustomerTags } from "@/lib/customer-tags/queries";
+import {
+  buildCustomerSourceMenuOptions,
+  getSelectableCustomerSourceKeys,
+} from "@/lib/customer-sources/keys";
 import { FamilyNewCustomerClient } from "./family-new-customer-client";
 
 type Props = {
@@ -20,18 +23,18 @@ export default async function FamilyNewCustomerPage({ params }: Props) {
     notFound();
   }
 
-  const tags = await listActiveCustomerTags(db);
+  const [sourceMenuOptions, selectableSourceKeys] = await Promise.all([
+    buildCustomerSourceMenuOptions(db),
+    getSelectableCustomerSourceKeys(db),
+  ]);
 
   return (
     <FamilyNewCustomerClient
       sourceCustomerId={id}
       sourceCustomerName={customer.customerName}
       userId={user.id}
-      tags={tags.map((tag) => ({
-        tagKey: tag.tagKey,
-        label: tag.label,
-        isSystem: tag.isSystem,
-      }))}
+      sourceMenuOptions={sourceMenuOptions}
+      selectableSourceKeys={selectableSourceKeys}
     />
   );
 }

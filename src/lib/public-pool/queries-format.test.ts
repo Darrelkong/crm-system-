@@ -14,6 +14,8 @@ import {
 } from "@/lib/public-pool/queries";
 import { SELF_RELEASE_CLAIM_BLOCK_DAYS } from "@/lib/public-pool/constants";
 
+const TEST_SOURCE_LABEL = "客户转介绍";
+
 const adminUser = { id: SEED_IDS.admin, role: "admin" } as User;
 const staffUser = { id: SEED_IDS.staffA, role: "staff" } as User;
 
@@ -90,6 +92,7 @@ describe("formatStaffPublicPoolCustomer", () => {
       poolCustomer(),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
 
     assert.equal("customerName" in view, false);
@@ -115,6 +118,7 @@ describe("formatStaffPublicPoolCustomer", () => {
       }),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
 
     assert.equal("nameStatus" in view, false);
@@ -134,6 +138,7 @@ describe("formatAdminPublicPoolCustomer", () => {
       poolCustomer(),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
 
     assert.equal(view.customerName, "張三三");
@@ -160,6 +165,7 @@ describe("formatAdminPublicPoolCustomer", () => {
       }),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
 
     assert.equal(view.customerName, "X先生");
@@ -175,6 +181,7 @@ describe("formatPublicPoolCustomer role dispatch", () => {
       poolCustomer(),
       claimAllowed,
       false,
+      TEST_SOURCE_LABEL,
     );
     assert.equal(view.accessLevel, "masked");
     assert.equal("customerName" in view, false);
@@ -186,6 +193,7 @@ describe("formatPublicPoolCustomer role dispatch", () => {
       poolCustomer(),
       claimAllowed,
       false,
+      TEST_SOURCE_LABEL,
     );
     assert.equal(view.accessLevel, "full");
     assert.ok(isAdminPublicPoolCustomerView(view));
@@ -200,6 +208,7 @@ describe("displayPublicPoolReason", () => {
       poolCustomer(),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
     assert.equal(displayPublicPoolReason(view), "自動回⋯");
     assert.equal("poolReason" in view, false);
@@ -211,6 +220,7 @@ describe("displayPublicPoolReason", () => {
       poolCustomer(),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
     assert.equal(
       displayPublicPoolReason(view),
@@ -224,6 +234,7 @@ describe("displayPublicPoolReason", () => {
       poolCustomer({ poolReason: null }),
       claimAllowed,
       true,
+      TEST_SOURCE_LABEL,
     );
     const viewWithPreview = {
       ...view,

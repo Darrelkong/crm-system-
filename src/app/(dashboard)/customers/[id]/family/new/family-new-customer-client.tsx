@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Field, Label, Select } from "@/components/ui/form";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
-import type { CustomerTagOption } from "@/lib/customer-tags/types";
+import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
 import { NewCustomerForm } from "@/app/(dashboard)/customers/new/new-customer-form";
 import { HOUSEHOLD_RELATIONSHIP_TYPES } from "../../../../../../../drizzle/schema/household-relationship-types";
 
@@ -13,14 +13,16 @@ type Props = {
   sourceCustomerId: string;
   sourceCustomerName: string;
   userId: string;
-  tags: CustomerTagOption[];
+  sourceMenuOptions: CustomerSourceMenuOption[];
+  selectableSourceKeys: string[];
 };
 
 export function FamilyNewCustomerClient({
   sourceCustomerId,
   sourceCustomerName,
   userId,
-  tags,
+  sourceMenuOptions,
+  selectableSourceKeys,
 }: Props) {
   const { t } = useCustomerLabels();
   const { t: tRoot } = useTranslation();
@@ -84,7 +86,8 @@ export function FamilyNewCustomerClient({
 
       <NewCustomerForm
         key={sourceCustomerId}
-        tags={tags}
+        sourceMenuOptions={sourceMenuOptions}
+        selectableSourceKeys={selectableSourceKeys}
         userId={userId}
         familyContext={{
           sourceCustomerId,

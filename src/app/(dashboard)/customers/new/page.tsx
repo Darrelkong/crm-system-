@@ -1,13 +1,19 @@
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
-import { listActiveCustomerTags } from "@/lib/customer-tags/queries";
+import {
+  buildCustomerSourceMenuOptions,
+  getSelectableCustomerSourceKeys,
+} from "@/lib/customer-sources/keys";
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { NewCustomerForm } from "./new-customer-form";
 
 export default async function NewCustomerPage() {
   const user = await requireAuthCached();
   const db = getDb();
-  const tags = await listActiveCustomerTags(db);
+  const [sourceMenuOptions, selectableSourceKeys] = await Promise.all([
+    buildCustomerSourceMenuOptions(db),
+    getSelectableCustomerSourceKeys(db),
+  ]);
 
   return (
     <div>
@@ -17,11 +23,8 @@ export default async function NewCustomerPage() {
       />
       <NewCustomerForm
         userId={user.id}
-        tags={tags.map((tag) => ({
-          tagKey: tag.tagKey,
-          label: tag.label,
-          isSystem: tag.isSystem,
-        }))}
+        sourceMenuOptions={sourceMenuOptions}
+        selectableSourceKeys={selectableSourceKeys}
       />
     </div>
   );

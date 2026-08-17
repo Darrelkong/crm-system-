@@ -28,11 +28,32 @@ export class CustomerTagError extends Error {
   }
 }
 
-export function assertTagDeletable(tag: CustomerTagListItem): void {
+export function assertTagDeletable(
+  tag: CustomerTagListItem,
+  customerCount: number,
+): void {
   if (tag.isSystem || tag.tagKey === CUSTOMER_SOURCE_OTHER_KEY) {
     throw new CustomerTagError(
       "系统标签不可删除",
       CUSTOMER_TAG_ERROR_CODES.CANNOT_DELETE_OTHER,
+      400,
+    );
+  }
+
+  if (customerCount > 0) {
+    throw new CustomerTagError(
+      `当前仍有 ${customerCount} 位历史客户使用此来源，无法删除。请改为停用。`,
+      CUSTOMER_TAG_ERROR_CODES.HAS_CUSTOMERS,
+      400,
+    );
+  }
+}
+
+export function assertTagDeactivatable(tag: CustomerTagListItem): void {
+  if (tag.isSystem || tag.tagKey === CUSTOMER_SOURCE_OTHER_KEY) {
+    throw new CustomerTagError(
+      "系统标签不可停用",
+      CUSTOMER_TAG_ERROR_CODES.CANNOT_DEACTIVATE_SYSTEM,
       400,
     );
   }
@@ -116,6 +137,42 @@ export async function updateCustomerTagLabel(
   return { ...existing, label: label.trim() };
 }
 
+export async function setCustomerTagActive(
+  db: Database,
+  id: string,
+  isActive: boolean,
+): Promise<CustomerTagListItem> {
+  const tag = await getCustomerTagById(db, id);
+  if (!tag) {
+    throw new CustomerTagError(
+      "标签不存在",
+      CUSTOMER_TAG_ERROR_CODES.NOT_FOUND,
+      404,
+    );
+  }
+
+  if (!isActive) {
+    assertTagDeactivatable(tag);
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .update(schema.customerTags)
+    .set({ isActive, updatedAt: now })
+    .where(eq(schema.customerTags.id, id));
+
+  return { ...tag, isActive };
+}
+
+async function countCustomersForTag(db: Database, tagKey: string): Promise<number> {
+  const [usageRow] = await db
+    .select({ value: count() })
+    .from(schema.customers)
+    .where(eq(schema.customers.source, tagKey));
+
+  return usageRow?.value ?? 0;
+}
+
 export async function deleteCustomerTag(
   db: Database,
   id: string,
@@ -129,26 +186,19 @@ export async function deleteCustomerTag(
     );
   }
 
-  assertTagDeletable(tag);
-
-  const [usageRow] = await db
-    .select({ value: count() })
-    .from(schema.customers)
-    .where(eq(schema.customers.source, tag.tagKey));
-
-  const reassignedCustomerCount = usageRow?.value ?? 0;
-  const now = new Date().toISOString();
-
-  if (reassignedCustomerCount > 0) {
-    await db
-      .update(schema.customers)
-      .set({ source: CUSTOMER_SOURCE_OTHER_KEY, updatedAt: now })
-      .where(eq(schema.customers.source, tag.tagKey));
-  }
+  const customerCount = await countCustomersForTag(db, tag.tagKey);
+  assertTagDeletable(tag, customerCount);
 
   await db.delete(schema.customerTags).where(eq(schema.customerTags.id, id));
 
-  return { reassignedCustomerCount };
+  return { reassignedCustomerCount: 0 };
+}
+
+export async function getCustomerCountForTag(
+  db: Database,
+  tagKey: string,
+): Promise<number> {
+  return countCustomersForTag(db, tagKey);
 }
 
 export { CUSTOMER_TAG_AUDIT_ACTIONS };

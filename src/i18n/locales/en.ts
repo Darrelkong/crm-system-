@@ -1444,6 +1444,8 @@ const en = {
     warningRow: "Row {{row}} · {{message}}",
     importedCount: "Successfully imported {{count}} clients",
     precheckFailed: "Precheck failed",
+    sourceKeyHelp:
+      "Use a current CRM source key in the source column ({{count}} valid keys). Examples: {{sample}}. Precheck uses the same rules as new client creation; inactive or legacy-only sources cannot be imported.",
   },
   approvals: {
     title: "Approval Management",

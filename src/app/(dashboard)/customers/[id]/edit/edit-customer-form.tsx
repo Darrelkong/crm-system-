@@ -11,7 +11,8 @@ import {
   isDirectCreateBlockedSalesStage,
 } from "@/lib/constants/customer-fields";
 import type { CustomerType } from "@/lib/constants/customer-fields";
-import type { CustomerTagOption } from "@/lib/customer-tags/types";
+import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
+import { CustomerSourceSelector } from "@/components/customers/customer-source-selector";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import {
@@ -99,12 +100,16 @@ export type EditCustomerInitial = {
 
 export function EditCustomerForm({
   initial,
-  tags,
+  sourceMenuOptions,
+  selectableSourceKeys,
+  sourceLegacyLabel,
   canEditStatus = false,
   isStaff = false,
 }: {
   initial: EditCustomerInitial;
-  tags: CustomerTagOption[];
+  sourceMenuOptions: CustomerSourceMenuOption[];
+  selectableSourceKeys: string[];
+  sourceLegacyLabel?: string | null;
   canEditStatus?: boolean;
   isStaff?: boolean;
 }) {
@@ -283,7 +288,8 @@ export function EditCustomerForm({
         existingSalesStage: initial.salesStage,
         existingRequestedProjectCode: initial.requestedProjectCode ?? null,
         existingRequestedProjectName: initial.requestedProjectName || null,
-        allowedSourceKeys: tags.map((tag) => tag.tagKey),
+        allowedSourceKeys: selectableSourceKeys,
+        existingSourceKey: initial.source,
         userRole: isStaff ? "staff" : "admin",
       },
     );
@@ -621,19 +627,15 @@ export function EditCustomerForm({
           <Label htmlFor="source">
             {t("customers.source")} <span className="text-red-500">*</span>
           </Label>
-          <Select
+          <CustomerSourceSelector
             id="source"
+            aria-label={t("customers.source")}
             value={form.source}
-            onChange={(e) => set("source", e.target.value)}
+            onChange={(tagKey) => set("source", tagKey)}
+            options={sourceMenuOptions}
+            legacyLabel={sourceLegacyLabel}
             disabled={lockSensitiveFields}
-            className={lockSensitiveFields ? lockedFieldClassName : undefined}
-          >
-            {tags.map((tag) => (
-              <option key={tag.tagKey} value={tag.tagKey}>
-                {tag.label}
-              </option>
-            ))}
-          </Select>
+          />
           {fieldErrors.source && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.source}</p>
           )}

@@ -301,6 +301,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
           salesStage: view.salesStage,
           lifecycleStatus: customer.lifecycleStatus,
           source: view.source,
+          sourceDisplayLabel: view.sourceDisplayLabel,
           status: view.status,
           isMasked: !!view.isMasked,
           isArchived: !!view.isArchived,

@@ -47,7 +47,7 @@ export function PublicPoolClient({
 }) {
   const router = useRouter();
   const { t, locale } = useTranslation();
-  const { customerType, source, salesStage } = useCustomerLabels();
+  const { customerType, salesStage } = useCustomerLabels();
   const [items, setItems] = useState(initialItems);
   const [claimingId, setClaimingId] = useState<string | null>(null);
   const [claimSuccessId, setClaimSuccessId] = useState<string | null>(null);
@@ -190,7 +190,7 @@ export function PublicPoolClient({
                           {customerType(c.customerType)}
                         </span>
                         <span className="block text-xs text-[#6B7890]">
-                          {source(c.source)}
+                          {c.sourceDisplayLabel ?? c.source}
                         </span>
                         <span
                           className={`inline-flex rounded-full px-2 py-0.5 text-xs font-medium ${getSalesStageBadgeClass(c.salesStage)}`}

@@ -17,6 +17,8 @@ import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 
+const TEST_SOURCE_LABEL = "客户转介绍";
+
 describe("maskPublicPoolCustomerName", () => {
   it("masks Chinese names to first character + **", () => {
     assert.equal(maskPublicPoolCustomerName("張三三"), "張**");
@@ -185,12 +187,14 @@ describe("public pool list UI display helpers", () => {
       poolCustomer(),
       { canClaim: true, claimBlockedReasonKey: null },
       true,
+      TEST_SOURCE_LABEL,
     );
     const adminView = formatAdminPublicPoolCustomer(
       adminUser,
       poolCustomer(),
       { canClaim: true, claimBlockedReasonKey: null },
       true,
+      TEST_SOURCE_LABEL,
     );
 
     assert.equal(displayStaffPoolReasonPreview(staffView.poolReasonPreview), "自動回⋯");

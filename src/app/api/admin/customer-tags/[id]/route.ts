@@ -8,6 +8,7 @@ import {
   CustomerTagError,
   CUSTOMER_TAG_AUDIT_ACTIONS,
   deleteCustomerTag,
+  setCustomerTagActive,
   updateCustomerTagLabel,
 } from "@/lib/customer-tags/service";
 
@@ -19,9 +20,15 @@ export async function PATCH(request: Request, context: RouteContext) {
     const { id } = await context.params;
     const db = getDb();
     const { ipAddress, userAgent } = getRequestMeta(request);
-    const body = (await request.json()) as { label?: string };
+    const body = (await request.json()) as {
+      label?: string;
+      isActive?: boolean;
+    };
 
-    const item = await updateCustomerTagLabel(db, id, body.label ?? "");
+    const item =
+      typeof body.isActive === "boolean"
+        ? await setCustomerTagActive(db, id, body.isActive)
+        : await updateCustomerTagLabel(db, id, body.label ?? "");
 
     await writeAuditLog({
       userId: actor.id,
@@ -30,7 +37,11 @@ export async function PATCH(request: Request, context: RouteContext) {
       entityId: item.id,
       ipAddress,
       userAgent,
-      metadata: { tagKey: item.tagKey, label: item.label },
+      metadata: {
+        tagKey: item.tagKey,
+        label: item.label,
+        isActive: item.isActive,
+      },
     });
 
     return Response.json({ item });

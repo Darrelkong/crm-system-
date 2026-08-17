@@ -30,28 +30,52 @@ describe("customer tag delete rules", () => {
   it("blocks deleting the system other tag", () => {
     assert.throws(
       () =>
-        assertTagDeletable({
-          id: "1",
-          tagKey: CUSTOMER_SOURCE_OTHER_KEY,
-          label: "其他",
-          isSystem: true,
-          isActive: true,
-          sortOrder: 99,
-        }),
+        assertTagDeletable(
+          {
+            id: "1",
+            tagKey: CUSTOMER_SOURCE_OTHER_KEY,
+            label: "其他",
+            isSystem: true,
+            isActive: true,
+            sortOrder: 99,
+          },
+          0,
+        ),
       /系统标签不可删除/,
     );
   });
 
-  it("allows deleting non-system tags", () => {
+  it("allows deleting non-system tags with zero customers", () => {
     assert.doesNotThrow(() =>
-      assertTagDeletable({
-        id: "2",
-        tagKey: "referral",
-        label: "转介绍",
-        isSystem: false,
-        isActive: true,
-        sortOrder: 1,
-      }),
+      assertTagDeletable(
+        {
+          id: "2",
+          tagKey: "referral",
+          label: "转介绍",
+          isSystem: false,
+          isActive: true,
+          sortOrder: 1,
+        },
+        0,
+      ),
+    );
+  });
+
+  it("blocks deleting tags that still have customers", () => {
+    assert.throws(
+      () =>
+        assertTagDeletable(
+          {
+            id: "3",
+            tagKey: "custom",
+            label: "自定义",
+            isSystem: false,
+            isActive: true,
+            sortOrder: 2,
+          },
+          5,
+        ),
+      /当前仍有 5 位历史客户/,
     );
   });
 });

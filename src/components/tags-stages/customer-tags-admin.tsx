@@ -39,6 +39,7 @@ export function CustomerTagsAdmin({ tags }: { tags: TagCatalogItem[] }) {
   const [editLabel, setEditLabel] = useState("");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [togglingActiveId, setTogglingActiveId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -124,6 +125,41 @@ export function CustomerTagsAdmin({ tags }: { tags: TagCatalogItem[] }) {
     }
   }
 
+  async function handleToggleActive(id: string, isActive: boolean) {
+    setTogglingActiveId(id);
+    setError(null);
+    try {
+      const res = await fetch(`/api/admin/customer-tags/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive }),
+      });
+      const data = (await res.json()) as {
+        item?: { id: string; isActive: boolean };
+        error?: string;
+      };
+      if (!res.ok || !data.item) {
+        setError(data.error ?? t("common.saveFailed"));
+        return;
+      }
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                status: data.item!.isActive ? "active" : "inactive",
+              }
+            : item,
+        ),
+      );
+      router.refresh();
+    } catch {
+      setError(t("common.networkError"));
+    } finally {
+      setTogglingActiveId(null);
+    }
+  }
+
   async function handleDelete(id: string) {
     setDeletingId(id);
     setError(null);
@@ -153,12 +189,27 @@ export function CustomerTagsAdmin({ tags }: { tags: TagCatalogItem[] }) {
 
     if (confirmDeleteId === item.id) {
       const hasCustomers = item.customerCount > 0;
+      if (hasCustomers) {
+        return (
+          <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
+            <p className="text-xs text-amber-900">
+              当前仍有 {item.customerCount} 位历史客户使用此来源，无法删除。请改为停用。
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              className="text-xs"
+              onClick={() => setConfirmDeleteId(null)}
+            >
+              {t("common.cancel")}
+            </Button>
+          </div>
+        );
+      }
       return (
         <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
           <p className="text-xs text-amber-900">
-            {hasCustomers
-              ? t("tagsStagesPage.deleteTagReassignWarning")
-              : t("tagsStagesPage.deleteTagConfirm")}
+            {t("tagsStagesPage.deleteTagConfirm")}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button
@@ -230,10 +281,32 @@ export function CustomerTagsAdmin({ tags }: { tags: TagCatalogItem[] }) {
         >
           {t("tagsStagesPage.editTag")}
         </Button>
+        {item.status === "active" ? (
+          <Button
+            type="button"
+            variant="secondary"
+            className="text-xs"
+            disabled={togglingActiveId === item.id}
+            onClick={() => handleToggleActive(item.id!, false)}
+          >
+            {togglingActiveId === item.id ? t("customers.saving") : "停用"}
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="secondary"
+            className="text-xs"
+            disabled={togglingActiveId === item.id}
+            onClick={() => handleToggleActive(item.id!, true)}
+          >
+            {togglingActiveId === item.id ? t("customers.saving") : "启用"}
+          </Button>
+        )}
         <Button
           type="button"
           variant="secondary"
           className="text-xs text-red-700"
+          disabled={item.customerCount > 0}
           onClick={() => {
             setConfirmDeleteId(item.id!);
             setEditingId(null);

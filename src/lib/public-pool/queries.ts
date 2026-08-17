@@ -4,6 +4,8 @@ import { getDb, schema } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
 import { formatCustomerForUser } from "@/lib/permissions/customers";
+import { getCustomerTagLabelMap } from "@/lib/customer-tags/queries";
+import { resolveCustomerSourceDisplayLabel } from "@/lib/customer-sources/resolver";
 import { calculateDataCompletenessScore } from "@/lib/customers/scoring/completeness";
 import { getCustomerIdsWithFollowUps } from "@/lib/customers/scoring/service";
 import {
@@ -113,6 +115,7 @@ export type PublicPoolListItemBase = {
   maskedName: string;
   customerType: string;
   source: string;
+  sourceDisplayLabel: string;
   salesStage: string;
   completenessScore: number;
   poolEnteredAt: string | null;
@@ -218,6 +221,7 @@ function buildPublicPoolListItemBase(
   customer: Customer,
   claim: ClaimEligibility,
   hasFollowUp: boolean,
+  sourceDisplayLabel: string,
 ): PublicPoolListItemBase {
   const { completenessScore } = calculateDataCompletenessScore(
     customer,
@@ -229,6 +233,7 @@ function buildPublicPoolListItemBase(
     maskedName: maskPublicPoolCustomerName(customer.customerName),
     customerType: customer.customerType,
     source: customer.source,
+    sourceDisplayLabel,
     salesStage: customer.salesStage,
     completenessScore,
     poolEnteredAt: customer.poolEnteredAt ?? null,
@@ -245,9 +250,10 @@ export function formatStaffPublicPoolCustomer(
   customer: Customer,
   claim: ClaimEligibility,
   hasFollowUp: boolean,
+  sourceDisplayLabel: string,
 ): StaffPublicPoolCustomerView {
   return {
-    ...buildPublicPoolListItemBase(customer, claim, hasFollowUp),
+    ...buildPublicPoolListItemBase(customer, claim, hasFollowUp, sourceDisplayLabel),
     accessLevel: "masked",
     isMasked: true,
   };
@@ -258,9 +264,15 @@ export function formatAdminPublicPoolCustomer(
   customer: Customer,
   claim: ClaimEligibility,
   hasFollowUp: boolean,
+  sourceDisplayLabel: string,
 ): AdminPublicPoolCustomerView {
   const base = formatCustomerForUser(user, customer);
-  const shared = buildPublicPoolListItemBase(customer, claim, hasFollowUp);
+  const shared = buildPublicPoolListItemBase(
+    customer,
+    claim,
+    hasFollowUp,
+    sourceDisplayLabel,
+  );
 
   return {
     ...shared,
@@ -282,12 +294,24 @@ export function formatPublicPoolCustomer(
   customer: Customer,
   claim: ClaimEligibility,
   hasFollowUp: boolean,
+  sourceDisplayLabel: string,
 ): PublicPoolCustomerView {
   if (user.role === "admin") {
-    return formatAdminPublicPoolCustomer(user, customer, claim, hasFollowUp);
+    return formatAdminPublicPoolCustomer(
+      user,
+      customer,
+      claim,
+      hasFollowUp,
+      sourceDisplayLabel,
+    );
   }
 
-  return formatStaffPublicPoolCustomer(customer, claim, hasFollowUp);
+  return formatStaffPublicPoolCustomer(
+    customer,
+    claim,
+    hasFollowUp,
+    sourceDisplayLabel,
+  );
 }
 
 export async function listPublicPoolCustomers() {
@@ -496,9 +520,10 @@ export async function formatPublicPoolListForUser(
   );
   const customerDataPromise = loadPublicPoolListCustomerData(db);
 
-  const [staffStatus, { customers, followUpSet }] = await Promise.all([
+  const [staffStatus, { customers, followUpSet }, tagLabelMap] = await Promise.all([
     staffStatusPromise,
     customerDataPromise,
+    getCustomerTagLabelMap(db),
   ]);
 
   return customers.map((customer) => {
@@ -507,11 +532,16 @@ export async function formatPublicPoolListForUser(
       customer,
       staffStatus,
     );
+    const sourceDisplayLabel = resolveCustomerSourceDisplayLabel(
+      customer.source,
+      tagLabelMap,
+    );
     return formatPublicPoolCustomer(
       user,
       customer,
       claim,
       followUpSet.has(customer.id),
+      sourceDisplayLabel,
     );
   });
 }

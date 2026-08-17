@@ -14,6 +14,8 @@ type Props = {
   payload: Record<string, unknown> | null;
   /** Customer row nameStatus from the authorized approval DTO. */
   nameStatus?: string | null;
+  /** Server-resolved source label (Phase 1 resolver). */
+  sourceDisplayLabel?: string | null;
 };
 
 function DetailRow({ label, value }: { label: string; value: string }) {
@@ -29,9 +31,10 @@ export function CreateOnHoldCustomerApprovalDetail({
   reason,
   payload,
   nameStatus,
+  sourceDisplayLabel,
 }: Props) {
   const { t, locale } = useTranslation();
-  const { approvalType, salesStage, customerType, source } = useCustomerLabels();
+  const { approvalType, salesStage, customerType } = useCustomerLabels();
   const data = parseOnHoldCreateApprovalPayload(payload);
   const onHoldReason =
     data.onHoldReason?.trim() || reason.trim() || "—";
@@ -84,7 +87,11 @@ export function CreateOnHoldCustomerApprovalDetail({
       />
       <DetailRow
         label={t("customers.source")}
-        value={data.source ? source(data.source) : "—"}
+        value={
+          data.source
+            ? (sourceDisplayLabel ?? data.source)
+            : "—"
+        }
       />
       <DetailRow
         label={t("customers.requestedProjectName")}
