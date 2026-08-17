@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Input, Textarea, Select, Label, Field } from "@/components/ui/form";
@@ -27,10 +28,12 @@ export function NewFollowUpForm({
   customerId,
   customerName,
   nameStatus,
+  firstContactGateActive = false,
 }: {
   customerId: string;
   customerName: string;
   nameStatus?: string;
+  firstContactGateActive?: boolean;
 }) {
   const router = useRouter();
   const { t, followUpChannel, followUpOutcome } = useCustomerLabels();
@@ -148,6 +151,12 @@ export function NewFollowUpForm({
         return;
       }
 
+      if (res.status === 403 && data.errorCode === "FIRST_CONTACT_REQUIRED") {
+        setServerError(t("followUps.firstContactGateMessage"));
+        unlockSubmitFlight();
+        return;
+      }
+
       if (res.status === 400 && data.fieldErrors) {
         const errs: Record<string, string> = {};
         for (const fe of data.fieldErrors) {
@@ -181,6 +190,22 @@ export function NewFollowUpForm({
       <p className="mb-4 text-sm text-[#6B7890]">
         {t("followUps.addFollowUpFor", { name: displayName })}
       </p>
+
+      {firstContactGateActive && (
+        <div
+          className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/30 dark:text-amber-100"
+          data-testid="first-contact-gate-warning"
+        >
+          <p className="font-medium">{t("followUps.firstContactGateTitle")}</p>
+          <p className="mt-1">{t("followUps.firstContactGateMessage")}</p>
+          <Link
+            href="/work-items?tab=tasks&view=open"
+            className="mt-3 inline-flex text-sm font-medium text-[#1B3A6B] underline underline-offset-2 dark:text-[#93B4E8]"
+          >
+            {t("followUps.firstContactGateCta")}
+          </Link>
+        </div>
+      )}
 
       {duplicateConfirmOpen && (
         <div className="mb-6 rounded-lg border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
@@ -331,7 +356,7 @@ export function NewFollowUpForm({
       </div>
 
       <div className="mt-6 flex gap-3">
-        <Button type="submit" disabled={submitting}>
+        <Button type="submit" disabled={submitting || firstContactGateActive}>
           {submitting ? t("customers.saving") : t("followUps.saveFollowUp")}
         </Button>
         <Button

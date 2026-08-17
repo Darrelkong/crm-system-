@@ -2984,6 +2984,10 @@ const en = {
     autoCreateTask: "A follow-up task will be created automatically",
     noAddPermission: "Insufficient permissions",
     backToDetails: "Back to Client Details",
+    firstContactGateTitle: "First contact not completed",
+    firstContactGateMessage:
+      "This client came from Quick Entry. Please complete the first contact before submitting the first follow-up.",
+    firstContactGateCta: "Go to first contact",
   },
   followUpOrganize: {
     basicButton: "Basic cleanup",

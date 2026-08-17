@@ -2868,6 +2868,10 @@ const zhHant: Messages = {
     autoCreateTask: "填寫後將自動建立跟進任務",
     noAddPermission: "權限不足",
     backToDetails: "返回客戶詳情",
+    firstContactGateTitle: "首次聯繫尚未完成",
+    firstContactGateMessage:
+      "此客戶來自快速錄入，請先完成首次聯繫，再提交首次跟進。",
+    firstContactGateCta: "前往完成首次聯繫",
   },
   followUpOrganize: {
     basicButton: "基礎整理",

@@ -37,6 +37,10 @@ import {
 import {
   FOLLOW_UP_OUTCOME_LABELS,
 } from "@/lib/constants/follow-up-outcomes";
+import {
+  enforceFirstContactFollowUpGate,
+  FIRST_CONTACT_REQUIRED_ERROR_CODE,
+} from "@/lib/follow-ups/first-contact-gate";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -198,6 +202,35 @@ export async function POST(request: Request, context: RouteContext) {
     const isValid = isValidFollowUpOutcome(outcome) ? 1 : 0;
     const nextFollowUpAt = normalizeNextFollowUpAt(input.nextFollowUpAt);
     const now = new Date().toISOString();
+
+    const firstContactGate = await enforceFirstContactFollowUpGate({
+      db,
+      customer,
+      actor: user,
+      now,
+    });
+    if (!firstContactGate.allowed) {
+      await writeAuditLog({
+        userId: user.id,
+        action: "follow_up.create_failed.first_contact_required",
+        entityType: "customer",
+        entityId: id,
+        ipAddress,
+        userAgent,
+        metadata: {
+          firstContactTaskId: firstContactGate.firstContactTaskId,
+        },
+      });
+      return Response.json(
+        {
+          error: "请先完成首次联系，再提交首次跟进。",
+          errorCode: FIRST_CONTACT_REQUIRED_ERROR_CODE,
+          firstContactTaskId: firstContactGate.firstContactTaskId,
+        },
+        { status: 403 },
+      );
+    }
+
     const followUpId = crypto.randomUUID();
 
     await db.insert(schema.followUps).values({

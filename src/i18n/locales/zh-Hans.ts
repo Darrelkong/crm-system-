@@ -2867,6 +2867,10 @@ const zhHans: Messages = {
     autoCreateTask: "填写后将自动创建跟进任务",
     noAddPermission: "权限不足",
     backToDetails: "返回客户详情",
+    firstContactGateTitle: "首次联系尚未完成",
+    firstContactGateMessage:
+      "此客户来自快速录入，请先完成首次联系，再提交首次跟进。",
+    firstContactGateCta: "前往完成首次联系",
   },
   followUpOrganize: {
     basicButton: "基础整理",

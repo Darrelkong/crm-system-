@@ -12,6 +12,7 @@ import { getDb } from "@/lib/db";
 import { getPendingOnHoldCreateApprovalForCustomer } from "@/lib/customers/pending-on-hold-access";
 import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
 import { CustomerStatePanel } from "@/components/customers/customer-state-panel";
+import { evaluateFirstContactFollowUpGate } from "@/lib/follow-ups/first-contact-gate";
 import { NewFollowUpForm } from "./new-follow-up-form";
 
 type Props = { params: Promise<{ id: string }> };
@@ -75,6 +76,12 @@ export default async function NewFollowUpPage({ params }: Props) {
     throw err;
   }
 
+  const firstContactGate = await evaluateFirstContactFollowUpGate({
+    db,
+    customer,
+    actor: user,
+  });
+
   return (
     <div>
       <TranslatedPageHeader
@@ -85,6 +92,7 @@ export default async function NewFollowUpPage({ params }: Props) {
         customerId={id}
         customerName={customer.customerName}
         nameStatus={customer.nameStatus}
+        firstContactGateActive={!firstContactGate.allowed}
       />
     </div>
   );

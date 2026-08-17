@@ -93,6 +93,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
     "errors.customerSensitiveFieldsLocked",
   CUSTOMER_SENSITIVE_FIELDS_LOCKED: "errors.customerSensitiveFieldsLocked",
   "permission.denied.follow_up_access": "errors.cannotAddFollowUp",
+  FIRST_CONTACT_REQUIRED: "followUps.firstContactGateMessage",
   "permission.denied.customer_timeline_access": "errors.cannotViewTimeline",
   "customer.release_to_pool_failed.permission_denied": "errors.cannotReleaseCustomer",
   ASSIGNEE_INVALID_PAYLOAD: "errors.assigneeInvalidPayload",
