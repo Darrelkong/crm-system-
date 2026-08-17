@@ -15,6 +15,7 @@ import {
   type EffectiveSettings,
 } from "@/lib/settings/effective";
 import type { Customer } from "../../../../drizzle/schema/customers";
+import type { FollowUp } from "../../../../drizzle/schema/follow-ups";
 import type { User } from "../../../../drizzle/schema/users";
 import { LOW_COMPLETENESS_THRESHOLD } from "./constants";
 import type { HeatLevel } from "./types";
@@ -22,6 +23,10 @@ import { HEAT_LEVELS } from "./types";
 import { buildReclamationCountdownDisplay } from "@/lib/reclamation/countdown-display";
 import { calculateDataCompletenessScore } from "./completeness";
 import { calculateCustomerHeat } from "./heat";
+import {
+  invokeStateV2ShadowForDetail,
+  invokeStateV2ShadowForListBatch,
+} from "./state-v2-shadow-hook";
 import type { CustomerScores, ScoringContext } from "./types";
 
 export type CustomerWithScores = CustomerView & CustomerScores;
@@ -101,7 +106,8 @@ export function getCustomersWithScores(
   now: Date = new Date(),
   assigneeCustomerIds: Set<string> = new Set(),
 ): CustomerWithScores[] {
-  return customers.map((customer) => {
+  const scoresByCustomerId = new Map<string, CustomerScores>();
+  const items = customers.map((customer) => {
     const accessOptions: CustomerAccessOptions = assigneeCustomerIds.has(
       customer.id,
     )
@@ -116,8 +122,18 @@ export function getCustomersWithScores(
       now,
       { includeMissingFields: includeMissing },
     );
+    scoresByCustomerId.set(customer.id, scores);
     return attachScoresToView(view, scores);
   });
+  invokeStateV2ShadowForListBatch({
+    user,
+    customers,
+    scoresByCustomerId,
+    hasFollowUpByCustomerId: followUpSet,
+    settings,
+    now,
+  });
+  return items;
 }
 
 export function filterCustomersWithScores(
@@ -323,6 +339,10 @@ export type EnrichCustomerResponseOptions = {
   hasFollowUp?: boolean;
   /** When set, skips getEffectiveSettings for this request. */
   preloadedSettings?: EffectiveSettings;
+  /** When set, reuses already-loaded follow-up rows for shadow comparison only. */
+  preloadedFollowUps?: FollowUp[];
+  /** When set, reuses collaborator knowledge for shadow comparison only. */
+  hasCollaborator?: boolean;
 };
 
 export async function enrichCustomerResponse(
@@ -354,5 +374,16 @@ export async function enrichCustomerResponse(
     now,
     { includeMissingFields: includeMissing },
   );
-  return attachScoresToView(view, scores);
+  const enriched = attachScoresToView(view, scores);
+  invokeStateV2ShadowForDetail({
+    user,
+    customer,
+    legacyScores: scores,
+    settings,
+    hasFollowUp: followUpSet.has(customer.id),
+    followUps: enrichOptions?.preloadedFollowUps,
+    hasCollaborator: enrichOptions?.hasCollaborator,
+    now,
+  });
+  return enriched;
 }

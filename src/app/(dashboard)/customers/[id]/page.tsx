@@ -166,6 +166,12 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
       enrichCustomerResponse(db, user, customer, new Date(), accessOptions, {
         hasFollowUp: chain.hasFollowUp,
         preloadedSettings: settings,
+        preloadedFollowUps: chain.followUps,
+        hasCollaborator: isStaff
+          ? preloadedAssignees!.some(
+              (assignee) => assignee.role === "collaborator",
+            )
+          : false,
       }),
     ),
   );

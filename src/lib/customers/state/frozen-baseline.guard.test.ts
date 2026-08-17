@@ -160,10 +160,22 @@ const PROTECTED_LEGACY_SCORING_FILES = [
   "src/lib/customers/scoring/heat.ts",
   "src/lib/customers/scoring/completeness.ts",
   "src/lib/customers/scoring/constants.ts",
-  "src/lib/customers/scoring/service.ts",
   "src/lib/customers/scoring/scoring-sql-primitives.ts",
   "src/lib/customers/scoring/scoring-list-sql.ts",
   "src/lib/customers/scoring/scoring-list-runtime.ts",
+];
+
+/** TASK 17-C3 — bounded shadow may touch only these paths outside the state module. */
+const C3_ALLOWED_OUTSIDE_STATE = [
+  "package.json",
+  "src/lib/customers/scoring/service.ts",
+  "src/lib/customers/scoring/state-v2-shadow-hook.ts",
+  "src/app/(dashboard)/customers/[id]/page.tsx",
+];
+
+const C3_STATE_IMPORTERS = [
+  "src/lib/customers/scoring/state-v2-shadow-hook.ts",
+  "src/lib/customers/scoring/service.ts",
 ];
 
 /** Existing suites that own the On Hold / pin behaviour C1 must not disturb. */
@@ -215,10 +227,12 @@ describe("Y-9 — reclamation immutability guard against the approved baseline",
     });
   }
 
-  it("touches nothing outside the C1 scope boundary", () => {
+  it("touches nothing outside the C1/C3 scope boundary", () => {
     const outOfScope = pathsChangedSinceBaseline().filter(
       (path) =>
-        !path.startsWith(`${STATE_DIR}/`) && path !== TEST_REGISTRATION_FILE,
+        !path.startsWith(`${STATE_DIR}/`) &&
+        path !== TEST_REGISTRATION_FILE &&
+        !C3_ALLOWED_OUTSIDE_STATE.includes(path),
     );
     assert.deepEqual(outOfScope, [], `out-of-scope paths: ${outOfScope.join(", ")}`);
   });
@@ -242,9 +256,15 @@ describe("Y-9 — reclamation immutability guard against the approved baseline",
     const changedScripts = Object.keys({ ...baselineScripts, ...currentScripts })
       .filter((key) => baselineScripts[key] !== currentScripts[key])
       .sort();
-    assert.deepEqual(changedScripts, ["test:state-v2", "test:state-v2-sql", "test:unit"]);
+    assert.deepEqual(changedScripts, [
+      "test:state-v2",
+      "test:state-v2-shadow",
+      "test:state-v2-sql",
+      "test:unit",
+    ]);
     assert.equal(baselineScripts["test:state-v2"], undefined);
     assert.equal(baselineScripts["test:state-v2-sql"], undefined);
+    assert.equal(baselineScripts["test:state-v2-shadow"], undefined);
     assert.equal(
       currentScripts["test:unit"],
       `${baselineScripts["test:unit"]} && npm run test:state-v2`,
@@ -253,6 +273,7 @@ describe("Y-9 — reclamation immutability guard against the approved baseline",
     for (const path of [
       ...currentScripts["test:state-v2"].split(" "),
       ...currentScripts["test:state-v2-sql"].split(" "),
+      ...currentScripts["test:state-v2-shadow"].split(" "),
     ]) {
       if (!path.endsWith(".test.ts")) continue;
       assert.ok(path.startsWith(`${STATE_DIR}/`), path);
@@ -270,7 +291,7 @@ describe("Y-9 — reclamation immutability guard against the approved baseline",
   });
 });
 
-describe("C1 isolation — nothing in production imports Customer State Engine V2", () => {
+describe("C1 isolation — production shadow imports stay bounded (C3)", () => {
   it("adds only TypeScript files under the state module", () => {
     const stateFiles = pathsChangedSinceBaseline().filter((path) =>
       path.startsWith(`${STATE_DIR}/`),
@@ -282,7 +303,7 @@ describe("C1 isolation — nothing in production imports Customer State Engine V
     }
   });
 
-  it("has no importer outside src/lib/customers/state/", () => {
+  it("allows only the scoring shadow bridge to import the state engine", () => {
     const importers = gitGrep(
       "-l",
       "--untracked",
@@ -293,12 +314,14 @@ describe("C1 isolation — nothing in production imports Customer State Engine V
       "drizzle",
     );
     const outsiders = lines(importers).filter(
-      (path) => !path.startsWith(`${STATE_DIR}/`),
+      (path) =>
+        !path.startsWith(`${STATE_DIR}/`) &&
+        !C3_STATE_IMPORTERS.includes(path),
     );
     assert.deepEqual(outsiders, [], `unexpected importers: ${outsiders.join(", ")}`);
   });
 
-  it("touches no UI, route, or migration file", () => {
+  it("touches no UI, route, or migration file outside the C3 allowlist", () => {
     const forbiddenPrefixes = [
       "src/app/",
       "src/components/",
@@ -307,6 +330,7 @@ describe("C1 isolation — nothing in production imports Customer State Engine V
       "migrations/",
     ];
     for (const path of pathsChangedSinceBaseline()) {
+      if (C3_ALLOWED_OUTSIDE_STATE.includes(path)) continue;
       for (const prefix of forbiddenPrefixes) {
         assert.equal(path.startsWith(prefix), false, path);
       }

@@ -3,10 +3,9 @@
  *
  * Authority: TASK 17-B-R1 + TASK 17-B-R2.
  *
- * TASK 17-C1 STATUS: this module is deliberately UNUSED by production. Nothing
- * in `src/app/**`, no API route, no dashboard, no notification, no matter, and
- * no UI imports it. Consumer wiring belongs to Phase 17-C4; the SQL mirror to
- * 17-C2; the bounded production shadow to 17-C3.
+ * TASK 17-C1 STATUS: engine core is deliberately UNUSED by production consumers.
+ * TASK 17-C3 STATUS: bounded production shadow runs via scoring hook only; no
+ * consumer wiring, filters, or response mutation. SQL mirror: 17-C2; full wiring: 17-C4.
  */
 
 export { computeCustomerState } from "./engine";
@@ -146,5 +145,16 @@ export {
   buildStateFactsFromCustomerRow,
 } from "./state-list-reference";
 export type { StateDimensionSnapshot } from "./state-list-reference";
+export {
+  maybeRunStateV2ShadowBatch,
+  buildStateV2ShadowListRequestSeed,
+  buildStateV2ShadowDetailRequestSeed,
+  isShadowSampleRequest,
+  isStateV2ShadowGloballyEnabled,
+  getShadowTelemetrySnapshot,
+  resetShadowTelemetryForTests,
+  resetShadowCircuitForTests,
+  assertShadowTelemetryHasNoPii,
+} from "./shadow";
 export { buildStateSqlClock, buildStateInstantSql } from "./state-sql-primitives";
 export { anyPresent, countPresent, hasStateText } from "./text";
