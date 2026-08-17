@@ -6,12 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Input, Label, Textarea } from "@/components/ui/form";
 import { cn } from "@/lib/cn";
 import { QUICK_ENTRY_FIXED_PHONE_COUNTRY_CODE } from "@/lib/public-pool/quick-entry-customer-validation";
+import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
 import type { Locale } from "@/i18n/config";
 import {
   buildQuickEntryCardSummary,
   canRemoveQuickEntryRow,
   deriveQuickEntryCardBadge,
   quickEntryDuplicateFieldMessageKey,
+  resolveQuickEntrySourceDisplayLabel,
   type QuickEntryBatchSuccessView,
   type QuickEntryCardBadge,
   type QuickEntryFieldErrors,
@@ -19,6 +21,7 @@ import {
   type QuickEntryRowResultView,
 } from "./quick-entry-ui";
 import { QuickEntryNameProjectFields } from "./quick-entry-name-project-fields";
+import { QuickEntrySourceField } from "./quick-entry-source-field";
 
 type TFn = (key: string, params?: Record<string, string>) => string;
 
@@ -87,6 +90,7 @@ function AccordionRowFields({
   noteOpen,
   setNoteOpen,
   updateRow,
+  sourceMenuOptions,
   t,
   locale,
 }: {
@@ -96,6 +100,7 @@ function AccordionRowFields({
   noteOpen: boolean;
   setNoteOpen: (open: boolean) => void;
   updateRow: (id: string, patch: Partial<QuickEntryFormRow>) => void;
+  sourceMenuOptions: CustomerSourceMenuOption[];
   t: TFn;
   locale: Locale;
 }) {
@@ -110,6 +115,16 @@ function AccordionRowFields({
         fieldErrors={fieldErrors}
         disabled={submitting}
         updateRow={updateRow}
+        compact
+      />
+      <QuickEntrySourceField
+        rowId={row.clientRowId}
+        value={row.source}
+        onChange={(source) => updateRow(row.clientRowId, { source })}
+        options={sourceMenuOptions}
+        disabled={submitting}
+        fieldError={Boolean(fieldErrors?.source)}
+        t={t}
         compact
       />
       <div className="grid gap-3 md:grid-cols-2">
@@ -234,6 +249,7 @@ export function BatchAccordionForm({
   processingRetryAfter,
   onRetry,
   onNewBatch,
+  sourceMenuOptions,
   t,
   locale,
 }: {
@@ -256,6 +272,7 @@ export function BatchAccordionForm({
   processingRetryAfter: number | null;
   onRetry: () => void;
   onNewBatch: () => void;
+  sourceMenuOptions: CustomerSourceMenuOption[];
   t: TFn;
   locale: Locale;
 }) {
@@ -406,6 +423,7 @@ export function BatchAccordionForm({
                         setNoteOpenForRow(row.clientRowId, open)
                       }
                       updateRow={updateRow}
+                      sourceMenuOptions={sourceMenuOptions}
                       t={t}
                       locale={locale}
                     />
@@ -452,6 +470,7 @@ export function BatchResultsPanel({
   onViewPool,
   onClose,
   showActions = true,
+  sourceMenuOptions,
   t,
   mapError,
 }: {
@@ -465,6 +484,7 @@ export function BatchResultsPanel({
   onViewPool: () => void;
   onClose: () => void;
   showActions?: boolean;
+  sourceMenuOptions: CustomerSourceMenuOption[];
   t: TFn;
   mapError: (code: string) => string;
 }) {
@@ -571,7 +591,16 @@ export function BatchResultsPanel({
                       <p>{result.customerCode}</p>
                       <p>{result.customerName}</p>
                       <p>{t("publicPool.quickEntry.resultAddedToPool")}</p>
-                      <p>{t("publicPool.quickEntry.resultSource")}</p>
+                      {row.source ? (
+                        <p>
+                          {t("publicPool.quickEntry.resultCustomerSource", {
+                            source: resolveQuickEntrySourceDisplayLabel(
+                              row.source,
+                              sourceMenuOptions,
+                            ),
+                          })}
+                        </p>
+                      ) : null}
                     </>
                   ) : null}
                   {result?.status === "duplicate" ? (

@@ -12,6 +12,7 @@ const validRow = {
   phone: "13800138000",
   requestedProjectCode: "ca_immigration_planning",
   requestedProjectName: "",
+  source: "xiaohongshu",
 };
 
 const validBody = {
@@ -142,6 +143,7 @@ describe("parseQuickEntryBatchRequest", () => {
           phone: "13800138000",
           requestedProjectCode: "ca_immigration_planning",
           requestedProjectName: "",
+          source: "xiaohongshu",
         },
       ],
     });

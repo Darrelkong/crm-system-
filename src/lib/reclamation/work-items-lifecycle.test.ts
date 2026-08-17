@@ -57,6 +57,7 @@ function makeCustomer(
     email: null,
     source: "referral",
     sourceRemark: null,
+    entryMethod: null,
     requestedProjectName: null,
     requestedProjectCode: null,
     notes: null,

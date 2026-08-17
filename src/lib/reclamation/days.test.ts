@@ -21,6 +21,7 @@ function minimalCustomer(overrides: Partial<Customer> = {}): Customer {
     email: null,
     source: "referral",
     sourceRemark: null,
+    entryMethod: null,
     requestedProjectName: null,
     requestedProjectCode: null,
     notes: null,

@@ -18,6 +18,7 @@ const basePayload: QuickEntryCanonicalSubmissionPayload = {
       wechatId: null,
       requestedProjectCode: "hk_bank_account",
       requestedProjectName: "加拿大移民项目",
+      source: "xiaohongshu",
       initialFollowUpNote: null,
       supplementalNote: null,
     },
@@ -53,6 +54,7 @@ describe("hashQuickEntrySubmissionPayload", () => {
       "wechatId",
       "requestedProjectCode",
       "requestedProjectName",
+      "source",
       "initialFollowUpNote",
       "supplementalNote",
     ]);
@@ -106,6 +108,7 @@ describe("hashQuickEntrySubmissionPayload", () => {
           wechatId: null,
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "加拿大移民项目",
+          source: "xiaohongshu",
           initialFollowUpNote: null,
           supplementalNote: null,
         },

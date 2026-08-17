@@ -100,6 +100,7 @@ export function classifyQuickEntryBatchRows(
         email: row.validation.value.email,
         requestedProjectCode: row.validation.value.requestedProjectCode,
         requestedProjectName: row.validation.value.requestedProjectName,
+        source: row.validation.value.source,
         initialFollowUpNote: row.validation.value.notes,
         supplementalNote: row.validation.value.sourceRemark,
       },

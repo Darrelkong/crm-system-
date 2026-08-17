@@ -15,6 +15,7 @@ export type QuickEntryBatchCustomerRowInput = {
   email?: string | null;
   requestedProjectCode: string;
   requestedProjectName?: string | null;
+  source: string;
   initialFollowUpNote?: string | null;
   supplementalNote?: string | null;
 };

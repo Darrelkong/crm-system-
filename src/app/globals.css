@@ -957,6 +957,123 @@ html[data-theme="dark"] {
   }
 }
 
+/* ── Customer source selector (matches surface-input / stage select) ── */
+.source-selector-menu {
+  position: absolute;
+  z-index: 30;
+  margin-top: 0.25rem;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: var(--radius-crm);
+  border: 1px solid var(--color-crm-border);
+  background: var(--color-crm-card);
+  padding: 0.5rem;
+  box-shadow: var(--shadow-crm-card);
+}
+
+.source-selector-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 18rem;
+  overflow-y: auto;
+}
+
+.source-selector-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.5rem 0.625rem;
+  border: 0;
+  border-radius: calc(var(--radius-crm) - 2px);
+  background: transparent;
+  color: var(--color-crm-text);
+  font-size: 0.875rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.source-selector-row:hover,
+.source-selector-row:focus-visible {
+  background: var(--color-crm-surface-muted, rgba(31, 78, 121, 0.08));
+  outline: none;
+}
+
+.source-selector-row.is-selected {
+  font-weight: 600;
+}
+
+.source-selector-label {
+  min-width: 0;
+  flex: 1;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.source-selector-chevron {
+  color: var(--color-crm-text-muted);
+  font-size: 1rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.source-selector-check {
+  flex-shrink: 0;
+  color: var(--color-crm-primary, #1f4e79);
+  font-weight: 700;
+}
+
+.source-selector-subheader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--color-crm-border);
+}
+
+.source-selector-back {
+  border: 0;
+  background: transparent;
+  color: var(--color-crm-primary);
+  font-size: 0.875rem;
+  cursor: pointer;
+  padding: 0;
+}
+
+.source-selector-back:hover {
+  text-decoration: underline;
+}
+
+.source-selector-subtitle {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-crm-text);
+}
+
+.source-selector-footer {
+  margin-top: 0.5rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+[data-theme="dark"] .source-selector-menu {
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="dark"] .source-selector-row:hover,
+[data-theme="dark"] .source-selector-row:focus-visible {
+  background: var(--color-crm-surface-muted, rgba(120, 130, 160, 0.16));
+}
+
+@media (max-width: 767px) {
+  .source-selector-menu {
+    max-height: min(60dvh, 24rem);
+  }
+}
+
 /* ── Quick Entry V2 Drawer / Sheet ── */
 .qe-drawer-root {
   position: fixed;

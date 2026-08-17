@@ -33,6 +33,8 @@ export const customers = sqliteTable(
     wechatId: text("wechat_id"),
     email: text("email"),
     source: text("source").notNull(),
+    /** How the customer entered CRM; null for ordinary creates. Phase 2: public_pool_quick_entry. */
+    entryMethod: text("entry_method"),
     sourceRemark: text("source_remark"),
     requestedProjectName: text("requested_project_name"),
     /** Catalog code; null = legacy free-text name only. Group derived from catalog. */

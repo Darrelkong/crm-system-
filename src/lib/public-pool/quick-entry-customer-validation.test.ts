@@ -17,6 +17,7 @@ const validBase = {
   nameStatus: "confirmed" as const,
   phone: "13800138000",
   requestedProjectCode: "hk_bank_account",
+  source: "xiaohongshu",
 };
 
 const staffActor = {
@@ -182,6 +183,7 @@ describe("validateQuickEntryCustomerInput", () => {
       wechatId: "wechat_user_1",
       requestedProjectCode: "hk_bank_account",
       requestedProjectName: "留学项目咨询",
+      source: "xiaohongshu",
     });
     assert.equal(result.ok, true);
     if (result.ok) {
@@ -351,6 +353,7 @@ describe("validateQuickEntryCustomerInput", () => {
         wechatId: "wx_only",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "移民项目咨询",
+        source: "xiaohongshu",
       }).ok,
       true,
     );
@@ -434,12 +437,38 @@ describe("validateQuickEntryCustomerInput", () => {
     }
   });
 
-  it("ignores client-controlled system fields and does not map them", () => {
+  it("rejects missing source and invalid internal sources when keys provided", () => {
+    const missing = validateQuickEntryCustomerInput(validBase, {
+      selectableSourceKeys: ["xiaohongshu"],
+    });
+    assert.equal(
+      validateQuickEntryCustomerInput({
+        ...validBase,
+        source: "",
+      }).ok,
+      false,
+    );
+    assert.equal(missing.ok, true);
+
+    const internal = validateQuickEntryCustomerInput(
+      { ...validBase, source: "public_pool_quick_entry" },
+      { selectableSourceKeys: ["xiaohongshu", "source_unknown"] },
+    );
+    assert.equal(internal.ok, false);
+    if (!internal.ok) {
+      assert.equal(
+        internal.errors[0]?.errorCode,
+        QUICK_ENTRY_CUSTOMER_ERROR_CODES.SOURCE_INVALID,
+      );
+    }
+  });
+
+  it("strips non-customer system fields but keeps validated source", () => {
     const result = validateQuickEntryCustomerInput({
       ...validBase,
       ownerId: "attacker",
       status: "active",
-      source: "other",
+      source: "xiaohongshu",
       salesStage: "closed_won",
       createdBy: "attacker",
       customerCode: "EF999999",
@@ -448,7 +477,7 @@ describe("validateQuickEntryCustomerInput", () => {
     if (result.ok) {
       assert.equal("ownerId" in result.value, false);
       assert.equal("status" in result.value, false);
-      assert.equal("source" in result.value, false);
+      assert.equal(result.value.source, "xiaohongshu");
       assert.equal("salesStage" in result.value, false);
     }
   });
@@ -469,6 +498,7 @@ describe("prepareDirectPublicPoolCustomerCreation name gate", () => {
           phone: "13800138000",
           requestedProjectCode: "hk_bank_account",
           requestedProjectName: "移民项目咨询",
+          source: "xiaohongshu",
         },
       });
       assert.equal(result.kind, "invalid", customerName);

@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
 import { resolveSourceMenuDisplayPath } from "@/lib/customer-sources/menu";
 
@@ -66,19 +67,28 @@ export function CustomerSourceSelector({
 
   function renderTopLevel() {
     return (
-      <ul className="max-h-72 space-y-1 overflow-y-auto" role="listbox">
+      <ul className="source-selector-list" role="listbox">
         {options.map((option) => {
           if (option.kind === "direct" || option.kind === "custom") {
+            const selected = value === option.tagKey;
             return (
               <li key={option.tagKey}>
                 <button
                   type="button"
                   role="option"
-                  aria-selected={value === option.tagKey}
-                  className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[#EEF3F8]"
+                  aria-selected={selected}
+                  className={cn(
+                    "source-selector-row",
+                    selected && "is-selected",
+                  )}
                   onClick={() => handlePick(option.tagKey)}
                 >
-                  {option.label}
+                  <span className="source-selector-label">{option.label}</span>
+                  {selected ? (
+                    <span className="source-selector-check" aria-hidden>
+                      ✓
+                    </span>
+                  ) : null}
                 </button>
               </li>
             );
@@ -88,11 +98,11 @@ export function CustomerSourceSelector({
             <li key={option.groupKey}>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-sm hover:bg-[#EEF3F8]"
+                className="source-selector-row"
                 onClick={() => setActiveGroup(option)}
               >
-                <span>{option.label}</span>
-                <span className="text-[#6B7890]" aria-hidden>
+                <span className="source-selector-label">{option.label}</span>
+                <span className="source-selector-chevron" aria-hidden>
                   ›
                 </span>
               </button>
@@ -103,40 +113,56 @@ export function CustomerSourceSelector({
     );
   }
 
-  function renderGroupChildren(group: Extract<CustomerSourceMenuOption, { kind: "group" }>) {
+  function renderGroupChildren(
+    group: Extract<CustomerSourceMenuOption, { kind: "group" }>,
+  ) {
     return (
       <div>
-        <div className="mb-2 flex items-center gap-2 border-b border-[#E6EBF2] pb-2">
+        <div className="source-selector-subheader">
           <button
             type="button"
-            className="text-sm text-[#2F6FB3] hover:underline"
+            className="source-selector-back"
             onClick={() => setActiveGroup(null)}
           >
             ← 返回
           </button>
-          <span className="text-sm font-medium text-[#172033]">{group.label}</span>
+          <span className="source-selector-subtitle">{group.label}</span>
         </div>
-        <ul className="max-h-72 space-y-1 overflow-y-auto" role="listbox">
-          {group.children.map((child) => (
-            <li key={child.tagKey}>
-              <button
-                type="button"
-                role="option"
-                aria-selected={value === child.tagKey}
-                className="w-full rounded-md px-3 py-2 text-left text-sm hover:bg-[#EEF3F8]"
-                onClick={() => handlePick(child.tagKey)}
-              >
-                {child.label}
-              </button>
-            </li>
-          ))}
+        <ul className="source-selector-list" role="listbox">
+          {group.children.map((child) => {
+            const selected = value === child.tagKey;
+            const display =
+              resolveSourceMenuDisplayPath(child.tagKey, child.label)
+                ?.displayLabel ?? child.label;
+            return (
+              <li key={child.tagKey}>
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={cn(
+                    "source-selector-row",
+                    selected && "is-selected",
+                  )}
+                  onClick={() => handlePick(child.tagKey)}
+                >
+                  <span className="source-selector-label">{display}</span>
+                  {selected ? (
+                    <span className="source-selector-check" aria-hidden>
+                      ✓
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
     );
   }
 
   return (
-    <div className="relative">
+    <div className="source-selector relative">
       <button
         type="button"
         id={id}
@@ -144,27 +170,35 @@ export function CustomerSourceSelector({
         aria-haspopup="listbox"
         aria-expanded={open}
         disabled={disabled}
-        className="flex w-full items-center justify-between rounded-md border border-[#D5DEEA] bg-white px-3 py-2 text-left text-sm disabled:cursor-not-allowed disabled:opacity-60"
+        className={cn(
+          "surface-input flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm",
+          disabled && "cursor-not-allowed opacity-60",
+        )}
         onClick={() => {
           if (disabled) return;
           setOpen((prev) => !prev);
           setActiveGroup(null);
         }}
       >
-        <span className={selectedLabel ? "text-[#172033]" : "text-[#6B7890]"}>
+        <span
+          className={cn(
+            "min-w-0 flex-1 truncate",
+            selectedLabel ? "crm-text" : "crm-text-muted",
+          )}
+        >
           {selectedLabel || "请选择客户来源"}
         </span>
-        <span className="text-[#6B7890]" aria-hidden>
+        <span className="source-selector-chevron shrink-0" aria-hidden>
           ▾
         </span>
       </button>
 
       {open && !disabled ? (
-        <div className="absolute z-20 mt-1 w-full rounded-lg border border-[#D5DEEA] bg-white p-2 shadow-lg">
+        <div className="source-selector-menu">
           {activeGroup?.kind === "group"
             ? renderGroupChildren(activeGroup)
             : renderTopLevel()}
-          <div className="mt-2 flex justify-end">
+          <div className="source-selector-footer">
             <Button
               type="button"
               variant="secondary"

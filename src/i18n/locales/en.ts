@@ -2223,6 +2223,7 @@ const en = {
       resultSuccessTitle: "Customer created",
       resultSuccessPool: "Added to the public pool",
       resultSource: "Source: Public pool quick entry",
+      resultCustomerSource: "Customer source: {{source}}",
       resultContinueNext: "Enter next customer",
       resultViewPool: "View public pool",
       resultDuplicateTitle: "Customer was not created",
@@ -2284,6 +2285,7 @@ const en = {
       grantExpired: "Your quick-entry authorization expired. Please verify again.",
       fields: {
         customerName: "Customer name",
+        customerSource: "Customer source",
         phone: "Phone",
         phoneCountryCode: "Country code",
         phoneCountryCodeFixedHint: "Fixed to +86 (Mainland China mobile).",
@@ -2341,6 +2343,7 @@ const en = {
         project_required: "Please select a requested project.",
         project_invalid:
           "Select a valid requested project; if Other, enter at least 4 characters.",
+        source_required: "Select a customer source.",
         contact_required: "Enter at least a phone number or WeChat ID.",
         phone_invalid:
           "The phone number must be 11 digits and start with 1.",
@@ -2364,6 +2367,10 @@ const en = {
         projectRequired: "Please select a requested project.",
         projectInvalid:
           "Select a valid requested project; if Other, enter at least 4 characters.",
+        sourceRequired: "Select a customer source.",
+        sourceInvalid: "Select a valid customer source from the menu.",
+        sourceRemarkRequired:
+          'When source is "Other", the supplemental note is required.',
         noteTooLong: "The note is too long.",
       },
     },

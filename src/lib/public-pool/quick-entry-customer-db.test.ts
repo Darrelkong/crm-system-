@@ -12,6 +12,7 @@ import {
   QUICK_ENTRY_CUSTOMER_AUDIT_ACTION,
   QUICK_ENTRY_SERVICE_ERROR_CODES,
 } from "@/lib/public-pool/quick-entry-customer-service";
+import { QUICK_ENTRY_ENTRY_METHOD } from "@/lib/public-pool/quick-entry-entry-method";
 import { listRandomClaimCandidatesForStaff } from "@/lib/public-pool/queries";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { formatCustomerCode } from "@/lib/customers/customer-code";
@@ -143,6 +144,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         phone: "13910001001",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "加拿大移民项目",
+        source: "xiaohongshu",
         initialFollowUpNote: "可选首次备注",
         supplementalNote: "补充备注",
       },
@@ -164,7 +166,8 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         .limit(1)
     )[0];
     assert.ok(row);
-    assert.equal(row.source, PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY);
+    assert.equal(row.source, "xiaohongshu");
+    assert.equal(row.entryMethod, QUICK_ENTRY_ENTRY_METHOD);
     assert.equal(row.salesStage, "contacted");
     assert.equal(row.status, "public_pool");
     assert.equal(row.ownerId, null);
@@ -238,6 +241,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         wechatId: "qe2_dup_wx",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "澳洲移民项目",
+        source: "xiaohongshu",
       },
       db,
     });
@@ -252,6 +256,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         phone: "13910002002",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "澳洲移民项目",
+        source: "xiaohongshu",
       },
       db,
     });
@@ -272,6 +277,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         wechatId: "qe2_dup_wx",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "澳洲移民项目",
+        source: "xiaohongshu",
       },
       db,
     });
@@ -301,6 +307,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
             phone: `13910003${String(i + 1).padStart(3, "0")}`,
             requestedProjectCode: "hk_bank_account",
             requestedProjectName: "新西兰移民项目",
+            source: "xiaohongshu",
           },
           db,
         }),
@@ -332,6 +339,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         phone: "13910004004",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "英国移民项目",
+        source: "xiaohongshu",
       },
       db,
     });
@@ -379,6 +387,7 @@ describe("createCustomerDirectlyInPublicPool — DB", () => {
         phone: "13910005005",
         requestedProjectCode: "hk_bank_account",
         requestedProjectName: "测试项目名称",
+        source: "xiaohongshu",
       },
       db,
     });

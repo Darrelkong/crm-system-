@@ -1,6 +1,7 @@
 import type { Database } from "@/lib/db";
 import { getDb } from "@/lib/db";
 import { userMustChangePassword } from "@/lib/auth/change-password";
+import { getSelectableCustomerSourceKeys } from "@/lib/customer-sources/keys";
 import { classifyQuickEntryBatchRows } from "@/lib/public-pool/quick-entry-batch-classification";
 import type {
   QuickEntryBatchCanonicalRow,
@@ -177,6 +178,7 @@ function buildCanonicalRows(
       email: row.email,
       requestedProjectCode: row.requestedProjectCode,
       requestedProjectName: row.requestedProjectName,
+      source: row.source,
       initialFollowUpNote: row.initialFollowUpNote,
       supplementalNote: row.supplementalNote,
     });
@@ -261,6 +263,7 @@ export async function processQuickEntryCustomerSubmission(input: {
   }
 
   const database = input.db ?? getDb();
+  const selectableSourceKeys = await getSelectableCustomerSourceKeys(database);
   let now = input.now ?? new Date();
 
   const requestHash = await hashQuickEntrySubmissionPayload({
@@ -307,18 +310,22 @@ export async function processQuickEntryCustomerSubmission(input: {
     load.state === "reclaimed" ? load.existingRows : ([] as QuickEntrySubmissionRowRecord[]);
 
   const validationInputs = built.canonical.map((row, rowIndex) => {
-    const validation = validateQuickEntryCustomerInput({
-      customerName: row.customerName,
-      nameStatus: row.nameStatus,
-      phone: row.phone,
-      phoneCountryCode: row.phoneCountryCode,
-      wechatId: row.wechatId,
-      email: row.email ?? null,
-      requestedProjectCode: row.requestedProjectCode,
-      requestedProjectName: row.requestedProjectName,
-      initialFollowUpNote: row.initialFollowUpNote,
-      supplementalNote: row.supplementalNote,
-    });
+    const validation = validateQuickEntryCustomerInput(
+      {
+        customerName: row.customerName,
+        nameStatus: row.nameStatus,
+        phone: row.phone,
+        phoneCountryCode: row.phoneCountryCode,
+        wechatId: row.wechatId,
+        email: row.email ?? null,
+        requestedProjectCode: row.requestedProjectCode,
+        requestedProjectName: row.requestedProjectName,
+        source: row.source,
+        initialFollowUpNote: row.initialFollowUpNote,
+        supplementalNote: row.supplementalNote,
+      },
+      { selectableSourceKeys },
+    );
     return {
       rowIndex,
       clientRowId: row.clientRowId,
@@ -331,6 +338,7 @@ export async function processQuickEntryCustomerSubmission(input: {
         email: row.email ?? null,
         requestedProjectCode: row.requestedProjectCode,
         requestedProjectName: row.requestedProjectName,
+        source: row.source,
         initialFollowUpNote: row.initialFollowUpNote,
         supplementalNote: row.supplementalNote,
       },
@@ -456,6 +464,7 @@ export async function processQuickEntryCustomerSubmission(input: {
           wechatId: plan.normalizedCustomer.wechatId,
           requestedProjectCode: plan.normalizedCustomer.requestedProjectCode,
           requestedProjectName: plan.normalizedCustomer.requestedProjectName,
+          source: plan.normalizedCustomer.source,
           initialFollowUpNote: plan.normalizedCustomer.initialFollowUpNote,
           supplementalNote: plan.normalizedCustomer.supplementalNote,
         },
