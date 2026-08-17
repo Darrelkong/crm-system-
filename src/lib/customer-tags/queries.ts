@@ -2,13 +2,10 @@ import { asc, eq } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
-  CUSTOMER_SOURCE_KEYS,
-  INTERNAL_CUSTOMER_SOURCE_KEYS,
-} from "@/lib/constants/customer-sources";
-import {
-  CUSTOMER_SOURCE_LABELS,
-  INTERNAL_CUSTOMER_SOURCE_LABELS,
-} from "@/lib/constants/customer-source-labels";
+  resolveCustomerSourceDisplayLabel,
+  resolveCustomerSourceLabel,
+} from "@/lib/customer-sources/resolver";
+import { getSelectableCustomerSourceKeys } from "@/lib/customer-sources/keys";
 import { CUSTOMER_SOURCE_OTHER_KEY } from "./constants";
 import type { CustomerTag } from "../../../drizzle/schema/customer-tags";
 
@@ -20,17 +17,6 @@ export type CustomerTagListItem = {
   isActive: boolean;
   sortOrder: number;
 };
-
-function fallbackTagsFromConstants(): CustomerTagListItem[] {
-  return CUSTOMER_SOURCE_KEYS.map((key, index) => ({
-    id: `fallback-${key}`,
-    tagKey: key,
-    label: CUSTOMER_SOURCE_LABELS[key],
-    isSystem: key === CUSTOMER_SOURCE_OTHER_KEY,
-    isActive: true,
-    sortOrder: index + 1,
-  }));
-}
 
 function mapTagRow(row: CustomerTag): CustomerTagListItem {
   return {
@@ -44,20 +30,12 @@ function mapTagRow(row: CustomerTag): CustomerTagListItem {
 }
 
 export async function listCustomerTags(db: Database): Promise<CustomerTagListItem[]> {
-  try {
-    const rows = await db
-      .select()
-      .from(schema.customerTags)
-      .orderBy(asc(schema.customerTags.sortOrder), asc(schema.customerTags.label));
+  const rows = await db
+    .select()
+    .from(schema.customerTags)
+    .orderBy(asc(schema.customerTags.sortOrder), asc(schema.customerTags.label));
 
-    if (rows.length === 0) {
-      return fallbackTagsFromConstants();
-    }
-
-    return rows.map(mapTagRow);
-  } catch {
-    return fallbackTagsFromConstants();
-  }
+  return rows.map(mapTagRow);
 }
 
 export async function listActiveCustomerTags(
@@ -67,26 +45,22 @@ export async function listActiveCustomerTags(
   return tags.filter((tag) => tag.isActive);
 }
 
+/** Writable/selectable keys for create, edit (when changed), and import. */
 export async function getActiveCustomerTagKeys(db: Database): Promise<string[]> {
-  const tags = await listActiveCustomerTags(db);
-  return tags.map((tag) => tag.tagKey);
+  return getSelectableCustomerSourceKeys(db);
 }
 
 export async function getCustomerTagById(
   db: Database,
   id: string,
 ): Promise<CustomerTagListItem | null> {
-  try {
-    const [row] = await db
-      .select()
-      .from(schema.customerTags)
-      .where(eq(schema.customerTags.id, id))
-      .limit(1);
+  const [row] = await db
+    .select()
+    .from(schema.customerTags)
+    .where(eq(schema.customerTags.id, id))
+    .limit(1);
 
-    return row ? mapTagRow(row) : null;
-  } catch {
-    return null;
-  }
+  return row ? mapTagRow(row) : null;
 }
 
 export async function getCustomerTagLabelMap(
@@ -97,29 +71,22 @@ export async function getCustomerTagLabelMap(
   for (const tag of tags) {
     map.set(tag.tagKey, tag.label);
   }
-  for (const key of CUSTOMER_SOURCE_KEYS) {
-    if (!map.has(key)) {
-      map.set(key, CUSTOMER_SOURCE_LABELS[key]);
-    }
-  }
-  for (const key of INTERNAL_CUSTOMER_SOURCE_KEYS) {
-    if (!map.has(key)) {
-      map.set(key, INTERNAL_CUSTOMER_SOURCE_LABELS[key]);
-    }
-  }
   return map;
 }
 
+/** @deprecated Use resolveCustomerSourceLabel from @/lib/customer-sources/resolver */
 export function resolveCustomerTagLabel(
   tagKey: string,
   labelMap: Map<string, string>,
 ): string {
-  return (
-    labelMap.get(tagKey) ??
-    INTERNAL_CUSTOMER_SOURCE_LABELS[
-      tagKey as keyof typeof INTERNAL_CUSTOMER_SOURCE_LABELS
-    ] ??
-    CUSTOMER_SOURCE_LABELS[tagKey as keyof typeof CUSTOMER_SOURCE_LABELS] ??
-    tagKey
-  );
+  return resolveCustomerSourceLabel(tagKey, labelMap);
 }
+
+export function resolveCustomerTagDisplayLabel(
+  tagKey: string,
+  labelMap: Map<string, string>,
+): string {
+  return resolveCustomerSourceDisplayLabel(tagKey, labelMap);
+}
+
+export { CUSTOMER_SOURCE_OTHER_KEY };

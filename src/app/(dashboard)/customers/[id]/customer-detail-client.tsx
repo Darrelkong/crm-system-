@@ -57,6 +57,7 @@ export type CustomerDetailView = {
   salesStage: string;
   lifecycleStatus?: string | null;
   source: string;
+  sourceDisplayLabel?: string;
   status: string;
   isMasked: boolean;
   isArchived: boolean;
@@ -224,6 +225,8 @@ export function CustomerDetailClient({
 }: Props) {
   const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
     useCustomerLabels();
+  const sourceDisplay =
+    view.sourceDisplayLabel ?? source(view.source);
   const { locale } = useTranslation();
   const id = view.id;
   const [familyModalOpen, setFamilyModalOpen] = useState(false);
@@ -380,7 +383,7 @@ export function CustomerDetailClient({
               />
               <DetailRow
                 label={t("customers.source")}
-                value={source(view.source)}
+                value={sourceDisplay}
                 emphasis="strong"
               />
               {!view.isMasked && (

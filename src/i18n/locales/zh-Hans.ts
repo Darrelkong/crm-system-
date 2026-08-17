@@ -1393,6 +1393,8 @@ const zhHans: Messages = {
     warningRow: "第 {{row}} 行 · {{message}}",
     importedCount: "成功导入 {{count}} 条客户",
     precheckFailed: "预检失败",
+    sourceKeyHelp:
+      "source 列请填写 CRM 当前有效来源 key（共 {{count}} 个）。示例：{{sample}}。预检会按与新建客户相同的规则校验；已停用或历史专用来源不可用于新导入。",
   },
   approvals: {
     title: "审批管理",

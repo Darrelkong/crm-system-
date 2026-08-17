@@ -1394,6 +1394,8 @@ const zhHant: Messages = {
     warningRow: "第 {{row}} 行 · {{message}}",
     importedCount: "成功匯入 {{count}} 條客戶",
     precheckFailed: "預檢失敗",
+    sourceKeyHelp:
+      "source 欄請填寫 CRM 當前有效來源 key（共 {{count}} 個）。示例：{{sample}}。預檢會按與新建客戶相同的規則校驗；已停用或歷史專用來源不可用於新導入。",
   },
   approvals: {
     title: "審批管理",

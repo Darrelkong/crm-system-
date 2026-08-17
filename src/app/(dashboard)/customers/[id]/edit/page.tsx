@@ -3,7 +3,14 @@ export const dynamic = "force-dynamic";
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getCustomerById } from "@/lib/customers/queries";
 import { getDb } from "@/lib/db";
-import { listActiveCustomerTags } from "@/lib/customer-tags/queries";
+import {
+  buildCustomerSourceMenuOptions,
+  getSelectableCustomerSourceKeys,
+} from "@/lib/customer-sources/keys";
+import {
+  getCustomerTagLabelMap,
+} from "@/lib/customer-tags/queries";
+import { resolveCustomerSourceDisplayLabel } from "@/lib/customer-sources/resolver";
 import {
   canEditCustomer,
   assertCanViewCustomerFullDetails,
@@ -14,7 +21,6 @@ import { CustomerStatePanel } from "@/components/customers/customer-state-panel"
 import { EditCustomerForm } from "./edit-customer-form";
 import { EditCustomerPageHeader } from "./edit-customer-page-header";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
-import type { CustomerTagOption } from "@/lib/customer-tags/types";
 
 type Props = { params: Promise<{ id: string }> };
 
@@ -75,19 +81,16 @@ export default async function EditCustomerPage({ params }: Props) {
     throw err;
   }
 
-  const activeTags = await listActiveCustomerTags(db);
-  const tagOptions: CustomerTagOption[] = activeTags.map((tag) => ({
-    tagKey: tag.tagKey,
-    label: tag.label,
-    isSystem: tag.isSystem,
-  }));
-  if (!tagOptions.some((tag) => tag.tagKey === customer.source)) {
-    tagOptions.push({
-      tagKey: customer.source,
-      label: customer.source,
-      isSystem: false,
-    });
-  }
+  const [sourceMenuOptions, selectableSourceKeys, labelMap] = await Promise.all([
+    buildCustomerSourceMenuOptions(db),
+    getSelectableCustomerSourceKeys(db),
+    getCustomerTagLabelMap(db),
+  ]);
+
+  const sourceLegacyLabel = resolveCustomerSourceDisplayLabel(
+    customer.source,
+    labelMap,
+  );
 
   return (
     <div>
@@ -98,7 +101,9 @@ export default async function EditCustomerPage({ params }: Props) {
       <EditCustomerForm
         canEditStatus={user.role === "admin"}
         isStaff={user.role !== "admin"}
-        tags={tagOptions}
+        sourceMenuOptions={sourceMenuOptions}
+        selectableSourceKeys={selectableSourceKeys}
+        sourceLegacyLabel={sourceLegacyLabel}
         initial={{
           id: customer.id,
           customerName: customer.customerName,

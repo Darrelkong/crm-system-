@@ -3,6 +3,8 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { Approval, ApprovalStatus } from "../../../drizzle/schema/approvals";
 import type { User } from "../../../drizzle/schema/users";
+import { getCustomerTagLabelMap } from "@/lib/customer-tags/queries";
+import { resolveCustomerSourceDisplayLabel } from "@/lib/customer-sources/resolver";
 
 export type ApprovalListItem = {
   id: string;
@@ -23,6 +25,8 @@ export type ApprovalListItem = {
   reviewedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Resolved display label for create_on_hold_customer payload source. */
+  onHoldCreateSourceDisplayLabel?: string | null;
 };
 
 function parseJsonArray(value: string | null): string[] | null {
@@ -189,5 +193,22 @@ export async function listApprovalsForUser(
     return b.createdAt.localeCompare(a.createdAt);
   });
 
-  return items;
+  const labelMap = await getCustomerTagLabelMap(db);
+  return items.map((item) => {
+    if (item.requestType !== "create_on_hold_customer" || !item.payload) {
+      return item;
+    }
+    const sourceKey =
+      typeof item.payload.source === "string" ? item.payload.source : null;
+    if (!sourceKey) {
+      return item;
+    }
+    return {
+      ...item,
+      onHoldCreateSourceDisplayLabel: resolveCustomerSourceDisplayLabel(
+        sourceKey,
+        labelMap,
+      ),
+    };
+  });
 }

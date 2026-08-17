@@ -22,6 +22,7 @@ import {
   IMPORT_DEFAULTS,
   IMPORT_DEFAULT_WARNINGS,
 } from "@/lib/import/customers/defaults";
+import { getSelectableCustomerSourceKeys } from "@/lib/customer-sources/keys";
 import type { ImportCsvColumn } from "@/lib/import/customers/constants";
 
 const CSV_FIELD_TO_INPUT: Record<string, string> = {
@@ -321,6 +322,9 @@ export async function precheckCustomerImport(
       hasEmail: emailsInCsv.size > 0,
     });
 
+  const db = getDb();
+  const allowedSourceKeys = await getSelectableCustomerSourceKeys(db);
+
   const rowErrors = new Map<number, ImportIssue[]>();
   const rowWarnings = new Map<number, ImportIssue[]>();
 
@@ -353,6 +357,7 @@ export async function precheckCustomerImport(
 
     const fieldErrors = validateCustomerInput(input, {
       requireSalesStage: true,
+      allowedSourceKeys,
     });
     for (const fe of fieldErrors) {
       const csvField =

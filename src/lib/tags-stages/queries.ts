@@ -1,12 +1,12 @@
 import { count, desc, ne } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
-import { CUSTOMER_SOURCE_LABELS } from "@/lib/constants/customer-source-labels";
+import { getCustomerTagLabelMap, listCustomerTags } from "@/lib/customer-tags/queries";
+import { resolveCustomerSourceDisplayLabel } from "@/lib/customer-sources/resolver";
 import {
   LEGACY_SALES_STAGES,
   SALES_STAGES,
 } from "@/lib/constants/customer-fields";
-import { listCustomerTags } from "@/lib/customer-tags/queries";
 import type {
   StageCatalogItem,
   TagCatalogItem,
@@ -36,6 +36,7 @@ export async function getTagsStagesOverview(
   const stageCounts = await countCustomersByField(db, schema.customers.salesStage);
   const sourceCounts = await countCustomersByField(db, schema.customers.source);
   const dbTags = await listCustomerTags(db);
+  const tagLabelMap = await getCustomerTagLabelMap(db);
 
   const stages: StageCatalogItem[] = [];
   const seenStages = new Set<string>();
@@ -90,9 +91,7 @@ export async function getTagsStagesOverview(
     if (seenTags.has(key)) continue;
     tags.push({
       key,
-      label:
-        CUSTOMER_SOURCE_LABELS[key as keyof typeof CUSTOMER_SOURCE_LABELS] ??
-        key,
+      label: resolveCustomerSourceDisplayLabel(key, tagLabelMap),
       customerCount,
       status: "custom",
       isSystem: false,

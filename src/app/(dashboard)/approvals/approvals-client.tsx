@@ -250,6 +250,7 @@ export function ApprovalsClient({ isAdmin }: Props) {
                   reason={selected.reason}
                   payload={selected.payload ?? null}
                   nameStatus={selected.nameStatus}
+                  sourceDisplayLabel={selected.onHoldCreateSourceDisplayLabel}
                 />
               ) : selected.requestType === "update_customer_assignees" ? (
                 <UpdateCustomerAssigneesApprovalDetail

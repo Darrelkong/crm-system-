@@ -176,6 +176,7 @@ export async function PATCH(request: Request, context: RouteContext) {
         existingRequestedProjectCode: existing.requestedProjectCode ?? null,
         existingRequestedProjectName: existing.requestedProjectName ?? null,
         allowedSourceKeys,
+        existingSourceKey: existing.source,
         userRole: user.role === "admin" ? "admin" : "staff",
       },
     );

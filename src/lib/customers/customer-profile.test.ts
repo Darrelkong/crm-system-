@@ -16,6 +16,8 @@ import type { Customer } from "../../../drizzle/schema/customers";
 import { maskCustomerForStaff, toCustomerFullView } from "@/lib/permissions/customers";
 import { formatStaffPublicPoolCustomer } from "@/lib/public-pool/queries";
 
+const TEST_SOURCE_LABEL = "客户转介绍";
+
 const BASE_INPUT = {
   customerName: "张三测试",
   customerType: "individual",
@@ -239,6 +241,7 @@ describe("customer-profile masking", () => {
       customer,
       { canClaim: true, claimBlockedReasonKey: null },
       false,
+      TEST_SOURCE_LABEL,
     );
     const poolJson = JSON.parse(JSON.stringify(staffPool)) as Record<
       string,
@@ -248,7 +251,7 @@ describe("customer-profile masking", () => {
       assert.equal(key in poolJson, false, `pool leaked ${key}`);
     }
     for (const dbName of CUSTOMER_PROFILE_DB_FIELD_NAMES) {
-      assert.equal(dbName in poolJson, false);
+      assert.equal(dbName in poolJson, false, TEST_SOURCE_LABEL);
     }
   });
 
@@ -262,7 +265,7 @@ describe("customer-profile masking", () => {
     const masked = maskCustomerForStaff(customer);
     const json = JSON.parse(JSON.stringify(masked)) as Record<string, unknown>;
     for (const key of CUSTOMER_PROFILE_FIELD_KEYS) {
-      assert.equal(key in json, false);
+      assert.equal(key in json, false, TEST_SOURCE_LABEL);
     }
   });
 });

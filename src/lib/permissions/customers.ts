@@ -73,6 +73,7 @@ export type CustomerView = {
   customerType: string;
   salesStage: string;
   source: string;
+  sourceDisplayLabel?: string;
   status: string;
   ownerId: string | null;
   ownerName?: string | null;

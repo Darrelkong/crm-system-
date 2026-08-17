@@ -5,12 +5,12 @@ import type {
 import { PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY } from "./customer-sources";
 
 export const CUSTOMER_SOURCE_LABELS: Record<CustomerSourceKey, string> = {
-  xianyu_taobao: "闲鱼 / 淘宝",
+  xianyu_taobao: "淘宝",
   xiaohongshu: "小红书",
   douyin: "抖音",
-  referral: "转介绍",
-  online_media: "线上媒体平台",
-  agent_client: "代理客户",
+  referral: "客户转介绍",
+  online_media: "其他媒体平台（历史未细分）",
+  agent_client: "代理渠道",
   other: "其他",
 };
 
@@ -19,5 +19,5 @@ export const INTERNAL_CUSTOMER_SOURCE_LABELS: Record<
   InternalCustomerSourceKey,
   string
 > = {
-  [PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY]: "公共池快速录入",
+  [PUBLIC_POOL_QUICK_ENTRY_SOURCE_KEY]: "公共池快速录入（历史）",
 };

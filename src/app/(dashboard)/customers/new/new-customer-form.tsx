@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { CUSTOMER_TYPES, CREATABLE_SALES_STAGES } from "@/lib/constants/customer-fields";
 import type { CustomerType, SalesStage } from "@/lib/constants/customer-fields";
-import type { CustomerTagOption } from "@/lib/customer-tags/types";
+import type { CustomerSourceMenuOption } from "@/lib/customer-sources/keys";
+import { CustomerSourceSelector } from "@/components/customers/customer-source-selector";
 import type { ValidationFieldError } from "@/lib/customers/validation";
 import { validateCustomerInput } from "@/lib/customers/validation";
 import {
@@ -104,11 +105,13 @@ function toFormState(data: CustomerCreateDraftFormData): FormState {
 }
 
 export function NewCustomerForm({
-  tags,
+  sourceMenuOptions,
+  selectableSourceKeys,
   userId,
   familyContext,
 }: {
-  tags: CustomerTagOption[];
+  sourceMenuOptions: CustomerSourceMenuOption[];
+  selectableSourceKeys: string[];
   userId: string;
   familyContext?: NewCustomerFormFamilyContext;
 }) {
@@ -472,7 +475,7 @@ export function NewCustomerForm({
       },
       {
         requireSalesStage: true,
-        allowedSourceKeys: tags.map((tag) => tag.tagKey),
+        allowedSourceKeys: selectableSourceKeys,
         enforceCreateNameStatusRules: true,
       },
     );
@@ -933,18 +936,13 @@ export function NewCustomerForm({
           <Label htmlFor="source">
             {t("customers.source")} <span className="text-red-500">*</span>
           </Label>
-          <Select
+          <CustomerSourceSelector
             id="source"
+            aria-label={t("customers.source")}
             value={form.source}
-            onChange={(e) => set("source", e.target.value)}
-          >
-            <option value="">{t("customers.selectSource")}</option>
-            {tags.map((tag) => (
-              <option key={tag.tagKey} value={tag.tagKey}>
-                {tag.label}
-              </option>
-            ))}
-          </Select>
+            onChange={(tagKey) => set("source", tagKey)}
+            options={sourceMenuOptions}
+          />
           {fieldErrors.source && (
             <p className="mt-1 text-xs text-red-600">{fieldErrors.source}</p>
           )}

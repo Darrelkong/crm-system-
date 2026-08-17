@@ -14,10 +14,8 @@ import {
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { RECLAMATION_AUDIT_ACTIONS } from "@/lib/reclamation/constants";
-import {
-  getCustomerTagLabelMap,
-  resolveCustomerTagLabel,
-} from "@/lib/customer-tags/queries";
+import { getCustomerTagLabelMap } from "@/lib/customer-tags/queries";
+import { resolveCustomerSourceDisplayLabel } from "@/lib/customer-sources/resolver";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { computeScoringSummaryForAdmin } from "@/lib/customers/scoring/service";
 import { recordAdminDashboardSettingsPhysicalLoad } from "./admin-dashboard-request-instrumentation";
@@ -283,7 +281,7 @@ export async function getAdminDashboardStats(
     highChurnRiskCustomers: scoringSummary.highChurnRiskCustomers,
     lowCompletenessCustomers: scoringSummary.lowCompletenessCustomers,
     customersBySource: sourceRows.map((r) => ({
-      label: resolveCustomerTagLabel(r.label, tagLabelMap),
+      label: resolveCustomerSourceDisplayLabel(r.label, tagLabelMap),
       count: r.count,
     })),
     customersBySalesStage: stageRows.map((r) => ({

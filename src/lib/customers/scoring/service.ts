@@ -28,6 +28,8 @@ import {
   invokeStateV2ShadowForListBatch,
 } from "./state-v2-shadow-hook";
 import type { CustomerScores, ScoringContext } from "./types";
+import { getCustomerTagLabelMap } from "@/lib/customer-tags/queries";
+import { resolveCustomerSourceDisplayLabel } from "@/lib/customer-sources/resolver";
 
 export type CustomerWithScores = CustomerView & CustomerScores;
 
@@ -365,6 +367,11 @@ export async function enrichCustomerResponse(
       ? await resolveCustomerAccessOptions(db, user, customer.id)
       : {});
   const view = formatCustomerForUser(user, customer, resolvedOptions);
+  const tagLabelMap = await getCustomerTagLabelMap(db);
+  const sourceDisplayLabel = resolveCustomerSourceDisplayLabel(
+    customer.source,
+    tagLabelMap,
+  );
   const includeMissing =
     getCustomerAccessLevel(user, customer, resolvedOptions) === "full";
   const scores = getCustomerScores(
@@ -374,7 +381,10 @@ export async function enrichCustomerResponse(
     now,
     { includeMissingFields: includeMissing },
   );
-  const enriched = attachScoresToView(view, scores);
+  const enriched = attachScoresToView(
+    { ...view, sourceDisplayLabel },
+    scores,
+  );
   invokeStateV2ShadowForDetail({
     user,
     customer,

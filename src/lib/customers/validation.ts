@@ -1,7 +1,7 @@
 import {
-  CUSTOMER_SOURCE_KEYS,
   CUSTOMER_SOURCE_OTHER_KEY,
 } from "@/lib/constants/customer-sources";
+import { assertWritableCustomerSourceKey } from "@/lib/customer-sources/keys";
 import {
   isCustomerType,
   isApprovalOnlySalesStage,
@@ -98,6 +98,8 @@ export type CustomerValidationContext = {
   existingSalesStage?: string | null;
   /** Active customer tag keys from customer_tags (falls back to constants). */
   allowedSourceKeys?: readonly string[];
+  /** When updating, the customer's current persisted source key. */
+  existingSourceKey?: string | null;
   /** Require salesStage on create (not on update). */
   requireSalesStage?: boolean;
   /** Apply create-time nameStatus / placeholder rules (POST create only). */
@@ -316,10 +318,19 @@ export function validateCustomerInput(
     });
   }
 
-  if (
-    !input.source ||
-    !(context?.allowedSourceKeys ?? CUSTOMER_SOURCE_KEYS).includes(input.source)
-  ) {
+  const sourceUnchanged =
+    context?.isUpdate &&
+    context.existingSourceKey != null &&
+    input.source === context.existingSourceKey;
+
+  const allowedKeys = context?.allowedSourceKeys ?? [];
+  const sourceAllowed =
+    sourceUnchanged ||
+    (input.source &&
+      allowedKeys.length > 0 &&
+      assertWritableCustomerSourceKey(input.source, allowedKeys));
+
+  if (!input.source || !sourceAllowed) {
     errors.push({
       field: "source",
       message: "请从固定字典选择客户来源",

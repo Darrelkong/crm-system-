@@ -19,6 +19,7 @@ export type ImportCsvColumn = (typeof IMPORT_CSV_COLUMNS)[number];
 
 export const IMPORT_TEMPLATE_HEADER = IMPORT_CSV_COLUMNS.join(",");
 
+/** @deprecated Import validation uses getSelectableCustomerSourceKeys(db) at runtime. */
 export const IMPORT_SOURCE_KEYS = CUSTOMER_SOURCE_KEYS;
 export const IMPORT_CUSTOMER_TYPES = CUSTOMER_TYPES;
 export const IMPORT_SALES_STAGES = SALES_STAGES;
