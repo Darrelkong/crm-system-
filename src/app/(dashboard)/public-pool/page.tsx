@@ -17,24 +17,21 @@ const ADMIN_CLAIM_STATUS: AdminClaimStatus = {
 
 export default async function PublicPoolPage() {
   const user = await requireAuthCached();
+  const isAdmin = user.role === "admin";
 
-  const staffStatusPromise =
-    user.role === "staff" ? getStaffClaimStatus(user.id) : null;
-
-  const [items, staffClaimStatus] = await Promise.all([
-    formatPublicPoolListForUser(user, {
-      ...(staffStatusPromise ? { staffStatus: staffStatusPromise } : {}),
-    }),
-    staffStatusPromise ?? Promise.resolve(null),
+  const [items, claimStatus] = await Promise.all([
+    isAdmin
+      ? formatPublicPoolListForUser(user)
+      : Promise.resolve([] as Awaited<
+          ReturnType<typeof formatPublicPoolListForUser>
+        >),
+    isAdmin ? Promise.resolve(ADMIN_CLAIM_STATUS) : getStaffClaimStatus(user.id),
   ]);
-
-  const claimStatus =
-    user.role === "staff" ? staffClaimStatus! : ADMIN_CLAIM_STATUS;
 
   return (
     <PublicPoolPageClient
       items={items}
-      isAdmin={user.role === "admin"}
+      isAdmin={isAdmin}
       claimStatus={claimStatus}
     />
   );

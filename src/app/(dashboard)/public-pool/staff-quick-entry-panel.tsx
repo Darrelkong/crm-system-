@@ -76,6 +76,7 @@ import {
 
 type Props = {
   isAdmin?: boolean;
+  onViewPoolRefresh?: () => void;
 };
 
 type PanelView =
@@ -132,7 +133,9 @@ function fieldDomId(rowId: string, field: QuickEntryFieldKey): string {
   return `${rowId}-wechat`;
 }
 
-export function StaffQuickEntryPanel(_props: Props) {
+export function StaffQuickEntryPanel({
+  onViewPoolRefresh,
+}: Props) {
   const { t, locale } = useTranslation();
   const router = useRouter();
   const titleId = useId();
@@ -192,6 +195,12 @@ export function StaffQuickEntryPanel(_props: Props) {
   const submittingRef = useRef(false);
   const verifyingRef = useRef(false);
   const submitIntentRef = useRef<SubmitIntent>("done");
+
+  function handleViewPool() {
+    router.refresh();
+    onViewPoolRefresh?.();
+    closePanelForce();
+  }
 
   const resetBatchInMemory = useCallback(() => {
     const batch = createNewQuickEntryBatch();
@@ -992,10 +1001,7 @@ export function StaffQuickEntryPanel(_props: Props) {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => {
-            router.refresh();
-            closePanelForce();
-          }}
+          onClick={handleViewPool}
         >
           {t("publicPool.quickEntry.resultViewPool")}
         </Button>
@@ -1165,10 +1171,7 @@ export function StaffQuickEntryPanel(_props: Props) {
               }}
               onBackEdit={handleBackToEdit}
               onNewBatch={handleNewBatch}
-              onViewPool={() => {
-                router.refresh();
-                closePanelForce();
-              }}
+              onViewPool={handleViewPool}
               onClose={closePanelForce}
               sourceMenuOptions={sourceMenuOptions}
               t={t}
@@ -1185,10 +1188,7 @@ export function StaffQuickEntryPanel(_props: Props) {
               setDetailOpenIds={setResultDetailOpenIds}
               onReturnIncomplete={handleReturnIncomplete}
               onNewBatch={handleNewBatch}
-              onViewPool={() => {
-                router.refresh();
-                closePanelForce();
-              }}
+              onViewPool={handleViewPool}
               onClose={closePanelForce}
               showActions={false}
               sourceMenuOptions={sourceMenuOptions}

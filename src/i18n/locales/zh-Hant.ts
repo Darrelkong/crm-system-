@@ -2060,6 +2060,7 @@ const zhHant: Messages = {
     releaseSuccess: "釋放成功",
     releaseFailed: "釋放失敗",
     noClients: "暫無公共池客戶",
+    loadingList: "正在載入公共池…",
     alreadyClaimed: "此客戶已被其他團隊成員領取",
     backToList: "返回客戶列表",
     clientName: "客戶姓名",

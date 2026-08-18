@@ -2059,6 +2059,7 @@ const zhHans: Messages = {
     releaseSuccess: "释放成功",
     releaseFailed: "释放失败",
     noClients: "暂无公共池客户",
+    loadingList: "正在加载公共池…",
     alreadyClaimed: "此客户已被其他团队成员领取",
     backToList: "返回客户列表",
     clientName: "客户姓名",

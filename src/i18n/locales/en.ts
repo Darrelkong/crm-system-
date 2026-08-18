@@ -2129,6 +2129,7 @@ const en = {
     releaseSuccess: "Released successfully.",
     releaseFailed: "Failed to release client.",
     noClients: "No clients in the public pool.",
+    loadingList: "Loading public pool…",
     alreadyClaimed:
       "This client has already been claimed by another team member.",
     backToList: "Back to Client List",

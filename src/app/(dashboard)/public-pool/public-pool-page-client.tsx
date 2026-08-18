@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { PageIntro } from "@/components/ui/page-intro";
 import { useTranslation } from "@/i18n/provider";
 import { resolveClaimBlockReason } from "@/i18n/resolve-claim-block-reason";
@@ -13,6 +13,10 @@ import { PublicPoolClient } from "./public-pool-client";
 import { StaffRandomClaimPanel } from "./staff-random-claim-panel";
 import { StaffMobileClaimSummary } from "./staff-mobile-claim-summary";
 import { StaffQuickEntryPanel } from "./staff-quick-entry-panel";
+import {
+  StaffDesktopPublicPoolLoader,
+  type StaffDesktopListControls,
+} from "./staff-desktop-public-pool-loader";
 import { shouldShowStaffRandomClaim } from "./random-claim-ui";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -30,14 +34,24 @@ export function PublicPoolPageClient({
   const { t } = useTranslation();
   const [claimStatus, setClaimStatus] = useState(initialClaimStatus);
   const [listItems, setListItems] = useState(items);
+  const staffListControlsRef = useRef<StaffDesktopListControls | null>(null);
+
+  const handleStaffListControlsReady = useCallback(
+    (controls: StaffDesktopListControls) => {
+      staffListControlsRef.current = controls;
+    },
+    [],
+  );
 
   useEffect(() => {
     setClaimStatus(initialClaimStatus);
   }, [initialClaimStatus]);
 
   useEffect(() => {
-    setListItems(items);
-  }, [items]);
+    if (isAdmin) {
+      setListItems(items);
+    }
+  }, [items, isAdmin]);
 
   const staffStatus =
     !isAdmin && "quotaLimit" in claimStatus
@@ -102,12 +116,23 @@ export function PublicPoolPageClient({
           claimStatus={staffStatus}
           onClaimStatusChange={setClaimStatus}
           onClaimedCustomer={(customerId) => {
-            setListItems((prev) => prev.filter((c) => c.id !== customerId));
+            if (isAdmin) {
+              setListItems((prev) => prev.filter((c) => c.id !== customerId));
+              return;
+            }
+            staffListControlsRef.current?.removeCustomer(customerId);
           }}
         />
       )}
 
-      <StaffQuickEntryPanel isAdmin={isAdmin} />
+      <StaffQuickEntryPanel
+        isAdmin={isAdmin}
+        onViewPoolRefresh={
+          isAdmin
+            ? undefined
+            : () => staffListControlsRef.current?.refreshList()
+        }
+      />
 
       {!isAdmin && (
         <p className="mb-4 hidden text-sm crm-text-secondary md:block">
@@ -115,7 +140,13 @@ export function PublicPoolPageClient({
         </p>
       )}
 
-      <PublicPoolClient initialItems={listItems} isAdmin={isAdmin} />
+      {isAdmin ? (
+        <PublicPoolClient initialItems={listItems} isAdmin />
+      ) : (
+        <StaffDesktopPublicPoolLoader
+          onControlsReady={handleStaffListControlsReady}
+        />
+      )}
     </div>
   );
 }
