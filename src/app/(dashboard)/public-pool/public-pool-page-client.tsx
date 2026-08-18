@@ -107,7 +107,7 @@ export function PublicPoolPageClient({
       <StaffQuickEntryPanel isAdmin={isAdmin} />
 
       {!isAdmin && (
-        <p className="mb-4 text-sm text-[#6B7890]">
+        <p className="mb-4 hidden text-sm crm-text-secondary md:block">
           {t("publicPool.maskedDataNotice")}
         </p>
       )}

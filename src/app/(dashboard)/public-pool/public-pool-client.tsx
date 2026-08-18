@@ -33,6 +33,7 @@ import {
   type PublicPoolCustomerView,
 } from "@/lib/public-pool/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { PublicPoolMobileCard } from "./public-pool-mobile-card";
 import {
   shouldShowActionsColumn,
   shouldShowRowClaimButton,
@@ -102,15 +103,13 @@ export function PublicPoolClient({
     }
   }
 
-  if (items.length === 0 && !claimSuccessId) {
-    return <EmptyState message={t("publicPool.noClients")} />;
-  }
+  const listEmpty = items.length === 0 && !claimSuccessId;
 
-  return (
-    <div>
+  const statusAlerts = (
+    <>
       {claimSuccessId && (
         <div className="alert-success mb-4 flex flex-col gap-3 px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p className="font-medium text-[#172033]">{t("publicPool.claimSuccess")}</p>
+          <p className="font-medium crm-text">{t("publicPool.claimSuccess")}</p>
           <Link href={`/customers/${claimSuccessId}`}>
             <Button type="button" size="sm" variant="secondary">
               {t("publicPool.viewNow")}
@@ -120,10 +119,63 @@ export function PublicPoolClient({
       )}
 
       {error && (
-        <div className="alert-error mb-4 px-4 py-3 text-sm">{error}</div>
+        <div className="alert-error mb-4 px-4 py-3 text-sm" role="alert">
+          {error}
+        </div>
       )}
+    </>
+  );
 
-      {items.length === 0 ? (
+  const adminMobileCards = (
+    <div className="space-y-3 md:hidden">
+      {listEmpty ? (
+        <EmptyState message={t("publicPool.noClients")} />
+      ) : (
+        items.map((c) => {
+          if (!isAdminPublicPoolCustomerView(c)) return null;
+          const blockReason = resolveClaimBlockReason(
+            t,
+            c.claimBlockedReasonKey,
+            c.claimBlockedReasonParams,
+          );
+          return (
+            <PublicPoolMobileCard
+              key={c.id}
+              customer={c}
+              locale={locale}
+              pendingNameLabel={t("customers.namePendingBadge")}
+              customerTypeLabel={customerType(c.customerType)}
+              sourceLabel={c.sourceDisplayLabel ?? c.source}
+              salesStageLabel={salesStage(c.salesStage)}
+              lastValidFollowUpLabel={t("publicPool.lastValidFollowUp")}
+              lastValidFollowUpValue={displayFollowUpDate(c.lastValidFollowUpAt)}
+              lastFollowUpLabel={t("publicPool.lastFollowUp")}
+              lastFollowUpValue={displayFollowUpDate(c.lastFollowUpAt)}
+              poolEnteredAtLabel={t("publicPool.poolEnteredAt")}
+              poolEnteredAtValue={formatPoolDate(c.poolEnteredAt)}
+              poolReasonLabel={t("publicPool.poolReason")}
+              phoneLabel={t("common.phone")}
+              wechatLabel={t("publicPool.wechat")}
+              emailLabel={t("common.email")}
+              viewLabel={t("publicPool.viewNow")}
+              claimLabel={t("publicPool.claim")}
+              claimingLabel={t("publicPool.claiming")}
+              claiming={claimingId === c.id}
+              canClaim={c.canClaim}
+              blockReason={blockReason}
+              onClaim={() => {
+                void handleClaim(c.id);
+              }}
+            />
+          );
+        })
+      )}
+    </div>
+  );
+
+  const poolTable = (
+    <>
+      {listEmpty ? (
         <EmptyState message={t("publicPool.noClients")} />
       ) : (
         <TableShell>
@@ -174,7 +226,7 @@ export function PublicPoolClient({
                           )}
                         />
                       ) : (
-                        <span className="font-medium text-[#172033]">
+                        <span className="font-medium crm-text">
                           {c.maskedName}
                         </span>
                       )}
@@ -186,10 +238,10 @@ export function PublicPoolClient({
                     </Td>
                     <Td>
                       <div className="space-y-1 text-sm">
-                        <span className="block text-[#172033]">
+                        <span className="block crm-text">
                           {customerType(c.customerType)}
                         </span>
-                        <span className="block text-xs text-[#6B7890]">
+                        <span className="block text-xs crm-text-secondary">
                           {c.sourceDisplayLabel ?? c.source}
                         </span>
                         <span
@@ -203,32 +255,32 @@ export function PublicPoolClient({
                       <CompletenessBadge score={c.completenessScore} />
                     </Td>
                     <Td>
-                      <div className="space-y-1 text-xs text-[#6B7890]">
+                      <div className="space-y-1 text-xs crm-text-secondary">
                         <div>
-                          <span className="font-medium text-[#172033]">
+                          <span className="font-medium crm-text">
                             {t("publicPool.lastValidFollowUp")}:{" "}
                           </span>
                           {displayFollowUpDate(c.lastValidFollowUpAt)}
                         </div>
                         <div>
-                          <span className="font-medium text-[#172033]">
+                          <span className="font-medium crm-text">
                             {t("publicPool.lastFollowUp")}:{" "}
                           </span>
                           {displayFollowUpDate(c.lastFollowUpAt)}
                         </div>
                         <div>
-                          <span className="font-medium text-[#172033]">
+                          <span className="font-medium crm-text">
                             {t("publicPool.poolEnteredAt")}:{" "}
                           </span>
                           {formatPoolDate(c.poolEnteredAt)}
                         </div>
                       </div>
                     </Td>
-                    <Td className="max-w-[220px] text-[#6B7890]">
+                    <Td className="max-w-[220px] crm-text-secondary">
                       {poolReasonDisplay}
                     </Td>
                     {isAdmin && contact && (
-                      <Td className="text-[#6B7890]">
+                      <Td className="crm-text-secondary">
                         <span className="block text-sm">{contact.phone}</span>
                         {contact.wechatId && (
                           <span className="block text-xs">
@@ -248,7 +300,9 @@ export function PublicPoolClient({
                           type="button"
                           size="sm"
                           disabled={!c.canClaim || claimingId === c.id}
-                          onClick={() => handleClaim(c.id)}
+                          onClick={() => {
+                            void handleClaim(c.id);
+                          }}
                           title={blockReason ?? undefined}
                         >
                           {claimingId === c.id
@@ -269,6 +323,23 @@ export function PublicPoolClient({
           </DataTable>
         </TableShell>
       )}
+    </>
+  );
+
+  if (!isAdmin) {
+    return (
+      <div className="hidden md:block">
+        {statusAlerts}
+        {poolTable}
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      {statusAlerts}
+      {adminMobileCards}
+      <div className="hidden md:block">{poolTable}</div>
     </div>
   );
 }
