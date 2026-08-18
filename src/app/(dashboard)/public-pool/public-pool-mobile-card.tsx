@@ -12,6 +12,7 @@ import {
   type AdminPublicPoolCustomerView,
 } from "@/lib/public-pool/queries";
 import { ui } from "@/lib/ui/classes";
+import { PublicPoolReasonDisplay } from "./public-pool-reason-display";
 
 type InfoRowProps = {
   label: string;
@@ -60,6 +61,8 @@ export function PublicPoolMobileCard({
   poolEnteredAtLabel,
   poolEnteredAtValue,
   poolReasonLabel,
+  previousOwnerLabel,
+  previousOwnerUnknownLabel,
   phoneLabel,
   wechatLabel,
   emailLabel,
@@ -85,6 +88,8 @@ export function PublicPoolMobileCard({
   poolEnteredAtLabel: string;
   poolEnteredAtValue: string;
   poolReasonLabel: string;
+  previousOwnerLabel: string;
+  previousOwnerUnknownLabel: string;
   phoneLabel: string;
   wechatLabel: string;
   emailLabel: string;
@@ -143,14 +148,19 @@ export function PublicPoolMobileCard({
         <InfoRow label={poolEnteredAtLabel} value={poolEnteredAtValue} />
       </div>
 
-      {poolReason && (
+      {(poolReason || customer.previousOwnerDisplayName !== undefined) && (
         <div className="mt-4 border-t crm-border pt-4">
           <p className={`text-xs font-medium ${ui.textSecondary}`}>
             {poolReasonLabel}
           </p>
-          <p className={`mt-1 text-sm ${ui.textPrimary} [overflow-wrap:anywhere]`}>
-            {poolReason}
-          </p>
+          <div className="mt-1">
+            <PublicPoolReasonDisplay
+              poolReason={poolReason}
+              previousOwnerDisplayName={customer.previousOwnerDisplayName}
+              previousOwnerLabel={previousOwnerLabel}
+              previousOwnerUnknownLabel={previousOwnerUnknownLabel}
+            />
+          </div>
         </div>
       )}
 

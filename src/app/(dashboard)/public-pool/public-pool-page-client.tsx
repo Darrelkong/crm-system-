@@ -11,6 +11,7 @@ import type {
 import type { PublicPoolCustomerView } from "@/lib/public-pool/queries";
 import { PublicPoolClient } from "./public-pool-client";
 import { StaffRandomClaimPanel } from "./staff-random-claim-panel";
+import { StaffMobileClaimSummary } from "./staff-mobile-claim-summary";
 import { StaffQuickEntryPanel } from "./staff-quick-entry-panel";
 import { shouldShowStaffRandomClaim } from "./random-claim-ui";
 import { formatHongKongDateTime } from "@/lib/timezone";
@@ -52,29 +53,31 @@ export function PublicPoolPageClient({
         )}
       />
 
+      {staffStatus && <StaffMobileClaimSummary staffStatus={staffStatus} />}
+
       {staffStatus && (
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="mb-6 hidden gap-4 md:grid sm:grid-cols-3">
           <div className="surface-card p-4">
-            <p className="text-xs text-[#6B7890]">
+            <p className="text-xs crm-text-secondary">
               {t("publicPool.claimedLast7Days")}
             </p>
-            <p className="mt-1 text-xl font-semibold">
+            <p className="mt-1 text-xl font-semibold tabular-nums crm-text">
               {staffStatus.claimedInLast7Days} / {staffStatus.quotaLimit}
             </p>
           </div>
           <div className="surface-card p-4">
-            <p className="text-xs text-[#6B7890]">
+            <p className="text-xs crm-text-secondary">
               {t("publicPool.remainingQuota")}
             </p>
-            <p className="mt-1 text-xl font-semibold">
+            <p className="mt-1 text-xl font-semibold tabular-nums crm-text">
               {staffStatus.remainingQuota}
             </p>
           </div>
           <div className="surface-card p-4">
-            <p className="text-xs text-[#6B7890]">
+            <p className="text-xs crm-text-secondary">
               {t("publicPool.claimStatus")}
             </p>
-            <p className="mt-1 text-sm font-medium text-[#172033]">
+            <p className="mt-1 text-sm font-medium crm-text">
               {staffStatus.canClaimNow
                 ? t("publicPool.canClaim")
                 : resolveClaimBlockReason(
@@ -84,7 +87,7 @@ export function PublicPoolPageClient({
                   )}
             </p>
             {staffStatus.cooldownUntil && (
-              <p className="mt-1 text-xs text-[#6B7890]">
+              <p className="mt-1 text-xs crm-text-secondary">
                 {t("publicPool.cooldownUntil", {
                   date: formatHongKongDateTime(staffStatus.cooldownUntil),
                 })}

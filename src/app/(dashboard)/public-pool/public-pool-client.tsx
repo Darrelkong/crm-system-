@@ -34,6 +34,7 @@ import {
 } from "@/lib/public-pool/queries";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import { PublicPoolMobileCard } from "./public-pool-mobile-card";
+import { PublicPoolReasonDisplay } from "./public-pool-reason-display";
 import {
   shouldShowActionsColumn,
   shouldShowRowClaimButton,
@@ -154,6 +155,8 @@ export function PublicPoolClient({
               poolEnteredAtLabel={t("publicPool.poolEnteredAt")}
               poolEnteredAtValue={formatPoolDate(c.poolEnteredAt)}
               poolReasonLabel={t("publicPool.poolReason")}
+              previousOwnerLabel={t("publicPool.previousOwner")}
+              previousOwnerUnknownLabel={t("publicPool.previousOwnerUnknown")}
               phoneLabel={t("common.phone")}
               wechatLabel={t("publicPool.wechat")}
               emailLabel={t("common.email")}
@@ -277,7 +280,18 @@ export function PublicPoolClient({
                       </div>
                     </Td>
                     <Td className="max-w-[220px] crm-text-secondary">
-                      {poolReasonDisplay}
+                      {adminView ? (
+                        <PublicPoolReasonDisplay
+                          poolReason={poolReasonDisplay}
+                          previousOwnerDisplayName={c.previousOwnerDisplayName}
+                          previousOwnerLabel={t("publicPool.previousOwner")}
+                          previousOwnerUnknownLabel={t(
+                            "publicPool.previousOwnerUnknown",
+                          )}
+                        />
+                      ) : (
+                        poolReasonDisplay
+                      )}
                     </Td>
                     {isAdmin && contact && (
                       <Td className="crm-text-secondary">

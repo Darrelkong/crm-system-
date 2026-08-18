@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
@@ -60,6 +61,7 @@ describe("public pool list query scope", () => {
     assert.equal(poolItem.accessLevel, "masked");
     assert.equal("customerName" in poolItem, false);
     assert.equal("poolReason" in poolItem, false);
+    assert.equal("previousOwnerDisplayName" in poolItem, false);
     assert.equal("phone" in poolItem, false);
     assert.ok(poolItem.maskedName);
     assert.ok(typeof poolItem.poolReasonPreview === "string" || poolItem.poolReasonPreview === null);
@@ -74,5 +76,34 @@ describe("public pool list query scope", () => {
       assert.ok(poolItem.customerName);
       assert.ok("poolReason" in poolItem);
     }
+  });
+
+  it("admin formatted list resolves previousOwnerDisplayName from previous_owner_id", async () => {
+    await db
+      .update(schema.customers)
+      .set({ previousOwnerId: SEED_IDS.staffA })
+      .where(eq(schema.customers.id, SEED_IDS.customerPublicPool));
+
+    try {
+      const items = await formatPublicPoolListForUser(adminUser);
+      const poolItem = items.find(
+        (item) => item.id === SEED_IDS.customerPublicPool,
+      );
+      assert.ok(poolItem && poolItem.accessLevel === "full");
+      assert.equal(poolItem.previousOwnerDisplayName, "员工 A");
+    } finally {
+      await db
+        .update(schema.customers)
+        .set({ previousOwnerId: null })
+        .where(eq(schema.customers.id, SEED_IDS.customerPublicPool));
+    }
+  });
+
+  it("staff formatted list never includes previousOwnerDisplayName on any item", async () => {
+    const items = await formatPublicPoolListForUser(staffUser);
+    assert.equal(
+      items.every((item) => !("previousOwnerDisplayName" in item)),
+      true,
+    );
   });
 });

@@ -142,19 +142,26 @@ export function StaffRandomClaimPanel({
     : null;
 
   return (
-    <div className="mb-6 rounded-xl border border-[#E4E9F2] bg-[var(--surface-card,white)] p-4 dark:border-[#2A3344]">
+    <div className="mb-4 rounded-xl border border-[#E4E9F2] bg-[var(--surface-card,white)] p-4 md:mb-6 dark:border-[#2A3344]">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <p className="text-sm font-medium text-[#172033]">
+          <p className="text-sm font-medium crm-text">
             {t("publicPool.randomClaimButton")}
           </p>
           {disabledReason === "quota" && (
-            <p className="mt-1 text-xs text-[#6B7890]">
+            <p className="mt-1 text-xs crm-text-secondary">
               {t("publicPool.randomClaimNoQuota")}
             </p>
           )}
           {disabledReason === "blocked" && blockReason && (
-            <p className="mt-1 text-xs text-[#6B7890]">{blockReason}</p>
+            <p className="mt-1 hidden text-xs crm-text-secondary md:block">
+              {blockReason}
+            </p>
+          )}
+          {disabledReason === "blocked" && (
+            <p className="mt-1 text-xs crm-text-secondary md:hidden">
+              {t("publicPool.randomClaimCooldownHint")}
+            </p>
           )}
         </div>
         <Button

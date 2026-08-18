@@ -1,4 +1,4 @@
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import type { Customer } from "../../../drizzle/schema/customers";
@@ -136,6 +136,8 @@ export type AdminPublicPoolCustomerView = PublicPoolListItemBase & {
   customerName: string;
   nameStatus: string;
   poolReason: string | null;
+  /** Set only when previous_owner_id exists; null means user record missing. */
+  previousOwnerDisplayName?: string | null;
   accessLevel: "full";
   isMasked: false;
   phone?: string | null;
@@ -259,12 +261,56 @@ export function formatStaffPublicPoolCustomer(
   };
 }
 
+function resolveTeamMemberDisplayName(
+  subject: Pick<User, "displayName" | "role">,
+): string {
+  const trimmed = subject.displayName.trim();
+  if (trimmed) return trimmed;
+  if (subject.role === "admin") return "管理員";
+  return "";
+}
+
+async function loadPreviousOwnerDisplayNameMap(
+  db: Database,
+  customers: Customer[],
+): Promise<Map<string, string>> {
+  const ownerIds = [
+    ...new Set(
+      customers
+        .map((customer) => customer.previousOwnerId)
+        .filter((id): id is string => Boolean(id)),
+    ),
+  ];
+  if (ownerIds.length === 0) {
+    return new Map();
+  }
+
+  const rows = await db
+    .select({
+      id: schema.users.id,
+      displayName: schema.users.displayName,
+      role: schema.users.role,
+    })
+    .from(schema.users)
+    .where(inArray(schema.users.id, ownerIds));
+
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const name = resolveTeamMemberDisplayName(row);
+    if (name) {
+      map.set(row.id, name);
+    }
+  }
+  return map;
+}
+
 export function formatAdminPublicPoolCustomer(
   user: User,
   customer: Customer,
   claim: ClaimEligibility,
   hasFollowUp: boolean,
   sourceDisplayLabel: string,
+  previousOwnerDisplayName?: string | null,
 ): AdminPublicPoolCustomerView {
   const base = formatCustomerForUser(user, customer);
   const shared = buildPublicPoolListItemBase(
@@ -279,6 +325,9 @@ export function formatAdminPublicPoolCustomer(
     customerName: customer.customerName,
     nameStatus: customer.nameStatus,
     poolReason: customer.poolReason ?? null,
+    ...(customer.previousOwnerId
+      ? { previousOwnerDisplayName: previousOwnerDisplayName ?? null }
+      : {}),
     accessLevel: "full",
     isMasked: false,
     phone: base.phone,
@@ -295,6 +344,7 @@ export function formatPublicPoolCustomer(
   claim: ClaimEligibility,
   hasFollowUp: boolean,
   sourceDisplayLabel: string,
+  previousOwnerDisplayName?: string | null,
 ): PublicPoolCustomerView {
   if (user.role === "admin") {
     return formatAdminPublicPoolCustomer(
@@ -303,6 +353,7 @@ export function formatPublicPoolCustomer(
       claim,
       hasFollowUp,
       sourceDisplayLabel,
+      previousOwnerDisplayName,
     );
   }
 
@@ -526,6 +577,11 @@ export async function formatPublicPoolListForUser(
     getCustomerTagLabelMap(db),
   ]);
 
+  const previousOwnerNameMap =
+    user.role === "admin"
+      ? await loadPreviousOwnerDisplayNameMap(db, customers)
+      : null;
+
   return customers.map((customer) => {
     const claim = evaluateCustomerClaimEligibility(
       user,
@@ -536,12 +592,16 @@ export async function formatPublicPoolListForUser(
       customer.source,
       tagLabelMap,
     );
+    const previousOwnerDisplayName = customer.previousOwnerId
+      ? (previousOwnerNameMap?.get(customer.previousOwnerId) ?? null)
+      : undefined;
     return formatPublicPoolCustomer(
       user,
       customer,
       claim,
       followUpSet.has(customer.id),
       sourceDisplayLabel,
+      previousOwnerDisplayName,
     );
   });
 }
