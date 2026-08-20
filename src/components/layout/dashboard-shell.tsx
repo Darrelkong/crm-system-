@@ -27,12 +27,14 @@ export function DashboardShell({
   role,
   userName,
   children,
+  contentClassName,
 }: {
   titleKey: string;
   role: "admin" | "staff";
   userName: string;
   userEmail?: string;
   children: React.ReactNode;
+  contentClassName?: string;
 }) {
   const { t } = useTranslation();
   const pathname = usePathname() ?? "";
@@ -132,7 +134,14 @@ export function DashboardShell({
             </div>
           </header>
 
-          <main className={`crm-main-content ${ui.page} pb-24 md:pb-8`}>{children}</main>
+          <main
+            className={cn(
+              "crm-main-content pb-24 md:pb-8",
+              contentClassName ?? ui.page,
+            )}
+          >
+            {children}
+          </main>
         </div>
       </div>
 

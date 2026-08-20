@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Mail } from "lucide-react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
@@ -319,6 +319,18 @@ export function CustomerDetailClient({
               </Button>
             </Link>
           )}
+          <Link
+            href={
+              view.email
+                ? `/mail?customerId=${encodeURIComponent(id)}&customerName=${encodeURIComponent(view.customerName)}&email=${encodeURIComponent(view.email)}`
+                : `/mail?customerId=${encodeURIComponent(id)}&customerName=${encodeURIComponent(view.customerName)}`
+            }
+          >
+            <Button variant="secondary" size="md">
+              <Mail className="mr-1.5 h-4 w-4" aria-hidden />
+              {t("nav.mail")}
+            </Button>
+          </Link>
           {showEditButton && (
             <Link href={`/customers/${id}/edit`}>
               <Button size="md">{t("customers.editClient")}</Button>

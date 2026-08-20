@@ -9,6 +9,7 @@ import {
   Download,
   FileText,
   LayoutDashboard,
+  Mail,
   Megaphone,
   MonitorSmartphone,
   ScrollText,
@@ -30,6 +31,7 @@ export type NavIconId =
   | "addCustomer"
   | "followUps"
   | "publicPool"
+  | "mail"
   | "approvals"
   | "reports"
   | "notifications"
@@ -56,6 +58,7 @@ export const navIcons: Record<NavIconId, LucideIcon> = {
   addCustomer: UserPlus,
   followUps: FileText,
   publicPool: Waves,
+  mail: Mail,
   approvals: CheckSquare,
   reports: BarChart3,
   notifications: Bell,

@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ClipboardList,
   LayoutDashboard,
+  Mail,
   Menu,
   Users,
   Waves,
@@ -27,9 +28,11 @@ import {
   useNavigationPending,
 } from "@/components/layout/navigation-pending";
 import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
+import { MAIL_PROTOTYPE_UNREAD_BADGE } from "@/lib/mail/prototype/mock-data";
 
 const WORK_ITEMS_HREF_PREFIX = "/work-items";
 const APPROVALS_HREF = "/approvals";
+const MAIL_HREF = "/mail";
 
 function isWorkItemsNavHref(href: string): boolean {
   return href === WORK_ITEMS_HREF_PREFIX || href.startsWith(`${WORK_ITEMS_HREF_PREFIX}?`);
@@ -59,11 +62,13 @@ function NavLinkRow({
     !isSameNavTarget(link.href, pathname);
 
   const Icon = navIcons[link.icon];
-  const label = t(link.labelKey);
+  const label =
+    link.labelKey === "nav.mail" ? "Mail" : t(link.labelKey);
   const unreadCount = useNotificationUnreadCount();
   const approvalPendingCount = useApprovalPendingCount();
   const showNotificationBadge = isWorkItemsNavHref(link.href);
   const showApprovalBadge = link.href === APPROVALS_HREF;
+  const showMailBadge = link.href === MAIL_HREF;
 
   function handleNavigate() {
     beginNavigationPending(navigationPending, link.href, pathname);
@@ -102,6 +107,12 @@ function NavLinkRow({
                   variant="overlay"
                 />
               )}
+              {showMailBadge && (
+                <NotificationCountBadge
+                  count={MAIL_PROTOTYPE_UNREAD_BADGE}
+                  variant="overlay"
+                />
+              )}
             </span>
             <span className="truncate">{label}</span>
             {showNotificationBadge && (
@@ -113,6 +124,12 @@ function NavLinkRow({
             {showApprovalBadge && (
               <NotificationCountBadge
                 count={approvalPendingCount}
+                className="ml-auto"
+              />
+            )}
+            {showMailBadge && (
+              <NotificationCountBadge
+                count={MAIL_PROTOTYPE_UNREAD_BADGE}
                 className="ml-auto"
               />
             )}
@@ -177,6 +194,9 @@ function NavLinkRow({
           {collapsed && showApprovalBadge && (
             <NotificationCountBadge count={approvalPendingCount} variant="overlay" />
           )}
+          {collapsed && showMailBadge && (
+            <NotificationCountBadge count={MAIL_PROTOTYPE_UNREAD_BADGE} variant="overlay" />
+          )}
         </span>
         {!collapsed && (
           <>
@@ -186,6 +206,9 @@ function NavLinkRow({
             )}
             {showApprovalBadge && (
               <NotificationCountBadge count={approvalPendingCount} className="ml-auto" />
+            )}
+            {showMailBadge && (
+              <NotificationCountBadge count={MAIL_PROTOTYPE_UNREAD_BADGE} className="ml-auto" />
             )}
           </>
         )}
@@ -307,6 +330,7 @@ export function MobileBottomNav({
   const icons: Record<string, ComponentType<{ className?: string }>> = {
     dashboard: LayoutDashboard,
     customers: Users,
+    mail: Mail,
     notifications: Bell,
     workItems: ClipboardList,
     publicPool: Waves,
@@ -364,8 +388,16 @@ export function MobileBottomNav({
                       variant="overlay"
                     />
                   )}
+                  {item.icon === "mail" && (
+                    <NotificationCountBadge
+                      count={MAIL_PROTOTYPE_UNREAD_BADGE}
+                      variant="overlay"
+                    />
+                  )}
                 </span>
-                <span className="max-w-full truncate">{t(item.labelKey)}</span>
+                <span className="max-w-full truncate">
+                  {item.labelKey === "nav.mail" ? "Mail" : t(item.labelKey)}
+                </span>
               </Link>
             </li>
           );

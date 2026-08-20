@@ -342,6 +342,111 @@ html[data-theme="dark"] {
   border-color: rgba(120, 130, 160, 0.36);
 }
 
+.mail-row-selected {
+  background: color-mix(in srgb, var(--color-crm-primary) 6%, transparent);
+}
+
+[data-theme="dark"] .mail-row-selected {
+  background: color-mix(in srgb, var(--color-crm-primary) 10%, transparent);
+}
+
+.mail-nav-item {
+  color: var(--color-crm-text-secondary);
+  transition: background-color 150ms ease-out, color 150ms ease-out;
+}
+
+.mail-nav-item:hover {
+  background: var(--color-crm-bg-muted);
+  color: var(--color-crm-text);
+}
+
+.mail-nav-active {
+  background: color-mix(in srgb, var(--color-crm-primary) 10%, transparent);
+  color: var(--color-crm-primary);
+  font-weight: 500;
+}
+
+[data-theme="dark"] .mail-nav-active {
+  background: color-mix(in srgb, var(--color-crm-primary) 16%, transparent);
+  color: color-mix(in srgb, var(--color-crm-primary) 85%, white);
+}
+
+.mail-prototype-root {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  container-type: inline-size;
+  container-name: mail-workspace;
+}
+
+.mail-mobile-workspace,
+.mail-desktop-workspace {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Mobile folder popover — compact contextual menu (1A.4.1) */
+.mail-folder-popover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .mail-folder-popover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.28);
+}
+
+.mail-folder-popover-scroll {
+  scrollbar-width: thin;
+}
+
+.mail-folder-popover-row {
+  min-height: 2.5rem;
+  transition: background-color 120ms ease-out;
+}
+
+.mail-folder-popover-row-idle:hover {
+  background: var(--color-crm-bg-muted);
+}
+
+.mail-folder-popover-row-active {
+  background: color-mix(in srgb, var(--color-crm-primary) 7%, transparent);
+  color: var(--color-crm-text);
+}
+
+[data-theme="dark"] .mail-folder-popover-row-active {
+  background: color-mix(in srgb, var(--color-crm-primary) 12%, transparent);
+}
+
+.mail-pane-resizer {
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.mail-pane-resizer:active .mail-pane-resizer-line,
+.mail-pane-resizer:hover .mail-pane-resizer-line {
+  background: color-mix(in srgb, var(--color-crm-primary) 35%, var(--color-crm-border));
+}
+
+.mail-floating-compose {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .mail-floating-compose {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.mail-reading-body {
+  width: 100%;
+}
+
 /* ── Navigation ── */
 .nav-active {
   background: var(--color-crm-primary);

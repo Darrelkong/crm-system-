@@ -239,7 +239,8 @@ export function isAdminGuardedPath(pathname: string): boolean {
   return (
     pathname.startsWith("/admin") ||
     pathname.startsWith("/import") ||
-    pathname.startsWith("/export")
+    pathname.startsWith("/export") ||
+    pathname.startsWith("/mail")
   );
 }
 

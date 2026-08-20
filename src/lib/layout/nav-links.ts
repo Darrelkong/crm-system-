@@ -18,7 +18,14 @@ export type NavGroup = {
 export type MobileNavItem = {
   href: string;
   labelKey: string;
-  icon: "dashboard" | "customers" | "notifications" | "workItems" | "publicPool" | "more";
+  icon:
+    | "dashboard"
+    | "customers"
+    | "mail"
+    | "notifications"
+    | "workItems"
+    | "publicPool"
+    | "more";
 };
 
 function markActive(links: NavLink[], activeHref: string): NavLink[] {
@@ -43,6 +50,9 @@ export function isNavActive(href: string, pathname: string): boolean {
   }
   if (hrefPath === "/work-items") {
     return pathname === "/work-items" || pathname.startsWith("/work-items/");
+  }
+  if (hrefPath === "/mail") {
+    return pathname === "/mail" || pathname.startsWith("/mail/");
   }
   return pathname === hrefPath || pathname.startsWith(`${hrefPath}/`);
 }
@@ -95,6 +105,7 @@ export function getAdminNavGroups(activeHref?: string): NavGroup[] {
       links: [
         { href: dash, labelKey: "nav.dashboard", icon: "dashboard", mobilePrimary: true },
         { href: "/customers", labelKey: "nav.customers", icon: "customers", mobilePrimary: true },
+        { href: "/mail", labelKey: "nav.mail", icon: "mail", mobilePrimary: true },
         { href: "/follow-ups", labelKey: "nav.followUps", icon: "followUps" },
         { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
       ],
@@ -192,9 +203,22 @@ export function getRoleNavGroups(
 
 export function getMobileBottomNav(role: "admin" | "staff"): MobileNavItem[] {
   const dash = dashboardHref(role);
+  if (role === "admin") {
+    return [
+      { href: dash, labelKey: "nav.dashboard", icon: "dashboard" },
+      { href: "/customers", labelKey: "nav.customersMobile", icon: "customers" },
+      { href: "/mail", labelKey: "nav.mail", icon: "mail" },
+      {
+        href: "/work-items?tab=notifications&view=unread",
+        labelKey: "nav.workItems",
+        icon: "workItems",
+      },
+      { href: "#more", labelKey: "nav.more", icon: "more" },
+    ];
+  }
   return [
     { href: dash, labelKey: "nav.dashboard", icon: "dashboard" },
-    { href: "/customers", labelKey: "nav.customers", icon: "customers" },
+    { href: "/customers", labelKey: "nav.customersMobile", icon: "customers" },
     {
       href: "/work-items?tab=notifications&view=unread",
       labelKey: "nav.workItems",

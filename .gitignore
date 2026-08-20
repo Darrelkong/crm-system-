@@ -42,8 +42,14 @@ yarn-error.log*
 .wrangler/
 .deploy-size-*/
 .local-backups/
+.local-d1-backups/
+.release-prep-backup/
 backups/
+backup-*.sql
 pre-migrate-*.sql
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
 
 # typescript
 *.tsbuildinfo

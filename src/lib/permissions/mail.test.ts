@@ -1,0 +1,219 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import type { MailActorContext } from "@/lib/mail/actor-context";
+import { MailServiceError } from "@/lib/mail/errors";
+import {
+  assertMailAccessEnabled,
+  assertMailAccountManagement,
+  assertMailAddressAssignment,
+  assertMailAdminRead,
+  assertMailPermissionManagement,
+  assertMailSenderIdentityGrantManagement,
+  assertMailSenderIdentityManagement,
+  assertMailSignatureTemplateManagement,
+  hasAnyMailAdminGrant,
+  hasMailAdminGrant,
+  assertMailOutboundApprovalReview,
+  assertMailDeliveryHealth,
+  assertMailInboundFallbackConfigManagement,
+  hasMailDeliveryHealth,
+} from "@/lib/permissions/mail";
+
+function actor(
+  overrides: Partial<MailActorContext> = {},
+): MailActorContext {
+  return {
+    userId: "user-1",
+    sessionId: null,
+    crmRole: "admin",
+    mailAccessEnabled: true,
+    adminGrants: [],
+    audit: {},
+    ...overrides,
+  };
+}
+
+describe("mail permissions", () => {
+  it("denies actor without mail access", () => {
+    assert.throws(
+      () => assertMailAccessEnabled(actor({ mailAccessEnabled: false })),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("denies CRM admin without required mail admin grant", () => {
+    assert.throws(
+      () => assertMailAccountManagement(actor({ crmRole: "admin" })),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "FORBIDDEN",
+    );
+    assert.throws(
+      () => assertMailAddressAssignment(actor({ crmRole: "admin" })),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("allows account management with account_mgmt grant", () => {
+    assert.doesNotThrow(() =>
+      assertMailAccountManagement(
+        actor({ adminGrants: ["account_mgmt"] }),
+      ),
+    );
+  });
+
+  it("allows address assignment with address_assignment grant", () => {
+    assert.doesNotThrow(() =>
+      assertMailAddressAssignment(
+        actor({ adminGrants: ["address_assignment"] }),
+      ),
+    );
+  });
+
+  it("allows super_admin for both management grants", () => {
+    const superActor = actor({ adminGrants: ["super_admin"] });
+    assert.doesNotThrow(() => assertMailAccountManagement(superActor));
+    assert.doesNotThrow(() => assertMailAddressAssignment(superActor));
+    assert.doesNotThrow(() => assertMailAdminRead(superActor));
+  });
+
+  it("does not treat global_mail_read as management authority", () => {
+    const readActor = actor({ adminGrants: ["global_mail_read"] });
+    assert.equal(hasMailAdminGrant(readActor, "global_mail_read"), true);
+    assert.equal(
+      hasAnyMailAdminGrant(readActor, ["account_mgmt", "super_admin"]),
+      false,
+    );
+    assert.throws(() => assertMailAccountManagement(readActor));
+    assert.throws(() => assertMailAddressAssignment(readActor));
+    assert.throws(() => assertMailAdminRead(readActor));
+  });
+
+  it("keeps account management and address assignment separate for mutations", () => {
+    const accountActor = actor({ adminGrants: ["account_mgmt"] });
+    assert.doesNotThrow(() => assertMailAccountManagement(accountActor));
+    assert.throws(() => assertMailAddressAssignment(accountActor));
+  });
+
+  it("allows address_assignment to read mailbox metadata", () => {
+    const addressActor = actor({ adminGrants: ["address_assignment"] });
+    assert.doesNotThrow(() => assertMailAdminRead(addressActor));
+    assert.throws(() => assertMailAccountManagement(addressActor));
+  });
+
+  it("allows permission management with permission_mgmt grant", () => {
+    assert.doesNotThrow(() =>
+      assertMailPermissionManagement(
+        actor({ adminGrants: ["permission_mgmt"] }),
+      ),
+    );
+  });
+
+  it("documents super_admin does not imply sender identity send (no grant helper)", () => {
+    const superActor = actor({ adminGrants: ["super_admin"] });
+    assert.equal(hasMailAdminGrant(superActor, "super_admin"), true);
+    // Sender identity grants are a separate frozen model; no helper implies send.
+    assert.equal(
+      hasAnyMailAdminGrant(superActor, ["global_mail_read"]),
+      false,
+    );
+  });
+
+  it("allows address_assignment for sender identity management", () => {
+    assert.doesNotThrow(() =>
+      assertMailSenderIdentityManagement(
+        actor({ adminGrants: ["address_assignment"] }),
+      ),
+    );
+  });
+
+  it("denies global_mail_read for sender identity management", () => {
+    assert.throws(() =>
+      assertMailSenderIdentityManagement(
+        actor({ adminGrants: ["global_mail_read"] }),
+      ),
+    );
+  });
+
+  it("allows signature_template for signature management", () => {
+    assert.doesNotThrow(() =>
+      assertMailSignatureTemplateManagement(
+        actor({ adminGrants: ["signature_template"] }),
+      ),
+    );
+  });
+
+  it("denies sender identity send grant for signature management", () => {
+    assert.throws(() =>
+      assertMailSignatureTemplateManagement(
+        actor({ adminGrants: ["address_assignment"] }),
+      ),
+    );
+  });
+
+  it("uses address_assignment for sender identity grant administration", () => {
+    assert.doesNotThrow(() =>
+      assertMailSenderIdentityGrantManagement(
+        actor({ adminGrants: ["address_assignment"] }),
+      ),
+    );
+  });
+
+  it("allows delivery_health and super_admin for delivery health helper", () => {
+    assert.doesNotThrow(() =>
+      assertMailDeliveryHealth(actor({ adminGrants: ["delivery_health"] })),
+    );
+    assert.doesNotThrow(() =>
+      assertMailDeliveryHealth(actor({ adminGrants: ["super_admin"] })),
+    );
+    assert.throws(() =>
+      assertMailDeliveryHealth(actor({ adminGrants: ["account_mgmt"] })),
+    );
+    assert.throws(() =>
+      assertMailDeliveryHealth(actor({ adminGrants: ["global_mail_read"] })),
+    );
+    assert.throws(() =>
+      assertMailDeliveryHealth(actor({ adminGrants: ["approval_review"] })),
+    );
+  });
+
+  it("hasMailDeliveryHealth requires mail access and grant", () => {
+    assert.equal(
+      hasMailDeliveryHealth(actor({ adminGrants: ["delivery_health"] })),
+      true,
+    );
+    assert.equal(
+      hasMailDeliveryHealth(
+        actor({ adminGrants: ["delivery_health"], mailAccessEnabled: false }),
+      ),
+      false,
+    );
+  });
+
+  it("allows only super_admin to configure inbound fallback", () => {
+    assert.doesNotThrow(() =>
+      assertMailInboundFallbackConfigManagement(
+        actor({ adminGrants: ["super_admin"] }),
+      ),
+    );
+    assert.throws(() =>
+      assertMailInboundFallbackConfigManagement(
+        actor({ adminGrants: ["delivery_health"] }),
+      ),
+    );
+    assert.throws(() =>
+      assertMailInboundFallbackConfigManagement(
+        actor({ adminGrants: ["account_mgmt"] }),
+      ),
+    );
+    assert.throws(() =>
+      assertMailInboundFallbackConfigManagement(
+        actor({ crmRole: "admin", adminGrants: [] }),
+      ),
+    );
+  });
+});
