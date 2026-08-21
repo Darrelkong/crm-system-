@@ -29,6 +29,9 @@ import {
   assertMailAccessEnabled,
   assertMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
+import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
+import { resolveApprovalReturnedNotificationTarget } from "@/lib/mail/notification-source-recipient-resolution";
+import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 
 /**
  * Staff outbound Approval workflow service (frozen 0056).
@@ -532,8 +535,13 @@ export async function returnApproval(
     currentHashVersion: approval.currentHashVersion,
   };
 
+  const notificationTarget = await resolveApprovalReturnedNotificationTarget(
+    db,
+    approval.requestedByUserId,
+  );
+
   try {
-    await runMailBatch(db, [
+    const batchStatements: Parameters<typeof runMailBatch>[1] = [
       db
         .update(schema.mailOutboundApprovals)
         .set({
@@ -575,6 +583,22 @@ export async function returnApproval(
         note,
         now,
       }),
+    ];
+
+    if (notificationTarget) {
+      batchStatements.push(
+        buildResolvedNotificationIntentInsert(db, {
+          target: notificationTarget,
+          notificationType: "approval_returned",
+          sourceEntityType:
+            MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailOutboundApprovalEvent,
+          sourceEntityId: eventId,
+          now,
+        }),
+      );
+    }
+
+    batchStatements.push(
       buildApprovalPostStateGuardedAuditInsert(db, actor, postState, {
         auditId,
         now,
@@ -591,7 +615,9 @@ export async function returnApproval(
           status: "returned",
         },
       }),
-    ]);
+    );
+
+    await runMailBatch(db, batchStatements);
   } catch (error) {
     handleApprovalBatchError(error);
   }

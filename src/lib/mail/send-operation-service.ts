@@ -30,6 +30,9 @@ import {
   toSafeSendOperationView,
   type SafeSendOperationView,
 } from "@/lib/mail/send-operation-serialization";
+import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
+import { resolveImportantSendFailureNotificationTarget } from "@/lib/mail/notification-source-recipient-resolution";
+import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-eligibility";
 import type {
   MailTransportAdapter,
@@ -890,7 +893,15 @@ async function finalizeAttemptPermanentFailure(
     status: "failed",
   };
 
-  const results = await runMailBatch(db, [
+  const notificationTarget = await resolveImportantSendFailureNotificationTarget(
+    db,
+    {
+      sendOperationId: send.id,
+      initiatedByUserId: send.initiatedByUserId,
+    },
+  );
+
+  const batchStatements: Parameters<typeof runMailBatch>[1] = [
     db
       .update(schema.mailTransportAttempts)
       .set({
@@ -921,6 +932,21 @@ async function finalizeAttemptPermanentFailure(
           eq(schema.mailSendOperations.status, "processing"),
         ),
       ),
+  ];
+
+  if (notificationTarget) {
+    batchStatements.push(
+      buildResolvedNotificationIntentInsert(db, {
+        target: notificationTarget,
+        notificationType: "important_send_failure",
+        sourceEntityType: MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailSendOperation,
+        sourceEntityId: send.id,
+        now,
+      }),
+    );
+  }
+
+  batchStatements.push(
     buildSendPostStateGuardedAuditInsert(db, actor, postGuard, {
       auditId,
       now,
@@ -931,7 +957,9 @@ async function finalizeAttemptPermanentFailure(
         errorCode: result.errorCode ?? null,
       },
     }),
-  ]);
+  );
+
+  const results = await runMailBatch(db, batchStatements);
 
   assertBatchUpdateChanged(results, 0, "Attempt finalize permanent — attempt stale");
   assertBatchUpdateChanged(results, 1, "Attempt finalize permanent — send stale");

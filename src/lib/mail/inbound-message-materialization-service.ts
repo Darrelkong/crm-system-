@@ -32,6 +32,12 @@ import {
   type InboundMaterializationPostStateGuard,
 } from "@/lib/mail/guarded-batch";
 import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
+import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
+import {
+  resolveNewIncomingNotificationTarget,
+  type ResolvedNotificationTarget,
+} from "@/lib/mail/notification-source-recipient-resolution";
+import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 
 export type MaterializeInboundIngestionEventResult = {
   materialization: MailInboundMessageMaterialization;
@@ -409,6 +415,7 @@ async function finalizeMaterializationBatch(
     recipientCount: number;
     attachmentCount: number;
     internetMessageId: string | null;
+    notificationTarget?: ResolvedNotificationTarget | null;
   },
 ): Promise<MailInboundMessageMaterialization> {
   const now = new Date().toISOString();
@@ -431,6 +438,21 @@ async function finalizeMaterializationBatch(
       fallbackReason: input.fallbackReason,
       materializedAt: now,
     }),
+  ];
+
+  if (input.notificationTarget) {
+    statements.push(
+      buildResolvedNotificationIntentInsert(db, {
+        target: input.notificationTarget,
+        notificationType: "new_incoming",
+        sourceEntityType: MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailMessage,
+        sourceEntityId: input.mailMessageId,
+        now,
+      }),
+    );
+  }
+
+  statements.push(
     buildInboundMaterializationGuardedAuditInsert(db, {
       auditId,
       now,
@@ -446,7 +468,7 @@ async function finalizeMaterializationBatch(
         ...(input.internetMessageId ? { internetMessageId: input.internetMessageId } : {}),
       },
     }),
-  ];
+  );
 
   const results = await runMailBatch(db, statements);
   const casIndex = input.graphStatements.length;
@@ -625,6 +647,11 @@ export async function materializeInboundIngestionEvent(
       completedProcessingVersion,
     };
 
+    const notificationTarget = await resolveNewIncomingNotificationTarget(
+      db,
+      materializedMailboxId,
+    );
+
     try {
       const materialization = await finalizeMaterializationBatch(db, {
         guard,
@@ -639,6 +666,7 @@ export async function materializeInboundIngestionEvent(
         recipientCount: candidateGraph.recipients.length,
         attachmentCount: storedAttachments.length,
         internetMessageId: candidateGraph.internetMessageId,
+        notificationTarget,
       });
 
       const [message] = await db

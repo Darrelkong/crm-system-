@@ -33,6 +33,12 @@ import {
   type DeliveryMaterializationPostStateGuard,
 } from "@/lib/mail/guarded-batch";
 import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
+import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
+import {
+  resolveImportantSendFailureNotificationTarget,
+  type ResolvedNotificationTarget,
+} from "@/lib/mail/notification-source-recipient-resolution";
+import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 
 export type MaterializeDeliveryIngestionEventResult = {
   materialization: MailDeliveryEventMaterialization;
@@ -363,6 +369,7 @@ async function finalizeDeliveryMaterializationBatch(
       diagnosticMessage: string | null;
     };
     auditMetadata: Record<string, unknown>;
+    notificationTarget?: ResolvedNotificationTarget | null;
   },
 ): Promise<MailDeliveryEventMaterialization> {
   const now = new Date().toISOString();
@@ -410,6 +417,23 @@ async function finalizeDeliveryMaterializationBatch(
       deliveryEventType: input.deliveryEventType,
       materializedAt: now,
     }),
+  );
+
+  const completedCasIndex = statements.length - 2;
+
+  if (input.notificationTarget) {
+    statements.push(
+      buildResolvedNotificationIntentInsert(db, {
+        target: input.notificationTarget,
+        notificationType: "important_send_failure",
+        sourceEntityType: MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailSendOperation,
+        sourceEntityId: input.deliveryEventValues.sendOperationId,
+        now,
+      }),
+    );
+  }
+
+  statements.push(
     buildDeliveryMaterializationGuardedAuditInsert(db, {
       auditId: crypto.randomUUID(),
       now,
@@ -420,8 +444,7 @@ async function finalizeDeliveryMaterializationBatch(
   );
 
   const results = await runMailBatch(db, statements);
-  const completedIndex = statements.length - 3;
-  assertBatchUpdateChanged(results, completedIndex, "Delivery completion CAS failed");
+  assertBatchUpdateChanged(results, completedCasIndex, "Delivery completion CAS failed");
 
   const materialization = await findExistingMaterialization(
     db,
@@ -541,6 +564,24 @@ export async function materializeDeliveryIngestionEvent(
       completedProcessingVersion,
     };
 
+    let notificationTarget: ResolvedNotificationTarget | null = null;
+    if (deliveryChild.deliveryEventType === "bounced") {
+      const [sendRow] = await db
+        .select({
+          initiatedByUserId: schema.mailSendOperations.initiatedByUserId,
+        })
+        .from(schema.mailSendOperations)
+        .where(eq(schema.mailSendOperations.id, correlation.sendOperationId))
+        .limit(1);
+      notificationTarget = await resolveImportantSendFailureNotificationTarget(
+        db,
+        {
+          sendOperationId: correlation.sendOperationId,
+          initiatedByUserId: sendRow?.initiatedByUserId ?? null,
+        },
+      );
+    }
+
     try {
       const materialization = await finalizeDeliveryMaterializationBatch(db, {
         guard,
@@ -577,6 +618,7 @@ export async function materializeDeliveryIngestionEvent(
           eventType: deliveryChild.deliveryEventType,
           provider: providerEvent.provider,
         },
+        notificationTarget,
       });
 
       const deliveryEvent = await findDeliveryEventById(db, deliveryEventId);
@@ -688,7 +730,26 @@ export async function attemptInvalidDeliveryMaterializationBatch(
     completedProcessingVersion,
   };
 
-  await runMailBatch(db, [
+  let notificationTarget: ResolvedNotificationTarget | null = null;
+  if (deliveryChild.deliveryEventType === "bounced") {
+    const [sendRow] = await db
+      .select({
+        initiatedByUserId: schema.mailSendOperations.initiatedByUserId,
+      })
+      .from(schema.mailSendOperations)
+      .where(eq(schema.mailSendOperations.id, correlation.sendOperationId))
+      .limit(1);
+    notificationTarget = await resolveImportantSendFailureNotificationTarget(
+      db,
+      {
+        sendOperationId: correlation.sendOperationId,
+        initiatedByUserId: sendRow?.initiatedByUserId ?? null,
+      },
+    );
+  }
+
+  const now = new Date().toISOString();
+  const batchStatements: Parameters<typeof runMailBatch>[1] = [
     db.insert(schema.mailDeliveryEvents).values({
       id: deliveryEventId,
       sendOperationId: correlation.sendOperationId,
@@ -706,16 +767,33 @@ export async function attemptInvalidDeliveryMaterializationBatch(
     }),
     buildInboundProviderCompletedCasUpdate(db, guard, {
       processingProcessingVersion: providerEvent.processingVersion,
-      finalizedAt: new Date().toISOString(),
+      finalizedAt: now,
     }),
+  ];
+
+  if (notificationTarget) {
+    batchStatements.push(
+      buildResolvedNotificationIntentInsert(db, {
+        target: notificationTarget,
+        notificationType: "important_send_failure",
+        sourceEntityType: MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailSendOperation,
+        sourceEntityId: correlation.sendOperationId,
+        now,
+      }),
+    );
+  }
+
+  batchStatements.push(
     buildDeliveryMaterializationGuardedInsert(db, guard, {
       id: crypto.randomUUID(),
       deliveryEventId: "__invalid_delivery_event_guard__",
       eventDedupeKey,
       deliveryEventType: deliveryChild.deliveryEventType,
-      materializedAt: new Date().toISOString(),
+      materializedAt: now,
     }),
-  ]);
+  );
+
+  await runMailBatch(db, batchStatements);
 }
 
 export const deliveryEventMaterializationTestHooks =
