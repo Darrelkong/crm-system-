@@ -1,4 +1,4 @@
-import { and, eq, sql, type SQL } from "drizzle-orm";
+import { and, eq, isNull, lte, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
@@ -642,6 +642,8 @@ export function buildInboundProviderClaimProcessingUpdate(
     ingestionEventId: string;
     expectedProcessingVersion: number;
     nextProcessingVersion: number;
+    processingStartedAt: string;
+    processingLeaseExpiresAt: string;
   },
 ) {
   return db
@@ -650,6 +652,8 @@ export function buildInboundProviderClaimProcessingUpdate(
       status: "processing",
       processingVersion: input.nextProcessingVersion,
       nextAttemptAt: null,
+      processingStartedAt: input.processingStartedAt,
+      processingLeaseExpiresAt: input.processingLeaseExpiresAt,
     })
     .where(
       and(
@@ -659,6 +663,8 @@ export function buildInboundProviderClaimProcessingUpdate(
           schema.mailProviderIngestionEvents.processingVersion,
           input.expectedProcessingVersion,
         ),
+        isNull(schema.mailProviderIngestionEvents.processingStartedAt),
+        isNull(schema.mailProviderIngestionEvents.processingLeaseExpiresAt),
       ),
     );
 }
@@ -678,6 +684,8 @@ export function buildInboundProviderCompletedCasUpdate(
       processingVersion: guard.completedProcessingVersion,
       finalizedAt: input.finalizedAt,
       nextAttemptAt: null,
+      processingStartedAt: null,
+      processingLeaseExpiresAt: null,
     })
     .where(
       and(
@@ -713,6 +721,8 @@ export function buildInboundProviderQuarantineUpdate(
       nextAttemptAt: null,
       errorCode: input.errorCode ?? null,
       errorMessage: input.errorMessage ?? null,
+      processingStartedAt: null,
+      processingLeaseExpiresAt: null,
     })
     .where(
       and(
@@ -830,6 +840,8 @@ export function buildProviderReleasePendingUpdate(
       status: "pending",
       processingVersion: input.nextProcessingVersion,
       nextAttemptAt: input.nextAttemptAt ?? null,
+      processingStartedAt: null,
+      processingLeaseExpiresAt: null,
     })
     .where(
       and(
@@ -909,6 +921,173 @@ export function buildDeliveryMaterializationGuardedAuditInsert(
         ${input.ingestionEventId} AS entity_id,
         NULL AS ip_address,
         NULL AS user_agent,
+        ${metadataJson} AS metadata,
+        ${input.now} AS created_at
+      FROM (SELECT 1) AS audit_driver
+    `,
+  );
+}
+
+/** CAS quarantined → pending transition per frozen 0061 status CHECK. */
+export function buildProviderQuarantineReplayUpdate(
+  db: Database,
+  input: {
+    ingestionEventId: string;
+    expectedProcessingVersion: number;
+    nextProcessingVersion: number;
+  },
+) {
+  return db
+    .update(schema.mailProviderIngestionEvents)
+    .set({
+      status: "pending",
+      processingVersion: input.nextProcessingVersion,
+      finalizedAt: null,
+      quarantineReason: null,
+      nextAttemptAt: null,
+      errorCode: null,
+      errorMessage: null,
+      processingStartedAt: null,
+      processingLeaseExpiresAt: null,
+    })
+    .where(
+      and(
+        eq(schema.mailProviderIngestionEvents.id, input.ingestionEventId),
+        eq(schema.mailProviderIngestionEvents.status, "quarantined"),
+        eq(
+          schema.mailProviderIngestionEvents.processingVersion,
+          input.expectedProcessingVersion,
+        ),
+      ),
+    );
+}
+
+export function buildIngestionQuarantineReplayAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    action: string;
+    ingestionEventId: string;
+    nextProcessingVersion: number;
+    metadata: Record<string, unknown>;
+  },
+) {
+  const metadataJson = JSON.stringify(input.metadata);
+
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        (
+          SELECT ${input.auditId}
+          FROM mail_provider_ingestion_events p
+          WHERE p.id = ${input.ingestionEventId}
+            AND p.status = 'pending'
+            AND p.processing_version = ${input.nextProcessingVersion}
+            AND p.quarantine_reason IS NULL
+            AND p.finalized_at IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM audit_logs a
+              WHERE a.entity_type = 'mail_provider_ingestion_event'
+                AND a.entity_id = p.id
+                AND a.action = ${input.action}
+                AND json_extract(a.metadata, '$.newProcessingVersion') = ${input.nextProcessingVersion}
+            )
+          LIMIT 1
+        ) AS id,
+        ${actor.userId} AS user_id,
+        ${input.action} AS action,
+        ${"mail_provider_ingestion_event"} AS entity_type,
+        ${input.ingestionEventId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${metadataJson} AS metadata,
+        ${input.now} AS created_at
+      FROM (SELECT 1) AS audit_driver
+    `,
+  );
+}
+
+/** CAS expired processing → pending recovery per 0065 lease contract. */
+export function buildProviderProcessingRecoveryUpdate(
+  db: Database,
+  input: {
+    ingestionEventId: string;
+    expectedProcessingVersion: number;
+    nextProcessingVersion: number;
+    trustNow: string;
+  },
+) {
+  return db
+    .update(schema.mailProviderIngestionEvents)
+    .set({
+      status: "pending",
+      processingVersion: input.nextProcessingVersion,
+      nextAttemptAt: null,
+      processingStartedAt: null,
+      processingLeaseExpiresAt: null,
+    })
+    .where(
+      and(
+        eq(schema.mailProviderIngestionEvents.id, input.ingestionEventId),
+        eq(schema.mailProviderIngestionEvents.status, "processing"),
+        eq(
+          schema.mailProviderIngestionEvents.processingVersion,
+          input.expectedProcessingVersion,
+        ),
+        lte(
+          schema.mailProviderIngestionEvents.processingLeaseExpiresAt,
+          input.trustNow,
+        ),
+      ),
+    );
+}
+
+export function buildIngestionProcessingRecoveryAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    action: string;
+    ingestionEventId: string;
+    nextProcessingVersion: number;
+    metadata: Record<string, unknown>;
+  },
+) {
+  const metadataJson = JSON.stringify(input.metadata);
+
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        (
+          SELECT ${input.auditId}
+          FROM mail_provider_ingestion_events p
+          WHERE p.id = ${input.ingestionEventId}
+            AND p.status = 'pending'
+            AND p.processing_version = ${input.nextProcessingVersion}
+            AND p.processing_started_at IS NULL
+            AND p.processing_lease_expires_at IS NULL
+            AND NOT EXISTS (
+              SELECT 1
+              FROM audit_logs a
+              WHERE a.entity_type = 'mail_provider_ingestion_event'
+                AND a.entity_id = p.id
+                AND a.action = ${input.action}
+                AND json_extract(a.metadata, '$.newProcessingVersion') = ${input.nextProcessingVersion}
+            )
+          LIMIT 1
+        ) AS id,
+        ${actor.userId} AS user_id,
+        ${input.action} AS action,
+        ${"mail_provider_ingestion_event"} AS entity_type,
+        ${input.ingestionEventId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
         ${metadataJson} AS metadata,
         ${input.now} AS created_at
       FROM (SELECT 1) AS audit_driver

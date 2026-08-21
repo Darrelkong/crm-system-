@@ -25,13 +25,13 @@ import {
   assertBatchUpdateChanged,
   buildInboundMaterializationGuardedAuditInsert,
   buildInboundMaterializationGuardedInsert,
-  buildInboundProviderClaimProcessingUpdate,
   buildInboundProviderCompletedCasUpdate,
   buildInboundProviderQuarantineUpdate,
   runGuardedUpdate,
   runMailBatch,
   type InboundMaterializationPostStateGuard,
 } from "@/lib/mail/guarded-batch";
+import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
 
 export type MaterializeInboundIngestionEventResult = {
   materialization: MailInboundMessageMaterialization;
@@ -265,15 +265,10 @@ async function claimInboundProcessing(
   }
 
   const nextVersion = expectedVersion + 1;
-  await runGuardedUpdate(
-    db,
-    buildInboundProviderClaimProcessingUpdate(db, {
-      ingestionEventId: providerEvent.id,
-      expectedProcessingVersion: expectedVersion,
-      nextProcessingVersion: nextVersion,
-    }),
-    "Inbound ingestion claim failed",
-  );
+  await claimProviderIngestionForProcessing(db, {
+    ingestionEventId: providerEvent.id,
+    expectedProcessingVersion: expectedVersion,
+  });
   return nextVersion;
 }
 

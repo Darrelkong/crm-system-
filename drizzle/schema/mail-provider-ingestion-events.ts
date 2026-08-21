@@ -68,6 +68,10 @@ export const mailProviderIngestionEvents = sqliteTable(
     payloadStorageKey: text("payload_storage_key"),
     payloadContentHash: text("payload_content_hash"),
     payloadSizeBytes: integer("payload_size_bytes"),
+    /** Set atomically on pending → processing claim (0065). NULL on non-processing. */
+    processingStartedAt: text("processing_started_at"),
+    /** Server-owned lease expiry; NULL unless status = processing with active lease. */
+    processingLeaseExpiresAt: text("processing_lease_expires_at"),
   },
   (table) => [
     uniqueIndex("uq_mail_provider_ingestion_events_ingestion_dedupe_key").on(
@@ -94,6 +98,10 @@ export const mailProviderIngestionEvents = sqliteTable(
     ),
     index("idx_mail_provider_ingestion_events_provider_message_id").on(
       table.providerMessageId,
+    ),
+    index("idx_mail_provider_ingestion_events_status_lease_expires").on(
+      table.status,
+      table.processingLeaseExpiresAt,
     ),
   ],
 );

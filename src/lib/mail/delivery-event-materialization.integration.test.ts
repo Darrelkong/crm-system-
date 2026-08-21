@@ -13,10 +13,7 @@ import {
   createDraft,
   type DraftDetailView,
 } from "@/lib/mail/draft-service";
-import {
-  buildInboundProviderClaimProcessingUpdate,
-  runGuardedUpdate,
-} from "@/lib/mail/guarded-batch";
+import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
 import {
   attemptInvalidDeliveryMaterializationBatch,
   deliveryEventMaterializationTestHooks,
@@ -822,15 +819,10 @@ describe("delivery event materialization integration", () => {
       deliveryEventType: "delivered",
     });
 
-    await runGuardedUpdate(
-      db,
-      buildInboundProviderClaimProcessingUpdate(db, {
-        ingestionEventId: staged.ingestionEventId,
-        expectedProcessingVersion: 1,
-        nextProcessingVersion: 2,
-      }),
-      "claim for rollback test",
-    );
+    await claimProviderIngestionForProcessing(db, {
+      ingestionEventId: staged.ingestionEventId,
+      expectedProcessingVersion: 1,
+    });
 
     const eventsBefore = await db.select().from(schema.mailDeliveryEvents);
     assert.equal(eventsBefore.length, 0);

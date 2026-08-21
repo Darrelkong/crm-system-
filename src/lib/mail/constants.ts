@@ -45,6 +45,8 @@ export const MAIL_AUDIT_ACTIONS = {
   inboundMaterialized: "mail.inbound.materialized",
   deliveryProviderStaged: "mail.delivery_provider.staged",
   deliveryMaterialized: "mail.delivery.materialized",
+  ingestionQuarantineReplayed: "mail.ingestion.quarantine_replayed",
+  ingestionProcessingRecovered: "mail.ingestion.processing_recovered",
 } as const;
 
 /** V1 stable RFC Message-ID domain — server-generated, no sensitive data. */

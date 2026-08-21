@@ -25,7 +25,6 @@ import {
   assertBatchUpdateChanged,
   buildDeliveryMaterializationGuardedAuditInsert,
   buildDeliveryMaterializationGuardedInsert,
-  buildInboundProviderClaimProcessingUpdate,
   buildInboundProviderCompletedCasUpdate,
   buildInboundProviderQuarantineUpdate,
   buildProviderReleasePendingUpdate,
@@ -33,6 +32,7 @@ import {
   runMailBatch,
   type DeliveryMaterializationPostStateGuard,
 } from "@/lib/mail/guarded-batch";
+import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
 
 export type MaterializeDeliveryIngestionEventResult = {
   materialization: MailDeliveryEventMaterialization;
@@ -265,15 +265,10 @@ async function claimDeliveryProcessing(
   }
 
   const nextVersion = expectedVersion + 1;
-  await runGuardedUpdate(
-    db,
-    buildInboundProviderClaimProcessingUpdate(db, {
-      ingestionEventId: providerEvent.id,
-      expectedProcessingVersion: expectedVersion,
-      nextProcessingVersion: nextVersion,
-    }),
-    "Delivery ingestion claim failed",
-  );
+  await claimProviderIngestionForProcessing(db, {
+    ingestionEventId: providerEvent.id,
+    expectedProcessingVersion: expectedVersion,
+  });
   return nextVersion;
 }
 
