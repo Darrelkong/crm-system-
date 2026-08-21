@@ -30,6 +30,10 @@ import type {
   NotificationTransportResult,
 } from "@/lib/mail/notification-transport-adapter";
 import { assertMailDeliveryHealth } from "@/lib/permissions/mail";
+import {
+  SYSTEM_MAIL_ACTOR,
+  type MailOperationalActor,
+} from "@/lib/mail/system-mail-actor";
 
 export type ClaimNotificationOutboxResult =
   | { claimed: true; outbox: MailNotificationOutbox }
@@ -156,7 +160,7 @@ async function evaluateDispatchGates(
 
 async function terminalSkipWithoutTransport(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outbox: MailNotificationOutbox,
   failureCode: string,
 ): Promise<ProcessNotificationOutboxResult> {
@@ -311,7 +315,7 @@ async function createStartedAttempt(
 
 async function finalizeAttemptAccepted(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outbox: MailNotificationOutbox,
   attempt: MailNotificationAttempt,
   providerRequestId: string | undefined,
@@ -382,7 +386,7 @@ async function finalizeAttemptAccepted(
 
 async function finalizeAttemptTemporaryFailure(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outbox: MailNotificationOutbox,
   attempt: MailNotificationAttempt,
   errorCode: string,
@@ -516,7 +520,7 @@ async function finalizeAttemptTemporaryFailure(
 
 async function finalizeAttemptPermanentFailure(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outbox: MailNotificationOutbox,
   attempt: MailNotificationAttempt,
   errorCode: string,
@@ -605,7 +609,7 @@ function mapTransportResult(
  */
 export async function processClaimedNotificationOutbox(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     outboxId: string;
     adapter: NotificationTransportAdapter;
@@ -712,7 +716,7 @@ export async function processClaimedNotificationOutbox(
 
 async function finalizeAmbiguousStartedAttempt(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outbox: MailNotificationOutbox,
   attempt: MailNotificationAttempt,
 ): Promise<ProcessNotificationOutboxResult> {
@@ -787,13 +791,11 @@ async function finalizeAmbiguousStartedAttempt(
   };
 }
 
-export async function recoverExpiredNotificationProcessing(
+export async function recoverExpiredNotificationProcessingCore(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outboxId: string,
 ): Promise<RecoverNotificationProcessingResult> {
-  assertMailDeliveryHealth(actor);
-
   const outbox = await findNotificationOutboxById(db, outboxId);
   if (!outbox) {
     throw MailServiceError.notFound("Notification outbox not found");
@@ -879,9 +881,27 @@ export async function recoverExpiredNotificationProcessing(
   };
 }
 
-export async function claimAndProcessNotificationOutbox(
+/** Manual operator recovery — delivery_health or super_admin only. */
+export async function recoverExpiredNotificationProcessing(
   db: Database,
   actor: MailActorContext,
+  outboxId: string,
+): Promise<RecoverNotificationProcessingResult> {
+  assertMailDeliveryHealth(actor);
+  return recoverExpiredNotificationProcessingCore(db, actor, outboxId);
+}
+
+/** Trusted internal recovery for background job runners — no human permission gate. */
+export async function recoverExpiredNotificationProcessingAsSystem(
+  db: Database,
+  outboxId: string,
+): Promise<RecoverNotificationProcessingResult> {
+  return recoverExpiredNotificationProcessingCore(db, SYSTEM_MAIL_ACTOR, outboxId);
+}
+
+export async function claimAndProcessNotificationOutbox(
+  db: Database,
+  actor: MailOperationalActor,
   input: {
     outboxId: string;
     adapter: NotificationTransportAdapter;
@@ -941,7 +961,7 @@ export async function listNotificationOutboxForHealth(
 /** Stale-worker finalize guard — exposed for tests. */
 export async function finalizeAttemptAcceptedForTest(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   outbox: MailNotificationOutbox,
   attempt: MailNotificationAttempt,
   providerRequestId?: string,

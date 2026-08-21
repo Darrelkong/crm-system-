@@ -17,6 +17,10 @@ import {
   isProcessingLeaseExpired,
 } from "@/lib/mail/provider-ingestion-processing-lease";
 import { assertMailDeliveryHealth } from "@/lib/permissions/mail";
+import {
+  SYSTEM_MAIL_ACTOR,
+  type MailOperationalActor,
+} from "@/lib/mail/system-mail-actor";
 
 export type ProcessingRecoveryOutcome =
   | "RECOVERED"
@@ -116,18 +120,17 @@ export async function listStuckProcessingIngestionEvents(
 
 /**
  * Release an abandoned processing claim after lease expiry (Phase 2C.12A.1).
+ * Shared integrity core — human and system entry points converge here.
  */
-export async function recoverExpiredProcessingIngestionEvent(
+export async function recoverExpiredProcessingIngestionEventCore(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     ingestionEventId: string;
     expectedProcessingVersion?: number;
     now?: string;
   },
 ): Promise<ProcessingRecoveryResult> {
-  assertMailDeliveryHealth(actor);
-
   const providerEvent = await findProviderEvent(db, input.ingestionEventId);
   if (!providerEvent) {
     throw MailServiceError.notFound("Provider ingestion event not found");
@@ -240,6 +243,32 @@ export async function recoverExpiredProcessingIngestionEvent(
     processingStartedAt: providerEvent.processingStartedAt,
     leaseExpiredAt: providerEvent.processingLeaseExpiresAt,
   };
+}
+
+/** Manual operator recovery — delivery_health or super_admin only. */
+export async function recoverExpiredProcessingIngestionEvent(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    ingestionEventId: string;
+    expectedProcessingVersion?: number;
+    now?: string;
+  },
+): Promise<ProcessingRecoveryResult> {
+  assertMailDeliveryHealth(actor);
+  return recoverExpiredProcessingIngestionEventCore(db, actor, input);
+}
+
+/** Trusted internal recovery for background job runners — no human permission gate. */
+export async function recoverExpiredProcessingIngestionEventAsSystem(
+  db: Database,
+  input: {
+    ingestionEventId: string;
+    expectedProcessingVersion?: number;
+    now?: string;
+  },
+): Promise<ProcessingRecoveryResult> {
+  return recoverExpiredProcessingIngestionEventCore(db, SYSTEM_MAIL_ACTOR, input);
 }
 
 /** Query helper for future operator UI — expired leased processing only. */

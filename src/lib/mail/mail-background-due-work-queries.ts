@@ -1,0 +1,186 @@
+import { and, asc, eq, isNotNull, lte, or, sql } from "drizzle-orm";
+import { schema, type Database } from "@/lib/db";
+
+export type ProviderIngestionDueRow = {
+  id: string;
+  processingVersion: number;
+  receivedAt: string;
+  nextAttemptAt: string | null;
+};
+
+export type ExpiredProviderProcessingRow = {
+  id: string;
+  processingVersion: number;
+  eventKind: "inbound_message" | "delivery_event";
+  processingLeaseExpiresAt: string | null;
+};
+
+export type NotificationOutboxDueRow = {
+  id: string;
+  processingVersion: number;
+  enqueuedAt: string;
+  nextAttemptAt: string | null;
+  status: "pending" | "failed_retryable" | "processing" | "sent" | "failed_permanent";
+};
+
+export type ExpiredNotificationProcessingRow = {
+  id: string;
+  processingVersion: number;
+  processingLeaseExpiresAt: string | null;
+};
+
+function dueProviderPredicate(trustNow: string) {
+  return and(
+    eq(schema.mailProviderIngestionEvents.status, "pending"),
+    or(
+      sql`${schema.mailProviderIngestionEvents.nextAttemptAt} IS NULL`,
+      lte(schema.mailProviderIngestionEvents.nextAttemptAt, trustNow),
+    ),
+  );
+}
+
+export async function listDueInboundProviderIngestionEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<ProviderIngestionDueRow[]> {
+  return db
+    .select({
+      id: schema.mailProviderIngestionEvents.id,
+      processingVersion: schema.mailProviderIngestionEvents.processingVersion,
+      receivedAt: schema.mailProviderIngestionEvents.receivedAt,
+      nextAttemptAt: schema.mailProviderIngestionEvents.nextAttemptAt,
+    })
+    .from(schema.mailProviderIngestionEvents)
+    .where(
+      and(
+        eq(schema.mailProviderIngestionEvents.eventKind, "inbound_message"),
+        dueProviderPredicate(input.trustNow),
+      ),
+    )
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailProviderIngestionEvents.nextAttemptAt}, ${schema.mailProviderIngestionEvents.receivedAt})`,
+      ),
+      asc(schema.mailProviderIngestionEvents.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listDueDeliveryProviderIngestionEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<ProviderIngestionDueRow[]> {
+  return db
+    .select({
+      id: schema.mailProviderIngestionEvents.id,
+      processingVersion: schema.mailProviderIngestionEvents.processingVersion,
+      receivedAt: schema.mailProviderIngestionEvents.receivedAt,
+      nextAttemptAt: schema.mailProviderIngestionEvents.nextAttemptAt,
+    })
+    .from(schema.mailProviderIngestionEvents)
+    .where(
+      and(
+        eq(schema.mailProviderIngestionEvents.eventKind, "delivery_event"),
+        dueProviderPredicate(input.trustNow),
+      ),
+    )
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailProviderIngestionEvents.nextAttemptAt}, ${schema.mailProviderIngestionEvents.receivedAt})`,
+      ),
+      asc(schema.mailProviderIngestionEvents.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listExpiredLeasedProviderIngestionEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<ExpiredProviderProcessingRow[]> {
+  return db
+    .select({
+      id: schema.mailProviderIngestionEvents.id,
+      processingVersion: schema.mailProviderIngestionEvents.processingVersion,
+      eventKind: schema.mailProviderIngestionEvents.eventKind,
+      processingLeaseExpiresAt:
+        schema.mailProviderIngestionEvents.processingLeaseExpiresAt,
+    })
+    .from(schema.mailProviderIngestionEvents)
+    .where(
+      and(
+        eq(schema.mailProviderIngestionEvents.status, "processing"),
+        isNotNull(schema.mailProviderIngestionEvents.processingStartedAt),
+        isNotNull(schema.mailProviderIngestionEvents.processingLeaseExpiresAt),
+        lte(
+          schema.mailProviderIngestionEvents.processingLeaseExpiresAt,
+          input.trustNow,
+        ),
+      ),
+    )
+    .orderBy(
+      asc(schema.mailProviderIngestionEvents.processingLeaseExpiresAt),
+      asc(schema.mailProviderIngestionEvents.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listDueNotificationOutboxEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<NotificationOutboxDueRow[]> {
+  return db
+    .select({
+      id: schema.mailNotificationOutbox.id,
+      processingVersion: schema.mailNotificationOutbox.processingVersion,
+      enqueuedAt: schema.mailNotificationOutbox.enqueuedAt,
+      nextAttemptAt: schema.mailNotificationOutbox.nextAttemptAt,
+      status: schema.mailNotificationOutbox.status,
+    })
+    .from(schema.mailNotificationOutbox)
+    .where(
+      or(
+        eq(schema.mailNotificationOutbox.status, "pending"),
+        and(
+          eq(schema.mailNotificationOutbox.status, "failed_retryable"),
+          isNotNull(schema.mailNotificationOutbox.nextAttemptAt),
+          lte(schema.mailNotificationOutbox.nextAttemptAt, input.trustNow),
+        ),
+      ),
+    )
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailNotificationOutbox.nextAttemptAt}, ${schema.mailNotificationOutbox.enqueuedAt})`,
+      ),
+      asc(schema.mailNotificationOutbox.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listExpiredNotificationProcessingEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<ExpiredNotificationProcessingRow[]> {
+  return db
+    .select({
+      id: schema.mailNotificationOutbox.id,
+      processingVersion: schema.mailNotificationOutbox.processingVersion,
+      processingLeaseExpiresAt:
+        schema.mailNotificationOutbox.processingLeaseExpiresAt,
+    })
+    .from(schema.mailNotificationOutbox)
+    .where(
+      and(
+        eq(schema.mailNotificationOutbox.status, "processing"),
+        isNotNull(schema.mailNotificationOutbox.processingLeaseExpiresAt),
+        lte(
+          schema.mailNotificationOutbox.processingLeaseExpiresAt,
+          input.trustNow,
+        ),
+      ),
+    )
+    .orderBy(
+      asc(schema.mailNotificationOutbox.processingLeaseExpiresAt),
+      asc(schema.mailNotificationOutbox.id),
+    )
+    .limit(input.limit);
+}

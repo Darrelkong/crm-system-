@@ -3,6 +3,13 @@ import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
 import type { MailActorContext } from "@/lib/mail/actor-context";
+import type { MailOperationalActor } from "@/lib/mail/system-mail-actor";
+import {
+  resolveMailAuditIpAddress,
+  resolveMailAuditUserAgent,
+  resolveMailAuditUserId,
+  withSystemAuditMetadata,
+} from "@/lib/mail/system-mail-actor";
 import type {
   MailOutboundApprovalStatus,
 } from "../../../drizzle/schema/mail-outbound-approvals";
@@ -1048,7 +1055,7 @@ export function buildProviderProcessingRecoveryUpdate(
 
 export function buildIngestionProcessingRecoveryAuditInsert(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     auditId: string;
     now: string;
@@ -1058,7 +1065,9 @@ export function buildIngestionProcessingRecoveryAuditInsert(
     metadata: Record<string, unknown>;
   },
 ) {
-  const metadataJson = JSON.stringify(input.metadata);
+  const metadataJson = JSON.stringify(
+    withSystemAuditMetadata(actor, input.metadata),
+  );
 
   return buildInsertAuditLogSelectStatement(
     db,
@@ -1082,12 +1091,12 @@ export function buildIngestionProcessingRecoveryAuditInsert(
             )
           LIMIT 1
         ) AS id,
-        ${actor.userId} AS user_id,
+        ${resolveMailAuditUserId(actor)} AS user_id,
         ${input.action} AS action,
         ${"mail_provider_ingestion_event"} AS entity_type,
         ${input.ingestionEventId} AS entity_id,
-        ${actor.audit.ipAddress ?? null} AS ip_address,
-        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${resolveMailAuditIpAddress(actor)} AS ip_address,
+        ${resolveMailAuditUserAgent(actor)} AS user_agent,
         ${metadataJson} AS metadata,
         ${input.now} AS created_at
       FROM (SELECT 1) AS audit_driver
@@ -1097,7 +1106,7 @@ export function buildIngestionProcessingRecoveryAuditInsert(
 
 export function buildNotificationOutboxAuditInsert(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     auditId: string;
     now: string;
@@ -1106,18 +1115,20 @@ export function buildNotificationOutboxAuditInsert(
     metadata: Record<string, unknown>;
   },
 ) {
-  const metadataJson = JSON.stringify(input.metadata);
+  const metadataJson = JSON.stringify(
+    withSystemAuditMetadata(actor, input.metadata),
+  );
   return buildInsertAuditLogSelectStatement(
     db,
     sql`
       SELECT
         ${input.auditId} AS id,
-        ${actor.userId} AS user_id,
+        ${resolveMailAuditUserId(actor)} AS user_id,
         ${input.action} AS action,
         ${"mail_notification_outbox"} AS entity_type,
         ${input.outboxId} AS entity_id,
-        ${actor.audit.ipAddress ?? null} AS ip_address,
-        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${resolveMailAuditIpAddress(actor)} AS ip_address,
+        ${resolveMailAuditUserAgent(actor)} AS user_agent,
         ${metadataJson} AS metadata,
         ${input.now} AS created_at
     `,
@@ -1126,7 +1137,7 @@ export function buildNotificationOutboxAuditInsert(
 
 export function buildNotificationOutboxPostStateAuditInsert(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     auditId: string;
     now: string;
@@ -1137,7 +1148,9 @@ export function buildNotificationOutboxPostStateAuditInsert(
     metadata: Record<string, unknown>;
   },
 ) {
-  const metadataJson = JSON.stringify(input.metadata);
+  const metadataJson = JSON.stringify(
+    withSystemAuditMetadata(actor, input.metadata),
+  );
   return buildInsertAuditLogSelectStatement(
     db,
     sql`
@@ -1150,12 +1163,12 @@ export function buildNotificationOutboxPostStateAuditInsert(
             AND o.status = ${input.expectedStatus}
           LIMIT 1
         ) AS id,
-        ${actor.userId} AS user_id,
+        ${resolveMailAuditUserId(actor)} AS user_id,
         ${input.action} AS action,
         ${"mail_notification_outbox"} AS entity_type,
         ${input.outboxId} AS entity_id,
-        ${actor.audit.ipAddress ?? null} AS ip_address,
-        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${resolveMailAuditIpAddress(actor)} AS ip_address,
+        ${resolveMailAuditUserAgent(actor)} AS user_agent,
         ${metadataJson} AS metadata,
         ${input.now} AS created_at
       FROM (SELECT 1) AS audit_driver

@@ -33,6 +33,8 @@ import {
   type DeliveryMaterializationPostStateGuard,
 } from "@/lib/mail/guarded-batch";
 import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
+import { computeDeliveryCorrelationRetryAfter } from "@/lib/mail/mail-background-tick-constants";
+import { getIngestionProcessingTrustNow } from "@/lib/mail/provider-ingestion-processing-lease";
 import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
 import {
   resolveImportantSendFailureNotificationTarget,
@@ -283,6 +285,7 @@ async function releaseDeliveryPending(
   input: {
     ingestionEventId: string;
     processingVersion: number;
+    nextAttemptAt?: string | null;
   },
 ): Promise<void> {
   await runGuardedUpdate(
@@ -291,6 +294,7 @@ async function releaseDeliveryPending(
       ingestionEventId: input.ingestionEventId,
       processingProcessingVersion: input.processingVersion,
       nextProcessingVersion: input.processingVersion + 1,
+      nextAttemptAt: input.nextAttemptAt ?? null,
     }),
     "Delivery ingestion release to pending failed",
   );
@@ -649,9 +653,11 @@ export async function materializeDeliveryIngestionEvent(
     }
   } catch (error) {
     if (error instanceof DeliveryCorrelationPendingError) {
+      const trustNow = getIngestionProcessingTrustNow();
       await releaseDeliveryPending(db, {
         ingestionEventId: input.ingestionEventId,
         processingVersion,
+        nextAttemptAt: computeDeliveryCorrelationRetryAfter(trustNow),
       });
       throw error;
     }
