@@ -15,6 +15,21 @@ function read(path: string): string {
   return readFileSync(`${ROOT}/${path}`, "utf8");
 }
 
+/** Minutes fired by approved offset schedule `1-59/3 * * * *` (UTC). */
+export function mailJobsCronFireMinutes(): number[] {
+  const minutes: number[] = [];
+  for (let m = 1; m <= 59; m += 3) {
+    minutes.push(m);
+  }
+  return minutes;
+}
+
+function extractMailJobsCronExpression(config: string): string {
+  const match = config.match(/"crons":\s*\[\s*"([^"]+)"/);
+  assert.ok(match, "mail jobs cron expression not found");
+  return match[1];
+}
+
 function emptySummary(): MailBackgroundTickSummary {
   const counters = {
     selected: 0,
@@ -43,7 +58,8 @@ describe("mail jobs cron static config", () => {
     const config = read("wrangler.mail-jobs-cron.jsonc");
     assert.match(config, /"name":\s*"crm-system-mail-jobs-cron"/);
     assert.match(config, /"main":\s*"workers\/mail-jobs-cron.ts"/);
-    assert.match(config, /"crons":\s*\[\s*"\*\/3 \* \* \* \*"\s*\]/);
+    assert.match(config, /"crons":\s*\[\s*"1-59\/3 \* \* \* \*"\s*\]/);
+    assert.doesNotMatch(config, /\*\/3 \* \* \* \*/);
     assert.match(config, /"binding":\s*"DB"/);
     assert.match(config, /"database_name":\s*"crm-db"/);
     assert.match(config, /"database_id":\s*"03633dd2-c058-42de-9355-f5450eab7202"/);
@@ -82,6 +98,20 @@ describe("mail jobs cron static config", () => {
     assert.match(pkg, /"cron:mail:deploy"/);
     assert.match(pkg, /"cron:mail:dry-run"/);
     assert.doesNotMatch(pkg, /postinstall[\s\S]*cron:mail:deploy/);
+  });
+
+  it("approved cron offset avoids minute 00 and 30 UTC collision windows", () => {
+    const config = read("wrangler.mail-jobs-cron.jsonc");
+    const expression = extractMailJobsCronExpression(config);
+    assert.equal(expression, "1-59/3 * * * *");
+
+    const minutes = mailJobsCronFireMinutes();
+    assert.deepEqual(minutes, [
+      1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 34, 37, 40, 43, 46, 49, 52, 55,
+      58,
+    ]);
+    assert.ok(!minutes.includes(0));
+    assert.ok(!minutes.includes(30));
   });
 
   it("no migration 0067 and no notification provider secrets in mail jobs config", () => {
