@@ -68,3 +68,5 @@ export * from "./mail-inbound-message-materializations";
 export * from "./mail-delivery-ingestion-events";
 export * from "./mail-delivery-event-materializations";
 export * from "./mail-company-config";
+export * from "./mail-notification-outbox";
+export * from "./mail-notification-attempts";

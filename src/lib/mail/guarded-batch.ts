@@ -1094,3 +1094,71 @@ export function buildIngestionProcessingRecoveryAuditInsert(
     `,
   );
 }
+
+export function buildNotificationOutboxAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    action: string;
+    outboxId: string;
+    metadata: Record<string, unknown>;
+  },
+) {
+  const metadataJson = JSON.stringify(input.metadata);
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        ${input.auditId} AS id,
+        ${actor.userId} AS user_id,
+        ${input.action} AS action,
+        ${"mail_notification_outbox"} AS entity_type,
+        ${input.outboxId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${metadataJson} AS metadata,
+        ${input.now} AS created_at
+    `,
+  );
+}
+
+export function buildNotificationOutboxPostStateAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    action: string;
+    outboxId: string;
+    expectedProcessingVersion: number;
+    expectedStatus: string;
+    metadata: Record<string, unknown>;
+  },
+) {
+  const metadataJson = JSON.stringify(input.metadata);
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        (
+          SELECT ${input.auditId}
+          FROM mail_notification_outbox o
+          WHERE o.id = ${input.outboxId}
+            AND o.processing_version = ${input.expectedProcessingVersion}
+            AND o.status = ${input.expectedStatus}
+          LIMIT 1
+        ) AS id,
+        ${actor.userId} AS user_id,
+        ${input.action} AS action,
+        ${"mail_notification_outbox"} AS entity_type,
+        ${input.outboxId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${metadataJson} AS metadata,
+        ${input.now} AS created_at
+      FROM (SELECT 1) AS audit_driver
+    `,
+  );
+}
