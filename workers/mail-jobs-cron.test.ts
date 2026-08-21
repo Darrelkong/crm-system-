@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { globSync } from "node:fs";
 import { describe, it } from "node:test";
 import type { MailBackgroundTickSummary } from "../src/lib/mail/mail-background-tick-service";
 import {
+  buildMailBackgroundTickDeps,
   formatMailJobsTickLogSummary,
+  isMailNotificationTransportEnabled,
   runMailJobsScheduledTick,
   type MailJobsEnv,
 } from "./mail-jobs-cron";
@@ -65,6 +66,16 @@ describe("mail jobs cron static config", () => {
     assert.match(config, /"database_id":\s*"03633dd2-c058-42de-9355-f5450eab7202"/);
     assert.match(config, /"binding":\s*"ATTACHMENTS"/);
     assert.match(config, /"bucket_name":\s*"crm-attachments"/);
+    assert.match(config, /"send_email"/);
+    assert.match(config, /"name":\s*"EMAIL"/);
+    assert.match(
+      config,
+      /"allowed_sender_addresses":\s*\[\s*"notifications@send\.echfronthk\.com"\s*\]/,
+    );
+    assert.match(
+      config,
+      /"MAIL_NOTIFICATION_TRANSPORT_ENABLED":\s*"false"/,
+    );
     assert.match(config, /"workers_dev":\s*false/);
     assert.match(config, /"preview_urls":\s*false/);
     assert.doesNotMatch(config, /"routes"/);
@@ -85,10 +96,12 @@ describe("mail jobs cron static config", () => {
     assert.doesNotMatch(main, /mail-jobs-cron/);
   });
 
-  it("worker source does not import fake notification transport", () => {
+  it("worker source wires Cloudflare notification transport behind explicit flag only", () => {
     const worker = read("workers/mail-jobs-cron.ts");
     assert.doesNotMatch(worker, /FakeNotificationTransportAdapter/);
-    assert.doesNotMatch(worker, /notification-transport-adapter/);
+    assert.match(worker, /createCloudflareEmailNotificationTransport/);
+    assert.match(worker, /MAIL_NOTIFICATION_TRANSPORT_ENABLED/);
+    assert.match(worker, /isMailNotificationTransportEnabled/);
     assert.match(worker, /runMailBackgroundTick/);
     assert.doesNotMatch(worker, /async fetch/);
   });
@@ -114,10 +127,12 @@ describe("mail jobs cron static config", () => {
     assert.ok(!minutes.includes(30));
   });
 
-  it("no migration 0067 and no notification provider secrets in mail jobs config", () => {
-    assert.equal(globSync("drizzle/migrations/0067*").length, 0);
+  it("no migration references or notification provider secrets in mail jobs config", () => {
     const config = read("wrangler.mail-jobs-cron.jsonc");
+    const worker = read("workers/mail-jobs-cron.ts");
     assert.doesNotMatch(config, /BREVO|RESEND|POSTMARK|SMTP|API_KEY/);
+    assert.doesNotMatch(config, /0067|wire_internet_message_id/);
+    assert.doesNotMatch(worker, /0067|wire_internet_message_id/);
   });
 });
 
@@ -139,11 +154,13 @@ describe("mail jobs cron wiring", () => {
     assert.equal(calls, 1);
   });
 
-  it("does not provide NotificationTransportAdapter to the tick", async () => {
+  it("does not provide NotificationTransportAdapter when transport flag is disabled", async () => {
     let capturedTransport: unknown = "unset";
     const env = {
       DB: {} as D1Database,
       ATTACHMENTS: {} as R2Bucket,
+      EMAIL: {} as SendEmail,
+      MAIL_NOTIFICATION_TRANSPORT_ENABLED: "false",
     } satisfies MailJobsEnv;
 
     await runMailJobsScheduledTick(env, {
@@ -154,6 +171,54 @@ describe("mail jobs cron wiring", () => {
     });
 
     assert.equal(capturedTransport, undefined);
+  });
+
+  it("provides Cloudflare notification transport only when flag is enabled", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      EMAIL: { send: async () => ({ messageId: "msg-test" }) } as SendEmail,
+      MAIL_NOTIFICATION_TRANSPORT_ENABLED: "true",
+    } satisfies MailJobsEnv;
+
+    const deps = buildMailBackgroundTickDeps(env);
+    assert.ok(deps.notificationTransport);
+    assert.equal(deps.notificationTransport?.providerId, "cloudflare-email-sending");
+  });
+
+  it("fails clearly when transport flag is enabled without EMAIL binding", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_NOTIFICATION_TRANSPORT_ENABLED: "true",
+    } satisfies MailJobsEnv;
+
+    assert.throws(
+      () => buildMailBackgroundTickDeps(env),
+      /EMAIL send_email binding/,
+    );
+  });
+
+  it("treats missing transport flag as disabled", () => {
+    assert.equal(isMailNotificationTransportEnabled({}), false);
+    assert.equal(
+      isMailNotificationTransportEnabled({
+        MAIL_NOTIFICATION_TRANSPORT_ENABLED: undefined,
+      }),
+      false,
+    );
+    assert.equal(
+      isMailNotificationTransportEnabled({
+        MAIL_NOTIFICATION_TRANSPORT_ENABLED: "false",
+      }),
+      false,
+    );
+    assert.equal(
+      isMailNotificationTransportEnabled({
+        MAIL_NOTIFICATION_TRANSPORT_ENABLED: "true",
+      }),
+      true,
+    );
   });
 
   it("fails clearly when DB binding is missing", async () => {

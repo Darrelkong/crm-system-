@@ -22,5 +22,14 @@
       "bucket_name": "crm-attachments",
       "preview_bucket_name": "crm-attachments-preview"
     }
-  ]
+  ],
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["notifications@send.echfronthk.com"]
+    }
+  ],
+  "vars": {
+    "MAIL_NOTIFICATION_TRANSPORT_ENABLED": "false"
+  }
 }

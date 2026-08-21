@@ -2,20 +2,34 @@
 
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "../drizzle/schema";
+import { createCloudflareEmailNotificationTransport } from "../src/lib/mail/cloudflare-email-notification-transport-adapter";
 import { createInboundAttachmentStore } from "../src/lib/mail/inbound-attachment-store";
 import { createInboundRawPayloadStore } from "../src/lib/mail/inbound-raw-payload-store";
 import {
   runMailBackgroundTick,
+  type MailBackgroundTickDeps,
   type MailBackgroundTickSummary,
 } from "../src/lib/mail/mail-background-tick-service";
 
-/** Dedicated Mail Jobs Worker bindings — DB + private ATTACHMENTS only. */
+/** Explicit opt-in — production deploy keeps this false until controlled enablement. */
+export const MAIL_NOTIFICATION_TRANSPORT_ENABLED_VAR =
+  "MAIL_NOTIFICATION_TRANSPORT_ENABLED" as const;
+
+/** Dedicated Mail Jobs Worker bindings — DB, ATTACHMENTS, optional EMAIL sending. */
 export interface MailJobsEnv {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
+  EMAIL?: SendEmail;
+  MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
 }
 
 export type MailJobsTickRunner = typeof runMailBackgroundTick;
+
+export function isMailNotificationTransportEnabled(
+  env: Pick<MailJobsEnv, typeof MAIL_NOTIFICATION_TRANSPORT_ENABLED_VAR>,
+): boolean {
+  return env.MAIL_NOTIFICATION_TRANSPORT_ENABLED === "true";
+}
 
 function assertMailJobsBindings(env: MailJobsEnv): void {
   if (!env.DB) {
@@ -24,6 +38,38 @@ function assertMailJobsBindings(env: MailJobsEnv): void {
   if (!env.ATTACHMENTS) {
     throw new Error("Mail Jobs Worker requires ATTACHMENTS R2 binding");
   }
+}
+
+function assertNotificationTransportBindings(env: MailJobsEnv): void {
+  if (!env.EMAIL) {
+    throw new Error(
+      "Mail Jobs Worker requires EMAIL send_email binding when MAIL_NOTIFICATION_TRANSPORT_ENABLED is true",
+    );
+  }
+}
+
+export function buildMailBackgroundTickDeps(
+  env: MailJobsEnv,
+): MailBackgroundTickDeps {
+  const deps: MailBackgroundTickDeps = {
+    rawPayloadStore: createInboundRawPayloadStore(env.ATTACHMENTS),
+    attachmentStore: createInboundAttachmentStore(
+      env.ATTACHMENTS,
+      "crm-attachments",
+    ),
+  };
+
+  if (!isMailNotificationTransportEnabled(env)) {
+    return deps;
+  }
+
+  assertNotificationTransportBindings(env);
+
+  deps.notificationTransport = createCloudflareEmailNotificationTransport({
+    emailBinding: env.EMAIL!,
+  });
+
+  return deps;
 }
 
 /** Privacy-safe tick summary for Worker observability — no MIME, addresses, or secrets. */
@@ -46,7 +92,7 @@ export function formatMailJobsTickLogSummary(
 
 /**
  * Execute one bounded Mail background tick from Worker bindings.
- * Production path omits NotificationTransportAdapter — dispatch stays disabled.
+ * Notification transport stays disabled unless MAIL_NOTIFICATION_TRANSPORT_ENABLED=true.
  */
 export async function runMailJobsScheduledTick(
   env: MailJobsEnv,
@@ -55,18 +101,9 @@ export async function runMailJobsScheduledTick(
   assertMailJobsBindings(env);
 
   const db = drizzle(env.DB, { schema });
-  const rawPayloadStore = createInboundRawPayloadStore(env.ATTACHMENTS);
-  const attachmentStore = createInboundAttachmentStore(
-    env.ATTACHMENTS,
-    "crm-attachments",
-  );
-
   const runTick = options?.runTick ?? runMailBackgroundTick;
 
-  return runTick(db, {
-    rawPayloadStore,
-    attachmentStore,
-  });
+  return runTick(db, buildMailBackgroundTickDeps(env));
 }
 
 /**
