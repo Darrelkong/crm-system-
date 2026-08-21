@@ -11,7 +11,7 @@ export const CLOUDFLARE_EMAIL_NOTIFICATION_PROVIDER_ID =
 
 /** Infrastructure From — not a CRM Sender Identity. Domain onboarding is a separate gate. */
 export const CLOUDFLARE_EMAIL_NOTIFICATION_FROM_ADDRESS =
-  "notifications@echfronthk.com" as const;
+  "notifications@send.echfronthk.com" as const;
 
 export const CLOUDFLARE_EMAIL_NOTIFICATION_FROM_DISPLAY_NAME =
   "ECHFRONT CRM Mail" as const;

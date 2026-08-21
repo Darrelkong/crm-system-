@@ -98,9 +98,9 @@ describe("cloudflare email notification transport adapter", () => {
         sampleInput(),
       );
       assert.equal(body.to, "staff-alert@example.com");
-      assert.match(
+      assert.equal(
         typeof body.from === "object" ? body.from.email : body.from,
-        /notifications@echfronthk\.com/,
+        CLOUDFLARE_EMAIL_NOTIFICATION_FROM_ADDRESS,
       );
     });
   });
