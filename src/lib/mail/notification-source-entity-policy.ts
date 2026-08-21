@@ -8,6 +8,8 @@ export const MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES = {
   mailSendOperation: "mail_send_operation",
   /** Reserved — shared assignment source wiring deferred. */
   mailSharedAssignment: "mail_shared_assignment",
+  /** Admin-controlled Cloudflare Email Sending proof — not business mail graph. */
+  mailNotificationProof: "mail_notification_proof",
 } as const;
 
 export type MailNotificationSourceEntityType =

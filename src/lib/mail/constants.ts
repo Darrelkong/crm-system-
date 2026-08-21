@@ -50,6 +50,7 @@ export const MAIL_AUDIT_ACTIONS = {
   notificationSent: "mail.notification.sent",
   notificationPermanentlyFailed: "mail.notification.permanently_failed",
   notificationProcessingRecovered: "mail.notification.processing_recovered",
+  notificationProofEnqueued: "mail.notification.proof_enqueued",
 } as const;
 
 /** V1 stable RFC Message-ID domain — server-generated, no sensitive data. */

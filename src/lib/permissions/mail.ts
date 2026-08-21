@@ -216,3 +216,15 @@ export function assertSuperAdminGrantManagement(actor: MailActorContext): void {
     );
   }
 }
+
+/** Controlled Cloudflare Email Sending notification proof enqueue — super_admin only. */
+export function assertMailNotificationProofManagement(
+  actor: MailActorContext,
+): void {
+  assertMailAccessEnabled(actor);
+  if (!hasMailAdminGrant(actor, "super_admin")) {
+    throw MailServiceError.forbidden(
+      "Super admin authority required for notification proof enqueue",
+    );
+  }
+}
