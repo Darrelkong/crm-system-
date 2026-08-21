@@ -33,14 +33,15 @@ export type MailOutboundMaterializationMessageDirection =
  *   Created ONLY after send_operation.status = accepted (provider accepted submission).
  *   Sent Message exists ≠ Delivered.
  *
- * Before materialization (service layer):
- *   send_operation.status MUST be accepted;
- *   accepted_transport_attempt.state MUST be accepted.
+ * Identity witnesses (0067):
+ *   rfc_message_id — INTERNAL client-stable provenance from outbound_rfc_identities.
+ *     NOT guaranteed to equal wire RFC Message-ID (Cloudflare controls wire identity).
+ *   wire_internet_message_id — actual transmitted RFC Message-ID when known; NULL otherwise.
+ *     When non-null, MUST equal mail_messages.internet_message_id (composite FK).
+ *   message_direction — always outbound; always-on FK to mail_messages(id, direction).
  *
- * rfc_message_id + message_direction witnesses (2B.16.1):
- *   rfc_message_id MUST equal outbound_rfc_identities.rfc_message_id AND
- *   mail_messages.internet_message_id. message_direction MUST be outbound.
- *   Composite FKs enforce RFC Identity + outbound mail_message binding at DB level.
+ * Provider transport identity remains on mail_transport_attempts.provider_message_id —
+ *   NOT duplicated here. accepted_transport_attempt_id is the provider witness link.
  *
  * Copy content from exact immutable outbound Revision — NOT mutable Draft.
  * Complete recipient set equality (type, address, display name) is service invariant.
@@ -61,7 +62,10 @@ export const mailOutboundMessageMaterializations = sqliteTable(
     hashVersion: integer("hash_version").notNull(),
     acceptedTransportAttemptId: text("accepted_transport_attempt_id").notNull(),
     outboundRfcIdentityId: text("outbound_rfc_identity_id").notNull(),
+    /** Internal client-stable provenance — NOT wire RFC Message-ID. */
     rfcMessageId: text("rfc_message_id").notNull(),
+    /** Actual wire RFC Message-ID witness when known; NULL until proven. */
+    wireInternetMessageId: text("wire_internet_message_id"),
     mailMessageId: text("mail_message_id").notNull(),
     messageDirection: text("message_direction", {
       enum: MAIL_OUTBOUND_MATERIALIZATION_MESSAGE_DIRECTIONS,
@@ -137,10 +141,15 @@ export const mailOutboundMessageMaterializations = sqliteTable(
       ],
     }),
     foreignKey({
-      name: "fk_mail_outbound_message_materializations_mail_message_rfc_provenance",
+      name: "fk_mail_outbound_message_materializations_mail_message_direction_provenance",
+      columns: [table.mailMessageId, table.messageDirection],
+      foreignColumns: [mailMessages.id, mailMessages.direction],
+    }),
+    foreignKey({
+      name: "fk_mail_outbound_message_materializations_mail_message_wire_provenance",
       columns: [
         table.mailMessageId,
-        table.rfcMessageId,
+        table.wireInternetMessageId,
         table.messageDirection,
       ],
       foreignColumns: [

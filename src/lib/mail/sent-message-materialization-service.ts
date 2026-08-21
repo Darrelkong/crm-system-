@@ -49,6 +49,26 @@ function buildPreviewText(bodyText: string, subject: string): string {
   return `${source.slice(0, 197)}...`;
 }
 
+function assertWireIdentityConsistency(
+  materialization: MailOutboundMessageMaterialization,
+  message: MailMessage,
+): void {
+  const wire = materialization.wireInternetMessageId;
+  if (wire == null) {
+    if (message.internetMessageId !== null) {
+      throw MailServiceError.integrityConflict(
+        "Existing materialization wire identity unknown but message has internet message id",
+      );
+    }
+    return;
+  }
+  if (message.internetMessageId !== wire) {
+    throw MailServiceError.integrityConflict(
+      "Existing materialization wire identity mismatch",
+    );
+  }
+}
+
 function isUniqueConstraintError(error: unknown): boolean {
   const message =
     error instanceof Error
@@ -226,7 +246,7 @@ async function verifyExistingMaterializationSemantics(
   }
   if (materialization.rfcMessageId !== rfcIdentity.rfcMessageId) {
     throw MailServiceError.integrityConflict(
-      "Existing materialization RFC Message-ID mismatch",
+      "Existing materialization internal RFC identity mismatch",
     );
   }
 
@@ -245,11 +265,7 @@ async function verifyExistingMaterializationSemantics(
       "Existing materialization message direction mismatch",
     );
   }
-  if (message.internetMessageId !== rfcIdentity.rfcMessageId) {
-    throw MailServiceError.integrityConflict(
-      "Existing materialization message RFC Message-ID mismatch",
-    );
-  }
+  assertWireIdentityConsistency(materialization, message);
   if (message.senderIdentityId !== revision.senderIdentityId) {
     throw MailServiceError.integrityConflict(
       "Existing materialization sender identity mismatch",
@@ -345,7 +361,7 @@ async function createMaterializationGraph(
         input.revision.subject,
       ),
       sensitivity: input.revision.sensitivity,
-      internetMessageId: input.rfcIdentity.rfcMessageId,
+      internetMessageId: null,
       inReplyTo: null,
       referencesHeader: null,
       replyToMessageId: null,
@@ -400,6 +416,7 @@ async function createMaterializationGraph(
       id: materializationId,
       outboundRfcIdentityId: input.rfcIdentity.id,
       rfcMessageId: input.rfcIdentity.rfcMessageId,
+      wireInternetMessageId: null,
       mailMessageId: messageId,
       materializedAt,
     }),
@@ -652,7 +669,7 @@ export async function attemptInvalidMaterializationBatch(
       subjectNormalized,
       previewText: buildPreviewText(revision.bodyText, revision.subject),
       sensitivity: revision.sensitivity,
-      internetMessageId: rfcIdentity.rfcMessageId,
+      internetMessageId: null,
       composeMode: revision.composeMode,
       sentAt,
       createdBy: revision.createdByUserId,
@@ -699,6 +716,7 @@ export async function attemptInvalidMaterializationBatch(
       id: materializationId,
       outboundRfcIdentityId: rfcIdentity.id,
       rfcMessageId: rfcIdentity.rfcMessageId,
+      wireInternetMessageId: null,
       mailMessageId: messageId,
       materializedAt: now,
     }),
@@ -719,5 +737,6 @@ export const sentMessageMaterializationTestHooks =
         attemptInvalidMaterializationBatch,
         findMaterializationBySendId,
         isMailPostStateGuardError,
+        assertWireIdentityConsistency,
       }
     : undefined;

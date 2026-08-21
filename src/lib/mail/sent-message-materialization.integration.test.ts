@@ -471,8 +471,11 @@ async function acceptAdminDirectSend(db: TestDb, revisionId: string) {
   return { initiated, dispatched };
 }
 
-async function assertNoDeliveryEvents(db: TestDb) {
-  const events = await db.select().from(schema.mailDeliveryEvents);
+async function assertNoDeliveryEvents(db: TestDb, sendOperationId: string) {
+  const events = await db
+    .select()
+    .from(schema.mailDeliveryEvents)
+    .where(eq(schema.mailDeliveryEvents.sendOperationId, sendOperationId));
   assert.equal(events.length, 0);
 }
 
@@ -510,10 +513,13 @@ describe("sent message materialization integration", () => {
 
     const result = await materializeAcceptedOutboundSend(db, initiated.id);
     assert.equal(result.message.direction, "outbound");
+    assert.equal(result.message.internetMessageId, null);
+    assert.equal(result.materialization.wireInternetMessageId, null);
     assert.equal(
-      result.message.internetMessageId,
+      result.materialization.rfcMessageId,
       dispatched.rfcIdentity?.rfcMessageId,
     );
+    assert.ok(result.materialization.rfcMessageId);
     assert.equal(result.materialization.sendOperationId, initiated.id);
     assert.equal(result.materialization.outboundRevisionId, revision.id);
     assert.equal(result.view.recipientCount, 1);
@@ -537,7 +543,7 @@ describe("sent message materialization integration", () => {
       );
     assert.equal(audits.length, 1);
 
-    await assertNoDeliveryEvents(db);
+    await assertNoDeliveryEvents(db, initiated.id);
   });
 
   it("staff approved accepted send materializes with full recipient set including Bcc", async () => {
@@ -628,8 +634,10 @@ describe("sent message materialization integration", () => {
       result.materialization.acceptedTransportAttemptId,
       afterRetry.transportAttempts?.[1]?.id,
     );
+    assert.equal(result.message.internetMessageId, null);
+    assert.equal(result.materialization.wireInternetMessageId, null);
     assert.equal(
-      result.message.internetMessageId,
+      result.materialization.rfcMessageId,
       afterRetry.rfcIdentity?.rfcMessageId,
     );
   });
@@ -715,6 +723,53 @@ describe("sent message materialization integration", () => {
       row.subject.includes("Send subject"),
     );
     assert.equal(fixtureMessages.length, 1);
+    assert.equal(first.message.internetMessageId, null);
+    assert.equal(first.materialization.wireInternetMessageId, null);
+  });
+
+  it("verification rejects wire-null materialization when message internet id was tampered", async () => {
+    await cleanupFixtures(db);
+    const { revision } = await createProductionAdminDirectRevision(db);
+    const { initiated } = await acceptAdminDirectSend(db, revision.id);
+    await materializeAcceptedOutboundSend(db, initiated.id);
+
+    const materialized = await materializeAcceptedOutboundSend(db, initiated.id);
+    await db
+      .update(schema.mailMessages)
+      .set({ internetMessageId: "<tampered@echfronthk.com>" })
+      .where(eq(schema.mailMessages.id, materialized.message.id));
+
+    await assert.rejects(
+      () => materializeAcceptedOutboundSend(db, initiated.id),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "INTEGRITY_CONFLICT",
+    );
+  });
+
+  it("verification rejects wire identity mismatch with canonical message", async () => {
+    await cleanupFixtures(db);
+    const { revision } = await createProductionAdminDirectRevision(db);
+    const { initiated } = await acceptAdminDirectSend(db, revision.id);
+    const materialized = await materializeAcceptedOutboundSend(db, initiated.id);
+    const wireId = "<wire-known@echfronthk.com>";
+
+    assert.throws(
+      () =>
+        sentMessageMaterializationTestHooks!.assertWireIdentityConsistency(
+          {
+            ...materialized.materialization,
+            wireInternetMessageId: wireId,
+          },
+          {
+            ...materialized.message,
+            internetMessageId: "<different-wire@echfronthk.com>",
+          },
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "INTEGRITY_CONFLICT",
+    );
   });
 
   it("post-acceptance sender grant revocation still materializes", async () => {

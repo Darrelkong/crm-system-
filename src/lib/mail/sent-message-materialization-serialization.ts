@@ -7,7 +7,10 @@ export type SafeMaterializationView = {
   outboundRevisionId: string;
   acceptedTransportAttemptId: string;
   outboundRfcIdentityId: string;
+  /** Internal client-stable provenance — NOT wire RFC Message-ID. */
   rfcMessageId: string;
+  /** Actual wire RFC Message-ID witness when known; NULL until proven. */
+  wireInternetMessageId: string | null;
   mailMessageId: string;
   messageDirection: "outbound";
   materializedAt: string;
@@ -37,6 +40,7 @@ export function toSafeMaterializationView(
     acceptedTransportAttemptId: materialization.acceptedTransportAttemptId,
     outboundRfcIdentityId: materialization.outboundRfcIdentityId,
     rfcMessageId: materialization.rfcMessageId,
+    wireInternetMessageId: materialization.wireInternetMessageId,
     mailMessageId: materialization.mailMessageId,
     messageDirection: "outbound",
     materializedAt: materialization.materializedAt,

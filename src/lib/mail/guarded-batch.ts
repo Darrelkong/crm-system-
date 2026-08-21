@@ -497,6 +497,7 @@ export function buildMaterializationGuardedInsert(
     id: string;
     outboundRfcIdentityId: string;
     rfcMessageId: string;
+    wireInternetMessageId: string | null;
     mailMessageId: string;
     materializedAt: string;
   },
@@ -517,6 +518,7 @@ export function buildMaterializationGuardedInsert(
         ${guard.acceptedTransportAttemptId} AS accepted_transport_attempt_id,
         ${input.outboundRfcIdentityId} AS outbound_rfc_identity_id,
         ${input.rfcMessageId} AS rfc_message_id,
+        ${input.wireInternetMessageId} AS wire_internet_message_id,
         ${input.mailMessageId} AS mail_message_id,
         ${"outbound"} AS message_direction,
         ${input.materializedAt} AS materialized_at

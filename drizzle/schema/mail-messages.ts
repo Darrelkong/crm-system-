@@ -127,6 +127,8 @@ export const mailMessages = sqliteTable(
       table.internetMessageId,
       table.direction,
     ),
+    /** Parent key for materialization always-on outbound direction provenance (0067). */
+    uniqueIndex("uq_mail_messages_id_direction").on(table.id, table.direction),
   ],
 );
 
