@@ -12,6 +12,8 @@ export const MAIL_AUDIT_ACTIONS = {
   accessDisabled: "mail.access.disabled",
   notificationIdentityCreated: "mail.notification_identity.created",
   notificationIdentityVerified: "mail.notification_identity.verified",
+  notificationIdentityVerificationTokenIssued:
+    "mail.notification_identity.verification_token_issued",
   notificationIdentityRevoked: "mail.notification_identity.revoked",
   notificationIdentityDeliveryHealthChanged:
     "mail.notification_identity.delivery_health_changed",

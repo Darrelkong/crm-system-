@@ -1,5 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { and, eq, gte, isNull, sql } from "drizzle-orm";
 import type { MailNotificationDeliveryHealth } from "../../../drizzle/schema/mail-notification-identities";
 import type { MailNotificationIdentity } from "../../../drizzle/schema/mail-notification-identities";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
@@ -13,7 +12,10 @@ import {
   runMailBatch,
 } from "@/lib/mail/guarded-batch";
 import { normalizeMailEmailAddress } from "@/lib/mail/normalize-email-address";
-import { assertMailPermissionManagement } from "@/lib/permissions/mail";
+import {
+  assertMailNotificationProofManagement,
+  assertMailPermissionManagement,
+} from "@/lib/permissions/mail";
 import {
   noopNotificationVerificationChallengeSink,
   type NotificationVerificationChallengeSink,
@@ -533,6 +535,161 @@ export async function updateNotificationDeliveryHealth(
     throw MailServiceError.integrityConflict("Delivery health update failed");
   }
   return toSafeNotificationIdentityAdminView(updated);
+}
+
+/**
+ * TEMPORARY H.3 PROOF TOOL — break-glass verification token issuance for
+ * controlled Cloudflare Email Sending proof only.
+ *
+ * Long-term replacement: real verification-email delivery through a dedicated
+ * verification challenge transport. Remove or permanently disable after the
+ * permanent Mail Admin verification workflow ships.
+ */
+export const VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_MAX = 3 as const;
+export const VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
+
+export type AdminVerificationTokenIssueResult = {
+  item: {
+    identityId: string;
+    expiresAt: string;
+  };
+  verificationToken: string;
+};
+
+async function countActivePendingIdentitiesForUser(
+  db: Database,
+  userId: string,
+): Promise<number> {
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.mailNotificationIdentities)
+    .where(
+      and(
+        eq(schema.mailNotificationIdentities.userId, userId),
+        eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+        isNull(schema.mailNotificationIdentities.revokedAt),
+      ),
+    );
+  return row?.count ?? 0;
+}
+
+/**
+ * Schema invariant: uq_mail_notification_identities_user_pending_active allows
+ * at most one active pending identity per user_id.
+ */
+async function findAuthoritativePendingIdentityForUser(
+  db: Database,
+  userId: string,
+): Promise<MailNotificationIdentity | null> {
+  const pendingCount = await countActivePendingIdentitiesForUser(db, userId);
+  if (pendingCount === 0) {
+    return null;
+  }
+  if (pendingCount > 1) {
+    throw MailServiceError.integrityConflict(
+      "Ambiguous pending notification identity state for user",
+    );
+  }
+  return findActivePendingNotificationIdentity(db, userId);
+}
+
+async function assertVerificationTokenIssueRateLimit(
+  db: Database,
+  actorUserId: string,
+  nowMs: number,
+): Promise<void> {
+  const windowStart = new Date(
+    nowMs - VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_WINDOW_MS,
+  ).toISOString();
+  const [row] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.auditLogs)
+    .where(
+      and(
+        eq(schema.auditLogs.userId, actorUserId),
+        eq(
+          schema.auditLogs.action,
+          MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
+        ),
+        gte(schema.auditLogs.createdAt, windowStart),
+      ),
+    );
+  if ((row?.count ?? 0) >= VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_MAX) {
+    throw MailServiceError.conflict(
+      "Verification token issue rate limit exceeded for the last 24 hours",
+    );
+  }
+}
+
+export async function issueSelfVerificationTokenForAdminProof(
+  db: Database,
+  actor: MailActorContext,
+  options?: { nowMs?: number },
+): Promise<AdminVerificationTokenIssueResult> {
+  assertMailNotificationProofManagement(actor);
+
+  const nowMs = options?.nowMs ?? Date.now();
+  await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
+
+  const pending = await findAuthoritativePendingIdentityForUser(
+    db,
+    actor.userId,
+  );
+  if (!pending) {
+    throw MailServiceError.validation(
+      "Active pending notification identity is required before verification token issue",
+    );
+  }
+
+  const { token, tokenHash } = generateVerificationChallenge();
+  const now = new Date(nowMs).toISOString();
+  const expiresAt = verificationExpiresAt();
+  const auditId = crypto.randomUUID();
+
+  const results = await runMailBatch(db, [
+    db
+      .update(schema.mailNotificationIdentities)
+      .set({
+        verificationTokenHash: tokenHash,
+        verificationRequestedAt: now,
+        verificationExpiresAt: expiresAt,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationIdentities.id, pending.id),
+          eq(schema.mailNotificationIdentities.userId, actor.userId),
+          eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+          isNull(schema.mailNotificationIdentities.revokedAt),
+        ),
+      ),
+    buildNotificationIdentityAuditInsert(db, actor, {
+      auditId,
+      now,
+      action: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
+      entityId: pending.id,
+      metadata: {
+        targetUserId: actor.userId,
+        notificationIdentityId: pending.id,
+        actorUserId: actor.userId,
+        selfProof: true,
+        temporaryH3ProofTool: true,
+      },
+    }),
+  ]);
+  assertBatchUpdateChanged(
+    results,
+    0,
+    "Pending notification identity token issue conflict",
+  );
+
+  return {
+    item: {
+      identityId: pending.id,
+      expiresAt,
+    },
+    verificationToken: token,
+  };
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
