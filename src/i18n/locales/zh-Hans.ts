@@ -850,6 +850,17 @@ const zhHans: Messages = {
       description: "该 Mail 尚未开放权限，请联系管理员，谢谢。",
       backToDashboard: "返回仪表盘",
     },
+    adminOnlyShell: {
+      title: "Mail 管理",
+      description:
+        "您拥有 Mail 管理权限，但尚未开放 Mail 数据访问。请使用 Mail 设置管理配置。",
+      settings: "Mail 设置",
+      openAdminCenter: "打开 Mail 管理中心",
+    },
+    supervisionMode: {
+      badge: "管理员检视模式",
+      viewingMailbox: "正在检视：{{name}}",
+    },
     prototype: {
       badge: "UI Prototype",
       scenarioLabel: "原型场景",

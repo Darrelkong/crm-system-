@@ -3,8 +3,11 @@ import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-gra
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import {
   hasAnyMailAdminGrant,
+  hasEffectiveGlobalMailRead,
+  hasEffectiveMailAccess,
   hasMailAdminGrant,
   hasMailDeliveryHealth,
+  isCrmRootAdmin,
 } from "@/lib/permissions/mail";
 
 /** UI section gates for Mail Admin Center (Phase 2D-1). */
@@ -30,9 +33,17 @@ export type MailSessionContext = {
     email: string;
     name: string;
   };
+  /** Persisted mail_user_access provisioning state. */
   mailAccessEnabled: boolean;
+  /** Runtime workspace/data-plane access (root admin OR provisioned). */
+  effectiveMailAccessEnabled: boolean;
+  /** Runtime global supervision read (root admin OR explicit global_mail_read). */
+  effectiveGlobalMailRead: boolean;
+  isCrmRootAdmin: boolean;
   capabilities: MailAdminCenterCapabilities;
 };
+
+export type MailWorkspaceShellMode = "full" | "admin_only" | "no_access";
 
 const PERMISSION_MGMT_GRANTS: MailAdminPermission[] = [
   "super_admin",
@@ -78,26 +89,26 @@ const OVERVIEW_GRANTS: MailAdminPermission[] = [
   "global_mail_read",
 ];
 
-const DISABLED_CAPABILITIES: MailAdminCenterCapabilities = {
-  canAccessMailAdminCenter: false,
-  overview: false,
-  accessManagement: false,
-  notificationIdentityManagement: false,
-  proofDiagnostics: false,
-  senderIdentityManagement: false,
-  signatureTemplateManagement: false,
-  approvalReviewManagement: false,
-  approvalWorkflowView: false,
-  mailboxManagement: false,
-  permissionManagement: false,
-  deliveryHealth: false,
+const ROOT_ADMIN_CAPABILITIES: MailAdminCenterCapabilities = {
+  canAccessMailAdminCenter: true,
+  overview: true,
+  accessManagement: true,
+  notificationIdentityManagement: true,
+  proofDiagnostics: true,
+  senderIdentityManagement: true,
+  signatureTemplateManagement: true,
+  approvalReviewManagement: true,
+  approvalWorkflowView: true,
+  mailboxManagement: true,
+  permissionManagement: true,
+  deliveryHealth: true,
 };
 
 export function buildMailAdminCenterCapabilities(
   actor: MailActorContext,
 ): MailAdminCenterCapabilities {
-  if (!actor.mailAccessEnabled) {
-    return { ...DISABLED_CAPABILITIES };
+  if (isCrmRootAdmin(actor)) {
+    return { ...ROOT_ADMIN_CAPABILITIES };
   }
 
   const permissionMgmt = hasAnyMailAdminGrant(actor, PERMISSION_MGMT_GRANTS);
@@ -122,7 +133,7 @@ export function buildMailAdminCenterCapabilities(
       actor,
       APPROVAL_REVIEW_GRANTS,
     ),
-    approvalWorkflowView: true,
+    approvalWorkflowView: actor.mailAccessEnabled,
     mailboxManagement: accountMgmt,
     permissionManagement: permissionMgmt,
     deliveryHealth: hasMailDeliveryHealth(actor),
@@ -133,6 +144,7 @@ export function buildMailSessionContext(
   user: Pick<User, "id" | "email" | "displayName">,
   actor: MailActorContext,
 ): MailSessionContext {
+  const capabilities = buildMailAdminCenterCapabilities(actor);
   return {
     user: {
       id: user.id,
@@ -140,8 +152,24 @@ export function buildMailSessionContext(
       name: user.displayName,
     },
     mailAccessEnabled: actor.mailAccessEnabled,
-    capabilities: buildMailAdminCenterCapabilities(actor),
+    effectiveMailAccessEnabled: hasEffectiveMailAccess(actor),
+    effectiveGlobalMailRead: hasEffectiveGlobalMailRead(actor),
+    isCrmRootAdmin: isCrmRootAdmin(actor),
+    capabilities,
   };
+}
+
+export function resolveMailWorkspaceShellMode(input: {
+  effectiveMailAccessEnabled: boolean;
+  canAccessMailAdminCenter: boolean;
+}): MailWorkspaceShellMode {
+  if (input.effectiveMailAccessEnabled) {
+    return "full";
+  }
+  if (input.canAccessMailAdminCenter) {
+    return "admin_only";
+  }
+  return "no_access";
 }
 
 /** Admin Center navigation sections (Phase 2D-1). */

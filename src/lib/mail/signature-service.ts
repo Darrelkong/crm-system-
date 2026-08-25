@@ -24,7 +24,7 @@ import {
 } from "@/lib/mail/signature-html-policy";
 import { sanitizeOptionalSignatureHtml } from "@/lib/mail/signature-html-sanitizer";
 import {
-  assertMailAccessEnabled,
+  assertEffectiveMailAccess,
   assertMailSenderIdentityManagement,
   assertMailSignatureTemplateManagement,
   hasAnyMailAdminGrant,
@@ -156,7 +156,7 @@ function assertMayReadSignatureForIdentity(
   senderIdentityId: string,
   hasGrant: boolean,
 ): void {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   const isSignatureAdmin = hasAnyMailAdminGrant(actor, [
     "super_admin",
     "signature_template",

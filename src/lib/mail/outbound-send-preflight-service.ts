@@ -6,7 +6,7 @@ import {
   resolveMailActorContext,
   type MailActorContext,
 } from "@/lib/mail/actor-context";
-import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess, assertMailAccessEnabled } from "@/lib/permissions/mail";
 import { assertCanComposeFromIdentityInMailbox } from "@/lib/mail/compose-authorization";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
@@ -139,7 +139,7 @@ async function assertAdminDirectSendAuthority(
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   await assertCanComposeFromIdentityInMailbox(db, actor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,

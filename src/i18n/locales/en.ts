@@ -886,6 +886,17 @@ const en = {
         "Mail access has not been enabled for your account. Please contact an administrator. Thank you.",
       backToDashboard: "Back to dashboard",
     },
+    adminOnlyShell: {
+      title: "Mail administration",
+      description:
+        "You have Mail administration access but not Mail data access. Use Mail Settings to manage configuration.",
+      settings: "Mail settings",
+      openAdminCenter: "Open Mail Admin Center",
+    },
+    supervisionMode: {
+      badge: "Admin supervision view",
+      viewingMailbox: "Viewing: {{name}}",
+    },
     prototype: {
       badge: "UI Prototype",
       scenarioLabel: "Prototype scenario",

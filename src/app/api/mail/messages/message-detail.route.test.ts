@@ -118,6 +118,36 @@ describe("GET /api/mail/messages/[id]", () => {
     assert.equal(json.item.recipients.length, 2);
   });
 
+  it("shows Bcc for CRM root admin supervision without global_mail_read grant", async () => {
+    const messageId = `${fixtureAddress("bcc-root-admin")}-msg`;
+    await insertMessage(db, {
+      id: messageId,
+      mailboxId,
+      direction: "inbound",
+      withBcc: true,
+    });
+
+    const res = await handleGetMailMessageDetail(
+      new Request(`http://localhost/api/mail/messages/${messageId}?folder=inbox`),
+      messageId,
+      {
+        requireMailActor: makeRequireMailActor(
+          db,
+          actor(SEED_IDS.admin, {
+            crmRole: "admin",
+            mailAccessEnabled: false,
+            adminGrants: [],
+          }),
+        ),
+      },
+    );
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as {
+      item: { recipients: Array<{ recipientType: string }> };
+    };
+    assert.equal(json.item.recipients.length, 2);
+  });
+
   it("does not expose attachment storage keys", async () => {
     const messageId = `${fixtureAddress("attachment")}-msg`;
     await insertMessage(db, {

@@ -2,7 +2,7 @@ import type { MailSendOperation } from "../../../drizzle/schema/mail-send-operat
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
 import {
-  assertMailAccessEnabled,
+  assertEffectiveMailAccess,
   assertMailOutboundApprovalReview,
   hasMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
@@ -24,7 +24,7 @@ export function assertCanDispatchOutboundSend(
   actor: MailActorContext,
   send: Pick<MailSendOperation, "authorizationMode">,
 ): void {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   if (send.authorizationMode === "staff_approved") {
     assertMailOutboundApprovalReview(actor);

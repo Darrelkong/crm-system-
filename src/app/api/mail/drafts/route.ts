@@ -14,7 +14,12 @@ import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
 export async function GET(request: Request) {
   try {
     const { actor, db } = await requireMailActor(request);
-    const items = await listDrafts(db, actor);
+    const mailboxId = new URL(request.url).searchParams.get("mailboxId")?.trim();
+    const items = await listDrafts(
+      db,
+      actor,
+      mailboxId ? { mailboxId } : undefined,
+    );
     return Response.json({ items });
   } catch (error) {
     return mailErrorResponse(error);

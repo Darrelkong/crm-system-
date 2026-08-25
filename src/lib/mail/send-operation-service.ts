@@ -47,6 +47,7 @@ import type {
   NormalizedOutboundSubmission,
 } from "@/lib/mail/transport/mail-transport-adapter";
 import {
+  assertEffectiveMailAccess,
   assertMailAccessEnabled,
   assertMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
@@ -212,7 +213,7 @@ async function assertAdminDirectSendAuthority(
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   await assertCanComposeFromIdentityInMailbox(db, actor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,
@@ -476,7 +477,7 @@ export async function getSendOperationForApproval(
     throw MailServiceError.notFound("Approval workflow not found");
   }
   if (approval.requestedByUserId === actor.userId) {
-    assertMailAccessEnabled(actor);
+    assertEffectiveMailAccess(actor);
   } else {
     assertMailOutboundApprovalReview(actor);
   }
@@ -565,7 +566,7 @@ export async function getSendOperation(
   actor: MailActorContext,
   sendOperationId: string,
 ): Promise<SafeSendOperationView> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const send = await findSendById(db, sendOperationId);
   if (!send) {
@@ -1081,7 +1082,7 @@ export async function dispatchSendOperation(
     transportMode?: MailOutboundTransportMode;
   },
 ): Promise<SafeSendOperationView> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const transportMode =
     input.transportMode ?? resolveMailOutboundTransportMode(process.env);
@@ -1156,7 +1157,7 @@ export async function retrySendOperation(
     adapter: MailTransportAdapter;
   },
 ): Promise<SafeSendOperationView> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const send = await findSendById(db, input.sendOperationId);
   if (!send) {

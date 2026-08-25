@@ -13,7 +13,9 @@ import { fetchMailSession } from "@/lib/mail/client/api";
 import type { MailSessionContext } from "@/lib/mail/mail-session-context";
 import {
   canAccessMailAdminCenter,
+  resolveMailWorkspaceShellMode,
   type MailAdminCenterCapabilities,
+  type MailWorkspaceShellMode,
 } from "@/lib/mail/mail-session-context";
 
 type MailSessionState = {
@@ -22,6 +24,10 @@ type MailSessionState = {
   error: string | null;
   refresh: () => Promise<void>;
   mailAccessEnabled: boolean;
+  effectiveMailAccessEnabled: boolean;
+  effectiveGlobalMailRead: boolean;
+  isCrmRootAdmin: boolean;
+  workspaceShellMode: MailWorkspaceShellMode;
   capabilities: MailAdminCenterCapabilities;
   canOpenAdminCenter: boolean;
 };
@@ -72,6 +78,13 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   const capabilities = session?.capabilities ?? DISABLED_CAPABILITIES;
+  const effectiveMailAccessEnabled =
+    session?.effectiveMailAccessEnabled ?? false;
+  const canOpenAdminCenter = canAccessMailAdminCenter(capabilities);
+  const workspaceShellMode = resolveMailWorkspaceShellMode({
+    effectiveMailAccessEnabled,
+    canAccessMailAdminCenter: canOpenAdminCenter,
+  });
 
   const value = useMemo<MailSessionState>(
     () => ({
@@ -80,10 +93,23 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
       error,
       refresh,
       mailAccessEnabled: session?.mailAccessEnabled ?? false,
+      effectiveMailAccessEnabled,
+      effectiveGlobalMailRead: session?.effectiveGlobalMailRead ?? false,
+      isCrmRootAdmin: session?.isCrmRootAdmin ?? false,
+      workspaceShellMode,
       capabilities,
-      canOpenAdminCenter: canAccessMailAdminCenter(capabilities),
+      canOpenAdminCenter,
     }),
-    [session, loading, error, refresh, capabilities],
+    [
+      session,
+      loading,
+      error,
+      refresh,
+      effectiveMailAccessEnabled,
+      workspaceShellMode,
+      capabilities,
+      canOpenAdminCenter,
+    ],
   );
 
   return (

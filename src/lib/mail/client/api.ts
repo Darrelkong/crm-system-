@@ -886,7 +886,9 @@ export async function fetchComposeContext(): Promise<{
   return { ok: true, items: data.items ?? [] };
 }
 
-export async function fetchDrafts(): Promise<{
+export async function fetchDrafts(input?: {
+  mailboxId?: string;
+}): Promise<{
   ok: true;
   items: DraftApiItem[];
 } | {
@@ -895,7 +897,13 @@ export async function fetchDrafts(): Promise<{
   error: string;
   errorCode?: string;
 }> {
-  const res = await fetch(DRAFTS_PATH, { cache: "no-store" });
+  const params = new URLSearchParams();
+  if (input?.mailboxId) {
+    params.set("mailboxId", input.mailboxId);
+  }
+  const query = params.toString();
+  const url = query ? `${DRAFTS_PATH}?${query}` : DRAFTS_PATH;
+  const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) {
     const { error, errorCode } = await readApiError(res, "Failed to load drafts");
     return { ok: false, status: res.status, error, errorCode };

@@ -19,6 +19,7 @@ import { MailComposeEditor } from "@/components/mail/compose/mail-compose-editor
 import type { ComposeInitialSeed } from "@/lib/mail/client/draft-management";
 import type { MockComposeDraft } from "@/lib/mail/prototype/state";
 import { MailNoAccessState } from "./mail-no-access-state";
+import { MailAdminOnlyShell } from "./mail-admin-only-shell";
 import { MailProductionNoMailboxesState } from "./mail-production-no-mailboxes-state";
 import { MailDebugControls } from "./mail-debug-controls";
 import { MailDesktopWorkspace } from "./mail-desktop-workspace";
@@ -99,7 +100,8 @@ export function MailPrototypeShell({
     loading: sessionLoading,
     error: sessionError,
     refresh: refreshMailSession,
-    mailAccessEnabled,
+    effectiveMailAccessEnabled,
+    workspaceShellMode,
     canOpenAdminCenter,
   } = useMailSession();
 
@@ -291,7 +293,7 @@ export function MailPrototypeShell({
   }
 
   useEffect(() => {
-    if (customerHandledRef.current || !mailAccessEnabled) return;
+    if (customerHandledRef.current || !effectiveMailAccessEnabled) return;
     const customerId = searchParams.get("customerId");
     const customerName = searchParams.get("customerName");
     const email = searchParams.get("email");
@@ -302,11 +304,11 @@ export function MailPrototypeShell({
       subject: "",
       body: "",
     });
-  }, [mailAccessEnabled, searchParams]);
+  }, [effectiveMailAccessEnabled, searchParams]);
 
   useEffect(() => {
     const messageId = searchParams.get("messageId");
-    if (!messageId || !mailAccessEnabled) return;
+    if (!messageId || !effectiveMailAccessEnabled) return;
     if (isProduction && workspace) {
       void workspace.selectMessage(messageId);
       if (isMobileViewport) {
@@ -320,7 +322,7 @@ export function MailPrototypeShell({
     }
   }, [
     isProduction,
-    mailAccessEnabled,
+    effectiveMailAccessEnabled,
     isMobileViewport,
     openMessageFromNotification,
     searchParams,
@@ -351,11 +353,23 @@ export function MailPrototypeShell({
     );
   }
 
-  if (!mailAccessEnabled) {
+  if (workspaceShellMode === "no_access") {
     return (
       <div className="min-w-0 px-4 py-3 sm:px-6">
         <MailNoAccessState dashboardHref={dashboardHref} />
         <MailDebugControls />
+      </div>
+    );
+  }
+
+  if (workspaceShellMode === "admin_only") {
+    return (
+      <div className="min-w-0 px-4 py-3 sm:px-6">
+        <MailAdminOnlyShell
+          adminCenterOpen={adminCenterOpen}
+          onAdminCenterOpenChange={setAdminCenterOpen}
+          onOpenAdminCenter={() => setAdminCenterOpen(true)}
+        />
       </div>
     );
   }

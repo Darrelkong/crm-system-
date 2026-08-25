@@ -9,8 +9,8 @@ import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
 import { findMailboxById } from "@/lib/mail/mailbox-service";
 import {
-  assertMailAccessEnabled,
-  hasMailAdminGrant,
+  assertEffectiveMailAccess,
+  hasEffectiveGlobalMailRead,
 } from "@/lib/permissions/mail";
 
 export type MailReadAccessMode = "member" | "global_read";
@@ -59,7 +59,7 @@ export function recordMailReadAuditEvent(_input: MailReadAuditEventInput): void 
 }
 
 export function hasGlobalMailReadGrant(actor: MailActorContext): boolean {
-  return hasMailAdminGrant(actor, "global_mail_read");
+  return hasEffectiveGlobalMailRead(actor);
 }
 
 async function findActiveMailboxMembership(
@@ -102,18 +102,18 @@ function assertMailboxIsReadable(mailbox: MailMailbox): void {
  * Validates mailbox-level read access for the current actor.
  *
  * Policy:
- * - Requires mail_user_access.
+ * - Requires effective Mail access (root admin OR mail_user_access).
  * - Denies suspended/archived/deleted mailboxes.
  * - Shared mailbox: active membership with can_read.
  * - Personal mailbox: owner (created_by) OR active membership with can_read.
- * - global_mail_read: explicit grant only; super_admin does NOT imply global read.
+ * - global_mail_read or CRM root admin: supervision read without membership.
  */
 export async function assertCanReadMailbox(
   db: Database,
   actor: MailActorContext,
   mailboxId: string,
 ): Promise<MailReadAccessResult> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const mailbox = await findMailboxById(db, mailboxId);
   if (!mailbox) {
@@ -196,7 +196,7 @@ export async function assertCanReadMessage(
   messageId: string,
   context?: MailMessageReadContext,
 ): Promise<MailMessageReadPermissionResult> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const [message] = await db
     .select()

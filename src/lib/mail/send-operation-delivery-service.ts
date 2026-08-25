@@ -9,7 +9,7 @@ import {
   type SendDeliveryLifecycleProjection,
 } from "@/lib/mail/send-operation-delivery-projection";
 import { getSendOperation } from "@/lib/mail/send-operation-service";
-import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
 
 export type SafeDeliveryEventView = {
   id: string;
@@ -89,7 +89,7 @@ export async function getSendOperationDeliveryLifecycle(
   actor: MailActorContext,
   sendOperationId: string,
 ): Promise<SafeSendDeliveryLifecycleView> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const sendView = await getSendOperation(db, actor, sendOperationId);
   const [send] = await db

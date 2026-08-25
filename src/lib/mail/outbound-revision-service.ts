@@ -27,7 +27,7 @@ import {
   toSafeOutboundRevisionView,
 } from "@/lib/mail/outbound-revision-serialization";
 import { materializeSignatureSnapshotForRevision } from "@/lib/mail/signature-snapshot-service";
-import { assertMailAccessEnabled, hasMailOutboundApprovalReview } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess, hasMailOutboundApprovalReview } from "@/lib/permissions/mail";
 import { MAIL_SECURE_EXPIRY_DAYS } from "../../../drizzle/schema/mail-draft-attachments";
 
 async function findRevisionById(
@@ -77,7 +77,7 @@ export async function getOutboundRevision(
   actor: MailActorContext,
   revisionId: string,
 ) {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   const revision = await findRevisionById(db, revisionId);
   if (!revision) {
     throw MailServiceError.notFound("Outbound revision not found");
@@ -188,7 +188,7 @@ export async function recomputeOutboundRevisionContentHash(
 }
 
 function assertCrmAdminForAdminDirectRevision(actor: MailActorContext): void {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden(
       "CRM admin role required for admin-direct revision",
@@ -485,7 +485,7 @@ export async function createOutboundRevisionFromDraft(
   actor: MailActorContext,
   input: { draftId: string; expectedAutosaveVersion: number },
 ) {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   return createImmutableRevisionFromDraftGraph(
     db,
     actor,

@@ -34,7 +34,11 @@ import {
   normalizeOutboundRecipients,
   type OutboundRecipientInput,
 } from "@/lib/mail/outbound-recipient-validation";
-import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import {
+  assertEffectiveMailAccess,
+  hasEffectiveGlobalMailRead,
+} from "@/lib/permissions/mail";
+import { assertCanReadMailbox } from "@/lib/mail/message-read-permissions";
 import { getUserById } from "@/lib/users/queries";
 
 export type DraftDetailView = SafeDraftView & {
@@ -127,7 +131,7 @@ export async function requireAuthorDraft(
   actor: MailActorContext,
   draftId: string,
 ): Promise<MailDraft> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   const draft = await findDraftById(db, draftId);
   if (!draft || draft.discardedAt) {
     throw MailServiceError.notFound("Draft not found");
@@ -193,8 +197,25 @@ export async function loadDraftDetail(
 export async function listDrafts(
   db: Database,
   actor: MailActorContext,
+  options?: { mailboxId?: string },
 ): Promise<SafeDraftView[]> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
+
+  if (options?.mailboxId && hasEffectiveGlobalMailRead(actor)) {
+    await assertCanReadMailbox(db, actor, options.mailboxId);
+    const rows = await db
+      .select()
+      .from(schema.mailDrafts)
+      .where(
+        and(
+          eq(schema.mailDrafts.mailboxId, options.mailboxId),
+          isNull(schema.mailDrafts.discardedAt),
+        ),
+      )
+      .orderBy(schema.mailDrafts.updatedAt);
+    return rows.map(toSafeDraftView);
+  }
+
   const rows = await db
     .select()
     .from(schema.mailDrafts)
@@ -213,7 +234,27 @@ export async function getDraft(
   actor: MailActorContext,
   draftId: string,
 ): Promise<DraftDetailView> {
-  const draft = await requireAuthorDraft(db, actor, draftId);
+  assertEffectiveMailAccess(actor);
+  const draft = await findDraftById(db, draftId);
+  if (!draft || draft.discardedAt) {
+    throw MailServiceError.notFound("Draft not found");
+  }
+
+  if (draft.authorUserId !== actor.userId) {
+    if (!hasEffectiveGlobalMailRead(actor)) {
+      throw MailServiceError.forbidden("Draft access denied");
+    }
+    if (!draft.mailboxId) {
+      throw MailServiceError.notFound("Draft not found");
+    }
+    await assertCanReadMailbox(db, actor, draft.mailboxId);
+    const author = await getUserById(draft.authorUserId);
+    if (!author) {
+      throw MailServiceError.notFound("Draft not found");
+    }
+    return loadDraftDetail(db, draft, author);
+  }
+
   const user = await resolveActorUser(actor);
   return loadDraftDetail(db, draft, user);
 }

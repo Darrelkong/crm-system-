@@ -14,11 +14,12 @@ import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-gra
 function actor(
   grants: MailAdminPermission[] = [],
   mailAccessEnabled = true,
+  crmRole: "admin" | "staff" = "staff",
 ): MailActorContext {
   return {
     userId: "user-1",
     sessionId: null,
-    crmRole: "admin",
+    crmRole,
     mailAccessEnabled,
     adminGrants: grants,
     audit: {},
@@ -26,24 +27,30 @@ function actor(
 }
 
 describe("buildMailAdminCenterCapabilities", () => {
-  it("returns all false when mail access is disabled", () => {
+  it("returns full capabilities for CRM root admin without mail access", () => {
     const capabilities = buildMailAdminCenterCapabilities(
-      actor(["super_admin"], false),
+      actor(["super_admin"], false, "admin"),
     );
-    assert.deepEqual(capabilities, {
-      canAccessMailAdminCenter: false,
-      overview: false,
-      accessManagement: false,
-      notificationIdentityManagement: false,
-      proofDiagnostics: false,
-      senderIdentityManagement: false,
-      signatureTemplateManagement: false,
-      approvalReviewManagement: false,
-      approvalWorkflowView: false,
-      mailboxManagement: false,
-      permissionManagement: false,
-      deliveryHealth: false,
-    });
+    assert.equal(capabilities.canAccessMailAdminCenter, true);
+    assert.equal(capabilities.accessManagement, true);
+    assert.equal(capabilities.mailboxManagement, true);
+  });
+
+  it("returns grant-based capabilities for delegated admin without mail access", () => {
+    const capabilities = buildMailAdminCenterCapabilities(
+      actor(["permission_mgmt"], false),
+    );
+    assert.equal(capabilities.canAccessMailAdminCenter, true);
+    assert.equal(capabilities.accessManagement, true);
+    assert.equal(capabilities.approvalWorkflowView, false);
+  });
+
+  it("returns no capabilities for staff without mail access or grants", () => {
+    const capabilities = buildMailAdminCenterCapabilities(
+      actor([], false, "staff"),
+    );
+    assert.equal(capabilities.canAccessMailAdminCenter, false);
+    assert.equal(capabilities.overview, false);
   });
 
   it("maps permission_mgmt to access, notification identity, and permission sections", () => {
@@ -254,21 +261,26 @@ describe("buildMailSessionContext", () => {
   it("maps user fields and actor state into session context", () => {
     const context = buildMailSessionContext(
       {
-        id: "admin-1",
-        email: "admin@example.com",
-        displayName: "Admin User",
+        id: "staff-1",
+        email: "staff@example.com",
+        displayName: "Staff User",
       },
-      actor(["permission_mgmt"]),
+      actor(["permission_mgmt"], true, "staff"),
     );
 
     assert.deepEqual(context, {
       user: {
-        id: "admin-1",
-        email: "admin@example.com",
-        name: "Admin User",
+        id: "staff-1",
+        email: "staff@example.com",
+        name: "Staff User",
       },
       mailAccessEnabled: true,
-      capabilities: buildMailAdminCenterCapabilities(actor(["permission_mgmt"])),
+      effectiveMailAccessEnabled: true,
+      effectiveGlobalMailRead: false,
+      isCrmRootAdmin: false,
+      capabilities: buildMailAdminCenterCapabilities(
+        actor(["permission_mgmt"], true, "staff"),
+      ),
     });
   });
 });

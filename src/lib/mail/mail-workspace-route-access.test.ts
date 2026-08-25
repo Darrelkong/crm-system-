@@ -83,12 +83,12 @@ describe("mail workspace vs admin center separation", () => {
     assert.equal(canAccessMailAdminCenter(capabilities), false);
   });
 
-  it("does not imply mail access from CRM admin role alone", () => {
+  it("grants CRM root admin mail admin center without mail access or grants", () => {
     const capabilities = buildMailAdminCenterCapabilities(
       actor([], { crmRole: "admin", mailAccessEnabled: false }),
     );
-    assert.equal(capabilities.canAccessMailAdminCenter, false);
-    assert.equal(capabilities.approvalWorkflowView, false);
+    assert.equal(capabilities.canAccessMailAdminCenter, true);
+    assert.equal(capabilities.approvalWorkflowView, true);
   });
 
   it("allows mail admin center only with explicit admin entry grants", () => {

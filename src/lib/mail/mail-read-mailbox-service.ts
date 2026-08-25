@@ -5,7 +5,7 @@ import { schema, type Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import type { MailReadAccessMode } from "@/lib/mail/message-read-permissions";
 import { hasGlobalMailReadGrant } from "@/lib/mail/message-read-permissions";
-import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
 
 export type AccessibleMailboxPermissionsView = {
   canRead: boolean;
@@ -102,7 +102,7 @@ export async function listAccessibleMailboxes(
   db: Database,
   actor: MailActorContext,
 ): Promise<AccessibleMailboxView[]> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const activeMailboxes = await db
     .select()

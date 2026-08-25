@@ -20,19 +20,19 @@ import {
 } from "@/lib/mail/client/mail-workspace-bootstrap";
 
 function MailProductionWorkspaceBootstrap() {
-  const { mailAccessEnabled } = useMailSession();
+  const { effectiveMailAccessEnabled } = useMailSession();
   const workspace = useMailWorkspace();
   const trackerRef = useRef(createProductionBootstrapTracker());
   const mailboxesFetchInFlightRef = useRef(false);
   const inboxFetchInFlightRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!mailAccessEnabled) {
+    if (!effectiveMailAccessEnabled) {
       return;
     }
 
     const snapshot = buildProductionBootstrapSnapshot({
-      mailAccessEnabled,
+      mailAccessEnabled: effectiveMailAccessEnabled,
       mailboxes: workspace.mailboxes,
       selectedMailboxId: workspace.selectedMailboxId,
       selectedFolder: workspace.selectedFolder,
@@ -75,7 +75,7 @@ function MailProductionWorkspaceBootstrap() {
         });
     }
   }, [
-    mailAccessEnabled,
+    effectiveMailAccessEnabled,
     workspace.mailboxes,
     workspace.selectedMailboxId,
     workspace.selectedFolder,

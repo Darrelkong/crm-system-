@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
 import {
+  assertEffectiveMailAccess,
   assertMailAccessEnabled,
   assertMailAccountManagement,
   assertMailAddressAssignment,
@@ -25,7 +26,7 @@ function actor(
   return {
     userId: "user-1",
     sessionId: null,
-    crmRole: "admin",
+    crmRole: "staff",
     mailAccessEnabled: true,
     adminGrants: [],
     audit: {},
@@ -34,7 +35,27 @@ function actor(
 }
 
 describe("mail permissions", () => {
-  it("denies actor without mail access", () => {
+  it("grants effective mail access to CRM root admin without provisioned access", () => {
+    assert.doesNotThrow(() =>
+      assertEffectiveMailAccess(
+        actor({ crmRole: "admin", mailAccessEnabled: false }),
+      ),
+    );
+  });
+
+  it("denies actor without effective mail access", () => {
+    assert.throws(
+      () =>
+        assertEffectiveMailAccess(
+          actor({ crmRole: "staff", mailAccessEnabled: false }),
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("denies actor without persisted mail access via assertMailAccessEnabled", () => {
     assert.throws(
       () => assertMailAccessEnabled(actor({ mailAccessEnabled: false })),
       (error: unknown) =>
@@ -43,15 +64,20 @@ describe("mail permissions", () => {
     );
   });
 
-  it("denies CRM admin without required mail admin grant", () => {
+  it("allows CRM root admin for management grants without explicit mail admin grant", () => {
+    assert.doesNotThrow(() => assertMailAccountManagement(actor({ crmRole: "admin" })));
+    assert.doesNotThrow(() => assertMailAddressAssignment(actor({ crmRole: "admin" })));
+  });
+
+  it("denies staff without required mail admin grant", () => {
     assert.throws(
-      () => assertMailAccountManagement(actor({ crmRole: "admin" })),
+      () => assertMailAccountManagement(actor({ crmRole: "staff" })),
       (error: unknown) =>
         error instanceof MailServiceError &&
         error.errorCode === "FORBIDDEN",
     );
     assert.throws(
-      () => assertMailAddressAssignment(actor({ crmRole: "admin" })),
+      () => assertMailAddressAssignment(actor({ crmRole: "staff" })),
       (error: unknown) =>
         error instanceof MailServiceError &&
         error.errorCode === "FORBIDDEN",
@@ -181,38 +207,42 @@ describe("mail permissions", () => {
     );
   });
 
-  it("hasMailDeliveryHealth requires mail access and grant", () => {
+  it("hasMailDeliveryHealth includes delegated grant without mail access row", () => {
     assert.equal(
       hasMailDeliveryHealth(actor({ adminGrants: ["delivery_health"] })),
       true,
     );
     assert.equal(
       hasMailDeliveryHealth(
-        actor({ adminGrants: ["delivery_health"], mailAccessEnabled: false }),
+        actor({ crmRole: "staff", adminGrants: ["delivery_health"], mailAccessEnabled: false }),
       ),
-      false,
+      true,
+    );
+    assert.equal(
+      hasMailDeliveryHealth(
+        actor({ crmRole: "admin", mailAccessEnabled: false }),
+      ),
+      true,
     );
   });
 
-  it("allows only super_admin to configure inbound fallback", () => {
+  it("allows CRM root admin for inbound fallback without super_admin grant", () => {
     assert.doesNotThrow(() =>
       assertMailInboundFallbackConfigManagement(
-        actor({ adminGrants: ["super_admin"] }),
-      ),
-    );
-    assert.throws(() =>
-      assertMailInboundFallbackConfigManagement(
-        actor({ adminGrants: ["delivery_health"] }),
-      ),
-    );
-    assert.throws(() =>
-      assertMailInboundFallbackConfigManagement(
-        actor({ adminGrants: ["account_mgmt"] }),
-      ),
-    );
-    assert.throws(() =>
-      assertMailInboundFallbackConfigManagement(
         actor({ crmRole: "admin", adminGrants: [] }),
+      ),
+    );
+  });
+
+  it("denies staff without super_admin for inbound fallback", () => {
+    assert.throws(() =>
+      assertMailInboundFallbackConfigManagement(
+        actor({ crmRole: "staff", adminGrants: ["delivery_health"] }),
+      ),
+    );
+    assert.throws(() =>
+      assertMailInboundFallbackConfigManagement(
+        actor({ crmRole: "staff", adminGrants: ["account_mgmt"] }),
       ),
     );
   });

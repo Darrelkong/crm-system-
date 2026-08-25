@@ -4,12 +4,12 @@ import { authErrorResponse, AuthError } from "@/lib/permissions/auth";
 import { requireMailActor } from "@/lib/mail/api-helpers";
 import { MailServiceError, mailErrorResponse } from "@/lib/mail/errors";
 import { lookupMailCustomerByEmail } from "@/lib/mail/mail-customer-lookup-service";
-import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
 
 export async function GET(request: Request) {
   try {
     const { user, actor, db } = await requireMailActor(request);
-    assertMailAccessEnabled(actor);
+    assertEffectiveMailAccess(actor);
 
     const email = new URL(request.url).searchParams.get("email")?.trim();
     if (!email) {

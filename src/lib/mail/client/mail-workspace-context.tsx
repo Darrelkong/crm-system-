@@ -38,7 +38,7 @@ export type MailWorkspaceApi = {
   updateMessageReadState: (
     input: UpdateMessageReadStateInput,
   ) => Promise<MailReadStateView>;
-  fetchDrafts: () => Promise<DraftApiItem[]>;
+  fetchDrafts: (input?: { mailboxId?: string }) => Promise<DraftApiItem[]>;
 };
 
 export type LoadMessagesInput = {
@@ -102,8 +102,8 @@ export function createDefaultMailWorkspaceApi(): MailWorkspaceApi {
     fetchMessages,
     fetchMessageDetail,
     updateMessageReadState,
-    fetchDrafts: async () => {
-      const result = await fetchDraftsFromApi();
+    fetchDrafts: async (input) => {
+      const result = await fetchDraftsFromApi(input);
       if (!result.ok) {
         throw new MailReadApiError(
           result.status,
@@ -385,7 +385,11 @@ export function createMailWorkspaceRuntime(
     });
 
     try {
-      const items = await api.fetchDrafts();
+      const items = await api.fetchDrafts(
+        state.selectedMailboxId
+          ? { mailboxId: state.selectedMailboxId }
+          : undefined,
+      );
       if (requestSequence !== draftsRequestSequence) {
         return;
       }
