@@ -1,9 +1,21 @@
 import { getRequestMeta } from "@/lib/auth/cookies";
-import { getDb } from "@/lib/db";
+import { getDb, type Database } from "@/lib/db";
 import { resolveMailActorContext } from "@/lib/mail/actor-context";
+import type { MailActorContext } from "@/lib/mail/actor-context";
 import { requireAuth } from "@/lib/permissions/auth";
+import type { User } from "../../../drizzle/schema/users";
 
-export async function requireMailActor(request: Request) {
+export type MailRouteActorResult = {
+  user: User;
+  actor: MailActorContext;
+  db: Database;
+};
+
+export type MailRouteActorResolver = (
+  request: Request,
+) => Promise<MailRouteActorResult>;
+
+export async function requireMailActor(request: Request): Promise<MailRouteActorResult> {
   const user = await requireAuth(request);
   const { ipAddress, userAgent } = getRequestMeta(request);
   const db = getDb();

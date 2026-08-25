@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   getAdminNavGroups,
+  getMobileBottomNav,
   getStaffNavGroups,
   type NavLink,
 } from "@/lib/layout/nav-links";
@@ -55,5 +56,33 @@ describe("admin audit logs navigation", () => {
     assert.ok(loginIndex >= 0);
     assert.ok(auditIndex >= 0);
     assert.equal(auditIndex, loginIndex + 1);
+  });
+
+  it("includes /mail in admin and staff desktop nav", () => {
+    assert.ok(allNavHrefs("admin").includes("/mail"));
+    assert.ok(allNavHrefs("staff").includes("/mail"));
+  });
+});
+
+describe("mobile bottom navigation", () => {
+  it("uses the frozen five-item layout for admin and staff", () => {
+    const expected = [
+      "nav.dashboard",
+      "nav.customersMobile",
+      "nav.mail",
+      "nav.workItems",
+      "nav.more",
+    ];
+
+    for (const role of ["admin", "staff"] as const) {
+      const items = getMobileBottomNav(role);
+      assert.equal(items.length, 5);
+      assert.deepEqual(
+        items.map((item) => item.labelKey),
+        expected,
+      );
+      assert.equal(items[2]?.href, "/mail");
+      assert.equal(items[2]?.icon, "mail");
+    }
   });
 });

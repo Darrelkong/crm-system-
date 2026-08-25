@@ -817,6 +817,7 @@ describe("send operation orchestration integration", () => {
       approvalReviewActor,
       send,
       adapter,
+      "dry_run",
     );
     const processingSend = await hooks.findSendById(db, initiated.id);
     assert.ok(processingSend);

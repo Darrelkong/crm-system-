@@ -2,6 +2,9 @@ export const MAIL_AUDIT_ACTIONS = {
   mailboxCreated: "mail.mailbox.created",
   mailboxSuspended: "mail.mailbox.suspended",
   mailboxRestored: "mail.mailbox.restored",
+  mailboxMemberGranted: "mail.mailbox_member.granted",
+  mailboxMemberUpdated: "mail.mailbox_member.updated",
+  mailboxMemberRevoked: "mail.mailbox_member.revoked",
   receivingAddressCreated: "mail.receiving_address.created",
   receivingAddressSuspended: "mail.receiving_address.suspended",
   receivingAddressRestored: "mail.receiving_address.restored",
@@ -29,6 +32,9 @@ export const MAIL_AUDIT_ACTIONS = {
   draftCreated: "mail.draft.created",
   draftUpdated: "mail.draft.updated",
   draftDiscarded: "mail.draft.discarded",
+  draftAttachmentAdded: "mail.draft.attachment_added",
+  draftAttachmentRemoved: "mail.draft.attachment_removed",
+  attachmentDownloaded: "mail.attachment.downloaded",
   revisionCreated: "mail.revision.created",
   approvalSubmitted: "mail.approval.submitted",
   approvalReturned: "mail.approval.returned",
@@ -41,12 +47,17 @@ export const MAIL_AUDIT_ACTIONS = {
   sendTemporaryFailure: "mail.send.temporary_failure",
   sendPermanentFailure: "mail.send.permanent_failure",
   sendRetryStarted: "mail.send.retry_started",
+  sendPreflightBlocked: "mail.send.preflight_blocked",
+  sendDispatchAuthorized: "mail.send.dispatch_authorized",
+  transportModeObserved: "mail.transport.mode_observed",
   sentMaterialized: "mail.sent.materialized",
   inboundFallbackUpdated: "mail.inbound_fallback.updated",
   inboundProviderStaged: "mail.inbound_provider.staged",
   inboundMaterialized: "mail.inbound.materialized",
   deliveryProviderStaged: "mail.delivery_provider.staged",
   deliveryMaterialized: "mail.delivery.materialized",
+  deliveryWebhookAccepted: "mail.delivery_webhook.accepted",
+  deliveryWebhookRejected: "mail.delivery_webhook.rejected",
   ingestionQuarantineReplayed: "mail.ingestion.quarantine_replayed",
   ingestionProcessingRecovered: "mail.ingestion.processing_recovered",
   notificationSent: "mail.notification.sent",
@@ -74,3 +85,7 @@ export type MailErrorCode =
   (typeof MAIL_ERROR_CODES)[keyof typeof MAIL_ERROR_CODES];
 
 export const MAIL_API_MAX_JSON_BYTES = 16_384;
+
+/** Multipart compose attachment upload body limit (single file + form fields). */
+export const MAIL_COMPOSE_ATTACHMENT_UPLOAD_MAX_BYTES =
+  26 * 1024 * 1024;

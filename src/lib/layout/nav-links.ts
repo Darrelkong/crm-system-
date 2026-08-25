@@ -165,6 +165,7 @@ export function getStaffNavGroups(activeHref?: string): NavGroup[] {
       links: [
         { href: dash, labelKey: "nav.dashboard", icon: "dashboard", mobilePrimary: true },
         { href: "/customers", labelKey: "nav.customers", icon: "customers", mobilePrimary: true },
+        { href: "/mail", labelKey: "nav.mail", icon: "mail", mobilePrimary: true },
         { href: "/follow-ups", labelKey: "nav.followUps", icon: "followUps" },
         { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
       ],
@@ -219,12 +220,12 @@ export function getMobileBottomNav(role: "admin" | "staff"): MobileNavItem[] {
   return [
     { href: dash, labelKey: "nav.dashboard", icon: "dashboard" },
     { href: "/customers", labelKey: "nav.customersMobile", icon: "customers" },
+    { href: "/mail", labelKey: "nav.mail", icon: "mail" },
     {
       href: "/work-items?tab=notifications&view=unread",
       labelKey: "nav.workItems",
       icon: "workItems",
     },
-    { href: "/public-pool", labelKey: "nav.publicPool", icon: "publicPool" },
     { href: "#more", labelKey: "nav.more", icon: "more" },
   ];
 }

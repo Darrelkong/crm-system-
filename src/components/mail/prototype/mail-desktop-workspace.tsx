@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { useMailWorkspaceLayout } from "@/lib/mail/prototype/use-mail-workspace-layout";
@@ -9,9 +9,10 @@ import { useMailPaneWidths } from "@/lib/mail/prototype/use-mail-pane-widths";
 import { MailMailboxesPane } from "./mail-mailboxes-pane";
 import { MailPaneResizer } from "./mail-pane-resizer";
 import { MailMessageList } from "./mail-message-list";
-import { MailMessageDetail } from "./mail-message-detail";
-import { MailSendErrorBadge } from "./mail-send-error-badge";
-import { MailCompose, type ComposeDraft } from "./mail-compose";
+import { MailReadingPane } from "./mail-reading-pane";
+import { MailComposeEditor } from "@/components/mail/compose/mail-compose-editor";
+import type { ComposeInitialSeed } from "@/lib/mail/client/draft-management";
+import type { MockComposeDraft } from "@/lib/mail/prototype/state";
 
 type StackPane = "list" | "detail";
 
@@ -20,6 +21,7 @@ export function MailDesktopWorkspace({
   composeOpen,
   composeExpanded,
   composeKey,
+  composeSeed,
   onOpenCompose,
   onCloseCompose,
   onToggleComposeExpand,
@@ -31,12 +33,18 @@ export function MailDesktopWorkspace({
   replyGuard,
   onDismissReplyGuard,
   onProceedReplyGuard,
+  onProductionSeedAction,
+  composeSeedPending = false,
+  showAdminEntry = false,
+  onOpenAdminCenter,
+  adminCenterReturnFocusRef,
 }: {
   workspaceRef: React.RefObject<HTMLDivElement | null>;
   composeOpen: boolean;
   composeExpanded: boolean;
   composeKey: number;
-  onOpenCompose: (initial?: Partial<ComposeDraft>) => void;
+  composeSeed?: ComposeInitialSeed;
+  onOpenCompose: (initial?: Partial<MockComposeDraft> | ComposeInitialSeed) => void;
   onCloseCompose: () => void;
   onToggleComposeExpand: () => void;
   onReply: (messageId: string) => void;
@@ -47,12 +55,21 @@ export function MailDesktopWorkspace({
   replyGuard?: { messageId: string; action: "reply" | "reply_all" | "forward" } | null;
   onDismissReplyGuard?: () => void;
   onProceedReplyGuard?: () => void;
+  onProductionSeedAction?: (
+    messageId: string,
+    mode: "reply" | "reply_all" | "forward",
+  ) => void;
+  composeSeedPending?: boolean;
+  showAdminEntry?: boolean;
+  onOpenAdminCenter?: () => void;
+  adminCenterReturnFocusRef?: React.RefObject<HTMLButtonElement | null>;
 }) {
   const { t } = useTranslation();
   const layoutMode = useMailWorkspaceLayout(workspaceRef);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [stackPane, setStackPane] = useState<StackPane>("list");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [mailboxSidebarCollapsed, setMailboxSidebarCollapsed] = useState(false);
 
   const {
     mailboxesWidth,
@@ -66,7 +83,21 @@ export function MailDesktopWorkspace({
     resetMailboxesWidth,
     readingPaneFits,
     resizerWidth,
-  } = useMailPaneWidths(containerWidth, layoutMode);
+    effectiveMailboxWidth,
+  } = useMailPaneWidths(containerWidth, layoutMode, {
+    mailboxSidebarCollapsed,
+  });
+
+  const tabletLayout = layoutMode === "medium";
+  const showMailboxSidebar = !mailboxSidebarCollapsed;
+
+  useEffect(() => {
+    if (layoutMode === "medium") {
+      setMailboxSidebarCollapsed(true);
+    } else if (layoutMode === "wide") {
+      setMailboxSidebarCollapsed(false);
+    }
+  }, [layoutMode]);
 
   useEffect(() => {
     const el = workspaceRef.current;
@@ -89,6 +120,9 @@ export function MailDesktopWorkspace({
   }
 
   const showReadingPane = readingPaneFits && stackPane === "list";
+  const composeExpandedLeft = showMailboxSidebar
+    ? mailboxesWidth + resizerWidth
+    : effectiveMailboxWidth;
 
   return (
     <div
@@ -96,41 +130,77 @@ export function MailDesktopWorkspace({
         "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
       )}
       data-layout={layoutMode}
-      data-columns={readingPaneFits ? "three" : "compact"}
+      data-columns={
+        showReadingPane
+          ? showMailboxSidebar
+            ? "three"
+            : "two"
+          : "compact"
+      }
     >
-      <div className="flex shrink-0 items-center justify-end border-b crm-border px-3 py-1">
-        <MailSendErrorBadge />
-      </div>
+      <div className="mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        {!showMailboxSidebar && (
+          <div className="mail-mailbox-collapse-rail flex w-10 shrink-0 flex-col items-center border-r crm-border bg-[var(--color-crm-bg-muted)] py-2">
+            <button
+              type="button"
+              onClick={() => setMailboxSidebarCollapsed(false)}
+              className="mail-sidebar-icon-btn flex h-9 w-9 items-center justify-center rounded-lg crm-text-secondary"
+              aria-label={t("mail.sidebar.expand")}
+              title={t("mail.sidebar.expand")}
+            >
+              <PanelLeftOpen className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
-      <div className="flex min-h-0 min-w-0 flex-1 overflow-hidden">
-        <div
-          className="min-h-0 shrink-0 overflow-hidden border-r crm-border"
-          style={{ width: mailboxesWidth }}
-        >
-          <MailMailboxesPane
-            onCompose={() => onOpenCompose()}
-            settingsOpen={settingsOpen}
-            onToggleSettings={() => setSettingsOpen((v) => !v)}
-            onCloseSettings={() => setSettingsOpen(false)}
-            onRefresh={() => {}}
-          />
-        </div>
-
-        <MailPaneResizer
-          onResize={(delta) => setMailboxesWidth(mailboxesWidth + delta)}
-          onDoubleClickReset={resetMailboxesWidth}
-          style={{ width: resizerWidth }}
-        />
+        {showMailboxSidebar && (
+          <>
+            <div
+              className="mail-mailbox-column relative min-h-0 shrink-0 overflow-hidden border-r crm-border"
+              style={{ width: mailboxesWidth }}
+            >
+              {tabletLayout && (
+                <button
+                  type="button"
+                  onClick={() => setMailboxSidebarCollapsed(true)}
+                  className="mail-sidebar-icon-btn absolute right-1 top-1 z-10 flex h-7 w-7 items-center justify-center rounded-md crm-text-secondary"
+                  aria-label={t("mail.sidebar.collapse")}
+                  title={t("mail.sidebar.collapse")}
+                >
+                  <PanelLeftClose className="h-3.5 w-3.5" />
+                </button>
+              )}
+              <MailMailboxesPane
+                onCompose={() => onOpenCompose()}
+                settingsOpen={settingsOpen}
+                onToggleSettings={() => setSettingsOpen((v) => !v)}
+                onCloseSettings={() => setSettingsOpen(false)}
+                onRefresh={() => {}}
+                showAdminEntry={showAdminEntry}
+                onOpenAdminCenter={onOpenAdminCenter}
+                settingsReturnFocusRef={adminCenterReturnFocusRef}
+              />
+            </div>
+            <MailPaneResizer
+              onResize={(delta) => setMailboxesWidth(mailboxesWidth + delta)}
+              onDoubleClickReset={resetMailboxesWidth}
+              style={{ width: resizerWidth }}
+            />
+          </>
+        )}
 
         {showReadingPane ? (
           <>
             {!messageListCollapsed && (
               <>
                 <div
-                  className="flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r crm-border"
+                  className="mail-list-column flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r crm-border bg-[var(--color-crm-bg)]"
                   style={{ width: listWidth }}
                 >
-                  <MailMessageList className="flex min-h-0 min-w-0 flex-1 flex-col" />
+                  <MailMessageList
+                    className="flex min-h-0 min-w-0 flex-1 flex-col"
+                    onMessageSelect={handleSelectMessage}
+                  />
                 </div>
                 <MailPaneResizer
                   onResize={(delta) => setListWidth(listWidth + delta)}
@@ -140,8 +210,8 @@ export function MailDesktopWorkspace({
                 />
               </>
             )}
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <MailMessageDetail
+            <div className="mail-reading-column min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--color-crm-bg)]">
+              <MailReadingPane
                 onReply={onReply}
                 onReplyAll={onReplyAll}
                 onForward={onForward}
@@ -152,18 +222,20 @@ export function MailDesktopWorkspace({
                 replyGuard={replyGuard}
                 onDismissReplyGuard={onDismissReplyGuard}
                 onProceedReplyGuard={onProceedReplyGuard}
+                onProductionSeedAction={onProductionSeedAction}
+                composeSeedPending={composeSeedPending}
               />
             </div>
           </>
         ) : stackPane === "list" ? (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="mail-list-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
             <MailMessageList
               className="flex min-h-0 min-w-0 flex-1 flex-col"
               onMessageSelect={handleSelectMessage}
             />
           </div>
         ) : (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div className="mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
             <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
               <button
                 type="button"
@@ -175,7 +247,7 @@ export function MailDesktopWorkspace({
               </button>
             </div>
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <MailMessageDetail
+              <MailReadingPane
                 onReply={onReply}
                 onReplyAll={onReplyAll}
                 onForward={onForward}
@@ -186,6 +258,8 @@ export function MailDesktopWorkspace({
                 replyGuard={replyGuard}
                 onDismissReplyGuard={onDismissReplyGuard}
                 onProceedReplyGuard={onProceedReplyGuard}
+                onProductionSeedAction={onProductionSeedAction}
+                composeSeedPending={composeSeedPending}
               />
             </div>
           </div>
@@ -203,21 +277,23 @@ export function MailDesktopWorkspace({
             className={cn(
               "mail-floating-compose pointer-events-auto flex min-h-0 flex-col overflow-hidden border crm-border bg-[var(--color-crm-bg)]",
               composeExpanded
-                ? "absolute bottom-0 right-0 top-0 rounded-none border-0 border-l"
-                : "max-h-[min(80%,calc(100%-2rem))] w-[min(720px,92%)] rounded-lg shadow-md",
+                ? "absolute bottom-0 right-0 top-0 rounded-none border-0 border-l shadow-lg"
+                : "max-h-[min(80%,calc(100%-2rem))] w-[min(720px,92%)] rounded-xl shadow-lg",
             )}
             style={
               composeExpanded
-                ? { left: mailboxesWidth + resizerWidth }
+                ? { left: composeExpandedLeft }
                 : undefined
             }
           >
-            <MailCompose
+            <MailComposeEditor
               key={composeKey}
+              seed={composeSeed}
               variant="floating-desktop"
               expanded={composeExpanded}
               onClose={onCloseCompose}
               onToggleExpand={onToggleComposeExpand}
+              onSubmitted={onCloseCompose}
             />
           </div>
         </div>

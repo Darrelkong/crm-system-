@@ -2,23 +2,40 @@
 
 import { useEffect, useRef, type RefObject, useState } from "react";
 import { ChevronRight } from "lucide-react";
-import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
-import { useMailPrototype } from "@/lib/mail/prototype/state";
+import {
+  resolveMailSettingsMenuSelect,
+  type MailSettingsMenuView,
+} from "@/lib/mail/client/mail-settings-menu-action";
 
-type SettingsView = "menu" | "display" | "compose" | "notifications" | "sender" | "admin";
+type SettingsView = "menu" | MailSettingsMenuView;
+
+type MenuItem = {
+  id: SettingsView;
+  label: string;
+  comingSoon?: boolean;
+};
+
+function ComingSoonBadge({ label }: { label: string }) {
+  return (
+    <span className="mail-settings-coming-soon-badge shrink-0">{label}</span>
+  );
+}
 
 export function MailSettingsPopover({
   open,
   onClose,
   anchorRef,
+  showAdminEntry = false,
+  onOpenAdminCenter,
 }: {
   open: boolean;
   onClose: () => void;
   anchorRef: RefObject<HTMLElement | null>;
+  showAdminEntry?: boolean;
+  onOpenAdminCenter?: () => void;
 }) {
   const { t } = useTranslation();
-  const { isAdminScenario } = useMailPrototype();
   const panelRef = useRef<HTMLDivElement>(null);
   const [view, setView] = useState<SettingsView>("menu");
 
@@ -50,76 +67,108 @@ export function MailSettingsPopover({
 
   const anchorRect = anchorRef.current?.getBoundingClientRect();
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 390;
-  const panelWidth = Math.min(300, viewportWidth - 32);
+  const panelWidth = Math.min(320, viewportWidth - 32);
   const left = anchorRect
     ? Math.max(16, Math.min(anchorRect.right - panelWidth, viewportWidth - panelWidth - 16))
     : 16;
   const top = anchorRect ? anchorRect.bottom + 4 : 0;
 
-  const menuItems: {
-    id: SettingsView;
-    label: string;
-    adminOnly?: boolean;
-    dividerBefore?: boolean;
-  }[] = [
-    { id: "display", label: t("mail.settings.display") },
-    { id: "compose", label: t("mail.settings.composePrefs") },
-    { id: "notifications", label: t("mail.settings.notifications") },
-    { id: "sender", label: t("mail.settings.defaultSender") },
-    {
-      id: "admin",
-      label: t("mail.settings.admin"),
-      adminOnly: true,
-      dividerBefore: true,
-    },
+  const personalItems: MenuItem[] = [
+    { id: "display", label: t("mail.settings.display"), comingSoon: true },
+    { id: "compose", label: t("mail.settings.composePrefs"), comingSoon: true },
+    { id: "notifications", label: t("mail.settings.notifications"), comingSoon: true },
+    { id: "signature", label: t("mail.settings.signature"), comingSoon: true },
   ];
+
+  const adminItems: MenuItem[] = showAdminEntry
+    ? [{ id: "admin", label: t("mail.settings.admin") }]
+    : [];
+
+  const allItems = [...personalItems, ...adminItems];
+  const activeItem = allItems.find((m) => m.id === view);
+
+  function handleMenuSelect(id: SettingsView) {
+    if (id === "menu") return;
+
+    const result = resolveMailSettingsMenuSelect(id, {
+      showAdminEntry,
+      hasAdminCenterHandler: Boolean(onOpenAdminCenter),
+    });
+
+    if (!result) return;
+
+    if (result.action === "open_admin_center") {
+      onOpenAdminCenter!();
+      onClose();
+      return;
+    }
+
+    setView(result.view);
+  }
+
+  function renderMenuButton(item: MenuItem) {
+    return (
+      <li key={item.id}>
+        <button
+          type="button"
+          onClick={() => handleMenuSelect(item.id)}
+          className="mail-settings-menu-item flex w-full min-h-10 items-center justify-between gap-2 px-3 py-2 text-left text-sm"
+        >
+          <span className="min-w-0 truncate">{item.label}</span>
+          <span className="flex shrink-0 items-center gap-1.5">
+            {item.comingSoon ? (
+              <ComingSoonBadge label={t("mail.settings.comingSoon")} />
+            ) : null}
+            <ChevronRight className="h-4 w-4 shrink-0 opacity-40" aria-hidden />
+          </span>
+        </button>
+      </li>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 pointer-events-none" role="presentation">
       <div
         ref={panelRef}
-        className="mail-settings-popover pointer-events-auto fixed overflow-hidden rounded-md border crm-border bg-[var(--color-crm-bg)] shadow-sm"
+        className="mail-settings-popover pointer-events-auto fixed overflow-hidden rounded-xl border crm-border bg-[var(--color-crm-bg)]"
         style={{ top, left, width: panelWidth }}
+        role="dialog"
+        aria-label={t("mail.settings.title")}
       >
         {view === "menu" ? (
-          <ul className="py-1">
-            {menuItems
-              .filter((item) => !item.adminOnly || isAdminScenario)
-              .map((item) => (
-                <li key={item.id}>
-                  {item.dividerBefore && (
-                    <div className="my-1 border-t border-black/[0.06] dark:border-white/[0.08]" />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setView(item.id)}
-                    className="mail-folder-popover-row-idle flex w-full min-h-10 items-center justify-between gap-2 px-3 py-2 text-left text-sm"
-                  >
-                    <span>{item.label}</span>
-                    <ChevronRight className="h-4 w-4 shrink-0 opacity-50" />
-                  </button>
-                </li>
-              ))}
-          </ul>
+          <div className="py-1">
+            <p className="mail-settings-section-heading px-3 pb-1 pt-2">
+              {t("mail.settings.personalSection")}
+            </p>
+            <ul>{personalItems.map(renderMenuButton)}</ul>
+            {adminItems.length > 0 && (
+              <>
+                <div className="mail-settings-divider my-1 border-t" />
+                <p className="mail-settings-section-heading px-3 pb-1 pt-2">
+                  {t("mail.settings.administrationSection")}
+                </p>
+                <ul>{adminItems.map(renderMenuButton)}</ul>
+              </>
+            )}
+          </div>
         ) : (
           <div className="p-3">
             <button
               type="button"
               onClick={() => setView("menu")}
-              className="mb-2 text-xs crm-text-secondary hover:crm-text"
+              className="mb-3 text-xs crm-text-secondary hover:crm-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color-mix(in_srgb,var(--color-crm-primary)_45%,transparent)]"
             >
               ← {t("mail.settings.back")}
             </button>
-            <p className="text-sm font-medium crm-text">
-              {view === "admin"
-                ? t("mail.settings.admin")
-                : menuItems.find((m) => m.id === view)?.label}
-            </p>
-            <p className="mt-2 text-sm crm-text-secondary">
-              {view === "admin"
-                ? t("mail.settings.adminPlaceholder")
-                : t("mail.settings.sectionPlaceholder")}
-            </p>
+            <div className="mail-settings-placeholder-panel p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-sm font-medium crm-text">{activeItem?.label}</p>
+                <ComingSoonBadge label={t("mail.settings.comingSoon")} />
+              </div>
+              <p className="mt-2 text-sm leading-relaxed crm-text-secondary">
+                {t("mail.settings.sectionComingSoonBody")}
+              </p>
+            </div>
           </div>
         )}
       </div>

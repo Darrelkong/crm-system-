@@ -47,6 +47,8 @@ export type NormalizedOutboundSubmission = {
   signatureAssets: NormalizedOutboundSignatureAsset[];
   recipients: NormalizedOutboundRecipient[];
   attachments: NormalizedOutboundAttachment[];
+  inReplyTo: string | null;
+  referencesHeader: string | null;
 };
 
 export type MailTransportSubmitAccepted = {

@@ -513,8 +513,11 @@ describe("sent message materialization integration", () => {
 
     const result = await materializeAcceptedOutboundSend(db, initiated.id);
     assert.equal(result.message.direction, "outbound");
-    assert.equal(result.message.internetMessageId, null);
-    assert.equal(result.materialization.wireInternetMessageId, null);
+    assert.equal(result.message.internetMessageId, dispatched.rfcIdentity?.rfcMessageId);
+    assert.equal(
+      result.materialization.wireInternetMessageId,
+      dispatched.rfcIdentity?.rfcMessageId,
+    );
     assert.equal(
       result.materialization.rfcMessageId,
       dispatched.rfcIdentity?.rfcMessageId,
@@ -634,8 +637,11 @@ describe("sent message materialization integration", () => {
       result.materialization.acceptedTransportAttemptId,
       afterRetry.transportAttempts?.[1]?.id,
     );
-    assert.equal(result.message.internetMessageId, null);
-    assert.equal(result.materialization.wireInternetMessageId, null);
+    assert.equal(result.message.internetMessageId, afterRetry.rfcIdentity?.rfcMessageId);
+    assert.equal(
+      result.materialization.wireInternetMessageId,
+      afterRetry.rfcIdentity?.rfcMessageId,
+    );
     assert.equal(
       result.materialization.rfcMessageId,
       afterRetry.rfcIdentity?.rfcMessageId,
@@ -711,7 +717,7 @@ describe("sent message materialization integration", () => {
   it("idempotent materialization returns same canonical message", async () => {
     await cleanupFixtures(db);
     const { revision } = await createProductionAdminDirectRevision(db);
-    const { initiated } = await acceptAdminDirectSend(db, revision.id);
+    const { initiated, dispatched } = await acceptAdminDirectSend(db, revision.id);
 
     const first = await materializeAcceptedOutboundSend(db, initiated.id);
     const second = await materializeAcceptedOutboundSend(db, initiated.id);
@@ -723,27 +729,10 @@ describe("sent message materialization integration", () => {
       row.subject.includes("Send subject"),
     );
     assert.equal(fixtureMessages.length, 1);
-    assert.equal(first.message.internetMessageId, null);
-    assert.equal(first.materialization.wireInternetMessageId, null);
-  });
-
-  it("verification rejects wire-null materialization when message internet id was tampered", async () => {
-    await cleanupFixtures(db);
-    const { revision } = await createProductionAdminDirectRevision(db);
-    const { initiated } = await acceptAdminDirectSend(db, revision.id);
-    await materializeAcceptedOutboundSend(db, initiated.id);
-
-    const materialized = await materializeAcceptedOutboundSend(db, initiated.id);
-    await db
-      .update(schema.mailMessages)
-      .set({ internetMessageId: "<tampered@echfronthk.com>" })
-      .where(eq(schema.mailMessages.id, materialized.message.id));
-
-    await assert.rejects(
-      () => materializeAcceptedOutboundSend(db, initiated.id),
-      (error: unknown) =>
-        error instanceof MailServiceError &&
-        error.errorCode === "INTEGRITY_CONFLICT",
+    assert.equal(first.message.internetMessageId, dispatched.rfcIdentity?.rfcMessageId);
+    assert.equal(
+      first.materialization.wireInternetMessageId,
+      dispatched.rfcIdentity?.rfcMessageId,
     );
   });
 

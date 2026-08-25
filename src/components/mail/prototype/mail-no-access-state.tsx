@@ -5,7 +5,13 @@ import { ArrowLeft } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 
-export function MailNoAccessState() {
+type MailNoAccessStateProps = {
+  dashboardHref?: "/admin" | "/staff";
+};
+
+export function MailNoAccessState({
+  dashboardHref = "/admin",
+}: MailNoAccessStateProps) {
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -21,7 +27,7 @@ export function MailNoAccessState() {
         type="button"
         variant="secondary"
         className="mt-6"
-        onClick={() => router.push("/admin")}
+        onClick={() => router.push(dashboardHref)}
       >
         <ArrowLeft className="mr-2 h-4 w-4" />
         {t("mail.noAccess.backToDashboard")}

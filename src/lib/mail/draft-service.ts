@@ -1,11 +1,18 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { MailDraft } from "../../../drizzle/schema/mail-drafts";
+import type { User } from "../../../drizzle/schema/users";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
 import { schema, type Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { assertCanComposeFromIdentityInMailbox } from "@/lib/mail/compose-authorization";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
+import {
+  assertCanAssociateMailCustomer,
+  buildDraftCustomerAssociationView,
+  draftCustomerAssociationFieldsForPatch,
+  type DraftCustomerAssociationPatch,
+} from "@/lib/mail/mail-customer-association-service";
 import {
   assertBatchUpdateChanged,
   buildDraftVersionGuardedAuditInsert,
@@ -24,9 +31,11 @@ import {
 import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
 import {
   normalizeOutboundRecipientAddress,
+  normalizeOutboundRecipients,
   type OutboundRecipientInput,
 } from "@/lib/mail/outbound-recipient-validation";
 import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { getUserById } from "@/lib/users/queries";
 
 export type DraftDetailView = SafeDraftView & {
   recipients: SafeDraftRecipientView[];
@@ -93,6 +102,14 @@ function sanitizeDraftBodyHtmlForPersistence(
  * expiry/display filename) MUST bump autosave_version in the same atomic batch.
  */
 
+export async function resolveActorUser(actor: MailActorContext): Promise<User> {
+  const user = await getUserById(actor.userId);
+  if (!user) {
+    throw MailServiceError.forbidden("Mail actor user not found");
+  }
+  return user;
+}
+
 async function findDraftById(
   db: Database,
   draftId: string,
@@ -105,7 +122,7 @@ async function findDraftById(
   return row ?? null;
 }
 
-async function requireAuthorDraft(
+export async function requireAuthorDraft(
   db: Database,
   actor: MailActorContext,
   draftId: string,
@@ -121,9 +138,10 @@ async function requireAuthorDraft(
   return draft;
 }
 
-async function loadDraftDetail(
+export async function loadDraftDetail(
   db: Database,
   draft: MailDraft,
+  user: User,
 ): Promise<DraftDetailView> {
   const recipients = await db
     .select()
@@ -148,14 +166,25 @@ async function loadDraftDetail(
       toSafeDraftAttachmentView(
         attachment,
         stored
-          ? { mimeType: stored.mimeType, sizeBytes: stored.sizeBytes }
+          ? {
+              mimeType: stored.mimeType,
+              sizeBytes: stored.sizeBytes,
+              contentHash: stored.contentHash,
+            }
           : undefined,
       ),
     );
   }
 
+  const customerAssociation = await buildDraftCustomerAssociationView(
+    db,
+    user,
+    draft,
+  );
+
   return {
     ...toSafeDraftView(draft),
+    ...(customerAssociation ? { customerAssociation } : {}),
     recipients: recipients.map(toSafeDraftRecipientView),
     attachments: attachmentViews,
   };
@@ -185,33 +214,40 @@ export async function getDraft(
   draftId: string,
 ): Promise<DraftDetailView> {
   const draft = await requireAuthorDraft(db, actor, draftId);
-  return loadDraftDetail(db, draft);
+  const user = await resolveActorUser(actor);
+  return loadDraftDetail(db, draft, user);
 }
 
-export async function createDraft(
+type PersistDraftInput = {
+  senderIdentityId?: string | null;
+  mailboxId?: string | null;
+  subject?: string;
+  bodyText?: string;
+  bodyHtml?: string | null;
+  sensitivity?: MailDraft["sensitivity"];
+  composeMode: MailDraft["composeMode"];
+  replyToMessageId?: string | null;
+  recipients?: OutboundRecipientInput[];
+  customerAssociation?: Pick<
+    MailDraft,
+    | "customerId"
+    | "customerAssociationType"
+    | "customerAssociatedByUserId"
+    | "customerAssociatedAt"
+  >;
+};
+
+async function persistDraftRecord(
   db: Database,
   actor: MailActorContext,
-  input: {
-    senderIdentityId: string;
-    mailboxId: string;
-    subject?: string;
-    bodyText?: string;
-    bodyHtml?: string | null;
-    sensitivity?: MailDraft["sensitivity"];
-    composeMode?: MailDraft["composeMode"];
-    recipients?: OutboundRecipientInput[];
-  },
-): Promise<CreateDraftResult> {
-  if (input.composeMode && input.composeMode !== "new") {
-    throw MailServiceError.validation(
-      "Only new compose mode is supported in this phase",
-    );
+  input: PersistDraftInput,
+): Promise<DraftDetailView> {
+  if (input.senderIdentityId && input.mailboxId) {
+    await assertCanComposeFromIdentityInMailbox(db, actor, {
+      senderIdentityId: input.senderIdentityId,
+      mailboxId: input.mailboxId,
+    });
   }
-
-  await assertCanComposeFromIdentityInMailbox(db, actor, {
-    senderIdentityId: input.senderIdentityId,
-    mailboxId: input.mailboxId,
-  });
 
   const recipients = input.recipients ?? [];
   const normalizedRecipients = recipients.map((recipient, index) => ({
@@ -221,19 +257,6 @@ export async function createDraft(
   }));
 
   const bodyHtml = sanitizeDraftBodyHtmlForPersistence(input.bodyHtml);
-
-  if (
-    !hasMeaningfulDraftContent({
-      subject: input.subject,
-      bodyText: input.bodyText,
-      bodyHtml,
-      recipientCount: normalizedRecipients.length,
-      attachmentCount: 0,
-    })
-  ) {
-    return { created: false };
-  }
-
   const now = new Date().toISOString();
   const draftId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
@@ -243,13 +266,20 @@ export async function createDraft(
     db.insert(schema.mailDrafts).values({
       id: draftId,
       authorUserId: actor.userId,
-      mailboxId: input.mailboxId,
-      senderIdentityId: input.senderIdentityId,
+      mailboxId: input.mailboxId ?? null,
+      senderIdentityId: input.senderIdentityId ?? null,
       subject: input.subject?.normalize("NFC") ?? "",
       bodyText: input.bodyText ?? "",
       bodyHtml,
       sensitivity: input.sensitivity ?? "normal",
-      composeMode: "new",
+      composeMode: input.composeMode,
+      replyToMessageId: input.replyToMessageId ?? null,
+      customerId: input.customerAssociation?.customerId ?? null,
+      customerAssociationType:
+        input.customerAssociation?.customerAssociationType ?? null,
+      customerAssociatedByUserId:
+        input.customerAssociation?.customerAssociatedByUserId ?? null,
+      customerAssociatedAt: input.customerAssociation?.customerAssociatedAt ?? null,
       autosaveVersion: 0,
       lastSavedAt: now,
       createdAt: now,
@@ -262,10 +292,11 @@ export async function createDraft(
       entityId: draftId,
       metadata: {
         draftId,
-        senderIdentityId: input.senderIdentityId,
-        mailboxId: input.mailboxId,
+        senderIdentityId: input.senderIdentityId ?? null,
+        mailboxId: input.mailboxId ?? null,
         actorUserId: actor.userId,
-        composeMode: "new",
+        composeMode: input.composeMode,
+        replyToMessageId: input.replyToMessageId ?? null,
       },
     }),
   ];
@@ -290,7 +321,71 @@ export async function createDraft(
   if (!draft) {
     throw MailServiceError.integrityConflict("Draft creation failed");
   }
-  return { created: true, item: await loadDraftDetail(db, draft) };
+  const user = await resolveActorUser(actor);
+  return loadDraftDetail(db, draft, user);
+}
+
+export async function createDraft(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    senderIdentityId: string;
+    mailboxId: string;
+    subject?: string;
+    bodyText?: string;
+    bodyHtml?: string | null;
+    sensitivity?: MailDraft["sensitivity"];
+    composeMode?: MailDraft["composeMode"];
+    recipients?: OutboundRecipientInput[];
+  },
+): Promise<CreateDraftResult> {
+  if (input.composeMode && input.composeMode !== "new") {
+    throw MailServiceError.validation(
+      "Only new compose mode is supported in this phase",
+    );
+  }
+
+  const bodyHtml = sanitizeDraftBodyHtmlForPersistence(input.bodyHtml);
+  const recipients = input.recipients ?? [];
+
+  if (
+    !hasMeaningfulDraftContent({
+      subject: input.subject,
+      bodyText: input.bodyText,
+      bodyHtml,
+      recipientCount: recipients.length,
+      attachmentCount: 0,
+    })
+  ) {
+    return { created: false };
+  }
+
+  const item = await persistDraftRecord(db, actor, {
+    senderIdentityId: input.senderIdentityId,
+    mailboxId: input.mailboxId,
+    subject: input.subject,
+    bodyText: input.bodyText,
+    bodyHtml: input.bodyHtml,
+    sensitivity: input.sensitivity,
+    composeMode: "new",
+    recipients,
+  });
+  return { created: true, item };
+}
+
+/**
+ * Trusted server-only path for Reply / Reply All / Forward draft seeding.
+ * Must not be exposed to generic client Draft create APIs.
+ */
+export async function createSeededDraft(
+  db: Database,
+  actor: MailActorContext,
+  input: PersistDraftInput & {
+    composeMode: Exclude<MailDraft["composeMode"], "new">;
+    replyToMessageId: string;
+  },
+): Promise<DraftDetailView> {
+  return persistDraftRecord(db, actor, input);
 }
 
 export async function updateDraft(
@@ -303,16 +398,36 @@ export async function updateDraft(
     bodyText?: string;
     bodyHtml?: string | null;
     sensitivity?: MailDraft["sensitivity"];
+    senderIdentityId?: string;
+    mailboxId?: string;
+    recipients?: OutboundRecipientInput[];
+    customerAssociation?: DraftCustomerAssociationPatch;
   },
 ): Promise<DraftDetailView> {
   const draft = await requireAuthorDraft(db, actor, input.draftId);
+  const user = await resolveActorUser(actor);
 
-  if (draft.senderIdentityId && draft.mailboxId) {
+  if (input.customerAssociation && !("clear" in input.customerAssociation)) {
+    await assertCanAssociateMailCustomer(
+      db,
+      user,
+      input.customerAssociation.customerId,
+    );
+  }
+
+  const senderIdentityId = input.senderIdentityId ?? draft.senderIdentityId;
+  const mailboxId = input.mailboxId ?? draft.mailboxId;
+  if (senderIdentityId && mailboxId) {
     await assertCanComposeFromIdentityInMailbox(db, actor, {
-      senderIdentityId: draft.senderIdentityId,
-      mailboxId: draft.mailboxId,
+      senderIdentityId,
+      mailboxId,
     });
   }
+
+  const normalizedRecipients =
+    input.recipients === undefined
+      ? undefined
+      : normalizeOutboundRecipients(input.recipients, { allowEmpty: true });
 
   const now = new Date().toISOString();
   const nextVersion = draft.autosaveVersion + 1;
@@ -323,48 +438,95 @@ export async function updateDraft(
       ? draft.bodyHtml
       : sanitizeDraftBodyHtmlForPersistence(input.bodyHtml);
 
-  try {
-    await runMailBatch(db, [
-      db
-        .update(schema.mailDrafts)
-        .set({
-          subject:
-            input.subject !== undefined
-              ? input.subject.normalize("NFC")
-              : draft.subject,
-          bodyText:
-            input.bodyText !== undefined ? input.bodyText : draft.bodyText,
-          bodyHtml,
-          sensitivity: input.sensitivity ?? draft.sensitivity,
-          autosaveVersion: nextVersion,
-          lastSavedAt: now,
-          updatedAt: now,
-        })
-        .where(
-          and(
-            eq(schema.mailDrafts.id, draft.id),
-            eq(schema.mailDrafts.autosaveVersion, input.expectedAutosaveVersion),
-            isNull(schema.mailDrafts.discardedAt),
-          ),
-        ),
-      buildDraftVersionGuardedAuditInsert(
-        db,
-        actor,
-        { draftId: draft.id, expectedAutosaveVersion: nextVersion },
-        {
-          auditId,
+  type BatchStatement = Parameters<Database["batch"]>[0][number];
+  const statements: BatchStatement[] = [];
+
+  const associationFields =
+    input.customerAssociation === undefined
+      ? {}
+      : draftCustomerAssociationFieldsForPatch(
+          input.customerAssociation,
+          actor.userId,
           now,
-          action: MAIL_AUDIT_ACTIONS.draftUpdated,
-          entityId: draft.id,
-          entityType: "mail_draft",
-          metadata: {
-            draftId: draft.id,
-            autosaveVersion: nextVersion,
-            actorUserId: actor.userId,
-          },
-        },
+        );
+
+  if (normalizedRecipients !== undefined) {
+    statements.push(
+      db
+        .delete(schema.mailDraftRecipients)
+        .where(eq(schema.mailDraftRecipients.draftId, draft.id)),
+    );
+  }
+
+  statements.push(
+    db
+      .update(schema.mailDrafts)
+      .set({
+        subject:
+          input.subject !== undefined
+            ? input.subject.normalize("NFC")
+            : draft.subject,
+        bodyText:
+          input.bodyText !== undefined ? input.bodyText : draft.bodyText,
+        bodyHtml,
+        sensitivity: input.sensitivity ?? draft.sensitivity,
+        senderIdentityId:
+          input.senderIdentityId !== undefined
+            ? input.senderIdentityId
+            : draft.senderIdentityId,
+        mailboxId:
+          input.mailboxId !== undefined ? input.mailboxId : draft.mailboxId,
+        ...associationFields,
+        autosaveVersion: nextVersion,
+        lastSavedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailDrafts.id, draft.id),
+          eq(schema.mailDrafts.autosaveVersion, input.expectedAutosaveVersion),
+          isNull(schema.mailDrafts.discardedAt),
+        ),
       ),
-    ]);
+    buildDraftVersionGuardedAuditInsert(
+      db,
+      actor,
+      { draftId: draft.id, expectedAutosaveVersion: nextVersion },
+      {
+        auditId,
+        now,
+        action: MAIL_AUDIT_ACTIONS.draftUpdated,
+        entityId: draft.id,
+        entityType: "mail_draft",
+        metadata: {
+          draftId: draft.id,
+          autosaveVersion: nextVersion,
+          actorUserId: actor.userId,
+          recipientMutation: normalizedRecipients !== undefined,
+          customerAssociationMutation: input.customerAssociation !== undefined,
+        },
+      },
+    ),
+  );
+
+  if (normalizedRecipients !== undefined) {
+    for (const recipient of normalizedRecipients) {
+      statements.push(
+        db.insert(schema.mailDraftRecipients).values({
+          id: crypto.randomUUID(),
+          draftId: draft.id,
+          recipientType: recipient.recipientType,
+          address: recipient.address,
+          displayName: recipient.displayName,
+          sortOrder: recipient.sortOrder,
+          createdAt: now,
+        }),
+      );
+    }
+  }
+
+  try {
+    await runMailBatch(db, statements);
   } catch (error) {
     if (isMailPostStateGuardError(error)) {
       throw MailServiceError.staleVersion("Draft update conflict");
@@ -376,7 +538,7 @@ export async function updateDraft(
   if (!updated) {
     throw MailServiceError.integrityConflict("Draft update failed");
   }
-  return loadDraftDetail(db, updated);
+  return loadDraftDetail(db, updated, user);
 }
 
 export async function addDraftRecipient(
@@ -468,7 +630,8 @@ export async function addDraftRecipient(
   if (!refreshed) {
     throw MailServiceError.integrityConflict("Draft recipient add failed");
   }
-  return loadDraftDetail(db, refreshed);
+  const user = await resolveActorUser(actor);
+  return loadDraftDetail(db, refreshed, user);
 }
 
 export async function discardDraft(
@@ -505,7 +668,8 @@ export async function discardDraft(
   if (!updated) {
     throw MailServiceError.integrityConflict("Draft discard failed");
   }
-  return loadDraftDetail(db, updated);
+  const user = await resolveActorUser(actor);
+  return loadDraftDetail(db, updated, user);
 }
 
 export async function loadDraftGraphForRevision(

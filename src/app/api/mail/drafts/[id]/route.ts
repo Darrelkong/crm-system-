@@ -8,6 +8,10 @@ import {
   requireMailActor,
 } from "@/lib/mail/api-helpers";
 import { getDraft, updateDraft } from "@/lib/mail/draft-service";
+import {
+  parseDraftCustomerAssociationPatch,
+  parseDraftRecipientsField,
+} from "@/lib/mail/draft-api-parsing";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -38,6 +42,19 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
     const body = parseJsonRecord(bodyResult.value);
+    const forbiddenProvenanceKeys = ["composeMode", "replyToMessageId"] as const;
+    for (const key of forbiddenProvenanceKeys) {
+      if (key in body) {
+        return Response.json(
+          {
+            error: `${key} cannot be changed through draft update`,
+            errorCode: "VALIDATION",
+          },
+          { status: 400 },
+        );
+      }
+    }
+
     const expectedAutosaveVersion = body.expectedAutosaveVersion;
     if (typeof expectedAutosaveVersion !== "number") {
       return Response.json(
@@ -55,6 +72,10 @@ export async function POST(request: Request, context: RouteContext) {
       subject: readStringField(body, "subject"),
       bodyText: readStringField(body, "bodyText"),
       bodyHtml: readStringField(body, "bodyHtml"),
+      senderIdentityId: readStringField(body, "senderIdentityId"),
+      mailboxId: readStringField(body, "mailboxId"),
+      recipients: parseDraftRecipientsField(body.recipients),
+      customerAssociation: parseDraftCustomerAssociationPatch(body),
     });
     return Response.json({ item });
   } catch (error) {

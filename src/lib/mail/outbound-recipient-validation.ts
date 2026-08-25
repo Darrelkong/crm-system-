@@ -28,6 +28,7 @@ export function normalizeOutboundRecipientAddress(address: string): string {
 
 export function normalizeOutboundRecipients(
   recipients: OutboundRecipientInput[],
+  options?: { allowEmpty?: boolean },
 ): NormalizedOutboundRecipient[] {
   const seen = new Set<string>();
   const normalized: NormalizedOutboundRecipient[] = [];
@@ -55,7 +56,7 @@ export function normalizeOutboundRecipients(
     });
   }
 
-  if (normalized.length === 0) {
+  if (normalized.length === 0 && !options?.allowEmpty) {
     throw MailServiceError.validation("At least one recipient is required");
   }
   if (normalized.length > MAX_OUTBOUND_RECIPIENTS) {

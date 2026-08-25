@@ -13,6 +13,7 @@ import {
   MAIL_AUDIT_ACTIONS,
 } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
+import { prepareApprovedOutboundSend } from "@/lib/mail/send-operation-service";
 import {
   buildApprovalPostStateGuardedAuditInsert,
   buildApprovalTransitionGuardedEventInsert,
@@ -858,6 +859,7 @@ export async function approveRevision(
   if (!updated) {
     throw MailServiceError.integrityConflict("Approval approve failed");
   }
+  await prepareApprovedOutboundSend(db, actor, { approvalId: approval.id });
   return loadApprovalView(db, updated, true);
 }
 

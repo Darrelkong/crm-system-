@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
 import type { MailRevisionKind } from "../../../drizzle/schema/mail-outbound-revisions";
 import { schema, type Database } from "@/lib/db";
@@ -21,7 +21,11 @@ import {
   assertRevisionSubject,
   normalizeOutboundRecipients,
 } from "@/lib/mail/outbound-recipient-validation";
-import { toSafeOutboundRevisionView } from "@/lib/mail/outbound-revision-serialization";
+import {
+  toSafeOutboundRevisionDetailView,
+  toSafeOutboundRevisionRecipientView,
+  toSafeOutboundRevisionView,
+} from "@/lib/mail/outbound-revision-serialization";
 import { materializeSignatureSnapshotForRevision } from "@/lib/mail/signature-snapshot-service";
 import { assertMailAccessEnabled, hasMailOutboundApprovalReview } from "@/lib/permissions/mail";
 import { MAIL_SECURE_EXPIRY_DAYS } from "../../../drizzle/schema/mail-draft-attachments";
@@ -93,7 +97,15 @@ export async function getOutboundRevision(
       throw MailServiceError.forbidden("Outbound revision access denied");
     }
   }
-  return toSafeOutboundRevisionView(revision);
+  const recipients = await db
+    .select()
+    .from(schema.mailOutboundRevisionRecipients)
+    .where(eq(schema.mailOutboundRevisionRecipients.revisionId, revision.id))
+    .orderBy(asc(schema.mailOutboundRevisionRecipients.sortOrder));
+  return toSafeOutboundRevisionDetailView(
+    revision,
+    recipients.map(toSafeOutboundRevisionRecipientView),
+  );
 }
 
 export async function recomputeOutboundRevisionContentHash(
@@ -371,6 +383,10 @@ async function createImmutableRevisionFromDraftGraph(
       signatureSnapshotId: snapshot.snapshotId,
       contentHash,
       hashVersion,
+      customerId: draft.customerId,
+      customerAssociationType: draft.customerAssociationType,
+      customerAssociatedByUserId: draft.customerAssociatedByUserId,
+      customerAssociatedAt: draft.customerAssociatedAt,
     }),
   );
 

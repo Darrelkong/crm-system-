@@ -6,15 +6,17 @@ import type { MailLayoutMode } from "./use-mail-workspace-layout";
 const STORAGE_KEY = "echfront-mail-pane-widths-v1";
 
 export const MAIL_PANE_DEFAULTS = {
-  mailboxes: 200,
-  list: 375,
+  mailboxes: 240,
+  list: 380,
 } as const;
 
+export const MAILBOX_COLLAPSE_RAIL_WIDTH = 40;
+
 export const MAIL_PANE_LIMITS = {
-  mailboxes: { min: 160, max: 300 },
-  list: { min: 270, max: 520 },
+  mailboxes: { min: 220, max: 260 },
+  list: { min: 350, max: 420, minMedium: 300 },
   listCollapseThreshold: 260,
-  reading: { min: 420 },
+  reading: { min: 320 },
   resizer: 10,
 } as const;
 
@@ -23,6 +25,10 @@ type StoredPrefs = {
   list: number;
   messageListCollapsed?: boolean;
   lastMessageListWidth?: number;
+};
+
+export type MailPaneWidthOptions = {
+  mailboxSidebarCollapsed?: boolean;
 };
 
 function clamp(value: number, min: number, max: number) {
@@ -55,10 +61,49 @@ function saveStored(prefs: StoredPrefs) {
   }
 }
 
+export function resolveListMinWidth(layoutMode: MailLayoutMode): number {
+  return layoutMode === "medium"
+    ? MAIL_PANE_LIMITS.list.minMedium
+    : MAIL_PANE_LIMITS.list.min;
+}
+
+export function computeReadingPaneFits({
+  containerWidth,
+  layoutMode,
+  mailboxSidebarCollapsed,
+  mailboxesWidth,
+  messageListCollapsed,
+}: {
+  containerWidth: number;
+  layoutMode: MailLayoutMode;
+  mailboxSidebarCollapsed: boolean;
+  mailboxesWidth: number;
+  messageListCollapsed: boolean;
+}): boolean {
+  if (layoutMode === "narrow") return false;
+
+  const resizerWidth = MAIL_PANE_LIMITS.resizer;
+  const listMin = resolveListMinWidth(layoutMode);
+  const readingMin = MAIL_PANE_LIMITS.reading.min;
+
+  const mailboxSpace = mailboxSidebarCollapsed
+    ? MAILBOX_COLLAPSE_RAIL_WIDTH
+    : mailboxesWidth + resizerWidth;
+
+  const listSpace = messageListCollapsed ? 0 : listMin;
+  const resizers = messageListCollapsed ? 0 : resizerWidth;
+
+  const needed = mailboxSpace + listSpace + readingMin + resizers;
+  return containerWidth >= needed;
+}
+
 export function useMailPaneWidths(
   containerWidth: number,
   layoutMode: MailLayoutMode,
+  options: MailPaneWidthOptions = {},
 ) {
+  const mailboxSidebarCollapsed = options.mailboxSidebarCollapsed ?? false;
+
   const [mailboxesWidth, setMailboxesWidthState] = useState<number>(
     MAIL_PANE_DEFAULTS.mailboxes,
   );
@@ -71,6 +116,13 @@ export function useMailPaneWidths(
   const [messageListCollapsed, setMessageListCollapsed] = useState(false);
   const [dragListWidth, setDragListWidth] = useState<number | null>(null);
   const [hydrated, setHydrated] = useState(false);
+
+  const listMinWidth = resolveListMinWidth(layoutMode);
+  const resizerWidth = MAIL_PANE_LIMITS.resizer;
+
+  const effectiveMailboxWidth = mailboxSidebarCollapsed
+    ? MAILBOX_COLLAPSE_RAIL_WIDTH
+    : mailboxesWidth;
 
   useEffect(() => {
     const stored = loadStored();
@@ -118,27 +170,29 @@ export function useMailPaneWidths(
     hydrated,
   ]);
 
-  const resizerWidth = MAIL_PANE_LIMITS.resizer;
-
-  const readingPaneFits = useMemo(() => {
-    if (layoutMode === "narrow") return false;
-    const resizers = messageListCollapsed ? resizerWidth : resizerWidth * 2;
-    const listSpace = messageListCollapsed ? 0 : MAIL_PANE_LIMITS.list.min;
-    const needed =
-      mailboxesWidth +
-      listSpace +
-      MAIL_PANE_LIMITS.reading.min +
-      resizers;
-    return containerWidth >= needed;
-  }, [
-    containerWidth,
-    layoutMode,
-    mailboxesWidth,
-    messageListCollapsed,
-    resizerWidth,
-  ]);
+  const readingPaneFits = useMemo(
+    () =>
+      computeReadingPaneFits({
+        containerWidth,
+        layoutMode,
+        mailboxSidebarCollapsed,
+        mailboxesWidth,
+        messageListCollapsed,
+      }),
+    [
+      containerWidth,
+      layoutMode,
+      mailboxSidebarCollapsed,
+      mailboxesWidth,
+      messageListCollapsed,
+    ],
+  );
 
   const clampedMailboxes = useMemo(() => {
+    if (mailboxSidebarCollapsed) {
+      return mailboxesWidth;
+    }
+
     const max =
       layoutMode === "narrow"
         ? MAIL_PANE_LIMITS.mailboxes.max
@@ -147,7 +201,7 @@ export function useMailPaneWidths(
             containerWidth -
               (messageListCollapsed
                 ? MAIL_PANE_LIMITS.reading.min + resizerWidth
-                : MAIL_PANE_LIMITS.list.min +
+                : listMinWidth +
                   MAIL_PANE_LIMITS.reading.min +
                   resizerWidth * 2),
           );
@@ -161,32 +215,46 @@ export function useMailPaneWidths(
     containerWidth,
     layoutMode,
     messageListCollapsed,
+    mailboxSidebarCollapsed,
+    listMinWidth,
     resizerWidth,
   ]);
 
   const maxListWidth = useMemo(() => {
+    const mailboxSpace = mailboxSidebarCollapsed
+      ? MAILBOX_COLLAPSE_RAIL_WIDTH
+      : clampedMailboxes + resizerWidth;
+
     if (!readingPaneFits) {
       return Math.min(
         MAIL_PANE_LIMITS.list.max,
-        containerWidth - clampedMailboxes - resizerWidth,
+        Math.max(listMinWidth, containerWidth - mailboxSpace),
       );
     }
+
     return Math.min(
       MAIL_PANE_LIMITS.list.max,
       containerWidth -
-        clampedMailboxes -
+        mailboxSpace -
         MAIL_PANE_LIMITS.reading.min -
-        resizerWidth * 2,
+        resizerWidth,
     );
-  }, [containerWidth, clampedMailboxes, readingPaneFits, resizerWidth]);
+  }, [
+    containerWidth,
+    clampedMailboxes,
+    readingPaneFits,
+    mailboxSidebarCollapsed,
+    listMinWidth,
+    resizerWidth,
+  ]);
 
   const clampedList = useMemo(() => {
     return clamp(
       listWidth,
-      MAIL_PANE_LIMITS.list.min,
-      Math.max(MAIL_PANE_LIMITS.list.min, maxListWidth),
+      listMinWidth,
+      Math.max(listMinWidth, maxListWidth),
     );
-  }, [listWidth, maxListWidth]);
+  }, [listWidth, maxListWidth, listMinWidth]);
 
   const effectiveListWidth = useMemo(() => {
     if (messageListCollapsed) return 0;
@@ -231,14 +299,14 @@ export function useMailPaneWidths(
     } else {
       const next = clamp(
         dragListWidth,
-        MAIL_PANE_LIMITS.list.min,
-        Math.max(MAIL_PANE_LIMITS.list.min, maxListWidth),
+        listMinWidth,
+        Math.max(listMinWidth, maxListWidth),
       );
       setListWidthState(next);
       setLastMessageListWidth(next);
     }
     setDragListWidth(null);
-  }, [dragListWidth, clampedList, maxListWidth]);
+  }, [dragListWidth, clampedList, maxListWidth, listMinWidth]);
 
   const collapseMessageList = useCallback(() => {
     setLastMessageListWidth(clampedList);
@@ -255,14 +323,14 @@ export function useMailPaneWidths(
           : MAIL_PANE_DEFAULTS.list;
     const next = clamp(
       restoreWidth,
-      MAIL_PANE_LIMITS.list.min,
-      Math.max(MAIL_PANE_LIMITS.list.min, maxListWidth),
+      listMinWidth,
+      Math.max(listMinWidth, maxListWidth),
     );
     setListWidthState(next);
     setLastMessageListWidth(next);
     setMessageListCollapsed(false);
     setDragListWidth(null);
-  }, [lastMessageListWidth, listWidth, maxListWidth]);
+  }, [lastMessageListWidth, listWidth, maxListWidth, listMinWidth]);
 
   const toggleMessageListCollapsed = useCallback(() => {
     if (messageListCollapsed) {
@@ -299,5 +367,6 @@ export function useMailPaneWidths(
     /** @deprecated use readingPaneFits */
     threeColumnFits: readingPaneFits,
     resizerWidth,
+    effectiveMailboxWidth,
   };
 }

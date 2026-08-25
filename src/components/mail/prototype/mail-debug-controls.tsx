@@ -13,6 +13,13 @@ const PERMISSION_LEVELS: SharedPermissionLevel[] = [
   "read_only",
 ];
 
+function isMailDebugEnabled() {
+  return (
+    process.env.NODE_ENV === "development" ||
+    process.env.NEXT_PUBLIC_DEBUG_MAIL === "true"
+  );
+}
+
 export function MailDebugControls() {
   const { t } = useTranslation();
   const {
@@ -27,6 +34,10 @@ export function MailDebugControls() {
   const myMentions = mentionNotifications.filter(
     (n) => n.targetUserId === currentTeamMemberId,
   );
+
+  if (!isMailDebugEnabled()) {
+    return null;
+  }
 
   return (
     <div

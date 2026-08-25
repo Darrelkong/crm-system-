@@ -1,0 +1,93 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import {
+  countUniqueRecipients,
+  findDuplicateField,
+  initChipsFromDraft,
+  isValidEmail,
+  MAX_RECIPIENTS_PER_MESSAGE,
+  parseRecipientTokens,
+  recipientListsToApiPayload,
+  remainingRecipientCapacity,
+  type RecipientChipData,
+} from "@/lib/mail/client/recipient-input";
+
+function chip(email: string): RecipientChipData {
+  return { id: email, email };
+}
+
+describe("recipient-input", () => {
+  it("validates email addresses", () => {
+    assert.equal(isValidEmail("john@gmail.com"), true);
+    assert.equal(isValidEmail("bad@"), false);
+    assert.equal(isValidEmail("   "), false);
+  });
+
+  it("parses multiple pasted addresses", () => {
+    const tokens = parseRecipientTokens(
+      "a@example.com, b@example.com; c@example.com",
+    );
+    assert.deepEqual(tokens, [
+      "a@example.com",
+      "b@example.com",
+      "c@example.com",
+    ]);
+  });
+
+  it("detects duplicates across To/Cc/Bcc", () => {
+    const lists = {
+      to: [chip("john@gmail.com")],
+      cc: [],
+      bcc: [],
+    };
+    assert.equal(findDuplicateField("john@gmail.com", "cc", lists), "to");
+  });
+
+  it("enforces 50 recipient limit by unique normalized email", () => {
+    const lists = {
+      to: Array.from({ length: 49 }, (_, index) =>
+        chip(`user${index}@example.com`),
+      ),
+      cc: [chip("extra@example.com")],
+      bcc: [],
+    };
+    assert.equal(countUniqueRecipients(lists), 50);
+    assert.equal(remainingRecipientCapacity(lists), 0);
+    assert.equal(
+      remainingRecipientCapacity({
+        to: Array.from({ length: MAX_RECIPIENTS_PER_MESSAGE }, (_, index) =>
+          chip(`u${index}@example.com`),
+        ),
+        cc: [],
+        bcc: [],
+      }),
+      0,
+    );
+  });
+
+  it("initializes chips from draft strings", () => {
+    const chips = initChipsFromDraft("a@example.com, b@example.com");
+    assert.equal(chips.length, 2);
+    assert.equal(chips[0]?.email, "a@example.com");
+  });
+
+  it("serializes recipient lists for draft autosave", () => {
+    const payload = recipientListsToApiPayload({
+      to: [chip("a@example.com")],
+      cc: [chip("b@example.com")],
+      bcc: [],
+    });
+    assert.deepEqual(payload, [
+      {
+        recipientType: "to",
+        address: "a@example.com",
+        sortOrder: 0,
+      },
+      {
+        recipientType: "cc",
+        address: "b@example.com",
+        sortOrder: 1,
+      },
+    ]);
+  });
+});

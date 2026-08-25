@@ -26,6 +26,8 @@ import {
 } from "@/lib/mail/guarded-batch";
 import { recomputeOutboundRevisionContentHash } from "@/lib/mail/outbound-revision-service";
 import { generateRfcMessageId } from "@/lib/mail/rfc-message-id";
+import { isRfcReplyComposeMode } from "@/lib/mail/compose-mode-threading-semantics";
+import { resolveOutboundMessageThreadingFields } from "@/lib/mail/outbound-materialization-threading";
 import {
   toSafeSendOperationView,
   type SafeSendOperationView,
@@ -34,6 +36,12 @@ import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-o
 import { resolveImportantSendFailureNotificationTarget } from "@/lib/mail/notification-source-recipient-resolution";
 import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-eligibility";
+import { runOutboundSendPreflightOrRecordBlock } from "@/lib/mail/outbound-send-preflight-service";
+import { assertOutboundSendRateLimitsWithinPolicy } from "@/lib/mail/outbound-send-rate-limit";
+import {
+  resolveMailOutboundTransportMode,
+  type MailOutboundTransportMode,
+} from "@/lib/mail/outbound-transport-constants";
 import type {
   MailTransportAdapter,
   NormalizedOutboundSubmission,
@@ -90,6 +98,18 @@ async function findSendByRevisionId(
     .select()
     .from(schema.mailSendOperations)
     .where(eq(schema.mailSendOperations.outboundRevisionId, revisionId))
+    .limit(1);
+  return row ?? null;
+}
+
+async function findSendByApprovalId(
+  db: Database,
+  approvalId: string,
+): Promise<MailSendOperation | null> {
+  const [row] = await db
+    .select()
+    .from(schema.mailSendOperations)
+    .where(eq(schema.mailSendOperations.approvalId, approvalId))
     .limit(1);
   return row ?? null;
 }
@@ -360,6 +380,15 @@ export async function initiateStaffApprovedSend(
   await assertStaffAuthorSendAuthority(db, revision, actor.audit);
   await assertStoredFilesEligibleForSend(db, revision.id);
 
+  const recipientRows = await db
+    .select({ id: schema.mailOutboundRevisionRecipients.id })
+    .from(schema.mailOutboundRevisionRecipients)
+    .where(eq(schema.mailOutboundRevisionRecipients.revisionId, revision.id));
+  await assertOutboundSendRateLimitsWithinPolicy(db, actor, {
+    phase: "initiate",
+    recipientCount: recipientRows.length,
+  });
+
   const existing = await findSendByRevisionId(db, revision.id);
   if (existing) {
     assertMatchingSendSemantics(existing, {
@@ -395,6 +424,70 @@ export async function initiateStaffApprovedSend(
   return getSendOperation(db, actor, send.id);
 }
 
+export function buildApprovedSendIdempotencyKey(approvalId: string): string {
+  return `mail:approval:${approvalId}:send`;
+}
+
+/**
+ * Enqueues an approved staff revision for future transport without dispatching.
+ * Idempotent per approval/revision via deterministic idempotency key.
+ */
+export async function prepareApprovedOutboundSend(
+  db: Database,
+  actor: MailActorContext,
+  input: { approvalId: string },
+): Promise<SafeSendOperationView> {
+  assertMailOutboundApprovalReview(actor);
+
+  const [approval] = await db
+    .select()
+    .from(schema.mailOutboundApprovals)
+    .where(eq(schema.mailOutboundApprovals.id, input.approvalId))
+    .limit(1);
+  if (!approval) {
+    throw MailServiceError.notFound("Approval workflow not found");
+  }
+  if (approval.status !== "approved") {
+    throw MailServiceError.conflict("Approval must be approved before queueing send", {
+      status: approval.status,
+    });
+  }
+  if (!approval.approvedRevisionId) {
+    throw MailServiceError.integrityConflict("Approved revision reference missing");
+  }
+
+  return initiateStaffApprovedSend(db, actor, {
+    revisionId: approval.approvedRevisionId,
+    idempotencyKey: buildApprovedSendIdempotencyKey(approval.id),
+  });
+}
+
+export async function getSendOperationForApproval(
+  db: Database,
+  actor: MailActorContext,
+  approvalId: string,
+): Promise<SafeSendOperationView | null> {
+  const [approval] = await db
+    .select()
+    .from(schema.mailOutboundApprovals)
+    .where(eq(schema.mailOutboundApprovals.id, approvalId))
+    .limit(1);
+  if (!approval) {
+    throw MailServiceError.notFound("Approval workflow not found");
+  }
+  if (approval.requestedByUserId === actor.userId) {
+    assertMailAccessEnabled(actor);
+  } else {
+    assertMailOutboundApprovalReview(actor);
+  }
+
+  const send = await findSendByApprovalId(db, approvalId);
+  if (!send) {
+    return null;
+  }
+  return getSendOperation(db, actor, send.id);
+}
+
 export async function initiateAdminDirectSend(
   db: Database,
   actor: MailActorContext,
@@ -422,6 +515,15 @@ export async function initiateAdminDirectSend(
   await assertRevisionHashIntegrity(db, revision);
   await assertAdminDirectSendAuthority(db, actor, revision);
   await assertStoredFilesEligibleForSend(db, revision.id);
+
+  const recipientRows = await db
+    .select({ id: schema.mailOutboundRevisionRecipients.id })
+    .from(schema.mailOutboundRevisionRecipients)
+    .where(eq(schema.mailOutboundRevisionRecipients.revisionId, revision.id));
+  await assertOutboundSendRateLimitsWithinPolicy(db, actor, {
+    phase: "initiate",
+    recipientCount: recipientRows.length,
+  });
 
   const existing = await findSendByRevisionId(db, revision.id);
   if (existing) {
@@ -587,6 +689,14 @@ async function buildNormalizedSubmission(
     )
     .orderBy(schema.mailSignatureSnapshotAssets.sortOrder);
 
+  const threadingFields = await resolveOutboundMessageThreadingFields(db, {
+    composeMode: revision.composeMode,
+    sourceMessageId: isRfcReplyComposeMode(revision.composeMode)
+      ? revision.replyToMessageId
+      : null,
+    outboundRfcMessageId: rfcIdentity.rfcMessageId,
+  });
+
   return {
     sendOperationId: send.id,
     transportAttemptId,
@@ -623,25 +733,9 @@ async function buildNormalizedSubmission(
       deliveryMode: attachment.deliveryMode,
       secureExpiryDays: attachment.secureExpiryDays,
     })),
+    inReplyTo: threadingFields.inReplyTo,
+    referencesHeader: threadingFields.referencesHeader,
   };
-}
-
-async function revalidateSendAuthorityBeforeDispatch(
-  db: Database,
-  actor: MailActorContext,
-  send: MailSendOperation,
-  revision: MailOutboundRevision,
-): Promise<void> {
-  await assertRevisionHashIntegrity(db, revision);
-  await assertStoredFilesEligibleForSend(db, revision.id);
-
-  if (send.authorizationMode === "staff_approved") {
-    await loadApprovedApprovalForRevision(db, revision);
-    await assertStaffAuthorSendAuthority(db, revision, actor.audit);
-    return;
-  }
-
-  await assertAdminDirectSendAuthority(db, actor, revision);
 }
 
 async function claimDispatchAttempt(
@@ -649,6 +743,7 @@ async function claimDispatchAttempt(
   actor: MailActorContext,
   send: MailSendOperation,
   adapter: MailTransportAdapter,
+  transportMode: MailOutboundTransportMode,
 ): Promise<{ attempt: MailTransportAttempt; postGuard: SendPostStateGuard }> {
   if (send.status !== "pending") {
     throw MailServiceError.conflict(
@@ -667,7 +762,14 @@ async function claimDispatchAttempt(
   if (!revision) {
     throw MailServiceError.notFound("Outbound revision not found");
   }
-  await revalidateSendAuthorityBeforeDispatch(db, actor, send, revision);
+  await runOutboundSendPreflightOrRecordBlock({
+    db,
+    actor,
+    send,
+    revision,
+    adapterProviderId: adapter.providerId,
+    transportMode,
+  });
 
   const now = new Date().toISOString();
   const attemptId = crypto.randomUUID();
@@ -713,6 +815,7 @@ async function claimDispatchAttempt(
         transportAttemptId: attemptId,
         attemptNumber,
         provider: adapter.providerId,
+        transportMode,
       },
     }),
   ]);
@@ -975,9 +1078,13 @@ export async function dispatchSendOperation(
     sendOperationId: string;
     expectedOrchestrationVersion: number;
     adapter: MailTransportAdapter;
+    transportMode?: MailOutboundTransportMode;
   },
 ): Promise<SafeSendOperationView> {
   assertMailAccessEnabled(actor);
+
+  const transportMode =
+    input.transportMode ?? resolveMailOutboundTransportMode(process.env);
 
   const send = await findSendById(db, input.sendOperationId);
   if (!send) {
@@ -990,7 +1097,13 @@ export async function dispatchSendOperation(
     throw MailServiceError.conflict(`Send operation is terminal (${send.status})`);
   }
 
-  const { attempt } = await claimDispatchAttempt(db, actor, send, input.adapter);
+  const { attempt } = await claimDispatchAttempt(
+    db,
+    actor,
+    send,
+    input.adapter,
+    transportMode,
+  );
 
   const refreshedSend = await findSendById(db, send.id);
   if (!refreshedSend) {
@@ -1071,12 +1184,6 @@ export async function retrySendOperation(
       "Retry requires latest transport attempt to be temporary_failure",
     );
   }
-
-  const revision = await findRevisionById(db, send.outboundRevisionId);
-  if (!revision) {
-    throw MailServiceError.notFound("Outbound revision not found");
-  }
-  await revalidateSendAuthorityBeforeDispatch(db, actor, send, revision);
 
   const now = new Date().toISOString();
   const auditId = crypto.randomUUID();

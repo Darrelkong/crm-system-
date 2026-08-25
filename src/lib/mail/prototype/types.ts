@@ -2,6 +2,7 @@ import type {
   MockTeamMemberId,
   SharedProcessingStatus,
 } from "./shared-mailbox-types";
+import type { SafeDraftCustomerAssociationView } from "@/lib/mail/mail-customer-association-service";
 
 export type MailPrototypeScenario =
   | "admin"
@@ -115,6 +116,8 @@ export type MailMessage = {
   attachments: MailAttachment[];
   customerMatch: MailCustomerMatch;
   manualCustomerAssociation?: MailCustomerAssociation;
+  /** Safe CRM summary when available (API draft/revision or prototype resolver). */
+  customerAssociation?: SafeDraftCustomerAssociationView | null;
   assignment: MailAssignmentState;
   assignedToName?: string;
   submittedByName?: string;

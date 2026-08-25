@@ -3,14 +3,23 @@
 import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useTranslation } from "@/i18n/provider";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
+import { MailAdminCenterDrawer } from "@/components/mail/admin/mail-admin-center-drawer";
 import { MailFolderActionRow } from "./mail-folder-action-row";
 import { MailFolderPopover } from "./mail-folder-popover";
 import { MailMessageList } from "./mail-message-list";
-import { MailMessageDetail } from "./mail-message-detail";
-import { MailCompose, type ComposeDraft } from "./mail-compose";
+import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
+import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
+import { isProductionMailReadFolder } from "@/lib/mail/client/mail-workspace-ui-adapters";
+import { MailReadingPane } from "./mail-reading-pane";
+import { MailComposeEditor } from "@/components/mail/compose/mail-compose-editor";
+import type { ComposeInitialSeed } from "@/lib/mail/client/draft-management";
+import type { MockComposeDraft } from "@/lib/mail/prototype/state";
 import { MailNoAccessState } from "./mail-no-access-state";
+import { MailProductionNoMailboxesState } from "./mail-production-no-mailboxes-state";
 import { MailDebugControls } from "./mail-debug-controls";
 import { MailDesktopWorkspace } from "./mail-desktop-workspace";
 import {
@@ -18,6 +27,12 @@ import {
   buildReplyAllDraft,
   buildReplyDraft,
 } from "@/lib/mail/prototype/message-actions";
+import {
+  createComposeDraftFromMessage,
+  createComposeSeedRequestGuard,
+  resolveComposeDraftSeedErrorMessageKey,
+} from "@/lib/mail/client/compose-draft-seed-client";
+import type { ProductionComposeSeedAction } from "@/components/mail/prototype/mail-production-message-actions";
 import {
   shouldWarnSharedReply,
 } from "@/lib/mail/prototype/shared-mailbox";
@@ -45,29 +60,67 @@ function normalizeRecipients(
   return Array.isArray(value) ? value : [value];
 }
 
-export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
+function toComposeSeed(
+  initial?: Partial<MockComposeDraft> | ComposeInitialSeed,
+): ComposeInitialSeed | undefined {
+  if (!initial) return undefined;
+  return {
+    draftId: "draftId" in initial ? initial.draftId : undefined,
+    senderIdentityId:
+      "senderIdentityId" in initial ? initial.senderIdentityId : undefined,
+    mailboxId: "mailboxId" in initial ? initial.mailboxId : undefined,
+    to: normalizeRecipients(initial.to),
+    cc: normalizeRecipients(initial.cc),
+    bcc: normalizeRecipients(initial.bcc),
+    subject: initial.subject ?? "",
+    bodyHtml:
+      ("bodyHtml" in initial ? initial.bodyHtml : undefined) ??
+      ("body" in initial ? initial.body : undefined) ??
+      "",
+  };
+}
+
+export function MailPrototypeShell({
+  role: _role,
+  dashboardHref = "/admin",
+}: {
+  role: "admin" | "staff";
+  dashboardHref?: "/admin" | "/staff";
+}) {
   const { t } = useTranslation();
   const searchParams = useSearchParams();
   const isMobileViewport = useMobileViewport();
   const workspaceRef = useRef<HTMLDivElement>(null);
   const folderTriggerRef = useRef<HTMLButtonElement>(null);
+  const mobileSettingsRef = useRef<HTMLButtonElement>(null);
+  const desktopSettingsRef = useRef<HTMLButtonElement>(null);
   const customerHandledRef = useRef(false);
+  const {
+    loading: sessionLoading,
+    error: sessionError,
+    refresh: refreshMailSession,
+    mailAccessEnabled,
+    canOpenAdminCenter,
+  } = useMailSession();
+
+  const isProduction = useIsProductionMailReadSource();
+  const workspace = useOptionalMailWorkspace();
+
+  const [adminCenterOpen, setAdminCenterOpen] = useState(false);
+  const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
 
   const {
-    hasMailAccess,
     messages,
     selectedId,
     setSelectedId,
     activeFolder,
     toast,
     clearToast,
-    initComposeDraft,
-    composeDraft,
     openDraftMessage,
-    senderIdentities,
     openAdminEditApproval,
     currentTeamMemberId,
     openMessageFromNotification,
+    showToast,
   } = useMailPrototype();
 
   const [mobileView, setMobileView] = useState<MobileView>("list");
@@ -76,35 +129,16 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
   const [composeOpen, setComposeOpen] = useState(false);
   const [composeExpanded, setComposeExpanded] = useState(false);
   const [replyGuard, setReplyGuard] = useState<ReplyGuardState>(null);
+  const [composeSeedPending, setComposeSeedPending] = useState(false);
+  const composeSeedGuardRef = useRef(createComposeSeedRequestGuard());
 
-  function openCompose(initial?: Partial<ComposeDraft>) {
-    if (initial) {
-      initComposeDraft({
-        from: initial.from,
-        to: normalizeRecipients(initial.to),
-        cc: normalizeRecipients(initial.cc),
-        bcc: normalizeRecipients(initial.bcc),
-        subject: initial.subject ?? "",
-        body: initial.body ?? "",
-        replyToId: initial.replyToId,
-        mode: initial.mode,
-        draftMessageId: initial.draftMessageId,
-        quotedOriginal: initial.quotedOriginal,
-        forwardAttachments: initial.forwardAttachments,
-        selectedForwardAttachmentIds: initial.selectedForwardAttachmentIds,
-        customerAssociation: initial.customerAssociation,
-        sensitivity: initial.sensitivity,
-        submittedByName: initial.submittedByName,
-        approvalMessageId: initial.approvalMessageId,
-        adminEdited: initial.adminEdited,
-        approvalOriginal: initial.approvalOriginal,
-        mockAttachmentCount: initial.mockAttachmentCount,
-      });
-      setComposeKey((k) => k + 1);
-    } else if (!composeDraft) {
-      initComposeDraft();
-      setComposeKey((k) => k + 1);
-    }
+  const [composeSeed, setComposeSeed] = useState<ComposeInitialSeed | undefined>(
+    undefined,
+  );
+
+  function openCompose(initial?: Partial<MockComposeDraft> | ComposeInitialSeed) {
+    setComposeSeed(toComposeSeed(initial));
+    setComposeKey((k) => k + 1);
     if (isMobileViewport) {
       setMobileView("compose");
     } else {
@@ -120,6 +154,46 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
       setComposeOpen(false);
       setComposeExpanded(false);
     }
+  }
+
+  async function handleProductionComposeSeed(
+    messageId: string,
+    mode: ProductionComposeSeedAction,
+  ) {
+    if (!workspace || !isProductionMailReadFolder(workspace.selectedFolder)) return;
+    const folder = workspace.selectedFolder;
+    const guard = composeSeedGuardRef.current;
+    if (guard.isPending()) return;
+
+    const requestId = guard.begin();
+    setComposeSeedPending(true);
+    try {
+      const result = await createComposeDraftFromMessage({
+        messageId,
+        mode,
+        folder,
+      });
+      if (!guard.isCurrent(requestId)) {
+        return;
+      }
+      if (!result.ok) {
+        showToast(t(resolveComposeDraftSeedErrorMessageKey(result.status)));
+        return;
+      }
+      openCompose({ draftId: result.item.id });
+    } finally {
+      guard.end(requestId);
+      if (!guard.isPending()) {
+        setComposeSeedPending(false);
+      }
+    }
+  }
+
+  function handleProductionSeedAction(
+    messageId: string,
+    mode: ProductionComposeSeedAction,
+  ) {
+    void handleProductionComposeSeed(messageId, mode);
   }
 
   function proceedReplyAction(guard: ReplyGuardState) {
@@ -146,6 +220,10 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
   }
 
   function handleReply(messageId: string) {
+    if (isProduction) {
+      void handleProductionComposeSeed(messageId, "reply");
+      return;
+    }
     maybeGuardReply(messageId, "reply", () => {
       const msg = messages.find((m) => m.id === messageId);
       if (!msg) return;
@@ -154,6 +232,10 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
   }
 
   function handleReplyAll(messageId: string) {
+    if (isProduction) {
+      void handleProductionComposeSeed(messageId, "reply_all");
+      return;
+    }
     maybeGuardReply(messageId, "reply_all", () => {
       const msg = messages.find((m) => m.id === messageId);
       if (!msg) return;
@@ -162,6 +244,10 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
   }
 
   function handleForward(messageId: string) {
+    if (isProduction) {
+      void handleProductionComposeSeed(messageId, "forward");
+      return;
+    }
     maybeGuardReply(messageId, "forward", () => {
       const msg = messages.find((m) => m.id === messageId);
       if (!msg) return;
@@ -175,6 +261,19 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
   }
 
   function selectMessage(id: string) {
+    if (isProduction && workspace) {
+      if (workspace.selectedFolder === "drafts") {
+        openCompose({ draftId: id });
+        return;
+      }
+      void workspace.selectMessage(id);
+      void workspace.markMessageRead({ messageId: id, isRead: true });
+      if (isMobileViewport) {
+        setMobileView("detail");
+      }
+      return;
+    }
+
     const msg = messages.find((m) => m.id === id);
     if (activeFolder === "drafts" && msg?.folder === "draft") {
       const draft = openDraftMessage(id);
@@ -187,35 +286,90 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
     }
   }
 
+  function openAdminCenter() {
+    setAdminCenterOpen(true);
+  }
+
   useEffect(() => {
-    if (customerHandledRef.current || !hasMailAccess) return;
+    if (customerHandledRef.current || !mailAccessEnabled) return;
     const customerId = searchParams.get("customerId");
     const customerName = searchParams.get("customerName");
     const email = searchParams.get("email");
     if (!customerId || !customerName) return;
     customerHandledRef.current = true;
-    const defaultFrom = senderIdentities[0]?.address ?? "";
     openCompose({
-      from: defaultFrom,
       to: email ? [email] : [],
-      customerAssociation: { id: customerId, name: customerName },
-      mode: "new",
+      subject: "",
+      body: "",
     });
-  }, [hasMailAccess, searchParams, senderIdentities]);
+  }, [mailAccessEnabled, searchParams]);
 
   useEffect(() => {
     const messageId = searchParams.get("messageId");
-    if (!messageId || !hasMailAccess) return;
+    if (!messageId || !mailAccessEnabled) return;
+    if (isProduction && workspace) {
+      void workspace.selectMessage(messageId);
+      if (isMobileViewport) {
+        setMobileView("detail");
+      }
+      return;
+    }
     openMessageFromNotification(messageId);
     if (isMobileViewport) {
       setMobileView("detail");
     }
-  }, [hasMailAccess, isMobileViewport, openMessageFromNotification, searchParams]);
+  }, [
+    isProduction,
+    mailAccessEnabled,
+    isMobileViewport,
+    openMessageFromNotification,
+    searchParams,
+    workspace,
+  ]);
 
-  if (!hasMailAccess) {
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-[calc(100dvh-4.5rem)] items-center justify-center px-6 py-16">
+        <p className="text-sm crm-text-secondary">{t("common.loading")}</p>
+      </div>
+    );
+  }
+
+  if (sessionError) {
+    return (
+      <div className="flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center px-6 py-16 text-center">
+        <p className="max-w-sm text-sm crm-text-secondary">{sessionError}</p>
+        <Button
+          type="button"
+          variant="secondary"
+          className="mt-4"
+          onClick={() => void refreshMailSession()}
+        >
+          {t("mail.adminCenter.retry")}
+        </Button>
+      </div>
+    );
+  }
+
+  if (!mailAccessEnabled) {
     return (
       <div className="min-w-0 px-4 py-3 sm:px-6">
-        <MailNoAccessState />
+        <MailNoAccessState dashboardHref={dashboardHref} />
+        <MailDebugControls />
+      </div>
+    );
+  }
+
+  const showProductionNoMailboxes =
+    isProduction &&
+    workspace &&
+    !workspace.isLoadingMailboxes &&
+    workspace.mailboxes.length === 0;
+
+  if (showProductionNoMailboxes) {
+    return (
+      <div className="min-w-0 px-4 py-3 sm:px-6">
+        <MailProductionNoMailboxesState />
         <MailDebugControls />
       </div>
     );
@@ -231,6 +385,7 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
         composeOpen={composeOpen}
         composeExpanded={composeExpanded}
         composeKey={composeKey}
+        composeSeed={composeSeed}
         onOpenCompose={openCompose}
         onCloseCompose={closeCompose}
         onToggleComposeExpand={() => setComposeExpanded((v) => !v)}
@@ -242,6 +397,11 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
         replyGuard={replyGuard}
         onDismissReplyGuard={() => setReplyGuard(null)}
         onProceedReplyGuard={() => proceedReplyAction(replyGuard)}
+        onProductionSeedAction={handleProductionSeedAction}
+        composeSeedPending={composeSeedPending}
+        showAdminEntry={canOpenAdminCenter}
+        onOpenAdminCenter={openAdminCenter}
+        adminCenterReturnFocusRef={desktopSettingsRef}
       />
 
       <div className="mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden">
@@ -252,6 +412,12 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
               folderPopoverOpen={folderPopoverOpen}
               onOpenFolders={() => setFolderPopoverOpen((v) => !v)}
               onCompose={() => openCompose()}
+              settingsOpen={mobileSettingsOpen}
+              onToggleSettings={() => setMobileSettingsOpen((v) => !v)}
+              onCloseSettings={() => setMobileSettingsOpen(false)}
+              showAdminEntry={canOpenAdminCenter}
+              onOpenAdminCenter={openAdminCenter}
+              settingsButtonRef={mobileSettingsRef}
             />
             <MailMessageList
               className="flex min-h-0 min-w-0 flex-1 flex-col"
@@ -273,7 +439,7 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
               </button>
             </div>
             <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <MailMessageDetail
+              <MailReadingPane
                 onReply={handleReply}
                 onReplyAll={handleReplyAll}
                 onForward={handleForward}
@@ -281,17 +447,21 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
                 replyGuard={replyGuard}
                 onDismissReplyGuard={() => setReplyGuard(null)}
                 onProceedReplyGuard={() => proceedReplyAction(replyGuard)}
+                onProductionSeedAction={handleProductionSeedAction}
+                composeSeedPending={composeSeedPending}
               />
             </div>
           </div>
         )}
 
-        {mobileView === "compose" && composeDraft && (
+        {mobileView === "compose" && (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <MailCompose
+            <MailComposeEditor
               key={composeKey}
+              seed={composeSeed}
               variant="embedded-mobile"
               onBack={closeCompose}
+              onSubmitted={closeCompose}
             />
           </div>
         )}
@@ -314,6 +484,12 @@ export function MailPrototypeShell({ role: _role }: { role: "admin" }) {
           {toast}
         </div>
       )}
+
+      <MailAdminCenterDrawer
+        open={adminCenterOpen}
+        onRequestClose={() => setAdminCenterOpen(false)}
+        returnFocusRef={isMobileViewport ? mobileSettingsRef : desktopSettingsRef}
+      />
     </div>
   );
 }

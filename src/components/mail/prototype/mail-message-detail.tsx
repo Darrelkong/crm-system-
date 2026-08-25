@@ -12,6 +12,8 @@ import { MailSharedHandlingPanel } from "./mail-shared-handling-panel";
 import { MailInternalNotes } from "./mail-internal-notes";
 import { MailActivityTimeline } from "./mail-activity-timeline";
 import { MailSharedReplyGuard } from "./mail-shared-reply-guard";
+import { MailCrmContextPanel } from "@/components/mail/crm/mail-crm-context-panel";
+import { resolveMailMessageCustomerAssociation } from "@/lib/mail/prototype/mail-crm-context-prototype";
 import { shouldShowSharedCustomerBadge, isSharedMailboxMessage } from "@/lib/mail/prototype/shared-mailbox";
 import { detectSensitiveAttachmentHint } from "@/lib/mail/prototype/sensitivity";
 import { useState } from "react";
@@ -92,6 +94,10 @@ export function MailMessageDetail({
   }
 
   const customer = resolveDisplayCustomer(message, scenario);
+  const customerAssociation = resolveMailMessageCustomerAssociation(
+    message,
+    scenario,
+  );
   const sharedMailbox = mailboxes.find((m) => m.label === "shared");
   const autoReply = sharedMailbox?.autoReplyEnabled;
   const sensitiveHint = detectSensitiveAttachmentHint(
@@ -120,7 +126,7 @@ export function MailMessageDetail({
   return (
     <article className="flex flex-1 flex-col overflow-hidden">
       {restoreBar}
-      <header className="border-b crm-border px-4 py-4 sm:px-6">
+      <header className="mail-reading-header border-b crm-border px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-start gap-2">
           <h2 className="min-w-0 flex-1 text-lg font-semibold crm-text">
             {message.subject}
@@ -188,7 +194,7 @@ export function MailMessageDetail({
           </p>
           {message.attachments.length > 0 && (
             <div className="mt-6">
-              <p className="mb-2 text-xs font-medium crm-text-secondary">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide crm-text-secondary">
                 {t("mail.detail.attachments")}
               </p>
               {sensitiveHint && (
@@ -196,14 +202,14 @@ export function MailMessageDetail({
                   {t("mail.sensitivity.attachmentHint")}
                 </p>
               )}
-              <ul className="divide-y crm-border">
+              <ul className="mail-attachment-list divide-y crm-border">
                 {message.attachments.map((a) => (
                   <li
                     key={a.id}
-                    className="flex items-center justify-between py-2 text-sm first:pt-0"
+                    className="mail-attachment-row flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
                   >
-                    <span className="crm-text">{a.name}</span>
-                    <span className="text-xs crm-text-secondary">
+                    <span className="min-w-0 truncate crm-text">{a.name}</span>
+                    <span className="shrink-0 text-xs crm-text-secondary">
                       {a.sizeLabel}
                       {a.kind === "secure_file" &&
                         ` · ${t("mail.attachment.secureFile")}`}
@@ -223,6 +229,10 @@ export function MailMessageDetail({
           )}
         </div>
       </div>
+      <MailCrmContextPanel
+        customerAssociation={customerAssociation}
+        variant={variant === "desktop" ? "desktop" : "mobile"}
+      />
       {isSharedMailboxMessage(message) && (
         <>
           <MailSharedHandlingPanel
@@ -239,7 +249,7 @@ export function MailMessageDetail({
           />
         </>
       )}
-      <footer className="flex flex-col gap-2 border-t crm-border px-4 py-3 sm:px-6">
+      <footer className="mail-reading-footer flex flex-col gap-2 border-t crm-border px-4 py-3 sm:px-6">
         {replyGuard?.messageId === message.id && onDismissReplyGuard && onProceedReplyGuard && (
           <MailSharedReplyGuard
             message={message}

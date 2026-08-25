@@ -1,4 +1,12 @@
 import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
+import type { MailOutboundRevisionRecipient } from "../../../drizzle/schema/mail-outbound-revision-recipients";
+
+export type SafeOutboundRevisionRecipientView = {
+  recipientType: MailOutboundRevisionRecipient["recipientType"];
+  address: string;
+  displayName: string | null;
+  sortOrder: number;
+};
 
 export type SafeOutboundRevisionView = {
   id: string;
@@ -22,6 +30,21 @@ export type SafeOutboundRevisionView = {
   createdAt: string;
   createdByUserId: string;
 };
+
+export type SafeOutboundRevisionDetailView = SafeOutboundRevisionView & {
+  recipients: SafeOutboundRevisionRecipientView[];
+};
+
+export function toSafeOutboundRevisionRecipientView(
+  recipient: MailOutboundRevisionRecipient,
+): SafeOutboundRevisionRecipientView {
+  return {
+    recipientType: recipient.recipientType,
+    address: recipient.address,
+    displayName: recipient.displayName,
+    sortOrder: recipient.sortOrder,
+  };
+}
 
 export function toSafeOutboundRevisionView(
   revision: MailOutboundRevision,
@@ -47,5 +70,15 @@ export function toSafeOutboundRevisionView(
     hashVersion: revision.hashVersion,
     createdAt: revision.createdAt,
     createdByUserId: revision.createdByUserId,
+  };
+}
+
+export function toSafeOutboundRevisionDetailView(
+  revision: MailOutboundRevision,
+  recipients: SafeOutboundRevisionRecipientView[],
+): SafeOutboundRevisionDetailView {
+  return {
+    ...toSafeOutboundRevisionView(revision),
+    recipients,
   };
 }

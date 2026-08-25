@@ -16,7 +16,7 @@ function parseReferencesHeader(raw: string | null): string[] {
   return matches ?? [];
 }
 
-async function findInboundMessageByInternetMessageId(
+async function findMessageByInternetMessageId(
   db: Database,
   mailboxId: string,
   internetMessageId: string,
@@ -27,7 +27,6 @@ async function findInboundMessageByInternetMessageId(
     .where(
       and(
         eq(schema.mailMessages.mailboxId, mailboxId),
-        eq(schema.mailMessages.direction, "inbound"),
         eq(schema.mailMessages.internetMessageId, internetMessageId),
       ),
     )
@@ -43,6 +42,7 @@ async function findInboundMessageByInternetMessageId(
 
 /**
  * Conservative V1 threading — In-Reply-To / References only, same mailbox.
+ * Matches inbound and outbound canonical messages by internet_message_id.
  * Never threads on subject alone or across mailboxes.
  */
 export async function resolveInboundThread(
@@ -54,7 +54,7 @@ export async function resolveInboundThread(
   },
 ): Promise<InboundThreadResolution> {
   if (input.inReplyTo) {
-    const parent = await findInboundMessageByInternetMessageId(
+    const parent = await findMessageByInternetMessageId(
       db,
       input.mailboxId,
       input.inReplyTo,
@@ -71,7 +71,7 @@ export async function resolveInboundThread(
   const references = parseReferencesHeader(input.referencesHeader);
   for (let i = references.length - 1; i >= 0; i--) {
     const candidateId = references[i];
-    const match = await findInboundMessageByInternetMessageId(
+    const match = await findMessageByInternetMessageId(
       db,
       input.mailboxId,
       candidateId,

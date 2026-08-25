@@ -11,6 +11,7 @@ import {
 import { findActiveVerifiedNotificationIdentity } from "@/lib/mail/notification-identity-service";
 import { enqueueMailNotificationIntent } from "@/lib/mail/notification-outbox-enqueue-service";
 import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
+import { resolveMailOutboundTransportMode } from "@/lib/mail/outbound-transport-constants";
 import { assertMailNotificationProofManagement } from "@/lib/permissions/mail";
 
 export const NOTIFICATION_PROOF_SOURCE_ENTITY_ID_PREFIX =
@@ -191,6 +192,8 @@ export async function enqueueNotificationProofForAdmin(
         recipientUserId,
         notificationIdentityId: identity.id,
         created,
+        manualProofAction: true,
+        observedTransportMode: resolveMailOutboundTransportMode(process.env),
       },
     }),
   ]);

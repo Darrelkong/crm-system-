@@ -8,6 +8,7 @@ import {
   requireMailActor,
 } from "@/lib/mail/api-helpers";
 import { createDraft, listDrafts } from "@/lib/mail/draft-service";
+import { parseDraftRecipientsField } from "@/lib/mail/draft-api-parsing";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
 
 export async function GET(request: Request) {
@@ -52,6 +53,7 @@ export async function POST(request: Request) {
       subject: readStringField(body, "subject"),
       bodyText: readStringField(body, "bodyText"),
       bodyHtml: readStringField(body, "bodyHtml"),
+      recipients: parseDraftRecipientsField(body.recipients),
     });
 
     if (!result.created) {

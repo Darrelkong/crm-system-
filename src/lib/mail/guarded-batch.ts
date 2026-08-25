@@ -402,6 +402,37 @@ export function buildSendPostStateGuardedAuditInsert(
     `,
   );
 }
+
+/** Direct send-operation audit without post-state guard (preflight blocks, dispatch authorization). */
+export function buildSendOperationDirectAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    action: string;
+    sendOperationId: string;
+    metadata: Record<string, unknown>;
+  },
+) {
+  const metadataJson = JSON.stringify(input.metadata);
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        ${input.auditId} AS id,
+        ${actor.userId} AS user_id,
+        ${input.action} AS action,
+        ${"mail_send_operation"} AS entity_type,
+        ${input.sendOperationId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${metadataJson} AS metadata,
+        ${input.now} AS created_at
+    `,
+  );
+}
+
 export function buildRfcIdentityGuardedInsert(
   db: Database,
   guard: SendPostStateGuard,

@@ -343,11 +343,58 @@ html[data-theme="dark"] {
 }
 
 .mail-row-selected {
-  background: color-mix(in srgb, var(--color-crm-primary) 6%, transparent);
+  background: color-mix(in srgb, var(--color-crm-primary) 11%, transparent);
 }
 
 [data-theme="dark"] .mail-row-selected {
-  background: color-mix(in srgb, var(--color-crm-primary) 10%, transparent);
+  background: color-mix(in srgb, var(--color-crm-primary) 16%, transparent);
+}
+
+.mail-row-unread {
+  background: transparent;
+}
+
+[data-theme="dark"] .mail-row-unread {
+  background: transparent;
+}
+
+.mail-row-accent-selected {
+  width: 4px;
+  margin-left: -1px;
+  border-radius: 0 9999px 9999px 0;
+  background: var(--color-crm-primary);
+}
+
+.mail-row-accent-unread {
+  width: 3px;
+  background: color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+}
+
+[data-theme="dark"] .mail-row-accent-unread {
+  background: color-mix(in srgb, var(--color-crm-primary) 50%, transparent);
+}
+
+.mail-message-row:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 55%, transparent);
+  outline-offset: -2px;
+}
+
+.mail-message-row:hover:not(.mail-row-selected) {
+  background: color-mix(in srgb, var(--color-crm-text) 3%, transparent);
+}
+
+[data-theme="dark"] .mail-message-row:hover:not(.mail-row-selected) {
+  background: color-mix(in srgb, var(--color-crm-text) 5%, transparent);
+}
+
+.mail-list-toolbar-btn:hover:not(:disabled) {
+  background: var(--color-crm-bg-muted);
+  color: var(--color-crm-text);
+}
+
+.mail-list-toolbar-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: 1px;
 }
 
 .mail-nav-item {
@@ -360,6 +407,12 @@ html[data-theme="dark"] {
   color: var(--color-crm-text);
 }
 
+.mail-nav-item:focus-visible,
+.mail-sidebar-folder:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: 1px;
+}
+
 .mail-nav-active {
   background: color-mix(in srgb, var(--color-crm-primary) 10%, transparent);
   color: var(--color-crm-primary);
@@ -367,8 +420,13 @@ html[data-theme="dark"] {
 }
 
 [data-theme="dark"] .mail-nav-active {
-  background: color-mix(in srgb, var(--color-crm-primary) 16%, transparent);
-  color: color-mix(in srgb, var(--color-crm-primary) 85%, white);
+  background: color-mix(in srgb, var(--color-crm-primary) 14%, transparent);
+  color: color-mix(in srgb, var(--color-crm-primary) 88%, white);
+}
+
+.mail-nav-active .mail-folder-count {
+  color: inherit;
+  opacity: 0.85;
 }
 
 .mail-prototype-root {
@@ -383,6 +441,267 @@ html[data-theme="dark"] {
 .mail-desktop-workspace {
   min-width: 0;
   max-width: 100%;
+}
+
+.mail-workspace-body {
+  background: var(--color-crm-bg-muted);
+}
+
+.mail-mailbox-collapse-rail {
+  background: var(--color-crm-bg);
+}
+
+[data-theme="dark"] .mail-mailbox-collapse-rail {
+  background: var(--color-crm-bg);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-mailbox-sidebar {
+  background: var(--color-crm-bg);
+}
+
+.mail-sidebar-header {
+  background: var(--color-crm-bg);
+}
+
+.mail-sidebar-section + .mail-sidebar-section {
+  border-top: 1px solid var(--color-crm-border);
+  padding-top: 0.75rem;
+}
+
+[data-theme="dark"] .mail-sidebar-section + .mail-sidebar-section {
+  border-top-color: color-mix(in srgb, var(--color-crm-border) 80%, transparent);
+}
+
+.mail-sidebar-section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-crm-text-secondary);
+}
+
+.mail-sidebar-icon-btn:hover {
+  background: var(--color-crm-bg-muted);
+  color: var(--color-crm-text);
+}
+
+.mail-sidebar-icon-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.mail-compose-button {
+  font-weight: 600;
+}
+
+.mail-list-toolbar {
+  background: var(--color-crm-bg);
+}
+
+.mail-list-search {
+  background: var(--color-crm-bg-muted);
+  color: var(--color-crm-text);
+}
+
+[data-theme="dark"] .mail-list-search {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 90%, black);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-list-search:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: 0;
+}
+
+.mail-message-row {
+  background: var(--color-crm-bg);
+}
+
+.mail-reading-column {
+  background: var(--color-crm-bg);
+}
+
+.mail-reading-header {
+  background: var(--color-crm-bg);
+}
+
+.mail-reading-footer {
+  background: var(--color-crm-bg);
+}
+
+.mail-crm-context-panel {
+  background: var(--color-crm-bg);
+}
+
+.mail-crm-context-toggle {
+  transition: background-color 120ms ease-out;
+}
+
+.mail-crm-context-toggle:hover {
+  background: color-mix(in srgb, var(--color-crm-text) 3%, transparent);
+}
+
+[data-theme="dark"] .mail-crm-context-toggle:hover {
+  background: color-mix(in srgb, var(--color-crm-text) 5%, transparent);
+}
+
+.mail-crm-context-toggle:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: -2px;
+}
+
+.mail-crm-context-card {
+  background: var(--color-crm-bg-muted);
+}
+
+[data-theme="dark"] .mail-crm-context-card {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 88%, black);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-crm-context-empty {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 65%, transparent);
+}
+
+[data-theme="dark"] .mail-crm-context-empty {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 55%, black);
+}
+
+.mail-crm-context-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-crm-text-secondary);
+}
+
+.mail-attachment-list {
+  border: 1px solid var(--color-crm-border);
+  border-radius: var(--radius-crm, 0.75rem);
+  background: var(--color-crm-bg-muted);
+  overflow: hidden;
+}
+
+[data-theme="dark"] .mail-attachment-list {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 88%, black);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-attachment-row {
+  transition: background-color 120ms ease-out;
+}
+
+.mail-attachment-row:hover {
+  background: color-mix(in srgb, var(--color-crm-text) 3%, transparent);
+}
+
+[data-theme="dark"] .mail-attachment-row:hover {
+  background: color-mix(in srgb, var(--color-crm-text) 5%, transparent);
+}
+
+.mail-settings-section-heading {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-crm-text-secondary);
+}
+
+.mail-settings-divider {
+  border-color: var(--color-crm-border);
+}
+
+.mail-settings-popover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+[data-theme="dark"] .mail-settings-popover {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.25),
+    0 12px 32px rgba(0, 0, 0, 0.4);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-settings-menu-item {
+  color: var(--color-crm-text);
+  transition: background-color 120ms ease-out;
+}
+
+.mail-settings-menu-item:hover {
+  background: var(--color-crm-bg-muted);
+}
+
+.mail-settings-menu-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: -2px;
+}
+
+.mail-settings-coming-soon-badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-crm-text-secondary);
+  background: var(--color-crm-bg-muted);
+  border: 1px solid var(--color-crm-border);
+  border-radius: 9999px;
+  padding: 0.125rem 0.375rem;
+  white-space: nowrap;
+}
+
+[data-theme="dark"] .mail-settings-coming-soon-badge {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 88%, black);
+  border-color: color-mix(in srgb, var(--color-crm-border) 80%, transparent);
+}
+
+.mail-settings-placeholder-panel {
+  background: var(--color-crm-bg-muted);
+  border: 1px solid var(--color-crm-border);
+  border-radius: var(--radius-crm, 0.75rem);
+}
+
+[data-theme="dark"] .mail-settings-placeholder-panel {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 88%, black);
+  border-color: color-mix(in srgb, var(--color-crm-border) 80%, transparent);
+}
+
+.mail-admin-nav-item-active {
+  background: color-mix(in srgb, var(--color-crm-primary) 10%, transparent);
+  color: var(--color-crm-primary);
+}
+
+[data-theme="dark"] .mail-admin-nav-item-active {
+  background: color-mix(in srgb, var(--color-crm-primary) 14%, transparent);
+  color: color-mix(in srgb, var(--color-crm-primary) 88%, white);
+}
+
+.mail-admin-nav-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: 1px;
+}
+
+.mail-admin-center-sidebar {
+  background: var(--color-crm-bg);
+}
+
+[data-theme="dark"] .mail-admin-center-sidebar {
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-admin-center-layout {
+  background: var(--color-crm-bg-muted);
+}
+
+.mail-admin-center-panel {
+  min-height: min(60dvh, 100%);
+}
+
+[data-theme="dark"] .mail-admin-center-panel {
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
 /* Mobile folder popover — compact contextual menu (1A.4.1) */
@@ -439,12 +758,41 @@ html[data-theme="dark"] {
 
 [data-theme="dark"] .mail-floating-compose {
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.25),
-    0 8px 24px rgba(0, 0, 0, 0.35);
+    0 4px 12px rgba(0, 0, 0, 0.35),
+    0 16px 40px rgba(0, 0, 0, 0.45);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-compose-desktop {
+  background: var(--color-crm-bg);
+}
+
+.mail-compose-input {
+  background: var(--color-crm-bg-muted);
+  color: var(--color-crm-text);
+  transition: border-color 120ms ease-out, box-shadow 120ms ease-out;
+}
+
+[data-theme="dark"] .mail-compose-input {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 88%, black);
+  border-color: color-mix(in srgb, var(--color-crm-border) 85%, transparent);
+}
+
+.mail-compose-input:focus-visible {
+  outline: none;
+  border-color: color-mix(in srgb, var(--color-crm-primary) 55%, var(--color-crm-border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-crm-primary) 18%, transparent);
+}
+
+.mail-compose-toolbar-btn:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-crm-primary) 45%, transparent);
+  outline-offset: 1px;
 }
 
 .mail-reading-body {
   width: 100%;
+  color: var(--color-crm-text);
+  line-height: 1.65;
 }
 
 /* ── Navigation ── */

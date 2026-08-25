@@ -1,7 +1,11 @@
 import type { MailDraft } from "../../../drizzle/schema/mail-drafts";
-import type { MailDraftAttachment } from "../../../drizzle/schema/mail-draft-attachments";
+import type {
+  MailDeliveryMode,
+  MailDraftAttachment,
+} from "../../../drizzle/schema/mail-draft-attachments";
 import type { MailDraftRecipient } from "../../../drizzle/schema/mail-draft-recipients";
 import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
+import type { SafeDraftCustomerAssociationView } from "@/lib/mail/mail-customer-association-service";
 
 export type SafeDraftView = {
   id: string;
@@ -21,6 +25,7 @@ export type SafeDraftView = {
   discardedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  customerAssociation?: SafeDraftCustomerAssociationView | null;
 };
 
 export type SafeDraftRecipientView = {
@@ -31,15 +36,24 @@ export type SafeDraftRecipientView = {
   sortOrder: number;
 };
 
+export type ClientDraftDeliveryMode = "attachment" | "secure_file";
+
 export type SafeDraftAttachmentView = {
   id: string;
   displayFilename: string;
   sortOrder: number;
-  deliveryMode: MailDraftAttachment["deliveryMode"];
+  deliveryMode: ClientDraftDeliveryMode;
   secureExpiryDays: number | null;
   mimeType?: string;
   sizeBytes?: number;
+  contentHash?: string;
 };
+
+export function toClientDeliveryMode(
+  mode: MailDeliveryMode,
+): ClientDraftDeliveryMode {
+  return mode === "direct_attachment" ? "attachment" : "secure_file";
+}
 
 export function toSafeDraftView(draft: MailDraft): SafeDraftView {
   const bodyHtml = sanitizeOptionalOutboundBodyHtml(draft.bodyHtml);
@@ -77,15 +91,16 @@ export function toSafeDraftRecipientView(
 
 export function toSafeDraftAttachmentView(
   attachment: MailDraftAttachment,
-  stored?: { mimeType: string; sizeBytes: number },
+  stored?: { mimeType: string; sizeBytes: number; contentHash?: string },
 ): SafeDraftAttachmentView {
   return {
     id: attachment.id,
     displayFilename: attachment.displayFilename,
     sortOrder: attachment.sortOrder,
-    deliveryMode: attachment.deliveryMode,
+    deliveryMode: toClientDeliveryMode(attachment.deliveryMode),
     secureExpiryDays: attachment.secureExpiryDays,
     mimeType: stored?.mimeType,
     sizeBytes: stored?.sizeBytes,
+    contentHash: stored?.contentHash,
   };
 }

@@ -615,7 +615,10 @@ describe("outbound approval workflow integration", () => {
     const relatedSendOps = sendOps.filter(
       (row) => row.outboundRevisionId === revision.id,
     );
-    assert.equal(relatedSendOps.length, 0);
+    assert.equal(relatedSendOps.length, 1);
+    assert.equal(relatedSendOps[0]?.status, "pending");
+    assert.equal(relatedSendOps[0]?.authorizationMode, "staff_approved");
+    assert.equal(relatedSendOps[0]?.approvalId, approval.id);
 
     await cleanupFixtures(db);
   });

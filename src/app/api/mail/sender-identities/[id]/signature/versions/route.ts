@@ -9,11 +9,23 @@ import {
 } from "@/lib/mail/api-helpers";
 import {
   createSignatureVersion,
+  listSignatureVersions,
   type SignatureVersionAssetInput,
 } from "@/lib/mail/signature-service";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+export async function GET(request: Request, context: RouteContext) {
+  try {
+    const { actor, db } = await requireMailActor(request);
+    const { id } = await context.params;
+    const items = await listSignatureVersions(db, actor, id);
+    return Response.json({ items });
+  } catch (error) {
+    return mailErrorResponse(error);
+  }
+}
 
 function parseAssets(value: unknown): SignatureVersionAssetInput[] {
   if (!Array.isArray(value)) return [];

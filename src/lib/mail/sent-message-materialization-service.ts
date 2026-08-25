@@ -27,11 +27,25 @@ import {
 } from "@/lib/mail/recipient-semantic-equality";
 import { resolveSentMaterializationMailboxId } from "@/lib/mail/sent-mailbox-placement";
 import {
+  isRfcReplyComposeMode,
+} from "@/lib/mail/compose-mode-threading-semantics";
+import {
+  resolveOutboundMessageThreadingFields,
+  resolveOutboundThreadPlan,
+  revisionSourceMessageIdForThreading,
+  validateRevisionMaterializationComposeMode,
+} from "@/lib/mail/outbound-materialization-threading";
+import {
   toSafeMaterializationView,
   type SafeMaterializationView,
 } from "@/lib/mail/sent-message-materialization-serialization";
 
-const SUPPORTED_COMPOSE_MODES = new Set(["new"]);
+const SUPPORTED_COMPOSE_MODES = new Set([
+  "new",
+  "reply",
+  "reply_all",
+  "forward",
+]);
 
 export type MaterializeAcceptedOutboundSendResult = {
   materialization: MailOutboundMessageMaterialization;
@@ -317,17 +331,27 @@ async function createMaterializationGraph(
     rfcIdentity: MailOutboundRfcIdentity;
     acceptedAttempt: MailTransportAttempt;
     sentMailboxId: string;
+    threadPlan: {
+      threadId: string;
+      createThread: boolean;
+    };
+    threadingFields: {
+      replyToMessageId: string | null;
+      internetMessageId: string;
+      inReplyTo: string | null;
+      referencesHeader: string | null;
+    };
   },
 ): Promise<MaterializeAcceptedOutboundSendResult> {
   const now = new Date().toISOString();
   const sentAt =
     input.send.completedAt ?? input.acceptedAttempt.completedAt ?? now;
   const materializedAt = now;
-  const threadId = crypto.randomUUID();
   const messageId = crypto.randomUUID();
   const materializationId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const subjectNormalized = normalizeSubject(input.revision.subject);
+  const { threadId } = input.threadPlan;
 
   const postGuard: MaterializationPostStateGuard = {
     sendOperationId: input.send.id,
@@ -337,15 +361,29 @@ async function createMaterializationGraph(
     acceptedTransportAttemptId: input.acceptedAttempt.id,
   };
 
+  const threadStatements = input.threadPlan.createThread
+    ? [
+        db.insert(schema.mailThreads).values({
+          id: threadId,
+          mailboxId: input.sentMailboxId,
+          subjectNormalized,
+          lastMessageAt: sentAt,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      ]
+    : [
+        db
+          .update(schema.mailThreads)
+          .set({
+            lastMessageAt: sentAt,
+            updatedAt: now,
+          })
+          .where(eq(schema.mailThreads.id, threadId)),
+      ];
+
   const statements = [
-    db.insert(schema.mailThreads).values({
-      id: threadId,
-      mailboxId: input.sentMailboxId,
-      subjectNormalized,
-      lastMessageAt: sentAt,
-      createdAt: now,
-      updatedAt: now,
-    }),
+    ...threadStatements,
     db.insert(schema.mailMessages).values({
       id: messageId,
       threadId,
@@ -361,10 +399,10 @@ async function createMaterializationGraph(
         input.revision.subject,
       ),
       sensitivity: input.revision.sensitivity,
-      internetMessageId: null,
-      inReplyTo: null,
-      referencesHeader: null,
-      replyToMessageId: null,
+      internetMessageId: input.threadingFields.internetMessageId,
+      inReplyTo: input.threadingFields.inReplyTo,
+      referencesHeader: input.threadingFields.referencesHeader,
+      replyToMessageId: input.threadingFields.replyToMessageId,
       composeMode: input.revision.composeMode,
       receivedAt: null,
       sentAt,
@@ -416,7 +454,7 @@ async function createMaterializationGraph(
       id: materializationId,
       outboundRfcIdentityId: input.rfcIdentity.id,
       rfcMessageId: input.rfcIdentity.rfcMessageId,
-      wireInternetMessageId: null,
+      wireInternetMessageId: input.threadingFields.internetMessageId,
       mailMessageId: messageId,
       materializedAt,
     }),
@@ -554,6 +592,7 @@ export async function materializeAcceptedOutboundSend(
     );
   }
 
+  validateRevisionMaterializationComposeMode(revision);
   await assertRevisionHashIntegrity(db, revision);
 
   const [identity] = await db
@@ -566,6 +605,19 @@ export async function materializeAcceptedOutboundSend(
   }
 
   const sentMailboxId = resolveSentMaterializationMailboxId(identity);
+  const sourceMessageId = revisionSourceMessageIdForThreading(revision);
+  const threadPlan = await resolveOutboundThreadPlan(db, {
+    composeMode: revision.composeMode,
+    sourceMessageId,
+    outboundMailboxId: sentMailboxId,
+  });
+  const threadingFields = await resolveOutboundMessageThreadingFields(db, {
+    composeMode: revision.composeMode,
+    sourceMessageId: isRfcReplyComposeMode(revision.composeMode)
+      ? revision.replyToMessageId
+      : null,
+    outboundRfcMessageId: rfcIdentity.rfcMessageId,
+  });
   const revisionRecipients: RecipientSemanticRow[] = recipients.map((row) => ({
     recipientType: row.recipientType,
     address: row.address,
@@ -593,6 +645,8 @@ export async function materializeAcceptedOutboundSend(
     rfcIdentity,
     acceptedAttempt,
     sentMailboxId,
+    threadPlan,
+    threadingFields,
   });
 }
 

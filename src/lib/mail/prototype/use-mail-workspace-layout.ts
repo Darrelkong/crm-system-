@@ -6,9 +6,9 @@ import { useEffect, useState, type RefObject } from "react";
 export type MailLayoutMode = "wide" | "medium" | "narrow";
 
 /** Comfortable three-column layout (folder + list + detail). */
-const WIDE_MIN = 1040;
-/** Tighter three-column — folders stay visible. */
-const MEDIUM_MIN = 720;
+const WIDE_MIN = 1100;
+/** Tablet — mailbox sidebar may collapse; list + reading preferred. */
+const MEDIUM_MIN = 768;
 
 function modeFromWidth(width: number): MailLayoutMode {
   if (width >= WIDE_MIN) return "wide";
