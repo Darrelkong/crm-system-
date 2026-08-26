@@ -86,6 +86,73 @@ function buildMailboxAuditInsert(
   );
 }
 
+async function resolvePersonalMailboxOwnerUserId(
+  db: Database,
+  ownerUserId: string,
+): Promise<string> {
+  const normalizedOwnerUserId = ownerUserId.trim();
+  if (!normalizedOwnerUserId) {
+    throw MailServiceError.validation("ownerUserId is required for personal mailboxes");
+  }
+
+  const [user] = await db
+    .select({
+      id: schema.users.id,
+      isActive: schema.users.isActive,
+      deletedAt: schema.users.deletedAt,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, normalizedOwnerUserId))
+    .limit(1);
+  if (!user) {
+    throw MailServiceError.notFound("Personal mailbox owner not found");
+  }
+  if (user.isActive !== 1 || user.deletedAt != null) {
+    throw MailServiceError.validation(
+      "Personal mailbox owner must be an active user",
+    );
+  }
+
+  const [mailAccess] = await db
+    .select({ isEnabled: schema.mailUserAccess.isEnabled })
+    .from(schema.mailUserAccess)
+    .where(eq(schema.mailUserAccess.userId, normalizedOwnerUserId))
+    .limit(1);
+  if (!mailAccess || mailAccess.isEnabled !== 1) {
+    throw MailServiceError.validation(
+      "Personal mailbox owner must have Mail User Access enabled",
+    );
+  }
+
+  return normalizedOwnerUserId;
+}
+
+async function resolveMailboxOwnerUserId(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    mailboxType: MailMailbox["mailboxType"];
+    ownerUserId?: string | null;
+  },
+): Promise<string> {
+  if (input.mailboxType === "personal") {
+    if (!input.ownerUserId?.trim()) {
+      throw MailServiceError.validation(
+        "ownerUserId is required for personal mailboxes",
+      );
+    }
+    return resolvePersonalMailboxOwnerUserId(db, input.ownerUserId);
+  }
+
+  if (input.ownerUserId?.trim()) {
+    throw MailServiceError.validation(
+      "ownerUserId is only valid for personal mailboxes",
+    );
+  }
+
+  return actor.userId;
+}
+
 export async function createMailbox(
   db: Database,
   actor: MailActorContext,
@@ -93,11 +160,13 @@ export async function createMailbox(
     address: string;
     displayName?: string | null;
     mailboxType: MailMailbox["mailboxType"];
+    ownerUserId?: string | null;
   },
 ): Promise<MailboxWithCurrentPrimary> {
   assertMailAccountManagement(actor);
 
   const normalizedAddress = assertValidEchfrontMailAddress(input.address);
+  const mailboxOwnerUserId = await resolveMailboxOwnerUserId(db, actor, input);
 
   const now = new Date().toISOString();
   const mailboxId = crypto.randomUUID();
@@ -112,7 +181,7 @@ export async function createMailbox(
         displayName: input.displayName?.trim() || null,
         mailboxType: input.mailboxType,
         status: "active",
-        createdBy: actor.userId,
+        createdBy: mailboxOwnerUserId,
         createdAt: now,
         updatedAt: now,
       }),
@@ -136,6 +205,9 @@ export async function createMailbox(
           receivingAddressId: primaryId,
           address: normalizedAddress,
           mailboxType: input.mailboxType,
+          ownerUserId:
+            input.mailboxType === "personal" ? mailboxOwnerUserId : null,
+          provisionedByUserId: actor.userId,
           actorUserId: actor.userId,
         },
       }),

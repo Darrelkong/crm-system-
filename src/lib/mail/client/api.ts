@@ -533,6 +533,7 @@ export async function createMailbox(input: {
   address: string;
   displayName?: string;
   mailboxType: "personal" | "shared";
+  ownerUserId?: string;
 }): Promise<{
   ok: true;
   item: MailboxApiItem;

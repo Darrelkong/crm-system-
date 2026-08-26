@@ -41,6 +41,7 @@ export async function POST(request: Request) {
     const address = readStringField(body, "address");
     const displayName = readStringField(body, "displayName");
     const mailboxType = readStringField(body, "mailboxType");
+    const ownerUserId = readStringField(body, "ownerUserId");
 
     if (!address) {
       return Response.json(
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
       address,
       displayName,
       mailboxType,
+      ownerUserId,
     });
     return Response.json({ item }, { status: 201 });
   } catch (error) {
