@@ -14,6 +14,7 @@ export const INBOUND_QUARANTINE_REASONS = {
   senderInvariantFailure: "sender_invariant_failure",
   rfcMessageIdCollision: "rfc_message_id_collision",
   materializationTargetUnusable: "materialization_target_unusable",
+  dangerousAttachment: "dangerous_attachment",
 } as const;
 
 /** Stable historical fallback reasons persisted on materialization rows. */

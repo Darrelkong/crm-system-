@@ -18,6 +18,7 @@ import {
   INBOUND_QUARANTINE_REASONS,
 } from "@/lib/mail/inbound-quarantine-reasons";
 import { computeInboundPayloadContentHash } from "@/lib/mail/inbound-payload-hash";
+import { findFirstInboundDangerousAttachmentViolation } from "@/lib/mail/inbound-dangerous-attachment-policy";
 import { parseInboundMimeBytes } from "@/lib/mail/inbound-mime-parser";
 import type { InboundRawPayloadStore } from "@/lib/mail/inbound-raw-payload-store";
 import { resolveInboundThread } from "@/lib/mail/inbound-thread-resolution";
@@ -67,6 +68,9 @@ function resolveQuarantineReason(error: MailServiceError): string {
   }
   if (error.message.toLowerCase().includes("mailbox")) {
     return INBOUND_QUARANTINE_REASONS.materializationTargetUnusable;
+  }
+  if (error.message.toLowerCase().includes("dangerous inbound attachment")) {
+    return INBOUND_QUARANTINE_REASONS.dangerousAttachment;
   }
   return INBOUND_QUARANTINE_REASONS.integrityConflict;
 }
@@ -569,6 +573,14 @@ export async function materializeInboundIngestionEvent(
       providerEvent,
     );
     const parsed = await parseInboundMimeBytes(rawBytes);
+    const dangerousAttachment = findFirstInboundDangerousAttachmentViolation(
+      parsed.attachments,
+    );
+    if (dangerousAttachment) {
+      throw MailServiceError.integrityConflict(
+        `Dangerous inbound attachment blocked: ${dangerousAttachment.filename}`,
+      );
+    }
     const storedAttachments = await persistAttachmentSemantics(
       deps.attachmentStore,
       parsed.attachments,

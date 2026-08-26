@@ -1,0 +1,23 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crm-system-inbound-mail",
+  "main": "workers/inbound-mail.ts",
+  "workers_dev": false,
+  "preview_urls": false,
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crm-db",
+      "database_id": "03633dd2-c058-42de-9355-f5450eab7202"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "crm-attachments",
+      "preview_bucket_name": "crm-attachments-preview"
+    }
+  ]
+}

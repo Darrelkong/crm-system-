@@ -28,6 +28,8 @@
     "cron:recycle:deploy": "wrangler deploy -c wrangler.recycle-cron.jsonc",
     "cron:mail:deploy": "wrangler deploy -c wrangler.mail-jobs-cron.jsonc",
     "cron:mail:dry-run": "wrangler deploy --dry-run -c wrangler.mail-jobs-cron.jsonc --outdir .mail-jobs-dry-run",
+    "inbound-mail:deploy": "wrangler deploy -c wrangler.inbound-mail.jsonc",
+    "inbound-mail:dry-run": "wrangler deploy --dry-run -c wrangler.inbound-mail.jsonc --outdir .inbound-mail-dry-run",
     "crm-ai:test": "NODE_ENV=test node --import tsx --test workers/crm-ai/tests/service.test.ts workers/crm-ai/tests/admin-brief.test.ts workers/crm-ai/tests/staff-actions.test.ts",
     "crm-ai:benchmark": "node --import tsx workers/crm-ai/scripts/benchmark-remote.ts",
     "crm-ai:admin-probe": "node --import tsx workers/crm-ai/scripts/admin-brief-remote.ts",
