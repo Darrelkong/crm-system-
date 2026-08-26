@@ -10,7 +10,19 @@ export const MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES = {
   mailSharedAssignment: "mail_shared_assignment",
   /** Admin-controlled Cloudflare Email Sending proof — not business mail graph. */
   mailNotificationProof: "mail_notification_proof",
+  /** Bootstrap verification challenge delivery — pending identity, no Mail access gate. */
+  mailNotificationIdentityVerification:
+    "mail_notification_identity_verification",
 } as const;
+
+export function isMailNotificationIdentityVerificationOutbox(input: {
+  sourceEntityType: string;
+}): boolean {
+  return (
+    input.sourceEntityType ===
+    MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailNotificationIdentityVerification
+  );
+}
 
 export type MailNotificationSourceEntityType =
   (typeof MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES)[keyof typeof MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES];

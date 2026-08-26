@@ -17,6 +17,14 @@ export const MAIL_AUDIT_ACTIONS = {
   notificationIdentityVerified: "mail.notification_identity.verified",
   notificationIdentityVerificationTokenIssued:
     "mail.notification_identity.verification_token_issued",
+  notificationIdentityVerificationChallengeSent:
+    "mail.notification_identity.verification_challenge_sent",
+  notificationIdentityVerificationSendQueued:
+    "mail.notification_identity.verification_send_queued",
+  notificationIdentityVerificationDeliveryAccepted:
+    "mail.notification_identity.verification_delivery_accepted",
+  notificationIdentityVerificationDeliveryFailed:
+    "mail.notification_identity.verification_delivery_failed",
   notificationIdentityRevoked: "mail.notification_identity.revoked",
   notificationIdentityDeliveryHealthChanged:
     "mail.notification_identity.delivery_health_changed",

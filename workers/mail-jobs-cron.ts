@@ -3,6 +3,11 @@
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "../drizzle/schema";
 import { createCloudflareEmailNotificationTransport } from "../src/lib/mail/cloudflare-email-notification-transport-adapter";
+import { createEmailNotificationVerificationChallengeSink } from "../src/lib/mail/notification-verification-challenge-delivery";
+import {
+  isMailNotificationVerificationTransportEnabled,
+  MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR,
+} from "../src/lib/mail/notification-verification-transport";
 import { createInboundAttachmentStore } from "../src/lib/mail/inbound-attachment-store";
 import { createInboundRawPayloadStore } from "../src/lib/mail/inbound-raw-payload-store";
 import {
@@ -21,6 +26,7 @@ export interface MailJobsEnv {
   ATTACHMENTS: R2Bucket;
   EMAIL?: SendEmail;
   MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
+  MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE?: string;
 }
 
 export type MailJobsTickRunner = typeof runMailBackgroundTick;
@@ -59,15 +65,25 @@ export function buildMailBackgroundTickDeps(
     ),
   };
 
-  if (!isMailNotificationTransportEnabled(env)) {
-    return deps;
+  if (
+    isMailNotificationVerificationTransportEnabled({
+      [MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR]:
+        env.MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE,
+    })
+  ) {
+    assertNotificationTransportBindings(env);
+    deps.verificationChallengeSink = createEmailNotificationVerificationChallengeSink(
+      env.EMAIL!,
+    );
   }
 
-  assertNotificationTransportBindings(env);
+  if (isMailNotificationTransportEnabled(env)) {
+    assertNotificationTransportBindings(env);
 
-  deps.notificationTransport = createCloudflareEmailNotificationTransport({
-    emailBinding: env.EMAIL!,
-  });
+    deps.notificationTransport = createCloudflareEmailNotificationTransport({
+      emailBinding: env.EMAIL!,
+    });
+  }
 
   return deps;
 }
@@ -82,11 +98,13 @@ export function formatMailJobsTickLogSummary(
     totalItemsStarted: summary.totalItemsStarted,
     stoppedReason: summary.stoppedReason ?? null,
     notificationDispatchSkipped: summary.notificationDispatchSkipped,
+    verificationDispatchSkipped: summary.verificationDispatchSkipped,
     providerProcessingRecovery: summary.providerProcessingRecovery,
     notificationProcessingRecovery: summary.notificationProcessingRecovery,
     inboundMaterialization: summary.inboundMaterialization,
     deliveryMaterialization: summary.deliveryMaterialization,
     notificationDispatch: summary.notificationDispatch,
+    verificationDispatch: summary.verificationDispatch,
   };
 }
 

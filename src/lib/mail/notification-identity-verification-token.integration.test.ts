@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { after, before, describe, it } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
@@ -39,7 +39,7 @@ function actor(
   return {
     userId,
     sessionId: null,
-    crmRole: "admin",
+    crmRole: "staff",
     mailAccessEnabled,
     adminGrants: grants,
     audit: { ipAddress: "127.0.0.1", userAgent: FIXTURE },
@@ -88,15 +88,7 @@ async function cleanupFixtures(db: TestDb) {
   for (const userId of [PROOF_USER, OTHER_USER]) {
     await db
       .delete(schema.auditLogs)
-      .where(
-        and(
-          eq(schema.auditLogs.userId, userId),
-          eq(
-            schema.auditLogs.action,
-            MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
-          ),
-        ),
-      );
+      .where(eq(schema.auditLogs.userId, userId));
     await db
       .delete(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, userId));
@@ -120,17 +112,22 @@ describe("admin verification token issue service", () => {
     await enableMailAccess(db, OTHER_USER);
   });
 
+  beforeEach(async () => {
+    await cleanupFixtures(db);
+  });
+
   after(async () => {
     await cleanupFixtures(db);
     dispose?.();
   });
 
-  it("rejects actor without mail access", async () => {
+  it("rejects proof token issue when actor has no pending self identity", async () => {
     await assert.rejects(
       () => issueSelfVerificationTokenForAdminProof(db, noMailAccessActor),
       (error: unknown) => {
         assert.ok(error instanceof MailServiceError);
-        assert.equal(error.status, 403);
+        assert.equal(error.status, 400);
+        assert.match(error.message, /pending notification identity/);
         return true;
       },
     );
@@ -197,6 +194,7 @@ describe("admin verification token issue service", () => {
   });
 
   it("persists token hash but not plaintext in D1", async () => {
+    await createPendingForUser(db, PROOF_USER, fixtureEmail("persist"));
     const result = await issueSelfVerificationTokenForAdminProof(
       db,
       superAdminActor,
@@ -215,6 +213,7 @@ describe("admin verification token issue service", () => {
   });
 
   it("creates audit row without plaintext token or hash", async () => {
+    await createPendingForUser(db, PROOF_USER, fixtureEmail("audit"));
     const result = await issueSelfVerificationTokenForAdminProof(
       db,
       superAdminActor,
@@ -241,7 +240,6 @@ describe("admin verification token issue service", () => {
   });
 
   it("invalidates first token after regeneration and verifies newest token", async () => {
-    await cleanupFixtures(db);
     await createPendingForUser(db, PROOF_USER, fixtureEmail("regen"));
 
     const first = await issueSelfVerificationTokenForAdminProof(
@@ -275,6 +273,24 @@ describe("admin verification token issue service", () => {
   });
 
   it("rejects token issue after identity is verified", async () => {
+    const capture = createCapturingNotificationVerificationChallengeSink();
+    await createPendingNotificationIdentity(db, permissionMgmtActor, {
+      targetUserId: PROOF_USER,
+      email: fixtureEmail("verified-block"),
+      challengeSink: capture.sink,
+    });
+    const token = capture.latestToken();
+    assert.ok(token);
+    const [pending] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, PROOF_USER))
+      .limit(1);
+    await verifyNotificationIdentity(db, permissionMgmtActor, {
+      identityId: pending!.id,
+      token,
+    });
+
     await assert.rejects(
       () => issueSelfVerificationTokenForAdminProof(db, superAdminActor),
       (error: unknown) => {
@@ -286,7 +302,6 @@ describe("admin verification token issue service", () => {
   });
 
   it("enforces max 3 issuance per rolling 24 hours", async () => {
-    await cleanupFixtures(db);
     await createPendingForUser(db, PROOF_USER, fixtureEmail("rate-limit"));
 
     const nowMs = Date.now();
@@ -309,7 +324,6 @@ describe("admin verification token issue service", () => {
   });
 
   it("normal create and list responses expose no token or hash", async () => {
-    await cleanupFixtures(db);
     const created = await createPendingNotificationIdentity(
       db,
       permissionMgmtActor,
@@ -348,14 +362,22 @@ describe("admin verification token issue service", () => {
 });
 
 describe("admin verification token issue route static config", () => {
-  it("route exports POST and uses proof management wiring", () => {
+  it("self proof route is guarded for local test only", () => {
     const route = readFileSync(
       "src/app/api/mail/admin/notification-identities/self/issue-verification-token/route.ts",
       "utf8",
     );
-    assert.match(route, /export async function POST/);
-    assert.match(route, /requireMailActor/);
+    assert.match(route, /assertNotificationVerificationProofTokenApiAllowed/);
     assert.match(route, /issueSelfVerificationTokenForAdminProof/);
-    assert.doesNotMatch(route, /readLimitedJsonBody/);
+  });
+
+  it("target-user raw token route is removed", () => {
+    const route = readFileSync(
+      "src/app/api/mail/access/[userId]/notification-identities/send-verification/route.ts",
+      "utf8",
+    );
+    assert.match(route, /sendNotificationIdentityVerificationChallenge/);
+    assert.doesNotMatch(route, /issueTargetVerificationTokenForAdminProof/);
+    assert.doesNotMatch(route, /verificationToken/);
   });
 });

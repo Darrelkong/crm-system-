@@ -476,8 +476,10 @@ const en = {
         disableSuccess: "Mail access disabled.",
         notificationIdentityRequired: "Notification email required",
         missingIdentityMessage:
-          "Please configure and verify a notification email first.",
+          "Set and verify a private notification email for this team member before enabling Mail access.",
         configureNotificationIdentity: "Configure Notification Identity",
+        configureNotificationEmail: "Set notification email",
+        notificationEmailLabel: "Notification email",
         permissionDenied: "You do not have permission to manage Mail Access.",
         enableGenericError:
           "Could not update mail access. Please try again.",
@@ -485,10 +487,47 @@ const en = {
         statusDisabled: "Disabled",
         enabledAt: "Enabled {{date}}",
         notApplicable: "—",
+        lifecycle: {
+          not_configured: "Not configured",
+          prepared: "Prepared",
+          disabled: "Disabled",
+          enabled: "Enabled",
+        },
+        notificationLifecycle: {
+          none: "Not set",
+          pending: "Pending verification",
+          verified: "Verified",
+        },
+        actions: {
+          configureNotificationEmail: "Set notification email",
+          completeVerification: "Complete verification",
+        },
+        targetNotification: {
+          title: "Notification email setup",
+          description:
+            "Enter this team member's private external notification email. Verification is required before Mail access can be enabled.",
+          empty: "No notification email has been configured yet.",
+          addAction: "Save notification email",
+          sendAction: "Send verification code",
+          sendHint:
+            "Send a verification code to the external notification email. The team member can share the code with you to complete verification.",
+          sendSuccess: "Verification code sent to {{email}}.",
+          sendQueued:
+            "Verification code queued for delivery to {{email}}.",
+          transportDisabled:
+            "Verification email delivery is not enabled yet. Ask the team member for their code only after a code has been sent.",
+          deliveryFailed:
+            "Could not deliver the verification code. Please try again later.",
+          verifyAction: "Verify notification email",
+          verifyAssistHint:
+            "Enter the verification code sent to {{email}}. The team member can read it from their external inbox.",
+        },
         columns: {
           name: "Name",
           email: "Email",
           status: "Mail access",
+          mailStatus: "Mail status",
+          notificationStatus: "Notification email",
           enabledAt: "Enabled at",
           actions: "Actions",
         },

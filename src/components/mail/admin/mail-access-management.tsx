@@ -17,6 +17,7 @@ import { useTranslation } from "@/i18n/provider";
 import {
   fetchAdminUsersForMailAccess,
   fetchMailAccessList,
+  fetchNotificationIdentities,
   postMailAccessDisable,
   postMailAccessEnable,
 } from "@/lib/mail/client/api";
@@ -26,14 +27,21 @@ import {
   canManageMailAccess,
   resolveMailAccessEnableApiFeedback,
   resolveMailAccessEnablePreCheck,
+  resolveMailAccessLifecycleStatus,
   resolveMailAccessListErrorFeedback,
+  resolveMailAccessOnboardingAction,
   resolveMailAccessRowActions,
   type MailAccessEnableFeedback,
+  type MailAccessOnboardingActionKind,
   type MailAccessUserRow,
+  type NotificationIdentityLifecycleStatus,
 } from "@/lib/mail/client/mail-access-management";
-import { useMailAdminCenterNavigation } from "@/lib/mail/client/mail-admin-center-navigation";
-import { canManageNotificationIdentity } from "@/lib/mail/client/notification-identity-management";
+import {
+  canManageNotificationIdentity,
+  type NotificationIdentityApiItem,
+} from "@/lib/mail/client/notification-identity-management";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { TargetUserNotificationIdentityPanel } from "./target-user-notification-identity-panel";
 import {
   MailAdminEmptyState,
   MailAdminErrorState,
@@ -42,13 +50,35 @@ import {
   MAIL_ADMIN_SECTION_CLASS,
 } from "./mail-admin-states";
 
-function MailAccessStatusBadge({ enabled }: { enabled: boolean }) {
+function MailAccessStatusBadge({ row }: { row: MailAccessUserRow }) {
   const { t } = useTranslation();
+  const lifecycle = resolveMailAccessLifecycleStatus(row);
+  const variant =
+    lifecycle === "enabled"
+      ? "success"
+      : lifecycle === "disabled"
+        ? "danger"
+        : "default";
+
   return (
-    <Badge variant={enabled ? "success" : "default"}>
-      {enabled
-        ? t("mail.adminCenter.access.statusEnabled")
-        : t("mail.adminCenter.access.statusDisabled")}
+    <Badge variant={variant}>
+      {t(`mail.adminCenter.access.lifecycle.${lifecycle}`)}
+    </Badge>
+  );
+}
+
+function NotificationIdentityStatusBadge({
+  status,
+}: {
+  status: NotificationIdentityLifecycleStatus;
+}) {
+  const { t } = useTranslation();
+  const variant =
+    status === "verified" ? "success" : status === "pending" ? "warning" : "default";
+
+  return (
+    <Badge variant={variant}>
+      {t(`mail.adminCenter.access.notificationLifecycle.${status}`)}
     </Badge>
   );
 }
@@ -91,7 +121,7 @@ function MailAccessEnableFeedbackPanel({
             variant="secondary"
             onClick={onConfigureNotificationIdentity}
           >
-            {t("mail.adminCenter.access.configureNotificationIdentity")}
+            {t("mail.adminCenter.access.configureNotificationEmail")}
           </Button>
         ) : null}
       </div>
@@ -113,51 +143,61 @@ function MailAccessEnableFeedbackPanel({
   );
 }
 
+function onboardingActionLabelKey(
+  kind: MailAccessOnboardingActionKind,
+): string | null {
+  switch (kind) {
+    case "configureNotificationEmail":
+      return "mail.adminCenter.access.actions.configureNotificationEmail";
+    case "completeVerification":
+      return "mail.adminCenter.access.actions.completeVerification";
+    case "enableMail":
+      return "mail.adminCenter.access.enable";
+    case "disableMail":
+      return "mail.adminCenter.access.disable";
+    default:
+      return null;
+  }
+}
+
 function MailAccessRowActions({
   row,
   canManage,
   pending,
-  onEnable,
-  onDisable,
+  onAction,
 }: {
   row: MailAccessUserRow;
   canManage: boolean;
   pending: boolean;
-  onEnable: (userId: string) => void;
-  onDisable: (userId: string) => void;
+  onAction: (userId: string, kind: MailAccessOnboardingActionKind) => void;
 }) {
   const { t } = useTranslation();
-  const actions = resolveMailAccessRowActions(row, canManage);
+  const action = resolveMailAccessOnboardingAction(row, canManage);
+  const legacyActions = resolveMailAccessRowActions(row, canManage);
+  const labelKey = onboardingActionLabelKey(action.kind);
 
-  if (!actions.showEnable && !actions.showDisable) {
+  if (!labelKey) {
+    if (!legacyActions.showEnable && !legacyActions.showDisable) {
+      return null;
+    }
+  }
+
+  if (!labelKey) {
     return null;
   }
 
+  const variant = action.kind === "disableMail" ? "danger" : "secondary";
+
   return (
-    <div className="flex flex-wrap gap-2">
-      {actions.showEnable ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          disabled={pending}
-          onClick={() => onEnable(row.userId)}
-        >
-          {t("mail.adminCenter.access.enable")}
-        </Button>
-      ) : null}
-      {actions.showDisable ? (
-        <Button
-          type="button"
-          size="sm"
-          variant="danger"
-          disabled={pending}
-          onClick={() => onDisable(row.userId)}
-        >
-          {t("mail.adminCenter.access.disable")}
-        </Button>
-      ) : null}
-    </div>
+    <Button
+      type="button"
+      size="sm"
+      variant={variant}
+      disabled={pending}
+      onClick={() => onAction(row.userId, action.kind)}
+    >
+      {t(labelKey)}
+    </Button>
   );
 }
 
@@ -165,14 +205,12 @@ function MailAccessMobileCard({
   row,
   canManage,
   pending,
-  onEnable,
-  onDisable,
+  onAction,
 }: {
   row: MailAccessUserRow;
   canManage: boolean;
   pending: boolean;
-  onEnable: (userId: string) => void;
-  onDisable: (userId: string) => void;
+  onAction: (userId: string, kind: MailAccessOnboardingActionKind) => void;
 }) {
   const { t } = useTranslation();
 
@@ -183,7 +221,8 @@ function MailAccessMobileCard({
         <p className="truncate text-sm crm-text-secondary">{row.email}</p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <MailAccessStatusBadge enabled={row.isEnabled} />
+        <MailAccessStatusBadge row={row} />
+        <NotificationIdentityStatusBadge status={row.notificationIdentityStatus} />
         {row.enabledAt ? (
           <span className="text-xs crm-text-secondary">
             {t("mail.adminCenter.access.enabledAt", {
@@ -192,12 +231,17 @@ function MailAccessMobileCard({
           </span>
         ) : null}
       </div>
+      {row.notificationIdentityEmail ? (
+        <p className="break-all text-xs crm-text-secondary">
+          {t("mail.adminCenter.access.notificationEmailLabel")}:{" "}
+          {row.notificationIdentityEmail}
+        </p>
+      ) : null}
       <MailAccessRowActions
         row={row}
         canManage={canManage}
         pending={pending}
-        onEnable={onEnable}
-        onDisable={onDisable}
+        onAction={onAction}
       />
     </Card>
   );
@@ -206,7 +250,6 @@ function MailAccessMobileCard({
 export function MailAccessManagement() {
   const { t } = useTranslation();
   const { session, capabilities } = useMailSession();
-  const { navigateToSection } = useMailAdminCenterNavigation();
   const canManage = canManageMailAccess(capabilities);
   const canConfigureNotificationIdentity =
     canManageNotificationIdentity(capabilities);
@@ -220,6 +263,12 @@ export function MailAccessManagement() {
   );
   const [disableMessage, setDisableMessage] = useState<string | null>(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
+  const [notificationPanelUserId, setNotificationPanelUserId] = useState<string | null>(
+    null,
+  );
+  const [feedbackTargetUserId, setFeedbackTargetUserId] = useState<string | null>(
+    null,
+  );
 
   const load = useCallback(async () => {
     if (!canManage) {
@@ -256,7 +305,27 @@ export function MailAccessManagement() {
         return;
       }
 
-      setRows(buildMailAccessUserRows(usersResult.items, accessResult.items));
+      const activeUsers = usersResult.items.filter((user) => user.status !== "deleted");
+      const identityEntries = await Promise.all(
+        activeUsers.map(async (user) => {
+          const result = await fetchNotificationIdentities(user.id);
+          return [
+            user.id,
+            result.ok ? result.items : [],
+          ] as const;
+        }),
+      );
+      const notificationIdentitiesByUserId = new Map<string, NotificationIdentityApiItem[]>(
+        identityEntries,
+      );
+
+      setRows(
+        buildMailAccessUserRows(
+          usersResult.items,
+          accessResult.items,
+          notificationIdentitiesByUserId,
+        ),
+      );
     } catch {
       setError(t("common.networkError"));
       setRows([]);
@@ -270,6 +339,15 @@ export function MailAccessManagement() {
   }, [load]);
 
   const pending = pendingUserId !== null;
+  const notificationPanelRow = useMemo(
+    () => rows.find((row) => row.userId === notificationPanelUserId) ?? null,
+    [notificationPanelUserId, rows],
+  );
+
+  function openNotificationPanel(userId: string) {
+    setNotificationPanelUserId(userId);
+    setFeedbackTargetUserId(userId);
+  }
 
   async function handleEnable(userId: string) {
     if (!canManage) return;
@@ -278,6 +356,7 @@ export function MailAccessManagement() {
 
     setEnableFeedback(null);
     setDisableMessage(null);
+    setFeedbackTargetUserId(userId);
 
     const preCheck = resolveMailAccessEnablePreCheck({
       row,
@@ -345,8 +424,25 @@ export function MailAccessManagement() {
     }
   }
 
+  function handleRowAction(userId: string, kind: MailAccessOnboardingActionKind) {
+    if (kind === "configureNotificationEmail" || kind === "completeVerification") {
+      openNotificationPanel(userId);
+      return;
+    }
+    if (kind === "enableMail") {
+      void handleEnable(userId);
+      return;
+    }
+    if (kind === "disableMail") {
+      void handleDisable(userId);
+    }
+  }
+
   function handleConfigureNotificationIdentity() {
-    navigateToSection("notificationIdentity");
+    if (feedbackTargetUserId) {
+      openNotificationPanel(feedbackTargetUserId);
+      return;
+    }
   }
 
   const emptyMessage = useMemo(() => {
@@ -408,8 +504,7 @@ export function MailAccessManagement() {
                 row={row}
                 canManage={canManage}
                 pending={pendingUserId === row.userId}
-                onEnable={handleEnable}
-                onDisable={handleDisable}
+                onAction={handleRowAction}
               />
             ))}
           </div>
@@ -420,7 +515,8 @@ export function MailAccessManagement() {
                 <Tr>
                   <Th>{t("mail.adminCenter.access.columns.name")}</Th>
                   <Th>{t("mail.adminCenter.access.columns.email")}</Th>
-                  <Th>{t("mail.adminCenter.access.columns.status")}</Th>
+                  <Th>{t("mail.adminCenter.access.columns.mailStatus")}</Th>
+                  <Th>{t("mail.adminCenter.access.columns.notificationStatus")}</Th>
                   <Th>{t("mail.adminCenter.access.columns.enabledAt")}</Th>
                   {canManage ? (
                     <Th className="text-right">
@@ -435,7 +531,19 @@ export function MailAccessManagement() {
                     <Td>{row.name}</Td>
                     <Td>{row.email}</Td>
                     <Td>
-                      <MailAccessStatusBadge enabled={row.isEnabled} />
+                      <MailAccessStatusBadge row={row} />
+                    </Td>
+                    <Td>
+                      <div className="space-y-1">
+                        <NotificationIdentityStatusBadge
+                          status={row.notificationIdentityStatus}
+                        />
+                        {row.notificationIdentityEmail ? (
+                          <p className="max-w-[14rem] truncate text-xs crm-text-secondary">
+                            {row.notificationIdentityEmail}
+                          </p>
+                        ) : null}
+                      </div>
                     </Td>
                     <Td>
                       {row.enabledAt
@@ -448,8 +556,7 @@ export function MailAccessManagement() {
                           row={row}
                           canManage={canManage}
                           pending={pendingUserId === row.userId}
-                          onEnable={handleEnable}
-                          onDisable={handleDisable}
+                          onAction={handleRowAction}
                         />
                       </Td>
                     ) : null}
@@ -460,6 +567,15 @@ export function MailAccessManagement() {
           </TableShell>
         </>
       )}
+
+      <TargetUserNotificationIdentityPanel
+        open={notificationPanelUserId != null}
+        targetUserId={notificationPanelUserId}
+        targetUserName={notificationPanelRow?.name ?? ""}
+        targetUserEmail={notificationPanelRow?.email ?? ""}
+        onClose={() => setNotificationPanelUserId(null)}
+        onUpdated={() => void load()}
+      />
     </div>
   );
 }

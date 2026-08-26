@@ -10,8 +10,9 @@ import { materializeInboundIngestionEvent } from "@/lib/mail/inbound-message-mat
 import { recoverExpiredProcessingIngestionEventAsSystem } from "@/lib/mail/ingestion-processing-recovery-service";
 import {
   listDueDeliveryProviderIngestionEvents,
+  listDueGeneralNotificationOutboxEvents,
   listDueInboundProviderIngestionEvents,
-  listDueNotificationOutboxEvents,
+  listDueVerificationNotificationOutboxEvents,
   listExpiredLeasedProviderIngestionEvents,
   listExpiredNotificationProcessingEvents,
 } from "@/lib/mail/mail-background-due-work-queries";
@@ -20,8 +21,12 @@ import {
   MAIL_BACKGROUND_MAX_TOTAL_ITEMS_PER_TICK,
   MAIL_BACKGROUND_SOFT_WALL_CLOCK_BUDGET_MS,
 } from "@/lib/mail/mail-background-tick-constants";
+import type { NotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
 import {
   claimNotificationOutboxForProcessing,
+  processClaimedVerificationOutboxDelivery,
+} from "@/lib/mail/notification-verification-outbox-processing-service";
+import {
   processClaimedNotificationOutbox,
   recoverExpiredNotificationProcessingAsSystem,
 } from "@/lib/mail/notification-outbox-processing-service";
@@ -59,6 +64,8 @@ export type MailBackgroundTickSummary = {
   deliveryMaterialization: MailBackgroundTickCategoryCounters;
   notificationDispatch: MailBackgroundTickCategoryCounters;
   notificationDispatchSkipped: boolean;
+  verificationDispatch: MailBackgroundTickCategoryCounters;
+  verificationDispatchSkipped: boolean;
   totalItemsStarted: number;
   stoppedReason?: MailBackgroundTickStopReason;
 };
@@ -68,6 +75,8 @@ export type MailBackgroundTickDeps = {
   attachmentStore: InboundAttachmentStore;
   /** Explicit transport only — omit to skip notification dispatch (production-safe default). */
   notificationTransport?: NotificationTransportAdapter;
+  /** Verification challenge sink — omit to skip verification dispatch. */
+  verificationChallengeSink?: NotificationVerificationChallengeSink;
   trustNow?: () => string;
   /** Injectable elapsed milliseconds for soft wall-clock budget tests. */
   elapsedMs?: () => number;
@@ -141,6 +150,8 @@ export async function runMailBackgroundTick(
     deliveryMaterialization: emptyCounters(),
     notificationDispatch: emptyCounters(),
     notificationDispatchSkipped: deps.notificationTransport === undefined,
+    verificationDispatch: emptyCounters(),
+    verificationDispatchSkipped: deps.verificationChallengeSink === undefined,
     totalItemsStarted: 0,
   };
 
@@ -335,9 +346,9 @@ export async function runMailBackgroundTick(
     }
   }
 
-  // 5. Process due notification outbox — skipped when transport absent
+  // 5. Process due general notification outbox — skipped when transport absent
   if (!summary.stoppedReason && deps.notificationTransport) {
-    const rows = await listDueNotificationOutboxEvents(db, {
+    const rows = await listDueGeneralNotificationOutboxEvents(db, {
       trustNow: notificationTrustNow,
       limit: remainingCategoryLimit(),
     });
@@ -383,6 +394,61 @@ export async function runMailBackgroundTick(
             throw error;
           }
           summary.notificationDispatch.errors += 1;
+        }
+      });
+      if (outcome === "infrastructure_failure") break;
+      if (markTotalLimitReached()) break;
+    }
+  }
+
+  // 6. Process due verification outbox — skipped when verification sink absent
+  if (!summary.stoppedReason && deps.verificationChallengeSink) {
+    const rows = await listDueVerificationNotificationOutboxEvents(db, {
+      trustNow: notificationTrustNow,
+      limit: remainingCategoryLimit(),
+    });
+    summary.verificationDispatch.selected = rows.length;
+
+    for (const row of rows) {
+      const stop = shouldStop();
+      if (stop) {
+        summary.stoppedReason = stop;
+        break;
+      }
+      const outcome = await runCategoryItem(async () => {
+        const claim = await claimNotificationOutboxForProcessing(db, {
+          outboxId: row.id,
+          expectedProcessingVersion: row.processingVersion,
+        });
+        if (!claim.claimed) {
+          summary.verificationDispatch.skipped += 1;
+          return;
+        }
+        summary.verificationDispatch.claimed += 1;
+
+        try {
+          const processed = await processClaimedVerificationOutboxDelivery(
+            db,
+            SYSTEM_MAIL_ACTOR,
+            {
+              outboxId: row.id,
+              sink: deps.verificationChallengeSink!,
+            },
+          );
+          if (processed.outcome === "sent") {
+            summary.verificationDispatch.completed += 1;
+          } else if (processed.outcome === "failed_retryable") {
+            summary.verificationDispatch.retryScheduled += 1;
+          } else if (processed.outcome === "failed_permanent") {
+            summary.verificationDispatch.permanentFailed += 1;
+          } else if (processed.outcome === "skipped") {
+            summary.verificationDispatch.skipped += 1;
+          }
+        } catch (error) {
+          if (isInfrastructureWideFailure(error)) {
+            throw error;
+          }
+          summary.verificationDispatch.errors += 1;
         }
       });
       if (outcome === "infrastructure_failure") break;

@@ -250,6 +250,49 @@ export async function createNotificationIdentity(
   return { ok: true, item: data.item };
 }
 
+export async function sendTargetNotificationVerificationChallenge(
+  userId: string,
+): Promise<{
+  ok: true;
+  item: NotificationIdentityApiItem;
+  delivery: {
+    status: "transport_disabled" | "queued" | "sent" | "delivery_failed";
+    destinationEmail: string;
+  };
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(
+    `/api/mail/access/${encodeURIComponent(userId)}/notification-identities/send-verification`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to send verification challenge",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as {
+    item?: NotificationIdentityApiItem;
+    delivery?: {
+      status: "transport_disabled" | "queued" | "sent" | "delivery_failed";
+      destinationEmail: string;
+    };
+  };
+  if (!data.item || !data.delivery) {
+    return {
+      ok: false,
+      status: 500,
+      error: "Invalid verification send response",
+    };
+  }
+  return { ok: true, item: data.item, delivery: data.delivery };
+}
+
 export async function issueSelfNotificationVerificationToken(): Promise<{
   ok: true;
   verificationToken: string;

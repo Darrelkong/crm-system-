@@ -1,4 +1,4 @@
-import { and, eq, gte, isNull, sql } from "drizzle-orm";
+import { and, eq, gte, isNull, or, sql } from "drizzle-orm";
 import type { MailNotificationDeliveryHealth } from "../../../drizzle/schema/mail-notification-identities";
 import type { MailNotificationIdentity } from "../../../drizzle/schema/mail-notification-identities";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
@@ -17,9 +17,15 @@ import {
   assertMailPermissionManagement,
 } from "@/lib/permissions/mail";
 import {
-  noopNotificationVerificationChallengeSink,
   type NotificationVerificationChallengeSink,
 } from "@/lib/mail/notification-verification-challenge-sink";
+import {
+  resolveNotificationVerificationChallengeSink,
+  resolveVerificationChallengeDeliveryStatus,
+} from "@/lib/mail/notification-verification-challenge-delivery";
+import type { MailNotificationVerificationTransportDeliveryStatus } from "@/lib/mail/notification-verification-transport";
+import { isMailNotificationVerificationTransportEnabled } from "@/lib/mail/notification-verification-transport";
+import { enqueueNotificationIdentityVerificationDelivery } from "@/lib/mail/notification-verification-enqueue-service";
 import {
   toSafeNotificationIdentityAdminView,
   type SafeNotificationIdentityAdminView,
@@ -103,7 +109,7 @@ export function buildVerifiedSwapPostStateAuditInsert(
   );
 }
 
-async function requireTargetUser(db: Database, targetUserId: string) {
+export async function requireTargetUser(db: Database, targetUserId: string) {
   const [user] = await db
     .select({ id: schema.users.id })
     .from(schema.users)
@@ -254,13 +260,14 @@ export async function createPendingNotificationIdentity(
     );
   }
 
-  const sink = input.challengeSink ?? noopNotificationVerificationChallengeSink;
-  await sink.deliverChallenge({
-    notificationIdentityId: identity.id,
-    targetEmail: identity.email,
-    token,
-    expiresAt,
-  });
+  if (input.challengeSink) {
+    await input.challengeSink.deliverChallenge({
+      notificationIdentityId: identity.id,
+      targetEmail: identity.email,
+      token,
+      expiresAt,
+    });
+  }
 
   return toSafeNotificationIdentityAdminView(identity);
 }
@@ -556,6 +563,63 @@ export type AdminVerificationTokenIssueResult = {
   verificationToken: string;
 };
 
+export type SendNotificationVerificationChallengeResult = {
+  item: SafeNotificationIdentityAdminView;
+  delivery: {
+    status: MailNotificationVerificationTransportDeliveryStatus;
+    destinationEmail: string;
+  };
+};
+
+async function rotatePendingVerificationChallenge(
+  db: Database,
+  actor: MailActorContext,
+  pending: MailNotificationIdentity,
+  input: {
+    nowMs: number;
+    auditAction: string;
+    metadata: Record<string, unknown>;
+  },
+): Promise<{ token: string; expiresAt: string }> {
+  const { token, tokenHash } = generateVerificationChallenge();
+  const now = new Date(input.nowMs).toISOString();
+  const expiresAt = verificationExpiresAt();
+  const auditId = crypto.randomUUID();
+
+  const results = await runMailBatch(db, [
+    db
+      .update(schema.mailNotificationIdentities)
+      .set({
+        verificationTokenHash: tokenHash,
+        verificationRequestedAt: now,
+        verificationExpiresAt: expiresAt,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationIdentities.id, pending.id),
+          eq(schema.mailNotificationIdentities.userId, pending.userId),
+          eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+          isNull(schema.mailNotificationIdentities.revokedAt),
+        ),
+      ),
+    buildNotificationIdentityAuditInsert(db, actor, {
+      auditId,
+      now,
+      action: input.auditAction,
+      entityId: pending.id,
+      metadata: input.metadata,
+    }),
+  ]);
+  assertBatchUpdateChanged(
+    results,
+    0,
+    "Pending notification identity challenge rotation conflict",
+  );
+
+  return { token, expiresAt };
+}
+
 async function countActivePendingIdentitiesForUser(
   db: Database,
   userId: string,
@@ -577,7 +641,7 @@ async function countActivePendingIdentitiesForUser(
  * Schema invariant: uq_mail_notification_identities_user_pending_active allows
  * at most one active pending identity per user_id.
  */
-async function findAuthoritativePendingIdentityForUser(
+export async function findAuthoritativePendingIdentityForUser(
   db: Database,
   userId: string,
 ): Promise<MailNotificationIdentity | null> {
@@ -593,7 +657,7 @@ async function findAuthoritativePendingIdentityForUser(
   return findActivePendingNotificationIdentity(db, userId);
 }
 
-async function assertVerificationTokenIssueRateLimit(
+export async function assertVerificationTokenIssueRateLimit(
   db: Database,
   actorUserId: string,
   nowMs: number,
@@ -607,9 +671,19 @@ async function assertVerificationTokenIssueRateLimit(
     .where(
       and(
         eq(schema.auditLogs.userId, actorUserId),
-        eq(
-          schema.auditLogs.action,
-          MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
+        or(
+          eq(
+            schema.auditLogs.action,
+            MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
+          ),
+          eq(
+            schema.auditLogs.action,
+            MAIL_AUDIT_ACTIONS.notificationIdentityVerificationChallengeSent,
+          ),
+          eq(
+            schema.auditLogs.action,
+            MAIL_AUDIT_ACTIONS.notificationIdentityVerificationSendQueued,
+          ),
         ),
         gte(schema.auditLogs.createdAt, windowStart),
       ),
@@ -619,6 +693,137 @@ async function assertVerificationTokenIssueRateLimit(
       "Verification token issue rate limit exceeded for the last 24 hours",
     );
   }
+}
+
+export async function sendNotificationIdentityVerificationChallenge(
+  db: Database,
+  actor: MailActorContext,
+  targetUserId: string,
+  options?: {
+    nowMs?: number;
+    challengeSink?: NotificationVerificationChallengeSink;
+    emailBinding?: import("@/lib/mail/cloudflare-email-notification-transport-adapter").CloudflareEmailSendBinding | null;
+  },
+): Promise<SendNotificationVerificationChallengeResult> {
+  assertMailPermissionManagement(actor);
+  await requireTargetUser(db, targetUserId);
+
+  const pending = await findAuthoritativePendingIdentityForUser(
+    db,
+    targetUserId,
+  );
+  if (!pending) {
+    throw MailServiceError.validation(
+      "Active pending notification identity is required before verification challenge send",
+    );
+  }
+
+  const transportEnabled = isMailNotificationVerificationTransportEnabled();
+  const testDelivery =
+    options?.challengeSink !== undefined || options?.emailBinding !== undefined;
+
+  if (testDelivery) {
+    const { sink, transportEnabled: sinkEnabled } =
+      resolveNotificationVerificationChallengeSink({
+        emailBinding: options?.emailBinding ?? null,
+        overrideSink: options?.challengeSink,
+      });
+
+    if (!sinkEnabled && !options?.challengeSink) {
+      return {
+        item: toSafeNotificationIdentityAdminView(pending),
+        delivery: {
+          status: "transport_disabled",
+          destinationEmail: pending.email,
+        },
+      };
+    }
+
+    const nowMs = options?.nowMs ?? Date.now();
+    await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
+
+    const { token, expiresAt } = await rotatePendingVerificationChallenge(
+      db,
+      actor,
+      pending,
+      {
+        nowMs,
+        auditAction: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationChallengeSent,
+        metadata: {
+          targetUserId,
+          notificationIdentityId: pending.id,
+          actorUserId: actor.userId,
+          destinationEmail: pending.email,
+        },
+      },
+    );
+
+    let delivered = false;
+    try {
+      await sink.deliverChallenge({
+        notificationIdentityId: pending.id,
+        targetEmail: pending.email,
+        token,
+        expiresAt,
+      });
+      delivered = true;
+    } catch {
+      delivered = false;
+    }
+
+    const updated = await findNotificationIdentityById(db, pending.id);
+    if (!updated) {
+      throw MailServiceError.integrityConflict(
+        "Notification identity challenge send failed",
+      );
+    }
+
+    return {
+      item: toSafeNotificationIdentityAdminView(updated),
+      delivery: {
+        status: resolveVerificationChallengeDeliveryStatus({
+          transportEnabled: sinkEnabled,
+          delivered,
+        }),
+        destinationEmail: pending.email,
+      },
+    };
+  }
+
+  if (!transportEnabled) {
+    return {
+      item: toSafeNotificationIdentityAdminView(pending),
+      delivery: {
+        status: "transport_disabled",
+        destinationEmail: pending.email,
+      },
+    };
+  }
+
+  const queued = await enqueueNotificationIdentityVerificationDelivery(
+    db,
+    actor,
+    targetUserId,
+    { nowMs: options?.nowMs },
+  );
+
+  const updated = await findNotificationIdentityById(
+    db,
+    queued.notificationIdentityId,
+  );
+  if (!updated) {
+    throw MailServiceError.integrityConflict(
+      "Notification identity verification queue failed",
+    );
+  }
+
+  return {
+    item: toSafeNotificationIdentityAdminView(updated),
+    delivery: {
+      status: "queued",
+      destinationEmail: queued.destinationEmail,
+    },
+  };
 }
 
 export async function issueSelfVerificationTokenForAdminProof(
@@ -641,33 +846,13 @@ export async function issueSelfVerificationTokenForAdminProof(
     );
   }
 
-  const { token, tokenHash } = generateVerificationChallenge();
-  const now = new Date(nowMs).toISOString();
-  const expiresAt = verificationExpiresAt();
-  const auditId = crypto.randomUUID();
-
-  const results = await runMailBatch(db, [
-    db
-      .update(schema.mailNotificationIdentities)
-      .set({
-        verificationTokenHash: tokenHash,
-        verificationRequestedAt: now,
-        verificationExpiresAt: expiresAt,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(schema.mailNotificationIdentities.id, pending.id),
-          eq(schema.mailNotificationIdentities.userId, actor.userId),
-          eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
-          isNull(schema.mailNotificationIdentities.revokedAt),
-        ),
-      ),
-    buildNotificationIdentityAuditInsert(db, actor, {
-      auditId,
-      now,
-      action: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
-      entityId: pending.id,
+  const { token, expiresAt } = await rotatePendingVerificationChallenge(
+    db,
+    actor,
+    pending,
+    {
+      nowMs,
+      auditAction: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationTokenIssued,
       metadata: {
         targetUserId: actor.userId,
         notificationIdentityId: pending.id,
@@ -675,12 +860,7 @@ export async function issueSelfVerificationTokenForAdminProof(
         selfProof: true,
         temporaryH3ProofTool: true,
       },
-    }),
-  ]);
-  assertBatchUpdateChanged(
-    results,
-    0,
-    "Pending notification identity token issue conflict",
+    },
   );
 
   return {

@@ -453,18 +453,56 @@ const zhHans: Messages = {
         enableSuccess: "已启用邮件访问。",
         disableSuccess: "已停用邮件访问。",
         notificationIdentityRequired: "需要通知邮箱",
-        missingIdentityMessage: "请先配置并验证通知邮箱。",
+        missingIdentityMessage:
+          "请先为此团队成员配置并验证私人通知邮箱，然后再开通 Mail。",
         configureNotificationIdentity: "配置通知身份",
+        configureNotificationEmail: "设置通知邮箱",
+        notificationEmailLabel: "通知邮箱",
         permissionDenied: "您没有权限管理邮件访问。",
         enableGenericError: "无法更新邮件访问，请重试。",
         statusEnabled: "已启用",
         statusDisabled: "未启用",
         enabledAt: "启用于 {{date}}",
         notApplicable: "—",
+        lifecycle: {
+          not_configured: "未开通",
+          prepared: "已准备",
+          disabled: "已停用",
+          enabled: "已开通",
+        },
+        notificationLifecycle: {
+          none: "未设置",
+          pending: "待验证",
+          verified: "已验证",
+        },
+        actions: {
+          configureNotificationEmail: "设置通知邮箱",
+          completeVerification: "完成通知邮箱验证",
+        },
+        targetNotification: {
+          title: "通知邮箱设置",
+          description:
+            "输入此团队成员的私人外部通知邮箱。开通 Mail 前必须完成验证。",
+          empty: "尚未设置通知邮箱。",
+          addAction: "保存通知邮箱",
+          sendAction: "发送验证码",
+          sendHint:
+            "向外部通知邮箱发送验证码。团队成员可将验证码提供给您以完成验证。",
+          sendSuccess: "验证码已发送至 {{email}}。",
+          sendQueued: "验证码已排队，将发送至 {{email}}。",
+          transportDisabled:
+            "验证邮件传输尚未启用。仅在验证码已实际发送后，才可向团队成员索取验证码。",
+          deliveryFailed: "无法发送验证码，请稍后再试。",
+          verifyAction: "验证通知邮箱",
+          verifyAssistHint:
+            "输入发送至 {{email}} 的验证码。团队成员可从其外部收件箱读取。",
+        },
         columns: {
           name: "姓名",
           email: "邮箱",
           status: "邮件访问",
+          mailStatus: "Mail 状态",
+          notificationStatus: "通知邮箱",
           enabledAt: "启用时间",
           actions: "操作",
         },

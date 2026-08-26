@@ -1,4 +1,9 @@
 import type { MailAdminCenterCapabilities } from "@/lib/mail/mail-session-context";
+import {
+  findActivePendingNotificationIdentity,
+  findActiveVerifiedNotificationIdentity,
+  type NotificationIdentityApiItem,
+} from "@/lib/mail/client/notification-identity-management";
 
 export type MailAccessApiItem = {
   userId: string;
@@ -17,14 +22,37 @@ export type MailAccessAdminUser = {
   status: "active" | "disabled" | "deleted";
 };
 
+export type MailAccessLifecycleStatus =
+  | "not_configured"
+  | "prepared"
+  | "disabled"
+  | "enabled";
+
+export type NotificationIdentityLifecycleStatus = "none" | "pending" | "verified";
+
 export type MailAccessUserRow = {
   userId: string;
   name: string;
   email: string;
   isEnabled: boolean;
   enabledAt: string | null;
+  disabledAt: string | null;
   hasAccessRecord: boolean;
   hasVerifiedNotificationIdentity: boolean;
+  notificationIdentityStatus: NotificationIdentityLifecycleStatus;
+  notificationIdentityEmail: string | null;
+  pendingNotificationIdentityId: string | null;
+};
+
+export type MailAccessOnboardingActionKind =
+  | "configureNotificationEmail"
+  | "completeVerification"
+  | "enableMail"
+  | "disableMail"
+  | "none";
+
+export type MailAccessOnboardingAction = {
+  kind: MailAccessOnboardingActionKind;
 };
 
 export function canManageMailAccess(
@@ -33,9 +61,86 @@ export function canManageMailAccess(
   return capabilities.accessManagement;
 }
 
+function resolveNotificationIdentityLifecycle(
+  items: NotificationIdentityApiItem[],
+): {
+  status: NotificationIdentityLifecycleStatus;
+  email: string | null;
+  pendingIdentityId: string | null;
+  hasVerified: boolean;
+} {
+  const verified = findActiveVerifiedNotificationIdentity(items);
+  if (verified) {
+    return {
+      status: "verified",
+      email: verified.email,
+      pendingIdentityId: null,
+      hasVerified: true,
+    };
+  }
+
+  const pending = findActivePendingNotificationIdentity(items);
+  if (pending) {
+    return {
+      status: "pending",
+      email: pending.email,
+      pendingIdentityId: pending.id,
+      hasVerified: false,
+    };
+  }
+
+  return {
+    status: "none",
+    email: null,
+    pendingIdentityId: null,
+    hasVerified: false,
+  };
+}
+
+export function resolveMailAccessLifecycleStatus(
+  row: Pick<
+    MailAccessUserRow,
+    "isEnabled" | "hasAccessRecord" | "disabledAt"
+  >,
+): MailAccessLifecycleStatus {
+  if (row.isEnabled) {
+    return "enabled";
+  }
+  if (!row.hasAccessRecord) {
+    return "not_configured";
+  }
+  if (row.disabledAt) {
+    return "disabled";
+  }
+  return "prepared";
+}
+
+export function resolveMailAccessOnboardingAction(
+  row: MailAccessUserRow,
+  canManage: boolean,
+): MailAccessOnboardingAction {
+  if (!canManage) {
+    return { kind: "none" };
+  }
+  if (row.isEnabled) {
+    return { kind: "disableMail" };
+  }
+  if (row.notificationIdentityStatus === "none") {
+    return { kind: "configureNotificationEmail" };
+  }
+  if (row.notificationIdentityStatus === "pending") {
+    return { kind: "completeVerification" };
+  }
+  if (row.hasVerifiedNotificationIdentity) {
+    return { kind: "enableMail" };
+  }
+  return { kind: "none" };
+}
+
 export function buildMailAccessUserRows(
   users: MailAccessAdminUser[],
   accessItems: MailAccessApiItem[],
+  notificationIdentitiesByUserId: Map<string, NotificationIdentityApiItem[]> = new Map(),
 ): MailAccessUserRow[] {
   const accessByUserId = new Map(
     accessItems.map((item) => [item.userId, item] as const),
@@ -45,15 +150,21 @@ export function buildMailAccessUserRows(
     .filter((user) => user.status !== "deleted")
     .map((user) => {
       const access = accessByUserId.get(user.id);
+      const identityLifecycle = resolveNotificationIdentityLifecycle(
+        notificationIdentitiesByUserId.get(user.id) ?? [],
+      );
       return {
         userId: user.id,
         name: user.name,
         email: user.email,
         isEnabled: access?.isEnabled === 1,
         enabledAt: access?.enabledAt ?? null,
+        disabledAt: access?.disabledAt ?? null,
         hasAccessRecord: access != null,
-        hasVerifiedNotificationIdentity:
-          access?.hasVerifiedNotificationIdentity ?? false,
+        hasVerifiedNotificationIdentity: identityLifecycle.hasVerified,
+        notificationIdentityStatus: identityLifecycle.status,
+        notificationIdentityEmail: identityLifecycle.email,
+        pendingNotificationIdentityId: identityLifecycle.pendingIdentityId,
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name));
@@ -114,10 +225,7 @@ export function resolveMailAccessEnablePreCheck(input: {
   }
   return {
     kind: "missingIdentity",
-    showConfigureAction:
-      input.canConfigureNotificationIdentity &&
-      input.selfUserId != null &&
-      input.row.userId === input.selfUserId,
+    showConfigureAction: input.canConfigureNotificationIdentity,
   };
 }
 
@@ -135,10 +243,7 @@ export function resolveMailAccessEnableApiFeedback(input: {
   if (isMissingVerifiedNotificationIdentityError(input)) {
     return {
       kind: "missingIdentity",
-      showConfigureAction:
-        input.canConfigureNotificationIdentity &&
-        input.selfUserId != null &&
-        input.targetUserId === input.selfUserId,
+      showConfigureAction: input.canConfigureNotificationIdentity,
     };
   }
   return { kind: "genericError" };

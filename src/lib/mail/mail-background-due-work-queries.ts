@@ -1,5 +1,6 @@
-import { and, asc, eq, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNotNull, lte, ne, or, sql } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
+import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 
 export type ProviderIngestionDueRow = {
   id: string;
@@ -124,7 +125,18 @@ export async function listExpiredLeasedProviderIngestionEvents(
     .limit(input.limit);
 }
 
-export async function listDueNotificationOutboxEvents(
+function dueNotificationOutboxPredicate(trustNow: string) {
+  return or(
+    eq(schema.mailNotificationOutbox.status, "pending"),
+    and(
+      eq(schema.mailNotificationOutbox.status, "failed_retryable"),
+      isNotNull(schema.mailNotificationOutbox.nextAttemptAt),
+      lte(schema.mailNotificationOutbox.nextAttemptAt, trustNow),
+    ),
+  );
+}
+
+export async function listDueGeneralNotificationOutboxEvents(
   db: Database,
   input: { trustNow: string; limit: number },
 ): Promise<NotificationOutboxDueRow[]> {
@@ -138,15 +150,68 @@ export async function listDueNotificationOutboxEvents(
     })
     .from(schema.mailNotificationOutbox)
     .where(
-      or(
-        eq(schema.mailNotificationOutbox.status, "pending"),
-        and(
-          eq(schema.mailNotificationOutbox.status, "failed_retryable"),
-          isNotNull(schema.mailNotificationOutbox.nextAttemptAt),
-          lte(schema.mailNotificationOutbox.nextAttemptAt, input.trustNow),
+      and(
+        dueNotificationOutboxPredicate(input.trustNow),
+        ne(
+          schema.mailNotificationOutbox.sourceEntityType,
+          MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailNotificationIdentityVerification,
         ),
       ),
     )
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailNotificationOutbox.nextAttemptAt}, ${schema.mailNotificationOutbox.enqueuedAt})`,
+      ),
+      asc(schema.mailNotificationOutbox.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listDueVerificationNotificationOutboxEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<NotificationOutboxDueRow[]> {
+  return db
+    .select({
+      id: schema.mailNotificationOutbox.id,
+      processingVersion: schema.mailNotificationOutbox.processingVersion,
+      enqueuedAt: schema.mailNotificationOutbox.enqueuedAt,
+      nextAttemptAt: schema.mailNotificationOutbox.nextAttemptAt,
+      status: schema.mailNotificationOutbox.status,
+    })
+    .from(schema.mailNotificationOutbox)
+    .where(
+      and(
+        dueNotificationOutboxPredicate(input.trustNow),
+        eq(
+          schema.mailNotificationOutbox.sourceEntityType,
+          MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailNotificationIdentityVerification,
+        ),
+      ),
+    )
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailNotificationOutbox.nextAttemptAt}, ${schema.mailNotificationOutbox.enqueuedAt})`,
+      ),
+      asc(schema.mailNotificationOutbox.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listDueNotificationOutboxEvents(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<NotificationOutboxDueRow[]> {
+  return db
+    .select({
+      id: schema.mailNotificationOutbox.id,
+      processingVersion: schema.mailNotificationOutbox.processingVersion,
+      enqueuedAt: schema.mailNotificationOutbox.enqueuedAt,
+      nextAttemptAt: schema.mailNotificationOutbox.nextAttemptAt,
+      status: schema.mailNotificationOutbox.status,
+    })
+    .from(schema.mailNotificationOutbox)
+    .where(dueNotificationOutboxPredicate(input.trustNow))
     .orderBy(
       asc(
         sql`coalesce(${schema.mailNotificationOutbox.nextAttemptAt}, ${schema.mailNotificationOutbox.enqueuedAt})`,

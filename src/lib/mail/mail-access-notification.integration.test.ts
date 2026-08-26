@@ -40,12 +40,14 @@ type TestDb = ReturnType<typeof drizzle<typeof schema>>;
 function actor(
   userId: string,
   grants: MailAdminPermission[] = ["permission_mgmt"],
+  mailAccessEnabled = true,
+  crmRole: "admin" | "staff" = "admin",
 ): MailActorContext {
   return {
     userId,
     sessionId: null,
-    crmRole: "admin",
-    mailAccessEnabled: true,
+    crmRole,
+    mailAccessEnabled,
     adminGrants: grants,
     audit: { ipAddress: "127.0.0.1", userAgent: "phase2c3-test" },
   };
@@ -53,8 +55,8 @@ function actor(
 
 const permissionActor = actor(SEED_IDS.admin, ["permission_mgmt"]);
 const superAdminActor = actor(SEED_IDS.admin, ["super_admin"]);
-const readOnlyActor = actor(SEED_IDS.admin, ["global_mail_read"]);
-const noGrantActor = actor(SEED_IDS.admin, []);
+const readOnlyActor = actor(SEED_IDS.staffB, ["global_mail_read"], true, "staff");
+const noGrantActor = actor(SEED_IDS.staffB, [], true, "staff");
 
 function fixtureEmail(localPart: string): string {
   return `${FIXTURE}-${localPart}@gmail.com`;

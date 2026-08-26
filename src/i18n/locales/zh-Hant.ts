@@ -453,18 +453,56 @@ const zhHant: Messages = {
         enableSuccess: "已啟用郵件存取。",
         disableSuccess: "已停用郵件存取。",
         notificationIdentityRequired: "需要通知電郵",
-        missingIdentityMessage: "請先設定並驗證通知電郵。",
+        missingIdentityMessage:
+          "請先為此團隊成員設定並驗證私人通知電郵，然後再開通 Mail。",
         configureNotificationIdentity: "設定通知身份",
+        configureNotificationEmail: "設定通知郵箱",
+        notificationEmailLabel: "通知郵箱",
         permissionDenied: "您沒有權限管理郵件存取。",
         enableGenericError: "無法更新郵件存取，請重試。",
         statusEnabled: "已啟用",
         statusDisabled: "未啟用",
         enabledAt: "啟用於 {{date}}",
         notApplicable: "—",
+        lifecycle: {
+          not_configured: "未開通",
+          prepared: "已準備",
+          disabled: "已停用",
+          enabled: "已開通",
+        },
+        notificationLifecycle: {
+          none: "未設定",
+          pending: "待驗證",
+          verified: "已驗證",
+        },
+        actions: {
+          configureNotificationEmail: "設定通知郵箱",
+          completeVerification: "完成通知郵箱驗證",
+        },
+        targetNotification: {
+          title: "通知郵箱設定",
+          description:
+            "輸入此團隊成員的私人外部通知電郵。開通 Mail 前必須完成驗證。",
+          empty: "尚未設定通知郵箱。",
+          addAction: "儲存通知郵箱",
+          sendAction: "發送驗證碼",
+          sendHint:
+            "向外部通知電郵發送驗證碼。團隊成員可將驗證碼提供給您以完成驗證。",
+          sendSuccess: "驗證碼已發送至 {{email}}。",
+          sendQueued: "驗證碼已排隊，將發送至 {{email}}。",
+          transportDisabled:
+            "驗證郵件傳輸尚未啟用。僅在驗證碼已實際發送後，才可向團隊成員索取驗證碼。",
+          deliveryFailed: "無法發送驗證碼，請稍後再試。",
+          verifyAction: "驗證通知郵箱",
+          verifyAssistHint:
+            "輸入發送至 {{email}} 的驗證碼。團隊成員可從其外部收件箱讀取。",
+        },
         columns: {
           name: "姓名",
           email: "電郵",
           status: "郵件存取",
+          mailStatus: "Mail 狀態",
+          notificationStatus: "通知郵箱",
           enabledAt: "啟用時間",
           actions: "操作",
         },
