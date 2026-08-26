@@ -1034,7 +1034,7 @@ describe("verification worker config guards", () => {
     assert.ok(config.includes("notifications@send.echfronthk.com"));
     assert.ok(config.includes('"MAIL_NOTIFICATION_TRANSPORT_ENABLED": "false"'));
     assert.ok(
-      config.includes('"MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "disabled"'),
+      config.includes('"MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "production"'),
     );
   });
 });
