@@ -13,7 +13,7 @@
     "prepreview": "npm run generate:locales",
     "predeploy": "npm run generate:locales",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "deploy": "NEXT_PUBLIC_MAIL_READ_SOURCE=production opennextjs-cloudflare build && opennextjs-cloudflare deploy",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "db:migrate:local": "wrangler d1 migrations apply crm-db --local",
     "db:migrate:remote": "wrangler d1 migrations apply crm-db --remote",

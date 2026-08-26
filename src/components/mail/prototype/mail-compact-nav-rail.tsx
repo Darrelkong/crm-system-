@@ -13,7 +13,8 @@ import { cn } from "@/lib/cn";
 import { getMobileBottomNav } from "@/lib/layout/nav-links";
 import { useTranslation } from "@/i18n/provider";
 import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
-import { MAIL_PROTOTYPE_UNREAD_BADGE } from "@/lib/mail/prototype/mock-data";
+import { resolveMailNavigationUnreadBadgeCount } from "@/lib/mail/client/mail-navigation-badge";
+import { resolveMailReadSource } from "@/lib/mail/client/mail-read-source";
 
 const ICONS = {
   dashboard: LayoutDashboard,
@@ -33,6 +34,9 @@ export function MailCompactNavRail({
   const { t } = useTranslation();
   const pathname = usePathname() ?? "";
   const items = getMobileBottomNav(role);
+  const mailUnreadBadgeCount = resolveMailNavigationUnreadBadgeCount(
+    resolveMailReadSource(),
+  );
 
   return (
     <nav className="mail-compact-rail flex w-14 shrink-0 flex-col items-center gap-1 border-r crm-border py-3">
@@ -70,9 +74,9 @@ export function MailCompactNavRail({
             title={item.icon === "mail" ? "Mail" : undefined}
           >
             <Icon className="h-5 w-5" />
-            {item.icon === "mail" && (
+            {item.icon === "mail" && mailUnreadBadgeCount !== null && (
               <NotificationCountBadge
-                count={MAIL_PROTOTYPE_UNREAD_BADGE}
+                count={mailUnreadBadgeCount}
                 variant="overlay"
               />
             )}

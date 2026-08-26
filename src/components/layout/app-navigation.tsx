@@ -28,7 +28,8 @@ import {
   useNavigationPending,
 } from "@/components/layout/navigation-pending";
 import { NotificationCountBadge } from "@/components/ui/notification-count-badge";
-import { MAIL_PROTOTYPE_UNREAD_BADGE } from "@/lib/mail/prototype/mock-data";
+import { resolveMailNavigationUnreadBadgeCount } from "@/lib/mail/client/mail-navigation-badge";
+import { resolveMailReadSource } from "@/lib/mail/client/mail-read-source";
 
 const WORK_ITEMS_HREF_PREFIX = "/work-items";
 const APPROVALS_HREF = "/approvals";
@@ -69,6 +70,9 @@ function NavLinkRow({
   const showNotificationBadge = isWorkItemsNavHref(link.href);
   const showApprovalBadge = link.href === APPROVALS_HREF;
   const showMailBadge = link.href === MAIL_HREF;
+  const mailUnreadBadgeCount = resolveMailNavigationUnreadBadgeCount(
+    resolveMailReadSource(),
+  );
 
   function handleNavigate() {
     beginNavigationPending(navigationPending, link.href, pathname);
@@ -107,9 +111,9 @@ function NavLinkRow({
                   variant="overlay"
                 />
               )}
-              {showMailBadge && (
+              {showMailBadge && mailUnreadBadgeCount !== null && (
                 <NotificationCountBadge
-                  count={MAIL_PROTOTYPE_UNREAD_BADGE}
+                  count={mailUnreadBadgeCount}
                   variant="overlay"
                 />
               )}
@@ -127,9 +131,9 @@ function NavLinkRow({
                 className="ml-auto"
               />
             )}
-            {showMailBadge && (
+            {showMailBadge && mailUnreadBadgeCount !== null && (
               <NotificationCountBadge
-                count={MAIL_PROTOTYPE_UNREAD_BADGE}
+                count={mailUnreadBadgeCount}
                 className="ml-auto"
               />
             )}
@@ -194,8 +198,8 @@ function NavLinkRow({
           {collapsed && showApprovalBadge && (
             <NotificationCountBadge count={approvalPendingCount} variant="overlay" />
           )}
-          {collapsed && showMailBadge && (
-            <NotificationCountBadge count={MAIL_PROTOTYPE_UNREAD_BADGE} variant="overlay" />
+          {collapsed && showMailBadge && mailUnreadBadgeCount !== null && (
+            <NotificationCountBadge count={mailUnreadBadgeCount} variant="overlay" />
           )}
         </span>
         {!collapsed && (
@@ -207,8 +211,8 @@ function NavLinkRow({
             {showApprovalBadge && (
               <NotificationCountBadge count={approvalPendingCount} className="ml-auto" />
             )}
-            {showMailBadge && (
-              <NotificationCountBadge count={MAIL_PROTOTYPE_UNREAD_BADGE} className="ml-auto" />
+            {showMailBadge && mailUnreadBadgeCount !== null && (
+              <NotificationCountBadge count={mailUnreadBadgeCount} className="ml-auto" />
             )}
           </>
         )}
@@ -326,6 +330,9 @@ export function MobileBottomNav({
   const { t } = useTranslation();
   const navigationPending = useNavigationPending();
   const unreadCount = useNotificationUnreadCount();
+  const mailUnreadBadgeCount = resolveMailNavigationUnreadBadgeCount(
+    resolveMailReadSource(),
+  );
 
   const icons: Record<string, ComponentType<{ className?: string }>> = {
     dashboard: LayoutDashboard,
@@ -388,9 +395,9 @@ export function MobileBottomNav({
                       variant="overlay"
                     />
                   )}
-                  {item.icon === "mail" && (
+                  {item.icon === "mail" && mailUnreadBadgeCount !== null && (
                     <NotificationCountBadge
-                      count={MAIL_PROTOTYPE_UNREAD_BADGE}
+                      count={mailUnreadBadgeCount}
                       variant="overlay"
                     />
                   )}
