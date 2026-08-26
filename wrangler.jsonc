@@ -45,5 +45,8 @@
       "pattern": "crm.echfronthk.com",
       "custom_domain": true
     }
-  ]
+  ],
+  "vars": {
+    "MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "production"
+  }
 }

@@ -1026,6 +1026,9 @@ describe("verification worker config guards", () => {
   it("crm-system wrangler has no EMAIL binding", () => {
     const config = readFileSync("wrangler.jsonc", "utf8");
     assert.equal(config.includes("send_email"), false);
+    assert.ok(
+      config.includes('"MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "production"'),
+    );
   });
 
   it("mail-jobs wrangler has restricted EMAIL binding", () => {
