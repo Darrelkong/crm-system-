@@ -469,6 +469,18 @@ export async function replayQuarantinedIngestionEvent(
     };
   }
 
+  if (!providerEvent.payloadStorageKey || !providerEvent.payloadContentHash) {
+    return {
+      outcome: "REPLAY_REFUSED",
+      ingestionEventId: providerEvent.id,
+      eventKind: providerEvent.eventKind,
+      status: providerEvent.status,
+      processingVersion: providerEvent.processingVersion,
+      previousQuarantineReason,
+      message: "Raw payload not available",
+    };
+  }
+
   const expectedProcessingVersion =
     input.expectedProcessingVersion ?? providerEvent.processingVersion;
   if (providerEvent.processingVersion !== expectedProcessingVersion) {

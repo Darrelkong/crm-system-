@@ -31,6 +31,11 @@ import {
   recoverExpiredNotificationProcessingAsSystem,
 } from "@/lib/mail/notification-outbox-processing-service";
 import type { NotificationTransportAdapter } from "@/lib/mail/notification-transport-adapter";
+import {
+  emptyInboundRawMimeRetentionCounters,
+  runInboundRawMimeRetentionCleanup,
+  type InboundRawMimeRetentionTickCounters,
+} from "@/lib/mail/inbound-raw-mime-retention-service";
 import { getIngestionProcessingTrustNow } from "@/lib/mail/provider-ingestion-processing-lease";
 import { getNotificationProcessingTrustNow } from "@/lib/mail/notification-processing-lease";
 import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
@@ -66,6 +71,7 @@ export type MailBackgroundTickSummary = {
   notificationDispatchSkipped: boolean;
   verificationDispatch: MailBackgroundTickCategoryCounters;
   verificationDispatchSkipped: boolean;
+  rawPayloadRetention: InboundRawMimeRetentionTickCounters;
   totalItemsStarted: number;
   stoppedReason?: MailBackgroundTickStopReason;
 };
@@ -152,6 +158,7 @@ export async function runMailBackgroundTick(
     notificationDispatchSkipped: deps.notificationTransport === undefined,
     verificationDispatch: emptyCounters(),
     verificationDispatchSkipped: deps.verificationChallengeSink === undefined,
+    rawPayloadRetention: emptyInboundRawMimeRetentionCounters(),
     totalItemsStarted: 0,
   };
 
@@ -454,6 +461,18 @@ export async function runMailBackgroundTick(
       if (outcome === "infrastructure_failure") break;
       if (markTotalLimitReached()) break;
     }
+  }
+
+  // 7. Purge expired inbound raw MIME objects (canonical Mail history preserved)
+  if (!summary.stoppedReason) {
+    summary.rawPayloadRetention = await runInboundRawMimeRetentionCleanup(
+      db,
+      deps.rawPayloadStore,
+      {
+        trustNow: providerTrustNow,
+        limit: remainingCategoryLimit(),
+      },
+    );
   }
 
   return summary;

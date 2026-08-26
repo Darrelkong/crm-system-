@@ -59,6 +59,18 @@ export class MailServiceError extends Error {
       metadata,
     );
   }
+
+  static rawPayloadNotAvailable(
+    message = "Raw inbound payload is not available",
+    metadata?: Record<string, unknown>,
+  ) {
+    return new MailServiceError(
+      MAIL_ERROR_CODES.RAW_PAYLOAD_NOT_AVAILABLE,
+      message,
+      410,
+      metadata,
+    );
+  }
 }
 
 export function mailErrorResponse(error: unknown): Response {

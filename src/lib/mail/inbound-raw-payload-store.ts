@@ -19,12 +19,20 @@ export type InboundRawPayloadBucket = {
   ): Promise<unknown>;
   get(key: string): Promise<{ arrayBuffer(): Promise<ArrayBuffer> } | null>;
   head(key: string): Promise<unknown | null>;
+  delete(key: string): Promise<void>;
 };
+
+export type InboundRawPayloadDeleteOutcome = "deleted" | "already_missing";
 
 export interface InboundRawPayloadStore {
   put(bytes: Uint8Array): Promise<InboundRawPayloadPutResult>;
   get(storageKey: string): Promise<Uint8Array | null>;
   exists(storageKey: string): Promise<boolean>;
+  delete(storageKey: string): Promise<InboundRawPayloadDeleteOutcome>;
+}
+
+export function isInboundRawPayloadStorageKey(storageKey: string): boolean {
+  return storageKey.startsWith(INBOUND_RAW_PAYLOAD_KEY_PREFIX);
 }
 
 export function generateInboundRawPayloadStorageKey(): string {
@@ -32,7 +40,7 @@ export function generateInboundRawPayloadStorageKey(): string {
 }
 
 function assertInboundRawPayloadKey(storageKey: string): void {
-  if (!storageKey.startsWith(INBOUND_RAW_PAYLOAD_KEY_PREFIX)) {
+  if (!isInboundRawPayloadStorageKey(storageKey)) {
     throw new Error("Invalid inbound raw payload storage key namespace");
   }
 }
@@ -59,6 +67,15 @@ export class MemoryInboundRawPayloadStore implements InboundRawPayloadStore {
   async exists(storageKey: string): Promise<boolean> {
     assertInboundRawPayloadKey(storageKey);
     return this.objects.has(storageKey);
+  }
+
+  async delete(storageKey: string): Promise<InboundRawPayloadDeleteOutcome> {
+    assertInboundRawPayloadKey(storageKey);
+    if (!this.objects.has(storageKey)) {
+      return "already_missing";
+    }
+    this.objects.delete(storageKey);
+    return "deleted";
   }
 
   /** Test-only: overwrite bytes at an existing storage key. */
@@ -98,6 +115,16 @@ export class R2InboundRawPayloadStore implements InboundRawPayloadStore {
     const head = await this.bucket.head(storageKey);
     return head !== null;
   }
+
+  async delete(storageKey: string): Promise<InboundRawPayloadDeleteOutcome> {
+    assertInboundRawPayloadKey(storageKey);
+    const head = await this.bucket.head(storageKey);
+    if (head === null) {
+      return "already_missing";
+    }
+    await this.bucket.delete(storageKey);
+    return "deleted";
+  }
 }
 
 /** Test double — fails all put operations. */
@@ -114,6 +141,10 @@ export class FailingInboundRawPayloadStore implements InboundRawPayloadStore {
 
   async exists(_storageKey: string): Promise<boolean> {
     return false;
+  }
+
+  async delete(_storageKey: string): Promise<InboundRawPayloadDeleteOutcome> {
+    throw new Error(this.message);
   }
 }
 

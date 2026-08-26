@@ -105,6 +105,7 @@ export function formatMailJobsTickLogSummary(
     deliveryMaterialization: summary.deliveryMaterialization,
     notificationDispatch: summary.notificationDispatch,
     verificationDispatch: summary.verificationDispatch,
+    rawPayloadRetention: summary.rawPayloadRetention,
   };
 }
 

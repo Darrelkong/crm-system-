@@ -317,14 +317,16 @@ async function loadVerifiedRawPayload(
     !providerEvent.payloadContentHash ||
     providerEvent.payloadSizeBytes == null
   ) {
-    throw MailServiceError.integrityConflict(
-      "Inbound ingestion missing durable raw payload reference",
+    throw MailServiceError.rawPayloadNotAvailable(
+      "Inbound ingestion raw payload reference unavailable",
     );
   }
 
   const bytes = await store.get(providerEvent.payloadStorageKey);
   if (!bytes) {
-    throw MailServiceError.integrityConflict("Inbound raw payload missing from storage");
+    throw MailServiceError.rawPayloadNotAvailable(
+      "Inbound raw payload missing from storage",
+    );
   }
 
   const hash = computeInboundPayloadContentHash(bytes);

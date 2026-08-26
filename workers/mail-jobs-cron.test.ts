@@ -50,6 +50,15 @@ function emptySummary(): MailBackgroundTickSummary {
     deliveryMaterialization: { ...counters },
     notificationDispatch: { ...counters },
     notificationDispatchSkipped: true,
+    verificationDispatch: { ...counters },
+    verificationDispatchSkipped: true,
+    rawPayloadRetention: {
+      eligible: 0,
+      purged: 0,
+      alreadyMissing: 0,
+      skipped: 0,
+      errors: 0,
+    },
     totalItemsStarted: 0,
   };
 }
