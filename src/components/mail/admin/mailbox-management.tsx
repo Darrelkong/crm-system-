@@ -18,15 +18,21 @@ import { useTranslation } from "@/i18n/provider";
 import {
   createMailbox,
   fetchAdminUsersForMailAccess,
+  fetchMailAccessList,
   fetchMailboxes,
   postMailboxRestore,
   postMailboxSuspend,
 } from "@/lib/mail/client/api";
 import {
+  buildCreateMailboxRequest,
   buildMailboxRows,
   canManageMailboxes,
+  isMailboxCreateSubmitEnabled,
+  listPersonalMailboxOwnerCandidates,
   resolveMailboxRowActions,
+  resolveMailboxTypeChange,
   type MailboxRow,
+  type PersonalMailboxOwnerOption,
 } from "@/lib/mail/client/mailbox-management";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { formatHongKongDateTime } from "@/lib/timezone";
@@ -165,6 +171,8 @@ export function MailboxManagement() {
   const [newAddress, setNewAddress] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newMailboxType, setNewMailboxType] = useState<"personal" | "shared">("personal");
+  const [newOwnerUserId, setNewOwnerUserId] = useState("");
+  const [ownerCandidates, setOwnerCandidates] = useState<PersonalMailboxOwnerOption[]>([]);
 
   const load = useCallback(async () => {
     if (!canManage) {
@@ -177,18 +185,22 @@ export function MailboxManagement() {
     setLoading(true);
     setError(null);
     try {
-      const [mailboxesResult, usersResult] = await Promise.all([
+      const [mailboxesResult, usersResult, accessResult] = await Promise.all([
         fetchMailboxes(),
         fetchAdminUsersForMailAccess(),
+        fetchMailAccessList(),
       ]);
 
       if (!mailboxesResult.ok) {
         setRows([]);
+        setOwnerCandidates([]);
         setError(mailboxesResult.error);
         return;
       }
 
       const users = usersResult.ok ? usersResult.items : [];
+      const accessItems = accessResult.ok ? accessResult.items : [];
+      setOwnerCandidates(listPersonalMailboxOwnerCandidates(users, accessItems));
       setRows(buildMailboxRows(mailboxesResult.items, users));
     } catch {
       setRows([]);
@@ -204,22 +216,35 @@ export function MailboxManagement() {
 
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
-    if (!canManage || !newAddress.trim()) return;
+    if (
+      !canManage ||
+      !isMailboxCreateSubmitEnabled({
+        address: newAddress,
+        mailboxType: newMailboxType,
+        ownerUserId: newOwnerUserId,
+      })
+    ) {
+      return;
+    }
 
     setBusy(true);
     setActionMessage(null);
     try {
-      const result = await createMailbox({
-        address: newAddress.trim(),
-        displayName: newDisplayName.trim() || undefined,
-        mailboxType: newMailboxType,
-      });
+      const result = await createMailbox(
+        buildCreateMailboxRequest({
+          address: newAddress,
+          displayName: newDisplayName,
+          mailboxType: newMailboxType,
+          ownerUserId: newOwnerUserId,
+        }),
+      );
       if (!result.ok) {
         setActionMessage(result.error);
         return;
       }
       setNewAddress("");
       setNewDisplayName("");
+      setNewOwnerUserId("");
       setActionMessage(t("mail.adminCenter.mailbox.createSuccess"));
       await load();
     } catch {
@@ -423,9 +448,11 @@ export function MailboxManagement() {
                 <select
                   id="mailbox-type"
                   value={newMailboxType}
-                  onChange={(event) =>
-                    setNewMailboxType(event.target.value as "personal" | "shared")
-                  }
+                  onChange={(event) => {
+                    const nextType = event.target.value as "personal" | "shared";
+                    setNewMailboxType(nextType);
+                    setNewOwnerUserId(resolveMailboxTypeChange(nextType, newOwnerUserId));
+                  }}
                   disabled={busy}
                   className="surface-input mt-1 w-full text-sm"
                 >
@@ -437,7 +464,42 @@ export function MailboxManagement() {
                   </option>
                 </select>
               </div>
-              <Button type="submit" size="sm" disabled={busy || !newAddress.trim()}>
+              {newMailboxType === "personal" ? (
+                <div>
+                  <Label htmlFor="mailbox-owner-user">
+                    {t("mail.adminCenter.mailbox.ownerLabel")}
+                  </Label>
+                  <select
+                    id="mailbox-owner-user"
+                    value={newOwnerUserId}
+                    onChange={(event) => setNewOwnerUserId(event.target.value)}
+                    disabled={busy || ownerCandidates.length === 0}
+                    required
+                    className="surface-input mt-1 w-full text-sm"
+                  >
+                    <option value="">
+                      {t("mail.adminCenter.mailbox.ownerPlaceholder")}
+                    </option>
+                    {ownerCandidates.map((user) => (
+                      <option key={user.id} value={user.id}>
+                        {user.name || user.email}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <Button
+                type="submit"
+                size="sm"
+                disabled={
+                  busy ||
+                  !isMailboxCreateSubmitEnabled({
+                    address: newAddress,
+                    mailboxType: newMailboxType,
+                    ownerUserId: newOwnerUserId,
+                  })
+                }
+              >
                 {t("mail.adminCenter.mailbox.createAction")}
               </Button>
             </form>

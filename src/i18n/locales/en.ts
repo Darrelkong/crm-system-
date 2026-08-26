@@ -638,6 +638,9 @@ const en = {
         typeLabel: "Mailbox type",
         typePersonal: "Personal",
         typeShared: "Shared",
+        ownerLabel: "Mailbox owner",
+        ownerPlaceholder: "Select a team member",
+        ownerRequired: "Select the mailbox owner for personal mailboxes.",
         columns: {
           address: "Mailbox address",
           owner: "Owner",

@@ -609,6 +609,9 @@ const zhHans: Messages = {
         typeLabel: "邮箱类型",
         typePersonal: "个人",
         typeShared: "共享",
+        ownerLabel: "所属成员",
+        ownerPlaceholder: "选择成员",
+        ownerRequired: "请选择个人邮箱的所属成员。",
         columns: {
           address: "邮箱地址",
           owner: "所有者",

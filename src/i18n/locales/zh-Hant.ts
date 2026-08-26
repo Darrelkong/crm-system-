@@ -609,6 +609,9 @@ const zhHant: Messages = {
         typeLabel: "郵箱類型",
         typePersonal: "個人",
         typeShared: "共享",
+        ownerLabel: "所屬成員",
+        ownerPlaceholder: "選擇成員",
+        ownerRequired: "請選擇個人郵箱的所屬成員。",
         columns: {
           address: "郵箱地址",
           owner: "擁有者",

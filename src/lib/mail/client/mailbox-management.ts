@@ -1,6 +1,9 @@
 import type { MailAdminCenterCapabilities } from "@/lib/mail/mail-session-context";
 import { MAIL_NOTIFICATION_SENDING_DOMAIN } from "@/lib/mail/notification-sending-domain";
-import type { MailAccessAdminUser } from "@/lib/mail/client/mail-access-management";
+import type {
+  MailAccessAdminUser,
+  MailAccessApiItem,
+} from "@/lib/mail/client/mail-access-management";
 
 export type MailboxApiItem = {
   id: string;
@@ -21,6 +24,92 @@ export type MailboxRowActions = {
   showEnable: boolean;
   showDisable: boolean;
 };
+
+export type PersonalMailboxOwnerOption = {
+  id: string;
+  name: string;
+  email: string;
+};
+
+export type MailboxCreateFormInput = {
+  address: string;
+  displayName: string;
+  mailboxType: "personal" | "shared";
+  ownerUserId: string;
+};
+
+export function listPersonalMailboxOwnerCandidates(
+  users: MailAccessAdminUser[],
+  accessItems: MailAccessApiItem[],
+): PersonalMailboxOwnerOption[] {
+  const enabledUserIds = new Set(
+    accessItems
+      .filter((item) => item.isEnabled === 1)
+      .map((item) => item.userId),
+  );
+
+  return users
+    .filter((user) => user.status === "active" && enabledUserIds.has(user.id))
+    .map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+    }))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+export function resolveMailboxTypeChange(
+  nextType: "personal" | "shared",
+  ownerUserId: string,
+): string {
+  return nextType === "shared" ? "" : ownerUserId;
+}
+
+export function validateMailboxCreateForm(
+  input: MailboxCreateFormInput,
+): "addressRequired" | "ownerRequired" | null {
+  if (!input.address.trim()) {
+    return "addressRequired";
+  }
+  if (input.mailboxType === "personal" && !input.ownerUserId.trim()) {
+    return "ownerRequired";
+  }
+  return null;
+}
+
+export function isMailboxCreateSubmitEnabled(
+  input: Pick<MailboxCreateFormInput, "address" | "mailboxType" | "ownerUserId">,
+): boolean {
+  return validateMailboxCreateForm({
+    address: input.address,
+    displayName: "",
+    mailboxType: input.mailboxType,
+    ownerUserId: input.ownerUserId,
+  }) === null;
+}
+
+export function buildCreateMailboxRequest(input: MailboxCreateFormInput): {
+  address: string;
+  displayName?: string;
+  mailboxType: "personal" | "shared";
+  ownerUserId?: string;
+} {
+  const address = input.address.trim();
+  const displayName = input.displayName.trim();
+  if (input.mailboxType === "personal") {
+    return {
+      address,
+      displayName: displayName || undefined,
+      mailboxType: "personal",
+      ownerUserId: input.ownerUserId.trim(),
+    };
+  }
+  return {
+    address,
+    displayName: displayName || undefined,
+    mailboxType: "shared",
+  };
+}
 
 export function canManageMailboxes(
   capabilities: Pick<MailAdminCenterCapabilities, "mailboxManagement">,
