@@ -19,8 +19,8 @@ import {
 } from "@/lib/mail/outbound-transport-constants";
 import {
   OUTBOUND_PROVIDER_SIZE_ERROR_CODES,
-  runOutboundProviderSizePreflight,
-} from "@/lib/mail/outbound-provider-size-preflight";
+} from "@/lib/mail/outbound-provider-size-constants";
+import { runOutboundProviderSizePreflight } from "@/lib/mail/outbound-provider-size-preflight";
 import type {
   MailTransportAdapter,
   MailTransportSubmitResult,
