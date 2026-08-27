@@ -2,6 +2,9 @@
 
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
+import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
@@ -24,6 +27,9 @@ export function MailFolderNav({
   showComposeButton?: boolean;
 }) {
   const { t } = useTranslation();
+  const { capabilities } = useMailSession();
+  const canReview = canReviewApprovals(capabilities);
+  const approvalWorkspace = useOptionalMailApprovalWorkspace();
   const isProduction = useIsProductionMailReadSource();
   const workspace = useOptionalMailWorkspace();
   const {
@@ -58,6 +64,12 @@ export function MailFolderNav({
         <button
           type="button"
           onClick={() => {
+            if (folder.id === "pending_approval") {
+              void workspace!.selectFolder("pending_approval");
+              void approvalWorkspace?.loadApprovals();
+              approvalWorkspace?.clearSelection();
+              return;
+            }
             void workspace!.selectFolder(folder.id);
           }}
           className={cn(
@@ -119,7 +131,9 @@ export function MailFolderNav({
             {PRODUCTION_MAIL_READ_FOLDERS.map((folder) => (
               <ProductionFolderButton key={folder.id} folder={folder} />
             ))}
-            {PRODUCTION_WORKFLOW_FOLDERS.map((folder) => (
+            {PRODUCTION_WORKFLOW_FOLDERS.filter(
+              (folder) => !folder.reviewerOnly || canReview,
+            ).map((folder) => (
               <ProductionFolderButton key={folder.id} folder={folder} />
             ))}
           </nav>

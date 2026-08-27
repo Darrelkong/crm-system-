@@ -1,7 +1,7 @@
 export type MailReadFolder = "inbox" | "sent" | "trash";
 
 /** Production workspace folders including workflow views backed by non-message APIs. */
-export type MailWorkspaceFolder = MailReadFolder | "drafts";
+export type MailWorkspaceFolder = MailReadFolder | "drafts" | "pending_approval";
 
 export type MailReadAccessMode = "member" | "global_read";
 

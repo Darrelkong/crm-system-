@@ -47,14 +47,24 @@ export const PRODUCTION_MAIL_READ_FOLDERS: readonly {
 ];
 
 export const PRODUCTION_WORKFLOW_FOLDERS: readonly {
-  id: "drafts";
+  id: "drafts" | "pending_approval";
   labelKey: string;
-}[] = [{ id: "drafts", labelKey: "mail.folders.drafts" }];
+  reviewerOnly?: boolean;
+}[] = [
+  { id: "drafts", labelKey: "mail.folders.drafts" },
+  {
+    id: "pending_approval",
+    labelKey: "mail.folders.pendingApproval",
+    reviewerOnly: true,
+  },
+];
 
 const PRODUCTION_FOLDER_IDS = new Set<MailReadFolder>(["inbox", "sent", "trash"]);
 
-export function isProductionWorkflowFolder(folder: string): folder is "drafts" {
-  return folder === "drafts";
+export function isProductionWorkflowFolder(
+  folder: string,
+): folder is "drafts" | "pending_approval" {
+  return folder === "drafts" || folder === "pending_approval";
 }
 
 export function resolveProductionFolderLabelKey(folder: string): string {

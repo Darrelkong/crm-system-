@@ -302,6 +302,7 @@ export function useMailComposeDraft(input: {
         !hasMeaningfulComposeContent({
           subject: snapshot.subject,
           bodyHtml: snapshot.bodyHtml,
+          quotedBodyHtml: snapshot.quotedBodyHtml,
           recipientLists: lists,
           attachmentCount: snapshot.attachments.length,
         })

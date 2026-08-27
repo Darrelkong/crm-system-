@@ -9,6 +9,32 @@ import { cn } from "@/lib/cn";
 export const MAIL_ADMIN_SECTION_CLASS = "space-y-4";
 export const MAIL_ADMIN_CARD_STACK_CLASS = "space-y-3";
 
+export function MailAdminDefinitionRow({
+  label,
+  children,
+  mono = false,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  mono?: boolean;
+  className?: string;
+}) {
+  return (
+    <div className={cn("mail-admin-definition-row", className)}>
+      <dt className="mail-admin-definition-label">{label}</dt>
+      <dd
+        className={cn(
+          "mail-admin-definition-value",
+          mono && "mail-admin-definition-value--mono",
+        )}
+      >
+        {children}
+      </dd>
+    </div>
+  );
+}
+
 export function MailAdminLoadingState({
   compact = false,
   className,

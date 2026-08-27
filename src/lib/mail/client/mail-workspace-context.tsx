@@ -314,6 +314,7 @@ export function createMailWorkspaceRuntime(
   async function loadMoreMessages() {
     if (
       state.selectedFolder === "drafts" ||
+      state.selectedFolder === "pending_approval" ||
       !state.selectedMailboxId ||
       !state.nextCursor ||
       state.isLoadingMessages
@@ -430,6 +431,19 @@ export function createMailWorkspaceRuntime(
       await loadDrafts();
       return;
     }
+    if (folder === "pending_approval") {
+      setState({
+        selectedFolder: "pending_approval",
+        messages: [],
+        drafts: [],
+        nextCursor: null,
+        selectedMessageId: null,
+        selectedMessage: null,
+        isLoadingMessages: false,
+        error: null,
+      });
+      return;
+    }
     if (!state.selectedMailboxId) {
       return;
     }
@@ -441,7 +455,10 @@ export function createMailWorkspaceRuntime(
   }
 
   async function selectMessage(messageId: string) {
-    if (state.selectedFolder === "drafts") {
+    if (
+      state.selectedFolder === "drafts" ||
+      state.selectedFolder === "pending_approval"
+    ) {
       return;
     }
     const folder = state.selectedFolder;
@@ -480,6 +497,9 @@ export function createMailWorkspaceRuntime(
   }
 
   async function refreshMessages() {
+    if (state.selectedFolder === "pending_approval") {
+      return;
+    }
     if (state.selectedFolder === "drafts") {
       await loadDrafts();
       return;
@@ -495,7 +515,10 @@ export function createMailWorkspaceRuntime(
   }
 
   async function markMessageRead(input: MarkMessageReadInput) {
-    if (state.selectedFolder === "drafts") {
+    if (
+      state.selectedFolder === "drafts" ||
+      state.selectedFolder === "pending_approval"
+    ) {
       return;
     }
     setState({ isUpdatingReadState: true, error: null });

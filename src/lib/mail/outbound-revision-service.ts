@@ -22,6 +22,7 @@ import {
   normalizeOutboundRecipients,
 } from "@/lib/mail/outbound-recipient-validation";
 import {
+  toSafeOutboundRevisionAttachmentView,
   toSafeOutboundRevisionDetailView,
   toSafeOutboundRevisionRecipientView,
   toSafeOutboundRevisionView,
@@ -72,16 +73,11 @@ async function resolveRevisionChain(
   };
 }
 
-export async function getOutboundRevision(
+async function assertOutboundRevisionReadAccess(
   db: Database,
   actor: MailActorContext,
-  revisionId: string,
-) {
-  assertEffectiveMailAccess(actor);
-  const revision = await findRevisionById(db, revisionId);
-  if (!revision) {
-    throw MailServiceError.notFound("Outbound revision not found");
-  }
+  revision: MailOutboundRevision,
+): Promise<void> {
   if (revision.createdByUserId !== actor.userId) {
     if (!hasMailOutboundApprovalReview(actor)) {
       throw MailServiceError.forbidden("Outbound revision access denied");
@@ -97,14 +93,49 @@ export async function getOutboundRevision(
       throw MailServiceError.forbidden("Outbound revision access denied");
     }
   }
+}
+
+export async function getOutboundRevision(
+  db: Database,
+  actor: MailActorContext,
+  revisionId: string,
+) {
+  assertEffectiveMailAccess(actor);
+  const revision = await findRevisionById(db, revisionId);
+  if (!revision) {
+    throw MailServiceError.notFound("Outbound revision not found");
+  }
+  await assertOutboundRevisionReadAccess(db, actor, revision);
   const recipients = await db
     .select()
     .from(schema.mailOutboundRevisionRecipients)
     .where(eq(schema.mailOutboundRevisionRecipients.revisionId, revision.id))
     .orderBy(asc(schema.mailOutboundRevisionRecipients.sortOrder));
+
+  const attachmentRows = await db
+    .select()
+    .from(schema.mailOutboundRevisionAttachments)
+    .where(eq(schema.mailOutboundRevisionAttachments.revisionId, revision.id))
+    .orderBy(asc(schema.mailOutboundRevisionAttachments.sortOrder));
+
+  const attachments = [];
+  for (const attachment of attachmentRows) {
+    const [storedFile] = await db
+      .select({
+        securityScanStatus: schema.mailStoredFiles.securityScanStatus,
+      })
+      .from(schema.mailStoredFiles)
+      .where(eq(schema.mailStoredFiles.id, attachment.storedFileId))
+      .limit(1);
+    attachments.push(
+      toSafeOutboundRevisionAttachmentView(attachment, storedFile),
+    );
+  }
+
   return toSafeOutboundRevisionDetailView(
     revision,
     recipients.map(toSafeOutboundRevisionRecipientView),
+    attachments,
   );
 }
 

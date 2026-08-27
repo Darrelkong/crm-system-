@@ -13,6 +13,7 @@ import {
   MAIL_NOTIFICATION_SENDING_FROM_DISPLAY_NAME,
 } from "@/lib/mail/notification-sending-domain";
 import {
+  MailAdminDefinitionRow,
   MailAdminEmptyState,
   MailAdminErrorState,
   MailAdminLoadingState,
@@ -30,27 +31,12 @@ const CAPABILITY_LABEL_KEY: Record<keyof MailAdminCenterCapabilities, string> =
     proofDiagnostics: "mail.adminCenter.sections.proofDiagnostics",
     senderIdentityManagement: "mail.adminCenter.sections.senderIdentity",
     signatureTemplateManagement: "mail.adminCenter.sections.signature",
-    approvalReviewManagement: "mail.adminCenter.sections.approval",
+    approvalReviewManagement: "mail.adminCenter.sections.approvalReview",
     approvalWorkflowView: "mail.adminCenter.sections.approval",
     mailboxManagement: "mail.adminCenter.sections.mailbox",
     permissionManagement: "mail.adminCenter.sections.permission",
     deliveryHealth: "mail.adminCenter.sections.deliveryHealth",
   };
-
-function OverviewField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <dt className="text-sm crm-text-secondary">{label}</dt>
-      <dd className="text-sm crm-text sm:text-right">{children}</dd>
-    </div>
-  );
-}
 
 function OverviewCard({
   title,
@@ -64,7 +50,7 @@ function OverviewCard({
   className?: string;
 }) {
   return (
-    <Card className={cn(className, "p-4 md:p-6")} padding>
+    <Card className={cn("p-4 md:p-5", className)} padding>
       <h3 className="text-sm font-semibold crm-text">{title}</h3>
       {description ? (
         <p className="mt-1 text-sm crm-text-secondary">{description}</p>
@@ -76,8 +62,15 @@ function OverviewCard({
 
 export function MailAdminOverview() {
   const { t } = useTranslation();
-  const { session, loading, error, refresh, mailAccessEnabled, capabilities } =
-    useMailSession();
+  const {
+    session,
+    loading,
+    error,
+    refresh,
+    effectiveMailAccessEnabled,
+    isCrmRootAdmin,
+    capabilities,
+  } = useMailSession();
 
   if (loading) {
     return (
@@ -108,7 +101,22 @@ export function MailAdminOverview() {
     );
   }
 
-  const enabledCapabilities = listEnabledMailAdminCapabilityKeys(capabilities);
+  const enabledCapabilityKeys = listEnabledMailAdminCapabilityKeys(capabilities);
+  const enabledCapabilities = enabledCapabilityKeys.filter((capability, index) => {
+    const labelKey = CAPABILITY_LABEL_KEY[capability];
+    const firstIndex = enabledCapabilityKeys.findIndex(
+      (candidate) => CAPABILITY_LABEL_KEY[candidate] === labelKey,
+    );
+    return firstIndex === index;
+  });
+
+  const mailAccessLabel =
+    isCrmRootAdmin && effectiveMailAccessEnabled
+      ? t("mail.adminCenter.overview.mailAccessSystem")
+      : effectiveMailAccessEnabled
+        ? t("mail.adminCenter.overview.mailAccessEnabled")
+        : t("mail.adminCenter.overview.mailAccessDisabled");
+  const mailAccessVariant = effectiveMailAccessEnabled ? "success" : "default";
 
   return (
     <div className={MAIL_ADMIN_SECTION_CLASS}>
@@ -118,42 +126,45 @@ export function MailAdminOverview() {
         description={t("mail.adminCenter.descriptions.overview")}
       />
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <OverviewCard title={t("mail.adminCenter.overview.accountTitle")}>
           <dl className="space-y-3">
-            <OverviewField label={t("mail.adminCenter.overview.name")}>
+            <MailAdminDefinitionRow label={t("mail.adminCenter.overview.name")}>
               {session.user.name}
-            </OverviewField>
-            <OverviewField label={t("mail.adminCenter.overview.email")}>
+            </MailAdminDefinitionRow>
+            <MailAdminDefinitionRow
+              label={t("mail.adminCenter.overview.email")}
+              mono
+            >
               {session.user.email}
-            </OverviewField>
+            </MailAdminDefinitionRow>
+            {isCrmRootAdmin ? (
+              <MailAdminDefinitionRow label={t("mail.adminCenter.overview.role")}>
+                {t("mail.adminCenter.overview.rootAdminRole")}
+              </MailAdminDefinitionRow>
+            ) : null}
           </dl>
         </OverviewCard>
 
         <OverviewCard title={t("mail.adminCenter.overview.mailAccessTitle")}>
           <dl className="space-y-3">
-            <OverviewField label={t("mail.adminCenter.overview.mailAccess")}>
-              <Badge variant={mailAccessEnabled ? "success" : "default"}>
-                {mailAccessEnabled
-                  ? t("mail.adminCenter.overview.mailAccessEnabled")
-                  : t("mail.adminCenter.overview.mailAccessDisabled")}
-              </Badge>
-            </OverviewField>
+            <MailAdminDefinitionRow label={t("mail.adminCenter.overview.mailAccess")}>
+              <Badge variant={mailAccessVariant}>{mailAccessLabel}</Badge>
+            </MailAdminDefinitionRow>
           </dl>
         </OverviewCard>
 
         <OverviewCard
-          className="md:col-span-2"
+          className="lg:col-span-2"
           title={t("mail.adminCenter.overview.capabilitiesTitle")}
           description={t("mail.adminCenter.overview.capabilitiesHint")}
         >
           {enabledCapabilities.length > 0 ? (
-            <ul className="flex flex-wrap gap-2">
+            <ul className="mail-admin-capability-list">
               {enabledCapabilities.map((capability) => (
-                <li key={capability}>
-                  <Badge variant="accent">
-                    {t(CAPABILITY_LABEL_KEY[capability])}
-                  </Badge>
+                <li key={capability} className="mail-admin-capability-item">
+                  <span className="mail-admin-capability-dot" aria-hidden />
+                  <span className="min-w-0">{t(CAPABILITY_LABEL_KEY[capability])}</span>
                 </li>
               ))}
             </ul>
@@ -172,24 +183,30 @@ export function MailAdminOverview() {
           description={t("mail.adminCenter.overview.sendingDomainHint")}
         >
           <dl className="space-y-3">
-            <OverviewField label={t("mail.adminCenter.overview.sendingDomain")}>
-              <span className="font-mono text-xs sm:text-sm">
-                {MAIL_NOTIFICATION_SENDING_DOMAIN}
-              </span>
-            </OverviewField>
-            <OverviewField label={t("mail.adminCenter.overview.sendingDomainStatus")}>
+            <MailAdminDefinitionRow
+              label={t("mail.adminCenter.overview.sendingDomain")}
+              mono
+            >
+              {MAIL_NOTIFICATION_SENDING_DOMAIN}
+            </MailAdminDefinitionRow>
+            <MailAdminDefinitionRow
+              label={t("mail.adminCenter.overview.sendingDomainStatus")}
+            >
               <Badge variant="success">
                 {t("mail.adminCenter.overview.sendingDomainConfigured")}
               </Badge>
-            </OverviewField>
-            <OverviewField label={t("mail.adminCenter.overview.sendingFromAddress")}>
-              <span className="font-mono text-xs sm:text-sm">
-                {MAIL_NOTIFICATION_SENDING_FROM_ADDRESS}
-              </span>
-            </OverviewField>
-            <OverviewField label={t("mail.adminCenter.overview.sendingFromDisplayName")}>
+            </MailAdminDefinitionRow>
+            <MailAdminDefinitionRow
+              label={t("mail.adminCenter.overview.sendingFromAddress")}
+              mono
+            >
+              {MAIL_NOTIFICATION_SENDING_FROM_ADDRESS}
+            </MailAdminDefinitionRow>
+            <MailAdminDefinitionRow
+              label={t("mail.adminCenter.overview.sendingFromDisplayName")}
+            >
               {MAIL_NOTIFICATION_SENDING_FROM_DISPLAY_NAME}
-            </OverviewField>
+            </MailAdminDefinitionRow>
           </dl>
         </OverviewCard>
       </div>

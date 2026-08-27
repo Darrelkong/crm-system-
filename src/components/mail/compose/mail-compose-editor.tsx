@@ -26,6 +26,7 @@ import {
   composeMobileRootClass,
   type ComposeInitialSeed,
 } from "@/lib/mail/client/draft-management";
+import { resolveComposeTitleKey } from "@/lib/mail/client/compose-reply-body";
 
 export function MailComposeEditor({
   variant,
@@ -173,12 +174,16 @@ function MailComposeEditorBody({
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const hydratedRef = useRef(false);
-  const [showCcBcc, setShowCcBcc] = useState(variant === "floating-desktop");
+  const [showCcBcc, setShowCcBcc] = useState(
+    variant === "floating-desktop" && state.composeMode === "new",
+  );
   const [showFormatting, setShowFormatting] = useState(false);
   const [submitTouched, setSubmitTouched] = useState(false);
+  const [quotedExpanded, setQuotedExpanded] = useState(false);
   const isMobile = variant === "embedded-mobile";
   const isFloating = variant === "floating-desktop";
   const allLists = buildRecipientLists(state);
+  const titleKey = resolveComposeTitleKey(state.composeMode);
 
   useEffect(() => {
     if (hydratedRef.current || !editorRef.current) return;
@@ -236,7 +241,7 @@ function MailComposeEditorBody({
             {t("mail.compose.backToMail")}
           </button>
           <span className="min-w-0 flex-1 truncate text-sm font-medium crm-text">
-            {t("mail.compose.new")}
+            {t(titleKey)}
           </span>
           {saveLabel ? (
             <span className="truncate text-xs crm-text-secondary">{saveLabel}</span>
@@ -269,7 +274,7 @@ function MailComposeEditorBody({
             </button>
           ) : null}
           <div className="min-w-0 flex-1 truncate px-1 text-sm font-medium crm-text">
-            {t("mail.compose.new")}
+            {t(titleKey)}
           </div>
           {saveLabel ? (
             <span className="truncate text-xs crm-text-secondary">{saveLabel}</span>
@@ -380,14 +385,32 @@ function MailComposeEditorBody({
             suppressContentEditableWarning
             onInput={handleBodyInput}
             className={cn(
-              "min-h-[12rem] rounded-lg border crm-border px-3 py-2 text-sm outline-none",
-              isFloating ? "mail-compose-input" : "crm-text bg-transparent",
-              "empty:before:text-neutral-400 empty:before:content-[attr(data-placeholder)]",
-              "dark:empty:before:text-neutral-500",
+              "mail-compose-body-editor min-h-[12rem] rounded-lg border crm-border px-3 py-2 text-sm outline-none",
+              "mail-compose-input crm-text",
+              "empty:before:text-neutral-500 empty:before:content-[attr(data-placeholder)]",
+              "dark:empty:before:text-neutral-400",
             )}
             data-placeholder={t("mail.compose.body")}
           />
         </div>
+
+        {state.quotedBodyHtml ? (
+          <div className="px-3 pb-3">
+            <button
+              type="button"
+              onClick={() => setQuotedExpanded((value) => !value)}
+              className="inline-flex items-center gap-1 text-sm crm-text-secondary hover:crm-text"
+            >
+              {t("mail.compose.showQuoted")}
+            </button>
+            {quotedExpanded ? (
+              <div
+                className="mail-compose-quoted mt-3 rounded-lg border crm-border bg-[var(--color-crm-bg-muted)] px-3 py-2 text-sm leading-relaxed crm-text-secondary"
+                dangerouslySetInnerHTML={{ __html: state.quotedBodyHtml }}
+              />
+            ) : null}
+          </div>
+        ) : null}
 
         {state.attachments.length > 0 ? (
           <MailComposeAttachmentList

@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { MailMessageRow } from "./mail-message-row";
 import { MailSendErrorBadge } from "./mail-send-error-badge";
 import { MailSharedFilterBar } from "./mail-shared-filter-bar";
+import { MailApprovalList } from "@/components/mail/approval/mail-approval-list";
 
 export function MailMessageList({
   className,
@@ -42,6 +43,9 @@ export function MailMessageList({
 
   if (isProduction && workspace) {
     const productionWorkspace = workspace;
+    if (productionWorkspace.selectedFolder === "pending_approval") {
+      return <MailApprovalList className={className} />;
+    }
     const isDraftsFolder = productionWorkspace.selectedFolder === "drafts";
     const productionRows = isDraftsFolder
       ? productionWorkspace.drafts.map(adaptProductionDraftListRow)

@@ -55,10 +55,11 @@ export function MailAdminCenterDrawer({
       onRequestClose={onRequestClose}
       closeLabel={t("common.close")}
       returnFocusRef={returnFocusRef}
+      panelClassName="qe-drawer-panel--workspace"
     >
       <MailAdminCenterNavigationProvider navigateToSection={setActiveSection}>
-        <div className="mail-admin-center-layout -mx-5 -mb-4 -mt-4 flex min-h-[min(75dvh,100%)] min-w-0 flex-col overflow-hidden md:min-h-[32rem] md:flex-row">
-          <aside className="mail-admin-center-sidebar shrink-0 border-b crm-border md:w-56 md:border-b-0 md:border-r">
+        <div className="mail-admin-center-layout -mx-5 -mb-4 -mt-4 flex min-h-0 min-h-[min(75dvh,100%)] flex-1 flex-col overflow-hidden md:min-h-[32rem] md:flex-row">
+          <aside className="mail-admin-center-sidebar shrink-0 border-b crm-border md:w-60 md:border-b-0 md:border-r">
             <div className="hidden border-b crm-border px-4 py-3 md:block">
               <p className="text-xs font-semibold uppercase tracking-wide crm-text-secondary">
                 {t("mail.adminCenter.navLabel")}
@@ -70,10 +71,8 @@ export function MailAdminCenterDrawer({
               onSelectSection={setActiveSection}
             />
           </aside>
-          <div className="mail-admin-center-content min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-[var(--color-crm-bg-muted)] p-3 sm:p-4 md:p-6">
-            <div className="mail-admin-center-panel mx-auto max-w-5xl rounded-xl border crm-border bg-[var(--color-crm-bg)] p-4 shadow-sm sm:p-5 md:p-6">
-              <MailAdminCenterSectionPanel section={effectiveSection} session={session} />
-            </div>
+          <div className="mail-admin-center-content min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
+            <MailAdminCenterSectionPanel section={effectiveSection} session={session} />
           </div>
         </div>
       </MailAdminCenterNavigationProvider>

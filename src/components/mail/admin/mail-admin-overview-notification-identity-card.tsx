@@ -13,25 +13,11 @@ import {
 } from "@/lib/mail/client/notification-identity-management";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import {
+  MailAdminDefinitionRow,
   MailAdminEmptyState,
   MailAdminErrorState,
   MailAdminLoadingState,
 } from "./mail-admin-states";
-
-function OverviewField({
-  label,
-  children,
-}: {
-  label: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
-      <dt className="text-sm crm-text-secondary">{label}</dt>
-      <dd className="text-sm crm-text sm:text-right">{children}</dd>
-    </div>
-  );
-}
 
 function statusBadgeVariant(
   status: NotificationIdentityDisplayStatus,
@@ -76,20 +62,27 @@ function NotificationIdentitySummaryBody({
 
   return (
     <dl className="space-y-3">
-      <OverviewField label={t("mail.adminCenter.overview.notificationIdentityEmail")}>
-        <span className="break-all">{summary.email}</span>
-      </OverviewField>
-      <OverviewField label={t("mail.adminCenter.overview.notificationIdentityStatusLabel")}>
+      <MailAdminDefinitionRow
+        label={t("mail.adminCenter.overview.notificationIdentityEmail")}
+        mono
+      >
+        {summary.email}
+      </MailAdminDefinitionRow>
+      <MailAdminDefinitionRow
+        label={t("mail.adminCenter.overview.notificationIdentityStatusLabel")}
+      >
         <Badge variant={statusBadgeVariant(summary.displayStatus)}>
           {t(
             `mail.adminCenter.notificationIdentity.status.${summary.displayStatus}`,
           )}
         </Badge>
-      </OverviewField>
+      </MailAdminDefinitionRow>
       {summary.verifiedAt ? (
-        <OverviewField label={t("mail.adminCenter.overview.notificationIdentityVerifiedAt")}>
+        <MailAdminDefinitionRow
+          label={t("mail.adminCenter.overview.notificationIdentityVerifiedAt")}
+        >
           {formatHongKongDateTime(summary.verifiedAt)}
-        </OverviewField>
+        </MailAdminDefinitionRow>
       ) : null}
     </dl>
   );

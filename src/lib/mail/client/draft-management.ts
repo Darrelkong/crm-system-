@@ -7,6 +7,10 @@ import {
   recipientListsToApiPayload,
   recipientViewsToLists,
 } from "@/lib/mail/client/recipient-input";
+import {
+  mergeComposeBodyForSave,
+  splitComposeBodyForEditor,
+} from "@/lib/mail/client/compose-reply-body";
 
 export const COMPOSE_CONTEXT_PATH = "/api/mail/compose/context";
 export const DRAFTS_PATH = "/api/mail/drafts";
@@ -90,6 +94,8 @@ export type ComposeEditorState = {
   bcc: RecipientChipData[];
   subject: string;
   bodyHtml: string;
+  composeMode: ComposeDraftSeedMode | "new";
+  quotedBodyHtml: string | null;
   attachments: ComposeAttachmentDraft[];
   saveStatus: ComposeSaveStatus;
   saveError: string | null;
@@ -163,11 +169,13 @@ export function isAuthorizedComposeSelection(
 export function hasMeaningfulComposeContent(input: {
   subject?: string;
   bodyHtml?: string;
+  quotedBodyHtml?: string | null;
   recipientLists?: RecipientLists;
   attachmentCount?: number;
 }): boolean {
   if (input.subject?.trim()) return true;
   if (input.bodyHtml?.replace(/<[^>]+>/g, "").trim()) return true;
+  if (input.quotedBodyHtml?.replace(/<[^>]+>/g, "").trim()) return true;
   if (input.recipientLists && countUniqueRecipients(input.recipientLists) > 0) {
     return true;
   }
@@ -181,6 +189,10 @@ export function buildRecipientLists(state: Pick<ComposeEditorState, "to" | "cc" 
 
 export function draftDetailToComposeState(item: DraftDetailApiItem): ComposeEditorState {
   const lists = recipientViewsToLists(item.recipients);
+  const split = splitComposeBodyForEditor({
+    bodyHtml: item.bodyHtml ?? "",
+    composeMode: item.composeMode,
+  });
   return {
     draftId: item.id,
     autosaveVersion: item.autosaveVersion,
@@ -190,7 +202,9 @@ export function draftDetailToComposeState(item: DraftDetailApiItem): ComposeEdit
     cc: lists.cc,
     bcc: lists.bcc,
     subject: item.subject,
-    bodyHtml: item.bodyHtml ?? "",
+    bodyHtml: split.editableHtml,
+    composeMode: item.composeMode,
+    quotedBodyHtml: split.quotedHtml,
     attachments: item.attachments.map((attachment) => ({
       id: attachment.id,
       name: attachment.displayFilename,
@@ -219,6 +233,8 @@ export function createEmptyComposeState(seed?: ComposeInitialSeed): ComposeEdito
     bcc: seed?.bcc?.map((email) => ({ id: crypto.randomUUID(), email })) ?? [],
     subject: seed?.subject ?? "",
     bodyHtml: seed?.bodyHtml ?? "",
+    composeMode: "new",
+    quotedBodyHtml: null,
     attachments: [],
     saveStatus: "idle",
     saveError: null,
@@ -238,13 +254,18 @@ export function buildDraftAutosavePayload(state: ComposeEditorState): {
     throw new Error("Compose From selection is required before saving");
   }
   const lists = buildRecipientLists(state);
-  const plainText = stripHtml(state.bodyHtml);
+  const bodyHtml = mergeComposeBodyForSave({
+    editableHtml: state.bodyHtml,
+    quotedHtml: state.quotedBodyHtml,
+    composeMode: state.composeMode,
+  });
+  const plainText = stripHtml(bodyHtml);
   return {
     senderIdentityId: state.senderIdentityId,
     mailboxId: state.mailboxId,
     subject: state.subject,
     bodyText: plainText,
-    bodyHtml: state.bodyHtml,
+    bodyHtml,
     recipients: recipientListsToApiPayload(lists),
   };
 }

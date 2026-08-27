@@ -1,11 +1,25 @@
 import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
 import type { MailOutboundRevisionRecipient } from "../../../drizzle/schema/mail-outbound-revision-recipients";
+import type { MailOutboundRevisionAttachment } from "../../../drizzle/schema/mail-outbound-revision-attachments";
+import type { MailStoredFile } from "../../../drizzle/schema/mail-stored-files";
+import type { MailDeliveryMode } from "../../../drizzle/schema/mail-draft-attachments";
+import { resolveMailAttachmentDownloadFilename } from "@/lib/mail/mail-attachment-download-content-disposition";
 
 export type SafeOutboundRevisionRecipientView = {
   recipientType: MailOutboundRevisionRecipient["recipientType"];
   address: string;
   displayName: string | null;
   sortOrder: number;
+};
+
+export type SafeOutboundRevisionAttachmentView = {
+  id: string;
+  displayFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  deliveryMode: MailDeliveryMode;
+  sortOrder: number;
+  downloadAvailable: boolean;
 };
 
 export type SafeOutboundRevisionView = {
@@ -33,7 +47,30 @@ export type SafeOutboundRevisionView = {
 
 export type SafeOutboundRevisionDetailView = SafeOutboundRevisionView & {
   recipients: SafeOutboundRevisionRecipientView[];
+  attachments: SafeOutboundRevisionAttachmentView[];
 };
+
+export function toSafeOutboundRevisionAttachmentView(
+  attachment: MailOutboundRevisionAttachment,
+  storedFile: Pick<MailStoredFile, "securityScanStatus"> | null | undefined,
+): SafeOutboundRevisionAttachmentView {
+  const downloadAvailable =
+    attachment.deliveryMode === "direct_attachment" &&
+    storedFile?.securityScanStatus === "clean";
+
+  return {
+    id: attachment.id,
+    displayFilename: resolveMailAttachmentDownloadFilename({
+      displayFilename: attachment.displayFilename,
+      originalFilename: attachment.originalFilename,
+    }),
+    mimeType: attachment.mimeType,
+    sizeBytes: attachment.sizeBytes,
+    deliveryMode: attachment.deliveryMode,
+    sortOrder: attachment.sortOrder,
+    downloadAvailable,
+  };
+}
 
 export function toSafeOutboundRevisionRecipientView(
   recipient: MailOutboundRevisionRecipient,
@@ -76,9 +113,11 @@ export function toSafeOutboundRevisionView(
 export function toSafeOutboundRevisionDetailView(
   revision: MailOutboundRevision,
   recipients: SafeOutboundRevisionRecipientView[],
+  attachments: SafeOutboundRevisionAttachmentView[],
 ): SafeOutboundRevisionDetailView {
   return {
     ...toSafeOutboundRevisionView(revision),
     recipients,
+    attachments,
   };
 }

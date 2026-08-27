@@ -23,6 +23,8 @@ type Props = {
   initialFocusRef?: RefObject<HTMLElement | null>;
   returnFocusRef?: RefObject<HTMLElement | null>;
   labelledById?: string;
+  /** Optional panel width/layout variant (e.g. wide admin workspace). */
+  panelClassName?: string;
 };
 
 function getFocusable(root: HTMLElement): HTMLElement[] {
@@ -51,6 +53,7 @@ export function QuickEntryDrawer({
   initialFocusRef,
   returnFocusRef,
   labelledById,
+  panelClassName,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const autoTitleId = useId();
@@ -130,7 +133,7 @@ export function QuickEntryDrawer({
         aria-labelledby={titleId}
         aria-describedby={description ? descId : undefined}
         tabIndex={-1}
-        className={cn("qe-drawer-panel", "outline-none")}
+        className={cn("qe-drawer-panel", panelClassName, "outline-none")}
       >
         <header className="qe-drawer-header">
           <div className="min-w-0 flex-1">

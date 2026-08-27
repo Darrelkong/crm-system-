@@ -3,6 +3,8 @@
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { MailMessageDetail } from "./mail-message-detail";
 import { MailProductionReadingPane } from "./mail-production-reading-pane";
+import { MailApprovalDetailPane } from "@/components/mail/approval/mail-approval-detail-pane";
+import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 
 import type { ProductionComposeSeedAction } from "@/components/mail/prototype/mail-production-message-actions";
 
@@ -37,6 +39,11 @@ export function MailReadingPane({
   composeSeedPending?: boolean;
 }) {
   const isProduction = useIsProductionMailReadSource();
+  const workspace = useOptionalMailWorkspace();
+
+  if (isProduction && workspace?.selectedFolder === "pending_approval") {
+    return <MailApprovalDetailPane />;
+  }
 
   if (isProduction) {
     return (

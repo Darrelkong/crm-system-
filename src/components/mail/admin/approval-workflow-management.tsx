@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -534,11 +535,25 @@ export function ApprovalWorkflowManagement() {
         </Button>
       </div>
 
+      {canReview && effectiveScope === "reviewer" ? (
+        <Card padding className="space-y-3 p-4 md:p-6">
+          <p className="text-sm crm-text">{t("mail.adminCenter.approval.workspaceHint")}</p>
+          <p className="text-sm crm-text-secondary">
+            {t("mail.adminCenter.approval.pendingSummary", {
+              count: String(rows.filter((row) => row.status === "pending").length),
+            })}
+          </p>
+          <Link href="/mail">
+            <Button type="button">{t("mail.adminCenter.approval.openWorkspace")}</Button>
+          </Link>
+        </Card>
+      ) : null}
+
       {loading ? (
         <MailAdminLoadingState />
       ) : error ? (
         <MailAdminErrorState message={error} onRetry={() => void load()} />
-      ) : rows.length === 0 ? (
+      ) : effectiveScope === "reviewer" && canReview ? null : rows.length === 0 ? (
         <MailAdminEmptyState message={t("mail.adminCenter.approval.empty")} />
       ) : (
         <div className={MAIL_ADMIN_CARD_STACK_CLASS}>

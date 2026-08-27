@@ -48,6 +48,16 @@ export type OutboundRevisionRecipientApiItem = {
   sortOrder: number;
 };
 
+export type OutboundRevisionAttachmentApiItem = {
+  id: string;
+  displayFilename: string;
+  mimeType: string;
+  sizeBytes: number;
+  deliveryMode: "direct_attachment" | "secure_file";
+  sortOrder: number;
+  downloadAvailable: boolean;
+};
+
 export type OutboundRevisionApiItem = {
   id: string;
   revisionChainId: string;
@@ -70,6 +80,7 @@ export type OutboundRevisionApiItem = {
   createdAt: string;
   createdByUserId: string;
   recipients: OutboundRevisionRecipientApiItem[];
+  attachments: OutboundRevisionAttachmentApiItem[];
 };
 
 export type ApprovalWorkflowScope = "reviewer" | "author";
