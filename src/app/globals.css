@@ -685,6 +685,59 @@ html[data-theme="dark"] {
 
 .mail-admin-center-sidebar {
   background: var(--color-crm-bg);
+  flex-shrink: 0;
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--color-crm-border);
+}
+
+.mail-admin-center-sidebar-label {
+  display: none;
+  border-bottom: 1px solid var(--color-crm-border);
+  padding: 0.75rem 1rem;
+}
+
+.mail-admin-center-sidebar-label-text {
+  margin: 0;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--color-crm-text-secondary);
+}
+
+.mail-admin-center-content {
+  min-height: 0;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding: 1rem;
+}
+
+.mail-admin-center-nav {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.mail-admin-center-nav-list {
+  display: flex;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0.5rem;
+  list-style: none;
+  overflow-x: auto;
+}
+
+.mail-admin-center-nav-list > li {
+  flex-shrink: 0;
+}
+
+.mail-admin-center-nav-item {
+  white-space: nowrap;
 }
 
 [data-theme="dark"] .mail-admin-center-sidebar {
@@ -692,13 +745,71 @@ html[data-theme="dark"] {
 }
 
 .mail-admin-center-layout {
+  flex: 1 1 auto;
+  height: 100%;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
   background: var(--color-crm-bg-muted);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 768px) {
+  .mail-admin-center-layout {
+    display: grid;
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+    flex-direction: unset;
+  }
+
+  .mail-admin-center-sidebar {
+    width: 240px;
+    max-width: 240px;
+    border-bottom: none;
+    border-right: 1px solid var(--color-crm-border);
+  }
+
+  .mail-admin-center-sidebar-label {
+    display: block;
+  }
+
+  .mail-admin-center-content {
+    padding: 1.5rem;
+  }
+
+  .mail-admin-center-nav-list {
+    display: block;
+    overflow-x: hidden;
+    overflow-y: visible;
+    padding: 0.5rem;
+  }
+
+  .mail-admin-center-nav-list > li {
+    display: block;
+    flex-shrink: unset;
+  }
+
+  .mail-admin-center-nav-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+  }
 }
 
 .mail-admin-definition-row {
   display: flex;
   min-width: 0;
   gap: 0.75rem;
+}
+
+@media (min-width: 640px) {
+  .mail-admin-definition-row {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    column-gap: 1.25rem;
+    align-items: start;
+  }
 }
 
 .mail-admin-definition-label {
@@ -708,6 +819,12 @@ html[data-theme="dark"] {
   font-size: 0.875rem;
   line-height: 1.375rem;
   color: var(--color-crm-text-secondary);
+}
+
+@media (min-width: 640px) {
+  .mail-admin-definition-label {
+    width: auto;
+  }
 }
 
 .mail-admin-definition-value {
@@ -1637,26 +1754,55 @@ html[data-theme="dark"] {
 .qe-drawer-panel--workspace {
   width: 100%;
   max-width: 100%;
+  min-width: 0;
 }
 
 @media (min-width: 768px) {
   .qe-drawer-panel--workspace {
+    top: 20px;
+    right: auto;
+    bottom: auto;
+    left: 50%;
+    transform: translateX(-50%);
     width: min(94vw, 920px);
+    max-width: calc(100vw - 24px);
+    max-height: calc(100vh - 40px);
+    height: calc(100vh - 40px);
+    min-width: 0;
+    overflow: hidden;
+    border-left: 1px solid var(--color-crm-border);
+    box-shadow:
+      0 4px 6px rgba(23, 32, 51, 0.04),
+      0 12px 32px rgba(23, 32, 51, 0.12);
   }
 }
 
 @media (min-width: 1200px) {
   .qe-drawer-panel--workspace {
-    width: min(78vw, 1080px);
-    min-width: min(880px, 100vw);
+    width: min(88vw, 1180px);
+    max-width: calc(100vw - 48px);
   }
+}
+
+.qe-drawer-panel--workspace .qe-drawer-header {
+  flex: 0 0 auto;
 }
 
 .qe-drawer-panel--workspace .qe-drawer-body {
   display: flex;
   flex-direction: column;
+  flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
   padding: 0;
+}
+
+@media (min-width: 768px) {
+  [data-theme="dark"] .qe-drawer-panel--workspace {
+    box-shadow:
+      0 4px 6px rgba(0, 0, 0, 0.15),
+      0 12px 32px rgba(0, 0, 0, 0.35);
+  }
 }
 
 [data-theme="dark"] .qe-drawer-panel {

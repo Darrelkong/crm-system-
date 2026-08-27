@@ -40,7 +40,10 @@ describe("mail admin center mobile layout", () => {
       "src/components/mail/admin/mail-admin-center-drawer.tsx",
       "utf8",
     );
-    assert.match(source, /min-w-0/);
-    assert.match(source, /overflow-x-hidden/);
+    const globals = readFileSync("src/app/globals.css", "utf8");
+    assert.match(globals, /\.mail-admin-center-layout[\s\S]*min-width: 0/);
+    assert.match(globals, /\.mail-admin-center-sidebar/);
+    assert.match(globals, /overflow-x: hidden/);
+    assert.match(globals, /\.mail-admin-center-content/);
   });
 });

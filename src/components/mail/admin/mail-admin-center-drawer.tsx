@@ -58,10 +58,10 @@ export function MailAdminCenterDrawer({
       panelClassName="qe-drawer-panel--workspace"
     >
       <MailAdminCenterNavigationProvider navigateToSection={setActiveSection}>
-        <div className="mail-admin-center-layout -mx-5 -mb-4 -mt-4 flex min-h-0 min-h-[min(75dvh,100%)] flex-1 flex-col overflow-hidden md:min-h-[32rem] md:flex-row">
-          <aside className="mail-admin-center-sidebar shrink-0 border-b crm-border md:w-60 md:border-b-0 md:border-r">
-            <div className="hidden border-b crm-border px-4 py-3 md:block">
-              <p className="text-xs font-semibold uppercase tracking-wide crm-text-secondary">
+        <div className="mail-admin-center-layout">
+          <aside className="mail-admin-center-sidebar">
+            <div className="mail-admin-center-sidebar-label">
+              <p className="mail-admin-center-sidebar-label-text">
                 {t("mail.adminCenter.navLabel")}
               </p>
             </div>
@@ -71,7 +71,7 @@ export function MailAdminCenterDrawer({
               onSelectSection={setActiveSection}
             />
           </aside>
-          <div className="mail-admin-center-content min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-4 md:p-6">
+          <div className="mail-admin-center-content">
             <MailAdminCenterSectionPanel section={effectiveSection} session={session} />
           </div>
         </div>

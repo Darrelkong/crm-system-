@@ -36,20 +36,20 @@ export function MailAdminCenterNav({
 
   return (
     <nav
-      className={cn("min-h-0 shrink-0 overflow-y-auto", className)}
+      className={cn("mail-admin-center-nav", className)}
       aria-label={t("mail.adminCenter.navLabel")}
     >
-      <ul className="flex gap-1 overflow-x-auto p-2 md:block md:space-y-0.5 md:overflow-visible md:p-2">
+      <ul className="mail-admin-center-nav-list">
         {sections.map((section) => {
           const active = section === activeSection;
           return (
-            <li key={section} className="shrink-0 md:shrink">
+            <li key={section}>
               <button
                 type="button"
                 onClick={() => onSelectSection(section)}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "mail-admin-nav-item whitespace-nowrap rounded-lg px-3 py-2 text-left text-sm transition-colors md:w-full",
+                  "mail-admin-nav-item mail-admin-center-nav-item rounded-lg px-3 py-2 text-sm transition-colors",
                   active
                     ? "mail-admin-nav-item-active font-medium"
                     : "mail-admin-nav-item-idle crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]",

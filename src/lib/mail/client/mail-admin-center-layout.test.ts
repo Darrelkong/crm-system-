@@ -11,10 +11,58 @@ describe("mail admin center desktop layout", () => {
     const globals = readFileSync("src/app/globals.css", "utf8");
 
     assert.match(drawer, /panelClassName="qe-drawer-panel--workspace"/);
-    assert.match(drawer, /md:w-60/);
+    assert.doesNotMatch(drawer, /-mx-5/);
     assert.doesNotMatch(drawer, /mail-admin-center-panel mx-auto max-w-5xl/);
     assert.match(globals, /\.qe-drawer-panel--workspace/);
-    assert.match(globals, /min\(78vw, 1080px\)/);
+    assert.match(globals, /min\(88vw, 1180px\)/);
+    assert.match(globals, /grid-template-columns: 240px minmax\(0, 1fr\)/);
+  });
+
+  it("has two direct layout regions for nav and content", () => {
+    const drawer = readFileSync(
+      "src/components/mail/admin/mail-admin-center-drawer.tsx",
+      "utf8",
+    );
+    const globals = readFileSync("src/app/globals.css", "utf8");
+
+    assert.match(drawer, /className="mail-admin-center-layout"/);
+    assert.match(drawer, /<aside className="mail-admin-center-sidebar"/);
+    assert.match(drawer, /className="mail-admin-center-content"/);
+    assert.doesNotMatch(drawer, /mail-admin-center-layout flex/);
+    assert.doesNotMatch(drawer, /flex-col/);
+    assert.match(globals, /\.mail-admin-center-sidebar[\s\S]*max-width: 240px/);
+    assert.match(globals, /\.mail-admin-center-content[\s\S]*overflow-y: auto/);
+  });
+
+  it("keeps desktop nav constrained to sidebar column", () => {
+    const nav = readFileSync(
+      "src/components/mail/admin/mail-admin-center-nav.tsx",
+      "utf8",
+    );
+    const globals = readFileSync("src/app/globals.css", "utf8");
+
+    assert.match(nav, /mail-admin-center-nav-list/);
+    assert.doesNotMatch(nav, /md:block/);
+    assert.doesNotMatch(nav, /md:w-full/);
+    assert.match(globals, /\.mail-admin-center-nav-item[\s\S]*width: 100%/);
+    assert.match(globals, /\.mail-admin-center-sidebar[\s\S]*width: 240px/);
+  });
+
+  it("defines scroll and min-height overflow hierarchy", () => {
+    const globals = readFileSync("src/app/globals.css", "utf8");
+
+    assert.match(
+      globals,
+      /\.qe-drawer-panel--workspace \.qe-drawer-body[\s\S]*min-height: 0/,
+    );
+    assert.match(
+      globals,
+      /\.qe-drawer-panel--workspace \.qe-drawer-body[\s\S]*overflow: hidden/,
+    );
+    assert.match(globals, /\.mail-admin-center-layout[\s\S]*min-height: 0/);
+    assert.match(globals, /\.mail-admin-center-layout[\s\S]*height: 100%/);
+    assert.match(globals, /\.mail-admin-center-content[\s\S]*overflow-y: auto/);
+    assert.match(globals, /\.mail-admin-center-sidebar[\s\S]*overflow-y: auto/);
   });
 
   it("uses definition rows without break-all on labels", () => {
