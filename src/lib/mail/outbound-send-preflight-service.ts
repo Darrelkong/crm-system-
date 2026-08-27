@@ -28,7 +28,7 @@ import {
 } from "@/lib/mail/outbound-transport-constants";
 import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-eligibility";
 import { assertOrdinaryEmailAttachmentAggregateWithinLimit } from "@/lib/mail/outbound-provider-size-preflight";
-import { assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess, assertMailAccessEnabled } from "@/lib/permissions/mail";
 
 export type OutboundSendPreflightInput = {
   db: Database;
