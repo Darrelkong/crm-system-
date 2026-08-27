@@ -6,6 +6,7 @@ import { MailServiceError } from "@/lib/mail/errors";
 import {
   BUSINESS_EMAIL_BINDING_UNAVAILABLE,
   assertBusinessEmailBindingForProductionMode,
+  MAIL_BUSINESS_EMAIL_BINDING_NAME,
 } from "@/lib/mail/outbound-business-email-binding";
 import { recordOutboundSendPreflightBlocked } from "@/lib/mail/outbound-send-preflight-service";
 import { resolveOutboundMailTransportAdapter } from "@/lib/mail/outbound-transport-wiring";
@@ -99,7 +100,7 @@ export async function processOutboundBackgroundDispatchItem(
       resolveOutboundMailTransportAdapter({
         env: input.env,
         db: input.db,
-        businessEmailBinding: input.businessEmailBinding,
+        [MAIL_BUSINESS_EMAIL_BINDING_NAME]: input.businessEmailBinding,
         attachmentsBucket: input.attachmentsBucket,
       }));
 
