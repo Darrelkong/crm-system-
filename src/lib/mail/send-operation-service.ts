@@ -850,7 +850,7 @@ async function claimDispatchAttempt(
 
 async function finalizeAttemptAccepted(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   attempt: MailTransportAttempt,
   result: {
@@ -920,7 +920,7 @@ async function finalizeAttemptAccepted(
 
 async function finalizeAttemptTemporaryFailure(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   attempt: MailTransportAttempt,
   result: {
@@ -991,7 +991,7 @@ async function finalizeAttemptTemporaryFailure(
 
 async function finalizeAttemptPermanentFailure(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   attempt: MailTransportAttempt,
   result: { errorCode?: string; errorMessage?: string },
@@ -1082,7 +1082,7 @@ async function finalizeAttemptPermanentFailure(
 
 async function finalizeAttemptAmbiguous(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   attempt: MailTransportAttempt,
   result: { errorCode?: string; errorMessage?: string },
