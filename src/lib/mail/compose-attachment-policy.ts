@@ -1,8 +1,10 @@
-/** Compose attachment limits — validation only; transport not enabled in this phase. */
+import { ORDINARY_EMAIL_RAW_ATTACHMENT_AGGREGATE_LIMIT_BYTES } from "@/lib/mail/outbound-provider-size-constants";
+
+/** Ordinary-email compose attachment limits — provider-safe for Cloudflare 5 MiB messages. */
 export const MAIL_COMPOSE_ATTACHMENT_LIMITS = {
-  /** Cloudflare verified-destination MIME attachment ceiling. */
-  maxSingleFileBytes: 25 * 1024 * 1024,
-  maxTotalBytes: 25 * 1024 * 1024,
+  /** Single ordinary attachment must fit within the aggregate provider-safe cap. */
+  maxSingleFileBytes: ORDINARY_EMAIL_RAW_ATTACHMENT_AGGREGATE_LIMIT_BYTES,
+  maxTotalBytes: ORDINARY_EMAIL_RAW_ATTACHMENT_AGGREGATE_LIMIT_BYTES,
   maxAttachmentCount: 10,
 } as const;
 

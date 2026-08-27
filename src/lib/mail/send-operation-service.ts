@@ -52,6 +52,10 @@ import {
   assertMailAccessEnabled,
   assertMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
+import {
+  isSystemMailActor,
+  type MailOperationalActor,
+} from "@/lib/mail/system-mail-actor";
 
 const STAFF_APPROVED_REVISION_KINDS = new Set([
   "staff_submit",
@@ -568,7 +572,13 @@ export async function getSendOperation(
   sendOperationId: string,
 ): Promise<SafeSendOperationView> {
   assertEffectiveMailAccess(actor);
+  return loadSafeSendOperationView(db, sendOperationId);
+}
 
+async function loadSafeSendOperationView(
+  db: Database,
+  sendOperationId: string,
+): Promise<SafeSendOperationView> {
   const send = await findSendById(db, sendOperationId);
   if (!send) {
     throw MailServiceError.notFound("Send operation not found");
@@ -742,7 +752,7 @@ async function buildNormalizedSubmission(
 
 async function claimDispatchAttempt(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   adapter: MailTransportAdapter,
   transportMode: MailOutboundTransportMode,
@@ -1144,7 +1154,7 @@ async function finalizeAttemptAmbiguous(
  */
 export async function dispatchSendOperation(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     sendOperationId: string;
     expectedOrchestrationVersion: number;
@@ -1152,7 +1162,9 @@ export async function dispatchSendOperation(
     transportMode?: MailOutboundTransportMode;
   },
 ): Promise<SafeSendOperationView> {
-  assertEffectiveMailAccess(actor);
+  if (!isSystemMailActor(actor)) {
+    assertEffectiveMailAccess(actor);
+  }
 
   const transportMode =
     input.transportMode ?? resolveMailOutboundTransportMode(process.env);
@@ -1224,6 +1236,9 @@ export async function dispatchSendOperation(
     await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, classification);
   }
 
+  if (isSystemMailActor(actor)) {
+    return loadSafeSendOperationView(db, send.id);
+  }
   return getSendOperation(db, actor, send.id);
 }
 

@@ -2,6 +2,10 @@ import type { MailSendOperation } from "../../../drizzle/schema/mail-send-operat
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
 import {
+  isSystemMailActor,
+  type MailOperationalActor,
+} from "@/lib/mail/system-mail-actor";
+import {
   assertEffectiveMailAccess,
   assertMailOutboundApprovalReview,
   hasMailOutboundApprovalReview,
@@ -21,9 +25,13 @@ import {
  */
 
 export function assertCanDispatchOutboundSend(
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: Pick<MailSendOperation, "authorizationMode">,
 ): void {
+  if (isSystemMailActor(actor)) {
+    return;
+  }
+
   assertEffectiveMailAccess(actor);
 
   if (send.authorizationMode === "staff_approved") {
@@ -44,9 +52,12 @@ export function assertCanDispatchOutboundSend(
 }
 
 export function hasCanDispatchOutboundSend(
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: Pick<MailSendOperation, "authorizationMode">,
 ): boolean {
+  if (isSystemMailActor(actor)) {
+    return true;
+  }
   if (!actor.mailAccessEnabled) {
     return false;
   }

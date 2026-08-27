@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildCloudflareEmailOutboundSendRequestForTest,
+  buildCloudflareEmailOutboundProviderSendRequest,
   CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES,
   createCloudflareEmailOutboundTransport,
   type CloudflareEmailOutboundSendRequest,
@@ -231,6 +232,76 @@ describe("cloudflare email outbound transport adapter", () => {
       providerRequestId: "0101018f-outbound-msg",
       providerMessageId: "0101018f-outbound-msg",
     });
+  });
+
+  it("passes bcc recipients and omits Reply-To when same as From", () => {
+    const submission = sampleSubmission({
+      recipients: [
+        { type: "to", address: "client@example.com", displayName: null },
+        { type: "bcc", address: "hidden@example.com", displayName: null },
+      ],
+    });
+    const body = buildCloudflareEmailOutboundSendRequestForTest(submission);
+    assert.equal(body.bcc?.[0], "hidden@example.com");
+    assert.equal(body.headers?.["Reply-To"], undefined);
+    assert.equal(body.headers?.["Message-ID"], undefined);
+  });
+
+  it("rejects oversize payloads before binding call with zero provider invocations", async () => {
+    let invoked = false;
+    const binding: CloudflareEmailSendBinding = {
+      async send() {
+        invoked = true;
+        return { messageId: "should-not-run" };
+      },
+    };
+    const adapter = createCloudflareEmailOutboundTransport({
+      transportMode: "production",
+      emailBinding: binding,
+      attachmentReader: {
+        async read() {
+          return new Uint8Array([1]);
+        },
+      },
+    });
+    const submission = sampleSubmission({
+      bodyText: "z".repeat(4_200_000),
+      attachments: [
+        {
+          revisionAttachmentId: "rev-att-2",
+          storedFileId: "file-2",
+          contentHash: "b".repeat(64),
+          displayFilename: "big.bin",
+          mimeType: "application/octet-stream",
+          sizeBytes: 1_200_000,
+          sortOrder: 0,
+          deliveryMode: "direct_attachment",
+          secureExpiryDays: null,
+        },
+      ],
+    });
+    const result = await adapter.submitOutbound(submission);
+    assert.equal(result.outcome, "permanent_failure");
+    if (result.outcome === "permanent_failure") {
+      assert.equal(result.errorCode, "MESSAGE_TOO_LARGE_FOR_EMAIL_PROVIDER");
+    }
+    assert.equal(invoked, false);
+    assert.equal(adapter.capture.callCount, 1);
+  });
+
+  it("filters unsupported custom dangerous headers", () => {
+    const submission = sampleSubmission({
+      inReplyTo: "<parent@example.com>",
+    });
+    const request = buildCloudflareEmailOutboundSendRequestForTest(submission);
+    request.headers = {
+      "In-Reply-To": "<parent@example.com>",
+      "Message-ID": "<custom@evil.com>",
+      References: "<parent@example.com>",
+    };
+    const provider = buildCloudflareEmailOutboundProviderSendRequest({ request });
+    assert.equal(provider.headers?.["Message-ID"], undefined);
+    assert.equal(provider.headers?.["In-Reply-To"], "<parent@example.com>");
   });
 });
 

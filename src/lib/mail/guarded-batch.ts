@@ -372,7 +372,7 @@ function buildSendPostStateIdSql(guard: SendPostStateGuard, idValue: string): SQ
 
 export function buildSendPostStateGuardedAuditInsert(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   guard: SendPostStateGuard,
   input: {
     auditId: string;
@@ -382,7 +382,9 @@ export function buildSendPostStateGuardedAuditInsert(
     metadata: Record<string, unknown>;
   },
 ) {
-  const metadataJson = JSON.stringify(input.metadata);
+  const metadataJson = JSON.stringify(
+    withSystemAuditMetadata(actor, input.metadata),
+  );
   const postStateIdSql = buildSendPostStateIdSql(guard, input.auditId);
 
   return buildInsertAuditLogSelectStatement(
@@ -390,12 +392,12 @@ export function buildSendPostStateGuardedAuditInsert(
     sql`
       SELECT
         ${postStateIdSql} AS id,
-        ${actor.userId} AS user_id,
+        ${resolveMailAuditUserId(actor)} AS user_id,
         ${input.action} AS action,
         ${"mail_send_operation"} AS entity_type,
         ${input.entityId} AS entity_id,
-        ${actor.audit.ipAddress ?? null} AS ip_address,
-        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${resolveMailAuditIpAddress(actor)} AS ip_address,
+        ${resolveMailAuditUserAgent(actor)} AS user_agent,
         ${metadataJson} AS metadata,
         ${input.now} AS created_at
       FROM (SELECT 1) AS audit_driver
@@ -406,7 +408,7 @@ export function buildSendPostStateGuardedAuditInsert(
 /** Direct send-operation audit without post-state guard (preflight blocks, dispatch authorization). */
 export function buildSendOperationDirectAuditInsert(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   input: {
     auditId: string;
     now: string;
@@ -415,18 +417,20 @@ export function buildSendOperationDirectAuditInsert(
     metadata: Record<string, unknown>;
   },
 ) {
-  const metadataJson = JSON.stringify(input.metadata);
+  const metadataJson = JSON.stringify(
+    withSystemAuditMetadata(actor, input.metadata),
+  );
   return buildInsertAuditLogSelectStatement(
     db,
     sql`
       SELECT
         ${input.auditId} AS id,
-        ${actor.userId} AS user_id,
+        ${resolveMailAuditUserId(actor)} AS user_id,
         ${input.action} AS action,
         ${"mail_send_operation"} AS entity_type,
         ${input.sendOperationId} AS entity_id,
-        ${actor.audit.ipAddress ?? null} AS ip_address,
-        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${resolveMailAuditIpAddress(actor)} AS ip_address,
+        ${resolveMailAuditUserAgent(actor)} AS user_agent,
         ${metadataJson} AS metadata,
         ${input.now} AS created_at
     `,

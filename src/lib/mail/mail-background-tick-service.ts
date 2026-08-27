@@ -9,9 +9,11 @@ import {
 import { materializeInboundIngestionEvent } from "@/lib/mail/inbound-message-materialization-service";
 import { recoverExpiredProcessingIngestionEventAsSystem } from "@/lib/mail/ingestion-processing-recovery-service";
 import {
+  listAcceptedOutboundSendsNeedingMaterialization,
   listDueDeliveryProviderIngestionEvents,
   listDueGeneralNotificationOutboxEvents,
   listDueInboundProviderIngestionEvents,
+  listDueOutboundSendOperations,
   listDueVerificationNotificationOutboxEvents,
   listExpiredLeasedProviderIngestionEvents,
   listExpiredNotificationProcessingEvents,
@@ -38,7 +40,16 @@ import {
 } from "@/lib/mail/inbound-raw-mime-retention-service";
 import { getIngestionProcessingTrustNow } from "@/lib/mail/provider-ingestion-processing-lease";
 import { getNotificationProcessingTrustNow } from "@/lib/mail/notification-processing-lease";
-import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
+import {
+  createOutboundBackgroundDispatchResult,
+  processOutboundBackgroundDispatchItem,
+  type OutboundBackgroundDispatchDeps,
+} from "@/lib/mail/outbound-background-dispatch-service";
+import {
+  createOutboundSentMaterializationCounters,
+  processOutboundSentMaterializationItem,
+} from "@/lib/mail/outbound-sent-materialization-background-service";
+import { resolveMailOutboundTransportMode } from "@/lib/mail/outbound-transport-constants";
 
 /**
  * FakeNotificationTransportAdapter is test/local only.
@@ -71,6 +82,9 @@ export type MailBackgroundTickSummary = {
   notificationDispatchSkipped: boolean;
   verificationDispatch: MailBackgroundTickCategoryCounters;
   verificationDispatchSkipped: boolean;
+  outboundDispatch: MailBackgroundTickCategoryCounters;
+  outboundDispatchSkipped: boolean;
+  outboundSentMaterialization: MailBackgroundTickCategoryCounters;
   rawPayloadRetention: InboundRawMimeRetentionTickCounters;
   totalItemsStarted: number;
   stoppedReason?: MailBackgroundTickStopReason;
@@ -83,6 +97,8 @@ export type MailBackgroundTickDeps = {
   notificationTransport?: NotificationTransportAdapter;
   /** Verification challenge sink — omit to skip verification dispatch. */
   verificationChallengeSink?: NotificationVerificationChallengeSink;
+  /** Business outbound dispatch wiring — omit to skip outbound dispatch category. */
+  outboundDispatch?: OutboundBackgroundDispatchDeps;
   trustNow?: () => string;
   /** Injectable elapsed milliseconds for soft wall-clock budget tests. */
   elapsedMs?: () => number;
@@ -158,6 +174,9 @@ export async function runMailBackgroundTick(
     notificationDispatchSkipped: deps.notificationTransport === undefined,
     verificationDispatch: emptyCounters(),
     verificationDispatchSkipped: deps.verificationChallengeSink === undefined,
+    outboundDispatch: emptyCounters(),
+    outboundDispatchSkipped: deps.outboundDispatch === undefined,
+    outboundSentMaterialization: createOutboundSentMaterializationCounters(),
     rawPayloadRetention: emptyInboundRawMimeRetentionCounters(),
     totalItemsStarted: 0,
   };
@@ -463,7 +482,79 @@ export async function runMailBackgroundTick(
     }
   }
 
-  // 7. Purge expired inbound raw MIME objects (canonical Mail history preserved)
+  // 7. Process due outbound business-mail dispatch — skipped when wiring absent
+  if (!summary.stoppedReason && deps.outboundDispatch) {
+    const dispatchState = createOutboundBackgroundDispatchResult(
+      resolveMailOutboundTransportMode(deps.outboundDispatch.env),
+    );
+    summary.outboundDispatchSkipped = dispatchState.dispatchSkipped;
+
+    if (!dispatchState.dispatchSkipped) {
+      const rows = await listDueOutboundSendOperations(db, {
+        trustNow: notificationTrustNow,
+        limit: remainingCategoryLimit(),
+      });
+      summary.outboundDispatch.selected = rows.length;
+
+      for (const row of rows) {
+        const stop = shouldStop();
+        if (stop) {
+          summary.stoppedReason = stop;
+          break;
+        }
+        const outcome = await runCategoryItem(async () => {
+          const result = await processOutboundBackgroundDispatchItem(
+            db,
+            deps.outboundDispatch!,
+            row,
+          );
+          if (result === "completed") {
+            summary.outboundDispatch.completed += 1;
+          } else if (result === "retry_scheduled") {
+            summary.outboundDispatch.retryScheduled += 1;
+          } else if (result === "permanent_failed") {
+            summary.outboundDispatch.permanentFailed += 1;
+          } else if (result === "skipped") {
+            summary.outboundDispatch.skipped += 1;
+          } else {
+            summary.outboundDispatch.errors += 1;
+          }
+        });
+        if (outcome === "infrastructure_failure") break;
+        if (markTotalLimitReached()) break;
+      }
+    }
+  }
+
+  // 8. Materialize accepted outbound sends without canonical Sent rows
+  if (!summary.stoppedReason) {
+    const rows = await listAcceptedOutboundSendsNeedingMaterialization(db, {
+      limit: remainingCategoryLimit(),
+    });
+    summary.outboundSentMaterialization.selected = rows.length;
+
+    for (const row of rows) {
+      const stop = shouldStop();
+      if (stop) {
+        summary.stoppedReason = stop;
+        break;
+      }
+      const outcome = await runCategoryItem(async () => {
+        const result = await processOutboundSentMaterializationItem(db, row);
+        if (result === "completed") {
+          summary.outboundSentMaterialization.completed += 1;
+        } else if (result === "skipped") {
+          summary.outboundSentMaterialization.skipped += 1;
+        } else {
+          summary.outboundSentMaterialization.errors += 1;
+        }
+      });
+      if (outcome === "infrastructure_failure") break;
+      if (markTotalLimitReached()) break;
+    }
+  }
+
+  // 9. Purge expired inbound raw MIME objects (canonical Mail history preserved)
   if (!summary.stoppedReason) {
     summary.rawPayloadRetention = await runInboundRawMimeRetentionCleanup(
       db,

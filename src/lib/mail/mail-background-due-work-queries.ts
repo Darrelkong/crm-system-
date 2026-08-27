@@ -30,6 +30,19 @@ export type ExpiredNotificationProcessingRow = {
   processingLeaseExpiresAt: string | null;
 };
 
+export type OutboundSendOperationDueRow = {
+  id: string;
+  orchestrationVersion: number;
+  createdAt: string;
+  nextAttemptAt: string | null;
+};
+
+export type AcceptedOutboundSendMaterializationDueRow = {
+  id: string;
+  outboundRevisionId: string;
+  completedAt: string | null;
+};
+
 function dueProviderPredicate(trustNow: string) {
   return and(
     eq(schema.mailProviderIngestionEvents.status, "pending"),
@@ -217,6 +230,71 @@ export async function listDueNotificationOutboxEvents(
         sql`coalesce(${schema.mailNotificationOutbox.nextAttemptAt}, ${schema.mailNotificationOutbox.enqueuedAt})`,
       ),
       asc(schema.mailNotificationOutbox.id),
+    )
+    .limit(input.limit);
+}
+
+function dueOutboundSendPredicate(trustNow: string) {
+  return and(
+    eq(schema.mailSendOperations.status, "pending"),
+    or(
+      sql`${schema.mailSendOperations.nextAttemptAt} IS NULL`,
+      lte(schema.mailSendOperations.nextAttemptAt, trustNow),
+    ),
+  );
+}
+
+export async function listDueOutboundSendOperations(
+  db: Database,
+  input: { trustNow: string; limit: number },
+): Promise<OutboundSendOperationDueRow[]> {
+  return db
+    .select({
+      id: schema.mailSendOperations.id,
+      orchestrationVersion: schema.mailSendOperations.orchestrationVersion,
+      createdAt: schema.mailSendOperations.createdAt,
+      nextAttemptAt: schema.mailSendOperations.nextAttemptAt,
+    })
+    .from(schema.mailSendOperations)
+    .where(dueOutboundSendPredicate(input.trustNow))
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailSendOperations.nextAttemptAt}, ${schema.mailSendOperations.createdAt})`,
+      ),
+      asc(schema.mailSendOperations.id),
+    )
+    .limit(input.limit);
+}
+
+export async function listAcceptedOutboundSendsNeedingMaterialization(
+  db: Database,
+  input: { limit: number },
+): Promise<AcceptedOutboundSendMaterializationDueRow[]> {
+  return db
+    .select({
+      id: schema.mailSendOperations.id,
+      outboundRevisionId: schema.mailSendOperations.outboundRevisionId,
+      completedAt: schema.mailSendOperations.completedAt,
+    })
+    .from(schema.mailSendOperations)
+    .leftJoin(
+      schema.mailOutboundMessageMaterializations,
+      eq(
+        schema.mailOutboundMessageMaterializations.sendOperationId,
+        schema.mailSendOperations.id,
+      ),
+    )
+    .where(
+      and(
+        eq(schema.mailSendOperations.status, "accepted"),
+        sql`${schema.mailOutboundMessageMaterializations.id} IS NULL`,
+      ),
+    )
+    .orderBy(
+      asc(
+        sql`coalesce(${schema.mailSendOperations.completedAt}, ${schema.mailSendOperations.createdAt})`,
+      ),
+      asc(schema.mailSendOperations.id),
     )
     .limit(input.limit);
 }

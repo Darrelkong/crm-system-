@@ -6,7 +6,10 @@ import {
   resolveMailActorContext,
   type MailActorContext,
 } from "@/lib/mail/actor-context";
-import { assertEffectiveMailAccess, assertMailAccessEnabled } from "@/lib/permissions/mail";
+import {
+  isSystemMailActor,
+  type MailOperationalActor,
+} from "@/lib/mail/system-mail-actor";
 import { assertCanComposeFromIdentityInMailbox } from "@/lib/mail/compose-authorization";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
@@ -24,10 +27,12 @@ import {
   type MailOutboundTransportMode,
 } from "@/lib/mail/outbound-transport-constants";
 import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-eligibility";
+import { assertOrdinaryEmailAttachmentAggregateWithinLimit } from "@/lib/mail/outbound-provider-size-preflight";
+import { assertMailAccessEnabled } from "@/lib/permissions/mail";
 
 export type OutboundSendPreflightInput = {
   db: Database;
-  actor: MailActorContext;
+  actor: MailOperationalActor;
   send: MailSendOperation;
   revision: MailOutboundRevision;
   adapterProviderId: string;
@@ -133,9 +138,12 @@ async function assertStaffAuthorSendAuthority(
 
 async function assertAdminDirectSendAuthority(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   revision: MailOutboundRevision,
 ): Promise<void> {
+  if (isSystemMailActor(actor)) {
+    return;
+  }
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
@@ -192,9 +200,31 @@ function assertTransportModeAllowsDispatch(input: {
   }
 }
 
+export async function assertRevisionOrdinaryEmailAttachmentsWithinPolicy(
+  db: Database,
+  revisionId: string,
+): Promise<void> {
+  const attachments = await db
+    .select({
+      sizeBytes: schema.mailOutboundRevisionAttachments.sizeBytes,
+      deliveryMode: schema.mailOutboundRevisionAttachments.deliveryMode,
+    })
+    .from(schema.mailOutboundRevisionAttachments)
+    .where(eq(schema.mailOutboundRevisionAttachments.revisionId, revisionId));
+
+  try {
+    assertOrdinaryEmailAttachmentAggregateWithinLimit({ attachments });
+  } catch {
+    throw MailServiceError.validation(
+      "Ordinary email attachments exceed provider-safe aggregate limit — remove attachments or use Secure File delivery",
+      { revisionId },
+    );
+  }
+}
+
 export async function recordOutboundSendPreflightBlocked(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   error: unknown,
   metadata: Record<string, unknown> = {},
@@ -226,7 +256,7 @@ export async function recordOutboundSendPreflightBlocked(
 
 export async function recordOutboundSendDispatchAuthorized(
   db: Database,
-  actor: MailActorContext,
+  actor: MailOperationalActor,
   send: MailSendOperation,
   metadata: Record<string, unknown>,
 ): Promise<void> {
@@ -261,6 +291,7 @@ export async function assertOutboundSendPreflight(
 
   await assertRevisionHashIntegrity(db, revision);
   await assertStoredFilesEligibleForSend(db, revision.id);
+  await assertRevisionOrdinaryEmailAttachmentsWithinPolicy(db, revision.id);
 
   if (send.authorizationMode === "staff_approved") {
     await loadApprovedApprovalForRevision(db, revision);
@@ -271,10 +302,12 @@ export async function assertOutboundSendPreflight(
 
   const recipientCount = await assertRevisionRecipientsValid(db, revision.id);
 
-  await assertOutboundSendRateLimitsWithinPolicy(db, actor, {
-    phase: "dispatch",
-    recipientCount,
-  });
+  if (!isSystemMailActor(actor)) {
+    await assertOutboundSendRateLimitsWithinPolicy(db, actor, {
+      phase: "dispatch",
+      recipientCount,
+    });
+  }
 }
 
 export async function runOutboundSendPreflightOrRecordBlock(

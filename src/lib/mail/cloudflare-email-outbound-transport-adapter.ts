@@ -3,6 +3,7 @@ import {
   CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES,
   type CloudflareEmailAddress,
   type CloudflareEmailSendBinding,
+  type CloudflareEmailSendRequest,
   type CloudflareEmailSendResponse,
 } from "@/lib/mail/cloudflare-email-notification-transport-adapter";
 import type {
@@ -16,6 +17,10 @@ import {
   OUTBOUND_TRANSPORT_DRY_RUN_REQUEST_PREFIX,
   type MailOutboundTransportMode,
 } from "@/lib/mail/outbound-transport-constants";
+import {
+  OUTBOUND_PROVIDER_SIZE_ERROR_CODES,
+  runOutboundProviderSizePreflight,
+} from "@/lib/mail/outbound-provider-size-preflight";
 import type {
   MailTransportAdapter,
   MailTransportSubmitResult,
@@ -34,6 +39,33 @@ export type CloudflareEmailOutboundAttachmentPayload = {
   storageKey: string;
   content?: Uint8Array;
 };
+
+export type CloudflareEmailOutboundProviderSendRequest = {
+  to: string | string[];
+  cc?: string | string[];
+  bcc?: string | string[];
+  from: string | CloudflareEmailAddress;
+  replyTo?: string | CloudflareEmailAddress;
+  subject: string;
+  text?: string;
+  html?: string;
+  headers?: Record<string, string>;
+  attachments?: Array<{
+    filename: string;
+    type: string;
+    content: string;
+  }>;
+};
+
+const OUTBOUND_PROVIDER_BLOCKED_HEADERS = new Set([
+  "message-id",
+  "return-path",
+  "received",
+  "dkim-signature",
+  "mime-version",
+  "content-type",
+  "content-transfer-encoding",
+]);
 
 export type CloudflareEmailOutboundSendRequest = {
   to: string[];
@@ -127,6 +159,31 @@ function appendSignatureHtml(
   return parts.length > 0 ? parts.join("<br><br>") : undefined;
 }
 
+function sanitizeApplicationHeaders(
+  headers: Record<string, string> | undefined,
+): Record<string, string> | undefined {
+  if (!headers) {
+    return undefined;
+  }
+  const sanitized: Record<string, string> = {};
+  for (const [name, value] of Object.entries(headers)) {
+    const normalized = name.trim().toLowerCase();
+    if (OUTBOUND_PROVIDER_BLOCKED_HEADERS.has(normalized)) {
+      continue;
+    }
+    sanitized[name] = value;
+  }
+  return Object.keys(sanitized).length > 0 ? sanitized : undefined;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (const byte of bytes) {
+    binary += String.fromCharCode(byte);
+  }
+  return btoa(binary);
+}
+
 export function buildCloudflareEmailOutboundSendRequest(input: {
   submission: NormalizedOutboundSubmission;
   attachmentRefs: OutboundAttachmentStreamRef[];
@@ -181,6 +238,91 @@ export function buildCloudflareEmailOutboundSendRequest(input: {
   }
 
   return request;
+}
+
+export function buildCloudflareEmailOutboundProviderSendRequest(input: {
+  request: CloudflareEmailOutboundSendRequest;
+  attachmentBytes?: Map<string, Uint8Array>;
+}): CloudflareEmailOutboundProviderSendRequest {
+  const { request, attachmentBytes } = input;
+  const from = request.from;
+  const providerRequest: CloudflareEmailOutboundProviderSendRequest = {
+    to: request.to,
+    from,
+    subject: request.subject,
+    text: request.text,
+    html: request.html,
+  };
+
+  if (request.cc && request.cc.length > 0) {
+    providerRequest.cc = request.cc;
+  }
+  if (request.bcc && request.bcc.length > 0) {
+    providerRequest.bcc = request.bcc;
+  }
+
+  const sanitizedHeaders = sanitizeApplicationHeaders(request.headers);
+  if (sanitizedHeaders) {
+    providerRequest.headers = sanitizedHeaders;
+  }
+
+  if (request.attachments && request.attachments.length > 0) {
+    providerRequest.attachments = request.attachments.map((attachment) => {
+      const bytes = attachmentBytes?.get(attachment.storageKey) ?? attachment.content;
+      if (!bytes) {
+        throw new Error(
+          `Missing attachment bytes for outbound provider request: ${attachment.storageKey}`,
+        );
+      }
+      return {
+        filename: attachment.filename,
+        type: attachment.mimeType,
+        content: bytesToBase64(bytes),
+      };
+    });
+  }
+
+  return providerRequest;
+}
+
+function runAdapterOutboundSizePreflight(input: {
+  submission: NormalizedOutboundSubmission;
+  request: CloudflareEmailOutboundSendRequest;
+}): MailTransportSubmitResult | null {
+  const headerEntries = Object.entries(input.request.headers ?? {}).map(
+    ([name, value]) => ({ name, value }),
+  );
+  const toCount = input.submission.recipients.filter((r) => r.type === "to").length;
+  const ccCount = input.submission.recipients.filter((r) => r.type === "cc").length;
+  const bccCount = input.submission.recipients.filter((r) => r.type === "bcc").length;
+
+  const preflight = runOutboundProviderSizePreflight({
+    subject: input.submission.subject,
+    text: input.request.text,
+    html: input.request.html,
+    signatureText: null,
+    signatureHtml: null,
+    toCount,
+    ccCount,
+    bccCount,
+    headerEntries,
+    attachments: input.submission.attachments.map((attachment) => ({
+      sizeBytes: attachment.sizeBytes,
+      filename: attachment.displayFilename,
+      mimeType: attachment.mimeType,
+      deliveryMode: attachment.deliveryMode,
+    })),
+  });
+
+  if (preflight.ok) {
+    return null;
+  }
+
+  return {
+    outcome: "permanent_failure",
+    errorCode: preflight.code,
+    errorMessage: preflight.message,
+  };
 }
 
 function parseAcceptedResponse(
@@ -382,6 +524,11 @@ export function createCloudflareEmailOutboundTransport(
         attachmentBytes,
       });
 
+      const sizeFailure = runAdapterOutboundSizePreflight({ submission, request });
+      if (sizeFailure) {
+        return sizeFailure;
+      }
+
       capture.calls.push({
         submission: structuredClone(submission),
         request: structuredClone(request),
@@ -393,14 +540,13 @@ export function createCloudflareEmailOutboundTransport(
       }
 
       try {
-        const providerRequest = {
-          to: request.to[0] ?? "",
-          from: request.from,
-          subject: request.subject,
-          text: request.text,
-          html: request.html,
-        };
-        const response = await config.emailBinding!.send(providerRequest);
+        const providerRequest = buildCloudflareEmailOutboundProviderSendRequest({
+          request,
+          attachmentBytes,
+        });
+        const response = await config.emailBinding!.send(
+          providerRequest as CloudflareEmailSendRequest,
+        );
         return parseAcceptedResponse(response);
       } catch (error) {
         if (error instanceof CloudflareEmailProviderError) {

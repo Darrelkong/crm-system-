@@ -15,18 +15,28 @@ import {
   type MailBackgroundTickDeps,
   type MailBackgroundTickSummary,
 } from "../src/lib/mail/mail-background-tick-service";
+import {
+  MAIL_BUSINESS_EMAIL_BINDING_NAME,
+  type OutboundBusinessEmailBindingEnv,
+} from "../src/lib/mail/outbound-business-email-binding";
+import {
+  MAIL_OUTBOUND_TRANSPORT_MODE_VAR,
+  resolveMailOutboundTransportMode,
+} from "../src/lib/mail/outbound-transport-constants";
 
 /** Explicit opt-in — production deploy keeps this false until controlled enablement. */
 export const MAIL_NOTIFICATION_TRANSPORT_ENABLED_VAR =
   "MAIL_NOTIFICATION_TRANSPORT_ENABLED" as const;
 
 /** Dedicated Mail Jobs Worker bindings — DB, ATTACHMENTS, optional EMAIL sending. */
-export interface MailJobsEnv {
+export interface MailJobsEnv extends OutboundBusinessEmailBindingEnv {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
+  /** System notification transport — never used for business outbound. */
   EMAIL?: SendEmail;
   MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
   MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE?: string;
+  MAIL_OUTBOUND_TRANSPORT_MODE?: string;
 }
 
 export type MailJobsTickRunner = typeof runMailBackgroundTick;
@@ -57,12 +67,22 @@ function assertNotificationTransportBindings(env: MailJobsEnv): void {
 export function buildMailBackgroundTickDeps(
   env: MailJobsEnv,
 ): MailBackgroundTickDeps {
+  const db = drizzle(env.DB, { schema });
   const deps: MailBackgroundTickDeps = {
     rawPayloadStore: createInboundRawPayloadStore(env.ATTACHMENTS),
     attachmentStore: createInboundAttachmentStore(
       env.ATTACHMENTS,
       "crm-attachments",
     ),
+    outboundDispatch: {
+      env: {
+        [MAIL_OUTBOUND_TRANSPORT_MODE_VAR]: env.MAIL_OUTBOUND_TRANSPORT_MODE,
+      },
+      db,
+      businessEmailBinding: env[MAIL_BUSINESS_EMAIL_BINDING_NAME],
+      notificationEmailBinding: env.EMAIL,
+      attachmentsBucket: env.ATTACHMENTS,
+    },
   };
 
   if (
@@ -105,6 +125,9 @@ export function formatMailJobsTickLogSummary(
     deliveryMaterialization: summary.deliveryMaterialization,
     notificationDispatch: summary.notificationDispatch,
     verificationDispatch: summary.verificationDispatch,
+    outboundDispatch: summary.outboundDispatch,
+    outboundDispatchSkipped: summary.outboundDispatchSkipped,
+    outboundSentMaterialization: summary.outboundSentMaterialization,
     rawPayloadRetention: summary.rawPayloadRetention,
   };
 }

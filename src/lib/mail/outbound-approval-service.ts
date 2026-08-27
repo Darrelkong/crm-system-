@@ -33,6 +33,7 @@ import {
 import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
 import { resolveApprovalReturnedNotificationTarget } from "@/lib/mail/notification-source-recipient-resolution";
 import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
+import { assertRevisionOrdinaryEmailAttachmentsWithinPolicy } from "@/lib/mail/outbound-send-preflight-service";
 
 /**
  * Staff outbound Approval workflow service (frozen 0056).
@@ -248,6 +249,7 @@ export async function submitRevisionForApproval(
 
   assertStaffRevisionKind(revision);
   await assertRevisionSubmissionAuthorization(db, actor, revision);
+  await assertRevisionOrdinaryEmailAttachmentsWithinPolicy(db, revision.id);
   const { contentHash, hashVersion } = await verifyRevisionContentIntegrity(
     db,
     revision,
