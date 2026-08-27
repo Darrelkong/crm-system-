@@ -70,10 +70,17 @@ export type MailTransportSubmitPermanentFailure = {
   errorMessage?: string;
 };
 
+export type MailTransportSubmitAmbiguous = {
+  outcome: "ambiguous";
+  errorCode?: string;
+  errorMessage?: string;
+};
+
 export type MailTransportSubmitResult =
   | MailTransportSubmitAccepted
   | MailTransportSubmitTemporaryFailure
-  | MailTransportSubmitPermanentFailure;
+  | MailTransportSubmitPermanentFailure
+  | MailTransportSubmitAmbiguous;
 
 export interface MailTransportAdapter {
   readonly providerId: string;

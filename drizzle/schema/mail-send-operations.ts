@@ -25,6 +25,7 @@ export const MAIL_SEND_OPERATION_STATUSES = [
   "processing",
   "accepted",
   "failed",
+  "dispatch_uncertain",
 ] as const;
 export type MailSendOperationStatus =
   (typeof MAIL_SEND_OPERATION_STATUSES)[number];
@@ -46,7 +47,8 @@ export const MAIL_SEND_STAFF_APPROVED_REVISION_KINDS = [
  * CAS on transitions; stale worker holding old version cannot mutate when status repeats.
  * Belongs ONLY here — NOT on Transport Attempts.
  *
- * Terminal V1: accepted and failed are terminal — service must not revert to pending/processing.
+ * Terminal V1: accepted, failed, and dispatch_uncertain are terminal for automatic dispatch.
+ *   dispatch_uncertain = provider acceptance unknown — admin review required before any resend.
  *
  * Does NOT own delivery state. status=accepted means provider accepted submission,
  * NOT recipient delivery. Approval owns workflow; Transport Attempt owns per-attempt state.

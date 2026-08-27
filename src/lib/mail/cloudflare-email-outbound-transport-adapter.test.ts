@@ -87,7 +87,10 @@ describe("cloudflare email outbound transport adapter", () => {
     assert.equal(result.outcome, "accepted");
     if (result.outcome === "accepted") {
       assert.match(result.providerRequestId, /^dry-run-req-/);
-      assert.match(result.providerMessageId, /^dry-run-msg-/);
+      assert.match(
+        result.providerMessageId,
+        /^<dry-run-attempt-1@echfronthk\.com>$/,
+      );
     }
 
     assert.equal(adapter.capture.callCount, 1);
@@ -105,7 +108,7 @@ describe("cloudflare email outbound transport adapter", () => {
       captured.request.html,
       "<p>Hello team</p><br><br><p>Best regards</p>",
     );
-    assert.equal(captured.request.headers?.["Message-ID"], submission.rfcMessageId);
+    assert.equal(captured.request.headers?.["Message-ID"], undefined);
     assert.equal(captured.request.attachments?.length, 1);
     assert.equal(captured.request.attachments?.[0]?.filename, "report.pdf");
     assert.equal(captured.request.attachments?.[0]?.contentHash, "a".repeat(64));
@@ -120,7 +123,18 @@ describe("cloudflare email outbound transport adapter", () => {
     const submission = sampleSubmission();
     const body = buildCloudflareEmailOutboundSendRequestForTest(submission);
     assert.equal(body.to[0], "Client <client@example.com>");
-    assert.equal(body.headers?.["Message-ID"], submission.rfcMessageId);
+    assert.equal(body.headers?.["Message-ID"], undefined);
+  });
+
+  it("emits In-Reply-To and References for reply submissions without Message-ID", () => {
+    const submission = sampleSubmission({
+      inReplyTo: "<parent@example.com>",
+      referencesHeader: "<parent@example.com>",
+    });
+    const body = buildCloudflareEmailOutboundSendRequestForTest(submission);
+    assert.equal(body.headers?.["In-Reply-To"], "<parent@example.com>");
+    assert.equal(body.headers?.References, "<parent@example.com>");
+    assert.equal(body.headers?.["Message-ID"], undefined);
   });
 
   it("dry-run mode never invokes Cloudflare binding", async () => {
@@ -251,7 +265,7 @@ describe("outbound transport wiring", () => {
       );
       assert.match(
         result.providerMessageId,
-        new RegExp(`^${OUTBOUND_TRANSPORT_DRY_RUN_MESSAGE_PREFIX}`),
+        /^<dry-run-/,
       );
     }
   });

@@ -355,7 +355,7 @@ export type SendPostStateGuard = {
   sendOperationId: string;
   outboundRevisionId: string;
   orchestrationVersion: number;
-  status: "pending" | "processing" | "accepted" | "failed";
+  status: "pending" | "processing" | "accepted" | "failed" | "dispatch_uncertain";
 };
 
 function buildSendPostStateIdSql(guard: SendPostStateGuard, idValue: string): SQL {

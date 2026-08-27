@@ -137,6 +137,14 @@ export function buildCloudflareEmailOutboundSendRequest(input: {
   const cc = groupRecipientAddresses(submission.recipients, "cc");
   const bcc = groupRecipientAddresses(submission.recipients, "bcc");
 
+  const threadingHeaders: Record<string, string> = {};
+  if (submission.inReplyTo) {
+    threadingHeaders["In-Reply-To"] = submission.inReplyTo;
+  }
+  if (submission.referencesHeader) {
+    threadingHeaders.References = submission.referencesHeader;
+  }
+
   const request: CloudflareEmailOutboundSendRequest = {
     to,
     from: formatFromAddress(submission.fromAddress, submission.fromDisplayName),
@@ -149,13 +157,9 @@ export function buildCloudflareEmailOutboundSendRequest(input: {
       submission.bodyHtmlSanitized,
       submission.signatureBodyHtmlSanitized,
     ),
-    headers: {
-      "Message-ID": submission.rfcMessageId,
-      ...(submission.inReplyTo ? { "In-Reply-To": submission.inReplyTo } : {}),
-      ...(submission.referencesHeader
-        ? { References: submission.referencesHeader }
-        : {}),
-    },
+    ...(Object.keys(threadingHeaders).length > 0
+      ? { headers: threadingHeaders }
+      : {}),
   };
 
   if (cc.length > 0) {
@@ -277,8 +281,8 @@ function mapThrownError(error: unknown): MailTransportSubmitResult {
   }
   return (
     mapProviderErrorCode(code) ?? {
-      outcome: "permanent_failure",
-      errorCode: CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.deliveryFailed,
+      outcome: "ambiguous",
+      errorCode: CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
       errorMessage: code,
     }
   );
@@ -287,10 +291,11 @@ function mapThrownError(error: unknown): MailTransportSubmitResult {
 function buildDryRunAcceptedResult(
   submission: NormalizedOutboundSubmission,
 ): MailTransportSubmitResult {
+  const providerMessageId = `<dry-run-${submission.transportAttemptId}@echfronthk.com>`;
   return {
     outcome: "accepted",
     providerRequestId: `${OUTBOUND_TRANSPORT_DRY_RUN_REQUEST_PREFIX}${submission.transportAttemptId}`,
-    providerMessageId: `${OUTBOUND_TRANSPORT_DRY_RUN_MESSAGE_PREFIX}${submission.rfcMessageId}`,
+    providerMessageId,
   };
 }
 

@@ -70,6 +70,7 @@ export const CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES = {
   dailyLimitExceeded: "cloudflare_email_daily_limit_exceeded",
   deliveryFailed: "cloudflare_email_delivery_failed",
   internalServerError: "cloudflare_email_internal_server_error",
+  dispatchUncertain: "cloudflare_email_dispatch_uncertain",
   headerNotAllowed: "cloudflare_email_header_not_allowed",
   headerUseApiField: "cloudflare_email_header_use_api_field",
   headerValueInvalid: "cloudflare_email_header_value_invalid",

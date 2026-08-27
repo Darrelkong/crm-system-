@@ -14,6 +14,7 @@ export const MAIL_TRANSPORT_ATTEMPT_STATES = [
   "accepted",
   "temporary_failure",
   "permanent_failure",
+  "ambiguous",
 ] as const;
 export type MailTransportAttemptState =
   (typeof MAIL_TRANSPORT_ATTEMPT_STATES)[number];
@@ -28,7 +29,9 @@ export type MailTransportAttemptState =
  * UNIQUE(send_operation_id, attempt_number) is an independent additional guard.
  *
  * No orchestration_version — that belongs only to mail_send_operations.
- * attempt_number is immutable per row; state lifecycle: started → accepted/temporary/permanent.
+ * attempt_number is immutable per row; state lifecycle:
+ *   started → accepted/temporary_failure/permanent_failure/ambiguous.
+ * ambiguous = provider call ended without durable acceptance proof — NOT a dispatch lease.
  *
  * provider: nonblank adapter identifier — NOT hardcoded to Cloudflare.
  * No credentials, secrets, or raw provider response blobs.

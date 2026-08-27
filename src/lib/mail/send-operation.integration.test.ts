@@ -223,6 +223,7 @@ async function setupStaffComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,
@@ -256,6 +257,7 @@ async function setupAdminComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,
@@ -282,6 +284,25 @@ async function setupAdminComposeFixture(db: TestDb) {
     updatedAt: now,
   });
   return { mailbox, identity };
+}
+
+async function clearSendOperationsForRevisions(db: TestDb, revisionIds: string[]) {
+  if (!revisionIds.length) return;
+  const sendOps = await db
+    .select({ id: schema.mailSendOperations.id })
+    .from(schema.mailSendOperations)
+    .where(inArray(schema.mailSendOperations.outboundRevisionId, revisionIds));
+  const sendIds = sendOps.map((row) => row.id);
+  if (!sendIds.length) return;
+  await db
+    .delete(schema.mailTransportAttempts)
+    .where(inArray(schema.mailTransportAttempts.sendOperationId, sendIds));
+  await db
+    .delete(schema.mailOutboundRfcIdentities)
+    .where(inArray(schema.mailOutboundRfcIdentities.sendOperationId, sendIds));
+  await db
+    .delete(schema.mailSendOperations)
+    .where(inArray(schema.mailSendOperations.id, sendIds));
 }
 
 async function createSendReadyDraft(
@@ -601,6 +622,8 @@ describe("send operation orchestration integration", () => {
       expectedWorkflowVersion: 1,
     });
 
+    await clearSendOperationsForRevisions(db, [r1.id, r2.id]);
+
     const sharedKey = `${FIXTURE}-shared-key`;
     await initiateStaffApprovedSend(db, approvalReviewActor, {
       revisionId: r1.id,
@@ -702,7 +725,7 @@ describe("send operation orchestration integration", () => {
     assert.equal(attempts.length, 0);
   });
 
-  it("ambiguous adapter throw leaves started attempt; retry blocked", async () => {
+  it("ambiguous adapter throw transitions to dispatch_uncertain; retry blocked", async () => {
     await cleanupFixtures(db);
     const { r1 } = await createApprovedStaffRevision(db);
     const initiated = await initiateStaffApprovedSend(db, approvalReviewActor, {
@@ -715,12 +738,26 @@ describe("send operation orchestration integration", () => {
       expectedOrchestrationVersion: initiated.orchestrationVersion,
       adapter,
     });
-    assert.equal(result.status, "processing");
-    assert.equal(result.transportAttempts?.[0]?.state, "started");
+    assert.equal(result.status, "dispatch_uncertain");
+    assert.equal(result.transportAttempts?.[0]?.state, "ambiguous");
+    assert.equal(result.transportAttempts?.[0]?.providerMessageId, null);
+    assert.ok(result.completedAt);
 
     await assert.rejects(
       () =>
         retrySendOperation(db, approvalReviewActor, {
+          sendOperationId: initiated.id,
+          expectedOrchestrationVersion: result.orchestrationVersion,
+          adapter: new FakeMailTransportAdapter(),
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "AMBIGUOUS_PROVIDER_STATE_REQUIRES_REVIEW",
+    );
+
+    await assert.rejects(
+      () =>
+        dispatchSendOperation(db, approvalReviewActor, {
           sendOperationId: initiated.id,
           expectedOrchestrationVersion: result.orchestrationVersion,
           adapter: new FakeMailTransportAdapter(),

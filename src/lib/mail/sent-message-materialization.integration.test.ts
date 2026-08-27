@@ -314,6 +314,7 @@ async function setupStaffComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,
@@ -347,6 +348,7 @@ async function setupAdminComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,
@@ -381,10 +383,12 @@ async function setupSentFolderFixture(db: TestDb) {
   const composeMailbox = await createMailbox(db, setupAdminActor, {
     address: composeAddress,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const sentMailbox = await createMailbox(db, setupAdminActor, {
     address: sentAddress,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const identityAddress = fixtureAddress("dual-mailbox");
   const identity = await createSenderIdentity(db, setupAdminActor, {
@@ -452,15 +456,20 @@ async function createProductionAdminDirectRevision(db: TestDb) {
   return { mailbox, identity, draft, revision };
 }
 
+function fixtureProviderMessageId(revisionId: string): string {
+  return `<provider-${revisionId}@test.echfronthk.com>`;
+}
+
 async function acceptAdminDirectSend(db: TestDb, revisionId: string) {
   const initiated = await initiateAdminDirectSend(db, adminActor, {
     revisionId,
     idempotencyKey: `${FIXTURE}-accept-${revisionId}`,
   });
+  const providerMessageId = fixtureProviderMessageId(revisionId);
   const adapter = new FakeMailTransportAdapter().setBehavior({
     outcome: "accepted",
     providerRequestId: "req",
-    providerMessageId: "msg",
+    providerMessageId,
   });
   const dispatched = await dispatchSendOperation(db, adminActor, {
     sendOperationId: initiated.id,
@@ -468,7 +477,7 @@ async function acceptAdminDirectSend(db: TestDb, revisionId: string) {
     adapter,
   });
   assert.equal(dispatched.status, "accepted");
-  return { initiated, dispatched };
+  return { initiated, dispatched, providerMessageId };
 }
 
 async function assertNoDeliveryEvents(db: TestDb, sendOperationId: string) {
@@ -509,20 +518,20 @@ describe("sent message materialization integration", () => {
   it("admin_direct accepted send materializes canonical outbound message", async () => {
     await cleanupFixtures(db);
     const { revision } = await createProductionAdminDirectRevision(db);
-    const { initiated, dispatched } = await acceptAdminDirectSend(db, revision.id);
+    const { initiated, dispatched, providerMessageId } = await acceptAdminDirectSend(db, revision.id);
 
     const result = await materializeAcceptedOutboundSend(db, initiated.id);
     assert.equal(result.message.direction, "outbound");
-    assert.equal(result.message.internetMessageId, dispatched.rfcIdentity?.rfcMessageId);
-    assert.equal(
-      result.materialization.wireInternetMessageId,
-      dispatched.rfcIdentity?.rfcMessageId,
-    );
+    assert.equal(result.message.internetMessageId, providerMessageId);
+    assert.equal(result.materialization.wireInternetMessageId, providerMessageId);
     assert.equal(
       result.materialization.rfcMessageId,
       dispatched.rfcIdentity?.rfcMessageId,
     );
-    assert.ok(result.materialization.rfcMessageId);
+    assert.notEqual(
+      result.materialization.rfcMessageId,
+      result.materialization.wireInternetMessageId,
+    );
     assert.equal(result.materialization.sendOperationId, initiated.id);
     assert.equal(result.materialization.outboundRevisionId, revision.id);
     assert.equal(result.view.recipientCount, 1);
@@ -637,23 +646,20 @@ describe("sent message materialization integration", () => {
       result.materialization.acceptedTransportAttemptId,
       afterRetry.transportAttempts?.[1]?.id,
     );
-    assert.equal(result.message.internetMessageId, afterRetry.rfcIdentity?.rfcMessageId);
-    assert.equal(
-      result.materialization.wireInternetMessageId,
-      afterRetry.rfcIdentity?.rfcMessageId,
-    );
+    assert.equal(result.message.internetMessageId, "retry-msg");
+    assert.equal(result.materialization.wireInternetMessageId, "retry-msg");
     assert.equal(
       result.materialization.rfcMessageId,
       afterRetry.rfcIdentity?.rfcMessageId,
     );
   });
 
-  it("rejects materialization for processing send with started attempt", async () => {
+  it("rejects materialization for dispatch_uncertain send", async () => {
     await cleanupFixtures(db);
     const { revision } = await createProductionAdminDirectRevision(db);
     const initiated = await initiateAdminDirectSend(db, adminActor, {
       revisionId: revision.id,
-      idempotencyKey: `${FIXTURE}-started`,
+      idempotencyKey: `${FIXTURE}-uncertain-mat`,
     });
     const adapter = new FakeMailTransportAdapter().setBehavior("throw");
     const dispatched = await dispatchSendOperation(db, adminActor, {
@@ -661,8 +667,8 @@ describe("sent message materialization integration", () => {
       expectedOrchestrationVersion: initiated.orchestrationVersion,
       adapter,
     });
-    assert.equal(dispatched.status, "processing");
-    assert.equal(dispatched.transportAttempts?.[0]?.state, "started");
+    assert.equal(dispatched.status, "dispatch_uncertain");
+    assert.equal(dispatched.transportAttempts?.[0]?.state, "ambiguous");
 
     await assert.rejects(
       () => materializeAcceptedOutboundSend(db, initiated.id),
@@ -717,7 +723,7 @@ describe("sent message materialization integration", () => {
   it("idempotent materialization returns same canonical message", async () => {
     await cleanupFixtures(db);
     const { revision } = await createProductionAdminDirectRevision(db);
-    const { initiated, dispatched } = await acceptAdminDirectSend(db, revision.id);
+    const { initiated, dispatched, providerMessageId } = await acceptAdminDirectSend(db, revision.id);
 
     const first = await materializeAcceptedOutboundSend(db, initiated.id);
     const second = await materializeAcceptedOutboundSend(db, initiated.id);
@@ -729,9 +735,10 @@ describe("sent message materialization integration", () => {
       row.subject.includes("Send subject"),
     );
     assert.equal(fixtureMessages.length, 1);
-    assert.equal(first.message.internetMessageId, dispatched.rfcIdentity?.rfcMessageId);
+    assert.equal(first.message.internetMessageId, providerMessageId);
+    assert.equal(first.materialization.wireInternetMessageId, providerMessageId);
     assert.equal(
-      first.materialization.wireInternetMessageId,
+      first.materialization.rfcMessageId,
       dispatched.rfcIdentity?.rfcMessageId,
     );
   });

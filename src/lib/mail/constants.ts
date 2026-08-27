@@ -54,6 +54,7 @@ export const MAIL_AUDIT_ACTIONS = {
   sendAccepted: "mail.send.accepted",
   sendTemporaryFailure: "mail.send.temporary_failure",
   sendPermanentFailure: "mail.send.permanent_failure",
+  sendDispatchUncertain: "mail.send.dispatch_uncertain",
   sendRetryStarted: "mail.send.retry_started",
   sendPreflightBlocked: "mail.send.preflight_blocked",
   sendDispatchAuthorized: "mail.send.dispatch_authorized",
@@ -88,6 +89,8 @@ export const MAIL_ERROR_CODES = {
   STALE_VERSION: "STALE_VERSION",
   INTEGRITY_CONFLICT: "INTEGRITY_CONFLICT",
   RAW_PAYLOAD_NOT_AVAILABLE: "RAW_PAYLOAD_NOT_AVAILABLE",
+  AMBIGUOUS_PROVIDER_STATE_REQUIRES_REVIEW:
+    "AMBIGUOUS_PROVIDER_STATE_REQUIRES_REVIEW",
 } as const;
 
 export type MailErrorCode =

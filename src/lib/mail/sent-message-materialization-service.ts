@@ -63,6 +63,24 @@ function buildPreviewText(bodyText: string, subject: string): string {
   return `${source.slice(0, 197)}...`;
 }
 
+function assertWireInternetMessageIdForMaterialization(
+  wireInternetMessageId: string | null,
+): string {
+  const wire = wireInternetMessageId?.trim();
+  if (!wire) {
+    throw MailServiceError.integrityConflict(
+      "Accepted transport attempt missing provider message id for wire identity",
+    );
+  }
+  return wire;
+}
+
+function resolveWireInternetMessageIdFromAcceptedAttempt(
+  attempt: MailTransportAttempt,
+): string {
+  return assertWireInternetMessageIdForMaterialization(attempt.providerMessageId);
+}
+
 function assertWireIdentityConsistency(
   materialization: MailOutboundMessageMaterialization,
   message: MailMessage,
@@ -337,7 +355,7 @@ async function createMaterializationGraph(
     };
     threadingFields: {
       replyToMessageId: string | null;
-      internetMessageId: string;
+      internetMessageId: string | null;
       inReplyTo: string | null;
       referencesHeader: string | null;
     };
@@ -352,6 +370,9 @@ async function createMaterializationGraph(
   const auditId = crypto.randomUUID();
   const subjectNormalized = normalizeSubject(input.revision.subject);
   const { threadId } = input.threadPlan;
+  const wireInternetMessageId = assertWireInternetMessageIdForMaterialization(
+    input.threadingFields.internetMessageId,
+  );
 
   const postGuard: MaterializationPostStateGuard = {
     sendOperationId: input.send.id,
@@ -399,7 +420,7 @@ async function createMaterializationGraph(
         input.revision.subject,
       ),
       sensitivity: input.revision.sensitivity,
-      internetMessageId: input.threadingFields.internetMessageId,
+      internetMessageId: wireInternetMessageId,
       inReplyTo: input.threadingFields.inReplyTo,
       referencesHeader: input.threadingFields.referencesHeader,
       replyToMessageId: input.threadingFields.replyToMessageId,
@@ -454,7 +475,7 @@ async function createMaterializationGraph(
       id: materializationId,
       outboundRfcIdentityId: input.rfcIdentity.id,
       rfcMessageId: input.rfcIdentity.rfcMessageId,
-      wireInternetMessageId: input.threadingFields.internetMessageId,
+      wireInternetMessageId,
       mailMessageId: messageId,
       materializedAt,
     }),
@@ -618,6 +639,8 @@ export async function materializeAcceptedOutboundSend(
       : null,
     outboundRfcMessageId: rfcIdentity.rfcMessageId,
   });
+  const wireInternetMessageId =
+    resolveWireInternetMessageIdFromAcceptedAttempt(acceptedAttempt);
   const revisionRecipients: RecipientSemanticRow[] = recipients.map((row) => ({
     recipientType: row.recipientType,
     address: row.address,
@@ -646,7 +669,10 @@ export async function materializeAcceptedOutboundSend(
     acceptedAttempt,
     sentMailboxId,
     threadPlan,
-    threadingFields,
+    threadingFields: {
+      ...threadingFields,
+      internetMessageId: wireInternetMessageId,
+    },
   });
 }
 

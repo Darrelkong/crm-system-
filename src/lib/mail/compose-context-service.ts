@@ -1,7 +1,10 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
-import { resolveOutboundComposeMailboxId } from "@/lib/mail/compose-authorization";
+import {
+  hasMailboxSendAuthorization,
+  resolveOutboundComposeMailboxId,
+} from "@/lib/mail/compose-authorization";
 import { MailServiceError } from "@/lib/mail/errors";
 import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
 
@@ -69,19 +72,7 @@ export async function listComposeContextOptions(
       continue;
     }
 
-    const [membership] = await db
-      .select()
-      .from(schema.mailMailboxMembers)
-      .where(
-        and(
-          eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
-          eq(schema.mailMailboxMembers.userId, actor.userId),
-          eq(schema.mailMailboxMembers.canSend, 1),
-          isNull(schema.mailMailboxMembers.revokedAt),
-        ),
-      )
-      .limit(1);
-    if (!membership) {
+    if (!(await hasMailboxSendAuthorization(db, actor, mailbox))) {
       continue;
     }
 

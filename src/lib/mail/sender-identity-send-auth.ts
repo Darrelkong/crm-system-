@@ -15,10 +15,9 @@ export type SenderIdentitySendGrantContext = {
  * Proves: Mail-enabled actor holds an active exact Sender Identity grant with
  * can_send for an active Sender Identity.
  *
- * Does NOT prove the actor may complete an outbound send. Future outbound
- * services must implement a separate full check (e.g. assertCanSendFromIdentityInMailbox)
- * that also verifies relevant mail_mailbox_members.can_send for the selected mailbox
- * context, plus default/reply/shared mailbox semantics.
+ * Does NOT prove the actor may complete an outbound send. Full compose/send checks
+ * use assertCanComposeFromIdentityInMailbox, which also verifies mailbox send
+ * authorization: personal mailbox owner (`created_by`) OR shared membership can_send.
  *
  * super_admin does NOT bypass this helper.
  */

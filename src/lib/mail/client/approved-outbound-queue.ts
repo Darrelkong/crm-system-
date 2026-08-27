@@ -10,7 +10,7 @@ export type SendOperationApiItem = {
   authorizationMode: "staff_approved" | "admin_direct";
   approvalId: string | null;
   idempotencyKey: string;
-  status: "pending" | "processing" | "accepted" | "failed";
+  status: "pending" | "processing" | "accepted" | "failed" | "dispatch_uncertain";
   orchestrationVersion: number;
   initiatedByUserId: string | null;
   createdAt: string;
@@ -29,14 +29,16 @@ export type OutboundQueuePhase =
   | "ready_for_transport"
   | "processing"
   | "accepted"
-  | "failed";
+  | "failed"
+  | "dispatch_uncertain";
 
 export type ApprovedOutboundDisplayPhase =
   | "approved_only"
   | "waiting_to_send"
   | "sending"
   | "sent"
-  | "send_failed";
+  | "send_failed"
+  | "dispatch_uncertain";
 
 export type SendDeliveryLifecycleApiItem = {
   sendOperationId: string;
@@ -94,6 +96,9 @@ export function resolveOutboundQueuePhase(
   if (send.status === "accepted") {
     return "accepted";
   }
+  if (send.status === "dispatch_uncertain") {
+    return "dispatch_uncertain";
+  }
   return "failed";
 }
 
@@ -120,6 +125,9 @@ export function resolveApprovedOutboundDisplayPhase(input: {
   }
   if (input.send.status === "failed") {
     return "send_failed";
+  }
+  if (input.send.status === "dispatch_uncertain") {
+    return "dispatch_uncertain";
   }
 
   if (input.delivery?.lifecyclePhase === "delivered") {
@@ -150,6 +158,8 @@ export function resolveSendDeliveryLifecycleLabelKey(
       return "mail.compose.sentQueued";
     case "send_failed":
       return "mail.compose.sendFailedQueued";
+    case "dispatch_uncertain":
+      return "mail.compose.dispatchUncertainQueued";
     case "delivered":
       return "mail.compose.deliveredQueued";
     case "delivery_deferred":

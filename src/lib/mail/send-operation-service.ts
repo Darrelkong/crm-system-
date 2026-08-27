@@ -26,6 +26,7 @@ import {
 } from "@/lib/mail/guarded-batch";
 import { recomputeOutboundRevisionContentHash } from "@/lib/mail/outbound-revision-service";
 import { generateRfcMessageId } from "@/lib/mail/rfc-message-id";
+import { classifyThrownOutboundProviderDispatchError } from "@/lib/mail/outbound-provider-dispatch-classifier";
 import { isRfcReplyComposeMode } from "@/lib/mail/compose-mode-threading-semantics";
 import { resolveOutboundMessageThreadingFields } from "@/lib/mail/outbound-materialization-threading";
 import {
@@ -1069,6 +1070,75 @@ async function finalizeAttemptPermanentFailure(
   assertBatchUpdateChanged(results, 1, "Attempt finalize permanent — send stale");
 }
 
+async function finalizeAttemptAmbiguous(
+  db: Database,
+  actor: MailActorContext,
+  send: MailSendOperation,
+  attempt: MailTransportAttempt,
+  result: { errorCode?: string; errorMessage?: string },
+): Promise<void> {
+  const now = new Date().toISOString();
+  const expectedVersion = send.orchestrationVersion;
+  const postVersion = expectedVersion + 1;
+  const auditId = crypto.randomUUID();
+
+  const postGuard: SendPostStateGuard = {
+    sendOperationId: send.id,
+    outboundRevisionId: send.outboundRevisionId,
+    orchestrationVersion: postVersion,
+    status: "dispatch_uncertain",
+  };
+
+  const results = await runMailBatch(db, [
+    db
+      .update(schema.mailTransportAttempts)
+      .set({
+        state: "ambiguous",
+        completedAt: now,
+        providerRequestId: null,
+        providerMessageId: null,
+        errorCode: result.errorCode ?? null,
+        errorMessage: result.errorMessage ?? null,
+      })
+      .where(
+        and(
+          eq(schema.mailTransportAttempts.id, attempt.id),
+          eq(schema.mailTransportAttempts.state, "started"),
+          eq(schema.mailTransportAttempts.sendOperationId, send.id),
+        ),
+      ),
+    db
+      .update(schema.mailSendOperations)
+      .set({
+        status: "dispatch_uncertain",
+        completedAt: now,
+        orchestrationVersion: postVersion,
+        nextAttemptAt: null,
+      })
+      .where(
+        and(
+          eq(schema.mailSendOperations.id, send.id),
+          eq(schema.mailSendOperations.orchestrationVersion, expectedVersion),
+          eq(schema.mailSendOperations.status, "processing"),
+        ),
+      ),
+    buildSendPostStateGuardedAuditInsert(db, actor, postGuard, {
+      auditId,
+      now,
+      action: MAIL_AUDIT_ACTIONS.sendDispatchUncertain,
+      entityId: send.id,
+      metadata: {
+        transportAttemptId: attempt.id,
+        provider: attempt.provider,
+        errorCode: result.errorCode ?? null,
+      },
+    }),
+  ]);
+
+  assertBatchUpdateChanged(results, 0, "Attempt finalize ambiguous — attempt stale");
+  assertBatchUpdateChanged(results, 1, "Attempt finalize ambiguous — send stale");
+}
+
 /**
  * Internal provider dispatch orchestration — not exposed with fake adapter controls via HTTP.
  */
@@ -1094,7 +1164,7 @@ export async function dispatchSendOperation(
   if (send.orchestrationVersion !== input.expectedOrchestrationVersion) {
     throw MailServiceError.staleVersion("Send orchestration version mismatch");
   }
-  if (send.status === "accepted" || send.status === "failed") {
+  if (send.status === "accepted" || send.status === "failed" || send.status === "dispatch_uncertain") {
     throw MailServiceError.conflict(`Send operation is terminal (${send.status})`);
   }
 
@@ -1131,6 +1201,11 @@ export async function dispatchSendOperation(
         errorMessage: result.errorMessage,
         retryAfterAt: result.retryAfterAt,
       });
+    } else if (result.outcome === "ambiguous") {
+      await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, {
+        errorCode: result.errorCode,
+        errorMessage: result.errorMessage,
+      });
     } else {
       await finalizeAttemptPermanentFailure(db, actor, latestSend, attempt, {
         errorCode: result.errorCode,
@@ -1141,8 +1216,12 @@ export async function dispatchSendOperation(
     if (error instanceof MailServiceError) {
       throw error;
     }
-    // Adapter threw without explicit normalized outcome — ambiguous started attempt remains.
-    return getSendOperation(db, actor, send.id);
+    const latestSend = await findSendById(db, send.id);
+    if (!latestSend) {
+      throw MailServiceError.notFound("Send operation not found");
+    }
+    const classification = classifyThrownOutboundProviderDispatchError(error);
+    await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, classification);
   }
 
   return getSendOperation(db, actor, send.id);
@@ -1165,6 +1244,12 @@ export async function retrySendOperation(
   }
   if (send.orchestrationVersion !== input.expectedOrchestrationVersion) {
     throw MailServiceError.staleVersion("Send orchestration version mismatch");
+  }
+  if (send.status === "dispatch_uncertain") {
+    throw MailServiceError.ambiguousProviderState(
+      "Ambiguous provider state requires admin review before any resend",
+      { sendOperationId: send.id },
+    );
   }
   if (send.status !== "pending") {
     throw MailServiceError.conflict(
@@ -1266,6 +1351,7 @@ export const sendOperationTestHooks =
   process.env.CRM_ALLOW_TEST_DB_BIND === "1"
     ? {
         finalizeAttemptAccepted,
+        finalizeAttemptAmbiguous,
         claimDispatchAttempt,
         findSendById,
         loadStartedAttempt,

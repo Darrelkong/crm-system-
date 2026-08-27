@@ -71,6 +71,18 @@ export class MailServiceError extends Error {
       metadata,
     );
   }
+
+  static ambiguousProviderState(
+    message = "Ambiguous provider state requires admin review",
+    metadata?: Record<string, unknown>,
+  ) {
+    return new MailServiceError(
+      MAIL_ERROR_CODES.AMBIGUOUS_PROVIDER_STATE_REQUIRES_REVIEW,
+      message,
+      409,
+      metadata,
+    );
+  }
 }
 
 export function mailErrorResponse(error: unknown): Response {

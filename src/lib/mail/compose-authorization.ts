@@ -11,8 +11,79 @@ export type ComposeAuthorizationContext = {
   identity: MailSenderIdentity;
   grantId: string;
   mailbox: MailMailbox;
-  membership: MailMailboxMember;
+  /** Null when personal mailbox owner authorization applies (no membership row). */
+  membership: MailMailboxMember | null;
 };
+
+/**
+ * Personal mailbox ownership — `mail_mailboxes.created_by` for `mailbox_type = personal`.
+ * Read access uses the same rule in mail-read-mailbox-service; send uses this helper.
+ */
+export function isPersonalMailboxOwner(
+  mailbox: Pick<MailMailbox, "mailboxType" | "createdBy">,
+  actor: Pick<MailActorContext, "userId">,
+): boolean {
+  return (
+    mailbox.mailboxType === "personal" &&
+    mailbox.createdBy != null &&
+    mailbox.createdBy === actor.userId
+  );
+}
+
+async function findActiveMailboxSendMembership(
+  db: Database,
+  actor: MailActorContext,
+  mailboxId: string,
+): Promise<MailMailboxMember | null> {
+  const [membership] = await db
+    .select()
+    .from(schema.mailMailboxMembers)
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailboxId),
+        eq(schema.mailMailboxMembers.userId, actor.userId),
+        eq(schema.mailMailboxMembers.canSend, 1),
+        isNull(schema.mailMailboxMembers.revokedAt),
+      ),
+    )
+    .limit(1);
+  return membership ?? null;
+}
+
+/**
+ * Mailbox-layer send authorization.
+ *
+ * Personal mailbox: canonical owner (`created_by`) — no `mail_mailbox_members` row.
+ * Shared mailbox: active membership with `can_send = 1`.
+ */
+export async function assertMailboxSendAuthorization(
+  db: Database,
+  actor: MailActorContext,
+  mailbox: MailMailbox,
+): Promise<MailMailboxMember | null> {
+  if (isPersonalMailboxOwner(mailbox, actor)) {
+    return null;
+  }
+
+  const membership = await findActiveMailboxSendMembership(db, actor, mailbox.id);
+  if (!membership) {
+    throw MailServiceError.forbidden(
+      "Mailbox send membership required for this mailbox",
+    );
+  }
+  return membership;
+}
+
+export async function hasMailboxSendAuthorization(
+  db: Database,
+  actor: MailActorContext,
+  mailbox: MailMailbox,
+): Promise<boolean> {
+  if (isPersonalMailboxOwner(mailbox, actor)) {
+    return true;
+  }
+  return (await findActiveMailboxSendMembership(db, actor, mailbox.id)) != null;
+}
 
 /**
  * Resolves the outbound Compose mailbox for a Sender Identity.
@@ -40,7 +111,8 @@ export function resolveOutboundComposeMailboxId(
  *
  * Requires BOTH:
  * - active exact Sender Identity grant with can_send
- * - active mailbox membership with can_send for the selected mailbox
+ * - mailbox send authorization:
+ *     personal owner (`created_by`) OR shared membership with can_send
  *
  * Also validates Sender Identity ↔ Compose mailbox relationship (CASE A / CASE B above).
  */
@@ -69,23 +141,7 @@ export async function assertCanComposeFromIdentityInMailbox(
 
   assertSenderIdentityMailboxRelationship(identity, mailbox.id);
 
-  const [membership] = await db
-    .select()
-    .from(schema.mailMailboxMembers)
-    .where(
-      and(
-        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
-        eq(schema.mailMailboxMembers.userId, actor.userId),
-        eq(schema.mailMailboxMembers.canSend, 1),
-        isNull(schema.mailMailboxMembers.revokedAt),
-      ),
-    )
-    .limit(1);
-  if (!membership) {
-    throw MailServiceError.forbidden(
-      "Mailbox send membership required for this mailbox",
-    );
-  }
+  const membership = await assertMailboxSendAuthorization(db, actor, mailbox);
 
   return { identity, grantId, mailbox, membership };
 }

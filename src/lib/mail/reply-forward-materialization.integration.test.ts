@@ -455,6 +455,7 @@ async function setupMailboxWithIdentity(db: TestDb, suffix: string) {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address,
@@ -496,6 +497,10 @@ async function addForwardRecipient(
   });
 }
 
+function fixtureProviderMessageId(revisionId: string): string {
+  return `<provider-${revisionId}@test.echfronthk.com>`;
+}
+
 async function materializeSeededDraft(
   db: TestDb,
   draftId: string,
@@ -516,10 +521,11 @@ async function materializeSeededDraft(
     revisionId: revision.id,
     idempotencyKey: `${FIXTURE}-send-${revision.id}`,
   });
+  const providerMessageId = fixtureProviderMessageId(revision.id);
   const adapter = new FakeMailTransportAdapter().setBehavior({
     outcome: "accepted",
     providerRequestId: "req",
-    providerMessageId: "msg",
+    providerMessageId,
   });
   await dispatchSendOperation(db, approvalActor, {
     sendOperationId: initiated.id,
@@ -582,7 +588,10 @@ describe("reply forward materialization integration", () => {
       result.message.internetMessageId,
       result.materialization.wireInternetMessageId,
     );
-    assert.equal(result.message.internetMessageId, result.materialization.rfcMessageId);
+    assert.notEqual(
+      result.materialization.rfcMessageId,
+      result.materialization.wireInternetMessageId,
+    );
 
     const threads = await db
       .select()
@@ -637,6 +646,7 @@ describe("reply forward materialization integration", () => {
     const sourceMailbox = await createMailbox(db, adminActor, {
       address: sourceAddress,
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.staffA,
     });
     const now = new Date().toISOString();
     await db.insert(schema.mailMailboxMembers).values({
@@ -692,10 +702,11 @@ describe("reply forward materialization integration", () => {
       revisionId: revision.id,
       idempotencyKey: `${FIXTURE}-cross-${revision.id}`,
     });
+    const providerMessageId = fixtureProviderMessageId(revision.id);
     const adapter = new FakeMailTransportAdapter().setBehavior({
       outcome: "accepted",
       providerRequestId: "req",
-      providerMessageId: "msg",
+      providerMessageId,
     });
     await dispatchSendOperation(db, approvalActor, {
       sendOperationId: initiated.id,
@@ -740,10 +751,11 @@ describe("reply forward materialization integration", () => {
       revisionId: revision.id,
       idempotencyKey: `${FIXTURE}-orphan-${revision.id}`,
     });
+    const providerMessageId = fixtureProviderMessageId(revision.id);
     const adapter = new FakeMailTransportAdapter().setBehavior({
       outcome: "accepted",
       providerRequestId: "req",
-      providerMessageId: "msg",
+      providerMessageId,
     });
     await dispatchSendOperation(db, approvalActor, {
       sendOperationId: initiated.id,
@@ -819,10 +831,11 @@ describe("reply forward materialization integration", () => {
       revisionId: revision.id,
       idempotencyKey: `${FIXTURE}-idem-${revision.id}`,
     });
+    const providerMessageId = fixtureProviderMessageId(revision.id);
     const adapter = new FakeMailTransportAdapter().setBehavior({
       outcome: "accepted",
       providerRequestId: "req",
-      providerMessageId: "msg",
+      providerMessageId,
     });
     await dispatchSendOperation(db, approvalActor, {
       sendOperationId: initiated.id,
@@ -865,12 +878,12 @@ describe("transport threading serialization", () => {
       referencesHeader: "<source@example.com>",
     };
     const request = buildCloudflareEmailOutboundSendRequestForTest(submission);
-    assert.equal(request.headers?.["Message-ID"], "<outbound@example.com>");
+    assert.equal(request.headers?.["Message-ID"], undefined);
     assert.equal(request.headers?.["In-Reply-To"], "<source@example.com>");
     assert.equal(request.headers?.References, "<source@example.com>");
   });
 
-  it("forward submission emits Message-ID only", () => {
+  it("forward submission omits custom Message-ID and threading headers", () => {
     const submission = {
       sendOperationId: "send-2",
       transportAttemptId: "attempt-2",
@@ -890,7 +903,7 @@ describe("transport threading serialization", () => {
       referencesHeader: null,
     };
     const request = buildCloudflareEmailOutboundSendRequestForTest(submission);
-    assert.equal(request.headers?.["Message-ID"], "<fwd@example.com>");
+    assert.equal(request.headers?.["Message-ID"], undefined);
     assert.equal(request.headers?.["In-Reply-To"], undefined);
     assert.equal(request.headers?.References, undefined);
   });

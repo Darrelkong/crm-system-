@@ -19,7 +19,8 @@ export type OutboundThreadPlan = {
 
 export type OutboundMessageThreadingFields = {
   replyToMessageId: string | null;
-  internetMessageId: string;
+  /** Wire RFC Message-ID — set at materialization from provider acceptance, not CRM pre-generation. */
+  internetMessageId: string | null;
   inReplyTo: string | null;
   referencesHeader: string | null;
 };
@@ -165,7 +166,7 @@ export async function resolveOutboundMessageThreadingFields(
   if (!shouldEmitRfcReplyHeaders(input.composeMode) || !input.sourceMessageId) {
     return {
       replyToMessageId: canonicalReplyTo,
-      internetMessageId: input.outboundRfcMessageId,
+      internetMessageId: null,
       inReplyTo: null,
       referencesHeader: null,
     };
@@ -183,7 +184,7 @@ export async function resolveOutboundMessageThreadingFields(
 
   return {
     replyToMessageId: canonicalReplyTo,
-    internetMessageId: input.outboundRfcMessageId,
+    internetMessageId: null,
     inReplyTo,
     referencesHeader,
   };

@@ -295,6 +295,7 @@ const zhHans: Messages = {
       deliveryBounced: "投递退信",
       deliveryComplaint: "收件方投诉",
       sendFailedQueued: "发送失败 — 等待重试或处理",
+      dispatchUncertainQueued: "发送状态待确认",
       validation: {
         fromRequired: "请选择已授权的发件地址",
         fromUnauthorized: "所选发件地址未授权",

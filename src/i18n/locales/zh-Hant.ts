@@ -295,6 +295,7 @@ const zhHant: Messages = {
       deliveryBounced: "投遞退信",
       deliveryComplaint: "收件方投訴",
       sendFailedQueued: "發送失敗 — 等待重試或處理",
+      dispatchUncertainQueued: "發送狀態待確認",
       validation: {
         fromRequired: "請選擇已授權的寄件地址",
         fromUnauthorized: "所選寄件地址未授權",

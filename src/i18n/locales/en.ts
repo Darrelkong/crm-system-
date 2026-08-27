@@ -308,6 +308,7 @@ const en = {
       deliveryBounced: "Delivery bounced",
       deliveryComplaint: "Recipient reported complaint",
       sendFailedQueued: "Send failed — awaiting retry or review",
+      dispatchUncertainQueued: "Send status pending confirmation",
       validation: {
         fromRequired: "Select an authorized From address",
         fromUnauthorized: "Selected From address is not authorized",

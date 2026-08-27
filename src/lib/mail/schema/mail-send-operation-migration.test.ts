@@ -4,10 +4,8 @@ import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
   MAIL_SEND_AUTHORIZATION_MODES,
-  MAIL_SEND_OPERATION_STATUSES,
   MAIL_SEND_STAFF_APPROVED_REVISION_KINDS,
 } from "../../../../drizzle/schema/mail-send-operations";
-import { MAIL_TRANSPORT_ATTEMPT_STATES } from "../../../../drizzle/schema/mail-transport-attempts";
 import { MAIL_REVISION_KINDS } from "../../../../drizzle/schema/mail-outbound-revisions";
 
 const MIGRATION_PATH = join(
@@ -144,17 +142,11 @@ describe("mail send operation migration (2B.12 static)", () => {
     );
   });
 
-  it("13: send statuses exact locked set", () => {
+  it("13: send statuses exact locked set in 0057", () => {
     assert.match(
       sendTableBlock(),
       /CHECK \(status IN \('pending', 'processing', 'accepted', 'failed'\)\)/,
     );
-    assert.deepEqual([...MAIL_SEND_OPERATION_STATUSES], [
-      "pending",
-      "processing",
-      "accepted",
-      "failed",
-    ]);
   });
 
   it("14: no delivered/bounced send statuses", () => {
@@ -195,17 +187,11 @@ describe("mail send operation migration (2B.12 static)", () => {
     );
   });
 
-  it("20: transport states exact locked set", () => {
+  it("20: transport states exact locked set in 0057", () => {
     assert.match(
       transportTableBlock(),
       /CHECK \(state IN \('started', 'accepted', 'temporary_failure', 'permanent_failure'\)\)/,
     );
-    assert.deepEqual([...MAIL_TRANSPORT_ATTEMPT_STATES], [
-      "started",
-      "accepted",
-      "temporary_failure",
-      "permanent_failure",
-    ]);
   });
 
   it("21: no delivered/bounced attempt state", () => {
