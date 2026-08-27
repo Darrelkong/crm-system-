@@ -27,6 +27,10 @@
     {
       "name": "EMAIL",
       "allowed_sender_addresses": ["notifications@send.echfronthk.com"]
+    },
+    {
+      "name": "BUSINESS_EMAIL",
+      "allowed_sender_addresses": ["daniel.hayes@echfronthk.com"]
     }
   ],
   "vars": {
