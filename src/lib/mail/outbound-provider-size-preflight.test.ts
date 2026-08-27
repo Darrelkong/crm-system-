@@ -43,7 +43,6 @@ describe("outbound provider size preflight", () => {
           sizeBytes,
           filename: "big.bin",
           mimeType: "application/octet-stream",
-          deliveryMode: "direct_attachment",
         },
       ],
     });
@@ -85,7 +84,6 @@ describe("outbound provider size preflight", () => {
           sizeBytes: 1_200_000,
           filename: "big.bin",
           mimeType: "application/octet-stream",
-          deliveryMode: "direct_attachment",
         },
       ],
     });
@@ -110,7 +108,6 @@ describe("outbound provider size preflight", () => {
           sizeBytes: 1_200_000,
           filename: "big.bin",
           mimeType: "application/octet-stream",
-          deliveryMode: "direct_attachment",
         },
       ],
     });

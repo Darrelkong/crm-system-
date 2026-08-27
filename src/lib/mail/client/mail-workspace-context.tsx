@@ -184,6 +184,19 @@ export function shouldApplyMessagesResponse(input: {
   );
 }
 
+/** Maps workspace folder to a production message folder for mailbox switch loads. */
+export function resolveMailboxMessageLoadFolder(
+  folder: MailWorkspaceFolder,
+): MailReadFolder | null {
+  if (folder === "pending_approval") {
+    return null;
+  }
+  if (folder === "drafts") {
+    return "inbox";
+  }
+  return folder;
+}
+
 export type MailWorkspaceRuntime = {
   subscribe: (listener: () => void) => () => void;
   getSnapshot: () => MailWorkspaceContextValue;
@@ -417,8 +430,20 @@ export function createMailWorkspaceRuntime(
   }
 
   async function selectMailbox(mailboxId: string) {
-    const folder =
-      state.selectedFolder === "drafts" ? "inbox" : state.selectedFolder;
+    const folder = resolveMailboxMessageLoadFolder(state.selectedFolder);
+    if (folder === null) {
+      setState({
+        selectedMailboxId: mailboxId,
+        messages: [],
+        drafts: [],
+        nextCursor: null,
+        selectedMessageId: null,
+        selectedMessage: null,
+        isLoadingMessages: false,
+        error: null,
+      });
+      return;
+    }
     await loadMessages({
       mailboxId,
       folder,

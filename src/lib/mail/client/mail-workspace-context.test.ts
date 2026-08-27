@@ -12,6 +12,7 @@ import {
   createMailWorkspaceRuntime,
   INITIAL_MAIL_WORKSPACE_STATE,
   mergeMessagePage,
+  resolveMailboxMessageLoadFolder,
   type MailWorkspaceApi,
 } from "@/lib/mail/client/mail-workspace-context";
 
@@ -160,6 +161,14 @@ function createApiMock(overrides: Partial<MailWorkspaceApi> = {}): {
 }
 
 describe("mail workspace helpers", () => {
+  it("maps mailbox switch folders to production message folders only", () => {
+    assert.equal(resolveMailboxMessageLoadFolder("inbox"), "inbox");
+    assert.equal(resolveMailboxMessageLoadFolder("sent"), "sent");
+    assert.equal(resolveMailboxMessageLoadFolder("trash"), "trash");
+    assert.equal(resolveMailboxMessageLoadFolder("drafts"), "inbox");
+    assert.equal(resolveMailboxMessageLoadFolder("pending_approval"), null);
+  });
+
   it("merges paginated message pages without duplicates", () => {
     const first = [listItemFixture({ id: "message-1" })];
     const second = {
@@ -466,6 +475,45 @@ describe("mail workspace runtime", () => {
     assert.equal(snapshot.selectedFolder, "drafts");
     assert.equal(snapshot.drafts.length, 1);
     assert.equal(snapshot.drafts[0]?.id, "draft-1");
+    assert.equal(calls.messages.length, messageCallsBefore);
+  });
+
+  it("selectFolder pending_approval clears message state without message API calls", async () => {
+    const { api, calls } = createApiMock();
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectMessage("message-1");
+    const messageCallsBefore = calls.messages.length;
+    await runtime.getSnapshot().selectFolder("pending_approval");
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.selectedFolder, "pending_approval");
+    assert.equal(snapshot.messages.length, 0);
+    assert.equal(snapshot.drafts.length, 0);
+    assert.equal(snapshot.selectedMessageId, null);
+    assert.equal(snapshot.selectedMessage, null);
+    assert.equal(snapshot.isLoadingMessages, false);
+    assert.equal(calls.messages.length, messageCallsBefore);
+  });
+
+  it("selectMailbox while on pending_approval updates mailbox without message API calls", async () => {
+    const { api, calls } = createApiMock();
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectFolder("pending_approval");
+    const messageCallsBefore = calls.messages.length;
+    await runtime.getSnapshot().selectMailbox("mailbox-2");
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.selectedMailboxId, "mailbox-2");
+    assert.equal(snapshot.selectedFolder, "pending_approval");
+    assert.equal(snapshot.messages.length, 0);
     assert.equal(calls.messages.length, messageCallsBefore);
   });
 });

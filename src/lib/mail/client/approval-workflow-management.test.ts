@@ -69,6 +69,7 @@ function revision(
         sortOrder: 0,
       },
     ],
+    attachments: [],
     ...overrides,
   };
 }
