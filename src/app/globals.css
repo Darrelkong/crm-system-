@@ -2412,6 +2412,34 @@ tbody.crm-divide-y.divide-y > tr:not(:last-child) {
   transition: background-color 200ms ease-out, color 200ms ease-out;
 }
 
+.sidebar-edge-handle {
+  cursor: pointer;
+}
+
+.sidebar-edge-handle:focus-visible {
+  outline: 2px solid var(--color-crm-primary);
+  outline-offset: 2px;
+}
+
+.dashboard-shell {
+  --dashboard-header-offset: calc(env(safe-area-inset-top, 0px) + 3.5rem);
+}
+
+@media (min-width: 1024px) {
+  .dashboard-shell {
+    --dashboard-header-offset: calc(env(safe-area-inset-top, 0px) + 3.75rem);
+  }
+}
+
+.dashboard-unified-header {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dashboard-sidebar {
+  top: var(--dashboard-header-offset, 3.5rem);
+}
+
 @media (hover: hover) {
   .sidebar-icon-btn:hover {
     background: var(--color-crm-primary-soft);

@@ -1064,7 +1064,7 @@ const en = {
     adminControlCenter: "Administrator Global Control Center",
   },
   brand: {
-    crmName: "ECHFRONT CRM",
+    crmName: "ECHFRONTHK CRM",
     portalSubtitle: "Secure Client Management Portal",
     dashboardSubtitle: "ECHFRONT CRM · Global Service Dashboard",
   },
