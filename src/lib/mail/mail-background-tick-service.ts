@@ -50,6 +50,7 @@ import {
   processOutboundSentMaterializationItem,
 } from "@/lib/mail/outbound-sent-materialization-background-service";
 import { resolveMailOutboundTransportMode } from "@/lib/mail/outbound-transport-constants";
+import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
 
 /**
  * FakeNotificationTransportAdapter is test/local only.
