@@ -36,6 +36,6 @@
   "vars": {
     "MAIL_NOTIFICATION_TRANSPORT_ENABLED": "false",
     "MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "production",
-    "MAIL_OUTBOUND_TRANSPORT_MODE": "disabled"
+    "MAIL_OUTBOUND_TRANSPORT_MODE": "production"
   }
 }
