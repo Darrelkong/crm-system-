@@ -1,6 +1,6 @@
-import { Manrope } from "next/font/google";
+import { Plus_Jakarta_Sans } from "next/font/google";
 
-export const brandWordmarkFont = Manrope({
+export const brandWordmarkFont = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["600"],
   display: "swap",

@@ -1023,7 +1023,7 @@ const zhHans: Messages = {
     adminControlCenter: "管理员全局控制中心",
   },
   brand: {
-    crmName: "ECHFRONTHK CRM",
+    crmName: "ECHFRONT CRM",
     portalSubtitle: "Secure Client Management Portal",
     dashboardSubtitle: "ECHFRONT CRM · Global Service Dashboard",
   },

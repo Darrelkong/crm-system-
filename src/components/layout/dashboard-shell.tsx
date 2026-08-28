@@ -60,53 +60,52 @@ export function DashboardShell({
         <div className="flex w-full items-center py-2 lg:py-2.5">
           <div
             className={cn(
-              "flex shrink-0 items-center gap-2.5 px-3 transition-[width] duration-200 ease-out",
+              "flex shrink-0 items-center transition-[width] duration-200 ease-out",
               brandZoneWidth,
-              sidebarCollapsed ? "justify-center px-0" : "",
+              sidebarCollapsed
+                ? "justify-center gap-0 px-0"
+                : "gap-2.5 px-3",
             )}
           >
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center">
-              <img
-                src="/brand/echfront-crm-logo.png"
-                alt=""
-                width={40}
-                height={40}
-                className="h-10 w-10 object-contain"
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-visible">
+              <span
+                className="dashboard-brand-logo-mark"
+                role="img"
+                aria-label=""
               />
             </div>
             {!sidebarCollapsed && (
               <p
                 className={cn(
-                  "min-w-0 truncate text-[22px] font-semibold leading-none tracking-[-0.015em] crm-text",
+                  "min-w-0 flex-1 truncate text-[20px] font-semibold leading-none tracking-[-0.015em] crm-text",
                   brandWordmarkFont.className,
                 )}
               >
                 {t("brand.crmName")}
               </p>
             )}
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className="sidebar-edge-handle sidebar-icon-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-md"
+              aria-label={
+                sidebarCollapsed
+                  ? t("nav.expandSidebar")
+                  : t("nav.collapseSidebar")
+              }
+              title={
+                sidebarCollapsed
+                  ? t("nav.expandSidebar")
+                  : t("nav.collapseSidebar")
+              }
+            >
+              {sidebarCollapsed ? (
+                <ChevronRight className="h-3.5 w-3.5" aria-hidden />
+              ) : (
+                <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
+              )}
+            </button>
           </div>
-
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            className="sidebar-edge-handle sidebar-icon-btn mx-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md sm:mx-1.5"
-            aria-label={
-              sidebarCollapsed
-                ? t("nav.expandSidebar")
-                : t("nav.collapseSidebar")
-            }
-            title={
-              sidebarCollapsed
-                ? t("nav.expandSidebar")
-                : t("nav.collapseSidebar")
-            }
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="h-3.5 w-3.5" aria-hidden />
-            ) : (
-              <ChevronLeft className="h-3.5 w-3.5" aria-hidden />
-            )}
-          </button>
 
           <div className="flex min-w-0 flex-1 items-center justify-between gap-3 px-4 sm:gap-4 sm:px-6">
             <h1 className="page-title min-w-0 flex-1 truncate text-lg sm:text-xl">
