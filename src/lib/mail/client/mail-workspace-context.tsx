@@ -28,6 +28,10 @@ import type {
   MailWorkspaceFolder,
   UpdateMessageReadStateInput,
 } from "@/lib/mail/client/mail-read-types";
+import { resolveEffectiveMailboxId } from "@/lib/mail/client/mail-workspace-mailbox-selection";
+
+export { resolveEffectiveMailboxId } from "@/lib/mail/client/mail-workspace-mailbox-selection";
+export type { ResolveEffectiveMailboxIdInput } from "@/lib/mail/client/mail-workspace-mailbox-selection";
 
 export type MailWorkspaceApi = {
   fetchAccessibleMailboxes: () => Promise<AccessibleMailboxView[]>;
@@ -243,11 +247,45 @@ export function createMailWorkspaceRuntime(
 
   const getSnapshot = (): MailWorkspaceContextValue => snapshot;
 
+  function resolveActiveMailboxId(): string | null {
+    return resolveEffectiveMailboxId({
+      selectedMailboxId: state.selectedMailboxId,
+      mailboxes: state.mailboxes,
+    });
+  }
+
+  async function ensureSoleMailboxInitialLoad(mailboxes: AccessibleMailboxView[]) {
+    if (mailboxes.length !== 1) {
+      return;
+    }
+
+    const mailboxId = resolveEffectiveMailboxId({
+      selectedMailboxId: state.selectedMailboxId,
+      mailboxes,
+    });
+    if (!mailboxId) {
+      return;
+    }
+
+    const messageFolder = resolveMailboxMessageLoadFolder(state.selectedFolder);
+    if (messageFolder === null) {
+      setState({ selectedMailboxId: mailboxId });
+      return;
+    }
+
+    await loadMessages({
+      mailboxId,
+      folder: messageFolder,
+      reset: true,
+    });
+  }
+
   async function loadMailboxes() {
     setState({ isLoadingMailboxes: true, error: null });
     try {
       const mailboxes = await api.fetchAccessibleMailboxes();
       setState({ mailboxes, isLoadingMailboxes: false, error: null });
+      await ensureSoleMailboxInitialLoad(mailboxes);
     } catch (error) {
       setState({
         isLoadingMailboxes: false,
@@ -325,10 +363,11 @@ export function createMailWorkspaceRuntime(
   }
 
   async function loadMoreMessages() {
+    const mailboxId = resolveActiveMailboxId();
     if (
       state.selectedFolder === "drafts" ||
       state.selectedFolder === "pending_approval" ||
-      !state.selectedMailboxId ||
+      !mailboxId ||
       !state.nextCursor ||
       state.isLoadingMessages
     ) {
@@ -337,7 +376,7 @@ export function createMailWorkspaceRuntime(
 
     const requestSequence = ++messagesRequestSequence;
     const request: MessagesRequestContext = {
-      mailboxId: state.selectedMailboxId,
+      mailboxId,
       folder: state.selectedFolder,
     };
     const cursor = state.nextCursor;
@@ -387,6 +426,7 @@ export function createMailWorkspaceRuntime(
   }
 
   async function loadDrafts() {
+    const mailboxId = resolveActiveMailboxId();
     const requestSequence = ++draftsRequestSequence;
     setState({
       isLoadingMessages: true,
@@ -396,13 +436,12 @@ export function createMailWorkspaceRuntime(
       nextCursor: null,
       selectedMessageId: null,
       selectedMessage: null,
+      ...(mailboxId ? { selectedMailboxId: mailboxId } : {}),
     });
 
     try {
       const items = await api.fetchDrafts(
-        state.selectedMailboxId
-          ? { mailboxId: state.selectedMailboxId }
-          : undefined,
+        mailboxId ? { mailboxId } : undefined,
       );
       if (requestSequence !== draftsRequestSequence) {
         return;
@@ -469,11 +508,12 @@ export function createMailWorkspaceRuntime(
       });
       return;
     }
-    if (!state.selectedMailboxId) {
+    const mailboxId = resolveActiveMailboxId();
+    if (!mailboxId) {
       return;
     }
     await loadMessages({
-      mailboxId: state.selectedMailboxId,
+      mailboxId,
       folder,
       reset: true,
     });
@@ -529,11 +569,12 @@ export function createMailWorkspaceRuntime(
       await loadDrafts();
       return;
     }
-    if (!state.selectedMailboxId) {
+    const mailboxId = resolveActiveMailboxId();
+    if (!mailboxId) {
       return;
     }
     await loadMessages({
-      mailboxId: state.selectedMailboxId,
+      mailboxId,
       folder: state.selectedFolder,
       reset: true,
     });

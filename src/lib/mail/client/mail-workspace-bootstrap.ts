@@ -3,6 +3,7 @@ import type {
   MailReadFolder,
   MailWorkspaceFolder,
 } from "@/lib/mail/client/mail-read-types";
+import { resolveEffectiveMailboxId } from "@/lib/mail/client/mail-workspace-mailbox-selection";
 
 export const PRODUCTION_BOOTSTRAP_INITIAL_FOLDER: MailReadFolder = "inbox";
 
@@ -31,7 +32,12 @@ export function resolveInitialProductionMailbox(
   if (selectedMailboxId) {
     return selectedMailboxId;
   }
-  return mailboxes[0]?.id ?? null;
+
+  return resolveEffectiveMailboxId({
+    selectedMailboxId: null,
+    mailboxes,
+    bootstrapFallbackToFirst: true,
+  });
 }
 
 export function nextProductionBootstrapCommand(
@@ -59,6 +65,10 @@ export function nextProductionBootstrapCommand(
   );
 
   if (!mailboxId) {
+    return { type: "none" };
+  }
+
+  if (snapshot.selectedMailboxId === mailboxId) {
     return { type: "none" };
   }
 

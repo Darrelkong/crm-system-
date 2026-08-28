@@ -118,6 +118,19 @@ describe("production workspace bootstrap", () => {
     );
   });
 
+  it("skips bootstrap inbox fetch when workspace already selected the mailbox", () => {
+    assert.deepEqual(
+      nextProductionBootstrapCommand(
+        snapshot({
+          mailboxesFetchStarted: true,
+          mailboxes: [mailbox("mailbox-a")],
+          selectedMailboxId: "mailbox-a",
+        }),
+      ),
+      { type: "none" },
+    );
+  });
+
   it("avoids duplicate logical loads while fetches are in flight", () => {
     assert.deepEqual(
       nextProductionBootstrapCommand(
