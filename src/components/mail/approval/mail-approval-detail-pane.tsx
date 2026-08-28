@@ -12,10 +12,18 @@ import {
   useOptionalMailApprovalWorkspace,
 } from "@/lib/mail/client/mail-approval-workspace-context";
 import {
+  buildOutboundRevisionAttachmentDownloadHref,
+  formatAttachmentMimeLabel,
+  isAttachmentBlockingApprovalReview,
+} from "@/lib/mail/client/mail-approval-review-readiness";
+import {
+  formatApprovalRequesterLabel,
   formatRevisionRecipientsLabel,
   formatRevisionSenderLabel,
   isRejectReasonValid,
+  type OutboundRevisionApiItem,
 } from "@/lib/mail/client/approval-workflow-management";
+import { formatAttachmentSize } from "@/lib/mail/client/draft-management";
 import { postApprovalApprove, postApprovalReturn } from "@/lib/mail/client/api";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
@@ -40,6 +48,71 @@ function RecipientChipGroup({
           </span>
         ))}
       </div>
+    </div>
+  );
+}
+
+function MailApprovalFrozenAttachmentSection({
+  revision,
+}: {
+  revision: OutboundRevisionApiItem;
+}) {
+  const { t } = useTranslation();
+  const attachments = revision.attachments;
+
+  if (attachments.length === 0) {
+    return null;
+  }
+
+  return (
+    <div className="space-y-3 border-b crm-border py-5">
+      <p className="text-xs font-medium uppercase tracking-wide crm-text-secondary">
+        {t("mail.detail.attachments")}
+      </p>
+      <ul className="mail-attachment-list divide-y crm-border rounded-lg border crm-border">
+        {attachments.map((attachment) => (
+          <li
+            key={attachment.id}
+            className="mail-attachment-row flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+          >
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium crm-text">
+                {attachment.displayFilename}
+              </p>
+              <p className="mt-0.5 text-xs crm-text-secondary">
+                <span>{formatAttachmentSize(attachment.sizeBytes)}</span>
+                <span className="mx-1.5">·</span>
+                <span className="font-medium crm-text">
+                  {formatAttachmentMimeLabel(attachment.mimeType)}
+                </span>
+                {attachment.deliveryMode === "secure_file"
+                  ? ` · ${t("mail.attachment.secureFile")}`
+                  : null}
+              </p>
+            </div>
+            <div className="shrink-0">
+              {attachment.downloadAvailable ? (
+                <a
+                  href={buildOutboundRevisionAttachmentDownloadHref(
+                    revision.id,
+                    attachment.id,
+                  )}
+                  className={cn(
+                    "secondary-button inline-flex min-h-9 items-center justify-center rounded-xl px-3 py-1.5 text-sm font-medium transition-all duration-200 ease-out",
+                  )}
+                  aria-label={`${t("common.download")} ${attachment.displayFilename}`}
+                >
+                  {t("common.download")}
+                </a>
+              ) : (
+                <span className="text-xs crm-text-secondary">
+                  {t("mail.attachment.downloadUnavailable")}
+                </span>
+              )}
+            </div>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -134,6 +207,11 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
     attachmentsLoadState,
     attachmentsLoadError,
   });
+  const attachmentReviewBlocked = isAttachmentBlockingApprovalReview({
+    detail,
+    attachmentsLoadState,
+    attachmentsLoadError,
+  });
   const showActions = canReview && approval.status === "pending";
 
   async function handleApprove() {
@@ -151,7 +229,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
   }
 
   async function handleReject() {
-    if (!reviewReady || actionPending || !isRejectReasonValid(rejectReason)) return;
+    if (actionPending || !isRejectReasonValid(rejectReason)) return;
     setActionPending(true);
     setActionError(null);
     const result = await postApprovalReturn(approval.id, {
@@ -177,7 +255,8 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
             <div className="flex flex-wrap items-center gap-2">
               <MailApprovalStatusBadge status={approval.status} />
               <span className="text-sm crm-text-secondary">
-                {t("mail.approval.requester")}: {detail.requesterLabel}
+                {t("mail.approval.requester")}:{" "}
+                {formatApprovalRequesterLabel(detail.requesterLabel, t)}
               </span>
               <span className="text-sm crm-text-secondary">·</span>
               <span className="text-sm crm-text-secondary">
@@ -212,7 +291,12 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
             </div>
           </div>
 
-          <div className="py-5">
+          <MailApprovalFrozenAttachmentSection revision={revision} />
+
+          <div className="space-y-3 border-b crm-border py-5">
+            <p className="text-xs font-medium uppercase tracking-wide crm-text-secondary">
+              {t("mail.approval.body")}
+            </p>
             <div className="mail-reading-body text-sm leading-relaxed crm-text">
               {detail.editableBodyHtml.trim() ? (
                 <div dangerouslySetInnerHTML={{ __html: detail.editableBodyHtml }} />
@@ -264,7 +348,9 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
               <dl className="mt-3 space-y-2 text-xs crm-text-secondary">
                 <div>
                   <dt className="inline">{t("mail.approval.requester")}: </dt>
-                  <dd className="inline crm-text">{detail.requesterLabel}</dd>
+                  <dd className="inline crm-text">
+                    {formatApprovalRequesterLabel(detail.requesterLabel, t)}
+                  </dd>
                 </div>
                 <div>
                   <dt className="inline">{t("mail.approval.recipientsSummary")}: </dt>
@@ -283,7 +369,13 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
           {actionError ? (
             <p className="mb-2 text-sm text-red-600 dark:text-red-400">{actionError}</p>
           ) : null}
-          {!reviewReady ? (
+          {attachmentReviewBlocked ? (
+            <p className="mb-2 text-sm crm-text-secondary">
+              {attachmentsLoadError
+                ? t(attachmentsLoadError)
+                : t("mail.approval.attachmentReviewBlocked")}
+            </p>
+          ) : !reviewReady ? (
             <p className="mb-2 text-sm crm-text-secondary">
               {t("mail.approval.reviewNotReady")}
             </p>
@@ -327,7 +419,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
               <Button
                 type="button"
                 variant="danger"
-                disabled={!reviewReady || actionPending}
+                disabled={actionPending}
                 onClick={() => setRejecting(true)}
               >
                 {t("mail.adminCenter.approval.rejectAction")}

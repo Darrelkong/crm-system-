@@ -118,6 +118,47 @@ export function canReviewApprovals(
   return capabilities.approvalReviewManagement;
 }
 
+export const APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY =
+  "mail.approval.unknownRequester";
+
+export type ApprovalRequesterSessionUser = {
+  id: string;
+  email: string;
+  name: string;
+};
+
+export function enrichApprovalRequesterUsers(
+  users: MailAccessAdminUser[],
+  sessionUser?: ApprovalRequesterSessionUser | null,
+): MailAccessAdminUser[] {
+  if (!sessionUser?.id) {
+    return users;
+  }
+  if (users.some((user) => user.id === sessionUser.id)) {
+    return users;
+  }
+  return [
+    ...users,
+    {
+      id: sessionUser.id,
+      email: sessionUser.email,
+      name: sessionUser.name,
+      status: "active",
+    },
+  ];
+}
+
+export function buildApprovalRequesterUsersById(
+  users: MailAccessAdminUser[],
+  sessionUser?: ApprovalRequesterSessionUser | null,
+): Map<string, MailAccessAdminUser> {
+  return new Map(
+    enrichApprovalRequesterUsers(users, sessionUser).map(
+      (user) => [user.id, user] as const,
+    ),
+  );
+}
+
 export function resolveUserLabel(
   userId: string | null,
   usersById: Map<string, MailAccessAdminUser>,
@@ -130,6 +171,28 @@ export function resolveUserLabel(
     return userId;
   }
   return user.name || user.email;
+}
+
+export function resolveApprovalRequesterLabel(
+  userId: string,
+  usersById: Map<string, MailAccessAdminUser>,
+): string {
+  const user = usersById.get(userId);
+  if (!user) {
+    return APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY;
+  }
+  const label = user.name?.trim() || user.email?.trim();
+  return label || APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY;
+}
+
+export function formatApprovalRequesterLabel(
+  label: string,
+  translate: (key: string) => string,
+): string {
+  if (label === APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY) {
+    return translate(APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY);
+  }
+  return label;
 }
 
 export function formatRevisionSenderLabel(
@@ -192,7 +255,10 @@ export function buildApprovalWorkflowRows(
       recipientsLabel: formatRevisionRecipientsLabel(revision),
       subject: revision?.subject?.trim() || "—",
       submittedAt: approval.requestedAt,
-      submitterLabel: resolveUserLabel(approval.requestedByUserId, usersById),
+      submitterLabel: resolveApprovalRequesterLabel(
+        approval.requestedByUserId,
+        usersById,
+      ),
       approverLabel: resolveUserLabel(approval.resolvedByUserId, usersById),
       returnReason: resolveLatestReturnReason(events),
       events,

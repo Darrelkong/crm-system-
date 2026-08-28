@@ -1052,7 +1052,6 @@ export function MailPrototypeProvider({ children }: { children: ReactNode }) {
     }
     return {
       unread: 6,
-      pendingApproval: 2,
       returned: 1,
     };
   }, [hasMailAccess, isAdminScenario]);

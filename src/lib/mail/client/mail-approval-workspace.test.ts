@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { isApprovalDetailReadyForReview } from "@/lib/mail/client/mail-approval-workspace-context";
 import type { ApprovalDetailView } from "@/lib/mail/client/mail-approval-workspace-context";
+import { APPROVAL_ATTACHMENTS_METADATA_ERROR_KEY } from "@/lib/mail/client/mail-approval-review-readiness";
 
 function detail(
   overrides: Partial<ApprovalDetailView> = {},
@@ -98,6 +99,14 @@ describe("mail approval workspace review readiness", () => {
         detail: detail(),
         attachmentsLoadState: "loading",
         attachmentsLoadError: null,
+      }),
+      false,
+    );
+    assert.equal(
+      isApprovalDetailReadyForReview({
+        detail: detail(),
+        attachmentsLoadState: "error",
+        attachmentsLoadError: APPROVAL_ATTACHMENTS_METADATA_ERROR_KEY,
       }),
       false,
     );

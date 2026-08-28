@@ -5,7 +5,10 @@ import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { MailApprovalStatusBadge } from "@/components/mail/shared/mail-approval-status-badge";
 import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
-import type { ApprovalWorkflowRow } from "@/lib/mail/client/approval-workflow-management";
+import {
+  formatApprovalRequesterLabel,
+  type ApprovalWorkflowRow,
+} from "@/lib/mail/client/approval-workflow-management";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 function resolveComposeModeLabelKey(
@@ -48,7 +51,7 @@ function ApprovalQueueRow({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium crm-text">{row.subject}</p>
           <p className="mt-1 truncate text-xs crm-text-secondary">
-            {row.submitterLabel}
+            {formatApprovalRequesterLabel(row.submitterLabel, t)}
             {" · "}
             {row.recipientsLabel}
           </p>
@@ -89,6 +92,7 @@ export function MailApprovalList({
     listError,
     loadApprovals,
     selectApproval,
+    canReview,
   } = approvalWorkspace;
 
   return (
@@ -96,7 +100,9 @@ export function MailApprovalList({
       <div className="mail-list-toolbar shrink-0 border-b crm-border px-3 py-2">
         <div className="flex items-center justify-between gap-2">
           <p className="min-w-0 truncate text-xs font-medium crm-text-secondary">
-            {t("mail.approval.queueCount", { count: String(rows.length) })}
+            {canReview
+              ? t("mail.approval.queueCount", { count: String(rows.length) })
+              : t("mail.approval.authorQueueCount", { count: String(rows.length) })}
           </p>
           <button
             type="button"
@@ -119,7 +125,9 @@ export function MailApprovalList({
         ) : null}
         {!isLoadingList && !listError && rows.length === 0 ? (
           <p className="px-3 py-6 text-sm crm-text-secondary">
-            {t("mail.approval.queueEmpty")}
+            {canReview
+              ? t("mail.approval.queueEmpty")
+              : t("mail.approval.authorQueueEmpty")}
           </p>
         ) : null}
         {rows.map((row) => (

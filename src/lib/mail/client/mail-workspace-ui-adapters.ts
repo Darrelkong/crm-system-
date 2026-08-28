@@ -46,18 +46,46 @@ export const PRODUCTION_MAIL_READ_FOLDERS: readonly {
   { id: "trash", labelKey: "mail.folders.trash" },
 ];
 
-export const PRODUCTION_WORKFLOW_FOLDERS: readonly {
+export type ProductionWorkflowFolder = {
   id: "drafts" | "pending_approval";
   labelKey: string;
   reviewerOnly?: boolean;
-}[] = [
+};
+
+export const PRODUCTION_WORKFLOW_FOLDERS: readonly ProductionWorkflowFolder[] = [
   { id: "drafts", labelKey: "mail.folders.drafts" },
   {
     id: "pending_approval",
-    labelKey: "mail.folders.pendingApproval",
-    reviewerOnly: true,
+    labelKey: "mail.folders.waitingApproval",
   },
 ];
+
+export function resolveApprovalWorkspaceListScope(
+  canReview: boolean,
+): "reviewer" | "author" {
+  return canReview ? "reviewer" : "author";
+}
+
+export function filterVisibleWorkflowFolders(
+  canReview: boolean,
+): ProductionWorkflowFolder[] {
+  return PRODUCTION_WORKFLOW_FOLDERS.filter(
+    (folder) => !folder.reviewerOnly || canReview,
+  );
+}
+
+export function resolveWorkflowFolderLabelKey(
+  folderId: string,
+  canReview: boolean,
+): string {
+  if (folderId === "pending_approval") {
+    return canReview
+      ? "mail.folders.pendingMyApproval"
+      : "mail.folders.waitingApproval";
+  }
+  const folder = PRODUCTION_WORKFLOW_FOLDERS.find((item) => item.id === folderId);
+  return folder?.labelKey ?? "mail.folders.inbox";
+}
 
 const PRODUCTION_FOLDER_IDS = new Set<MailReadFolder>(["inbox", "sent", "trash"]);
 
@@ -67,13 +95,18 @@ export function isProductionWorkflowFolder(
   return folder === "drafts" || folder === "pending_approval";
 }
 
-export function resolveProductionFolderLabelKey(folder: string): string {
+export function resolveProductionFolderLabelKey(
+  folder: string,
+  canReview = false,
+): string {
   const readFolder = PRODUCTION_MAIL_READ_FOLDERS.find((item) => item.id === folder);
   if (readFolder) {
     return readFolder.labelKey;
   }
-  const workflowFolder = PRODUCTION_WORKFLOW_FOLDERS.find((item) => item.id === folder);
-  return workflowFolder?.labelKey ?? "mail.folders.inbox";
+  if (isProductionWorkflowFolder(folder)) {
+    return resolveWorkflowFolderLabelKey(folder, canReview);
+  }
+  return "mail.folders.inbox";
 }
 
 export function isProductionMailReadFolder(

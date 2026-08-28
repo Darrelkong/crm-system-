@@ -4,11 +4,15 @@ import { useEffect, useRef, type RefObject } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
+import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
+  filterVisibleWorkflowFolders,
   PRODUCTION_MAIL_READ_FOLDERS,
-  PRODUCTION_WORKFLOW_FOLDERS,
+  resolveWorkflowFolderLabelKey,
 } from "@/lib/mail/client/mail-workspace-ui-adapters";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { MAIL_FOLDER_DEFS } from "@/lib/mail/prototype/mail-folder-config";
@@ -71,6 +75,9 @@ export function MailFolderPopover({
   const panelRef = useRef<HTMLDivElement>(null);
   const isProduction = useIsProductionMailReadSource();
   const workspace = useOptionalMailWorkspace();
+  const { capabilities } = useMailSession();
+  const canReview = canReviewApprovals(capabilities);
+  const approvalWorkspace = useOptionalMailApprovalWorkspace();
   const {
     activeFolder,
     setActiveFolder,
@@ -192,18 +199,27 @@ export function MailFolderPopover({
                   }}
                 />
               ))}
-              {PRODUCTION_WORKFLOW_FOLDERS.map((folder) => (
-                <FolderMenuRow
-                  key={folder.id}
-                  label={t(folder.labelKey)}
-                  count={0}
-                  active={workspace.selectedFolder === folder.id}
-                  onSelect={() => {
-                    void workspace.selectFolder(folder.id);
-                    onClose();
-                  }}
-                />
-              ))}
+              {filterVisibleWorkflowFolders(canReview).map((folder) => {
+                const labelKey = resolveWorkflowFolderLabelKey(folder.id, canReview);
+                return (
+                  <FolderMenuRow
+                    key={folder.id}
+                    label={t(labelKey)}
+                    count={0}
+                    active={workspace.selectedFolder === folder.id}
+                    onSelect={() => {
+                      if (folder.id === "pending_approval") {
+                        void workspace.selectFolder("pending_approval");
+                        void approvalWorkspace?.loadApprovals();
+                        approvalWorkspace?.clearSelection();
+                      } else {
+                        void workspace.selectFolder(folder.id);
+                      }
+                      onClose();
+                    }}
+                  />
+                );
+              })}
             </ul>
           </div>
         </div>

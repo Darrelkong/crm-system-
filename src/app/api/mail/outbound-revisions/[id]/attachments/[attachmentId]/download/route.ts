@@ -9,6 +9,7 @@ import {
   R2MailAttachmentByteReader,
 } from "@/lib/mail/mail-attachment-byte-reader";
 import { buildMailAttachmentDownloadResponse } from "@/lib/mail/mail-attachment-download-response";
+import { recordOutboundRevisionAttachmentDownloaded } from "@/lib/mail/mail-attachment-download-audit";
 import { getAttachmentsBucket } from "@/lib/mail/attachments-env";
 import { MailServiceError, mailErrorResponse } from "@/lib/mail/errors";
 import { resolveDownloadableOutboundRevisionAttachment } from "@/lib/mail/outbound-revision-attachment-download-service";
@@ -33,6 +34,8 @@ export async function GET(request: Request, context: RouteContext) {
       downloadable.storageKey,
       downloadable.sizeBytes,
     );
+
+    await recordOutboundRevisionAttachmentDownloaded(db, actor, downloadable);
 
     return buildMailAttachmentDownloadResponse(bytes, downloadable);
   } catch (error) {

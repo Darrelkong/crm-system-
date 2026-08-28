@@ -3,6 +3,8 @@
 import { forwardRef, useRef } from "react";
 import { ChevronDown, Plus, Settings } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import { resolveProductionFolderLabelKey } from "@/lib/mail/client/mail-workspace-ui-adapters";
@@ -39,11 +41,13 @@ export const MailFolderActionRow = forwardRef<
   ref,
 ) {
   const { t } = useTranslation();
+  const { capabilities } = useMailSession();
+  const canReview = canReviewApprovals(capabilities);
   const isProduction = useIsProductionMailReadSource();
   const workspace = useOptionalMailWorkspace();
   const { activeFolder } = useMailPrototype();
   const folderName = isProduction && workspace
-    ? t(resolveProductionFolderLabelKey(workspace.selectedFolder))
+    ? t(resolveProductionFolderLabelKey(workspace.selectedFolder, canReview))
     : t(folderLabelKey(activeFolder));
   const internalSettingsRef = useRef<HTMLButtonElement>(null);
   const gearRef = settingsButtonRef ?? internalSettingsRef;

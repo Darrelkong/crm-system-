@@ -9,8 +9,10 @@ import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-sourc
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
   adaptAccessibleMailbox,
+  filterVisibleWorkflowFolders,
+  isProductionMailReadFolder,
   PRODUCTION_MAIL_READ_FOLDERS,
-  PRODUCTION_WORKFLOW_FOLDERS,
+  resolveWorkflowFolderLabelKey,
 } from "@/lib/mail/client/mail-workspace-ui-adapters";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { visibleMailFolders } from "@/lib/mail/prototype/mail-folder-config";
@@ -57,9 +59,12 @@ export function MailFolderNav({
     }: {
       folder:
         | (typeof PRODUCTION_MAIL_READ_FOLDERS)[number]
-        | (typeof PRODUCTION_WORKFLOW_FOLDERS)[number];
+        | ReturnType<typeof filterVisibleWorkflowFolders>[number];
     }) {
       const active = workspace!.selectedFolder === folder.id;
+      const labelKey = isProductionMailReadFolder(folder.id)
+        ? folder.labelKey
+        : resolveWorkflowFolderLabelKey(folder.id, canReview);
       return (
         <button
           type="button"
@@ -77,7 +82,7 @@ export function MailFolderNav({
             active ? "mail-nav-active" : "mail-nav-item",
           )}
         >
-          <span className="truncate">{t(folder.labelKey)}</span>
+          <span className="truncate">{t(labelKey)}</span>
         </button>
       );
     }
@@ -131,9 +136,7 @@ export function MailFolderNav({
             {PRODUCTION_MAIL_READ_FOLDERS.map((folder) => (
               <ProductionFolderButton key={folder.id} folder={folder} />
             ))}
-            {PRODUCTION_WORKFLOW_FOLDERS.filter(
-              (folder) => !folder.reviewerOnly || canReview,
-            ).map((folder) => (
+            {filterVisibleWorkflowFolders(canReview).map((folder) => (
               <ProductionFolderButton key={folder.id} folder={folder} />
             ))}
           </nav>

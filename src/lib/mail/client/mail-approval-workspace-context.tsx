@@ -17,15 +17,20 @@ import {
 } from "@/lib/mail/client/api";
 import {
   buildApprovalWorkflowRows,
+  buildApprovalRequesterUsersById,
   canReviewApprovals,
+  enrichApprovalRequesterUsers,
+  resolveApprovalRequesterLabel,
   type ApprovalApiItem,
   type ApprovalWorkflowRow,
   type OutboundRevisionApiItem,
 } from "@/lib/mail/client/approval-workflow-management";
+import { resolveApprovalWorkspaceListScope } from "@/lib/mail/client/mail-workspace-ui-adapters";
 import type { MailAccessAdminUser } from "@/lib/mail/client/mail-access-management";
 import { splitComposeBodyForEditor } from "@/lib/mail/client/compose-reply-body";
 import {
   isApprovalDetailReadyForReview,
+  resolveApprovalAttachmentsState,
   type ApprovalAttachmentsLoadState,
 } from "@/lib/mail/client/mail-approval-review-readiness";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
@@ -66,7 +71,6 @@ function buildDetailView(
   revision: OutboundRevisionApiItem,
   usersById: Map<string, MailAccessAdminUser>,
 ): ApprovalDetailView {
-  const requester = usersById.get(approval.requestedByUserId);
   const bodyHtml = revision.bodyHtmlSanitized ?? revision.bodyText;
   const split = splitComposeBodyForEditor({
     bodyHtml,
@@ -81,7 +85,10 @@ function buildDetailView(
   return {
     approval,
     revision,
-    requesterLabel: requester?.name || requester?.email || approval.requestedByUserId,
+    requesterLabel: resolveApprovalRequesterLabel(
+      approval.requestedByUserId,
+      usersById,
+    ),
     editableBodyHtml: split.editableHtml,
     quotedBodyHtml: split.quotedHtml,
   };
@@ -92,7 +99,7 @@ export function MailApprovalWorkspaceProvider({
 }: {
   children: ReactNode;
 }) {
-  const { capabilities } = useMailSession();
+  const { capabilities, session } = useMailSession();
   const canReview = canReviewApprovals(capabilities);
   const [rows, setRows] = useState<ApprovalWorkflowRow[]>([]);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(
@@ -103,15 +110,24 @@ export function MailApprovalWorkspaceProvider({
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
   const [listError, setListError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const usersByIdRef = useRef<Map<string, MailAccessAdminUser>>(new Map());
+  const [attachmentsLoadState, setAttachmentsLoadState] =
+    useState<ApprovalAttachmentsLoadState>("idle");
+  const [attachmentsLoadError, setAttachmentsLoadError] = useState<string | null>(
+    null,
+  );
+  const usersListRef = useRef<MailAccessAdminUser[]>([]);
   const detailRequestRef = useRef(0);
+  const sessionUser = session?.user ?? null;
 
   const loadApprovals = useCallback(async () => {
     setIsLoadingList(true);
     setListError(null);
     try {
       const [approvalsResult, usersResult] = await Promise.all([
-        fetchApprovals({ scope: "reviewer", status: "pending" }),
+        fetchApprovals({
+          scope: resolveApprovalWorkspaceListScope(canReview),
+          status: "pending",
+        }),
         fetchAdminUsersForMailAccess(),
       ]);
       if (!approvalsResult.ok) {
@@ -120,7 +136,8 @@ export function MailApprovalWorkspaceProvider({
         return;
       }
       const users = usersResult.ok ? usersResult.items : [];
-      usersByIdRef.current = new Map(users.map((user) => [user.id, user]));
+      const requesterUsers = enrichApprovalRequesterUsers(users, sessionUser);
+      usersListRef.current = requesterUsers;
       const revisionIds = [
         ...new Set(approvalsResult.items.map((item) => item.currentRevisionId)),
       ];
@@ -137,7 +154,7 @@ export function MailApprovalWorkspaceProvider({
         buildApprovalWorkflowRows(
           approvalsResult.items,
           revisionsById,
-          users,
+          requesterUsers,
         ),
       );
     } catch {
@@ -146,7 +163,7 @@ export function MailApprovalWorkspaceProvider({
     } finally {
       setIsLoadingList(false);
     }
-  }, []);
+  }, [canReview, sessionUser]);
 
   const selectApproval = useCallback(async (approvalId: string) => {
     const requestId = ++detailRequestRef.current;
@@ -154,11 +171,15 @@ export function MailApprovalWorkspaceProvider({
     setDetail(null);
     setIsLoadingDetail(true);
     setDetailError(null);
+    setAttachmentsLoadState("loading");
+    setAttachmentsLoadError(null);
     try {
       const approvalResult = await fetchApproval(approvalId);
       if (!approvalResult.ok) {
         if (requestId === detailRequestRef.current) {
           setDetailError(approvalResult.error);
+          setAttachmentsLoadState("idle");
+          setAttachmentsLoadError(null);
         }
         return;
       }
@@ -168,35 +189,44 @@ export function MailApprovalWorkspaceProvider({
       if (!revisionResult.ok) {
         if (requestId === detailRequestRef.current) {
           setDetailError(revisionResult.error);
+          setAttachmentsLoadState("error");
+          setAttachmentsLoadError(null);
         }
         return;
       }
       if (requestId !== detailRequestRef.current) {
         return;
       }
+      const attachmentState = resolveApprovalAttachmentsState(revisionResult.item);
+      setAttachmentsLoadState(attachmentState.state);
+      setAttachmentsLoadError(attachmentState.errorKey);
       setDetail(
         buildDetailView(
           approvalResult.item,
           revisionResult.item,
-          usersByIdRef.current,
+          buildApprovalRequesterUsersById(usersListRef.current, sessionUser),
         ),
       );
     } catch {
       if (requestId === detailRequestRef.current) {
         setDetailError("Failed to load approval detail");
+        setAttachmentsLoadState("error");
+        setAttachmentsLoadError(null);
       }
     } finally {
       if (requestId === detailRequestRef.current) {
         setIsLoadingDetail(false);
       }
     }
-  }, []);
+  }, [sessionUser]);
 
   const clearSelection = useCallback(() => {
     detailRequestRef.current += 1;
     setSelectedApprovalId(null);
     setDetail(null);
     setDetailError(null);
+    setAttachmentsLoadState("idle");
+    setAttachmentsLoadError(null);
     setIsLoadingDetail(false);
   }, []);
 
@@ -212,16 +242,10 @@ export function MailApprovalWorkspaceProvider({
       detail,
       isLoadingList,
       isLoadingDetail,
-      attachmentsLoadState: isLoadingDetail
-        ? "loading"
-        : detailError
-          ? "error"
-          : detail
-            ? "loaded"
-            : "idle",
+      attachmentsLoadState: isLoadingDetail ? "loading" : attachmentsLoadState,
       listError,
       detailError,
-      attachmentsLoadError: detailError,
+      attachmentsLoadError,
       canReview,
       loadApprovals,
       selectApproval,
@@ -236,6 +260,8 @@ export function MailApprovalWorkspaceProvider({
       isLoadingDetail,
       listError,
       detailError,
+      attachmentsLoadState,
+      attachmentsLoadError,
       canReview,
       loadApprovals,
       selectApproval,

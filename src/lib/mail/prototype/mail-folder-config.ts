@@ -12,7 +12,7 @@ export const MAIL_FOLDER_DEFS: MailFolderDef[] = [
   { id: "inbox", labelKey: "mail.folders.inbox", section: "mail" },
   { id: "pending", labelKey: "mail.folders.pending", section: "mail" },
   { id: "drafts", labelKey: "mail.folders.drafts", section: "mail" },
-  { id: "pending_approval", labelKey: "mail.folders.pendingApproval", section: "mail" },
+  { id: "pending_approval", labelKey: "mail.folders.waitingApproval", section: "mail" },
   { id: "returned", labelKey: "mail.folders.returned", section: "mail" },
   { id: "sent", labelKey: "mail.folders.sent", section: "mail" },
   { id: "trash", labelKey: "mail.folders.trash", section: "mail" },

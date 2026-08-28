@@ -8,6 +8,7 @@ import {
   formatRevisionRecipientsLabel,
   formatRevisionSenderLabel,
   isRejectReasonValid,
+  APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY,
   resolveApprovalWorkflowRowActions,
   resolveLatestReturnReason,
   type ApprovalApiItem,
@@ -98,6 +99,15 @@ describe("approval workflow row builders", () => {
     assert.equal(rows[0]?.recipientsLabel, "client@example.com");
     assert.equal(rows[0]?.subject, "Quarterly update");
     assert.equal(rows[0]?.submitterLabel, "Staff User");
+  });
+
+  it("uses unknown requester fallback instead of raw user id for missing users", () => {
+    const rows = buildApprovalWorkflowRows(
+      [approval({ requestedByUserId: "11111111-1111-1111-1111-111111111102" })],
+      new Map([[revision().id, revision()]]),
+      [],
+    );
+    assert.equal(rows[0]?.submitterLabel, APPROVAL_UNKNOWN_REQUESTER_LABEL_KEY);
   });
 
   it("extracts the latest return reason from approval events", () => {

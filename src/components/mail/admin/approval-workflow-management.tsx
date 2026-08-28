@@ -481,7 +481,11 @@ export function ApprovalWorkflowManagement() {
     <div className={MAIL_ADMIN_SECTION_CLASS}>
       <PageIntro
         title={t("mail.adminCenter.sections.approval")}
-        description={t("mail.adminCenter.descriptions.approval")}
+        description={
+          canReview
+            ? t("mail.adminCenter.descriptions.approval")
+            : t("mail.adminCenter.descriptions.approvalAuthor")
+        }
       />
 
       {actionMessage ? (

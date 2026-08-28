@@ -3,6 +3,7 @@ import type { Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import type { DownloadableMailAttachment } from "@/lib/mail/mail-attachment-download-service";
+import type { DownloadableOutboundRevisionAttachment } from "@/lib/mail/outbound-revision-attachment-download-service";
 
 /**
  * Emitted after authorization succeeds and R2 bytes are retrieved.
@@ -28,6 +29,38 @@ export async function recordMailAttachmentDownloaded(
         metadata: {
           messageId: attachment.messageId,
           mailboxId: attachment.mailboxId,
+        },
+      },
+      db,
+    );
+  } catch {
+    // Non-blocking by design — download authorization already succeeded.
+  }
+}
+
+/**
+ * Emitted after authorization succeeds and R2 bytes are retrieved.
+ * Audit persistence failure must not block the download response.
+ */
+export async function recordOutboundRevisionAttachmentDownloaded(
+  db: Database,
+  actor: MailActorContext,
+  attachment: Pick<
+    DownloadableOutboundRevisionAttachment,
+    "attachmentId" | "revisionId"
+  >,
+): Promise<void> {
+  try {
+    await writeAuditLog(
+      {
+        userId: actor.userId,
+        action: MAIL_AUDIT_ACTIONS.attachmentDownloaded,
+        entityType: "mail_outbound_revision_attachment",
+        entityId: attachment.attachmentId,
+        ipAddress: actor.audit.ipAddress ?? null,
+        userAgent: actor.audit.userAgent ?? null,
+        metadata: {
+          revisionId: attachment.revisionId,
         },
       },
       db,

@@ -216,6 +216,7 @@ const en = {
       pending: "Pending",
       drafts: "Drafts",
       pendingApproval: "Pending review",
+      waitingApproval: "Awaiting approval",
       returned: "Returned",
       sent: "Sent",
       trash: "Trash",
@@ -433,6 +434,8 @@ const en = {
         senderIdentity: "Configure outbound sender identities and grants.",
         signature: "Create and manage HTML signatures for sender identities.",
         approval: "Review staff outbound mail submissions and track approval status.",
+        approvalAuthor:
+          "Track your outbound mail submission status and reviewer outcomes.",
         mailbox: "Manage mailbox accounts and assignments.",
         sharedMailbox: "Manage shared mailbox membership and workspace permissions.",
         permission: "Assign mail admin grants to users.",
@@ -911,15 +914,23 @@ const en = {
     },
     approval: {
       queueCount: "{{count}} pending review(s)",
+      authorQueueCount: "{{count}} awaiting approval",
       queueEmpty: "No pending approvals in the queue",
+      authorQueueEmpty: "You have no submissions awaiting approval",
       selectItem: "Select an approval to review",
       detailUnavailable: "Approval detail is not available",
       requester: "Requester",
+      body: "Body",
+      unknownRequester: "User",
       composeType: "Compose type",
       metadata: "Audit details",
       recipientsSummary: "Recipients",
       reviewNotReady:
         "Approve and reject unlock after the full message detail is loaded.",
+      attachmentsMetadataError:
+        "Attachment metadata could not be loaded for this frozen revision.",
+      attachmentReviewBlocked:
+        "Attachments cannot be fully loaded or verified. Approval is temporarily unavailable.",
       composeMode: {
         new: "New message",
         reply: "Reply",
