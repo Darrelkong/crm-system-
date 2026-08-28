@@ -37,6 +37,78 @@ export type MailSidebarMailboxPresentation = {
   mailboxType: "personal" | "shared";
 };
 
+export type MailboxSidebarSectionLabelKey =
+  | "mail.sidebar.mailboxes"
+  | "mail.sidebar.sharedMailboxes";
+
+/** Desktop sidebar / mobile switcher rendering model derived from persisted mailboxType. */
+export type MailboxSidebarSections = {
+  showSection: boolean;
+  sectionLabelKey: MailboxSidebarSectionLabelKey | null;
+  personalMailboxes: MailSidebarMailboxPresentation[];
+  sharedMailboxes: MailSidebarMailboxPresentation[];
+};
+
+export function resolveMailboxSidebarSections(
+  mailboxes: readonly MailSidebarMailboxPresentation[],
+): MailboxSidebarSections {
+  const personalMailboxes = mailboxes.filter(
+    (mailbox) => mailbox.mailboxType === "personal",
+  );
+  const sharedMailboxes = mailboxes.filter(
+    (mailbox) => mailbox.mailboxType === "shared",
+  );
+  const personalCount = personalMailboxes.length;
+  const sharedCount = sharedMailboxes.length;
+
+  if (personalCount === 1 && sharedCount === 0) {
+    return {
+      showSection: false,
+      sectionLabelKey: null,
+      personalMailboxes,
+      sharedMailboxes,
+    };
+  }
+
+  if (personalCount === 0 && sharedCount > 0) {
+    return {
+      showSection: true,
+      sectionLabelKey: "mail.sidebar.sharedMailboxes",
+      personalMailboxes,
+      sharedMailboxes,
+    };
+  }
+
+  if (personalCount + sharedCount === 0) {
+    return {
+      showSection: false,
+      sectionLabelKey: null,
+      personalMailboxes,
+      sharedMailboxes,
+    };
+  }
+
+  return {
+    showSection: true,
+    sectionLabelKey: "mail.sidebar.mailboxes",
+    personalMailboxes,
+    sharedMailboxes,
+  };
+}
+
+export function adaptPrototypeSidebarMailbox(input: {
+  address: string;
+  displayName?: string;
+  label: "personal" | "shared";
+}): MailSidebarMailboxPresentation {
+  return {
+    id: input.address,
+    address: input.address,
+    displayName: input.displayName ?? null,
+    mailboxType: input.label,
+  };
+}
+
 export const PRODUCTION_MAIL_READ_FOLDERS: readonly {
   id: MailReadFolder;
   labelKey: string;

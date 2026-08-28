@@ -383,6 +383,7 @@ const en = {
     sidebar: {
       title: "Mailbox",
       folders: "Folders",
+      mailboxes: "Mailboxes",
       sharedMailboxes: "Shared mailboxes",
       labels: "Labels",
       labelsEmpty: "Labels will be available in a future release.",

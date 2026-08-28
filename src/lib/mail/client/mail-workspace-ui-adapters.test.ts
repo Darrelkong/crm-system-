@@ -21,10 +21,12 @@ import {
   isPrototypeWorkflowFolder,
   PRODUCTION_MAIL_READ_FOLDERS,
   PRODUCTION_WORKFLOW_FOLDERS,
+  resolveMailboxSidebarSections,
   resolveMailReadErrorMessageKey,
   shouldApplyProductionDetailResponse,
   shouldRenderProductionCrmContextPanel,
   shouldRenderPrototypeMessageDetail,
+  type MailSidebarMailboxPresentation,
 } from "@/lib/mail/client/mail-workspace-ui-adapters";
 import { MAIL_CRM_CONTEXT_SAFE_FIELD_KEYS } from "@/lib/mail/crm/mail-crm-context-model";
 
@@ -58,6 +60,82 @@ function mailboxFixture(): AccessibleMailboxView {
     permissions: { canRead: true, canReply: false, canSend: false },
   };
 }
+
+function sidebarMailboxFixture(
+  overrides: Partial<MailSidebarMailboxPresentation> & Pick<MailSidebarMailboxPresentation, "id">,
+): MailSidebarMailboxPresentation {
+  return {
+    address: `${overrides.id}@example.com`,
+    displayName: overrides.displayName ?? null,
+    mailboxType: overrides.mailboxType ?? "personal",
+    ...overrides,
+  };
+}
+
+describe("resolveMailboxSidebarSections", () => {
+  it("hides mailbox section for one personal mailbox and zero shared", () => {
+    const sections = resolveMailboxSidebarSections([
+      sidebarMailboxFixture({
+        id: "daniel",
+        address: "daniel.hayes@echfronthk.com",
+        displayName: "Daniel.Hayes",
+        mailboxType: "personal",
+      }),
+    ]);
+    assert.equal(sections.showSection, false);
+    assert.equal(sections.sectionLabelKey, null);
+    assert.equal(sections.personalMailboxes.length, 1);
+    assert.equal(sections.sharedMailboxes.length, 0);
+  });
+
+  it("uses neutral Mailboxes label for multiple personal mailboxes", () => {
+    const sections = resolveMailboxSidebarSections([
+      sidebarMailboxFixture({ id: "a", mailboxType: "personal" }),
+      sidebarMailboxFixture({ id: "b", mailboxType: "personal" }),
+    ]);
+    assert.equal(sections.showSection, true);
+    assert.equal(sections.sectionLabelKey, "mail.sidebar.mailboxes");
+    assert.equal(sections.personalMailboxes.length, 2);
+    assert.equal(sections.sharedMailboxes.length, 0);
+  });
+
+  it("uses Shared Mailboxes label for shared-only mailboxes", () => {
+    const sections = resolveMailboxSidebarSections([
+      sidebarMailboxFixture({ id: "info", mailboxType: "shared", displayName: "Info" }),
+    ]);
+    assert.equal(sections.showSection, true);
+    assert.equal(sections.sectionLabelKey, "mail.sidebar.sharedMailboxes");
+    assert.equal(sections.personalMailboxes.length, 0);
+    assert.equal(sections.sharedMailboxes.length, 1);
+  });
+
+  it("uses neutral Mailboxes label for mixed personal and shared mailboxes", () => {
+    const sections = resolveMailboxSidebarSections([
+      sidebarMailboxFixture({
+        id: "daniel",
+        mailboxType: "personal",
+        displayName: "Daniel.Hayes",
+      }),
+      sidebarMailboxFixture({ id: "info", mailboxType: "shared", displayName: "Info" }),
+    ]);
+    assert.equal(sections.showSection, true);
+    assert.equal(sections.sectionLabelKey, "mail.sidebar.mailboxes");
+    assert.equal(sections.personalMailboxes.length, 1);
+    assert.equal(sections.sharedMailboxes.length, 1);
+  });
+
+  it("never classifies Daniel personal mailbox as shared-only section", () => {
+    const sections = resolveMailboxSidebarSections([
+      sidebarMailboxFixture({
+        id: "daniel",
+        address: "daniel.hayes@echfronthk.com",
+        displayName: "Daniel.Hayes",
+        mailboxType: "personal",
+      }),
+    ]);
+    assert.notEqual(sections.sectionLabelKey, "mail.sidebar.sharedMailboxes");
+  });
+});
 
 describe("mail workspace ui adapters", () => {
   it("maps production list rows to presentation fields", () => {

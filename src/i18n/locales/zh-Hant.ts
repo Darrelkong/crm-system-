@@ -363,6 +363,7 @@ const zhHant: Messages = {
     sidebar: {
       title: "郵箱",
       folders: "資料夾",
+      mailboxes: "郵箱",
       sharedMailboxes: "共享郵箱",
       labels: "標籤",
       labelsEmpty: "標籤功能將於後續階段提供。",

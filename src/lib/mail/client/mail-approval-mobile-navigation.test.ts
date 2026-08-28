@@ -202,3 +202,40 @@ describe("approval navigation security boundaries remain unchanged", () => {
     assert.match(detailSource, /buildOutboundRevisionAttachmentDownloadHref/);
   });
 });
+
+describe("mailbox sidebar classification wiring", () => {
+  it("uses resolveMailboxSidebarSections in desktop folder nav", () => {
+    const navSource = readFileSync(
+      "src/components/mail/prototype/mail-folder-nav.tsx",
+      "utf8",
+    );
+
+    assert.match(navSource, /resolveMailboxSidebarSections/);
+    assert.match(navSource, /mailboxSections\.showSection/);
+    assert.match(navSource, /mailboxSections\.sectionLabelKey/);
+    assert.doesNotMatch(
+      navSource,
+      /t\("mail\.sidebar\.sharedMailboxes"\)[\s\S]*personalMailboxes\.map/,
+    );
+  });
+
+  it("hides Daniel single-personal mailbox subsection in production nav", () => {
+    const navSource = readFileSync(
+      "src/components/mail/prototype/mail-folder-nav.tsx",
+      "utf8",
+    );
+
+    assert.match(navSource, /mailboxSections\.showSection && mailboxSections\.sectionLabelKey/);
+  });
+
+  it("uses resolveMailboxSidebarSections for mobile folder popover switcher", () => {
+    const popoverSource = readFileSync(
+      "src/components/mail/prototype/mail-folder-popover.tsx",
+      "utf8",
+    );
+
+    assert.match(popoverSource, /resolveMailboxSidebarSections/);
+    assert.match(popoverSource, /mailboxSections\.showSection/);
+    assert.doesNotMatch(popoverSource, /productionMailboxes\.length > 1/);
+  });
+});

@@ -10,8 +10,11 @@ import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approva
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
+  adaptAccessibleMailbox,
+  adaptPrototypeSidebarMailbox,
   filterVisibleWorkflowFolders,
   PRODUCTION_MAIL_READ_FOLDERS,
+  resolveMailboxSidebarSections,
   resolveWorkflowFolderLabelKey,
 } from "@/lib/mail/client/mail-workspace-ui-adapters";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
@@ -133,7 +136,13 @@ export function MailFolderPopover({
   const maxHeight = `min(${POPOVER_MAX_HEIGHT_PX}px, calc(100dvh - 6rem))`;
 
   if (isProduction && workspace) {
-    const productionMailboxes = workspace.mailboxes;
+    const mailboxSections = resolveMailboxSidebarSections(
+      workspace.mailboxes.map(adaptAccessibleMailbox),
+    );
+    const switcherMailboxes = [
+      ...mailboxSections.personalMailboxes,
+      ...mailboxSections.sharedMailboxes,
+    ];
 
     return (
       <div className="fixed inset-0 z-50 pointer-events-none" role="presentation">
@@ -152,9 +161,9 @@ export function MailFolderPopover({
             className="mail-folder-popover-scroll overflow-y-auto overscroll-contain py-0.5"
             style={{ maxHeight }}
           >
-            {productionMailboxes.length > 1 && (
+            {mailboxSections.showSection && (
               <ul className="border-b border-black/[0.06] dark:border-white/[0.08]">
-                {productionMailboxes.map((box) => {
+                {switcherMailboxes.map((box) => {
                   const active = box.id === workspace.selectedMailboxId;
                   return (
                     <li key={box.id}>
@@ -257,7 +266,8 @@ export function MailFolderPopover({
           className="mail-folder-popover-scroll overflow-y-auto overscroll-contain py-0.5"
           style={{ maxHeight }}
         >
-          {mailboxes.length > 1 && (
+          {resolveMailboxSidebarSections(mailboxes.map(adaptPrototypeSidebarMailbox))
+            .showSection && (
             <ul className="border-b border-black/[0.06] dark:border-white/[0.08]">
               {mailboxes.map((box) => {
                 const active = box.address === activeMailbox;

@@ -363,6 +363,7 @@ const zhHans: Messages = {
     sidebar: {
       title: "邮箱",
       folders: "文件夹",
+      mailboxes: "邮箱",
       sharedMailboxes: "共享邮箱",
       labels: "标签",
       labelsEmpty: "标签功能将于后续阶段提供。",

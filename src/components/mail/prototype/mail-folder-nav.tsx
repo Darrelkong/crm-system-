@@ -9,10 +9,13 @@ import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-sourc
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
   adaptAccessibleMailbox,
+  adaptPrototypeSidebarMailbox,
   filterVisibleWorkflowFolders,
   isProductionMailReadFolder,
   PRODUCTION_MAIL_READ_FOLDERS,
+  resolveMailboxSidebarSections,
   resolveWorkflowFolderLabelKey,
+  type MailSidebarMailboxPresentation,
 } from "@/lib/mail/client/mail-workspace-ui-adapters";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { visibleMailFolders } from "@/lib/mail/prototype/mail-folder-config";
@@ -46,12 +49,8 @@ export function MailFolderNav({
   } = useMailPrototype();
 
   if (isProduction && workspace) {
-    const productionMailboxes = workspace.mailboxes.map(adaptAccessibleMailbox);
-    const personalMailboxes = productionMailboxes.filter(
-      (mailbox) => mailbox.mailboxType === "personal",
-    );
-    const sharedMailboxes = productionMailboxes.filter(
-      (mailbox) => mailbox.mailboxType === "shared",
+    const mailboxSections = resolveMailboxSidebarSections(
+      workspace.mailboxes.map(adaptAccessibleMailbox),
     );
 
     function ProductionFolderButton({
@@ -114,6 +113,21 @@ export function MailFolderNav({
       );
     }
 
+    function renderProductionMailboxButtons(
+      boxes: MailSidebarMailboxPresentation[],
+      icon: typeof Inbox,
+      fallbackLabelKey: "mail.mailbox.personal" | "mail.mailbox.shared",
+    ) {
+      return boxes.map((box) => (
+        <ProductionMailboxButton
+          key={box.id}
+          mailboxId={box.id}
+          label={box.displayName ?? t(fallbackLabelKey)}
+          icon={icon}
+        />
+      ));
+    }
+
     return (
       <aside className={cn("flex flex-col gap-3", className)}>
         {showComposeButton && (
@@ -142,31 +156,25 @@ export function MailFolderNav({
           </nav>
         </div>
 
-        {(personalMailboxes.length > 0 || sharedMailboxes.length > 0) && (
+        {mailboxSections.showSection && mailboxSections.sectionLabelKey && (
           <div className="mail-sidebar-section">
             <p className="mail-sidebar-section-label mb-1.5 px-2.5">
-              {t("mail.sidebar.sharedMailboxes")}
+              {t(mailboxSections.sectionLabelKey)}
             </p>
             <nav
               className="space-y-0.5"
-              aria-label={t("mail.sidebar.sharedMailboxes")}
+              aria-label={t(mailboxSections.sectionLabelKey)}
             >
-              {personalMailboxes.map((box) => (
-                <ProductionMailboxButton
-                  key={box.id}
-                  mailboxId={box.id}
-                  label={box.displayName ?? t("mail.mailbox.personal")}
-                  icon={Inbox}
-                />
-              ))}
-              {sharedMailboxes.map((box) => (
-                <ProductionMailboxButton
-                  key={box.id}
-                  mailboxId={box.id}
-                  label={box.displayName ?? t("mail.mailbox.shared")}
-                  icon={Users}
-                />
-              ))}
+              {renderProductionMailboxButtons(
+                mailboxSections.personalMailboxes,
+                Inbox,
+                "mail.mailbox.personal",
+              )}
+              {renderProductionMailboxButtons(
+                mailboxSections.sharedMailboxes,
+                Users,
+                "mail.mailbox.shared",
+              )}
             </nav>
           </div>
         )}
@@ -177,8 +185,9 @@ export function MailFolderNav({
   const folders = visibleMailFolders(isAdminScenario);
   const mailFolders = folders.filter((f) => f.section === "mail");
   const adminFolders = folders.filter((f) => f.section === "admin");
-  const sharedMailboxes = mailboxes.filter((m) => m.label === "shared");
-  const personalMailboxes = mailboxes.filter((m) => m.label === "personal");
+  const mailboxSections = resolveMailboxSidebarSections(
+    mailboxes.map(adaptPrototypeSidebarMailbox),
+  );
 
   function FolderButton({
     id,
@@ -274,13 +283,16 @@ export function MailFolderNav({
         </nav>
       </div>
 
-      {(personalMailboxes.length > 0 || sharedMailboxes.length > 0) && (
+      {mailboxSections.showSection && mailboxSections.sectionLabelKey && (
         <div className="mail-sidebar-section">
           <p className="mail-sidebar-section-label mb-1.5 px-2.5">
-            {t("mail.sidebar.sharedMailboxes")}
+            {t(mailboxSections.sectionLabelKey)}
           </p>
-          <nav className="space-y-0.5" aria-label={t("mail.sidebar.sharedMailboxes")}>
-            {personalMailboxes.map((box) => (
+          <nav
+            className="space-y-0.5"
+            aria-label={t(mailboxSections.sectionLabelKey)}
+          >
+            {mailboxSections.personalMailboxes.map((box) => (
               <MailboxButton
                 key={box.address}
                 address={box.address}
@@ -288,7 +300,7 @@ export function MailFolderNav({
                 icon={Inbox}
               />
             ))}
-            {sharedMailboxes.map((box) => (
+            {mailboxSections.sharedMailboxes.map((box) => (
               <MailboxButton
                 key={box.address}
                 address={box.address}
