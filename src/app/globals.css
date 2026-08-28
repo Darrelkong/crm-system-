@@ -2642,6 +2642,52 @@ tbody.crm-divide-y.divide-y > tr:not(:last-child) {
   transition: background-color 200ms ease-out, color 200ms ease-out;
 }
 
+.sidebar-edge-handle {
+  cursor: pointer;
+}
+
+.sidebar-edge-handle:focus-visible {
+  outline: 2px solid var(--color-crm-primary);
+  outline-offset: 2px;
+}
+
+.dashboard-shell {
+  --dashboard-header-offset: calc(env(safe-area-inset-top, 0px) + 3.5rem);
+}
+
+@media (min-width: 1024px) {
+  .dashboard-shell {
+    --dashboard-header-offset: calc(env(safe-area-inset-top, 0px) + 3.75rem);
+  }
+}
+
+.dashboard-unified-header {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+}
+
+.dashboard-sidebar {
+  top: var(--dashboard-header-offset, 3.5rem);
+}
+
+.dashboard-brand-logo-mark {
+  display: block;
+  width: 2.5rem;
+  height: 2.5rem;
+  flex-shrink: 0;
+  background-color: var(--color-crm-primary);
+  -webkit-mask-image: url("/brand/echfront-crm-logo-mask.png");
+  mask-image: url("/brand/echfront-crm-logo-mask.png");
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
+  transform: scale(1.05);
+  transform-origin: center;
+}
+
 @media (hover: hover) {
   .sidebar-icon-btn:hover {
     background: var(--color-crm-primary-soft);
