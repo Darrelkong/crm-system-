@@ -74,9 +74,11 @@ function ApprovalQueueRow({
 export function MailApprovalList({
   className,
   composeModesByApprovalId,
+  onItemSelected,
 }: {
   className?: string;
   composeModesByApprovalId?: Map<string, string>;
+  onItemSelected?: () => void;
 }) {
   const { t } = useTranslation();
   const approvalWorkspace = useOptionalMailApprovalWorkspace();
@@ -136,7 +138,10 @@ export function MailApprovalList({
             row={row}
             composeMode={composeModesByApprovalId?.get(row.id)}
             active={selectedApprovalId === row.id}
-            onSelect={() => void selectApproval(row.id)}
+            onSelect={() => {
+              void selectApproval(row.id);
+              onItemSelected?.();
+            }}
           />
         ))}
       </div>

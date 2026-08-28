@@ -262,6 +262,12 @@ export function MailPrototypeShell({
     openCompose(draft);
   }
 
+  function selectApprovalItem() {
+    if (isMobileViewport) {
+      setMobileView("detail");
+    }
+  }
+
   function selectMessage(id: string) {
     if (isProduction && workspace) {
       if (workspace.selectedFolder === "drafts") {
@@ -305,6 +311,11 @@ export function MailPrototypeShell({
       body: "",
     });
   }, [effectiveMailAccessEnabled, searchParams]);
+
+  useEffect(() => {
+    if (!workspace) return;
+    setMobileView((current) => (current === "compose" ? current : "list"));
+  }, [workspace?.selectedFolder]);
 
   useEffect(() => {
     const messageId = searchParams.get("messageId");
@@ -436,6 +447,7 @@ export function MailPrototypeShell({
             <MailMessageList
               className="flex min-h-0 min-w-0 flex-1 flex-col"
               onMessageSelect={selectMessage}
+              onApprovalItemSelect={selectApprovalItem}
             />
           </>
         )}

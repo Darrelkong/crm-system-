@@ -24,9 +24,11 @@ import { MailApprovalList } from "@/components/mail/approval/mail-approval-list"
 export function MailMessageList({
   className,
   onMessageSelect,
+  onApprovalItemSelect,
 }: {
   className?: string;
   onMessageSelect?: (id: string) => void;
+  onApprovalItemSelect?: () => void;
 }) {
   const { t } = useTranslation();
   const isProduction = useIsProductionMailReadSource();
@@ -44,7 +46,12 @@ export function MailMessageList({
   if (isProduction && workspace) {
     const productionWorkspace = workspace;
     if (productionWorkspace.selectedFolder === "pending_approval") {
-      return <MailApprovalList className={className} />;
+      return (
+        <MailApprovalList
+          className={className}
+          onItemSelected={onApprovalItemSelect}
+        />
+      );
     }
     const isDraftsFolder = productionWorkspace.selectedFolder === "drafts";
     const productionRows = isDraftsFolder

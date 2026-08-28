@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import { useMailWorkspaceLayout } from "@/lib/mail/prototype/use-mail-workspace-layout";
 import { useMailPaneWidths } from "@/lib/mail/prototype/use-mail-pane-widths";
 import { MailMailboxesPane } from "./mail-mailboxes-pane";
@@ -65,6 +66,7 @@ export function MailDesktopWorkspace({
   adminCenterReturnFocusRef?: React.RefObject<HTMLButtonElement | null>;
 }) {
   const { t } = useTranslation();
+  const workspace = useOptionalMailWorkspace();
   const layoutMode = useMailWorkspaceLayout(workspaceRef);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [stackPane, setStackPane] = useState<StackPane>("list");
@@ -100,6 +102,10 @@ export function MailDesktopWorkspace({
   }, [layoutMode]);
 
   useEffect(() => {
+    setStackPane("list");
+  }, [workspace?.selectedFolder]);
+
+  useEffect(() => {
     const el = workspaceRef.current;
     if (!el) return;
     const update = () => setContainerWidth(el.getBoundingClientRect().width);
@@ -114,6 +120,12 @@ export function MailDesktopWorkspace({
 
   function handleSelectMessage(id: string) {
     onSelectMessage(id);
+    if (!readingPaneFits) {
+      setStackPane("detail");
+    }
+  }
+
+  function handleApprovalItemSelect() {
     if (!readingPaneFits) {
       setStackPane("detail");
     }
@@ -200,6 +212,7 @@ export function MailDesktopWorkspace({
                   <MailMessageList
                     className="flex min-h-0 min-w-0 flex-1 flex-col"
                     onMessageSelect={handleSelectMessage}
+                    onApprovalItemSelect={handleApprovalItemSelect}
                   />
                 </div>
                 <MailPaneResizer
@@ -232,6 +245,7 @@ export function MailDesktopWorkspace({
             <MailMessageList
               className="flex min-h-0 min-w-0 flex-1 flex-col"
               onMessageSelect={handleSelectMessage}
+              onApprovalItemSelect={handleApprovalItemSelect}
             />
           </div>
         ) : (
