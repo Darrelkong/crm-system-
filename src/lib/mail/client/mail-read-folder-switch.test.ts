@@ -13,7 +13,10 @@ describe("mail read folder switch wiring", () => {
   const messageList = read("../../../components/mail/prototype/mail-message-list.tsx");
 
   it("updates selected folder before async folder loads", () => {
-    assert.match(context, /if \(folder !== state\.selectedFolder\) \{\s*setState\(\{ selectedFolder: folder \}\);/);
+    assert.match(
+      context,
+      /const previousFolder = state\.selectedFolder;\s*if \(folder !== previousFolder\) \{\s*setState\(\{ selectedFolder: folder \}\);/,
+    );
     assert.match(folderNav, /void workspace\.selectFolder\(/);
   });
 
@@ -34,12 +37,24 @@ describe("mail read folder switch wiring", () => {
     );
   });
 
-  it("does not blank cached inbox rows during folder refresh reset", () => {
+  it("clears previous folder rows immediately on different-folder reset", () => {
     const loadMessagesBlock = context.match(
       /async function loadMessages[\s\S]*?async function loadMoreMessages/,
     )?.[0];
     assert.ok(loadMessagesBlock, "expected loadMessages block");
-    assert.doesNotMatch(loadMessagesBlock!, /reset\s*\?\s*\{[\s\S]*messages: \[\],/);
+    assert.match(loadMessagesBlock!, /isSameFolderMessageRefresh/);
+    assert.match(
+      loadMessagesBlock!,
+      /messages: cachedTarget\?\.messages \?\? \[\],/,
+    );
+  });
+
+  it("preserves same-folder rows during refresh reset", () => {
+    const loadMessagesBlock = context.match(
+      /async function loadMessages[\s\S]*?async function loadMoreMessages/,
+    )?.[0];
+    assert.ok(loadMessagesBlock, "expected loadMessages block");
+    assert.match(loadMessagesBlock!, /sameFolderRefresh \? state\.messages : \[\]/);
   });
 
   it("routes inbox row click through shell selectMessage only once", () => {

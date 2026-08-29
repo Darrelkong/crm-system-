@@ -50,6 +50,7 @@ export type LoadMessagesInput = {
   mailboxId: string;
   folder: MailReadFolder;
   reset?: boolean;
+  previousFolder?: MailWorkspaceFolder;
 };
 
 export type MarkMessageReadInput = {
@@ -191,6 +192,40 @@ export function shouldApplyMessagesResponse(input: {
   );
 }
 
+export type MessageFolderCacheKey = `${string}:${MailReadFolder}`;
+
+export function buildMessageFolderCacheKey(
+  mailboxId: string,
+  folder: MailReadFolder,
+): MessageFolderCacheKey {
+  return `${mailboxId}:${folder}`;
+}
+
+export function isSameFolderMessageRefresh(input: {
+  reset: boolean;
+  currentMailboxId: string | null;
+  currentFolder: MailWorkspaceFolder;
+  targetMailboxId: string;
+  targetFolder: MailReadFolder;
+}): boolean {
+  return (
+    input.reset &&
+    input.currentMailboxId === input.targetMailboxId &&
+    input.currentFolder === input.targetFolder
+  );
+}
+
+export type MessageFolderCacheEntry = {
+  messages: MailMessageListView[];
+  nextCursor: string | null;
+};
+
+export type DraftFolderCacheKey = string;
+
+export function buildDraftFolderCacheKey(mailboxId: string | null): DraftFolderCacheKey {
+  return mailboxId ?? "__all__";
+}
+
 /** Maps workspace folder to a production message folder for mailbox switch loads. */
 export function resolveMailboxMessageLoadFolder(
   folder: MailWorkspaceFolder,
@@ -217,6 +252,8 @@ export function createMailWorkspaceRuntime(
   let detailRequestSequence = 0;
   let messagesRequestSequence = 0;
   let draftsRequestSequence = 0;
+  const messageFolderCache = new Map<MessageFolderCacheKey, MessageFolderCacheEntry>();
+  const draftFolderCache = new Map<DraftFolderCacheKey, DraftApiItem[]>();
 
   const notify = () => {
     for (const listener of listeners) {
@@ -306,18 +343,57 @@ export function createMailWorkspaceRuntime(
       mailboxId: input.mailboxId,
       folder: input.folder,
     };
+    const comparisonFolder = input.previousFolder ?? state.selectedFolder;
+    const sameFolderRefresh = isSameFolderMessageRefresh({
+      reset,
+      currentMailboxId: state.selectedMailboxId,
+      currentFolder: comparisonFolder,
+      targetMailboxId: input.mailboxId,
+      targetFolder: input.folder,
+    });
+
+    if (
+      reset &&
+      !sameFolderRefresh &&
+      state.selectedMailboxId &&
+      comparisonFolder !== "drafts" &&
+      comparisonFolder !== "pending_approval"
+    ) {
+      messageFolderCache.set(
+        buildMessageFolderCacheKey(
+          state.selectedMailboxId,
+          comparisonFolder as MailReadFolder,
+        ),
+        {
+          messages: state.messages,
+          nextCursor: state.nextCursor,
+        },
+      );
+    }
+
+    const cachedTarget = reset && !sameFolderRefresh
+      ? messageFolderCache.get(
+          buildMessageFolderCacheKey(input.mailboxId, input.folder),
+        )
+      : undefined;
 
     setState({
       isLoadingMessages: true,
       error: null,
       selectedMailboxId: input.mailboxId,
       selectedFolder: input.folder,
+      drafts: [],
       ...(reset
         ? {
-            nextCursor: null,
             selectedMessageId: null,
             selectedMessage: null,
             isLoadingDetail: false,
+            ...(sameFolderRefresh
+              ? {}
+              : {
+                  messages: cachedTarget?.messages ?? [],
+                  nextCursor: cachedTarget?.nextCursor ?? null,
+                }),
           }
         : {}),
     });
@@ -341,12 +417,20 @@ export function createMailWorkspaceRuntime(
         }
         return;
       }
+      const messages = mergeMessagePage(
+        sameFolderRefresh ? state.messages : [],
+        page,
+        reset,
+      );
+      messageFolderCache.set(
+        buildMessageFolderCacheKey(input.mailboxId, input.folder),
+        {
+          messages,
+          nextCursor: page.nextCursor,
+        },
+      );
       setState({
-        messages: mergeMessagePage(
-          reset ? [] : state.messages,
-          page,
-          reset,
-        ),
+        messages,
         nextCursor: page.nextCursor,
         isLoadingMessages: false,
         error: null,
@@ -475,17 +559,40 @@ export function createMailWorkspaceRuntime(
     }
   }
 
-  async function loadDrafts() {
+  async function loadDrafts(previousFolder: MailWorkspaceFolder = state.selectedFolder) {
     const mailboxId = resolveActiveMailboxId();
     const requestSequence = ++draftsRequestSequence;
+    const draftCacheKey = buildDraftFolderCacheKey(mailboxId);
+
+    if (
+      state.selectedMailboxId &&
+      previousFolder !== "drafts" &&
+      previousFolder !== "pending_approval"
+    ) {
+      messageFolderCache.set(
+        buildMessageFolderCacheKey(
+          state.selectedMailboxId,
+          previousFolder as MailReadFolder,
+        ),
+        {
+          messages: state.messages,
+          nextCursor: state.nextCursor,
+        },
+      );
+    }
+
+    const cachedDrafts = draftFolderCache.get(draftCacheKey);
+
     setState({
       isLoadingMessages: true,
       error: null,
       selectedFolder: "drafts",
+      messages: [],
       nextCursor: null,
       selectedMessageId: null,
       selectedMessage: null,
       isLoadingDetail: false,
+      drafts: cachedDrafts ?? [],
       ...(mailboxId ? { selectedMailboxId: mailboxId } : {}),
     });
 
@@ -502,8 +609,10 @@ export function createMailWorkspaceRuntime(
         }
         return;
       }
+      const drafts = sortDraftsByRecency(items);
+      draftFolderCache.set(draftCacheKey, drafts);
       setState({
-        drafts: sortDraftsByRecency(items),
+        drafts,
         isLoadingMessages: false,
         error: null,
       });
@@ -547,11 +656,12 @@ export function createMailWorkspaceRuntime(
   }
 
   async function selectFolder(folder: MailWorkspaceFolder) {
-    if (folder !== state.selectedFolder) {
+    const previousFolder = state.selectedFolder;
+    if (folder !== previousFolder) {
       setState({ selectedFolder: folder });
     }
     if (folder === "drafts") {
-      await loadDrafts();
+      await loadDrafts(previousFolder);
       return;
     }
     if (folder === "pending_approval") {
@@ -576,6 +686,7 @@ export function createMailWorkspaceRuntime(
       mailboxId,
       folder,
       reset: true,
+      previousFolder,
     });
   }
 

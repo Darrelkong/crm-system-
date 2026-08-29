@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { MailDraft } from "../../../drizzle/schema/mail-drafts";
 import type { User } from "../../../drizzle/schema/users";
@@ -194,6 +194,37 @@ export async function loadDraftDetail(
   };
 }
 
+async function attachDraftListRecipients(
+  db: Database,
+  drafts: SafeDraftView[],
+): Promise<SafeDraftView[]> {
+  if (drafts.length === 0) {
+    return drafts;
+  }
+
+  const draftIds = drafts.map((draft) => draft.id);
+  const recipientRows = await db
+    .select()
+    .from(schema.mailDraftRecipients)
+    .where(inArray(schema.mailDraftRecipients.draftId, draftIds))
+    .orderBy(schema.mailDraftRecipients.sortOrder);
+
+  const recipientsByDraftId = new Map<string, SafeDraftRecipientView[]>();
+  for (const recipient of recipientRows) {
+    const mapped = toSafeDraftRecipientView(recipient);
+    const existing = recipientsByDraftId.get(recipient.draftId) ?? [];
+    existing.push(mapped);
+    recipientsByDraftId.set(recipient.draftId, existing);
+  }
+
+  return drafts.map((draft) => ({
+    ...draft,
+    toRecipients: (recipientsByDraftId.get(draft.id) ?? []).filter(
+      (recipient) => recipient.recipientType === "to",
+    ),
+  }));
+}
+
 export async function listDrafts(
   db: Database,
   actor: MailActorContext,
@@ -216,7 +247,10 @@ export async function listDrafts(
         desc(schema.mailDrafts.updatedAt),
         desc(schema.mailDrafts.createdAt),
       );
-    return rows.map(toSafeDraftView);
+    return attachDraftListRecipients(
+      db,
+      rows.map(toSafeDraftView),
+    );
   }
 
   const rows = await db
@@ -232,7 +266,7 @@ export async function listDrafts(
       desc(schema.mailDrafts.updatedAt),
       desc(schema.mailDrafts.createdAt),
     );
-  return rows.map(toSafeDraftView);
+  return attachDraftListRecipients(db, rows.map(toSafeDraftView));
 }
 
 export async function getDraft(

@@ -70,6 +70,8 @@ export function MailMessageRow({
           processingStatus: message.processingStatus,
           assigneeId: message.assigneeId,
           draftRecipientCount: message.to.length,
+          draftRecipientSummary:
+            message.to.length > 0 ? message.to.join(", ") : null,
         }
       : null);
 
@@ -86,6 +88,10 @@ export function MailMessageRow({
   const processingStatus = presentation.processingStatus;
   const assignee = presentation.assigneeId;
   const showUnreadEmphasis = isUnread && !selected;
+  const isDraftRow = activeFolder === "drafts";
+  const draftRecipientSummary =
+    presentation.draftRecipientSummary ??
+    (message && message.to.length > 0 ? message.to.join(", ") : null);
 
   return (
     <button
@@ -111,16 +117,20 @@ export function MailMessageRow({
 
       <div className="min-w-0 border-b crm-border px-3 py-2.5 sm:px-3.5">
         <div className="flex items-baseline justify-between gap-2">
-          <span
-            className={cn(
-              "min-w-0 flex-1 truncate text-[13px] leading-tight",
-              selected || showUnreadEmphasis
-                ? "font-semibold crm-text"
-                : "font-medium crm-text",
-            )}
-          >
-            {presentation.fromName}
-          </span>
+          {!isDraftRow ? (
+            <span
+              className={cn(
+                "min-w-0 flex-1 truncate text-[13px] leading-tight",
+                selected || showUnreadEmphasis
+                  ? "font-semibold crm-text"
+                  : "font-medium crm-text",
+              )}
+            >
+              {presentation.fromName}
+            </span>
+          ) : (
+            <span className="min-w-0 flex-1" aria-hidden />
+          )}
           <time
             dateTime={presentation.sentAt}
             className={cn(
@@ -134,7 +144,8 @@ export function MailMessageRow({
 
         <p
           className={cn(
-            "mt-0.5 truncate text-[13px] leading-snug",
+            "truncate text-[13px] leading-snug",
+            isDraftRow ? "mt-0" : "mt-0.5",
             selected
               ? "font-medium crm-text"
               : showUnreadEmphasis
@@ -143,15 +154,25 @@ export function MailMessageRow({
           )}
         >
           {presentation.subject ||
-            (activeFolder === "drafts" ? t("mail.draft.noSubject") : "")}
+            (isDraftRow ? t("mail.draft.noSubject") : "")}
         </p>
 
-        <p className="mt-0.5 line-clamp-1 text-xs leading-snug crm-text-secondary">
-          {activeFolder === "drafts" &&
-          (presentation.draftRecipientCount ?? 0) === 0
-            ? t("mail.draft.noRecipient")
-            : presentation.preview}
-        </p>
+        {isDraftRow ? (
+          <>
+            <p className="mt-0.5 truncate text-xs leading-snug crm-text-secondary">
+              {draftRecipientSummary || t("mail.draft.noRecipient")}
+            </p>
+            {presentation.preview ? (
+              <p className="mt-0.5 line-clamp-1 text-xs leading-snug crm-text-secondary">
+                {presentation.preview}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <p className="mt-0.5 line-clamp-1 text-xs leading-snug crm-text-secondary">
+            {presentation.preview}
+          </p>
+        )}
 
         {(presentation.hasAttachment ||
           presentation.isImportant ||

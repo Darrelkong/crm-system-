@@ -26,6 +26,8 @@ export type SafeDraftView = {
   createdAt: string;
   updatedAt: string;
   customerAssociation?: SafeDraftCustomerAssociationView | null;
+  /** Lightweight list-only recipient summary for draft rows. */
+  toRecipients?: SafeDraftRecipientView[];
 };
 
 export type SafeDraftRecipientView = {

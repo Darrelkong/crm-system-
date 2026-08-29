@@ -218,10 +218,20 @@ describe("mail workspace ui adapters", () => {
       discardedAt: null,
       createdAt: "2026-08-23T08:00:00.000Z",
       updatedAt: "2026-08-23T08:30:00.000Z",
+      toRecipients: [
+        {
+          id: "recipient-1",
+          recipientType: "to",
+          address: "daniel@example.com",
+          displayName: null,
+          sortOrder: 0,
+        },
+      ],
     });
     assert.equal(row.id, "draft-1");
     assert.equal(row.subject, "Re: Hello");
     assert.equal(row.preview, "Reply body");
+    assert.equal(row.draftRecipientSummary, "daniel@example.com");
   });
 
   it("maps API errors to safe message keys", () => {

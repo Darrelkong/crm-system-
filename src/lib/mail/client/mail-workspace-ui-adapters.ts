@@ -12,6 +12,10 @@ import {
 } from "@/lib/mail/crm/mail-crm-context-model";
 import { formatAttachmentSize } from "@/lib/mail/client/draft-management";
 import type { DraftApiItem } from "@/lib/mail/client/draft-management";
+import {
+  deriveDraftListPreview,
+  formatDraftRecipientSummary,
+} from "@/lib/mail/client/draft-management";
 import type { MailFolderId } from "@/lib/mail/prototype/types";
 import type { MailMessage } from "@/lib/mail/prototype/types";
 
@@ -28,6 +32,7 @@ export type MailListRowPresentation = {
   processingStatus?: MailMessage["processingStatus"];
   assigneeId?: MailMessage["assigneeId"];
   draftRecipientCount?: number;
+  draftRecipientSummary?: string | null;
 };
 
 export type MailSidebarMailboxPresentation = {
@@ -220,16 +225,23 @@ export function adaptProductionListRow(
 export function adaptProductionDraftListRow(
   draft: DraftApiItem,
 ): MailListRowPresentation {
+  const toRecipients = draft.toRecipients?.filter(
+    (recipient) => recipient.recipientType === "to",
+  );
   return {
     id: draft.id,
     fromName: "",
     subject: draft.subject,
-    preview: draft.bodyText.slice(0, 120),
+    preview: deriveDraftListPreview({
+      bodyText: draft.bodyText,
+      bodyHtml: draft.bodyHtml,
+    }),
     sentAt: draft.updatedAt,
     isUnread: false,
     isImportant: false,
     hasAttachment: false,
-    draftRecipientCount: 0,
+    draftRecipientCount: toRecipients?.length ?? 0,
+    draftRecipientSummary: formatDraftRecipientSummary(toRecipients),
   };
 }
 

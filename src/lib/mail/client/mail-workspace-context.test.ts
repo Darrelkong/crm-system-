@@ -11,6 +11,7 @@ import {
   applyReadStateToMessages,
   createMailWorkspaceRuntime,
   INITIAL_MAIL_WORKSPACE_STATE,
+  isSameFolderMessageRefresh,
   mergeMessagePage,
   resolveMailboxMessageLoadFolder,
   type MailWorkspaceApi,
@@ -192,6 +193,29 @@ describe("mail workspace helpers", () => {
       readAt: "2026-08-23T09:00:00.000Z",
     });
     assert.equal(updated[0]?.isUnread, false);
+  });
+
+  it("detects same-folder refresh vs different-folder switch", () => {
+    assert.equal(
+      isSameFolderMessageRefresh({
+        reset: true,
+        currentMailboxId: "mailbox-1",
+        currentFolder: "inbox",
+        targetMailboxId: "mailbox-1",
+        targetFolder: "inbox",
+      }),
+      true,
+    );
+    assert.equal(
+      isSameFolderMessageRefresh({
+        reset: true,
+        currentMailboxId: "mailbox-1",
+        currentFolder: "inbox",
+        targetMailboxId: "mailbox-1",
+        targetFolder: "sent",
+      }),
+      false,
+    );
   });
 });
 
@@ -423,11 +447,98 @@ describe("mail workspace runtime", () => {
     });
     await runtime.getSnapshot().selectMessage("message-1");
     assert.ok(runtime.getSnapshot().selectedMessage?.customerAssociation);
-    await runtime.getSnapshot().selectFolder("trash");
-    assert.equal(calls.messages.at(-1)?.folder, "trash");
+    const pending = runtime.getSnapshot().selectFolder("trash");
     assert.equal(runtime.getSnapshot().selectedFolder, "trash");
+    assert.equal(runtime.getSnapshot().messages.length, 0);
+    await pending;
+    assert.equal(calls.messages.at(-1)?.folder, "trash");
     assert.equal(runtime.getSnapshot().selectedMessageId, null);
     assert.equal(runtime.getSnapshot().selectedMessage, null);
+  });
+
+  it("clears inbox rows immediately when switching to drafts", async () => {
+    const { api } = createApiMock({
+      fetchDrafts: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return [
+          {
+            id: "draft-1",
+            authorUserId: "user-1",
+            mailboxId: "mailbox-1",
+            senderIdentityId: null,
+            subject: "Draft subject",
+            bodyText: "Draft body",
+            bodyHtml: null,
+            hasHtml: false,
+            sensitivity: "normal" as const,
+            composeMode: "reply" as const,
+            replyToMessageId: "message-1",
+            autosaveVersion: 1,
+            lastSavedAt: "2026-08-23T08:30:00.000Z",
+            discardedAt: null,
+            createdAt: "2026-08-23T08:00:00.000Z",
+            updatedAt: "2026-08-23T08:30:00.000Z",
+          },
+        ];
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    assert.equal(runtime.getSnapshot().messages.length, 1);
+    const pending = runtime.getSnapshot().selectFolder("drafts");
+    assert.equal(runtime.getSnapshot().selectedFolder, "drafts");
+    assert.equal(runtime.getSnapshot().messages.length, 0);
+    await pending;
+    assert.equal(runtime.getSnapshot().drafts.length, 1);
+  });
+
+  it("latest folder wins after rapid inbox sent trash drafts switching", async () => {
+    const { api } = createApiMock({
+      fetchMessages: async (input) => {
+        await new Promise((resolve) => setTimeout(resolve, input.folder === "inbox" ? 30 : 5));
+        return {
+          items: [listItemFixture({ id: `message-${input.folder}`, subject: input.folder })],
+          nextCursor: null,
+        };
+      },
+      fetchDrafts: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        return [
+          {
+            id: "draft-1",
+            authorUserId: "user-1",
+            mailboxId: "mailbox-1",
+            senderIdentityId: null,
+            subject: "Draft subject",
+            bodyText: "Draft body",
+            bodyHtml: null,
+            hasHtml: false,
+            sensitivity: "normal" as const,
+            composeMode: "new" as const,
+            replyToMessageId: null,
+            autosaveVersion: 1,
+            lastSavedAt: "2026-08-23T08:30:00.000Z",
+            discardedAt: null,
+            createdAt: "2026-08-23T08:00:00.000Z",
+            updatedAt: "2026-08-23T08:30:00.000Z",
+          },
+        ];
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMailboxes();
+    void runtime.getSnapshot().selectFolder("inbox");
+    void runtime.getSnapshot().selectFolder("sent");
+    void runtime.getSnapshot().selectFolder("trash");
+    await runtime.getSnapshot().selectFolder("drafts");
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.selectedFolder, "drafts");
+    assert.equal(snapshot.messages.length, 0);
+    assert.equal(snapshot.drafts.length, 1);
   });
 
   it("markMessageRead updates read state through API client", async () => {

@@ -310,7 +310,7 @@ describe("mail workspace production ui wiring", () => {
     assert.equal(runtime.getSnapshot().messages[0]?.isUnread, false);
   });
 
-  it("keeps cached messages visible while a reset load is in flight", async () => {
+  it("keeps same-folder cached messages visible while a reset load is in flight", async () => {
     const { api } = createApiMock({
       fetchMessages: async (input) => {
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -333,23 +333,111 @@ describe("mail workspace production ui wiring", () => {
     });
     const cachedInboxRows = runtime.getSnapshot().messages;
     assert.equal(cachedInboxRows.length, 1);
-    assert.equal(cachedInboxRows[0]?.mailboxId, "mailbox-1");
-    assert.equal(cachedInboxRows[0]?.id, "message-mailbox-1-inbox");
 
-    const pending = runtime.getSnapshot().selectMailbox("mailbox-2");
+    const pending = runtime.getSnapshot().refreshMessages();
     const duringLoad = runtime.getSnapshot();
     assert.deepEqual(duringLoad.messages, cachedInboxRows);
     assert.equal(duringLoad.isLoadingMessages, true);
-    assert.equal(duringLoad.selectedMailboxId, "mailbox-2");
     assert.equal(duringLoad.selectedFolder, "inbox");
 
     await pending;
-    const afterLoad = runtime.getSnapshot();
-    assert.equal(afterLoad.isLoadingMessages, false);
-    assert.equal(afterLoad.messages.length, 1);
-    assert.equal(afterLoad.messages[0]?.mailboxId, "mailbox-2");
-    assert.equal(afterLoad.messages[0]?.id, "message-mailbox-2-inbox");
-    assert.notDeepEqual(afterLoad.messages, cachedInboxRows);
+    assert.equal(runtime.getSnapshot().isLoadingMessages, false);
+  });
+
+  it("clears inbox rows immediately when switching to sent", async () => {
+    const { api } = createApiMock({
+      fetchMessages: async (input) => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return {
+          items: [
+            listItemFixture({
+              id: `message-${input.folder}`,
+              subject: input.folder,
+            }),
+          ],
+          nextCursor: null,
+        };
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    assert.equal(runtime.getSnapshot().messages[0]?.subject, "inbox");
+
+    const pending = runtime.getSnapshot().selectFolder("sent");
+    const duringSwitch = runtime.getSnapshot();
+    assert.equal(duringSwitch.selectedFolder, "sent");
+    assert.equal(duringSwitch.messages.length, 0);
+    assert.equal(duringSwitch.isLoadingMessages, true);
+
+    await pending;
+    assert.equal(runtime.getSnapshot().messages[0]?.subject, "sent");
+  });
+
+  it("restores cached sent rows immediately when returning to sent", async () => {
+    const { api } = createApiMock({
+      fetchMessages: async (input) => {
+        return {
+          items: [
+            listItemFixture({
+              id: `message-${input.folder}`,
+              subject: input.folder,
+            }),
+          ],
+          nextCursor: null,
+        };
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "sent",
+      reset: true,
+    });
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+      previousFolder: "sent",
+    });
+    const pending = runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "sent",
+      reset: true,
+      previousFolder: "inbox",
+    });
+    assert.equal(runtime.getSnapshot().selectedFolder, "sent");
+    assert.equal(runtime.getSnapshot().messages[0]?.subject, "sent");
+    await pending;
+  });
+
+  it("ignores stale inbox response after rapid switch to drafts", async () => {
+    const { api } = createApiMock({
+      fetchMessages: async (input) => {
+        if (input.folder === "inbox") {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+        }
+        return {
+          items: [listItemFixture({ id: `message-${input.folder}` })],
+          nextCursor: null,
+        };
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    const slowInbox = runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectFolder("drafts");
+    await slowInbox;
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.selectedFolder, "drafts");
+    assert.equal(snapshot.messages.length, 0);
+    assert.equal(snapshot.drafts.length, 1);
   });
 
   it("stores API errors without exposing raw server details in adapter mapping", async () => {

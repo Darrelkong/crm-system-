@@ -48,6 +48,13 @@ export type DraftApiItem = {
   discardedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  toRecipients?: Array<{
+    id: string;
+    recipientType: "to" | "cc" | "bcc";
+    address: string;
+    displayName: string | null;
+    sortOrder: number;
+  }>;
 };
 
 export type DraftDetailApiItem = DraftApiItem & {
@@ -278,6 +285,35 @@ export function stripHtml(html: string): string {
     .replace(/<[^>]+>/g, "")
     .replace(/\u00a0/g, " ")
     .trim();
+}
+
+export function collapsePlainTextPreview(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+export function deriveDraftListPreview(input: {
+  bodyText: string;
+  bodyHtml: string | null;
+}): string {
+  const plainText = collapsePlainTextPreview(input.bodyText ?? "");
+  if (plainText) {
+    return plainText;
+  }
+  if (input.bodyHtml) {
+    return collapsePlainTextPreview(stripHtml(input.bodyHtml));
+  }
+  return "";
+}
+
+export function formatDraftRecipientSummary(
+  recipients: Array<{ address: string; displayName: string | null }> | undefined,
+): string | null {
+  if (!recipients?.length) {
+    return null;
+  }
+  return recipients
+    .map((recipient) => recipient.displayName?.trim() || recipient.address)
+    .join(", ");
 }
 
 export function sortDraftsByRecency<T extends {

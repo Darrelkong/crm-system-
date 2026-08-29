@@ -4,7 +4,9 @@ import { describe, it } from "node:test";
 import {
   composeMobileRootClass,
   createEmptyComposeState,
+  deriveDraftListPreview,
   draftDetailToComposeState,
+  formatDraftRecipientSummary,
   hasMeaningfulComposeContent,
   isAuthorizedComposeSelection,
   resolveDefaultComposeOption,
@@ -118,6 +120,50 @@ describe("draft-management", () => {
   it("uses distinct mobile and desktop compose root classes", () => {
     assert.match(composeMobileRootClass("embedded-mobile"), /mail-compose-mobile/);
     assert.match(composeMobileRootClass("floating-desktop"), /mail-compose-desktop/);
+  });
+
+  it("derives plain-text draft list preview from body text", () => {
+    assert.equal(
+      deriveDraftListPreview({
+        bodyText: "Hello,\n\nPlease review.",
+        bodyHtml: null,
+      }),
+      "Hello, Please review.",
+    );
+  });
+
+  it("strips HTML when deriving draft list preview", () => {
+    assert.equal(
+      deriveDraftListPreview({
+        bodyText: "",
+        bodyHtml: "<p>Hello <strong>world</strong></p>",
+      }),
+      "Hello world",
+    );
+    assert.doesNotMatch(
+      deriveDraftListPreview({
+        bodyText: "",
+        bodyHtml: "<script>alert(1)</script><p>Safe</p>",
+      }),
+      /<script/i,
+    );
+  });
+
+  it("returns empty preview for blank draft bodies", () => {
+    assert.equal(
+      deriveDraftListPreview({ bodyText: "   ", bodyHtml: "<p></p>" }),
+      "",
+    );
+  });
+
+  it("formats draft recipient summary from list to recipients", () => {
+    assert.equal(
+      formatDraftRecipientSummary([
+        { address: "daniel@example.com", displayName: null },
+      ]),
+      "daniel@example.com",
+    );
+    assert.equal(formatDraftRecipientSummary([]), null);
   });
 });
 
