@@ -177,6 +177,62 @@ describe("personal mailbox owner provisioning", () => {
     );
   });
 
+  it("allows CRM root admin as personal mailbox owner without mail_user_access row", async () => {
+    await db
+      .delete(schema.mailUserAccess)
+      .where(eq(schema.mailUserAccess.userId, SEED_IDS.admin));
+
+    try {
+      const address = fixtureAddress("darrell-admin");
+      const created = await createMailbox(db, adminActor, {
+        address,
+        displayName: "DarrellKoo",
+        mailboxType: "personal",
+        ownerUserId: SEED_IDS.admin,
+      });
+
+      assert.equal(created.createdBy, SEED_IDS.admin);
+      assert.equal(created.mailboxType, "personal");
+
+      const senderIdentities = await db
+        .select()
+        .from(schema.mailSenderIdentities)
+        .where(eq(schema.mailSenderIdentities.defaultMailboxId, created.id));
+      assert.equal(senderIdentities.length, 0);
+
+      const identityGrants = await db
+        .select()
+        .from(schema.mailSenderIdentityGrants)
+        .where(
+          inArray(
+            schema.mailSenderIdentityGrants.senderIdentityId,
+            db
+              .select({ id: schema.mailSenderIdentities.id })
+              .from(schema.mailSenderIdentities)
+              .where(eq(schema.mailSenderIdentities.defaultMailboxId, created.id)),
+          ),
+        );
+      assert.equal(identityGrants.length, 0);
+
+      const composeOptions = await listComposeContextOptions(
+        db,
+        rootAdminActor(),
+      );
+      assert.ok(
+        !composeOptions.some((option) => option.mailboxId === created.id),
+        "mailbox ownership must not auto-authorize admin SEND AS",
+      );
+
+      const supervised = await listAccessibleMailboxes(db, rootAdminActor());
+      const row = supervised.find((item) => item.id === created.id);
+      assert.ok(row);
+      assert.equal(row.permissions.canSend, false);
+      assert.equal(row.permissions.canReply, false);
+    } finally {
+      await enableMailAccess(db, SEED_IDS.admin);
+    }
+  });
+
   it("target Staff sees personal mailbox via ownership without membership", async () => {
     const address = fixtureAddress("staff-access");
     const created = await createMailbox(db, adminActor, {

@@ -18,6 +18,7 @@ import {
   assertMailDeliveryHealth,
   assertMailInboundFallbackConfigManagement,
   hasMailDeliveryHealth,
+  isEligiblePersonalMailboxOwner,
 } from "@/lib/permissions/mail";
 
 function actor(
@@ -244,6 +245,60 @@ describe("mail permissions", () => {
       assertMailInboundFallbackConfigManagement(
         actor({ crmRole: "staff", adminGrants: ["account_mgmt"] }),
       ),
+    );
+  });
+});
+
+describe("personal mailbox owner eligibility", () => {
+  it("includes CRM root admin without mail_user_access row", () => {
+    assert.equal(
+      isEligiblePersonalMailboxOwner({
+        userStatus: "active",
+        crmRole: "admin",
+        mailUserAccessEnabled: false,
+      }),
+      true,
+    );
+  });
+
+  it("includes staff with enabled mail_user_access", () => {
+    assert.equal(
+      isEligiblePersonalMailboxOwner({
+        userStatus: "active",
+        crmRole: "staff",
+        mailUserAccessEnabled: true,
+      }),
+      true,
+    );
+  });
+
+  it("excludes staff without enabled mail_user_access", () => {
+    assert.equal(
+      isEligiblePersonalMailboxOwner({
+        userStatus: "active",
+        crmRole: "staff",
+        mailUserAccessEnabled: false,
+      }),
+      false,
+    );
+  });
+
+  it("excludes inactive and disabled users", () => {
+    assert.equal(
+      isEligiblePersonalMailboxOwner({
+        userStatus: "disabled",
+        crmRole: "admin",
+        mailUserAccessEnabled: false,
+      }),
+      false,
+    );
+    assert.equal(
+      isEligiblePersonalMailboxOwner({
+        userStatus: "deleted",
+        crmRole: "staff",
+        mailUserAccessEnabled: true,
+      }),
+      false,
     );
   });
 });

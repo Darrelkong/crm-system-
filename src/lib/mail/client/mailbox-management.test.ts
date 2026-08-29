@@ -144,9 +144,17 @@ describe("mailbox management UI wiring", () => {
 
 describe("personal mailbox owner create form", () => {
   const users = [
-    { id: "daniel", name: "Daniel.Hayes", email: "daniel.hayes@echfronthk.com", status: "active" as const },
-    { id: "staff-b", name: "Staff B", email: "staffb@echfronthk.com", status: "active" as const },
-    { id: "disabled", name: "Disabled", email: "disabled@echfronthk.com", status: "disabled" as const },
+    {
+      id: "darrell",
+      name: "DarrellKoo",
+      email: "darrellkooaube13@gmail.com",
+      role: "admin" as const,
+      status: "active" as const,
+    },
+    { id: "daniel", name: "Daniel.Hayes", email: "daniel.hayes@echfronthk.com", role: "staff" as const, status: "active" as const },
+    { id: "staff-b", name: "Staff B", email: "staffb@echfronthk.com", role: "staff" as const, status: "active" as const },
+    { id: "disabled", name: "Disabled", email: "disabled@echfronthk.com", role: "staff" as const, status: "disabled" as const },
+    { id: "disabled-admin", name: "Disabled Admin", email: "disabled-admin@echfronthk.com", role: "admin" as const, status: "disabled" as const },
   ];
   const accessItems = [
     {
@@ -169,11 +177,67 @@ describe("personal mailbox owner create form", () => {
     },
   ];
 
-  it("lists only active users with Mail User Access enabled", () => {
+  it("includes root admin without explicit mail_user_access row", () => {
     const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
-    assert.equal(candidates.length, 1);
-    assert.equal(candidates[0]?.id, "daniel");
-    assert.equal(candidates[0]?.name, "Daniel.Hayes");
+    const darrell = candidates.find((candidate) => candidate.id === "darrell");
+    assert.ok(darrell);
+    assert.equal(darrell?.name, "DarrellKoo");
+  });
+
+  it("includes active staff with Mail User Access enabled", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    const daniel = candidates.find((candidate) => candidate.id === "daniel");
+    assert.ok(daniel);
+    assert.equal(daniel?.name, "Daniel.Hayes");
+  });
+
+  it("excludes staff without enabled Mail User Access", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    assert.equal(candidates.some((candidate) => candidate.id === "staff-b"), false);
+  });
+
+  it("excludes inactive and disabled users", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    assert.equal(candidates.some((candidate) => candidate.id === "disabled"), false);
+    assert.equal(
+      candidates.some((candidate) => candidate.id === "disabled-admin"),
+      false,
+    );
+  });
+
+  it("lists eligible owners sorted by name", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    assert.deepEqual(
+      candidates.map((candidate) => candidate.id),
+      ["daniel", "darrell"],
+    );
+  });
+
+  it("supports darrellkoo@echfronthk.com personal mailbox owner selection", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    assert.equal(
+      isMailboxCreateSubmitEnabled({
+        address: "darrellkoo@echfronthk.com",
+        mailboxType: "personal",
+        ownerUserId: "darrell",
+      }),
+      true,
+    );
+    assert.deepEqual(
+      buildCreateMailboxRequest({
+        address: "darrellkoo@echfronthk.com",
+        displayName: "DarrellKoo",
+        mailboxType: "personal",
+        ownerUserId: "darrell",
+      }),
+      {
+        address: "darrellkoo@echfronthk.com",
+        displayName: "DarrellKoo",
+        mailboxType: "personal",
+        ownerUserId: "darrell",
+      },
+    );
+    assert.ok(candidates.some((candidate) => candidate.id === "darrell"));
   });
 
   it("includes ownerUserId for personal mailbox create requests", () => {
@@ -250,5 +314,25 @@ describe("personal mailbox owner create form", () => {
       ownerUserId: "daniel",
     });
     assert.equal("ownerUserId" in payload, false);
+  });
+});
+
+describe("personal mailbox owner picker security", () => {
+  it("does not treat mailbox owner assignment as Sender Identity grant creation", () => {
+    const source = readFileSync("src/lib/mail/mailbox-service.ts", "utf8");
+    assert.doesNotMatch(source, /mailSenderIdentityGrants/);
+    assert.doesNotMatch(source, /insert\(schema\.mailSenderIdentities\)/);
+  });
+
+  it("uses canonical effective Mail access eligibility instead of mail_user_access-only filter", () => {
+    const source = readFileSync(
+      "src/lib/mail/client/mailbox-management.ts",
+      "utf8",
+    );
+    assert.match(source, /isEligiblePersonalMailboxOwner/);
+    assert.doesNotMatch(
+      source,
+      /enabledUserIds\.has\(user\.id\)\s*\)\s*;?\s*$/m,
+    );
   });
 });

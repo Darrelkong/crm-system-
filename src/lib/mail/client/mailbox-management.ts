@@ -4,6 +4,7 @@ import type {
   MailAccessAdminUser,
   MailAccessApiItem,
 } from "@/lib/mail/client/mail-access-management";
+import { isEligiblePersonalMailboxOwner } from "@/lib/permissions/mail";
 
 export type MailboxApiItem = {
   id: string;
@@ -49,7 +50,13 @@ export function listPersonalMailboxOwnerCandidates(
   );
 
   return users
-    .filter((user) => user.status === "active" && enabledUserIds.has(user.id))
+    .filter((user) =>
+      isEligiblePersonalMailboxOwner({
+        userStatus: user.status,
+        crmRole: user.role ?? "staff",
+        mailUserAccessEnabled: enabledUserIds.has(user.id),
+      }),
+    )
     .map((user) => ({
       id: user.id,
       name: user.name,

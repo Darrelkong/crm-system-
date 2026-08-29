@@ -12,7 +12,11 @@ import {
   runMailBatch,
 } from "@/lib/mail/guarded-batch";
 import { MailServiceError } from "@/lib/mail/errors";
-import { assertMailAccountManagement, assertMailAdminRead } from "@/lib/permissions/mail";
+import {
+  assertMailAccountManagement,
+  assertMailAdminRead,
+  isEligiblePersonalMailboxOwner,
+} from "@/lib/permissions/mail";
 import { sql } from "drizzle-orm";
 
 export type MailboxWithCurrentPrimary = MailMailbox & {
@@ -100,6 +104,7 @@ async function resolvePersonalMailboxOwnerUserId(
       id: schema.users.id,
       isActive: schema.users.isActive,
       deletedAt: schema.users.deletedAt,
+      role: schema.users.role,
     })
     .from(schema.users)
     .where(eq(schema.users.id, normalizedOwnerUserId))
@@ -107,20 +112,31 @@ async function resolvePersonalMailboxOwnerUserId(
   if (!user) {
     throw MailServiceError.notFound("Personal mailbox owner not found");
   }
-  if (user.isActive !== 1 || user.deletedAt != null) {
-    throw MailServiceError.validation(
-      "Personal mailbox owner must be an active user",
-    );
-  }
 
   const [mailAccess] = await db
     .select({ isEnabled: schema.mailUserAccess.isEnabled })
     .from(schema.mailUserAccess)
     .where(eq(schema.mailUserAccess.userId, normalizedOwnerUserId))
     .limit(1);
-  if (!mailAccess || mailAccess.isEnabled !== 1) {
+
+  const userStatus =
+    user.deletedAt != null
+      ? "deleted"
+      : user.isActive === 1
+        ? "active"
+        : "disabled";
+
+  if (
+    !isEligiblePersonalMailboxOwner({
+      userStatus,
+      crmRole: user.role,
+      mailUserAccessEnabled: mailAccess?.isEnabled === 1,
+    })
+  ) {
     throw MailServiceError.validation(
-      "Personal mailbox owner must have Mail User Access enabled",
+      userStatus !== "active"
+        ? "Personal mailbox owner must be an active user"
+        : "Personal mailbox owner must have effective Mail access",
     );
   }
 
