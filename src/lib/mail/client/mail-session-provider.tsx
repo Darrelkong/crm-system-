@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchMailSession } from "@/lib/mail/client/api";
+import { clearComposeContextCacheOnSessionEnd } from "@/lib/mail/client/compose-context-cache";
 import type { MailSessionContext } from "@/lib/mail/mail-session-context";
 import {
   canAccessMailAdminCenter,
@@ -76,6 +77,12 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!session?.user.id) {
+      clearComposeContextCacheOnSessionEnd();
+    }
+  }, [session?.user.id]);
 
   const capabilities = session?.capabilities ?? DISABLED_CAPABILITIES;
   const effectiveMailAccessEnabled =

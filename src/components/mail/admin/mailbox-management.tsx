@@ -23,6 +23,7 @@ import {
   postMailboxRestore,
   postMailboxSuspend,
 } from "@/lib/mail/client/api";
+import { invalidateComposeContextCache } from "@/lib/mail/client/compose-context-cache";
 import {
   buildCreateMailboxRequest,
   buildMailboxRows,
@@ -246,6 +247,7 @@ export function MailboxManagement() {
       setNewDisplayName("");
       setNewOwnerUserId("");
       setActionMessage(t("mail.adminCenter.mailbox.createSuccess"));
+      invalidateComposeContextCache();
       await load();
     } catch {
       setActionMessage(t("common.networkError"));

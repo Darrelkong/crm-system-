@@ -14,6 +14,8 @@ type Props = {
   title: string;
   description?: string;
   onRequestClose: () => void;
+  /** When false, backdrop/overlay clicks do not close the drawer. */
+  closeOnOverlayClick?: boolean;
   /** When true, Esc / overlay close are ignored (e.g. while submitting). */
   closeBlocked?: boolean;
   closeLabel?: string;
@@ -45,6 +47,7 @@ export function QuickEntryDrawer({
   title,
   description,
   onRequestClose,
+  closeOnOverlayClick = true,
   closeBlocked = false,
   closeLabel = "Close",
   headerExtra,
@@ -121,9 +124,9 @@ export function QuickEntryDrawer({
         type="button"
         className="qe-drawer-overlay"
         aria-label={closeLabel}
-        disabled={closeBlocked}
+        disabled={closeBlocked || !closeOnOverlayClick}
         onClick={() => {
-          if (!closeBlocked) onRequestClose();
+          if (!closeBlocked && closeOnOverlayClick) onRequestClose();
         }}
       />
       <div

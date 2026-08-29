@@ -11,6 +11,7 @@ import {
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { MailFormattingToolbar } from "@/components/mail/prototype/mail-formatting-toolbar";
 import { MailComposeFromSelector } from "@/components/mail/compose/mail-compose-from-selector";
 import { MailComposeSignatureBlock } from "@/components/mail/compose/mail-compose-signature-block";
@@ -53,6 +54,7 @@ export function MailComposeEditor({
   onDraftPersisted?: () => void;
 }) {
   const dismiss = onClose ?? onBack ?? (() => {});
+  const { session } = useMailSession();
   const bodyHtmlReaderRef = useRef<(() => string) | null>(null);
   const {
     contextLoading,
@@ -81,6 +83,7 @@ export function MailComposeEditor({
     syncBodyFromEditor,
     retryBootstrap,
   } = useMailComposeDraft({
+    actorUserId: session?.user.id ?? null,
     seed,
     bodyHtmlReaderRef,
     onClose: dismiss,

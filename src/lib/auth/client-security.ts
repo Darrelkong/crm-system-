@@ -1,4 +1,5 @@
 import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
+import { clearComposeContextCacheOnSessionEnd } from "@/lib/mail/client/compose-context-cache";
 
 export const CRM_LAST_ACTIVITY_KEY = "crm_last_activity_at";
 
@@ -59,6 +60,7 @@ export function sessionEndShowsModal(reason: SessionEndReason): boolean {
 export async function clearSessionClientState(
   reason: SecurityLogoutReason | "expired" = "expired",
 ): Promise<void> {
+  clearComposeContextCacheOnSessionEnd();
   try {
     await fetch("/api/auth/logout", {
       method: "POST",

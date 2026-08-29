@@ -8,6 +8,8 @@ import { cn } from "@/lib/cn";
 
 export const MAIL_ADMIN_SECTION_CLASS = "space-y-4";
 export const MAIL_ADMIN_CARD_STACK_CLASS = "space-y-3";
+export const MAIL_ADMIN_TRUNCATE_EMAIL_CLASS =
+  "block max-w-full truncate whitespace-nowrap";
 
 export function MailAdminDefinitionRow({
   label,

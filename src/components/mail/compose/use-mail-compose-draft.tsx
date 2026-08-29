@@ -62,6 +62,7 @@ import {
 } from "@/lib/mail/client/compose-draft-persistence";
 import {
   getCachedComposeContext,
+  prefetchComposeContext,
   setCachedComposeContext,
 } from "@/lib/mail/client/compose-context-cache";
 import { initChipsFromDraft } from "@/lib/mail/client/recipient-input";
@@ -169,17 +170,20 @@ async function loadSendDeliveryLifecycle(
 }
 
 export function useMailComposeDraft(input: {
+  actorUserId: string | null;
   seed?: ComposeInitialSeed;
   bodyHtmlReaderRef?: React.MutableRefObject<(() => string) | null>;
   onClose?: () => void;
   onDraftPersisted?: () => void;
   onSubmitted?: (approval: ApprovalApiItem) => void;
 }) {
+  const actorUserId = input.actorUserId;
   const [composeOptions, setComposeOptions] = useState<ComposeContextOption[]>(
-    () => getCachedComposeContext() ?? [],
+    () => getCachedComposeContext(actorUserId) ?? [],
   );
   const [contextLoading, setContextLoading] = useState(
-    () => getCachedComposeContext() === null,
+    () =>
+      actorUserId != null && getCachedComposeContext(actorUserId) === null,
   );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [state, setState] = useState<ComposeEditorState>(() =>
@@ -221,25 +225,39 @@ export function useMailComposeDraft(input: {
 
   const bootstrap = useCallback(async () => {
     const generation = ++bootstrapGenerationRef.current;
+    const bootstrapActorUserId = actorUserId;
     hydratedRef.current = false;
     setLoadError(null);
 
-    let options = getCachedComposeContext();
+    if (!bootstrapActorUserId) {
+      setComposeOptions([]);
+      setContextLoading(false);
+      return;
+    }
+
+    let options = getCachedComposeContext(bootstrapActorUserId);
     if (!options) {
       setContextLoading(true);
-      const contextResult = await fetchComposeContext();
-      if (!contextResult.ok) {
+      options = await prefetchComposeContext(bootstrapActorUserId);
+      if (generation !== bootstrapGenerationRef.current) return;
+      if (actorUserId !== bootstrapActorUserId) return;
+      if (!options) {
+        const contextResult = await fetchComposeContext();
         if (generation !== bootstrapGenerationRef.current) return;
-        setContextLoading(false);
-        setLoadError(contextResult.error);
-        return;
+        if (actorUserId !== bootstrapActorUserId) return;
+        if (!contextResult.ok) {
+          setContextLoading(false);
+          setLoadError(contextResult.error);
+          return;
+        }
+        options = contextResult.items;
+        setCachedComposeContext(bootstrapActorUserId, options);
       }
-      options = contextResult.items;
-      setCachedComposeContext(options);
       setContextLoading(false);
     }
 
     if (generation !== bootstrapGenerationRef.current) return;
+    if (actorUserId !== bootstrapActorUserId) return;
 
     setComposeOptions(options);
 
@@ -349,6 +367,7 @@ export function useMailComposeDraft(input: {
     hydratedRef.current = true;
     setDraftHydrating(false);
   }, [
+    actorUserId,
     input.seed?.bcc,
     input.seed?.bodyHtml,
     input.seed?.cc,
@@ -358,6 +377,17 @@ export function useMailComposeDraft(input: {
     input.seed?.subject,
     input.seed?.to,
   ]);
+
+  useEffect(() => {
+    if (!actorUserId) {
+      setComposeOptions([]);
+      setContextLoading(false);
+      return;
+    }
+    const cached = getCachedComposeContext(actorUserId);
+    setComposeOptions(cached ?? []);
+    setContextLoading(cached === null);
+  }, [actorUserId]);
 
   useEffect(() => {
     void bootstrap();

@@ -158,7 +158,10 @@ describe("sender identity management UI wiring", () => {
     assert.match(source, /postSenderIdentitySuspend/);
     assert.match(source, /postSenderIdentityRestore/);
     assert.match(source, /writeDefaultSenderIdentityId/);
-    assert.match(source, /hidden md:block/);
-    assert.match(source, /md:hidden/);
+    assert.match(source, /SenderIdentityGrantPanel/);
+    assert.match(source, /grantSelfOnCreate/);
+    assert.match(source, /SenderIdentityCard/);
+    assert.match(source, /MAIL_ADMIN_TRUNCATE_EMAIL_CLASS/);
+    assert.doesNotMatch(source, /DataTable/);
   });
 });

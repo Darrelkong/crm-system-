@@ -30,9 +30,9 @@ export function isPersonalMailboxOwner(
   );
 }
 
-async function findActiveMailboxSendMembership(
+async function findActiveMailboxSendMembershipForUser(
   db: Database,
-  actor: MailActorContext,
+  userId: string,
   mailboxId: string,
 ): Promise<MailMailboxMember | null> {
   const [membership] = await db
@@ -41,13 +41,21 @@ async function findActiveMailboxSendMembership(
     .where(
       and(
         eq(schema.mailMailboxMembers.mailboxId, mailboxId),
-        eq(schema.mailMailboxMembers.userId, actor.userId),
+        eq(schema.mailMailboxMembers.userId, userId),
         eq(schema.mailMailboxMembers.canSend, 1),
         isNull(schema.mailMailboxMembers.revokedAt),
       ),
     )
     .limit(1);
   return membership ?? null;
+}
+
+async function findActiveMailboxSendMembership(
+  db: Database,
+  actor: MailActorContext,
+  mailboxId: string,
+): Promise<MailMailboxMember | null> {
+  return findActiveMailboxSendMembershipForUser(db, actor.userId, mailboxId);
 }
 
 /**
@@ -74,15 +82,30 @@ export async function assertMailboxSendAuthorization(
   return membership;
 }
 
+export async function hasMailboxSendAuthorizationForUser(
+  db: Database,
+  userId: string,
+  mailbox: MailMailbox,
+): Promise<boolean> {
+  if (
+    mailbox.mailboxType === "personal" &&
+    mailbox.createdBy != null &&
+    mailbox.createdBy === userId
+  ) {
+    return true;
+  }
+  return (
+    (await findActiveMailboxSendMembershipForUser(db, userId, mailbox.id)) !=
+    null
+  );
+}
+
 export async function hasMailboxSendAuthorization(
   db: Database,
   actor: MailActorContext,
   mailbox: MailMailbox,
 ): Promise<boolean> {
-  if (isPersonalMailboxOwner(mailbox, actor)) {
-    return true;
-  }
-  return (await findActiveMailboxSendMembership(db, actor, mailbox.id)) != null;
+  return hasMailboxSendAuthorizationForUser(db, actor.userId, mailbox);
 }
 
 /**

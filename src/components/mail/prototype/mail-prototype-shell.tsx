@@ -112,6 +112,7 @@ export function MailPrototypeShell({
     loading: sessionLoading,
     error: sessionError,
     refresh: refreshMailSession,
+    session,
     effectiveMailAccessEnabled,
     workspaceShellMode,
     canOpenAdminCenter,
@@ -325,9 +326,9 @@ export function MailPrototypeShell({
   }
 
   useEffect(() => {
-    if (!effectiveMailAccessEnabled) return;
-    void prefetchComposeContext();
-  }, [effectiveMailAccessEnabled]);
+    if (!effectiveMailAccessEnabled || !session?.user.id) return;
+    void prefetchComposeContext(session.user.id);
+  }, [effectiveMailAccessEnabled, session?.user.id]);
 
   useEffect(() => {
     if (customerHandledRef.current || !effectiveMailAccessEnabled) return;

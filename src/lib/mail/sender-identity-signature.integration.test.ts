@@ -7,6 +7,7 @@ import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
+import { assertCanComposeFromIdentityInMailbox } from "@/lib/mail/compose-authorization";
 import { MailServiceError } from "@/lib/mail/errors";
 import { createMailbox } from "@/lib/mail/mailbox-service";
 import {
@@ -394,11 +395,6 @@ describe("sender identity + signature integration", () => {
       address,
       defaultMailboxId: mailbox.id,
     });
-    await grantSenderIdentityAccess(db, adminActor, {
-      senderIdentityId: identity.id,
-      targetUserId: SEED_IDS.staffA,
-      canSend: true,
-    });
 
     const now = new Date().toISOString();
     await db.insert(schema.mailMailboxMembers).values({
@@ -416,9 +412,39 @@ describe("sender identity + signature integration", () => {
       updatedAt: now,
     });
 
+    await assert.rejects(
+      () =>
+        grantSenderIdentityAccess(db, adminActor, {
+          senderIdentityId: identity.id,
+          targetUserId: SEED_IDS.staffA,
+          canSend: true,
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "VALIDATION",
+    );
+
+    await db.insert(schema.mailSenderIdentityGrants).values({
+      id: `${FIXTURE}-legacy-invalid-grant`,
+      senderIdentityId: identity.id,
+      userId: SEED_IDS.staffA,
+      canReply: 0,
+      canSend: 1,
+      grantedBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
+    });
+
     const staff = actor(SEED_IDS.staffA, []);
     await assertHasSenderIdentitySendGrant(db, staff, identity.id);
-    // Future assertCanSendFromIdentityInMailbox must reject without mailbox can_send.
+    await assert.rejects(
+      () =>
+        assertCanComposeFromIdentityInMailbox(db, staff, {
+          senderIdentityId: identity.id,
+          mailboxId: mailbox.id,
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
 
     await cleanupFixtures(db);
   });

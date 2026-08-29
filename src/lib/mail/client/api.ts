@@ -47,6 +47,11 @@ import {
   senderIdentityRestorePath,
   senderIdentitySuspendPath,
 } from "@/lib/mail/client/sender-identity-management";
+import type { SenderIdentityGrantApiItem } from "@/lib/mail/client/sender-identity-grant-management";
+import {
+  senderIdentityGrantRevokePath,
+  senderIdentityGrantsPath,
+} from "@/lib/mail/client/sender-identity-grant-management";
 import {
   NOTIFICATION_IDENTITY_SELF_ISSUE_TOKEN_PATH,
   notificationIdentitiesPath,
@@ -475,6 +480,82 @@ export async function postSenderIdentityRestore(identityId: string): Promise<{
     return { ok: false, status: res.status, error, errorCode };
   }
   const data = (await res.json()) as { item: SenderIdentityApiItem };
+  return { ok: true, item: data.item };
+}
+
+export async function fetchSenderIdentityGrants(identityId: string): Promise<{
+  ok: true;
+  items: SenderIdentityGrantApiItem[];
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(senderIdentityGrantsPath(identityId), { cache: "no-store" });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to load sender identity grants",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { items?: SenderIdentityGrantApiItem[] };
+  return { ok: true, items: data.items ?? [] };
+}
+
+export async function grantSenderIdentityAccess(
+  identityId: string,
+  input: {
+    targetUserId: string;
+    canSend?: boolean;
+    canReply?: boolean;
+  },
+): Promise<{
+  ok: true;
+  item: SenderIdentityGrantApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(senderIdentityGrantsPath(identityId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to grant sender identity access",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: SenderIdentityGrantApiItem };
+  return { ok: true, item: data.item };
+}
+
+export async function revokeSenderIdentityGrant(grantId: string): Promise<{
+  ok: true;
+  item: SenderIdentityGrantApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(senderIdentityGrantRevokePath(grantId), {
+    method: "POST",
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to revoke sender identity grant",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: SenderIdentityGrantApiItem };
   return { ok: true, item: data.item };
 }
 

@@ -48,6 +48,26 @@ describe("mail admin center desktop layout", () => {
     assert.match(globals, /\.mail-admin-center-sidebar[\s\S]*width: 240px/);
   });
 
+  it("ignores backdrop clicks for mail admin center", () => {
+    const drawer = readFileSync(
+      "src/components/mail/admin/mail-admin-center-drawer.tsx",
+      "utf8",
+    );
+    const quickEntryDrawer = readFileSync(
+      "src/components/ui/quick-entry-drawer.tsx",
+      "utf8",
+    );
+
+    assert.match(drawer, /closeOnOverlayClick=\{false\}/);
+    assert.match(quickEntryDrawer, /closeOnOverlayClick\?: boolean/);
+    assert.match(
+      quickEntryDrawer,
+      /if \(!closeBlocked && closeOnOverlayClick\) onRequestClose\(\)/,
+    );
+    assert.match(quickEntryDrawer, /if \(event\.key === "Escape"\)/);
+    assert.match(quickEntryDrawer, /qe-drawer-close/);
+  });
+
   it("defines scroll and min-height overflow hierarchy", () => {
     const globals = readFileSync("src/app/globals.css", "utf8");
 

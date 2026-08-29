@@ -223,27 +223,27 @@ describe("personal mailbox compose authorization", () => {
     );
   });
 
-  it("denies non-owner with sender identity grant on personal mailbox", async () => {
+  it("rejects canSend grant for non-owner on personal mailbox", async () => {
     const address = fixtureAddress("non-owner-grant");
     const mailbox = await createMailbox(db, adminActor, {
       address,
       mailboxType: "personal",
       ownerUserId: SEED_IDS.staffA,
     });
-    const identity = await createIdentityGrant(db, {
+    const identity = await createSenderIdentity(db, adminActor, {
       address,
-      mailboxId: mailbox.id,
-      grantUserId: SEED_IDS.staffB,
+      defaultMailboxId: mailbox.id,
     });
 
     await assert.rejects(
       () =>
-        assertCanComposeFromIdentityInMailbox(db, actor(SEED_IDS.staffB), {
+        grantSenderIdentityAccess(db, adminActor, {
           senderIdentityId: identity.id,
-          mailboxId: mailbox.id,
+          targetUserId: SEED_IDS.staffB,
+          canSend: true,
         }),
       (error: unknown) =>
-        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+        error instanceof MailServiceError && error.errorCode === "VALIDATION",
     );
   });
 
@@ -276,17 +276,17 @@ describe("personal mailbox compose authorization", () => {
       address,
       mailboxType: "shared",
     });
-    const identity = await createIdentityGrant(db, {
-      address,
-      mailboxId: mailbox.id,
-      grantUserId: SEED_IDS.staffA,
-    });
     await grantMailboxMember(db, adminActor, {
       mailboxId: mailbox.id,
       targetUserId: SEED_IDS.staffA,
       canRead: true,
       canReply: true,
       canSend: true,
+    });
+    const identity = await createIdentityGrant(db, {
+      address,
+      mailboxId: mailbox.id,
+      grantUserId: SEED_IDS.staffA,
     });
 
     const context = await assertCanComposeFromIdentityInMailbox(
@@ -297,16 +297,15 @@ describe("personal mailbox compose authorization", () => {
     assert.ok(context.membership);
   });
 
-  it("denies shared mailbox member without canSend", async () => {
+  it("rejects canSend grant when shared mailbox member lacks canSend", async () => {
     const address = fixtureAddress("shared-no-send");
     const mailbox = await createMailbox(db, adminActor, {
       address,
       mailboxType: "shared",
     });
-    const identity = await createIdentityGrant(db, {
+    const identity = await createSenderIdentity(db, adminActor, {
       address,
-      mailboxId: mailbox.id,
-      grantUserId: SEED_IDS.staffA,
+      defaultMailboxId: mailbox.id,
     });
     await grantMailboxMember(db, adminActor, {
       mailboxId: mailbox.id,
@@ -314,6 +313,47 @@ describe("personal mailbox compose authorization", () => {
       canRead: true,
       canReply: true,
       canSend: false,
+    });
+
+    await assert.rejects(
+      () =>
+        grantSenderIdentityAccess(db, adminActor, {
+          senderIdentityId: identity.id,
+          targetUserId: SEED_IDS.staffA,
+          canSend: true,
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "VALIDATION",
+    );
+  });
+
+  it("denies shared mailbox member without canSend even with legacy invalid grant row", async () => {
+    const address = fixtureAddress("shared-no-send-compose");
+    const mailbox = await createMailbox(db, adminActor, {
+      address,
+      mailboxType: "shared",
+    });
+    const identity = await createSenderIdentity(db, adminActor, {
+      address,
+      defaultMailboxId: mailbox.id,
+    });
+    await grantMailboxMember(db, adminActor, {
+      mailboxId: mailbox.id,
+      targetUserId: SEED_IDS.staffA,
+      canRead: true,
+      canReply: true,
+      canSend: false,
+    });
+    const now = new Date().toISOString();
+    await db.insert(schema.mailSenderIdentityGrants).values({
+      id: randomUUID(),
+      senderIdentityId: identity.id,
+      userId: SEED_IDS.staffA,
+      canReply: 0,
+      canSend: 1,
+      grantedBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
     });
 
     await assert.rejects(
@@ -347,5 +387,79 @@ describe("personal mailbox compose authorization", () => {
       (error: unknown) =>
         error instanceof MailServiceError && error.errorCode === "VALIDATION",
     );
+  });
+
+  it("blocks canSend sender identity grant without mailbox send authorization", async () => {
+    const address = fixtureAddress("grant-block");
+    const mailbox = await createMailbox(db, adminActor, {
+      address,
+      mailboxType: "personal",
+      ownerUserId: SEED_IDS.staffA,
+    });
+    const identity = await createSenderIdentity(db, adminActor, {
+      address,
+      defaultMailboxId: mailbox.id,
+    });
+
+    await assert.rejects(
+      () =>
+        grantSenderIdentityAccess(db, adminActor, {
+          senderIdentityId: identity.id,
+          targetUserId: SEED_IDS.admin,
+          canSend: true,
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "VALIDATION",
+    );
+  });
+
+  it("returns empty compose options for root admin without sender identity grant", async () => {
+    const address = fixtureAddress("root-empty-compose");
+    const mailbox = await createMailbox(db, adminActor, {
+      address,
+      mailboxType: "personal",
+      ownerUserId: SEED_IDS.admin,
+    });
+    const identity = await createSenderIdentity(db, adminActor, {
+      address,
+      defaultMailboxId: mailbox.id,
+    });
+
+    const options = await listComposeContextOptions(db, rootAdminActor());
+    assert.ok(
+      !options.some((option) => option.senderIdentityId === identity.id),
+      "root admin must not appear in compose options without explicit grant",
+    );
+  });
+
+  it("authorizes Darrell personal mailbox owner with explicit sender identity grant", async () => {
+    const address = fixtureAddress("darrell-recovery");
+    const mailbox = await createMailbox(db, adminActor, {
+      address,
+      mailboxType: "personal",
+      ownerUserId: SEED_IDS.admin,
+    });
+    const identity = await createSenderIdentity(db, adminActor, {
+      address,
+      displayName: "DarrellKoo",
+      defaultMailboxId: mailbox.id,
+    });
+    await grantSenderIdentityAccess(db, adminActor, {
+      senderIdentityId: identity.id,
+      targetUserId: SEED_IDS.admin,
+      canSend: true,
+    });
+
+    const context = await assertCanComposeFromIdentityInMailbox(
+      db,
+      actor(SEED_IDS.admin, { crmRole: "admin", mailAccessEnabled: true }),
+      { senderIdentityId: identity.id, mailboxId: mailbox.id },
+    );
+    assert.equal(context.identity.address, address);
+    const options = await listComposeContextOptions(
+      db,
+      actor(SEED_IDS.admin, { crmRole: "admin", mailAccessEnabled: true }),
+    );
+    assert.ok(options.some((option) => option.senderIdentityId === identity.id));
   });
 });

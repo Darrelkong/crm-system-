@@ -53,6 +53,7 @@ export function MailAdminCenterDrawer({
       title={t("mail.adminCenter.title")}
       description={t("mail.adminCenter.description")}
       onRequestClose={onRequestClose}
+      closeOnOverlayClick={false}
       closeLabel={t("common.close")}
       returnFocusRef={returnFocusRef}
       panelClassName="qe-drawer-panel--workspace"

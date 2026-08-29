@@ -5,24 +5,32 @@ import { Badge, Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/form";
 import { PageIntro } from "@/components/ui/page-intro";
-import {
-  DataTable,
-  TableBody,
-  TableHead,
-  TableShell,
-  Td,
-  Th,
-  Tr,
-} from "@/components/ui/table";
 import { useTranslation } from "@/i18n/provider";
 import {
   createSenderIdentity,
+  fetchAdminUsersForMailAccess,
+  fetchMailboxes,
   fetchMailboxesForSenderIdentity,
+  fetchMailboxMembers,
   fetchSenderIdentities,
+  fetchSenderIdentityGrants,
+  grantSenderIdentityAccess,
   postSenderIdentityRestore,
   postSenderIdentitySuspend,
 } from "@/lib/mail/client/api";
+import { invalidateComposeContextCache } from "@/lib/mail/client/compose-context-cache";
+import { useMailAdminCenterNavigation } from "@/lib/mail/client/mail-admin-center-navigation";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import type { MailboxApiItem } from "@/lib/mail/client/mailbox-management";
+import {
+  actorHasEligibleSendMailbox,
+  countActiveSenderIdentityGrants,
+  isSelfGrantSubmitEnabled,
+  mapGrantUserOptions,
+  resolveComposeMailboxView,
+  resolveCreateFormMailboxView,
+  resolveCreateIdentitySelfGrantBlockedReason,
+} from "@/lib/mail/client/sender-identity-grant-management";
 import {
   buildSenderIdentityRows,
   canManageSenderIdentity,
@@ -30,15 +38,19 @@ import {
   readDefaultSenderIdentityId,
   resolveSenderIdentityRowActions,
   writeDefaultSenderIdentityId,
+  type SenderIdentityApiItem,
   type SenderIdentityMailboxOption,
   type SenderIdentityRow,
 } from "@/lib/mail/client/sender-identity-management";
+import type { MailboxMemberApiItem } from "@/lib/mail/client/shared-mailbox-management";
+import { SenderIdentityGrantPanel } from "./sender-identity-grant-panel";
 import {
   MailAdminEmptyState,
   MailAdminErrorState,
   MailAdminLoadingState,
   MAIL_ADMIN_CARD_STACK_CLASS,
   MAIL_ADMIN_SECTION_CLASS,
+  MAIL_ADMIN_TRUNCATE_EMAIL_CLASS,
 } from "./mail-admin-states";
 
 function SenderIdentityStatusBadge({
@@ -79,6 +91,7 @@ function SenderIdentityRowActions({
   onEnable,
   onDisable,
   onSetDefault,
+  onManageGrants,
 }: {
   row: SenderIdentityRow;
   canManage: boolean;
@@ -86,16 +99,24 @@ function SenderIdentityRowActions({
   onEnable: (identityId: string) => void;
   onDisable: (identityId: string) => void;
   onSetDefault: (identityId: string) => void;
+  onManageGrants: (identityId: string) => void;
 }) {
   const { t } = useTranslation();
   const actions = resolveSenderIdentityRowActions(row, canManage);
 
-  if (!actions.showEnable && !actions.showDisable && !actions.showSetDefault) {
-    return null;
-  }
-
   return (
     <div className="flex flex-wrap gap-2">
+      {canManage ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="secondary"
+          disabled={pending}
+          onClick={() => onManageGrants(row.id)}
+        >
+          {t("mail.adminCenter.senderIdentity.grants.manageAction")}
+        </Button>
+      ) : null}
       {actions.showEnable ? (
         <Button
           type="button"
@@ -133,33 +154,46 @@ function SenderIdentityRowActions({
   );
 }
 
-function SenderIdentityMobileCard({
+function SenderIdentityCard({
   row,
+  authorizedUserCount,
   canManage,
   pending,
   onEnable,
   onDisable,
   onSetDefault,
+  onManageGrants,
 }: {
   row: SenderIdentityRow;
+  authorizedUserCount: number;
   canManage: boolean;
   pending: boolean;
   onEnable: (identityId: string) => void;
   onDisable: (identityId: string) => void;
   onSetDefault: (identityId: string) => void;
+  onManageGrants: (identityId: string) => void;
 }) {
+  const { t } = useTranslation();
+
   return (
     <Card padding className="space-y-3 p-4 md:p-6">
       <div className="min-w-0">
-        <p className="truncate text-sm font-medium crm-text">
+        <p className="truncate text-base font-medium crm-text">
           {row.displayName ?? row.address}
         </p>
-        <p className="truncate break-all text-sm crm-text-secondary">{row.address}</p>
+        <p className={MAIL_ADMIN_TRUNCATE_EMAIL_CLASS + " text-sm crm-text-secondary"}>
+          {row.address}
+        </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <SenderIdentityStatusBadge status={row.status} />
         <SenderIdentityDefaultBadge isDefault={row.isDefaultSender} />
       </div>
+      <p className="text-sm crm-text-secondary">
+        {t("mail.adminCenter.senderIdentity.grants.authorizedUserCount", {
+          count: String(authorizedUserCount),
+        })}
+      </p>
       <SenderIdentityRowActions
         row={row}
         canManage={canManage}
@@ -167,19 +201,40 @@ function SenderIdentityMobileCard({
         onEnable={onEnable}
         onDisable={onDisable}
         onSetDefault={onSetDefault}
+        onManageGrants={onManageGrants}
       />
     </Card>
   );
 }
 
+function formatMailboxOptionLabel(
+  mailbox: SenderIdentityMailboxOption,
+  suffix: string | null,
+): string {
+  const primary = mailbox.displayName
+    ? `${mailbox.displayName} (${mailbox.address})`
+    : mailbox.address;
+  return suffix ? `${primary} · ${suffix}` : primary;
+}
+
 export function SenderIdentityManagement() {
   const { t } = useTranslation();
+  const { navigateToSection } = useMailAdminCenterNavigation();
   const { session, capabilities } = useMailSession();
   const selfUserId = session?.user.id ?? null;
   const canManage = canManageSenderIdentity(capabilities);
 
   const [rows, setRows] = useState<SenderIdentityRow[]>([]);
   const [mailboxes, setMailboxes] = useState<SenderIdentityMailboxOption[]>([]);
+  const [mailboxRecords, setMailboxRecords] = useState<MailboxApiItem[]>([]);
+  const [sharedMailboxMembers, setSharedMailboxMembers] = useState<
+    Record<string, MailboxMemberApiItem[]>
+  >({});
+  const [grantCounts, setGrantCounts] = useState<Record<string, number>>({});
+  const [grantUsers, setGrantUsers] = useState(mapGrantUserOptions([]));
+  const [createMailboxMembers, setCreateMailboxMembers] = useState<
+    MailboxMemberApiItem[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
@@ -188,11 +243,47 @@ export function SenderIdentityManagement() {
   const [newAddress, setNewAddress] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [newDefaultMailboxId, setNewDefaultMailboxId] = useState("");
+  const [grantSelfOnCreate, setGrantSelfOnCreate] = useState(false);
+  const [grantPanelIdentity, setGrantPanelIdentity] =
+    useState<SenderIdentityApiItem | null>(null);
+
+  const loadSharedMailboxMembers = useCallback(
+    async (records: MailboxApiItem[]) => {
+      const sharedMailboxes = records.filter(
+        (mailbox) =>
+          mailbox.status === "active" && mailbox.mailboxType === "shared",
+      );
+      const entries = await Promise.all(
+        sharedMailboxes.map(async (mailbox) => {
+          const result = await fetchMailboxMembers(mailbox.id);
+          return [mailbox.id, result.ok ? result.items : []] as const;
+        }),
+      );
+      setSharedMailboxMembers(Object.fromEntries(entries));
+    },
+    [],
+  );
+
+  const loadGrantCounts = useCallback(async (items: SenderIdentityApiItem[]) => {
+    const entries = await Promise.all(
+      items.map(async (item) => {
+        const result = await fetchSenderIdentityGrants(item.id);
+        return [
+          item.id,
+          result.ok ? countActiveSenderIdentityGrants(result.items) : 0,
+        ] as const;
+      }),
+    );
+    setGrantCounts(Object.fromEntries(entries));
+  }, []);
 
   const load = useCallback(async () => {
     if (!canManage || !selfUserId) {
       setRows([]);
       setMailboxes([]);
+      setMailboxRecords([]);
+      setSharedMailboxMembers({});
+      setGrantCounts({});
       setLoading(false);
       setError(null);
       return;
@@ -201,14 +292,18 @@ export function SenderIdentityManagement() {
     setLoading(true);
     setError(null);
     try {
-      const [identitiesResult, mailboxesResult] = await Promise.all([
-        fetchSenderIdentities(),
-        fetchMailboxesForSenderIdentity(),
-      ]);
+      const [identitiesResult, mailboxesResult, fullMailboxesResult, usersResult] =
+        await Promise.all([
+          fetchSenderIdentities(),
+          fetchMailboxesForSenderIdentity(),
+          fetchMailboxes(),
+          fetchAdminUsersForMailAccess(),
+        ]);
 
       if (!identitiesResult.ok) {
         setRows([]);
         setMailboxes([]);
+        setMailboxRecords([]);
         setError(identitiesResult.error);
         return;
       }
@@ -217,33 +312,176 @@ export function SenderIdentityManagement() {
       setRows(
         buildSenderIdentityRows(identitiesResult.items, defaultSenderIdentityId),
       );
+      setGrantUsers(mapGrantUserOptions(usersResult.ok ? usersResult.items : []));
 
       if (mailboxesResult.ok) {
         setMailboxes(filterActiveMailboxOptions(mailboxesResult.items));
       } else {
         setMailboxes([]);
       }
+
+      const records = fullMailboxesResult.ok ? fullMailboxesResult.items : [];
+      setMailboxRecords(records);
+      await loadSharedMailboxMembers(records);
+      await loadGrantCounts(identitiesResult.items);
     } catch {
       setRows([]);
       setMailboxes([]);
+      setMailboxRecords([]);
       setError(t("common.networkError"));
     } finally {
       setLoading(false);
     }
-  }, [canManage, selfUserId, t]);
+  }, [canManage, loadGrantCounts, loadSharedMailboxMembers, selfUserId, t]);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    if (!newDefaultMailboxId) {
+      setCreateMailboxMembers([]);
+      return;
+    }
+    let cancelled = false;
+    void fetchMailboxMembers(newDefaultMailboxId).then((result) => {
+      if (cancelled) return;
+      setCreateMailboxMembers(result.ok ? result.items : []);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [newDefaultMailboxId]);
 
   const mailboxOptions = useMemo(
     () => filterActiveMailboxOptions(mailboxes),
     [mailboxes],
   );
 
+  const selectedCreateMailbox = useMemo(
+    () =>
+      mailboxRecords.find((mailbox) => mailbox.id === newDefaultMailboxId) ?? null,
+    [mailboxRecords, newDefaultMailboxId],
+  );
+
+  const selectedCreateMailboxView = useMemo(() => {
+    if (!selectedCreateMailbox) {
+      return null;
+    }
+    return resolveCreateFormMailboxView(
+      selectedCreateMailbox,
+      grantUsers,
+      selfUserId,
+      createMailboxMembers,
+    );
+  }, [createMailboxMembers, grantUsers, selectedCreateMailbox, selfUserId]);
+
+  const selectedComposeMailboxView = useMemo(() => {
+    if (!selectedCreateMailbox) {
+      return null;
+    }
+    return resolveComposeMailboxView(
+      {
+        id: "draft",
+        address: newAddress,
+        displayName: newDisplayName || null,
+        status: "active",
+        defaultMailboxId: selectedCreateMailbox.id,
+        sentFolderMailboxId: null,
+        aliasOfIdentityId: null,
+        createdBy: null,
+        createdAt: "",
+        updatedAt: "",
+      },
+      mailboxRecords,
+      grantUsers,
+    );
+  }, [
+    grantUsers,
+    mailboxRecords,
+    newAddress,
+    newDisplayName,
+    selectedCreateMailbox,
+  ]);
+
+  const hasEligibleSendMailbox = useMemo(() => {
+    if (!selfUserId) {
+      return false;
+    }
+    return actorHasEligibleSendMailbox(
+      mailboxRecords,
+      selfUserId,
+      sharedMailboxMembers,
+    );
+  }, [mailboxRecords, selfUserId, sharedMailboxMembers]);
+
+  const mailboxOptionViews = useMemo(() => {
+    const views = new Map<
+      string,
+      ReturnType<typeof resolveCreateFormMailboxView>
+    >();
+    for (const option of mailboxOptions) {
+      const record =
+        mailboxRecords.find((mailbox) => mailbox.id === option.id) ?? null;
+      if (!record) {
+        continue;
+      }
+      views.set(
+        option.id,
+        resolveCreateFormMailboxView(
+          record,
+          grantUsers,
+          selfUserId,
+          record.mailboxType === "shared"
+            ? (sharedMailboxMembers[record.id] ?? [])
+            : [],
+        ),
+      );
+    }
+    return views;
+  }, [grantUsers, mailboxOptions, mailboxRecords, selfUserId, sharedMailboxMembers]);
+
+  const selfGrantBlockedReason = resolveCreateIdentitySelfGrantBlockedReason({
+    grantSelfOnCreate,
+    selfUserId,
+    mailbox: selectedCreateMailbox,
+    members: createMailboxMembers,
+  });
+
+  const createSubmitEnabled =
+    Boolean(newAddress.trim() && newDefaultMailboxId) &&
+    isSelfGrantSubmitEnabled({
+      grantSelfOnCreate,
+      defaultMailboxId: newDefaultMailboxId,
+      selfUserId,
+      mailbox: selectedCreateMailbox,
+      members: createMailboxMembers,
+    });
+
+  function resolveMailboxOptionSuffix(mailboxId: string): string | null {
+    const view = mailboxOptionViews.get(mailboxId);
+    if (!view) {
+      return null;
+    }
+    if (view.mailboxType === "personal") {
+      if (view.ownerLabel) {
+        return t("mail.adminCenter.senderIdentity.grants.personalMailboxOwner", {
+          owner: view.ownerLabel,
+        });
+      }
+      return view.actorCanSend
+        ? t("mail.adminCenter.senderIdentity.grants.mailboxOptionActorCanSend")
+        : t("mail.adminCenter.senderIdentity.grants.mailboxOptionActorCannotSend");
+    }
+    if (view.actorCanSend) {
+      return t("mail.adminCenter.senderIdentity.grants.mailboxOptionActorCanSend");
+    }
+    return t("mail.adminCenter.senderIdentity.grants.mailboxOptionNotSendCapable");
+  }
+
   async function handleCreate(event: React.FormEvent) {
     event.preventDefault();
-    if (!canManage || !newAddress.trim() || !newDefaultMailboxId) return;
+    if (!canManage || !createSubmitEnabled) return;
 
     setBusy(true);
     setActionMessage(null);
@@ -257,9 +495,30 @@ export function SenderIdentityManagement() {
         setActionMessage(result.error);
         return;
       }
+
+      if (grantSelfOnCreate && selfUserId) {
+        const grantResult = await grantSenderIdentityAccess(result.item.id, {
+          targetUserId: selfUserId,
+          canSend: true,
+        });
+        if (!grantResult.ok) {
+          setActionMessage(grantResult.error);
+          await load();
+          return;
+        }
+      }
+
+      invalidateComposeContextCache();
+
       setNewAddress("");
       setNewDisplayName("");
-      setActionMessage(t("mail.adminCenter.senderIdentity.createSuccess"));
+      setNewDefaultMailboxId("");
+      setGrantSelfOnCreate(false);
+      setActionMessage(
+        grantSelfOnCreate
+          ? t("mail.adminCenter.senderIdentity.createWithSelfGrantSuccess")
+          : t("mail.adminCenter.senderIdentity.createSuccess"),
+      );
       await load();
     } catch {
       setActionMessage(t("common.networkError"));
@@ -279,6 +538,7 @@ export function SenderIdentityManagement() {
         return;
       }
       setActionMessage(t("mail.adminCenter.senderIdentity.disableSuccess"));
+      invalidateComposeContextCache();
       await load();
     } catch {
       setActionMessage(t("common.networkError"));
@@ -298,6 +558,7 @@ export function SenderIdentityManagement() {
         return;
       }
       setActionMessage(t("mail.adminCenter.senderIdentity.enableSuccess"));
+      invalidateComposeContextCache();
       await load();
     } catch {
       setActionMessage(t("common.networkError"));
@@ -316,6 +577,12 @@ export function SenderIdentityManagement() {
       })),
     );
     setActionMessage(t("mail.adminCenter.senderIdentity.setDefaultSuccess"));
+  }
+
+  function handleManageGrants(identityId: string) {
+    const identity = rows.find((row) => row.id === identityId);
+    if (!identity) return;
+    setGrantPanelIdentity(identity);
   }
 
   const emptyMessage = canManage
@@ -369,67 +636,21 @@ export function SenderIdentityManagement() {
           {rows.length === 0 ? (
             <MailAdminEmptyState message={emptyMessage} />
           ) : (
-            <>
-              <div className={`${MAIL_ADMIN_CARD_STACK_CLASS} md:hidden`}>
-                {rows.map((row) => (
-                  <SenderIdentityMobileCard
-                    key={row.id}
-                    row={row}
-                    canManage={canManage}
-                    pending={pendingIdentityId === row.id}
-                    onEnable={handleEnable}
-                    onDisable={handleDisable}
-                    onSetDefault={handleSetDefault}
-                  />
-                ))}
-              </div>
-
-              <TableShell className="hidden md:block">
-                <DataTable>
-                  <TableHead>
-                    <Tr>
-                      <Th>{t("mail.adminCenter.senderIdentity.columns.displayName")}</Th>
-                      <Th>{t("mail.adminCenter.senderIdentity.columns.email")}</Th>
-                      <Th>{t("mail.adminCenter.senderIdentity.columns.status")}</Th>
-                      <Th>{t("mail.adminCenter.senderIdentity.columns.defaultSender")}</Th>
-                      {canManage ? (
-                        <Th className="text-right">
-                          {t("mail.adminCenter.senderIdentity.columns.actions")}
-                        </Th>
-                      ) : null}
-                    </Tr>
-                  </TableHead>
-                  <TableBody>
-                    {rows.map((row) => (
-                      <Tr key={row.id}>
-                        <Td>{row.displayName ?? t("mail.adminCenter.senderIdentity.notApplicable")}</Td>
-                        <Td>
-                          <span className="break-all">{row.address}</span>
-                        </Td>
-                        <Td>
-                          <SenderIdentityStatusBadge status={row.status} />
-                        </Td>
-                        <Td>
-                          <SenderIdentityDefaultBadge isDefault={row.isDefaultSender} />
-                        </Td>
-                        {canManage ? (
-                          <Td className="text-right">
-                            <SenderIdentityRowActions
-                              row={row}
-                              canManage={canManage}
-                              pending={pendingIdentityId === row.id}
-                              onEnable={handleEnable}
-                              onDisable={handleDisable}
-                              onSetDefault={handleSetDefault}
-                            />
-                          </Td>
-                        ) : null}
-                      </Tr>
-                    ))}
-                  </TableBody>
-                </DataTable>
-              </TableShell>
-            </>
+            <div className={MAIL_ADMIN_CARD_STACK_CLASS}>
+              {rows.map((row) => (
+                <SenderIdentityCard
+                  key={row.id}
+                  row={row}
+                  authorizedUserCount={grantCounts[row.id] ?? 0}
+                  canManage={canManage}
+                  pending={pendingIdentityId === row.id || busy}
+                  onEnable={handleEnable}
+                  onDisable={handleDisable}
+                  onSetDefault={handleSetDefault}
+                  onManageGrants={handleManageGrants}
+                />
+              ))}
+            </div>
           )}
 
           <Card padding className="p-4 md:p-6">
@@ -470,37 +691,113 @@ export function SenderIdentityManagement() {
                 <Label htmlFor="sender-identity-mailbox">
                   {t("mail.adminCenter.senderIdentity.mailboxLabel")}
                 </Label>
+                <p className="mt-1 text-sm crm-text-secondary">
+                  {t("mail.adminCenter.senderIdentity.mailboxHelper")}
+                </p>
+                {!hasEligibleSendMailbox ? (
+                  <MailAdminEmptyState
+                    compact
+                    className="mt-3"
+                    message={t(
+                      "mail.adminCenter.senderIdentity.grants.noEligibleSendMailbox",
+                    )}
+                    action={
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => navigateToSection("mailbox")}
+                      >
+                        {t("mail.adminCenter.senderIdentity.grants.goToMailboxAccess")}
+                      </Button>
+                    }
+                  />
+                ) : null}
                 <select
                   id="sender-identity-mailbox"
                   value={newDefaultMailboxId}
                   onChange={(event) => setNewDefaultMailboxId(event.target.value)}
                   disabled={busy || mailboxOptions.length === 0}
                   required
-                  className="surface-input mt-1 w-full text-sm"
+                  className="surface-input mt-3 w-full text-sm"
                 >
                   <option value="">
                     {t("mail.adminCenter.senderIdentity.mailboxPlaceholder")}
                   </option>
                   {mailboxOptions.map((mailbox) => (
                     <option key={mailbox.id} value={mailbox.id}>
-                      {mailbox.displayName
-                        ? `${mailbox.displayName} (${mailbox.address})`
-                        : mailbox.address}
+                      {formatMailboxOptionLabel(
+                        mailbox,
+                        resolveMailboxOptionSuffix(mailbox.id),
+                      )}
                     </option>
                   ))}
                 </select>
+                {selectedCreateMailboxView ? (
+                  <div className="mt-2 space-y-1 text-sm crm-text-secondary">
+                    {selectedComposeMailboxView?.mailboxType === "personal" ? (
+                      <p>
+                        {t("mail.adminCenter.senderIdentity.grants.personalMailboxOwner", {
+                          owner: selectedComposeMailboxView.ownerLabel,
+                        })}
+                      </p>
+                    ) : (
+                      <p>
+                        {t("mail.adminCenter.senderIdentity.grants.sharedMailboxHint")}
+                      </p>
+                    )}
+                    <p>
+                      {selectedCreateMailboxView.actorCanSend
+                        ? t(
+                            "mail.adminCenter.senderIdentity.grants.mailboxOptionActorCanSend",
+                          )
+                        : t(
+                            "mail.adminCenter.senderIdentity.grants.mailboxOptionActorCannotSend",
+                          )}
+                    </p>
+                  </div>
+                ) : null}
               </div>
-              <Button
-                type="submit"
-                size="sm"
-                disabled={busy || !newAddress.trim() || !newDefaultMailboxId}
-              >
+              <label className="flex items-center gap-2 text-sm crm-text">
+                <input
+                  type="checkbox"
+                  checked={grantSelfOnCreate}
+                  onChange={(event) => setGrantSelfOnCreate(event.target.checked)}
+                  disabled={
+                    busy ||
+                    !selfUserId ||
+                    !hasEligibleSendMailbox ||
+                    (selectedCreateMailboxView != null &&
+                      !selectedCreateMailboxView.actorCanSend)
+                  }
+                />
+                <span>{t("mail.adminCenter.senderIdentity.grantSelfOnCreateLabel")}</span>
+              </label>
+              {selfGrantBlockedReason === "missingMailboxSendAuthorization" ? (
+                <div className="space-y-1 text-sm text-amber-700 dark:text-amber-300">
+                  <p>{t("mail.adminCenter.senderIdentity.grantSelfOnCreateBlocked")}</p>
+                  <p>{t("mail.adminCenter.senderIdentity.grantSelfOnCreateSetupHint")}</p>
+                </div>
+              ) : null}
+              {!hasEligibleSendMailbox ? (
+                <p className="text-sm crm-text-secondary">
+                  {t("mail.adminCenter.senderIdentity.grants.createPersonalMailboxHint")}
+                </p>
+              ) : null}
+              <Button type="submit" size="sm" disabled={busy || !createSubmitEnabled}>
                 {t("mail.adminCenter.senderIdentity.createAction")}
               </Button>
             </form>
           </Card>
         </>
       )}
+
+      <SenderIdentityGrantPanel
+        open={grantPanelIdentity != null}
+        identity={grantPanelIdentity}
+        onClose={() => setGrantPanelIdentity(null)}
+        onUpdated={() => void load()}
+      />
     </div>
   );
 }

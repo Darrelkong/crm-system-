@@ -7,6 +7,10 @@ import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { assertBatchUpdateChanged, runMailBatch } from "@/lib/mail/guarded-batch";
 import { MailServiceError } from "@/lib/mail/errors";
+import {
+  hasMailboxSendAuthorizationForUser,
+  resolveOutboundComposeMailboxId,
+} from "@/lib/mail/compose-authorization";
 import { findSenderIdentityById } from "@/lib/mail/sender-identity-service";
 import {
   toSafeSenderIdentityGrantView,
@@ -51,6 +55,41 @@ async function requireTargetUser(db: Database, targetUserId: string) {
     .limit(1);
   if (!user) {
     throw MailServiceError.notFound("Target user not found");
+  }
+}
+
+async function assertTargetUserMailboxSendAuthorizationForCanSendGrant(
+  db: Database,
+  identity: Awaited<ReturnType<typeof findSenderIdentityById>> & object,
+  targetUserId: string,
+): Promise<void> {
+  const composeMailboxId = resolveOutboundComposeMailboxId(identity);
+  if (!composeMailboxId) {
+    throw MailServiceError.validation(
+      "Sender identity has no compose mailbox configured",
+    );
+  }
+
+  const [mailbox] = await db
+    .select()
+    .from(schema.mailMailboxes)
+    .where(eq(schema.mailMailboxes.id, composeMailboxId))
+    .limit(1);
+  if (!mailbox) {
+    throw MailServiceError.notFound("Sender identity compose mailbox not found");
+  }
+  if (mailbox.status !== "active") {
+    throw MailServiceError.validation(
+      "Sender identity compose mailbox must be active",
+    );
+  }
+
+  if (
+    !(await hasMailboxSendAuthorizationForUser(db, targetUserId, mailbox))
+  ) {
+    throw MailServiceError.validation(
+      "Target user lacks mailbox send authorization for this sender identity compose mailbox",
+    );
   }
 }
 
@@ -121,6 +160,13 @@ export async function grantSenderIdentityAccess(
   const canSend = input.canSend === true ? 1 : 0;
   if (canReply === 0 && canSend === 0) {
     throw MailServiceError.validation("canReply or canSend must be true");
+  }
+  if (canSend === 1) {
+    await assertTargetUserMailboxSendAuthorizationForCanSendGrant(
+      db,
+      identity,
+      input.targetUserId,
+    );
   }
 
   const existing = await findActiveSenderIdentityGrant(
