@@ -23,6 +23,7 @@ import { MailAdminOnlyShell } from "./mail-admin-only-shell";
 import { MailProductionNoMailboxesState } from "./mail-production-no-mailboxes-state";
 import { MailDebugControls } from "./mail-debug-controls";
 import { MailDesktopWorkspace } from "./mail-desktop-workspace";
+import { prefetchComposeContext } from "@/lib/mail/client/compose-context-cache";
 import {
   buildForwardDraft,
   buildReplyAllDraft,
@@ -33,6 +34,8 @@ import {
   createComposeSeedRequestGuard,
   resolveComposeDraftSeedErrorMessageKey,
 } from "@/lib/mail/client/compose-draft-seed-client";
+import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
+import type { MailFolderId } from "@/lib/mail/prototype/types";
 import type { ProductionComposeSeedAction } from "@/components/mail/prototype/mail-production-message-actions";
 import {
   shouldWarnSharedReply,
@@ -41,6 +44,15 @@ import {
 type MobileView = "list" | "detail" | "compose";
 type ReplyGuardAction = "reply" | "reply_all" | "forward";
 type ReplyGuardState = { messageId: string; action: ReplyGuardAction } | null;
+
+function prototypeFolderToWorkspaceFolder(
+  folder: MailFolderId,
+): MailWorkspaceFolder | undefined {
+  if (folder === "drafts") return "drafts";
+  if (folder === "pending_approval") return "pending_approval";
+  if (folder === "inbox" || folder === "sent" || folder === "trash") return folder;
+  return undefined;
+}
 
 function useMobileViewport() {
   const [mobile, setMobile] = useState(false);
@@ -139,8 +151,11 @@ export function MailPrototypeShell({
   );
 
   function openCompose(initial?: Partial<MockComposeDraft> | ComposeInitialSeed) {
-    setComposeSeed(toComposeSeed(initial));
-    setComposeKey((k) => k + 1);
+    const seed = toComposeSeed(initial);
+    setComposeSeed(seed);
+    if (!seed?.draftId) {
+      setComposeKey((k) => k + 1);
+    }
     if (isMobileViewport) {
       setMobileView("compose");
     } else {
@@ -156,7 +171,17 @@ export function MailPrototypeShell({
       setComposeOpen(false);
       setComposeExpanded(false);
     }
+    setComposeSeed(undefined);
   }
+
+  function handleComposeDraftPersisted() {
+    if (workspace) {
+      void workspace.refreshDrafts();
+    }
+  }
+
+  const mailFolder =
+    workspace?.selectedFolder ?? prototypeFolderToWorkspaceFolder(activeFolder);
 
   async function handleProductionComposeSeed(
     messageId: string,
@@ -284,6 +309,7 @@ export function MailPrototypeShell({
 
     const msg = messages.find((m) => m.id === id);
     if (activeFolder === "drafts" && msg?.folder === "draft") {
+      setSelectedId(id);
       const draft = openDraftMessage(id);
       openCompose(draft);
       return;
@@ -297,6 +323,11 @@ export function MailPrototypeShell({
   function openAdminCenter() {
     setAdminCenterOpen(true);
   }
+
+  useEffect(() => {
+    if (!effectiveMailAccessEnabled) return;
+    void prefetchComposeContext();
+  }, [effectiveMailAccessEnabled]);
 
   useEffect(() => {
     if (customerHandledRef.current || !effectiveMailAccessEnabled) return;
@@ -403,7 +434,7 @@ export function MailPrototypeShell({
   return (
     <div
       ref={workspaceRef}
-      className="mail-prototype-root flex min-h-[calc(100dvh-4.5rem)] min-w-0 flex-col"
+      className="mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden"
     >
       <MailDesktopWorkspace
         workspaceRef={workspaceRef}
@@ -411,9 +442,11 @@ export function MailPrototypeShell({
         composeExpanded={composeExpanded}
         composeKey={composeKey}
         composeSeed={composeSeed}
+        mailFolder={mailFolder}
         onOpenCompose={openCompose}
         onCloseCompose={closeCompose}
         onToggleComposeExpand={() => setComposeExpanded((v) => !v)}
+        onComposeDraftPersisted={handleComposeDraftPersisted}
         onReply={handleReply}
         onReplyAll={handleReplyAll}
         onForward={handleForward}
@@ -483,7 +516,7 @@ export function MailPrototypeShell({
         {mobileView === "compose" && (
           <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
             <MailComposeEditor
-              key={composeKey}
+              key={composeSeed?.draftId ?? `new-${composeKey}`}
               seed={composeSeed}
               variant="embedded-mobile"
               onBack={closeCompose}

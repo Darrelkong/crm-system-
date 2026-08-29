@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "@/i18n/provider";
 import {
   createDraft,
   createDraftRevision,
@@ -52,13 +53,18 @@ import {
   mergeUploadedDraftAttachments,
   uploadDraftAttachmentWithProgress,
   validateLocalAttachmentFile,
+  type ComposeAttachmentUploadErrorCode,
   type ComposeAttachmentUploadState,
 } from "@/lib/mail/client/compose-attachment-upload";
-import { initChipsFromDraft } from "@/lib/mail/client/recipient-input";
 import {
-  MailAdminErrorState,
-  MailAdminLoadingState,
-} from "@/components/mail/admin/mail-admin-states";
+  ComposeDraftPersistenceError,
+  resolvePersistedDraftId,
+} from "@/lib/mail/client/compose-draft-persistence";
+import {
+  getCachedComposeContext,
+  setCachedComposeContext,
+} from "@/lib/mail/client/compose-context-cache";
+import { initChipsFromDraft } from "@/lib/mail/client/recipient-input";
 
 const SAVE_DEBOUNCE_MS = 700;
 
@@ -83,6 +89,7 @@ function uploadStatesToComposeAttachments(
     uploadStatus: attachment.uploadStatus,
     uploadProgress: attachment.uploadProgress,
     error: attachment.error,
+    errorCode: attachment.errorCode,
   }));
 }
 
@@ -163,13 +170,17 @@ async function loadSendDeliveryLifecycle(
 
 export function useMailComposeDraft(input: {
   seed?: ComposeInitialSeed;
+  bodyHtmlReaderRef?: React.MutableRefObject<(() => string) | null>;
   onClose?: () => void;
+  onDraftPersisted?: () => void;
   onSubmitted?: (approval: ApprovalApiItem) => void;
 }) {
   const [composeOptions, setComposeOptions] = useState<ComposeContextOption[]>(
-    [],
+    () => getCachedComposeContext() ?? [],
   );
-  const [loading, setLoading] = useState(true);
+  const [contextLoading, setContextLoading] = useState(
+    () => getCachedComposeContext() === null,
+  );
   const [loadError, setLoadError] = useState<string | null>(null);
   const [state, setState] = useState<ComposeEditorState>(() =>
     createEmptyComposeState(input.seed),
@@ -185,13 +196,20 @@ export function useMailComposeDraft(input: {
     null,
   );
   const [submitting, setSubmitting] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const [draftHydrating, setDraftHydrating] = useState(Boolean(input.seed?.draftId));
   const [submissionError, setSubmissionError] = useState<string | null>(null);
   const [submissionIssues, setSubmissionIssues] = useState<
     ComposeSubmissionIssueCode[]
   >([]);
   const hydratedRef = useRef(false);
+  const bootstrapGenerationRef = useRef(0);
+  const bodyEditGenerationRef = useRef(0);
   const saveTimerRef = useRef<number | null>(null);
   const savingRef = useRef(false);
+  const persistInFlightRef = useRef<Promise<ComposeEditorState | null> | null>(
+    null,
+  );
   const uploadQueueRunningRef = useRef(false);
   const uploadSidecarsRef = useRef<Map<string, AttachmentUploadSidecar>>(
     new Map(),
@@ -202,23 +220,36 @@ export function useMailComposeDraft(input: {
   uploadAttachmentsRef.current = uploadAttachments;
 
   const bootstrap = useCallback(async () => {
-    setLoading(true);
+    const generation = ++bootstrapGenerationRef.current;
+    hydratedRef.current = false;
     setLoadError(null);
 
-    const contextResult = await fetchComposeContext();
-    if (!contextResult.ok) {
-      setLoading(false);
-      setLoadError(contextResult.error);
-      return;
+    let options = getCachedComposeContext();
+    if (!options) {
+      setContextLoading(true);
+      const contextResult = await fetchComposeContext();
+      if (!contextResult.ok) {
+        if (generation !== bootstrapGenerationRef.current) return;
+        setContextLoading(false);
+        setLoadError(contextResult.error);
+        return;
+      }
+      options = contextResult.items;
+      setCachedComposeContext(options);
+      setContextLoading(false);
     }
 
-    const options = contextResult.items;
+    if (generation !== bootstrapGenerationRef.current) return;
+
     setComposeOptions(options);
 
     if (input.seed?.draftId) {
+      setDraftHydrating(true);
+      const bodyEditGenerationAtStart = bodyEditGenerationRef.current;
       const draftResult = await fetchDraft(input.seed.draftId);
+      if (generation !== bootstrapGenerationRef.current) return;
       if (!draftResult.ok) {
-        setLoading(false);
+        setDraftHydrating(false);
         setLoadError(draftResult.error);
         return;
       }
@@ -245,19 +276,51 @@ export function useMailComposeDraft(input: {
           restored.mailboxId,
         )
       ) {
-        setLoading(false);
         setLoadError("Selected From address is not authorized for compose");
+        setDraftHydrating(false);
         return;
       }
-      const linkedApproval = await loadDraftApproval(draftResult.item.id);
-      setApproval(linkedApproval);
-      const send = await loadSendOperationForApproval(linkedApproval);
-      setSendOperation(send);
-      setSendDelivery(await loadSendDeliveryLifecycle(send));
+      const hasLiveBodyEdits =
+        bodyEditGenerationRef.current !== bodyEditGenerationAtStart;
       setUploadAttachments(restoredUploads);
-      setState(restored);
+      setState((current) => {
+        if (!hasLiveBodyEdits) {
+          return restored;
+        }
+        return {
+          ...restored,
+          bodyHtml: current.bodyHtml,
+          subject: current.subject,
+          to: current.to,
+          cc: current.cc,
+          bcc: current.bcc,
+        };
+      });
+      stateRef.current = composeStateWithAttachments(
+        hasLiveBodyEdits
+          ? {
+              ...restored,
+              bodyHtml: stateRef.current.bodyHtml,
+              subject: stateRef.current.subject,
+              to: stateRef.current.to,
+              cc: stateRef.current.cc,
+              bcc: stateRef.current.bcc,
+            }
+          : restored,
+        restoredUploads,
+      );
       hydratedRef.current = true;
-      setLoading(false);
+      setDraftHydrating(false);
+
+      void (async () => {
+        const linkedApproval = await loadDraftApproval(draftResult.item.id);
+        if (generation !== bootstrapGenerationRef.current) return;
+        setApproval(linkedApproval);
+        const send = await loadSendOperationForApproval(linkedApproval);
+        if (generation !== bootstrapGenerationRef.current) return;
+        setSendOperation(send);
+        setSendDelivery(await loadSendDeliveryLifecycle(send));
+      })();
       return;
     }
 
@@ -266,8 +329,8 @@ export function useMailComposeDraft(input: {
       mailboxId: input.seed?.mailboxId,
     });
 
-    setState((current) => ({
-      ...current,
+    const seededState = {
+      ...createEmptyComposeState(input.seed),
       senderIdentityId: defaultOption?.senderIdentityId ?? null,
       mailboxId: defaultOption?.mailboxId ?? null,
       to: initChipsFromDraft(input.seed?.to),
@@ -275,30 +338,79 @@ export function useMailComposeDraft(input: {
       bcc: initChipsFromDraft(input.seed?.bcc),
       subject: input.seed?.subject ?? "",
       bodyHtml: input.seed?.bodyHtml ?? "",
-    }));
+    };
+    if (generation !== bootstrapGenerationRef.current) return;
+    setState(seededState);
+    stateRef.current = composeStateWithAttachments(seededState, []);
     setApproval(null);
     setSendOperation(null);
     setSendDelivery(null);
     setUploadAttachments([]);
     hydratedRef.current = true;
-    setLoading(false);
-  }, [input.seed]);
+    setDraftHydrating(false);
+  }, [
+    input.seed?.bcc,
+    input.seed?.bodyHtml,
+    input.seed?.cc,
+    input.seed?.draftId,
+    input.seed?.mailboxId,
+    input.seed?.senderIdentityId,
+    input.seed?.subject,
+    input.seed?.to,
+  ]);
 
   useEffect(() => {
     void bootstrap();
   }, [bootstrap]);
 
-  const persistDraft = useCallback(
-    async (snapshot: ComposeEditorState): Promise<ComposeEditorState | null> => {
+  const waitForSaveIdle = useCallback(async () => {
+    while (savingRef.current) {
+      await new Promise<void>((resolve) => {
+        window.setTimeout(resolve, 25);
+      });
+    }
+  }, []);
+
+  const syncStateRef = useCallback(() => {
+    stateRef.current = composeStateWithAttachments(
+      stateRef.current,
+      uploadAttachmentsRef.current,
+    );
+  }, []);
+
+  const syncBodyFromEditor = useCallback(() => {
+    const bodyHtml =
+      input.bodyHtmlReaderRef?.current?.() ?? stateRef.current.bodyHtml;
+    if (bodyHtml === stateRef.current.bodyHtml) {
+      return stateRef.current;
+    }
+    bodyEditGenerationRef.current += 1;
+    const next = composeStateWithAttachments(
+      { ...stateRef.current, bodyHtml },
+      uploadAttachmentsRef.current,
+    );
+    stateRef.current = next;
+    setState((current) => ({ ...current, bodyHtml }));
+    return next;
+  }, [input.bodyHtmlReaderRef]);
+
+  const persistDraftInternal = useCallback(
+    async (
+      snapshot: ComposeEditorState,
+      options?: { allowEmptyShell?: boolean },
+    ): Promise<ComposeEditorState | null> => {
       if (savingRef.current) {
-        return stateRef.current;
+        await waitForSaveIdle();
+        snapshot = stateRef.current;
       }
       if (!snapshot.senderIdentityId || !snapshot.mailboxId) {
         return null;
       }
 
       const lists = buildRecipientLists(snapshot);
+      const allowEmptyShell = options?.allowEmptyShell === true;
       if (
+        !allowEmptyShell &&
         !hasMeaningfulComposeContent({
           subject: snapshot.subject,
           bodyHtml: snapshot.bodyHtml,
@@ -321,7 +433,10 @@ export function useMailComposeDraft(input: {
         const payload = buildDraftAutosavePayload(snapshot);
 
         if (!snapshot.draftId) {
-          const created = await createDraft(payload);
+          const created = await createDraft({
+            ...payload,
+            allowEmptyShell: allowEmptyShell || undefined,
+          });
           if (!created.ok) {
             setState((current) => ({
               ...current,
@@ -396,6 +511,94 @@ export function useMailComposeDraft(input: {
         savingRef.current = false;
       }
     },
+    [waitForSaveIdle],
+  );
+
+  const persistDraft = useCallback(
+    async (
+      snapshot: ComposeEditorState,
+      options?: { allowEmptyShell?: boolean },
+    ): Promise<ComposeEditorState | null> => {
+      if (persistInFlightRef.current) {
+        return persistInFlightRef.current;
+      }
+
+      const promise = persistDraftInternal(snapshot, options);
+      persistInFlightRef.current = promise;
+      try {
+        return await promise;
+      } finally {
+        if (persistInFlightRef.current === promise) {
+          persistInFlightRef.current = null;
+        }
+      }
+    },
+    [persistDraftInternal],
+  );
+
+  const ensurePersistedDraft = useCallback(async (): Promise<string> => {
+    syncBodyFromEditor();
+    if (saveTimerRef.current) {
+      window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+
+    const existingDraftId = resolvePersistedDraftId(stateRef.current);
+    if (existingDraftId) {
+      await waitForSaveIdle();
+      const currentDraftId = resolvePersistedDraftId(stateRef.current);
+      if (currentDraftId) {
+        return currentDraftId;
+      }
+    }
+
+    const snapshot = stateRef.current;
+    if (!snapshot.senderIdentityId || !snapshot.mailboxId) {
+      throw new ComposeDraftPersistenceError(
+        "MISSING_FROM",
+        "From address is required before saving a draft",
+      );
+    }
+
+    const saved = await persistDraft(snapshot, { allowEmptyShell: true });
+    const draftId = saved ? resolvePersistedDraftId(saved) : null;
+    if (draftId) {
+      return draftId;
+    }
+
+    if (snapshot.saveError) {
+      throw new ComposeDraftPersistenceError(
+        "DRAFT_SAVE_FAILED",
+        snapshot.saveError,
+      );
+    }
+
+    throw new ComposeDraftPersistenceError(
+      "DRAFT_NOT_PERSISTED",
+      "Draft was not persisted",
+    );
+  }, [persistDraft, syncBodyFromEditor, waitForSaveIdle]);
+
+  const markAttachmentFailed = useCallback(
+    (
+      localId: string,
+      errorCode: ComposeAttachmentUploadErrorCode,
+      error: string | null = null,
+    ) => {
+      setUploadAttachments((current) =>
+        current.map((attachment) =>
+          attachment.localId === localId
+            ? {
+                ...attachment,
+                uploadStatus: "failed",
+                uploadProgress: 0,
+                error,
+                errorCode,
+              }
+            : attachment,
+        ),
+      );
+    },
     [],
   );
 
@@ -416,38 +619,8 @@ export function useMailComposeDraft(input: {
 
         const sidecar = uploadSidecarsRef.current.get(queued.localId);
         if (!sidecar) {
-          setUploadAttachments((current) =>
-            current.map((attachment) =>
-              attachment.localId === queued.localId
-                ? {
-                    ...attachment,
-                    uploadStatus: "failed",
-                    error: "Upload file missing",
-                  }
-                : attachment,
-            ),
-          );
+          markAttachmentFailed(queued.localId, "UPLOAD_FILE_MISSING");
           continue;
-        }
-
-        let working = stateRef.current;
-        if (!working.draftId) {
-          const saved = await persistDraft(working);
-          if (!saved?.draftId) {
-            setUploadAttachments((current) =>
-              current.map((attachment) =>
-                attachment.localId === queued.localId
-                  ? {
-                      ...attachment,
-                      uploadStatus: "failed",
-                      error: "Draft must be saved before uploading attachments",
-                    }
-                  : attachment,
-              ),
-            );
-            continue;
-          }
-          working = composeStateWithAttachments(saved, uploadAttachmentsRef.current);
         }
 
         setUploadAttachments((current) =>
@@ -458,13 +631,35 @@ export function useMailComposeDraft(input: {
                   uploadStatus: "uploading",
                   uploadProgress: 0,
                   error: null,
+                  errorCode: null,
                 }
               : attachment,
           ),
         );
 
+        let draftId: string;
+        try {
+          draftId = await ensurePersistedDraft();
+        } catch (error) {
+          const errorCode: ComposeAttachmentUploadErrorCode =
+            error instanceof ComposeDraftPersistenceError
+              ? error.code === "MISSING_FROM"
+                ? "MISSING_FROM"
+                : error.code === "DRAFT_NOT_PERSISTED"
+                  ? "DRAFT_NOT_PERSISTED"
+                  : "DRAFT_SAVE_FAILED"
+              : "DRAFT_SAVE_FAILED";
+          markAttachmentFailed(queued.localId, errorCode);
+          continue;
+        }
+
+        const working = composeStateWithAttachments(
+          stateRef.current,
+          uploadAttachmentsRef.current,
+        );
+
         const result = await uploadDraftAttachmentWithProgress({
-          draftId: working.draftId!,
+          draftId,
           file: sidecar.file,
           expectedAutosaveVersion: working.autosaveVersion,
           signal: sidecar.abortController.signal,
@@ -519,6 +714,7 @@ export function useMailComposeDraft(input: {
                       uploadStatus: "queued",
                       uploadProgress: 0,
                       error: null,
+                      errorCode: null,
                     }
                   : attachment,
               ),
@@ -531,17 +727,10 @@ export function useMailComposeDraft(input: {
           }
         }
 
-        setUploadAttachments((current) =>
-          current.map((attachment) =>
-            attachment.localId === queued.localId
-              ? {
-                  ...attachment,
-                  uploadStatus: "failed",
-                  uploadProgress: 0,
-                  error: result.error,
-                }
-              : attachment,
-          ),
+        markAttachmentFailed(
+          queued.localId,
+          "DRAFT_SAVE_FAILED",
+          result.error,
         );
       }
     } finally {
@@ -554,7 +743,7 @@ export function useMailComposeDraft(input: {
         void processUploadQueue();
       }
     }
-  }, [persistDraft]);
+  }, [ensurePersistedDraft, markAttachmentFailed]);
 
   const handlePickFiles = useCallback(
     (files: FileList | File[]) => {
@@ -592,11 +781,25 @@ export function useMailComposeDraft(input: {
 
       setSubmissionIssues([]);
       setSubmissionError(null);
-      setUploadAttachments((current) => [...current, ...additions]);
-      void processUploadQueue();
+      setUploadAttachments((current) => {
+        const next = [...current, ...additions];
+        uploadAttachmentsRef.current = next;
+        return next;
+      });
+      queueMicrotask(() => {
+        void processUploadQueue();
+      });
     },
     [processUploadQueue],
   );
+
+  useEffect(() => {
+    if (
+      uploadAttachments.some((attachment) => attachment.uploadStatus === "queued")
+    ) {
+      void processUploadQueue();
+    }
+  }, [uploadAttachments, processUploadQueue]);
 
   const handleCancelAttachmentUpload = useCallback((attachmentId: string) => {
     const match = uploadAttachmentsRef.current.find(
@@ -633,6 +836,7 @@ export function useMailComposeDraft(input: {
                 uploadStatus: "queued",
                 uploadProgress: 0,
                 error: null,
+                errorCode: null,
               }
             : attachment,
         ),
@@ -715,9 +919,10 @@ export function useMailComposeDraft(input: {
       window.clearTimeout(saveTimerRef.current);
     }
     saveTimerRef.current = window.setTimeout(() => {
+      syncBodyFromEditor();
       void persistDraft(stateRef.current);
     }, SAVE_DEBOUNCE_MS);
-  }, [persistDraft]);
+  }, [persistDraft, syncBodyFromEditor]);
 
   useEffect(() => {
     return () => {
@@ -734,7 +939,17 @@ export function useMailComposeDraft(input: {
     ) => {
       setSubmissionIssues([]);
       setSubmissionError(null);
-      setState((current) => ({ ...current, [key]: value }));
+      setState((current) => {
+        const next = { ...current, [key]: value };
+        if (key === "bodyHtml") {
+          bodyEditGenerationRef.current += 1;
+        }
+        stateRef.current = composeStateWithAttachments(
+          next,
+          uploadAttachmentsRef.current,
+        );
+        return next;
+      });
       scheduleAutosave();
     },
     [scheduleAutosave],
@@ -766,9 +981,53 @@ export function useMailComposeDraft(input: {
   const flushSave = useCallback(async () => {
     if (saveTimerRef.current) {
       window.clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
     }
+    syncBodyFromEditor();
     return persistDraft(stateRef.current);
-  }, [persistDraft]);
+  }, [persistDraft, syncBodyFromEditor]);
+
+  const handleClose = useCallback(async () => {
+    if (closing) return;
+    setClosing(true);
+    try {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      await waitForSaveIdle();
+      syncBodyFromEditor();
+      const snapshot = stateRef.current;
+      const lists = buildRecipientLists(snapshot);
+      const meaningful = hasMeaningfulComposeContent({
+        subject: snapshot.subject,
+        bodyHtml: snapshot.bodyHtml,
+        quotedBodyHtml: snapshot.quotedBodyHtml,
+        recipientLists: lists,
+        attachmentCount: snapshot.attachments.length,
+      });
+
+      if (meaningful) {
+        const saved = await persistDraft(snapshot);
+        if (!saved) {
+          return;
+        }
+        input.onDraftPersisted?.();
+      } else if (snapshot.draftId) {
+        await discardDraft(snapshot.draftId);
+      }
+
+      input.onClose?.();
+    } finally {
+      setClosing(false);
+    }
+  }, [
+    closing,
+    input,
+    persistDraft,
+    syncBodyFromEditor,
+    waitForSaveIdle,
+  ]);
 
   const handleDiscard = useCallback(async () => {
     if (saveTimerRef.current) {
@@ -867,7 +1126,7 @@ export function useMailComposeDraft(input: {
   );
 
   return {
-    loading,
+    contextLoading,
     loadError,
     composeOptions,
     state: composeStateWithAttachments(state, uploadAttachments),
@@ -878,10 +1137,14 @@ export function useMailComposeDraft(input: {
     submissionError,
     submissionIssues,
     canSubmit,
+    closing,
+    draftHydrating,
     buildSubmissionIssueMessageKey,
     updateField,
     selectFrom,
     flushSave,
+    syncBodyFromEditor,
+    handleClose,
     handleDiscard,
     handleSubmitForApproval,
     handlePickFiles,
@@ -895,29 +1158,34 @@ export function useMailComposeDraft(input: {
 }
 
 export function MailComposeDraftGate({
-  loading,
   loadError,
   onRetry,
   children,
 }: {
-  loading: boolean;
   loadError: string | null;
   onRetry: () => void;
   children: React.ReactNode;
 }) {
-  if (loading) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <MailAdminLoadingState />
-      </div>
-    );
-  }
-  if (loadError) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center p-6">
-        <MailAdminErrorState message={loadError} onRetry={onRetry} />
-      </div>
-    );
-  }
-  return <>{children}</>;
+  const { t } = useTranslation();
+
+  return (
+    <>
+      {loadError ? (
+        <div
+          className="shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 dark:border-red-900/50 dark:bg-red-950/20"
+          role="alert"
+        >
+          <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
+          <button
+            type="button"
+            onClick={onRetry}
+            className="mt-1 text-xs font-medium text-red-700 underline dark:text-red-300"
+          >
+            {t("mail.adminCenter.retry")}
+          </button>
+        </div>
+      ) : null}
+      {children}
+    </>
+  );
 }

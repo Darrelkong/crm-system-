@@ -122,7 +122,7 @@ describe("draft-management", () => {
 });
 
 describe("mail compose editor wiring", () => {
-  it("uses admin shared states for compose loading and signature", () => {
+  it("renders compose shell immediately with localized sender loading", () => {
     const draftHook = readFileSync(
       "src/components/mail/compose/use-mail-compose-draft.tsx",
       "utf8",
@@ -136,7 +136,8 @@ describe("mail compose editor wiring", () => {
       "utf8",
     );
 
-    assert.match(draftHook, /MailAdmin(Loading|Error)State/);
+    assert.doesNotMatch(draftHook, /MailAdminLoadingState/);
+    assert.match(draftHook, /contextLoading/);
     assert.match(signature, /MailAdmin(Loading|Error)State/);
     assert.match(editor, /embedded-mobile/);
     assert.match(editor, /floating-desktop/);

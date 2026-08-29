@@ -22,11 +22,16 @@ import {
 } from "@/components/mail/compose/use-mail-compose-draft";
 import { MailComposeAttachmentList } from "@/components/mail/compose/mail-compose-attachment-list";
 import {
+  insertTextAtCaret,
+  MailComposeEmojiPicker,
+} from "@/components/mail/compose/mail-compose-emoji-picker";
+import {
   buildRecipientLists,
   composeMobileRootClass,
   type ComposeInitialSeed,
 } from "@/lib/mail/client/draft-management";
 import { resolveComposeTitleKey } from "@/lib/mail/client/compose-reply-body";
+import { normalizeInvisiblePastedForeground } from "@/lib/mail/client/compose-paste-normalization";
 
 export function MailComposeEditor({
   variant,
@@ -36,6 +41,7 @@ export function MailComposeEditor({
   onToggleExpand,
   expanded = false,
   onSubmitted,
+  onDraftPersisted,
 }: {
   variant: "embedded-mobile" | "floating-desktop";
   seed?: ComposeInitialSeed;
@@ -44,10 +50,12 @@ export function MailComposeEditor({
   onToggleExpand?: () => void;
   expanded?: boolean;
   onSubmitted?: () => void;
+  onDraftPersisted?: () => void;
 }) {
   const dismiss = onClose ?? onBack ?? (() => {});
+  const bodyHtmlReaderRef = useRef<(() => string) | null>(null);
   const {
-    loading,
+    contextLoading,
     loadError,
     composeOptions,
     state,
@@ -57,38 +65,50 @@ export function MailComposeEditor({
     submissionError,
     submissionIssues,
     canSubmit,
+    closing,
+    draftHydrating,
     buildSubmissionIssueMessageKey,
     updateField,
     selectFrom,
     flushSave,
+    handleClose,
     handleDiscard,
     handleSubmitForApproval,
     handlePickFiles,
     handleRemoveAttachment,
     handleRetryAttachmentUpload,
     handleCancelAttachmentUpload,
+    syncBodyFromEditor,
     retryBootstrap,
   } = useMailComposeDraft({
     seed,
+    bodyHtmlReaderRef,
     onClose: dismiss,
+    onDraftPersisted,
     onSubmitted: onSubmitted,
   });
 
   return (
     <MailComposeDraftGate
-      loading={loading}
       loadError={loadError}
       onRetry={() => void retryBootstrap()}
     >
       <MailComposeEditorBody
         variant={variant}
+        expanded={expanded}
+        contextLoading={contextLoading}
         composeOptions={composeOptions}
         state={state}
         updateField={updateField}
         selectFrom={selectFrom}
-        flushSave={flushSave}
+        onClose={() => void handleClose()}
         onDiscard={() => void handleDiscard()}
         onSubmit={() => void handleSubmitForApproval()}
+        flushSave={flushSave}
+        syncBodyFromEditor={syncBodyFromEditor}
+        closing={closing}
+        draftHydrating={draftHydrating}
+        bodyHtmlReaderRef={bodyHtmlReaderRef}
         onPickFiles={handlePickFiles}
         onRemoveAttachment={(attachmentId) =>
           void handleRemoveAttachment(attachmentId)
@@ -106,12 +126,8 @@ export function MailComposeEditor({
         submissionError={submissionError}
         submissionIssues={submissionIssues}
         buildSubmissionIssueMessageKey={buildSubmissionIssueMessageKey}
-        onClose={() => {
-          void flushSave().then(dismiss);
-        }}
         onBack={onBack}
         onToggleExpand={onToggleExpand}
-        expanded={expanded}
       />
     </MailComposeDraftGate>
   );
@@ -119,13 +135,17 @@ export function MailComposeEditor({
 
 function MailComposeEditorBody({
   variant,
+  expanded = false,
+  contextLoading,
   composeOptions,
   state,
   updateField,
   selectFrom,
-  flushSave,
+  onClose,
   onDiscard,
   onSubmit,
+  flushSave,
+  syncBodyFromEditor,
   onPickFiles,
   onRemoveAttachment,
   onRetryAttachment,
@@ -137,19 +157,24 @@ function MailComposeEditorBody({
   submissionError,
   submissionIssues,
   buildSubmissionIssueMessageKey,
-  onClose,
   onBack,
   onToggleExpand,
-  expanded,
+  closing = false,
+  draftHydrating = false,
+  bodyHtmlReaderRef,
 }: {
   variant: "embedded-mobile" | "floating-desktop";
+  expanded?: boolean;
+  contextLoading: boolean;
   composeOptions: Parameters<typeof MailComposeFromSelector>[0]["options"];
   state: ReturnType<typeof useMailComposeDraft>["state"];
   updateField: ReturnType<typeof useMailComposeDraft>["updateField"];
   selectFrom: ReturnType<typeof useMailComposeDraft>["selectFrom"];
-  flushSave: ReturnType<typeof useMailComposeDraft>["flushSave"];
+  onClose: () => void;
   onDiscard: () => void;
   onSubmit: () => void;
+  flushSave: ReturnType<typeof useMailComposeDraft>["flushSave"];
+  syncBodyFromEditor: ReturnType<typeof useMailComposeDraft>["syncBodyFromEditor"];
   onPickFiles: (files: FileList | File[]) => void;
   onRemoveAttachment: (attachmentId: string) => void;
   onRetryAttachment: (attachmentId: string) => void;
@@ -165,34 +190,66 @@ function MailComposeEditorBody({
   buildSubmissionIssueMessageKey: ReturnType<
     typeof useMailComposeDraft
   >["buildSubmissionIssueMessageKey"];
-  onClose: () => void;
   onBack?: () => void;
   onToggleExpand?: () => void;
-  expanded?: boolean;
+  closing?: boolean;
+  draftHydrating?: boolean;
+  bodyHtmlReaderRef: React.MutableRefObject<(() => string) | null>;
 }) {
   const { t } = useTranslation();
   const editorRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const hydratedRef = useRef(false);
-  const [showCcBcc, setShowCcBcc] = useState(
-    variant === "floating-desktop" && state.composeMode === "new",
-  );
-  const [showFormatting, setShowFormatting] = useState(false);
+  const skipBodySyncRef = useRef(false);
+  const ccUserOpenedRef = useRef(false);
+  const bccUserOpenedRef = useRef(false);
+  const [showCcRow, setShowCcRow] = useState(false);
+  const [showBccRow, setShowBccRow] = useState(false);
+  const [showFormatting, setShowFormatting] = useState(true);
   const [submitTouched, setSubmitTouched] = useState(false);
   const [quotedExpanded, setQuotedExpanded] = useState(false);
   const isMobile = variant === "embedded-mobile";
   const isFloating = variant === "floating-desktop";
+  const isEmbeddedExpanded = expanded && !isMobile;
+  const emailFieldAppearance = isFloating ? "email" : "form";
+  const formattingVisible = (isFloating && !isEmbeddedExpanded) || showFormatting;
+  const [showDraftLoadingLabel, setShowDraftLoadingLabel] = useState(false);
   const allLists = buildRecipientLists(state);
   const titleKey = resolveComposeTitleKey(state.composeMode);
 
+  bodyHtmlReaderRef.current = () => editorRef.current?.innerHTML ?? "";
+
   useEffect(() => {
-    if (hydratedRef.current || !editorRef.current) return;
-    editorRef.current.innerHTML = state.bodyHtml;
-    setShowCcBcc(
-      isFloating || state.cc.length > 0 || state.bcc.length > 0,
-    );
-    hydratedRef.current = true;
-  }, [isFloating, state.bodyHtml, state.bcc.length, state.cc.length]);
+    if (!draftHydrating) {
+      setShowDraftLoadingLabel(false);
+      return;
+    }
+    const timer = window.setTimeout(() => {
+      setShowDraftLoadingLabel(true);
+    }, 120);
+    return () => window.clearTimeout(timer);
+  }, [draftHydrating]);
+
+  useEffect(() => {
+    if (skipBodySyncRef.current) {
+      skipBodySyncRef.current = false;
+      return;
+    }
+    if (editorRef.current) {
+      editorRef.current.innerHTML = state.bodyHtml;
+    }
+  }, [state.draftId, state.bodyHtml]);
+
+  useEffect(() => {
+    if (isFloating) {
+      setShowCcRow(state.cc.length > 0);
+      setShowBccRow(state.bcc.length > 0);
+    } else {
+      setShowCcRow(state.cc.length > 0 || state.bcc.length > 0);
+      setShowBccRow(state.cc.length > 0 || state.bcc.length > 0);
+    }
+    ccUserOpenedRef.current = state.cc.length > 0;
+    bccUserOpenedRef.current = state.bcc.length > 0;
+  }, [isFloating, state.draftId, state.cc.length, state.bcc.length]);
 
   const savedTimeLabel =
     state.lastSavedAt &&
@@ -212,8 +269,32 @@ function MailComposeEditorBody({
           : null;
 
   function handleBodyInput() {
+    skipBodySyncRef.current = true;
     const html = editorRef.current?.innerHTML ?? "";
     updateField("bodyHtml", html);
+  }
+
+  function handleBodyPaste(event: React.ClipboardEvent<HTMLDivElement>) {
+    event.preventDefault();
+    const html = event.clipboardData.getData("text/html");
+    const text = event.clipboardData.getData("text/plain");
+
+    if (html.trim()) {
+      document.execCommand(
+        "insertHTML",
+        false,
+        normalizeInvisiblePastedForeground(html),
+      );
+    } else if (text) {
+      document.execCommand("insertText", false, text);
+    }
+
+    handleBodyInput();
+  }
+
+  function handleInsertEmoji(emoji: string) {
+    insertTextAtCaret(editorRef.current, emoji);
+    handleBodyInput();
   }
 
   function handlePickFilesEvent(event: React.ChangeEvent<HTMLInputElement>) {
@@ -228,8 +309,65 @@ function MailComposeEditorBody({
     onDiscard();
   }
 
+  const ccBccLinks =
+    isFloating && !showCcRow && !showBccRow ? (
+      <>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            ccUserOpenedRef.current = true;
+            setShowCcRow(true);
+          }}
+          className="text-xs font-medium tracking-wide crm-text-secondary hover:crm-text"
+        >
+          CC
+        </button>
+        <button
+          type="button"
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => {
+            bccUserOpenedRef.current = true;
+            setShowBccRow(true);
+          }}
+          className="text-xs font-medium tracking-wide crm-text-secondary hover:crm-text"
+        >
+          BCC
+        </button>
+      </>
+    ) : isFloating && showCcRow && !showBccRow ? (
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => {
+          bccUserOpenedRef.current = true;
+          setShowBccRow(true);
+        }}
+        className="text-xs font-medium tracking-wide crm-text-secondary hover:crm-text"
+      >
+        BCC
+      </button>
+    ) : isFloating && !showCcRow && showBccRow ? (
+      <button
+        type="button"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => {
+          ccUserOpenedRef.current = true;
+          setShowCcRow(true);
+        }}
+        className="text-xs font-medium tracking-wide crm-text-secondary hover:crm-text"
+      >
+        CC
+      </button>
+    ) : null;
+
   return (
-    <div className={composeMobileRootClass(variant)}>
+    <div
+      className={cn(
+        composeMobileRootClass(variant),
+        expanded && "mail-compose-embedded-pane-inner mail-compose-embedded-expanded",
+      )}
+    >
       {isMobile ? (
         <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
           <button
@@ -248,20 +386,24 @@ function MailComposeEditorBody({
           ) : null}
         </div>
       ) : (
-        <div className="flex shrink-0 items-center gap-1 border-b crm-border px-2 py-1.5 sm:px-3">
-          <button
-            type="button"
-            onClick={onClose}
-            className="mail-compose-toolbar-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
-            aria-label={t("common.close")}
-          >
-            <X className="h-4 w-4" />
-          </button>
+        <div className="mail-compose-header flex shrink-0 items-center gap-1 border-b crm-border px-2 py-1 sm:px-3">
+          <div className="min-w-0 flex-1 truncate px-1 text-sm font-medium crm-text">
+            {t(titleKey)}
+          </div>
+          {saveLabel ? (
+            <span className="hidden truncate text-xs crm-text-secondary sm:inline">
+              {saveLabel}
+            </span>
+          ) : null}
           {onToggleExpand ? (
             <button
               type="button"
-              onClick={onToggleExpand}
-              className="mail-compose-toolbar-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
+              onClick={() => {
+                skipBodySyncRef.current = true;
+                syncBodyFromEditor();
+                onToggleExpand();
+              }}
+              className="mail-compose-toolbar-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
               aria-label={
                 expanded ? t("mail.compose.restore") : t("mail.compose.expand")
               }
@@ -273,192 +415,357 @@ function MailComposeEditorBody({
               )}
             </button>
           ) : null}
-          <div className="min-w-0 flex-1 truncate px-1 text-sm font-medium crm-text">
-            {t(titleKey)}
-          </div>
-          {saveLabel ? (
-            <span className="truncate text-xs crm-text-secondary">{saveLabel}</span>
-          ) : null}
           <button
             type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className="mail-compose-toolbar-btn flex h-9 w-9 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-            aria-label={t("mail.compose.attachments")}
+            onClick={onClose}
+            disabled={closing}
+            className="mail-compose-toolbar-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text disabled:opacity-60 dark:hover:bg-white/[0.06]"
+            aria-label={t("common.close")}
           >
-            <Paperclip className="h-4 w-4" />
+            <X className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <MailComposeFromSelector
-          options={composeOptions}
-          senderIdentityId={state.senderIdentityId}
-          mailboxId={state.mailboxId}
-          onChange={selectFrom}
-        />
-
-        <div className="space-y-2 px-3 py-2">
-          <MailRecipientChipsField
-            label={t("mail.compose.to")}
-            field="to"
-            chips={state.to}
-            onChange={(chips) => updateField("to", chips)}
-            allLists={allLists}
-            placeholder={t("mail.recipient.placeholder")}
-            showCcBccToggle={!showCcBcc}
-            onToggleCcBcc={() => setShowCcBcc(true)}
-            compact={isMobile}
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div className="shrink-0">
+          <MailComposeFromSelector
+            options={composeOptions}
+            senderIdentityId={state.senderIdentityId}
+            mailboxId={state.mailboxId}
+            onChange={selectFrom}
+            loading={contextLoading}
+            appearance={emailFieldAppearance}
           />
-          {showCcBcc ? (
-            <>
+
+          <div className={cn(isFloating ? "px-3" : "space-y-2 px-3 py-2")}>
+            <MailRecipientChipsField
+              label={t("mail.compose.to")}
+              field="to"
+              chips={state.to}
+              onChange={(chips) => updateField("to", chips)}
+              allLists={allLists}
+              placeholder={t("mail.recipient.placeholder")}
+              trailing={ccBccLinks}
+              appearance={emailFieldAppearance}
+              compact={isMobile}
+              showCcBccToggle={!isFloating && !showCcRow && !showBccRow}
+              onToggleCcBcc={() => {
+                ccUserOpenedRef.current = true;
+                bccUserOpenedRef.current = true;
+                setShowCcRow(true);
+                setShowBccRow(true);
+              }}
+            />
+            {(isFloating ? showCcRow : showCcRow || showBccRow) ? (
               <MailRecipientChipsField
-                label={t("mail.compose.cc")}
+                label="CC"
                 field="cc"
                 chips={state.cc}
                 onChange={(chips) => updateField("cc", chips)}
                 allLists={allLists}
                 placeholder={t("mail.recipient.placeholder")}
+                appearance={emailFieldAppearance}
                 compact={isMobile}
+                onFieldFocus={() => {
+                  ccUserOpenedRef.current = true;
+                }}
+                onInputActivity={() => {
+                  ccUserOpenedRef.current = true;
+                }}
+                onFieldBlur={(pendingInput) => {
+                  if (
+                    ccUserOpenedRef.current &&
+                    (pendingInput.trim() || state.cc.length > 0)
+                  ) {
+                    return;
+                  }
+                  if (isFloating && state.cc.length === 0 && !pendingInput.trim()) {
+                    setShowCcRow(false);
+                    ccUserOpenedRef.current = false;
+                  }
+                }}
               />
+            ) : null}
+            {(isFloating ? showBccRow : showCcRow || showBccRow) ? (
               <MailRecipientChipsField
-                label={t("mail.compose.bcc")}
+                label="BCC"
                 field="bcc"
                 chips={state.bcc}
                 onChange={(chips) => updateField("bcc", chips)}
                 allLists={allLists}
                 placeholder={t("mail.recipient.placeholder")}
+                appearance={emailFieldAppearance}
                 compact={isMobile}
+                onFieldFocus={() => {
+                  bccUserOpenedRef.current = true;
+                }}
+                onInputActivity={() => {
+                  bccUserOpenedRef.current = true;
+                }}
+                onFieldBlur={(pendingInput) => {
+                  if (
+                    bccUserOpenedRef.current &&
+                    (pendingInput.trim() || state.bcc.length > 0)
+                  ) {
+                    return;
+                  }
+                  if (isFloating && state.bcc.length === 0 && !pendingInput.trim()) {
+                    setShowBccRow(false);
+                    bccUserOpenedRef.current = false;
+                  }
+                }}
               />
-            </>
+            ) : null}
+
+            <div
+              className={cn(
+                "flex min-w-0 items-center gap-2",
+                isFloating && "border-b crm-border py-1.5",
+              )}
+            >
+              <label
+                htmlFor="mail-compose-subject"
+                className="w-12 shrink-0 text-sm crm-text-secondary"
+              >
+                {t("mail.compose.subject")}
+              </label>
+              <input
+                id="mail-compose-subject"
+                type="text"
+                value={state.subject}
+                onChange={(event) => updateField("subject", event.target.value)}
+                className={cn(
+                  "min-w-0 flex-1 bg-transparent text-sm outline-none crm-text",
+                  isFloating
+                    ? "min-h-8 border-0 py-0.5"
+                    : "min-h-10 rounded-lg border crm-border px-3 mail-compose-input",
+                )}
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          {!isEmbeddedExpanded && formattingVisible ? (
+            <MailFormattingToolbar editorRef={editorRef} compact={isFloating} />
           ) : null}
 
-          <div className="flex min-w-0 items-center gap-2">
-            <label
-              htmlFor="mail-compose-subject"
-              className="w-12 shrink-0 text-sm crm-text-secondary"
-            >
-              {t("mail.compose.subject")}
-            </label>
-            <input
-              id="mail-compose-subject"
-              type="text"
-              value={state.subject}
-              onChange={(event) => updateField("subject", event.target.value)}
+          <div
+            className={cn(
+              "mail-compose-body-scroll min-h-0 flex-1 overflow-y-auto",
+              isEmbeddedExpanded &&
+                "mail-compose-body-region flex min-h-0 flex-1 flex-col overflow-hidden",
+            )}
+          >
+            {isEmbeddedExpanded && showDraftLoadingLabel ? (
+              <p className="px-3 pb-1 pt-2 text-xs crm-text-secondary">
+                {t("mail.compose.loadingDraft")}
+              </p>
+            ) : null}
+
+            {isMobile ? (
+              <div className="flex items-center justify-between gap-2 px-3 pb-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowFormatting((value) => !value)}
+                  className="text-xs crm-text-secondary hover:crm-text"
+                >
+                  {t("mail.compose.formatting")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="inline-flex items-center gap-1 text-xs crm-text-secondary hover:crm-text"
+                >
+                  <Paperclip className="h-3.5 w-3.5" />
+                  {t("mail.compose.attachments")}
+                </button>
+              </div>
+            ) : null}
+
+            <div
               className={cn(
-                "min-h-10 min-w-0 flex-1 rounded-lg border crm-border px-3 text-sm outline-none",
-                isFloating
-                  ? "mail-compose-input"
-                  : "bg-transparent crm-text",
+                isFloating && !isEmbeddedExpanded ? "px-3 py-2" : isMobile ? "px-3 pb-2" : "",
               )}
+            >
+              <div
+                ref={editorRef}
+                contentEditable
+                suppressContentEditableWarning
+                onInput={handleBodyInput}
+                onPaste={handleBodyPaste}
+                className={cn(
+                  "mail-compose-body-editor text-sm outline-none crm-text",
+                  isEmbeddedExpanded
+                    ? "mail-compose-body-editor--embedded-expanded min-h-full px-3 py-2"
+                    : isFloating
+                      ? "min-h-[8rem] rounded-md px-1 py-1"
+                      : "min-h-[12rem] rounded-lg border crm-border px-3 py-2 mail-compose-input",
+                  "empty:before:text-neutral-500 empty:before:content-[attr(data-placeholder)]",
+                  "dark:empty:before:text-neutral-400",
+                )}
+                data-placeholder={t("mail.compose.body")}
+              />
+            </div>
+
+            {state.quotedBodyHtml ? (
+              <div className="px-3 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setQuotedExpanded((value) => !value)}
+                  className="inline-flex items-center gap-1 text-sm crm-text-secondary hover:crm-text"
+                >
+                  {t("mail.compose.showQuoted")}
+                </button>
+                {quotedExpanded ? (
+                  <div
+                    className="mail-compose-quoted mt-2 rounded-md border crm-border bg-[var(--color-crm-bg-muted)] px-3 py-2 text-sm leading-relaxed crm-text-secondary"
+                    dangerouslySetInnerHTML={{ __html: state.quotedBodyHtml }}
+                  />
+                ) : null}
+              </div>
+            ) : null}
+
+            <MailComposeSignatureBlock
+              senderIdentityId={state.senderIdentityId}
+              compact={isFloating && !isEmbeddedExpanded}
+              embeddedExpanded={isEmbeddedExpanded}
             />
           </div>
         </div>
+      </div>
 
-        {showFormatting ? (
-          <MailFormattingToolbar editorRef={editorRef} />
-        ) : null}
+      {state.attachments.length > 0 ? (
+        <MailComposeAttachmentList
+          attachments={state.attachments}
+          variant={variant}
+          onRemove={onRemoveAttachment}
+          onRetry={onRetryAttachment}
+          onCancel={onCancelAttachment}
+        />
+      ) : null}
 
-        <div className="px-3 pb-2">
-          <div className="flex items-center justify-between gap-2 pb-2">
-            <button
-              type="button"
-              onClick={() => setShowFormatting((value) => !value)}
-              className="text-xs crm-text-secondary hover:crm-text"
-            >
-              {t("mail.compose.formatting")}
-            </button>
-            {isMobile ? (
+      {isEmbeddedExpanded ? (
+        <div className="mail-compose-bottom-dock flex shrink-0 flex-col gap-1.5 border-t crm-border px-3 pb-5 pt-2">
+          <MailFormattingToolbar editorRef={editorRef} compact dock />
+          <MailComposeSubmissionStatus
+            phase={submissionPhase}
+            approval={approval}
+            outboundDisplayPhase={outboundDisplayPhase}
+            submissionError={submissionError}
+          />
+          {submitTouched && submissionIssues.length > 0 ? (
+            <ul className="space-y-1 text-sm text-red-600 dark:text-red-400">
+              {submissionIssues.map((issue) => (
+                <li key={issue}>{t(buildSubmissionIssueMessageKey(issue))}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-1.5">
+              <Button
+                type="button"
+                size="sm"
+                disabled={!canSubmit || submissionPhase === "submitting"}
+                onClick={() => {
+                  setSubmitTouched(true);
+                  onSubmit();
+                }}
+              >
+                {submissionPhase === "submitting"
+                  ? t("mail.compose.submitting")
+                  : approval?.status === "returned"
+                    ? t("mail.compose.resubmitApproval")
+                    : t("mail.compose.submitApproval")}
+              </Button>
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="inline-flex items-center gap-1 text-xs crm-text-secondary hover:crm-text"
+                className="mail-compose-toolbar-btn inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
+                aria-label={t("mail.compose.attachments")}
               >
-                <Paperclip className="h-3.5 w-3.5" />
-                {t("mail.compose.attachments")}
+                <Paperclip className="h-4 w-4" />
               </button>
-            ) : null}
+              <MailComposeEmojiPicker onInsert={handleInsertEmoji} />
+            </div>
+            <Button type="button" variant="ghost" size="sm" onClick={confirmDiscard}>
+              {t("mail.compose.discardDraft")}
+            </Button>
           </div>
-          <div
-            ref={editorRef}
-            contentEditable
-            suppressContentEditableWarning
-            onInput={handleBodyInput}
-            className={cn(
-              "mail-compose-body-editor min-h-[12rem] rounded-lg border crm-border px-3 py-2 text-sm outline-none",
-              "mail-compose-input crm-text",
-              "empty:before:text-neutral-500 empty:before:content-[attr(data-placeholder)]",
-              "dark:empty:before:text-neutral-400",
+        </div>
+      ) : (
+        <div className="mail-compose-footer flex shrink-0 flex-col gap-1.5 border-t crm-border px-3 py-2">
+          <MailComposeSubmissionStatus
+            phase={submissionPhase}
+            approval={approval}
+            outboundDisplayPhase={outboundDisplayPhase}
+            submissionError={submissionError}
+          />
+          {submitTouched && submissionIssues.length > 0 ? (
+            <ul className="space-y-1 text-sm text-red-600 dark:text-red-400">
+              {submissionIssues.map((issue) => (
+                <li key={issue}>{t(buildSubmissionIssueMessageKey(issue))}</li>
+              ))}
+            </ul>
+          ) : null}
+          <div className="flex items-center justify-between gap-2">
+            {isFloating ? (
+              <>
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
+                  <Button
+                    type="button"
+                    size="sm"
+                    disabled={!canSubmit || submissionPhase === "submitting"}
+                    onClick={() => {
+                      setSubmitTouched(true);
+                      onSubmit();
+                    }}
+                  >
+                    {submissionPhase === "submitting"
+                      ? t("mail.compose.submitting")
+                      : approval?.status === "returned"
+                        ? t("mail.compose.resubmitApproval")
+                        : t("mail.compose.submitApproval")}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="mail-compose-toolbar-btn inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
+                    aria-label={t("mail.compose.attachments")}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                  <MailComposeEmojiPicker onInsert={handleInsertEmoji} />
+                </div>
+                <Button type="button" variant="ghost" size="sm" onClick={confirmDiscard}>
+                  {t("mail.compose.discardDraft")}
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button type="button" variant="ghost" onClick={confirmDiscard}>
+                  {t("mail.compose.discardDraft")}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={!canSubmit || submissionPhase === "submitting"}
+                  onClick={() => {
+                    setSubmitTouched(true);
+                    onSubmit();
+                  }}
+                >
+                  {submissionPhase === "submitting"
+                    ? t("mail.compose.submitting")
+                    : approval?.status === "returned"
+                      ? t("mail.compose.resubmitApproval")
+                      : t("mail.compose.submitApproval")}
+                </Button>
+              </>
             )}
-            data-placeholder={t("mail.compose.body")}
-          />
-        </div>
-
-        {state.quotedBodyHtml ? (
-          <div className="px-3 pb-3">
-            <button
-              type="button"
-              onClick={() => setQuotedExpanded((value) => !value)}
-              className="inline-flex items-center gap-1 text-sm crm-text-secondary hover:crm-text"
-            >
-              {t("mail.compose.showQuoted")}
-            </button>
-            {quotedExpanded ? (
-              <div
-                className="mail-compose-quoted mt-3 rounded-lg border crm-border bg-[var(--color-crm-bg-muted)] px-3 py-2 text-sm leading-relaxed crm-text-secondary"
-                dangerouslySetInnerHTML={{ __html: state.quotedBodyHtml }}
-              />
-            ) : null}
           </div>
-        ) : null}
-
-        {state.attachments.length > 0 ? (
-          <MailComposeAttachmentList
-            attachments={state.attachments}
-            variant={variant}
-            onRemove={onRemoveAttachment}
-            onRetry={onRetryAttachment}
-            onCancel={onCancelAttachment}
-          />
-        ) : null}
-
-        <MailComposeSignatureBlock senderIdentityId={state.senderIdentityId} />
-      </div>
-
-      <div className="flex shrink-0 flex-col gap-2 border-t crm-border px-3 py-2">
-        <MailComposeSubmissionStatus
-          phase={submissionPhase}
-          approval={approval}
-          outboundDisplayPhase={outboundDisplayPhase}
-          submissionError={submissionError}
-        />
-        {submitTouched && submissionIssues.length > 0 ? (
-          <ul className="space-y-1 text-sm text-red-600 dark:text-red-400">
-            {submissionIssues.map((issue) => (
-              <li key={issue}>{t(buildSubmissionIssueMessageKey(issue))}</li>
-            ))}
-          </ul>
-        ) : null}
-        <div className="flex items-center justify-between gap-2">
-          <Button type="button" variant="ghost" onClick={confirmDiscard}>
-            {t("mail.compose.discardDraft")}
-          </Button>
-          <Button
-            type="button"
-            disabled={!canSubmit || submissionPhase === "submitting"}
-            onClick={() => {
-              setSubmitTouched(true);
-              onSubmit();
-            }}
-          >
-            {submissionPhase === "submitting"
-              ? t("mail.compose.submitting")
-              : approval?.status === "returned"
-                ? t("mail.compose.resubmitApproval")
-                : t("mail.compose.submitApproval")}
-          </Button>
         </div>
-      </div>
+      )}
 
       <input
         ref={fileInputRef}

@@ -231,7 +231,11 @@ describe("mail workspace ui adapters", () => {
     );
     assert.equal(
       resolveMailReadErrorMessageKey(new MailReadApiError(500, "Server", "SERVER_ERROR")),
-      "mail.status.accessUnavailable",
+      "common.loadFailed",
+    );
+    assert.equal(
+      resolveMailReadErrorMessageKey(new MailReadApiError(404, "Not found", "NOT_FOUND")),
+      "common.loadFailed",
     );
   });
 

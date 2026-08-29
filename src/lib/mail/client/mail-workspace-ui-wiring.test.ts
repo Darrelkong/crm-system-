@@ -310,7 +310,7 @@ describe("mail workspace production ui wiring", () => {
     assert.equal(runtime.getSnapshot().messages[0]?.isUnread, false);
   });
 
-  it("clears stale messages while a reset load is in flight", async () => {
+  it("keeps cached messages visible while a reset load is in flight", async () => {
     const { api } = createApiMock({
       fetchMessages: async (input) => {
         await new Promise((resolve) => setTimeout(resolve, 5));
@@ -331,10 +331,25 @@ describe("mail workspace production ui wiring", () => {
       folder: "inbox",
       reset: true,
     });
+    const cachedInboxRows = runtime.getSnapshot().messages;
+    assert.equal(cachedInboxRows.length, 1);
+    assert.equal(cachedInboxRows[0]?.mailboxId, "mailbox-1");
+    assert.equal(cachedInboxRows[0]?.id, "message-mailbox-1-inbox");
+
     const pending = runtime.getSnapshot().selectMailbox("mailbox-2");
-    assert.deepEqual(runtime.getSnapshot().messages, []);
+    const duringLoad = runtime.getSnapshot();
+    assert.deepEqual(duringLoad.messages, cachedInboxRows);
+    assert.equal(duringLoad.isLoadingMessages, true);
+    assert.equal(duringLoad.selectedMailboxId, "mailbox-2");
+    assert.equal(duringLoad.selectedFolder, "inbox");
+
     await pending;
-    assert.equal(runtime.getSnapshot().messages[0]?.mailboxId, "mailbox-2");
+    const afterLoad = runtime.getSnapshot();
+    assert.equal(afterLoad.isLoadingMessages, false);
+    assert.equal(afterLoad.messages.length, 1);
+    assert.equal(afterLoad.messages[0]?.mailboxId, "mailbox-2");
+    assert.equal(afterLoad.messages[0]?.id, "message-mailbox-2-inbox");
+    assert.notDeepEqual(afterLoad.messages, cachedInboxRows);
   });
 
   it("stores API errors without exposing raw server details in adapter mapping", async () => {

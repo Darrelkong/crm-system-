@@ -980,6 +980,7 @@ export async function createDraft(input: {
   subject?: string;
   bodyText?: string;
   bodyHtml?: string;
+  allowEmptyShell?: boolean;
   recipients?: Array<{
     recipientType: "to" | "cc" | "bcc";
     address: string;

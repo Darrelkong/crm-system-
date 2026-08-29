@@ -7,6 +7,7 @@ import {
   useState,
   type ClipboardEvent,
   type KeyboardEvent,
+  type ReactNode,
 } from "react";
 import { X } from "lucide-react";
 import { cn } from "@/lib/cn";
@@ -32,6 +33,11 @@ export function MailRecipientChipsField({
   placeholder,
   showCcBccToggle,
   onToggleCcBcc,
+  trailing,
+  appearance = "form",
+  onFieldBlur,
+  onFieldFocus,
+  onInputActivity,
   compact = false,
 }: {
   label: string;
@@ -42,6 +48,11 @@ export function MailRecipientChipsField({
   placeholder?: string;
   showCcBccToggle?: boolean;
   onToggleCcBcc?: () => void;
+  trailing?: ReactNode;
+  appearance?: "form" | "email";
+  onFieldBlur?: (pendingInput: string) => void;
+  onFieldFocus?: () => void;
+  onInputActivity?: () => void;
   compact?: boolean;
 }) {
   const { t } = useTranslation();
@@ -146,19 +157,28 @@ export function MailRecipientChipsField({
     onChange(chips.filter((chip) => chip.id !== chipId));
   }
 
+  const isEmailAppearance = appearance === "email";
+
   return (
     <div className={cn("min-w-0", compact ? "space-y-0.5" : "space-y-1")}>
       <div className="flex min-w-0 items-start gap-2">
         <label
           htmlFor={inputId}
-          className="w-12 shrink-0 pt-2 text-sm crm-text-secondary"
+          className={cn(
+            "w-12 shrink-0 text-sm crm-text-secondary",
+            isEmailAppearance ? "pt-1.5" : "pt-2",
+          )}
         >
           {label}
         </label>
         <div
           className={cn(
-            "flex min-h-10 min-w-0 flex-1 flex-wrap items-center gap-1 rounded-lg border crm-border px-2 py-1",
-            inlineError && "border-red-400",
+            "flex min-w-0 flex-1 flex-wrap items-center gap-1",
+            isEmailAppearance
+              ? "min-h-8 border-b crm-border px-0 py-0.5"
+              : "min-h-10 rounded-lg border crm-border px-2 py-1",
+            inlineError && !isEmailAppearance && "border-red-400",
+            inlineError && isEmailAppearance && "border-b-red-400",
           )}
           onClick={() => inputRef.current?.focus()}
         >
@@ -190,33 +210,47 @@ export function MailRecipientChipsField({
             value={inputValue}
             onChange={(event) => {
               setInputValue(event.target.value);
+              onInputActivity?.();
               setInlineError(null);
               setDuplicateHint(null);
               setLimitHint(false);
             }}
             onKeyDown={handleKeyDown}
             onPaste={handlePaste}
+            onFocus={() => onFieldFocus?.()}
             onBlur={() => {
               if (inputValue.trim()) {
                 addEmail(inputValue);
               }
+              onFieldBlur?.(inputValue);
             }}
             placeholder={chips.length === 0 ? placeholder : undefined}
             className="min-w-[8rem] flex-1 bg-transparent py-1 text-sm crm-text outline-none"
           />
         </div>
+        {trailing ? (
+          <div className="flex shrink-0 items-center gap-2 self-center">{trailing}</div>
+        ) : null}
         {showCcBccToggle && onToggleCcBcc ? (
           <button
             type="button"
+            onMouseDown={(event) => event.preventDefault()}
             onClick={onToggleCcBcc}
             className="shrink-0 pt-2 text-xs crm-text-secondary hover:crm-text"
           >
-            Cc/Bcc
+            CC / BCC
           </button>
         ) : null}
       </div>
       {inlineError ? (
-        <p className="pl-14 text-xs text-red-600 dark:text-red-400">{inlineError}</p>
+        <p
+          className={cn(
+            "text-xs text-red-600 dark:text-red-400",
+            isEmailAppearance ? "pl-14" : "pl-14",
+          )}
+        >
+          {inlineError}
+        </p>
       ) : null}
       {duplicateHint ? (
         <p className="pl-14 text-xs crm-text-secondary">{duplicateHint}</p>

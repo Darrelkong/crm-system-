@@ -5,11 +5,13 @@ import { RefreshCw, Settings } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
+import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
 import { MailFolderNav } from "./mail-folder-nav";
 import { MailSettingsPopover } from "./mail-settings-popover";
 
 export function MailMailboxesPane({
   onCompose,
+  onFolderSelect,
   settingsOpen,
   onToggleSettings,
   onCloseSettings,
@@ -21,6 +23,7 @@ export function MailMailboxesPane({
   className,
 }: {
   onCompose: () => void;
+  onFolderSelect?: (folder: MailWorkspaceFolder) => void;
   settingsOpen: boolean;
   onToggleSettings: () => void;
   onCloseSettings: () => void;
@@ -78,7 +81,11 @@ export function MailMailboxesPane({
         </div>
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-3">
-        <MailFolderNav onCompose={onCompose} showComposeButton />
+        <MailFolderNav
+          onCompose={onCompose}
+          onFolderSelect={onFolderSelect}
+          showComposeButton
+        />
       </div>
       <MailSettingsPopover
         open={settingsOpen}

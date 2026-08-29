@@ -433,6 +433,9 @@ html[data-theme="dark"] {
   width: 100%;
   max-width: 100%;
   min-width: 0;
+  height: calc(100dvh - var(--dashboard-header-offset, 3.5rem));
+  max-height: calc(100dvh - var(--dashboard-header-offset, 3.5rem));
+  overflow: hidden;
   container-type: inline-size;
   container-name: mail-workspace;
 }
@@ -445,6 +448,12 @@ html[data-theme="dark"] {
 
 .mail-workspace-body {
   background: var(--color-crm-bg-muted);
+}
+
+.mail-main-content-pane {
+  min-width: 0;
+  max-width: 100%;
+  background: var(--color-crm-bg);
 }
 
 .mail-mailbox-collapse-rail {
@@ -940,6 +949,56 @@ html[data-theme="dark"] {
 
 .mail-compose-desktop {
   background: var(--color-crm-bg);
+}
+
+.mail-compose-header {
+  min-height: 2.5rem;
+}
+
+.mail-compose-footer {
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 35%, var(--color-crm-bg));
+}
+
+.mail-formatting-toolbar--compact .mail-compose-toolbar-btn,
+.mail-formatting-toolbar--compact select {
+  font-size: 0.75rem;
+}
+
+.mail-mailbox-column {
+  height: 100%;
+  min-height: 0;
+}
+
+.mail-compose-embedded-pane-inner {
+  border-radius: 0;
+  box-shadow: none;
+  height: 100%;
+  min-height: 0;
+}
+
+.mail-compose-embedded-expanded {
+  display: flex;
+  flex-direction: column;
+}
+
+.mail-compose-body-region {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.mail-compose-body-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.mail-compose-body-editor--embedded-expanded {
+  min-height: 100%;
+  box-sizing: border-box;
+}
+
+.mail-compose-bottom-dock {
+  flex: 0 0 auto;
+  background: color-mix(in srgb, var(--color-crm-bg-muted) 35%, var(--color-crm-bg));
 }
 
 .mail-compose-input {

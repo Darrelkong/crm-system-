@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
+import { eq } from "drizzle-orm";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
+import { schema } from "@/lib/db";
 import { handleGetMailMessageDetail } from "@/app/api/mail/messages/[id]/route";
 import {
   actor,
@@ -244,6 +246,29 @@ describe("GET /api/mail/messages/[id]", () => {
       { requireMailActor: makeRequireMailActor(db, actor(SEED_IDS.staffA)) },
     );
     assert.equal(res.status, 404);
+  });
+
+  it("returns NOT_FOUND when message exists without canonical body row", async () => {
+    const messageId = `${fixtureAddress("missing-body")}-msg`;
+    await insertMessage(db, {
+      id: messageId,
+      mailboxId,
+      direction: "inbound",
+      bodyText: "Canonical body",
+    });
+    await db
+      .delete(schema.mailMessageBodies)
+      .where(eq(schema.mailMessageBodies.messageId, messageId));
+
+    const res = await handleGetMailMessageDetail(
+      new Request(`http://localhost/api/mail/messages/${messageId}?folder=inbox`),
+      messageId,
+      { requireMailActor: makeRequireMailActor(db, actor(SEED_IDS.staffA)) },
+    );
+    assert.equal(res.status, 404);
+    const json = (await res.json()) as { error: string; errorCode: string };
+    assert.equal(json.error, "Message body not found");
+    assert.equal(json.errorCode, "NOT_FOUND");
   });
 
   it("denies users without mail access", async () => {

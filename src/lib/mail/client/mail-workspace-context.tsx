@@ -15,6 +15,7 @@ import {
 } from "@/lib/mail/client/mail-read-api-client";
 import { fetchDrafts as fetchDraftsFromApi } from "@/lib/mail/client/api";
 import type { DraftApiItem } from "@/lib/mail/client/draft-management";
+import { sortDraftsByRecency } from "@/lib/mail/client/draft-management";
 import { MailReadApiError } from "@/lib/mail/client/mail-read-api-errors";
 import type {
   AccessibleMailboxView,
@@ -76,10 +77,12 @@ export type MailWorkspaceContextValue = MailWorkspaceState & {
   loadMailboxes: () => Promise<void>;
   loadMessages: (input: LoadMessagesInput) => Promise<void>;
   loadDrafts: () => Promise<void>;
+  refreshDrafts: () => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   selectMailbox: (mailboxId: string) => Promise<void>;
   selectFolder: (folder: MailWorkspaceFolder) => Promise<void>;
   selectMessage: (messageId: string) => Promise<void>;
+  clearReadingSelection: () => void;
   refreshMessages: () => Promise<void>;
   markMessageRead: (input: MarkMessageReadInput) => Promise<void>;
 };
@@ -235,10 +238,12 @@ export function createMailWorkspaceRuntime(
       loadMailboxes,
       loadMessages,
       loadDrafts,
+      refreshDrafts,
       loadMoreMessages,
       selectMailbox,
       selectFolder,
       selectMessage,
+      clearReadingSelection,
       refreshMessages,
       markMessageRead,
     };
@@ -309,10 +314,10 @@ export function createMailWorkspaceRuntime(
       selectedFolder: input.folder,
       ...(reset
         ? {
-            messages: [],
             nextCursor: null,
             selectedMessageId: null,
             selectedMessage: null,
+            isLoadingDetail: false,
           }
         : {}),
     });
@@ -331,6 +336,9 @@ export function createMailWorkspaceRuntime(
           currentFolder: state.selectedFolder,
         })
       ) {
+        if (requestSequence === messagesRequestSequence) {
+          setState({ isLoadingMessages: false });
+        }
         return;
       }
       setState({
@@ -353,6 +361,9 @@ export function createMailWorkspaceRuntime(
           currentFolder: state.selectedFolder,
         })
       ) {
+        if (requestSequence === messagesRequestSequence) {
+          setState({ isLoadingMessages: false });
+        }
         return;
       }
       setState({
@@ -398,6 +409,9 @@ export function createMailWorkspaceRuntime(
           currentFolder: state.selectedFolder,
         })
       ) {
+        if (requestSequence === messagesRequestSequence) {
+          setState({ isLoadingMessages: false });
+        }
         return;
       }
       setState({
@@ -416,10 +430,46 @@ export function createMailWorkspaceRuntime(
           currentFolder: state.selectedFolder,
         })
       ) {
+        if (requestSequence === messagesRequestSequence) {
+          setState({ isLoadingMessages: false });
+        }
         return;
       }
       setState({
         isLoadingMessages: false,
+        error: toWorkspaceError(error),
+      });
+    }
+  }
+
+  async function refreshDrafts() {
+    if (state.selectedFolder !== "drafts") {
+      return;
+    }
+    const mailboxId = resolveActiveMailboxId();
+    const requestSequence = ++draftsRequestSequence;
+    try {
+      const items = await api.fetchDrafts(
+        mailboxId ? { mailboxId } : undefined,
+      );
+      if (requestSequence !== draftsRequestSequence) {
+        return;
+      }
+      if (state.selectedFolder !== "drafts") {
+        return;
+      }
+      setState({
+        drafts: sortDraftsByRecency(items),
+        error: null,
+      });
+    } catch (error) {
+      if (requestSequence !== draftsRequestSequence) {
+        return;
+      }
+      if (state.selectedFolder !== "drafts") {
+        return;
+      }
+      setState({
         error: toWorkspaceError(error),
       });
     }
@@ -432,10 +482,10 @@ export function createMailWorkspaceRuntime(
       isLoadingMessages: true,
       error: null,
       selectedFolder: "drafts",
-      messages: [],
       nextCursor: null,
       selectedMessageId: null,
       selectedMessage: null,
+      isLoadingDetail: false,
       ...(mailboxId ? { selectedMailboxId: mailboxId } : {}),
     });
 
@@ -447,10 +497,13 @@ export function createMailWorkspaceRuntime(
         return;
       }
       if (state.selectedFolder !== "drafts") {
+        if (requestSequence === draftsRequestSequence) {
+          setState({ isLoadingMessages: false });
+        }
         return;
       }
       setState({
-        drafts: items,
+        drafts: sortDraftsByRecency(items),
         isLoadingMessages: false,
         error: null,
       });
@@ -459,6 +512,9 @@ export function createMailWorkspaceRuntime(
         return;
       }
       if (state.selectedFolder !== "drafts") {
+        if (requestSequence === draftsRequestSequence) {
+          setState({ isLoadingMessages: false });
+        }
         return;
       }
       setState({
@@ -491,6 +547,9 @@ export function createMailWorkspaceRuntime(
   }
 
   async function selectFolder(folder: MailWorkspaceFolder) {
+    if (folder !== state.selectedFolder) {
+      setState({ selectedFolder: folder });
+    }
     if (folder === "drafts") {
       await loadDrafts();
       return;
@@ -503,6 +562,7 @@ export function createMailWorkspaceRuntime(
         nextCursor: null,
         selectedMessageId: null,
         selectedMessage: null,
+        isLoadingDetail: false,
         isLoadingMessages: false,
         error: null,
       });
@@ -516,6 +576,24 @@ export function createMailWorkspaceRuntime(
       mailboxId,
       folder,
       reset: true,
+    });
+  }
+
+  function clearReadingSelection() {
+    if (
+      !state.selectedMessageId &&
+      !state.selectedMessage &&
+      !state.isLoadingDetail &&
+      state.error === null
+    ) {
+      return;
+    }
+    detailRequestSequence += 1;
+    setState({
+      selectedMessageId: null,
+      selectedMessage: null,
+      isLoadingDetail: false,
+      error: null,
     });
   }
 
@@ -552,6 +630,9 @@ export function createMailWorkspaceRuntime(
       });
     } catch (error) {
       if (requestSequence !== detailRequestSequence) {
+        return;
+      }
+      if (state.selectedMessageId !== messageId) {
         return;
       }
       setState({

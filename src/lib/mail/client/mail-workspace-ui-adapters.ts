@@ -317,10 +317,13 @@ export function resolveProductionListEmptyMessageKey(
 }
 
 export function resolveMailReadErrorMessageKey(error: MailReadApiError): string {
-  if (error.status === 401 || error.status === 403 || error.status === 404) {
+  if (error.status === 401 || error.status === 403) {
     return "mail.status.accessUnavailable";
   }
-  return "mail.status.accessUnavailable";
+  if (error.status === 404) {
+    return "common.loadFailed";
+  }
+  return "common.loadFailed";
 }
 
 export function shouldRenderPrototypeMessageDetail(

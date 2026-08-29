@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { MailDraft } from "../../../drizzle/schema/mail-drafts";
 import type { User } from "../../../drizzle/schema/users";
@@ -212,7 +212,10 @@ export async function listDrafts(
           isNull(schema.mailDrafts.discardedAt),
         ),
       )
-      .orderBy(schema.mailDrafts.updatedAt);
+      .orderBy(
+        desc(schema.mailDrafts.updatedAt),
+        desc(schema.mailDrafts.createdAt),
+      );
     return rows.map(toSafeDraftView);
   }
 
@@ -225,7 +228,10 @@ export async function listDrafts(
         isNull(schema.mailDrafts.discardedAt),
       ),
     )
-    .orderBy(schema.mailDrafts.updatedAt);
+    .orderBy(
+      desc(schema.mailDrafts.updatedAt),
+      desc(schema.mailDrafts.createdAt),
+    );
   return rows.map(toSafeDraftView);
 }
 
@@ -378,6 +384,7 @@ export async function createDraft(
     sensitivity?: MailDraft["sensitivity"];
     composeMode?: MailDraft["composeMode"];
     recipients?: OutboundRecipientInput[];
+    allowEmptyShell?: boolean;
   },
 ): Promise<CreateDraftResult> {
   if (input.composeMode && input.composeMode !== "new") {
@@ -390,6 +397,7 @@ export async function createDraft(
   const recipients = input.recipients ?? [];
 
   if (
+    !input.allowEmptyShell &&
     !hasMeaningfulDraftContent({
       subject: input.subject,
       bodyText: input.bodyText,

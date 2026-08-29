@@ -516,4 +516,178 @@ describe("mail workspace runtime", () => {
     assert.equal(snapshot.messages.length, 0);
     assert.equal(calls.messages.length, messageCallsBefore);
   });
+
+  it("clears detail loading when list reset invalidates the in-flight selection", async () => {
+    let resolveDetail: ((value: MailMessageDetailView) => void) | undefined;
+    const { api } = createApiMock({
+      fetchMessageDetail: async () =>
+        new Promise<MailMessageDetailView>((resolve) => {
+          resolveDetail = resolve;
+        }),
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    const pending = runtime.getSnapshot().selectMessage("message-1");
+    assert.equal(runtime.getSnapshot().isLoadingDetail, true);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    assert.equal(runtime.getSnapshot().selectedMessageId, null);
+    assert.equal(runtime.getSnapshot().isLoadingDetail, false);
+    resolveDetail?.(detailFixture());
+    await pending;
+    assert.equal(runtime.getSnapshot().isLoadingDetail, false);
+    assert.equal(runtime.getSnapshot().selectedMessage, null);
+  });
+
+  it("clears detail loading when active response no longer matches selection", async () => {
+    const { api } = createApiMock({
+      fetchMessageDetail: async (input) => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return {
+          ...detailFixture(),
+          id: input.messageId,
+        };
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    const pending = runtime.getSnapshot().selectMessage("message-1");
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await pending;
+    assert.equal(runtime.getSnapshot().isLoadingDetail, false);
+  });
+
+  it("stores detail API failures and clears loading", async () => {
+    const { api } = createApiMock({
+      fetchMessageDetail: async () => {
+        throw new MailReadApiError(404, "Not found", "NOT_FOUND");
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectMessage("message-1");
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.isLoadingDetail, false);
+    assert.ok(snapshot.error instanceof MailReadApiError);
+    assert.equal(snapshot.selectedMessage, null);
+  });
+
+  it("clears list loading when stale inbox response arrives after folder switch", async () => {
+    const { api } = createApiMock({
+      fetchMessages: async (input) => {
+        if (input.folder === "inbox") {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+          return {
+            items: [listItemFixture({ id: "message-inbox" })],
+            nextCursor: null,
+          };
+        }
+        return {
+          items: [listItemFixture({ id: "message-sent" })],
+          nextCursor: null,
+        };
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    const slowInbox = runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectFolder("drafts");
+    await slowInbox;
+    const afterDrafts = runtime.getSnapshot();
+    assert.equal(afterDrafts.selectedFolder, "drafts");
+    assert.equal(afterDrafts.isLoadingMessages, false);
+    assert.equal(afterDrafts.drafts.length, 1);
+
+    await runtime.getSnapshot().selectFolder("inbox");
+    const backToInbox = runtime.getSnapshot();
+    assert.equal(backToInbox.selectedFolder, "inbox");
+    assert.equal(backToInbox.isLoadingMessages, false);
+    assert.equal(backToInbox.messages[0]?.id, "message-inbox");
+    assert.equal(backToInbox.selectedMailboxId, "mailbox-1");
+  });
+
+  it("updates selected folder immediately on folder switch", async () => {
+    const { api } = createApiMock({
+      fetchDrafts: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return [
+          {
+            id: "draft-1",
+            authorUserId: "user-1",
+            mailboxId: "mailbox-1",
+            senderIdentityId: null,
+            subject: "Draft subject",
+            bodyText: "Draft body",
+            bodyHtml: null,
+            hasHtml: false,
+            sensitivity: "normal",
+            composeMode: "reply",
+            replyToMessageId: "message-1",
+            autosaveVersion: 1,
+            lastSavedAt: "2026-08-23T08:30:00.000Z",
+            discardedAt: null,
+            createdAt: "2026-08-23T08:00:00.000Z",
+            updatedAt: "2026-08-23T08:30:00.000Z",
+          },
+        ];
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    const pending = runtime.getSnapshot().selectFolder("drafts");
+    assert.equal(runtime.getSnapshot().selectedFolder, "drafts");
+    await pending;
+  });
+
+  it("does not leave orphan detail selection after abandoned detail fetch", async () => {
+    const { api } = createApiMock({
+      fetchMessageDetail: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+        return detailFixture();
+      },
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    const pending = runtime.getSnapshot().selectMessage("message-1");
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await pending;
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.isLoadingDetail, false);
+    assert.equal(snapshot.selectedMessageId, null);
+    assert.equal(snapshot.selectedMessage, null);
+  });
 });

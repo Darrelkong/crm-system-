@@ -1,8 +1,22 @@
 "use client";
 
-import { Bold, Italic, Link, Underline } from "lucide-react";
+import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
+  Bold,
+  IndentDecrease,
+  IndentIncrease,
+  Italic,
+  Link,
+  List,
+  ListOrdered,
+  RemoveFormatting,
+  Underline,
+} from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+import { MailComposeColorPalette } from "@/components/mail/compose/mail-compose-color-palette";
 
 const FONTS = [
   "Default",
@@ -15,21 +29,16 @@ const FONTS = [
 
 const SIZES = ["12", "14", "16", "18", "20", "24"] as const;
 
-const TEXT_COLORS = [
-  "#000000",
-  "#374151",
-  "#2563eb",
-  "#dc2626",
-  "#16a34a",
-  "#9333ea",
-] as const;
-
 export function MailFormattingToolbar({
   editorRef,
   className,
+  compact = false,
+  dock = false,
 }: {
   editorRef: React.RefObject<HTMLDivElement | null>;
   className?: string;
+  compact?: boolean;
+  dock?: boolean;
 }) {
   const { t } = useTranslation();
 
@@ -63,15 +72,24 @@ export function MailFormattingToolbar({
     );
   }
 
+  function clearFormatting() {
+    exec("removeFormat");
+    exec("foreColor", "#000000");
+  }
+
   return (
     <div
       className={cn(
-        "flex flex-wrap items-center gap-1 border-b crm-border px-2 py-2",
+        "mail-formatting-toolbar flex flex-wrap items-center gap-0.5 px-1.5 py-1",
+        dock
+          ? "border-0 bg-transparent"
+          : "border-b crm-border bg-[var(--color-crm-bg-muted)]/40",
+        compact && "mail-formatting-toolbar--compact",
         className,
       )}
     >
       <select
-        className="min-h-9 max-w-[min(100px,28vw)] rounded-lg border crm-border bg-transparent px-2 text-xs crm-text"
+        className="h-8 max-w-[92px] rounded-md border-0 bg-transparent px-1 text-xs crm-text"
         defaultValue="Default"
         onChange={(e) => applyFont(e.target.value)}
         aria-label={t("mail.compose.font")}
@@ -83,7 +101,7 @@ export function MailFormattingToolbar({
         ))}
       </select>
       <select
-        className="min-h-9 w-14 rounded-lg border crm-border bg-transparent px-2 text-xs crm-text"
+        className="h-8 w-12 rounded-md border-0 bg-transparent px-1 text-xs crm-text"
         defaultValue="16"
         onChange={(e) => applySize(e.target.value)}
         aria-label={t("mail.compose.size")}
@@ -94,43 +112,89 @@ export function MailFormattingToolbar({
           </option>
         ))}
       </select>
-      <ToolbarBtn onClick={() => exec("bold")} label="Bold">
-        <Bold className="h-4 w-4" />
+      <ToolbarDivider />
+      <ToolbarBtn onClick={() => exec("bold")} label={t("mail.compose.bold")}>
+        <Bold className="h-3.5 w-3.5" />
       </ToolbarBtn>
-      <ToolbarBtn onClick={() => exec("italic")} label="Italic">
-        <Italic className="h-4 w-4" />
+      <ToolbarBtn onClick={() => exec("italic")} label={t("mail.compose.italic")}>
+        <Italic className="h-3.5 w-3.5" />
       </ToolbarBtn>
-      <ToolbarBtn onClick={() => exec("underline")} label="Underline">
-        <Underline className="h-4 w-4" />
+      <ToolbarBtn
+        onClick={() => exec("underline")}
+        label={t("mail.compose.underline")}
+      >
+        <Underline className="h-3.5 w-3.5" />
       </ToolbarBtn>
-      <div className="flex max-w-full flex-wrap items-center gap-0.5">
-        {TEXT_COLORS.map((color) => (
-          <button
-            key={color}
-            type="button"
-            onClick={() => exec("foreColor", color)}
-            className="h-7 w-7 shrink-0 rounded-md border crm-border"
-            style={{ backgroundColor: color }}
-            aria-label={`Color ${color}`}
-          />
-        ))}
-        <input
-          type="color"
-          className="h-7 w-8 shrink-0 cursor-pointer rounded-md border-0 bg-transparent p-0"
-          onChange={(e) => exec("foreColor", e.target.value)}
-          aria-label={t("mail.compose.customColor")}
-        />
-      </div>
+      <MailComposeColorPalette onSelectColor={(color) => exec("foreColor", color)} />
+      <ToolbarDivider />
+      <ToolbarBtn
+        onClick={() => exec("justifyLeft")}
+        label={t("mail.compose.alignLeft")}
+      >
+        <AlignLeft className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => exec("justifyCenter")}
+        label={t("mail.compose.alignCenter")}
+      >
+        <AlignCenter className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => exec("justifyRight")}
+        label={t("mail.compose.alignRight")}
+      >
+        <AlignRight className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => exec("insertUnorderedList")}
+        label={t("mail.compose.bulletList")}
+      >
+        <List className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => exec("insertOrderedList")}
+        label={t("mail.compose.orderedList")}
+      >
+        <ListOrdered className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => exec("outdent")}
+        label={t("mail.compose.indentDecrease")}
+      >
+        <IndentDecrease className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={() => exec("indent")}
+        label={t("mail.compose.indentIncrease")}
+      >
+        <IndentIncrease className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarDivider />
       <ToolbarBtn
         onClick={() => {
           const url = window.prompt("URL");
           if (url) exec("createLink", url);
         }}
-        label="Link"
+        label={t("mail.compose.link")}
       >
-        <Link className="h-4 w-4" />
+        <Link className="h-3.5 w-3.5" />
+      </ToolbarBtn>
+      <ToolbarBtn
+        onClick={clearFormatting}
+        label={t("mail.compose.clearFormatting")}
+      >
+        <RemoveFormatting className="h-3.5 w-3.5" />
       </ToolbarBtn>
     </div>
+  );
+}
+
+function ToolbarDivider() {
+  return (
+    <span
+      className="mx-0.5 hidden h-5 w-px shrink-0 bg-[var(--color-crm-border)] sm:inline-block"
+      aria-hidden
+    />
   );
 }
 
@@ -148,7 +212,7 @@ function ToolbarBtn({
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="flex min-h-9 min-w-9 shrink-0 items-center justify-center rounded-lg nav-item"
+      className="mail-compose-toolbar-btn flex h-8 w-8 shrink-0 items-center justify-center rounded-md crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
     >
       {children}
     </button>

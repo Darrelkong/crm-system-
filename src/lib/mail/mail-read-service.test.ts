@@ -555,4 +555,54 @@ describe("mail read service", () => {
     assert.ok(summary.messageCount >= 1);
     assert.ok(summary.latestMessageAt);
   });
+
+  it("returns NOT_FOUND when message row exists without canonical body", async () => {
+    const messageId = `${FIXTURE}-missing-body`;
+    await insertMessage(db, {
+      id: messageId,
+      mailboxId,
+      direction: "inbound",
+      bodyText: "Body that will be removed",
+    });
+    await db
+      .delete(schema.mailMessageBodies)
+      .where(eq(schema.mailMessageBodies.messageId, messageId));
+
+    await assert.rejects(
+      () =>
+        getMessageDetail(db, actor(SEED_IDS.staffA), messageId, {
+          folder: "inbox",
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "NOT_FOUND" &&
+        error.message === "Message body not found",
+    );
+  });
+
+  it("list row id matches detail id and exact body content", async () => {
+    const messageId = `${FIXTURE}-list-detail-link`;
+    const bodyText = "List to detail body link";
+    await insertMessage(db, {
+      id: messageId,
+      mailboxId,
+      direction: "inbound",
+      bodyText,
+      bodyHtml: "<p>List to detail body link</p>",
+    });
+
+    const page = await listAccessibleMessages(db, actor(SEED_IDS.staffA), {
+      mailboxId,
+      folder: "inbox",
+    });
+    const listItem = page.items.find((item) => item.id === messageId);
+    assert.ok(listItem);
+
+    const detail = await getMessageDetail(db, actor(SEED_IDS.staffA), listItem.id, {
+      folder: "inbox",
+    });
+    assert.equal(detail.id, listItem.id);
+    assert.equal(detail.bodyText, bodyText);
+    assert.equal(detail.bodyHtml, "<p>List to detail body link</p>");
+  });
 });

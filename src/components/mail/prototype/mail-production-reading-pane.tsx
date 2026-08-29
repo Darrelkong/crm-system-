@@ -298,7 +298,7 @@ export function MailProductionReadingPane({
       <div className="flex flex-1 flex-col overflow-hidden">
         {restoreBar}
         <div className="flex flex-1 items-center justify-center p-8 text-sm crm-text-secondary">
-          {t("common.loading")}
+          {t("common.loadFailed")}
         </div>
       </div>
     );

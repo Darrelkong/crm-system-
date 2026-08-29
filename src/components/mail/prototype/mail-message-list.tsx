@@ -25,10 +25,12 @@ export function MailMessageList({
   className,
   onMessageSelect,
   onApprovalItemSelect,
+  activeDraftId,
 }: {
   className?: string;
   onMessageSelect?: (id: string) => void;
   onApprovalItemSelect?: () => void;
+  activeDraftId?: string | null;
 }) {
   const { t } = useTranslation();
   const isProduction = useIsProductionMailReadSource();
@@ -59,6 +61,8 @@ export function MailMessageList({
       : productionWorkspace.messages.map(adaptProductionListRow);
     const filteredRows = filterProductionListRows(productionRows, searchQuery);
     const selectedMessageId = productionWorkspace.selectedMessageId;
+    const selectedRowId =
+      isDraftsFolder && activeDraftId ? activeDraftId : selectedMessageId;
     const emptyState = resolveProductionListEmptyState({
       isLoadingMessages: productionWorkspace.isLoadingMessages,
       loadedRowCount: productionRows.length,
@@ -74,12 +78,6 @@ export function MailMessageList({
       productionWorkspace.isLoadingMessages && productionRows.length > 0;
 
     function handleProductionSelect(id: string) {
-      if (isDraftsFolder) {
-        onMessageSelect?.(id);
-        return;
-      }
-      void productionWorkspace.selectMessage(id);
-      void productionWorkspace.markMessageRead({ messageId: id, isRead: true });
       onMessageSelect?.(id);
     }
 
@@ -149,7 +147,7 @@ export function MailMessageList({
                 <MailMessageRow
                   key={row.id}
                   row={row}
-                  selected={selectedMessageId === row.id}
+                  selected={selectedRowId === row.id}
                   onSelect={() => handleProductionSelect(row.id)}
                   activeFolder={productionWorkspace.selectedFolder}
                   useProductionUnread

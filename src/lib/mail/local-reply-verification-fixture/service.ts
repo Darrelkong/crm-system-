@@ -1,4 +1,4 @@
-import { eq, inArray, like, or } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../../drizzle/schema";
@@ -9,7 +9,11 @@ import { assertFixtureAddressesDoNotCollideWithCrmContacts } from "@/lib/mail/lo
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { createSeededComposeDraft } from "@/lib/mail/compose-draft-seed-service";
 import { MailServiceError } from "@/lib/mail/errors";
-import { getMessageDetail } from "@/lib/mail/mail-read-service";
+import { runMailBatch } from "@/lib/mail/guarded-batch";
+import {
+  getMessageDetail,
+  listAccessibleMessages,
+} from "@/lib/mail/mail-read-service";
 import {
   LOCAL_MAIL_REPLY_VERIFY_ADDRESSES,
   LOCAL_MAIL_REPLY_VERIFY_CUSTOMER_CODES,
@@ -30,6 +34,27 @@ import { grantSenderIdentityAccess } from "@/lib/mail/sender-identity-grant-serv
 
 function fixtureLikePattern(): string {
   return `${LOCAL_MAIL_REPLY_VERIFY_FIXTURE_PREFIX}%`;
+}
+
+/** Fixture message rows that lost canonical body rows (e.g. interrupted cleanup). */
+export async function listFixtureMessagesMissingBodies(
+  db: Database,
+): Promise<string[]> {
+  const rows = await db
+    .select({ id: schema.mailMessages.id })
+    .from(schema.mailMessages)
+    .leftJoin(
+      schema.mailMessageBodies,
+      eq(schema.mailMessageBodies.messageId, schema.mailMessages.id),
+    )
+    .where(
+      and(
+        like(schema.mailMessages.id, fixtureLikePattern()),
+        isNull(schema.mailMessageBodies.messageId),
+      ),
+    );
+
+  return rows.map((row) => row.id).sort();
 }
 
 function mailActor(userId: string): MailActorContext {
@@ -85,6 +110,33 @@ async function enableMailAccess(db: Database, userId: string, now: string) {
     });
 }
 
+/**
+ * Atomically deletes the message graph child rows then parent rows using D1 batch().
+ * Do not use db.transaction() — local D1 rejects literal BEGIN/COMMIT/ROLLBACK.
+ */
+async function deleteFixtureMessageGraphBatch(
+  db: Database,
+  messageIds: string[],
+): Promise<void> {
+  if (!messageIds.length) return;
+
+  await runMailBatch(db, [
+    db
+      .delete(schema.mailMessageAttachments)
+      .where(inArray(schema.mailMessageAttachments.messageId, messageIds)),
+    db
+      .delete(schema.mailMessageRecipients)
+      .where(inArray(schema.mailMessageRecipients.messageId, messageIds)),
+    db
+      .delete(schema.mailMessageReadStates)
+      .where(inArray(schema.mailMessageReadStates.messageId, messageIds)),
+    db
+      .delete(schema.mailMessageBodies)
+      .where(inArray(schema.mailMessageBodies.messageId, messageIds)),
+    db.delete(schema.mailMessages).where(inArray(schema.mailMessages.id, messageIds)),
+  ]);
+}
+
 async function deleteRevisionGraph(db: Database, revisionIds: string[]) {
   if (!revisionIds.length) return;
 
@@ -126,29 +178,7 @@ async function deleteRevisionGraph(db: Database, revisionIds: string[]) {
       );
 
     if (materializedMessageIds.length) {
-      await db
-        .delete(schema.mailMessageRecipients)
-        .where(
-          inArray(schema.mailMessageRecipients.messageId, materializedMessageIds),
-        );
-      await db
-        .delete(schema.mailMessageReadStates)
-        .where(
-          inArray(schema.mailMessageReadStates.messageId, materializedMessageIds),
-        );
-      await db
-        .delete(schema.mailMessageAttachments)
-        .where(
-          inArray(schema.mailMessageAttachments.messageId, materializedMessageIds),
-        );
-      await db
-        .delete(schema.mailMessageBodies)
-        .where(
-          inArray(schema.mailMessageBodies.messageId, materializedMessageIds),
-        );
-      await db
-        .delete(schema.mailMessages)
-        .where(inArray(schema.mailMessages.id, materializedMessageIds));
+      await deleteFixtureMessageGraphBatch(db, materializedMessageIds);
     }
 
     await db
@@ -239,21 +269,7 @@ async function deleteFixtureMessagesByIds(db: Database, messageIds: string[]) {
     referencingRevisions.map((row) => row.id),
   );
 
-  await db
-    .delete(schema.mailMessageAttachments)
-    .where(inArray(schema.mailMessageAttachments.messageId, messageIds));
-  await db
-    .delete(schema.mailMessageRecipients)
-    .where(inArray(schema.mailMessageRecipients.messageId, messageIds));
-  await db
-    .delete(schema.mailMessageReadStates)
-    .where(inArray(schema.mailMessageReadStates.messageId, messageIds));
-  await db
-    .delete(schema.mailMessageBodies)
-    .where(inArray(schema.mailMessageBodies.messageId, messageIds));
-  await db
-    .delete(schema.mailMessages)
-    .where(inArray(schema.mailMessages.id, messageIds));
+  await deleteFixtureMessageGraphBatch(db, messageIds);
 }
 
 export async function cleanupLocalMailReplyVerificationFixtures(
@@ -948,12 +964,32 @@ export async function verifyLocalMailReplyVerificationFixtures(db: Database) {
     .from(schema.customers)
     .where(inArray(schema.customers.id, Object.values(LOCAL_MAIL_REPLY_VERIFY_CUSTOMER_IDS)));
 
+  const messagesMissingBodies = await listFixtureMessagesMissingBodies(db);
+
   if (messages.length === 0) {
     return {
       messageCount: 0,
       customerCount: customers.length,
       messageIds: [],
       subjects: [],
+      messagesMissingBodies: [],
+      fixtureBodiesComplete: true,
+      listDetailIdsMatch: true,
+      staffACanReadInboundReply: false,
+      staffBCanReadSharedReply: false,
+      staffBCannotReadStaffAOnly: true,
+    };
+  }
+
+  if (messagesMissingBodies.length > 0) {
+    return {
+      messageCount: messages.length,
+      customerCount: customers.length,
+      messageIds: messages.map((row) => row.id).sort(),
+      subjects: messages.map((row) => row.subject).sort(),
+      messagesMissingBodies,
+      fixtureBodiesComplete: false,
+      listDetailIdsMatch: false,
       staffACanReadInboundReply: false,
       staffBCanReadSharedReply: false,
       staffBCannotReadStaffAOnly: true,
@@ -986,12 +1022,31 @@ export async function verifyLocalMailReplyVerificationFixtures(db: Database) {
       error instanceof MailServiceError && error.status === 404;
   }
 
+  const inboxPage = await listAccessibleMessages(db, mailActor(SEED_IDS.staffA), {
+    mailboxId: LOCAL_MAIL_REPLY_VERIFY_MAILBOX_IDS.staffA,
+    folder: "inbox",
+  });
+  let listDetailIdsMatch = true;
+  for (const item of inboxPage.items) {
+    const detail = await getMessageDetail(db, mailActor(SEED_IDS.staffA), item.id, {
+      folder: "inbox",
+    });
+    if (detail.id !== item.id || detail.bodyText.length === 0) {
+      listDetailIdsMatch = false;
+      break;
+    }
+  }
+
   return {
     messageCount: messages.length,
     customerCount: customers.length,
     messageIds: messages.map((row) => row.id).sort(),
     subjects: messages.map((row) => row.subject).sort(),
-    staffACanReadInboundReply: staffAReadable.id === LOCAL_MAIL_REPLY_VERIFY_MESSAGE_IDS.inboundReply,
+    messagesMissingBodies: [],
+    fixtureBodiesComplete: true,
+    listDetailIdsMatch,
+    staffACanReadInboundReply:
+      staffAReadable.id === LOCAL_MAIL_REPLY_VERIFY_MESSAGE_IDS.inboundReply,
     staffBCanReadSharedReply:
       staffBSharedReadable.id === LOCAL_MAIL_REPLY_VERIFY_MESSAGE_IDS.sharedReply,
     staffBCannotReadStaffAOnly: staffBUnauthorized,

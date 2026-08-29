@@ -59,6 +59,7 @@ export async function POST(request: Request) {
       bodyText: readStringField(body, "bodyText"),
       bodyHtml: readStringField(body, "bodyHtml"),
       recipients: parseDraftRecipientsField(body.recipients),
+      allowEmptyShell: body.allowEmptyShell === true,
     });
 
     if (!result.created) {

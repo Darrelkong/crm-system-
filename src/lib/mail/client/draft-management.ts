@@ -82,6 +82,7 @@ export type ComposeAttachmentDraft = {
   uploadStatus: "queued" | "uploading" | "uploaded" | "failed" | "cancelled";
   uploadProgress: number;
   error: string | null;
+  errorCode?: import("@/lib/mail/client/compose-attachment-upload").ComposeAttachmentUploadErrorCode | null;
 };
 
 export type ComposeEditorState = {
@@ -279,6 +280,22 @@ export function stripHtml(html: string): string {
     .trim();
 }
 
+export function sortDraftsByRecency<T extends {
+  updatedAt?: string;
+  lastSavedAt?: string;
+  createdAt?: string;
+}>(items: T[]): T[] {
+  return [...items].sort((left, right) => {
+    const leftTime = Date.parse(
+      left.updatedAt ?? left.lastSavedAt ?? left.createdAt ?? "0",
+    );
+    const rightTime = Date.parse(
+      right.updatedAt ?? right.lastSavedAt ?? right.createdAt ?? "0",
+    );
+    return rightTime - leftTime;
+  });
+}
+
 export function formatAttachmentSize(sizeBytes?: number): string {
   if (!sizeBytes || sizeBytes <= 0) return "—";
   if (sizeBytes < 1024) return `${sizeBytes} B`;
@@ -301,6 +318,7 @@ export function attachmentDraftFromUploadState(
     uploadStatus: attachment.uploadStatus,
     uploadProgress: attachment.uploadProgress,
     error: attachment.error,
+    errorCode: attachment.errorCode,
   };
 }
 
@@ -313,7 +331,7 @@ export function attachmentsFromUploadStates(
 export function composeMobileRootClass(variant: "embedded-mobile" | "floating-desktop"): string {
   return variant === "embedded-mobile"
     ? "mail-compose-mobile flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
-    : "mail-compose-desktop flex min-h-0 flex-1 flex-col overflow-hidden";
+    : "mail-compose-desktop flex h-full min-h-0 flex-col overflow-hidden";
 }
 
 export function recipientEmailsForSummary(state: Pick<ComposeEditorState, "to" | "cc" | "bcc">): string[] {

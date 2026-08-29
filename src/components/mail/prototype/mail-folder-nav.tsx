@@ -1,12 +1,17 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
 import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
-import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
+import {
+  useMailWorkspace,
+  useOptionalMailWorkspace,
+} from "@/lib/mail/client/mail-workspace-context";
+import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
 import {
   adaptAccessibleMailbox,
   adaptPrototypeSidebarMailbox,
@@ -15,14 +20,210 @@ import {
   PRODUCTION_MAIL_READ_FOLDERS,
   resolveMailboxSidebarSections,
   resolveWorkflowFolderLabelKey,
-  type MailSidebarMailboxPresentation,
 } from "@/lib/mail/client/mail-workspace-ui-adapters";
+import {
+  mailboxSidebarPageForSelection,
+  paginateSidebarMailboxes,
+} from "@/lib/mail/client/mail-sidebar-mailbox-pagination";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { visibleMailFolders } from "@/lib/mail/prototype/mail-folder-config";
 import { Button } from "@/components/ui/button";
 import { Inbox, Plus, Users } from "lucide-react";
+import { MailSidebarMailboxPager } from "./mail-sidebar-mailbox-pager";
 
-export function MailFolderNav({
+type PaginatedMailboxRow = {
+  id: string;
+  label: string;
+  icon: typeof Inbox;
+};
+
+function usePaginatedMailboxRows(
+  rows: PaginatedMailboxRow[],
+  selectedId: string | null | undefined,
+) {
+  const [mailboxPage, setMailboxPage] = useState(0);
+  const pagination = paginateSidebarMailboxes(rows, mailboxPage);
+
+  useEffect(() => {
+    setMailboxPage(
+      mailboxSidebarPageForSelection(rows, selectedId, (row) => row.id),
+    );
+  }, [rows, selectedId]);
+
+  return {
+    pagination,
+    setMailboxPage,
+  };
+}
+
+function PaginatedMailboxNav({
+  rows,
+  selectedId,
+  onSelect,
+  ariaLabel,
+}: {
+  rows: PaginatedMailboxRow[];
+  selectedId: string | null | undefined;
+  onSelect: (id: string) => void;
+  ariaLabel: string;
+}) {
+  const { pagination, setMailboxPage } = usePaginatedMailboxRows(rows, selectedId);
+
+  return (
+    <>
+      <nav className="space-y-0.5" aria-label={ariaLabel}>
+        {pagination.pageItems.map((row) => {
+          const Icon = row.icon;
+          const active = selectedId === row.id;
+          return (
+            <button
+              key={row.id}
+              type="button"
+              onClick={() => onSelect(row.id)}
+              className={cn(
+                "mail-sidebar-folder flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
+                active ? "mail-nav-active" : "mail-nav-item",
+              )}
+            >
+              <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
+              <span className="min-w-0 flex-1 truncate">{row.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+      <MailSidebarMailboxPager
+        page={pagination.safePage}
+        totalPages={pagination.totalPages}
+        onPageChange={setMailboxPage}
+      />
+    </>
+  );
+}
+
+function ProductionMailFolderNav({
+  onCompose,
+  onFolderSelect,
+  className,
+  showComposeButton = true,
+}: {
+  onCompose: () => void;
+  onFolderSelect?: (folder: MailWorkspaceFolder) => void;
+  className?: string;
+  showComposeButton?: boolean;
+}) {
+  const { t } = useTranslation();
+  const { capabilities } = useMailSession();
+  const canReview = canReviewApprovals(capabilities);
+  const approvalWorkspace = useOptionalMailApprovalWorkspace();
+  const workspace = useMailWorkspace();
+  const mailboxSections = resolveMailboxSidebarSections(
+    workspace.mailboxes.map(adaptAccessibleMailbox),
+  );
+  const mailboxRows = useMemo<PaginatedMailboxRow[]>(
+    () => [
+      ...mailboxSections.personalMailboxes.map((box) => ({
+        id: box.id,
+        label: box.displayName ?? t("mail.mailbox.personal"),
+        icon: Inbox,
+      })),
+      ...mailboxSections.sharedMailboxes.map((box) => ({
+        id: box.id,
+        label: box.displayName ?? t("mail.mailbox.shared"),
+        icon: Users,
+      })),
+    ],
+    [mailboxSections.personalMailboxes, mailboxSections.sharedMailboxes, t],
+  );
+
+  function ProductionFolderButton({
+    folder,
+  }: {
+    folder:
+      | (typeof PRODUCTION_MAIL_READ_FOLDERS)[number]
+      | ReturnType<typeof filterVisibleWorkflowFolders>[number];
+  }) {
+    const active = workspace.selectedFolder === folder.id;
+    const labelKey = isProductionMailReadFolder(folder.id)
+      ? folder.labelKey
+      : resolveWorkflowFolderLabelKey(folder.id, canReview);
+    return (
+      <button
+        type="button"
+        onClick={() => {
+          if (folder.id === "pending_approval") {
+            if (onFolderSelect) {
+              onFolderSelect("pending_approval");
+            } else {
+              void workspace.selectFolder("pending_approval");
+            }
+            void approvalWorkspace?.loadApprovals();
+            approvalWorkspace?.clearSelection();
+            return;
+          }
+          if (onFolderSelect) {
+            onFolderSelect(folder.id);
+            return;
+          }
+          void workspace.selectFolder(folder.id);
+        }}
+        className={cn(
+          "mail-sidebar-folder flex min-h-9 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
+          active ? "mail-nav-active" : "mail-nav-item",
+        )}
+      >
+        <span className="truncate">{t(labelKey)}</span>
+      </button>
+    );
+  }
+
+  return (
+    <aside className={cn("flex flex-col gap-3", className)}>
+      {showComposeButton ? (
+        <Button
+          type="button"
+          size="sm"
+          className="mail-compose-button h-10 w-full justify-center gap-2 rounded-xl shadow-sm"
+          onClick={onCompose}
+        >
+          <Plus className="h-4 w-4" />
+          {t("mail.compose.new")}
+        </Button>
+      ) : null}
+
+      <div className="mail-sidebar-section">
+        <p className="mail-sidebar-section-label mb-1.5 px-2.5">
+          {t("mail.sidebar.folders")}
+        </p>
+        <nav className="space-y-0.5" aria-label={t("mail.sidebar.folders")}>
+          {PRODUCTION_MAIL_READ_FOLDERS.map((folder) => (
+            <ProductionFolderButton key={folder.id} folder={folder} />
+          ))}
+          {filterVisibleWorkflowFolders(canReview).map((folder) => (
+            <ProductionFolderButton key={folder.id} folder={folder} />
+          ))}
+        </nav>
+      </div>
+
+      {mailboxSections.showSection && mailboxSections.sectionLabelKey ? (
+        <div className="mail-sidebar-section">
+          <p className="mail-sidebar-section-label mb-1.5 px-2.5">
+            {t(mailboxSections.sectionLabelKey)}
+          </p>
+          <PaginatedMailboxNav
+            rows={mailboxRows}
+            selectedId={workspace.selectedMailboxId}
+            onSelect={(mailboxId) => {
+              void workspace.selectMailbox(mailboxId);
+            }}
+            ariaLabel={t(mailboxSections.sectionLabelKey)}
+          />
+        </div>
+      ) : null}
+    </aside>
+  );
+}
+
+function PrototypeMailFolderNav({
   onCompose,
   className,
   showComposeButton = true,
@@ -32,11 +233,6 @@ export function MailFolderNav({
   showComposeButton?: boolean;
 }) {
   const { t } = useTranslation();
-  const { capabilities } = useMailSession();
-  const canReview = canReviewApprovals(capabilities);
-  const approvalWorkspace = useOptionalMailApprovalWorkspace();
-  const isProduction = useIsProductionMailReadSource();
-  const workspace = useOptionalMailWorkspace();
   const {
     activeFolder,
     setActiveFolder,
@@ -47,146 +243,26 @@ export function MailFolderNav({
     activeMailbox,
     setActiveMailbox,
   } = useMailPrototype();
-
-  if (isProduction && workspace) {
-    const mailboxSections = resolveMailboxSidebarSections(
-      workspace.mailboxes.map(adaptAccessibleMailbox),
-    );
-
-    function ProductionFolderButton({
-      folder,
-    }: {
-      folder:
-        | (typeof PRODUCTION_MAIL_READ_FOLDERS)[number]
-        | ReturnType<typeof filterVisibleWorkflowFolders>[number];
-    }) {
-      const active = workspace!.selectedFolder === folder.id;
-      const labelKey = isProductionMailReadFolder(folder.id)
-        ? folder.labelKey
-        : resolveWorkflowFolderLabelKey(folder.id, canReview);
-      return (
-        <button
-          type="button"
-          onClick={() => {
-            if (folder.id === "pending_approval") {
-              void workspace!.selectFolder("pending_approval");
-              void approvalWorkspace?.loadApprovals();
-              approvalWorkspace?.clearSelection();
-              return;
-            }
-            void workspace!.selectFolder(folder.id);
-          }}
-          className={cn(
-            "mail-sidebar-folder flex min-h-9 w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-            active ? "mail-nav-active" : "mail-nav-item",
-          )}
-        >
-          <span className="truncate">{t(labelKey)}</span>
-        </button>
-      );
-    }
-
-    function ProductionMailboxButton({
-      mailboxId,
-      label,
-      icon: Icon,
-    }: {
-      mailboxId: string;
-      label: string;
-      icon: typeof Inbox;
-    }) {
-      const active = workspace!.selectedMailboxId === mailboxId;
-      return (
-        <button
-          type="button"
-          onClick={() => {
-            void workspace!.selectMailbox(mailboxId);
-          }}
-          className={cn(
-            "mail-sidebar-folder flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-            active ? "mail-nav-active" : "mail-nav-item",
-          )}
-        >
-          <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-        </button>
-      );
-    }
-
-    function renderProductionMailboxButtons(
-      boxes: MailSidebarMailboxPresentation[],
-      icon: typeof Inbox,
-      fallbackLabelKey: "mail.mailbox.personal" | "mail.mailbox.shared",
-    ) {
-      return boxes.map((box) => (
-        <ProductionMailboxButton
-          key={box.id}
-          mailboxId={box.id}
-          label={box.displayName ?? t(fallbackLabelKey)}
-          icon={icon}
-        />
-      ));
-    }
-
-    return (
-      <aside className={cn("flex flex-col gap-3", className)}>
-        {showComposeButton && (
-          <Button
-            type="button"
-            size="sm"
-            className="mail-compose-button h-10 w-full justify-center gap-2 rounded-xl shadow-sm"
-            onClick={onCompose}
-          >
-            <Plus className="h-4 w-4" />
-            {t("mail.compose.new")}
-          </Button>
-        )}
-
-        <div className="mail-sidebar-section">
-          <p className="mail-sidebar-section-label mb-1.5 px-2.5">
-            {t("mail.sidebar.folders")}
-          </p>
-          <nav className="space-y-0.5" aria-label={t("mail.sidebar.folders")}>
-            {PRODUCTION_MAIL_READ_FOLDERS.map((folder) => (
-              <ProductionFolderButton key={folder.id} folder={folder} />
-            ))}
-            {filterVisibleWorkflowFolders(canReview).map((folder) => (
-              <ProductionFolderButton key={folder.id} folder={folder} />
-            ))}
-          </nav>
-        </div>
-
-        {mailboxSections.showSection && mailboxSections.sectionLabelKey && (
-          <div className="mail-sidebar-section">
-            <p className="mail-sidebar-section-label mb-1.5 px-2.5">
-              {t(mailboxSections.sectionLabelKey)}
-            </p>
-            <nav
-              className="space-y-0.5"
-              aria-label={t(mailboxSections.sectionLabelKey)}
-            >
-              {renderProductionMailboxButtons(
-                mailboxSections.personalMailboxes,
-                Inbox,
-                "mail.mailbox.personal",
-              )}
-              {renderProductionMailboxButtons(
-                mailboxSections.sharedMailboxes,
-                Users,
-                "mail.mailbox.shared",
-              )}
-            </nav>
-          </div>
-        )}
-      </aside>
-    );
-  }
-
   const folders = visibleMailFolders(isAdminScenario);
   const mailFolders = folders.filter((f) => f.section === "mail");
   const adminFolders = folders.filter((f) => f.section === "admin");
   const mailboxSections = resolveMailboxSidebarSections(
     mailboxes.map(adaptPrototypeSidebarMailbox),
+  );
+  const mailboxRows = useMemo<PaginatedMailboxRow[]>(
+    () => [
+      ...mailboxSections.personalMailboxes.map((box) => ({
+        id: box.address,
+        label: box.displayName ?? t("mail.mailbox.personal"),
+        icon: Inbox,
+      })),
+      ...mailboxSections.sharedMailboxes.map((box) => ({
+        id: box.address,
+        label: box.displayName ?? t("mail.mailbox.shared"),
+        icon: Users,
+      })),
+    ],
+    [mailboxSections.personalMailboxes, mailboxSections.sharedMailboxes, t],
   );
 
   function FolderButton({
@@ -211,7 +287,7 @@ export function MailFolderNav({
         )}
       >
         <span className="truncate">{t(labelKey)}</span>
-        {count > 0 && (
+        {count > 0 ? (
           <span
             className={cn(
               "mail-folder-count ml-2 shrink-0 text-xs tabular-nums",
@@ -220,43 +296,14 @@ export function MailFolderNav({
           >
             {count}
           </span>
-        )}
-      </button>
-    );
-  }
-
-  function MailboxButton({
-    address,
-    label,
-    icon: Icon,
-  }: {
-    address: string;
-    label: string;
-    icon: typeof Inbox;
-  }) {
-    const active = activeMailbox === address;
-    return (
-      <button
-        type="button"
-        onClick={() => {
-          setActiveMailbox(address);
-          setActiveFolder("inbox");
-          setSelectedId(null);
-        }}
-        className={cn(
-          "mail-sidebar-folder flex min-h-9 w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-left text-[13px] transition-colors",
-          active ? "mail-nav-active" : "mail-nav-item",
-        )}
-      >
-        <Icon className="h-3.5 w-3.5 shrink-0 opacity-70" aria-hidden />
-        <span className="min-w-0 flex-1 truncate">{label}</span>
+        ) : null}
       </button>
     );
   }
 
   return (
     <aside className={cn("flex flex-col gap-3", className)}>
-      {showComposeButton && (
+      {showComposeButton ? (
         <Button
           type="button"
           size="sm"
@@ -266,7 +313,7 @@ export function MailFolderNav({
           <Plus className="h-4 w-4" />
           {t("mail.compose.new")}
         </Button>
-      )}
+      ) : null}
 
       <div className="mail-sidebar-section">
         <p className="mail-sidebar-section-label mb-1.5 px-2.5">
@@ -283,36 +330,25 @@ export function MailFolderNav({
         </nav>
       </div>
 
-      {mailboxSections.showSection && mailboxSections.sectionLabelKey && (
+      {mailboxSections.showSection && mailboxSections.sectionLabelKey ? (
         <div className="mail-sidebar-section">
           <p className="mail-sidebar-section-label mb-1.5 px-2.5">
             {t(mailboxSections.sectionLabelKey)}
           </p>
-          <nav
-            className="space-y-0.5"
-            aria-label={t(mailboxSections.sectionLabelKey)}
-          >
-            {mailboxSections.personalMailboxes.map((box) => (
-              <MailboxButton
-                key={box.address}
-                address={box.address}
-                label={box.displayName ?? t("mail.mailbox.personal")}
-                icon={Inbox}
-              />
-            ))}
-            {mailboxSections.sharedMailboxes.map((box) => (
-              <MailboxButton
-                key={box.address}
-                address={box.address}
-                label={box.displayName ?? t("mail.mailbox.shared")}
-                icon={Users}
-              />
-            ))}
-          </nav>
+          <PaginatedMailboxNav
+            rows={mailboxRows}
+            selectedId={activeMailbox}
+            onSelect={(address) => {
+              setActiveMailbox(address);
+              setActiveFolder("inbox");
+              setSelectedId(null);
+            }}
+            ariaLabel={t(mailboxSections.sectionLabelKey)}
+          />
         </div>
-      )}
+      ) : null}
 
-      {adminFolders.length > 0 && (
+      {adminFolders.length > 0 ? (
         <div className="mail-sidebar-section">
           <p className="mail-sidebar-section-label mb-1.5 px-2.5">
             {t("mail.folderSheet.adminSection")}
@@ -327,7 +363,41 @@ export function MailFolderNav({
             ))}
           </nav>
         </div>
-      )}
+      ) : null}
     </aside>
+  );
+}
+
+export function MailFolderNav({
+  onCompose,
+  onFolderSelect,
+  className,
+  showComposeButton = true,
+}: {
+  onCompose: () => void;
+  onFolderSelect?: (folder: MailWorkspaceFolder) => void;
+  className?: string;
+  showComposeButton?: boolean;
+}) {
+  const isProduction = useIsProductionMailReadSource();
+  const workspace = useOptionalMailWorkspace();
+
+  if (isProduction && workspace) {
+    return (
+      <ProductionMailFolderNav
+        onCompose={onCompose}
+        onFolderSelect={onFolderSelect}
+        className={className}
+        showComposeButton={showComposeButton}
+      />
+    );
+  }
+
+  return (
+    <PrototypeMailFolderNav
+      onCompose={onCompose}
+      className={className}
+      showComposeButton={showComposeButton}
+    />
   );
 }

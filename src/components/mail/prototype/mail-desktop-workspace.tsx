@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
@@ -12,10 +12,13 @@ import { MailPaneResizer } from "./mail-pane-resizer";
 import { MailMessageList } from "./mail-message-list";
 import { MailReadingPane } from "./mail-reading-pane";
 import { MailComposeEditor } from "@/components/mail/compose/mail-compose-editor";
+import { MailComposeDesktopHost } from "@/components/mail/compose/mail-compose-desktop-host";
 import type { ComposeInitialSeed } from "@/lib/mail/client/draft-management";
 import type { MockComposeDraft } from "@/lib/mail/prototype/state";
+import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
 
 type StackPane = "list" | "detail";
+type DesktopMailView = "list" | "message";
 
 export function MailDesktopWorkspace({
   workspaceRef,
@@ -23,9 +26,11 @@ export function MailDesktopWorkspace({
   composeExpanded,
   composeKey,
   composeSeed,
+  mailFolder = "inbox",
   onOpenCompose,
   onCloseCompose,
   onToggleComposeExpand,
+  onComposeDraftPersisted,
   onReply,
   onReplyAll,
   onForward,
@@ -45,9 +50,11 @@ export function MailDesktopWorkspace({
   composeExpanded: boolean;
   composeKey: number;
   composeSeed?: ComposeInitialSeed;
+  mailFolder?: MailWorkspaceFolder;
   onOpenCompose: (initial?: Partial<MockComposeDraft> | ComposeInitialSeed) => void;
   onCloseCompose: () => void;
   onToggleComposeExpand: () => void;
+  onComposeDraftPersisted?: () => void;
   onReply: (messageId: string) => void;
   onReplyAll: (messageId: string) => void;
   onForward: (messageId: string) => void;
@@ -70,8 +77,15 @@ export function MailDesktopWorkspace({
   const layoutMode = useMailWorkspaceLayout(workspaceRef);
   const [containerWidth, setContainerWidth] = useState(1200);
   const [stackPane, setStackPane] = useState<StackPane>("list");
+  const [desktopMailView, setDesktopMailView] =
+    useState<DesktopMailView>("list");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [mailboxSidebarCollapsed, setMailboxSidebarCollapsed] = useState(false);
+  const mailContentSnapshotRef = useRef<{
+    desktopMailView: DesktopMailView;
+    stackPane: StackPane;
+  } | null>(null);
+  const mainContentPaneRef = useRef<HTMLDivElement>(null);
 
   const {
     mailboxesWidth,
@@ -92,6 +106,11 @@ export function MailDesktopWorkspace({
 
   const tabletLayout = layoutMode === "medium";
   const showMailboxSidebar = !mailboxSidebarCollapsed;
+  const showEmbeddedCompose = composeOpen && composeExpanded;
+  const wideDesktopListMode =
+    readingPaneFits && desktopMailView === "list" && !showEmbeddedCompose;
+  const wideDesktopMessageMode =
+    readingPaneFits && desktopMailView === "message" && !showEmbeddedCompose;
 
   useEffect(() => {
     if (layoutMode === "medium") {
@@ -103,6 +122,7 @@ export function MailDesktopWorkspace({
 
   useEffect(() => {
     setStackPane("list");
+    setDesktopMailView("list");
   }, [workspace?.selectedFolder]);
 
   useEffect(() => {
@@ -120,21 +140,173 @@ export function MailDesktopWorkspace({
 
   function handleSelectMessage(id: string) {
     onSelectMessage(id);
-    if (!readingPaneFits) {
+    if (mailFolder === "drafts") {
+      return;
+    }
+    if (readingPaneFits) {
+      setDesktopMailView("message");
+    } else {
       setStackPane("detail");
     }
   }
 
   function handleApprovalItemSelect() {
-    if (!readingPaneFits) {
+    if (readingPaneFits) {
+      setDesktopMailView("message");
+    } else {
       setStackPane("detail");
     }
   }
 
-  const showReadingPane = readingPaneFits && stackPane === "list";
-  const composeExpandedLeft = showMailboxSidebar
-    ? mailboxesWidth + resizerWidth
-    : effectiveMailboxWidth;
+  function isDesktopReadingFocus(): boolean {
+    if (showEmbeddedCompose) {
+      return false;
+    }
+    if (readingPaneFits) {
+      return desktopMailView === "message";
+    }
+    return stackPane === "detail";
+  }
+
+  function returnToFolderList() {
+    if (readingPaneFits) {
+      setDesktopMailView("list");
+    } else {
+      setStackPane("list");
+    }
+    workspace?.clearReadingSelection();
+  }
+
+  function handleDesktopFolderSelect(folder: MailWorkspaceFolder) {
+    if (!workspace) {
+      return;
+    }
+    const sameFolder = workspace.selectedFolder === folder;
+    const inReadingFocus = isDesktopReadingFocus();
+
+    if (sameFolder) {
+      if (inReadingFocus) {
+        returnToFolderList();
+      }
+      return;
+    }
+
+    if (inReadingFocus) {
+      returnToFolderList();
+    }
+    void workspace.selectFolder(folder);
+  }
+
+  function handleBackToMessageList() {
+    returnToFolderList();
+  }
+
+  function handleToggleComposeExpand() {
+    if (!composeExpanded) {
+      mailContentSnapshotRef.current = {
+        desktopMailView,
+        stackPane,
+      };
+    } else if (mailContentSnapshotRef.current) {
+      setDesktopMailView(mailContentSnapshotRef.current.desktopMailView);
+      setStackPane(mailContentSnapshotRef.current.stackPane);
+      mailContentSnapshotRef.current = null;
+    }
+    onToggleComposeExpand();
+  }
+
+  function handleCloseCompose() {
+    if (mailContentSnapshotRef.current) {
+      setDesktopMailView(mailContentSnapshotRef.current.desktopMailView);
+      setStackPane(mailContentSnapshotRef.current.stackPane);
+      mailContentSnapshotRef.current = null;
+    }
+    onCloseCompose();
+  }
+
+  const readingPaneProps = {
+    onReply,
+    onReplyAll,
+    onForward,
+    onAdminEdit,
+    variant: "desktop" as const,
+    messageListCollapsed,
+    onShowMessageList: restoreMessageList,
+    replyGuard,
+    onDismissReplyGuard,
+    onProceedReplyGuard,
+    onProductionSeedAction,
+    composeSeedPending,
+  };
+
+  const activeDraftId = composeOpen ? composeSeed?.draftId : undefined;
+
+  const composeEditor = composeOpen ? (
+    <MailComposeEditor
+      key={composeSeed?.draftId ?? `new-${composeKey}`}
+      seed={composeSeed}
+      variant="floating-desktop"
+      expanded={composeExpanded}
+      onClose={handleCloseCompose}
+      onToggleExpand={handleToggleComposeExpand}
+      onSubmitted={handleCloseCompose}
+      onDraftPersisted={onComposeDraftPersisted}
+    />
+  ) : null;
+
+  const mailContentPane = readingPaneFits ? (
+    wideDesktopListMode ? (
+      <div className="mail-list-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
+        <MailMessageList
+          className="flex min-h-0 min-w-0 flex-1 flex-col"
+          onMessageSelect={handleSelectMessage}
+          onApprovalItemSelect={handleApprovalItemSelect}
+          activeDraftId={activeDraftId}
+        />
+      </div>
+    ) : wideDesktopMessageMode ? (
+      <div className="mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
+        <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
+          <button
+            type="button"
+            onClick={handleBackToMessageList}
+            className="flex min-h-9 items-center gap-1 text-sm crm-text"
+          >
+            <ArrowLeft className="h-4 w-4 shrink-0" />
+            {t("mail.backToMessageList")}
+          </button>
+        </div>
+        <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+          <MailReadingPane {...readingPaneProps} />
+        </div>
+      </div>
+    ) : null
+  ) : stackPane === "list" ? (
+    <div className="mail-list-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
+      <MailMessageList
+        className="flex min-h-0 min-w-0 flex-1 flex-col"
+        onMessageSelect={handleSelectMessage}
+        onApprovalItemSelect={handleApprovalItemSelect}
+        activeDraftId={activeDraftId}
+      />
+    </div>
+  ) : (
+    <div className="mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
+      <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
+        <button
+          type="button"
+          onClick={handleBackToMessageList}
+          className="flex min-h-9 items-center gap-1 text-sm crm-text"
+        >
+          <ArrowLeft className="h-4 w-4 shrink-0" />
+          {t("mail.backToMessageList")}
+        </button>
+      </div>
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        <MailReadingPane {...readingPaneProps} />
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -142,12 +314,23 @@ export function MailDesktopWorkspace({
         "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
       )}
       data-layout={layoutMode}
+      data-desktop-mail-view={
+        showEmbeddedCompose
+          ? "compose-embedded"
+          : readingPaneFits
+            ? desktopMailView
+            : stackPane
+      }
       data-columns={
-        showReadingPane
-          ? showMailboxSidebar
-            ? "three"
-            : "two"
-          : "compact"
+        showEmbeddedCompose
+          ? "compose-embedded"
+          : wideDesktopListMode
+            ? showMailboxSidebar
+              ? "list"
+              : "list-compact"
+            : wideDesktopMessageMode
+              ? "reading-focus"
+              : "compact"
       }
     >
       <div className="mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden">
@@ -168,7 +351,7 @@ export function MailDesktopWorkspace({
         {showMailboxSidebar && (
           <>
             <div
-              className="mail-mailbox-column relative min-h-0 shrink-0 overflow-hidden border-r crm-border"
+              className="mail-mailbox-column relative flex h-full min-h-0 shrink-0 flex-col overflow-hidden border-r crm-border"
               style={{ width: mailboxesWidth }}
             >
               {tabletLayout && (
@@ -184,6 +367,7 @@ export function MailDesktopWorkspace({
               )}
               <MailMailboxesPane
                 onCompose={() => onOpenCompose()}
+                onFolderSelect={handleDesktopFolderSelect}
                 settingsOpen={settingsOpen}
                 onToggleSettings={() => setSettingsOpen((v) => !v)}
                 onCloseSettings={() => setSettingsOpen(false)}
@@ -193,125 +377,33 @@ export function MailDesktopWorkspace({
                 settingsReturnFocusRef={adminCenterReturnFocusRef}
               />
             </div>
-            <MailPaneResizer
-              onResize={(delta) => setMailboxesWidth(mailboxesWidth + delta)}
-              onDoubleClickReset={resetMailboxesWidth}
-              style={{ width: resizerWidth }}
-            />
+            {!composeOpen ? (
+              <MailPaneResizer
+                onResize={(delta) => setMailboxesWidth(mailboxesWidth + delta)}
+                onDoubleClickReset={resetMailboxesWidth}
+                style={{ width: resizerWidth }}
+              />
+            ) : null}
           </>
         )}
 
-        {showReadingPane ? (
-          <>
-            {!messageListCollapsed && (
-              <>
-                <div
-                  className="mail-list-column flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r crm-border bg-[var(--color-crm-bg)]"
-                  style={{ width: listWidth }}
-                >
-                  <MailMessageList
-                    className="flex min-h-0 min-w-0 flex-1 flex-col"
-                    onMessageSelect={handleSelectMessage}
-                    onApprovalItemSelect={handleApprovalItemSelect}
-                  />
-                </div>
-                <MailPaneResizer
-                  onResize={(delta) => setListWidth(listWidth + delta)}
-                  onResizeEnd={finishListResize}
-                  onDoubleClickReset={toggleMessageListCollapsed}
-                  style={{ width: resizerWidth }}
-                />
-              </>
-            )}
-            <div className="mail-reading-column min-h-0 min-w-0 flex-1 overflow-hidden bg-[var(--color-crm-bg)]">
-              <MailReadingPane
-                onReply={onReply}
-                onReplyAll={onReplyAll}
-                onForward={onForward}
-                onAdminEdit={onAdminEdit}
-                variant="desktop"
-                messageListCollapsed={messageListCollapsed}
-                onShowMessageList={restoreMessageList}
-                replyGuard={replyGuard}
-                onDismissReplyGuard={onDismissReplyGuard}
-                onProceedReplyGuard={onProceedReplyGuard}
-                onProductionSeedAction={onProductionSeedAction}
-                composeSeedPending={composeSeedPending}
-              />
-            </div>
-          </>
-        ) : stackPane === "list" ? (
-          <div className="mail-list-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
-            <MailMessageList
-              className="flex min-h-0 min-w-0 flex-1 flex-col"
-              onMessageSelect={handleSelectMessage}
-              onApprovalItemSelect={handleApprovalItemSelect}
-            />
-          </div>
-        ) : (
-          <div className="mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]">
-            <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
-              <button
-                type="button"
-                onClick={() => setStackPane("list")}
-                className="flex min-h-9 items-center gap-1 text-sm crm-text"
-              >
-                <ArrowLeft className="h-4 w-4 shrink-0" />
-                {t("mail.compose.backToMail")}
-              </button>
-            </div>
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <MailReadingPane
-                onReply={onReply}
-                onReplyAll={onReplyAll}
-                onForward={onForward}
-                onAdminEdit={onAdminEdit}
-                variant="desktop"
-                messageListCollapsed={messageListCollapsed}
-                onShowMessageList={restoreMessageList}
-                replyGuard={replyGuard}
-                onDismissReplyGuard={onDismissReplyGuard}
-                onProceedReplyGuard={onProceedReplyGuard}
-                onProductionSeedAction={onProductionSeedAction}
-                composeSeedPending={composeSeedPending}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {composeOpen && (
         <div
-          className={cn(
-            "pointer-events-none absolute inset-0 z-20",
-            !composeExpanded && "flex items-center justify-center p-4",
-          )}
+          ref={mainContentPaneRef}
+          className="mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
+          data-mail-main-content-pane
         >
-          <div
-            className={cn(
-              "mail-floating-compose pointer-events-auto flex min-h-0 flex-col overflow-hidden border crm-border bg-[var(--color-crm-bg)]",
-              composeExpanded
-                ? "absolute bottom-0 right-0 top-0 rounded-none border-0 border-l shadow-lg"
-                : "max-h-[min(80%,calc(100%-2rem))] w-[min(720px,92%)] rounded-xl shadow-lg",
-            )}
-            style={
-              composeExpanded
-                ? { left: composeExpandedLeft }
-                : undefined
-            }
-          >
-            <MailComposeEditor
-              key={composeKey}
-              seed={composeSeed}
-              variant="floating-desktop"
+          {!showEmbeddedCompose ? mailContentPane : null}
+
+          {composeOpen ? (
+            <MailComposeDesktopHost
+              mainContentPaneRef={mainContentPaneRef}
               expanded={composeExpanded}
-              onClose={onCloseCompose}
-              onToggleExpand={onToggleComposeExpand}
-              onSubmitted={onCloseCompose}
-            />
-          </div>
+            >
+              {composeEditor}
+            </MailComposeDesktopHost>
+          ) : null}
         </div>
-      )}
+      </div>
     </div>
   );
 }

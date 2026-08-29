@@ -103,7 +103,7 @@ describe("approval mobile and stack navigation wiring", () => {
     );
   });
 
-  it("keeps wide desktop split-pane reading column for approvals", () => {
+  it("uses desktop reading focus mode for approvals on wide layouts", () => {
     const desktopSource = readFileSync(
       "src/components/mail/prototype/mail-desktop-workspace.tsx",
       "utf8",
@@ -113,7 +113,8 @@ describe("approval mobile and stack navigation wiring", () => {
       "utf8",
     );
 
-    assert.match(desktopSource, /showReadingPane \?/);
+    assert.match(desktopSource, /desktopMailView/);
+    assert.match(desktopSource, /wideDesktopMessageMode/);
     assert.match(desktopSource, /mail-reading-column/);
     assert.match(
       readingPaneSource,
@@ -121,7 +122,7 @@ describe("approval mobile and stack navigation wiring", () => {
     );
     assert.match(
       desktopSource,
-      /function handleApprovalItemSelect\(\) \{[\s\S]*?if \(!readingPaneFits\) \{\s*setStackPane\("detail"\);\s*\}/,
+      /function handleApprovalItemSelect\(\) \{[\s\S]*?if \(readingPaneFits\) \{\s*setDesktopMailView\("message"\)/,
     );
   });
 

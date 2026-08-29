@@ -15,6 +15,13 @@ export type ComposeAttachmentUploadStatus =
   | "failed"
   | "cancelled";
 
+export type ComposeAttachmentUploadErrorCode =
+  | ComposeAttachmentPolicyIssueCode
+  | "DRAFT_SAVE_FAILED"
+  | "DRAFT_NOT_PERSISTED"
+  | "MISSING_FROM"
+  | "UPLOAD_FILE_MISSING";
+
 export type ComposeAttachmentUploadState = {
   localId: string;
   serverId: string | null;
@@ -25,9 +32,40 @@ export type ComposeAttachmentUploadState = {
   uploadStatus: ComposeAttachmentUploadStatus;
   uploadProgress: number;
   error: string | null;
-  errorCode: ComposeAttachmentPolicyIssueCode | null;
+  errorCode: ComposeAttachmentUploadErrorCode | null;
   file: File | null;
 };
+
+export function composeAttachmentRemoveMessageKey(): string {
+  return "mail.compose.attachment.removeAttachment";
+}
+
+export function composeAttachmentUploadErrorMessageKey(
+  errorCode: ComposeAttachmentUploadErrorCode | null | undefined,
+): string {
+  switch (errorCode) {
+    case "DRAFT_SAVE_FAILED":
+      return "mail.compose.attachment.draftSaveFailed";
+    case "DRAFT_NOT_PERSISTED":
+      return "mail.compose.attachment.draftNotSavedDetail";
+    case "MISSING_FROM":
+      return "mail.compose.attachment.missingFrom";
+    case "UPLOAD_FILE_MISSING":
+      return "mail.compose.attachment.uploadFileMissing";
+    case "FILE_TOO_LARGE":
+      return "mail.compose.attachment.fileTooLarge";
+    case "TOTAL_SIZE_EXCEEDED":
+      return "mail.compose.attachment.totalSizeExceeded";
+    case "TOO_MANY_ATTACHMENTS":
+      return "mail.compose.attachment.tooMany";
+    case "UNSUPPORTED_FILE_TYPE":
+      return "mail.compose.attachment.unsupportedType";
+    case "EMPTY_FILE":
+      return "mail.compose.attachment.emptyFile";
+    default:
+      return "mail.compose.attachment.uploadFailed";
+  }
+}
 
 export function isAttachmentPendingUpload(
   attachment: Pick<ComposeAttachmentUploadState, "uploadStatus">,

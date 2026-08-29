@@ -3,6 +3,10 @@
 import { AlertCircle, Loader2, Paperclip, RotateCcw, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+import {
+  composeAttachmentRemoveMessageKey,
+  composeAttachmentUploadErrorMessageKey,
+} from "@/lib/mail/client/compose-attachment-upload";
 import type { ComposeAttachmentDraft } from "@/lib/mail/client/draft-management";
 
 export function MailComposeAttachmentList({
@@ -64,11 +68,23 @@ export function MailComposeAttachmentList({
                     {t("mail.compose.pendingUpload")}
                   </p>
                 ) : null}
-                {attachment.uploadStatus === "failed" && attachment.error ? (
-                  <p className="mt-1 flex items-center gap-1 text-xs text-red-600 dark:text-red-400">
-                    <AlertCircle className="h-3.5 w-3.5 shrink-0" />
-                    {attachment.error}
-                  </p>
+                {attachment.uploadStatus === "failed" ? (
+                  <div className="mt-1 space-y-0.5">
+                    <p className="flex items-center gap-1 text-xs font-medium text-red-600 dark:text-red-400">
+                      <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+                      {t("mail.compose.attachment.uploadFailed")}
+                    </p>
+                    <p className="text-xs text-red-600 dark:text-red-400">
+                      {attachment.errorCode
+                        ? t(
+                            composeAttachmentUploadErrorMessageKey(
+                              attachment.errorCode,
+                            ),
+                          )
+                        : attachment.error ??
+                          t("mail.compose.attachment.uploadFailed")}
+                    </p>
+                  </div>
                 ) : null}
               </div>
             </div>
@@ -99,10 +115,9 @@ export function MailComposeAttachmentList({
                 <button
                   type="button"
                   onClick={() => onRemove(attachment.id)}
-                  disabled={attachment.uploadStatus === "queued"}
-                  className="inline-flex h-8 items-center rounded-md px-2 text-xs crm-text-secondary hover:bg-black/[0.04] hover:crm-text disabled:opacity-50 dark:hover:bg-white/[0.06]"
+                  className="inline-flex h-8 items-center rounded-md px-2 text-xs crm-text-secondary hover:bg-black/[0.04] hover:crm-text dark:hover:bg-white/[0.06]"
                 >
-                  {t("mail.recipient.remove")}
+                  {t(composeAttachmentRemoveMessageKey())}
                 </button>
               )}
             </div>
