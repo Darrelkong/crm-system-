@@ -739,6 +739,10 @@ const en = {
         ownerLabel: "Mailbox owner",
         ownerPlaceholder: "Select a team member",
         ownerRequired: "Select the mailbox owner for personal mailboxes.",
+        ownerMailAccessEnabled: "Mail enabled",
+        ownerMailAccessDisabled: "Mail not enabled",
+        ownerUnprovisionedHint:
+          "This member does not currently have Mail access. Creating a mailbox will not enable Mail access automatically.",
         columns: {
           address: "Mailbox address",
           owner: "Owner",

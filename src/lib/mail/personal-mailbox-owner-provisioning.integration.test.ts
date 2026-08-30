@@ -360,13 +360,13 @@ describe("personal mailbox owner provisioning", () => {
     );
   });
 
-  it("rejects personal mailbox owner without Mail User Access", async () => {
-    const inactiveUserId = randomUUID();
+  it("allows active staff without Mail User Access and does not provision Mail", async () => {
+    const unprovisionedUserId = randomUUID();
     const now = new Date().toISOString();
     await db.insert(schema.users).values({
-      id: inactiveUserId,
-      email: `${FIXTURE}-inactive@echfronthk.com`,
-      displayName: "Inactive Staff",
+      id: unprovisionedUserId,
+      email: `${FIXTURE}-unprovisioned@echfronthk.com`,
+      displayName: "Unprovisioned Staff",
       passwordHash: "hash",
       role: "staff",
       isActive: 1,
@@ -374,18 +374,107 @@ describe("personal mailbox owner provisioning", () => {
       updatedAt: now,
     });
 
-    await assert.rejects(
-      () =>
-        createMailbox(db, adminActor, {
-          address: fixtureAddress("no-mail-access"),
-          mailboxType: "personal",
-          ownerUserId: inactiveUserId,
-        }),
-      (error: unknown) =>
-        error instanceof MailServiceError && error.errorCode === "VALIDATION",
-    );
+    try {
+      const address = fixtureAddress("no-mail-access");
+      const created = await createMailbox(db, adminActor, {
+        address,
+        mailboxType: "personal",
+        ownerUserId: unprovisionedUserId,
+      });
 
-    await db.delete(schema.users).where(eq(schema.users.id, inactiveUserId));
+      assert.equal(created.createdBy, unprovisionedUserId);
+      assert.equal(created.mailboxType, "personal");
+
+      const [mailAccess] = await db
+        .select()
+        .from(schema.mailUserAccess)
+        .where(eq(schema.mailUserAccess.userId, unprovisionedUserId));
+      assert.equal(mailAccess, undefined);
+
+      const senderIdentities = await db
+        .select()
+        .from(schema.mailSenderIdentities)
+        .where(eq(schema.mailSenderIdentities.defaultMailboxId, created.id));
+      assert.equal(senderIdentities.length, 0);
+
+      const identityGrants = await db
+        .select()
+        .from(schema.mailSenderIdentityGrants)
+        .where(
+          inArray(
+            schema.mailSenderIdentityGrants.senderIdentityId,
+            db
+              .select({ id: schema.mailSenderIdentities.id })
+              .from(schema.mailSenderIdentities)
+              .where(eq(schema.mailSenderIdentities.defaultMailboxId, created.id)),
+          ),
+        );
+      assert.equal(identityGrants.length, 0);
+
+      const composeOptions = await listComposeContextOptions(
+        db,
+        actor(unprovisionedUserId, { mailAccessEnabled: false }),
+      );
+      assert.ok(
+        !composeOptions.some((option) => option.mailboxId === created.id),
+        "unprovisioned mailbox owner must not gain compose/send authorization",
+      );
+
+      const accessible = await listAccessibleMailboxes(
+        db,
+        actor(unprovisionedUserId, { mailAccessEnabled: false }),
+      );
+      const row = accessible.find((item) => item.id === created.id);
+      assert.ok(row);
+      assert.equal(row.permissions.canSend, false);
+      assert.equal(row.permissions.canReply, false);
+    } finally {
+      await db
+        .delete(schema.mailReceivingAddresses)
+        .where(
+          inArray(
+            schema.mailReceivingAddresses.mailboxId,
+            db
+              .select({ id: schema.mailMailboxes.id })
+              .from(schema.mailMailboxes)
+              .where(eq(schema.mailMailboxes.createdBy, unprovisionedUserId)),
+          ),
+        );
+      await db
+        .delete(schema.mailMailboxes)
+        .where(eq(schema.mailMailboxes.createdBy, unprovisionedUserId));
+      await db.delete(schema.users).where(eq(schema.users.id, unprovisionedUserId));
+    }
+  });
+
+  it("rejects disabled personal mailbox owner", async () => {
+    const disabledUserId = randomUUID();
+    const now = new Date().toISOString();
+    await db.insert(schema.users).values({
+      id: disabledUserId,
+      email: `${FIXTURE}-disabled@echfronthk.com`,
+      displayName: "Disabled Staff",
+      passwordHash: "hash",
+      role: "staff",
+      isActive: 0,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    try {
+      await assert.rejects(
+        () =>
+          createMailbox(db, adminActor, {
+            address: fixtureAddress("disabled-owner"),
+            mailboxType: "personal",
+            ownerUserId: disabledUserId,
+          }),
+        (error: unknown) =>
+          error instanceof MailServiceError && error.errorCode === "VALIDATION",
+      );
+    } finally {
+      await db.delete(schema.users).where(eq(schema.users.id, disabledUserId));
+    }
   });
 
   it("records provisioning actor separately in mailbox audit metadata", async () => {

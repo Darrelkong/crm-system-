@@ -6,12 +6,14 @@ import {
   buildMailboxRows,
   canManageMailboxes,
   filterManageableMailboxes,
+  formatPersonalMailboxOwnerOptionLabel,
   isMailboxCreateSubmitEnabled,
   isSystemSendingDomainAddress,
   listPersonalMailboxOwnerCandidates,
   resolveMailboxOwnerLabel,
   resolveMailboxRowActions,
   resolveMailboxTypeChange,
+  shouldShowPersonalMailboxOwnerUnprovisionedHint,
   validateMailboxCreateForm,
   type MailboxApiItem,
 } from "@/lib/mail/client/mailbox-management";
@@ -134,7 +136,10 @@ describe("mailbox management UI wiring", () => {
     assert.match(source, /fetchMailAccessList/);
     assert.match(source, /createMailbox/);
     assert.match(source, /ownerUserId/);
-    assert.match(source, /listPersonalMailboxOwnerCandidates/);
+    assert.match(source, /formatPersonalMailboxOwnerOptionLabel/);
+    assert.match(source, /shouldShowPersonalMailboxOwnerUnprovisionedHint/);
+    assert.match(source, /ownerUnprovisionedHint/);
+    assert.match(source, /break-words/);
     assert.match(source, /postMailboxSuspend/);
     assert.match(source, /postMailboxRestore/);
     assert.match(source, /hidden md:block/);
@@ -191,9 +196,17 @@ describe("personal mailbox owner create form", () => {
     assert.equal(daniel?.name, "Daniel.Hayes");
   });
 
-  it("excludes staff without enabled Mail User Access", () => {
+  it("includes active staff without enabled Mail User Access", () => {
     const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
-    assert.equal(candidates.some((candidate) => candidate.id === "staff-b"), false);
+    const staffB = candidates.find((candidate) => candidate.id === "staff-b");
+    assert.ok(staffB);
+    assert.equal(staffB?.mailAccessEnabled, false);
+  });
+
+  it("marks Mail-enabled owners in option metadata", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    const daniel = candidates.find((candidate) => candidate.id === "daniel");
+    assert.equal(daniel?.mailAccessEnabled, true);
   });
 
   it("excludes inactive and disabled users", () => {
@@ -205,11 +218,36 @@ describe("personal mailbox owner create form", () => {
     );
   });
 
-  it("lists eligible owners sorted by name", () => {
+  it("lists all active CRM users sorted by name", () => {
     const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
     assert.deepEqual(
       candidates.map((candidate) => candidate.id),
-      ["daniel", "darrell"],
+      ["daniel", "darrell", "staff-b"],
+    );
+  });
+
+  it("formats owner option labels with Mail status", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    const staffB = candidates.find((candidate) => candidate.id === "staff-b");
+    assert.ok(staffB);
+    assert.equal(
+      formatPersonalMailboxOwnerOptionLabel(staffB!, {
+        mailAccessEnabled: "Mail 已開通",
+        mailAccessDisabled: "Mail 未開通",
+      }),
+      "Staff B · Mail 未開通",
+    );
+  });
+
+  it("shows helper hint for unprovisioned selected owner", () => {
+    const candidates = listPersonalMailboxOwnerCandidates(users, accessItems);
+    const staffB = candidates.find((candidate) => candidate.id === "staff-b");
+    assert.equal(shouldShowPersonalMailboxOwnerUnprovisionedHint(staffB), true);
+    assert.equal(
+      shouldShowPersonalMailboxOwnerUnprovisionedHint(
+        candidates.find((candidate) => candidate.id === "daniel"),
+      ),
+      false,
     );
   });
 
@@ -324,15 +362,16 @@ describe("personal mailbox owner picker security", () => {
     assert.doesNotMatch(source, /insert\(schema\.mailSenderIdentities\)/);
   });
 
-  it("uses canonical effective Mail access eligibility instead of mail_user_access-only filter", () => {
+  it("uses canonical active-user eligibility without requiring mail_user_access", () => {
     const source = readFileSync(
       "src/lib/mail/client/mailbox-management.ts",
       "utf8",
     );
     assert.match(source, /isEligiblePersonalMailboxOwner/);
+    assert.match(source, /mailAccessEnabled/);
     assert.doesNotMatch(
       source,
-      /enabledUserIds\.has\(user\.id\)\s*\)\s*;?\s*$/m,
+      /crmRole:\s*user\.role[\s\S]*mailUserAccessEnabled:\s*enabledUserIds/,
     );
   });
 });

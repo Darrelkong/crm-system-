@@ -143,22 +143,17 @@ export function hasEffectiveMailAccess(actor: MailActorContext): boolean {
 
 export type PersonalMailboxOwnerEligibilityInput = {
   userStatus: "active" | "disabled" | "deleted";
-  crmRole: MailActorContext["crmRole"];
-  mailUserAccessEnabled: boolean;
 };
 
 /**
  * Personal mailbox owner assignment (control plane):
- * active CRM user with effective Mail access — root admin OR provisioned mail_user_access.
- * Does NOT grant Sender Identity send authorization.
+ * any active CRM account may own a Personal Mailbox.
+ * Does NOT require Mail User Access and does NOT grant Sender Identity send authorization.
  */
 export function isEligiblePersonalMailboxOwner(
   input: PersonalMailboxOwnerEligibilityInput,
 ): boolean {
-  if (input.userStatus !== "active") {
-    return false;
-  }
-  return input.crmRole === "admin" || input.mailUserAccessEnabled;
+  return input.userStatus === "active";
 }
 
 /** Effective company-wide supervision read (root admin OR explicit global_mail_read). */

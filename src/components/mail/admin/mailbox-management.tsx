@@ -28,10 +28,12 @@ import {
   buildCreateMailboxRequest,
   buildMailboxRows,
   canManageMailboxes,
+  formatPersonalMailboxOwnerOptionLabel,
   isMailboxCreateSubmitEnabled,
   listPersonalMailboxOwnerCandidates,
   resolveMailboxRowActions,
   resolveMailboxTypeChange,
+  shouldShowPersonalMailboxOwnerUnprovisionedHint,
   type MailboxRow,
   type PersonalMailboxOwnerOption,
 } from "@/lib/mail/client/mailbox-management";
@@ -484,10 +486,24 @@ export function MailboxManagement() {
                     </option>
                     {ownerCandidates.map((user) => (
                       <option key={user.id} value={user.id}>
-                        {user.name || user.email}
+                        {formatPersonalMailboxOwnerOptionLabel(user, {
+                          mailAccessEnabled: t(
+                            "mail.adminCenter.mailbox.ownerMailAccessEnabled",
+                          ),
+                          mailAccessDisabled: t(
+                            "mail.adminCenter.mailbox.ownerMailAccessDisabled",
+                          ),
+                        })}
                       </option>
                     ))}
                   </select>
+                  {shouldShowPersonalMailboxOwnerUnprovisionedHint(
+                    ownerCandidates.find((user) => user.id === newOwnerUserId),
+                  ) ? (
+                    <p className="mt-1.5 break-words text-xs crm-text-secondary">
+                      {t("mail.adminCenter.mailbox.ownerUnprovisionedHint")}
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
               <Button

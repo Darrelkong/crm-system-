@@ -104,7 +104,6 @@ async function resolvePersonalMailboxOwnerUserId(
       id: schema.users.id,
       isActive: schema.users.isActive,
       deletedAt: schema.users.deletedAt,
-      role: schema.users.role,
     })
     .from(schema.users)
     .where(eq(schema.users.id, normalizedOwnerUserId))
@@ -113,12 +112,6 @@ async function resolvePersonalMailboxOwnerUserId(
     throw MailServiceError.notFound("Personal mailbox owner not found");
   }
 
-  const [mailAccess] = await db
-    .select({ isEnabled: schema.mailUserAccess.isEnabled })
-    .from(schema.mailUserAccess)
-    .where(eq(schema.mailUserAccess.userId, normalizedOwnerUserId))
-    .limit(1);
-
   const userStatus =
     user.deletedAt != null
       ? "deleted"
@@ -126,17 +119,11 @@ async function resolvePersonalMailboxOwnerUserId(
         ? "active"
         : "disabled";
 
-  if (
-    !isEligiblePersonalMailboxOwner({
-      userStatus,
-      crmRole: user.role,
-      mailUserAccessEnabled: mailAccess?.isEnabled === 1,
-    })
-  ) {
+  if (!isEligiblePersonalMailboxOwner({ userStatus })) {
     throw MailServiceError.validation(
-      userStatus !== "active"
-        ? "Personal mailbox owner must be an active user"
-        : "Personal mailbox owner must have effective Mail access",
+      userStatus === "deleted"
+        ? "Personal mailbox owner must not be deleted"
+        : "Personal mailbox owner must be an active user",
     );
   }
 

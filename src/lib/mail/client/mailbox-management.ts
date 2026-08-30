@@ -30,6 +30,7 @@ export type PersonalMailboxOwnerOption = {
   id: string;
   name: string;
   email: string;
+  mailAccessEnabled: boolean;
 };
 
 export type MailboxCreateFormInput = {
@@ -39,28 +40,50 @@ export type MailboxCreateFormInput = {
   ownerUserId: string;
 };
 
+export function resolvePersonalMailboxOwnerMailAccessEnabled(
+  userId: string,
+  accessItems: MailAccessApiItem[],
+): boolean {
+  return accessItems.some(
+    (item) => item.userId === userId && item.isEnabled === 1,
+  );
+}
+
+export function formatPersonalMailboxOwnerOptionLabel(
+  option: PersonalMailboxOwnerOption,
+  labels: { mailAccessEnabled: string; mailAccessDisabled: string },
+): string {
+  const displayName = option.name || option.email;
+  const statusLabel = option.mailAccessEnabled
+    ? labels.mailAccessEnabled
+    : labels.mailAccessDisabled;
+  return `${displayName} · ${statusLabel}`;
+}
+
+export function shouldShowPersonalMailboxOwnerUnprovisionedHint(
+  option: PersonalMailboxOwnerOption | undefined,
+): boolean {
+  return option != null && !option.mailAccessEnabled;
+}
+
 export function listPersonalMailboxOwnerCandidates(
   users: MailAccessAdminUser[],
   accessItems: MailAccessApiItem[],
 ): PersonalMailboxOwnerOption[] {
-  const enabledUserIds = new Set(
-    accessItems
-      .filter((item) => item.isEnabled === 1)
-      .map((item) => item.userId),
-  );
-
   return users
     .filter((user) =>
       isEligiblePersonalMailboxOwner({
         userStatus: user.status,
-        crmRole: user.role ?? "staff",
-        mailUserAccessEnabled: enabledUserIds.has(user.id),
       }),
     )
     .map((user) => ({
       id: user.id,
       name: user.name,
       email: user.email,
+      mailAccessEnabled: resolvePersonalMailboxOwnerMailAccessEnabled(
+        user.id,
+        accessItems,
+      ),
     }))
     .sort((left, right) => left.name.localeCompare(right.name));
 }

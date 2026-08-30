@@ -705,6 +705,10 @@ const zhHans: Messages = {
         ownerLabel: "所属成员",
         ownerPlaceholder: "选择成员",
         ownerRequired: "请选择个人邮箱的所属成员。",
+        ownerMailAccessEnabled: "Mail 已开通",
+        ownerMailAccessDisabled: "Mail 未开通",
+        ownerUnprovisionedHint:
+          "此成员尚未开通 Mail。建立邮箱不会自动开通其 Mail 权限，可稍后在“邮件存取”中启用。",
         columns: {
           address: "邮箱地址",
           owner: "所有者",

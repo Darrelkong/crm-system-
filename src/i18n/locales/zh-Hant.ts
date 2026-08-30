@@ -705,6 +705,10 @@ const zhHant: Messages = {
         ownerLabel: "所屬成員",
         ownerPlaceholder: "選擇成員",
         ownerRequired: "請選擇個人郵箱的所屬成員。",
+        ownerMailAccessEnabled: "Mail 已開通",
+        ownerMailAccessDisabled: "Mail 未開通",
+        ownerUnprovisionedHint:
+          "此成員尚未開通 Mail。建立郵箱不會自動開通其 Mail 權限，可稍後於「郵件存取」啟用。",
         columns: {
           address: "郵箱地址",
           owner: "擁有者",

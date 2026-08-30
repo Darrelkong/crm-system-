@@ -267,36 +267,30 @@ describe("mail permissions", () => {
 });
 
 describe("personal mailbox owner eligibility", () => {
-  it("includes CRM root admin without mail_user_access row", () => {
+  it("includes any active CRM user regardless of Mail access", () => {
     assert.equal(
       isEligiblePersonalMailboxOwner({
         userStatus: "active",
-        crmRole: "admin",
-        mailUserAccessEnabled: false,
       }),
       true,
     );
   });
 
-  it("includes staff with enabled mail_user_access", () => {
+  it("includes active staff without mail_user_access", () => {
     assert.equal(
       isEligiblePersonalMailboxOwner({
         userStatus: "active",
-        crmRole: "staff",
-        mailUserAccessEnabled: true,
       }),
       true,
     );
   });
 
-  it("excludes staff without enabled mail_user_access", () => {
+  it("includes active root admin without mail_user_access", () => {
     assert.equal(
       isEligiblePersonalMailboxOwner({
         userStatus: "active",
-        crmRole: "staff",
-        mailUserAccessEnabled: false,
       }),
-      false,
+      true,
     );
   });
 
@@ -304,16 +298,12 @@ describe("personal mailbox owner eligibility", () => {
     assert.equal(
       isEligiblePersonalMailboxOwner({
         userStatus: "disabled",
-        crmRole: "admin",
-        mailUserAccessEnabled: false,
       }),
       false,
     );
     assert.equal(
       isEligiblePersonalMailboxOwner({
         userStatus: "deleted",
-        crmRole: "staff",
-        mailUserAccessEnabled: true,
       }),
       false,
     );
