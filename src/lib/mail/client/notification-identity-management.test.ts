@@ -24,6 +24,7 @@ function identity(
     verificationStatus: "pending",
     verificationRequestedAt: "2026-08-22T08:00:00.000Z",
     verificationExpiresAt: "2026-08-23T08:00:00.000Z",
+    verificationAttemptCount: 0,
     verifiedAt: null,
     revokedAt: null,
     revokedBy: null,

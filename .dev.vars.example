@@ -17,6 +17,9 @@ SKIP_ACCESS_JWT_CHECK=true
 # Session cookie signing（Phase 1 启用，生产环境必填）
 SESSION_SECRET=change-me-to-a-long-random-string
 
+# Notification identity verification OTP HMAC key（server-only；生产必填）
+MAIL_NOTIFICATION_VERIFICATION_SECRET=change-me-to-a-long-random-string
+
 # Debug API（生产环境默认禁用，仅 Admin 排障时可设为 true）
 # ENABLE_DEBUG_API=false
 

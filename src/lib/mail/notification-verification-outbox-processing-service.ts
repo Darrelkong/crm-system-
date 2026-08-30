@@ -25,10 +25,7 @@ import { getNotificationProcessingTrustNow } from "@/lib/mail/notification-proce
 import { isMailNotificationIdentityVerificationOutbox } from "@/lib/mail/notification-source-entity-policy";
 import type { NotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
 import type { MailOperationalActor } from "@/lib/mail/system-mail-actor";
-import {
-  generateVerificationChallenge,
-  verificationExpiresAt,
-} from "@/lib/mail/verification-token";
+import { generateVerificationChallenge } from "@/lib/mail/verification-token";
 
 export const VERIFICATION_OUTBOX_FAILURE_CODES = {
   superseded: "verification_send_superseded",
@@ -356,15 +353,40 @@ export async function processClaimedVerificationOutboxDelivery(
     startedAt: now,
   });
 
-  const { token, tokenHash } = generateVerificationChallenge();
-  const expiresAt = verificationExpiresAt();
+  const challenge = generateVerificationChallenge(
+    identity.id,
+    Date.parse(now),
+  );
+  const expiresAt = challenge.expiresAt;
+
+  try {
+    await input.sink.deliverChallenge({
+      notificationIdentityId: identity.id,
+      targetEmail: identity.email,
+      token: challenge.token,
+      expiresAt,
+    });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "Verification transport failed";
+    return finalizeVerificationRetryableFailure(
+      db,
+      actor,
+      outbox,
+      attemptId,
+      attemptNumber,
+      VERIFICATION_OUTBOX_FAILURE_CODES.transportFailed,
+      message,
+    );
+  }
 
   const hashResults = await runMailBatch(db, [
     db
       .update(schema.mailNotificationIdentities)
       .set({
-        verificationTokenHash: tokenHash,
+        verificationTokenHash: challenge.tokenHash,
         verificationExpiresAt: expiresAt,
+        verificationAttemptCount: 0,
         updatedAt: now,
       })
       .where(
@@ -394,27 +416,6 @@ export async function processClaimedVerificationOutboxDelivery(
   }
 
   let providerRequestId: string | undefined;
-  try {
-    await input.sink.deliverChallenge({
-      notificationIdentityId: identity.id,
-      targetEmail: identity.email,
-      token,
-      expiresAt,
-    });
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Verification transport failed";
-    return finalizeVerificationRetryableFailure(
-      db,
-      actor,
-      outbox,
-      attemptId,
-      attemptNumber,
-      VERIFICATION_OUTBOX_FAILURE_CODES.transportFailed,
-      message,
-    );
-  }
-
   return finalizeVerificationSent(
     db,
     actor,

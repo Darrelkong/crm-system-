@@ -37,7 +37,9 @@ export function ModalOverlay({
           onClick={onClose}
         />
       )}
-      <div className="relative z-10 w-full max-w-lg">{children}</div>
+      <div className="relative z-10 flex w-full max-w-lg min-h-0 max-h-full flex-col">
+        {children}
+      </div>
     </div>,
     document.body,
   );

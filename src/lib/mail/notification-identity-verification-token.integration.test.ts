@@ -23,6 +23,9 @@ import {
 } from "@/lib/mail/notification-identity-service";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
 import { hashVerificationToken } from "@/lib/mail/verification-token";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
 
 const FIXTURE = "mail-phase2c12c3a-h322";
@@ -98,9 +101,13 @@ async function cleanupFixtures(db: TestDb) {
 describe("admin verification token issue service", () => {
   let db: TestDb;
   let dispose: (() => void) | undefined;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      "notification-verification-token-integration-secret";
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
@@ -119,6 +126,12 @@ describe("admin verification token issue service", () => {
   after(async () => {
     await cleanupFixtures(db);
     dispose?.();
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
   });
 
   it("rejects proof token issue when actor has no pending self identity", async () => {
@@ -207,7 +220,10 @@ describe("admin verification token issue service", () => {
     assert.ok(row?.verificationTokenHash);
     assert.equal(
       row.verificationTokenHash,
-      hashVerificationToken(result.verificationToken),
+      hashVerificationToken(
+        result.verificationToken,
+        result.item.identityId,
+      ),
     );
     assert.notEqual(row.verificationTokenHash, result.verificationToken);
   });

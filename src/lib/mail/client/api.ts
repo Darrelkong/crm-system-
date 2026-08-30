@@ -95,16 +95,22 @@ type MailSessionResponse = MailSessionContext & {
 type ApiErrorBody = {
   error?: string;
   errorCode?: string;
+  metadata?: Record<string, unknown>;
 };
 
 async function readApiError(
   res: Response,
   fallback: string,
-): Promise<{ error: string; errorCode?: string }> {
+): Promise<{
+  error: string;
+  errorCode?: string;
+  metadata?: Record<string, unknown>;
+}> {
   const data = (await res.json().catch(() => ({}))) as ApiErrorBody;
   return {
     error: data.error ?? fallback,
     errorCode: data.errorCode,
+    metadata: data.metadata,
   };
 }
 
@@ -272,17 +278,18 @@ export async function sendTargetNotificationVerificationChallenge(
   status: number;
   error: string;
   errorCode?: string;
+  metadata?: Record<string, unknown>;
 }> {
   const res = await fetch(
     `/api/mail/access/${encodeURIComponent(userId)}/notification-identities/send-verification`,
     { method: "POST" },
   );
   if (!res.ok) {
-    const { error, errorCode } = await readApiError(
+    const { error, errorCode, metadata } = await readApiError(
       res,
       "Failed to send verification challenge",
     );
-    return { ok: false, status: res.status, error, errorCode };
+    return { ok: false, status: res.status, error, errorCode, metadata };
   }
   const data = (await res.json()) as {
     item?: NotificationIdentityApiItem;
@@ -350,6 +357,7 @@ export async function verifyNotificationIdentity(
   status: number;
   error: string;
   errorCode?: string;
+  metadata?: Record<string, unknown>;
 }> {
   const res = await fetch(notificationIdentityVerifyPath(identityId), {
     method: "POST",
@@ -357,11 +365,11 @@ export async function verifyNotificationIdentity(
     body: JSON.stringify({ token }),
   });
   if (!res.ok) {
-    const { error, errorCode } = await readApiError(
+    const { error, errorCode, metadata } = await readApiError(
       res,
       "Failed to verify notification identity",
     );
-    return { ok: false, status: res.status, error, errorCode };
+    return { ok: false, status: res.status, error, errorCode, metadata };
   }
   const data = (await res.json()) as { item: NotificationIdentityApiItem };
   return { ok: true, item: data.item };

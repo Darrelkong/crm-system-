@@ -9,6 +9,21 @@ import {
   type NotificationVerificationChallengeSink,
 } from "@/lib/mail/notification-verification-challenge-sink";
 
+/** Raised when challenge transport delivery fails; must not be treated as policy rejection. */
+export class NotificationVerificationChallengeDeliveryError extends Error {
+  override readonly name = "NotificationVerificationChallengeDeliveryError";
+
+  constructor(message = "Verification challenge delivery failed", options?: ErrorOptions) {
+    super(message, options);
+  }
+}
+
+export function isVerificationChallengeDeliveryFailure(
+  error: unknown,
+): error is NotificationVerificationChallengeDeliveryError {
+  return error instanceof NotificationVerificationChallengeDeliveryError;
+}
+
 export function createEmailNotificationVerificationChallengeSink(
   emailBinding: CloudflareEmailSendBinding,
 ): NotificationVerificationChallengeSink {

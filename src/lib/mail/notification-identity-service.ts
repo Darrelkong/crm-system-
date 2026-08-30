@@ -20,6 +20,8 @@ import {
   type NotificationVerificationChallengeSink,
 } from "@/lib/mail/notification-verification-challenge-sink";
 import {
+  NotificationVerificationChallengeDeliveryError,
+  isVerificationChallengeDeliveryFailure,
   resolveNotificationVerificationChallengeSink,
   resolveVerificationChallengeDeliveryStatus,
 } from "@/lib/mail/notification-verification-challenge-delivery";
@@ -32,10 +34,18 @@ import {
 } from "@/lib/mail/notification-identity-serialization";
 import {
   generateVerificationChallenge,
-  hashVerificationToken,
   isVerificationExpired,
+  verifyVerificationTokenHash,
   verificationExpiresAt,
 } from "@/lib/mail/verification-token";
+import {
+  NOTIFICATION_VERIFICATION_MAX_ATTEMPTS,
+  assertVerificationResendAllowed,
+  isValidVerificationCodeFormat,
+  isVerificationChallengeLocked,
+  normalizeVerificationCodeInput,
+  remainingVerificationAttempts,
+} from "@/lib/mail/notification-verification-challenge-policy";
 
 export type { SafeNotificationIdentityAdminView };
 export { toSafeNotificationIdentityAdminView };
@@ -213,10 +223,9 @@ export async function createPendingNotificationIdentity(
     );
   }
 
-  const { token, tokenHash } = generateVerificationChallenge();
-  const now = new Date().toISOString();
-  const expiresAt = verificationExpiresAt();
   const identityId = crypto.randomUUID();
+  const { token, tokenHash, expiresAt } = generateVerificationChallenge(identityId);
+  const now = new Date().toISOString();
   const auditId = crypto.randomUUID();
 
   try {
@@ -227,8 +236,9 @@ export async function createPendingNotificationIdentity(
         email: normalizedEmail,
         verificationStatus: "pending",
         verificationTokenHash: tokenHash,
-        verificationRequestedAt: now,
+        verificationRequestedAt: null,
         verificationExpiresAt: expiresAt,
+        verificationAttemptCount: 0,
         deliveryHealth: "unknown",
         createdAt: now,
         updatedAt: now,
@@ -272,6 +282,89 @@ export async function createPendingNotificationIdentity(
   return toSafeNotificationIdentityAdminView(identity);
 }
 
+export function assertVerificationResendCooldown(
+  pending: Pick<MailNotificationIdentity, "verificationRequestedAt">,
+  nowMs: number,
+): void {
+  const blocked = assertVerificationResendAllowed(
+    pending.verificationRequestedAt,
+    nowMs,
+  );
+  if (blocked) {
+    throw MailServiceError.conflict("Verification resend cooldown active", {
+      verificationReason: "resend_cooldown",
+      retryAfterSeconds: blocked.retryAfterSeconds,
+    });
+  }
+}
+
+async function recordFailedVerificationAttempt(
+  db: Database,
+  pending: MailNotificationIdentity,
+  nowMs: number,
+): Promise<never> {
+  const now = new Date(nowMs).toISOString();
+  const nextAttemptCount = pending.verificationAttemptCount + 1;
+
+  if (nextAttemptCount >= NOTIFICATION_VERIFICATION_MAX_ATTEMPTS) {
+    await runMailBatch(db, [
+      db
+        .update(schema.mailNotificationIdentities)
+        .set({
+          verificationAttemptCount: NOTIFICATION_VERIFICATION_MAX_ATTEMPTS,
+          verificationTokenHash: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.mailNotificationIdentities.id, pending.id),
+            eq(schema.mailNotificationIdentities.userId, pending.userId),
+            eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+            isNull(schema.mailNotificationIdentities.revokedAt),
+            eq(
+              schema.mailNotificationIdentities.verificationAttemptCount,
+              pending.verificationAttemptCount,
+            ),
+          ),
+        ),
+    ]);
+    throw MailServiceError.conflict("Verification code locked", {
+      verificationReason: "locked",
+    });
+  }
+
+  const results = await runMailBatch(db, [
+    db
+      .update(schema.mailNotificationIdentities)
+      .set({
+        verificationAttemptCount: nextAttemptCount,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationIdentities.id, pending.id),
+          eq(schema.mailNotificationIdentities.userId, pending.userId),
+          eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+          isNull(schema.mailNotificationIdentities.revokedAt),
+          eq(
+            schema.mailNotificationIdentities.verificationAttemptCount,
+            pending.verificationAttemptCount,
+          ),
+        ),
+      ),
+  ]);
+  assertBatchUpdateChanged(
+    results,
+    0,
+    "Verification attempt update conflict",
+  );
+
+  throw MailServiceError.validation("Invalid verification code", {
+    verificationReason: "invalid_code",
+    remainingAttempts: remainingVerificationAttempts(nextAttemptCount),
+  });
+}
+
 export async function verifyNotificationIdentity(
   db: Database,
   actor: MailActorContext,
@@ -288,14 +381,36 @@ export async function verifyNotificationIdentity(
       "Notification identity is not pending verification",
     );
   }
-  if (
-    !pending.verificationTokenHash ||
-    pending.verificationTokenHash !== hashVerificationToken(input.token)
-  ) {
-    throw MailServiceError.validation("Invalid verification token");
+
+  const nowMs = Date.now();
+  if (isVerificationExpired(pending.verificationExpiresAt, nowMs)) {
+    throw MailServiceError.conflict("Verification code has expired", {
+      verificationReason: "expired",
+    });
   }
-  if (isVerificationExpired(pending.verificationExpiresAt)) {
-    throw MailServiceError.conflict("Verification token has expired");
+
+  if (
+    isVerificationChallengeLocked(pending.verificationAttemptCount) ||
+    !pending.verificationTokenHash
+  ) {
+    throw MailServiceError.conflict("Verification code locked", {
+      verificationReason: "locked",
+    });
+  }
+
+  const normalizedToken = normalizeVerificationCodeInput(input.token);
+  if (!isValidVerificationCodeFormat(normalizedToken)) {
+    return recordFailedVerificationAttempt(db, pending, nowMs);
+  }
+
+  if (
+    !verifyVerificationTokenHash(
+      pending.verificationTokenHash,
+      normalizedToken,
+      pending.id,
+    )
+  ) {
+    return recordFailedVerificationAttempt(db, pending, nowMs);
   }
 
   const currentVerified = await findActiveVerifiedNotificationIdentity(
@@ -334,6 +449,7 @@ export async function verifyNotificationIdentity(
             verifiedAt: now,
             verificationTokenHash: null,
             verificationExpiresAt: null,
+            verificationAttemptCount: 0,
             updatedAt: now,
           })
           .where(
@@ -371,6 +487,7 @@ export async function verifyNotificationIdentity(
             verifiedAt: now,
             verificationTokenHash: null,
             verificationExpiresAt: null,
+            verificationAttemptCount: 0,
             updatedAt: now,
           })
           .where(
@@ -571,38 +688,66 @@ export type SendNotificationVerificationChallengeResult = {
   };
 };
 
-async function rotatePendingVerificationChallenge(
+async function commitVerificationChallengeRotation(
   db: Database,
   actor: MailActorContext,
   pending: MailNotificationIdentity,
   input: {
+    tokenHash: string;
+    expiresAt: string;
     nowMs: number;
     auditAction: string;
     metadata: Record<string, unknown>;
+    expectedVerificationRequestedAt: string | null;
+    expectedVerificationTokenHash: string | null;
   },
-): Promise<{ token: string; expiresAt: string }> {
-  const { token, tokenHash } = generateVerificationChallenge();
+): Promise<void> {
   const now = new Date(input.nowMs).toISOString();
-  const expiresAt = verificationExpiresAt();
   const auditId = crypto.randomUUID();
+  const whereConditions = [
+    eq(schema.mailNotificationIdentities.id, pending.id),
+    eq(schema.mailNotificationIdentities.userId, pending.userId),
+    eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+    isNull(schema.mailNotificationIdentities.revokedAt),
+  ];
+
+  if (input.expectedVerificationRequestedAt === null) {
+    whereConditions.push(
+      isNull(schema.mailNotificationIdentities.verificationRequestedAt),
+    );
+  } else {
+    whereConditions.push(
+      eq(
+        schema.mailNotificationIdentities.verificationRequestedAt,
+        input.expectedVerificationRequestedAt,
+      ),
+    );
+  }
+
+  if (input.expectedVerificationTokenHash === null) {
+    whereConditions.push(
+      isNull(schema.mailNotificationIdentities.verificationTokenHash),
+    );
+  } else {
+    whereConditions.push(
+      eq(
+        schema.mailNotificationIdentities.verificationTokenHash,
+        input.expectedVerificationTokenHash,
+      ),
+    );
+  }
 
   const results = await runMailBatch(db, [
     db
       .update(schema.mailNotificationIdentities)
       .set({
-        verificationTokenHash: tokenHash,
+        verificationTokenHash: input.tokenHash,
         verificationRequestedAt: now,
-        verificationExpiresAt: expiresAt,
+        verificationExpiresAt: input.expiresAt,
+        verificationAttemptCount: 0,
         updatedAt: now,
       })
-      .where(
-        and(
-          eq(schema.mailNotificationIdentities.id, pending.id),
-          eq(schema.mailNotificationIdentities.userId, pending.userId),
-          eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
-          isNull(schema.mailNotificationIdentities.revokedAt),
-        ),
-      ),
+      .where(and(...whereConditions)),
     buildNotificationIdentityAuditInsert(db, actor, {
       auditId,
       now,
@@ -616,8 +761,78 @@ async function rotatePendingVerificationChallenge(
     0,
     "Pending notification identity challenge rotation conflict",
   );
+}
 
-  return { token, expiresAt };
+async function deliverAndCommitVerificationChallenge(
+  db: Database,
+  actor: MailActorContext,
+  pending: MailNotificationIdentity,
+  input: {
+    nowMs: number;
+    auditAction: string;
+    metadata: Record<string, unknown>;
+    deliver: (payload: {
+      notificationIdentityId: string;
+      targetEmail: string;
+      token: string;
+      expiresAt: string;
+    }) => Promise<void>;
+  },
+): Promise<{ token: string; expiresAt: string }> {
+  assertVerificationResendCooldown(pending, input.nowMs);
+  const challenge = generateVerificationChallenge(pending.id, input.nowMs);
+
+  try {
+    await input.deliver({
+      notificationIdentityId: pending.id,
+      targetEmail: pending.email,
+      token: challenge.token,
+      expiresAt: challenge.expiresAt,
+    });
+  } catch (error) {
+    if (error instanceof MailServiceError) {
+      throw error;
+    }
+    throw new NotificationVerificationChallengeDeliveryError(undefined, {
+      cause: error,
+    });
+  }
+
+  await commitVerificationChallengeRotation(db, actor, pending, {
+    tokenHash: challenge.tokenHash,
+    expiresAt: challenge.expiresAt,
+    nowMs: input.nowMs,
+    auditAction: input.auditAction,
+    metadata: input.metadata,
+    expectedVerificationRequestedAt: pending.verificationRequestedAt,
+    expectedVerificationTokenHash: pending.verificationTokenHash,
+  });
+
+  return { token: challenge.token, expiresAt: challenge.expiresAt };
+}
+
+async function rotatePendingVerificationChallenge(
+  db: Database,
+  actor: MailActorContext,
+  pending: MailNotificationIdentity,
+  input: {
+    nowMs: number;
+    auditAction: string;
+    metadata: Record<string, unknown>;
+  },
+): Promise<{ token: string; expiresAt: string }> {
+  assertVerificationResendCooldown(pending, input.nowMs);
+  const challenge = generateVerificationChallenge(pending.id, input.nowMs);
+  await commitVerificationChallengeRotation(db, actor, pending, {
+    tokenHash: challenge.tokenHash,
+    expiresAt: challenge.expiresAt,
+    nowMs: input.nowMs,
+    auditAction: input.auditAction,
+    metadata: input.metadata,
+    expectedVerificationRequestedAt: pending.verificationRequestedAt,
+    expectedVerificationTokenHash: pending.verificationTokenHash,
+  });
+  return { token: challenge.token, expiresAt: challenge.expiresAt };
 }
 
 async function countActivePendingIdentitiesForUser(
@@ -742,33 +957,29 @@ export async function sendNotificationIdentityVerificationChallenge(
     const nowMs = options?.nowMs ?? Date.now();
     await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
 
-    const { token, expiresAt } = await rotatePendingVerificationChallenge(
-      db,
-      actor,
-      pending,
-      {
+    let delivered = false;
+    try {
+      await deliverAndCommitVerificationChallenge(db, actor, pending, {
         nowMs,
-        auditAction: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationChallengeSent,
+        auditAction:
+          MAIL_AUDIT_ACTIONS.notificationIdentityVerificationChallengeSent,
         metadata: {
           targetUserId,
           notificationIdentityId: pending.id,
           actorUserId: actor.userId,
           destinationEmail: pending.email,
         },
-      },
-    );
-
-    let delivered = false;
-    try {
-      await sink.deliverChallenge({
-        notificationIdentityId: pending.id,
-        targetEmail: pending.email,
-        token,
-        expiresAt,
+        deliver: async (payload) => {
+          await sink.deliverChallenge(payload);
+        },
       });
       delivered = true;
-    } catch {
-      delivered = false;
+    } catch (error) {
+      if (isVerificationChallengeDeliveryFailure(error)) {
+        delivered = false;
+      } else {
+        throw error;
+      }
     }
 
     const updated = await findNotificationIdentityById(db, pending.id);

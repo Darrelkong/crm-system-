@@ -1,4 +1,4 @@
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
 
@@ -51,6 +51,9 @@ export const mailNotificationIdentities = sqliteTable(
     verificationTokenHash: text("verification_token_hash"),
     verificationRequestedAt: text("verification_requested_at"),
     verificationExpiresAt: text("verification_expires_at"),
+    verificationAttemptCount: integer("verification_attempt_count")
+      .notNull()
+      .default(0),
     verifiedAt: text("verified_at"),
     revokedAt: text("revoked_at"),
     revokedBy: text("revoked_by").references(() => users.id, {

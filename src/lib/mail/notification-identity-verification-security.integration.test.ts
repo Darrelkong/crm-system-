@@ -19,10 +19,14 @@ import {
 } from "@/lib/mail/notification-identity-service";
 import { assertNotificationIdentityResponseHasNoSecrets } from "@/lib/mail/notification-identity-serialization";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
+import { NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS } from "@/lib/mail/notification-verification-challenge-policy";
 import {
   assertNotificationVerificationProofTokenApiAllowed,
 } from "@/lib/mail/notification-verification-proof-guard";
 import { hashVerificationToken } from "@/lib/mail/verification-token";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
 
 const FIXTURE = "mail-phase2h-6j2-security";
@@ -108,8 +112,13 @@ describe("notification identity verification security", () => {
   let dispose: (() => void) | undefined;
   const previousTestDbBind = process.env.CRM_ALLOW_TEST_DB_BIND;
 
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      "notification-verification-security-integration-secret";
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
@@ -130,6 +139,12 @@ describe("notification identity verification security", () => {
       delete process.env.CRM_ALLOW_TEST_DB_BIND;
     } else {
       process.env.CRM_ALLOW_TEST_DB_BIND = previousTestDbBind;
+    }
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
     }
   });
 
@@ -226,7 +241,10 @@ describe("notification identity verification security", () => {
       .where(eq(schema.mailNotificationIdentities.id, sent.item.id))
       .limit(1);
     assert.ok(row?.verificationTokenHash);
-    assert.equal(row.verificationTokenHash, hashVerificationToken(token));
+    assert.equal(
+      row.verificationTokenHash,
+      hashVerificationToken(token, sent.item.id),
+    );
     assert.notEqual(row.verificationTokenHash, token);
   });
 
@@ -241,7 +259,7 @@ describe("notification identity verification security", () => {
       () =>
         verifyNotificationIdentity(db, permissionActor, {
           identityId: sent.item.id,
-          token: "0".repeat(64),
+          token: "ABCDEFGH",
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.status === 400,
@@ -321,8 +339,10 @@ describe("notification identity verification security", () => {
       email,
     });
     const firstCapture = createCapturingNotificationVerificationChallengeSink();
+    const firstNowMs = Date.now();
     await sendNotificationIdentityVerificationChallenge(db, permissionActor, TARGET_USER, {
       challengeSink: firstCapture.sink,
+      nowMs: firstNowMs,
     });
     const firstToken = firstCapture.latestToken();
     assert.ok(firstToken);
@@ -330,6 +350,7 @@ describe("notification identity verification security", () => {
     const secondCapture = createCapturingNotificationVerificationChallengeSink();
     await sendNotificationIdentityVerificationChallenge(db, permissionActor, TARGET_USER, {
       challengeSink: secondCapture.sink,
+      nowMs: firstNowMs + NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000,
     });
     const secondToken = secondCapture.latestToken();
     assert.ok(secondToken);
@@ -378,18 +399,18 @@ describe("notification identity verification security", () => {
       email: fixtureEmail("rate-limit"),
     });
     const capture = createCapturingNotificationVerificationChallengeSink();
-    const nowMs = Date.now();
+    const baseNowMs = Date.now();
     for (let i = 0; i < 3; i += 1) {
       await sendNotificationIdentityVerificationChallenge(db, permissionActor, TARGET_USER, {
         challengeSink: capture.sink,
-        nowMs,
+        nowMs: baseNowMs + i * (NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000),
       });
     }
     await assert.rejects(
       () =>
         sendNotificationIdentityVerificationChallenge(db, permissionActor, TARGET_USER, {
           challengeSink: capture.sink,
-          nowMs,
+          nowMs: baseNowMs + 3 * (NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000),
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.status === 409,

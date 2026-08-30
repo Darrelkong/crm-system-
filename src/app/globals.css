@@ -1375,7 +1375,10 @@ html[data-theme="dark"] {
   align-items: center;
   justify-content: center;
   background: rgba(23, 32, 51, 0.45);
-  padding: 1rem;
+  padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem
+    max(1rem, env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .modal-panel {
@@ -1383,9 +1386,18 @@ html[data-theme="dark"] {
   border: 1px solid var(--color-crm-border);
   border-radius: var(--radius-crm-xl);
   box-shadow: var(--shadow-crm-modal);
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: min(
+    90dvh,
+    calc(
+      100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) -
+        2rem
+    )
+  );
+  overflow: hidden;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 /* ── Requested project country/region selector ── */

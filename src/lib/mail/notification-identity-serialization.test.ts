@@ -17,6 +17,7 @@ function sampleIdentity(
     verificationTokenHash: "abc123hash",
     verificationRequestedAt: "2026-08-20T10:00:00.000Z",
     verificationExpiresAt: "2026-08-21T10:00:00.000Z",
+    verificationAttemptCount: 0,
     verifiedAt: null,
     revokedAt: null,
     revokedBy: null,

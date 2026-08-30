@@ -586,8 +586,19 @@ const en = {
         verifyHint:
           "Enter the verification code for {{email}} to confirm this notification email address.",
         verifyCodeLabel: "Verification code",
-        verifyCodePlaceholder: "Enter verification code",
+        verifyCodePlaceholder: "Enter 8-character code",
         verifyAction: "Verify notification email",
+        verifySentInitial:
+          "A verification code was sent to your notification email. It expires in 5 minutes.",
+        verifyWrongTwoRemaining: "Incorrect code. 2 attempts remaining.",
+        verifyWrongOneRemaining: "Incorrect code. 1 attempt remaining.",
+        verifyWrongGeneric: "Incorrect verification code.",
+        verifyLocked: "This verification code is no longer valid. Send a new code.",
+        verifyExpired: "This verification code has expired. Send a new code.",
+        verifyResendCooldown: "You can resend in {{seconds}} seconds.",
+        verifyResendCountdown: "Resend ({{seconds}}s)",
+        verifyResentSuccess:
+          "A new verification code was sent. The previous code is no longer valid.",
         advancedTitle: "Advanced diagnostics",
         advancedHint:
           "Super-admin proof tool for issuing a one-time verification token when automated delivery is unavailable.",

@@ -1,30 +1,55 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { describe, it, before, after } from "node:test";
+import {
+  NOTIFICATION_VERIFICATION_CODE_PATTERN,
+  isValidVerificationCodeFormat,
+} from "@/lib/mail/notification-verification-challenge-policy";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 import {
   generateVerificationChallenge,
   hashVerificationToken,
-  isVerificationExpired,
-  VERIFICATION_TOKEN_ENTROPY_BITS,
 } from "@/lib/mail/verification-token";
 
+const TEST_IDENTITY_ID = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+const TEST_SECRET = "verification-token-unit-test-secret";
+
 describe("verification token helpers", () => {
-  it("uses 256-bit cryptographic entropy", () => {
-    assert.equal(VERIFICATION_TOKEN_ENTROPY_BITS, 256);
-    const { token } = generateVerificationChallenge();
-    assert.equal(token.length, 64);
+  before(() => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] = TEST_SECRET;
   });
 
-  it("hashes tokens consistently", () => {
-    const { token, tokenHash } = generateVerificationChallenge();
-    assert.equal(hashVerificationToken(token), tokenHash);
-    assert.notEqual(token, tokenHash);
+  after(() => {
+    delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
   });
 
-  it("detects expired verification windows", () => {
-    assert.equal(isVerificationExpired("2000-01-01T00:00:00.000Z"), true);
+  it("generates exactly 8-character A-Z0-9 codes", () => {
+    for (let index = 0; index < 100; index += 1) {
+      const { token } = generateVerificationChallenge(TEST_IDENTITY_ID);
+      assert.equal(token.length, 8);
+      assert.match(token, NOTIFICATION_VERIFICATION_CODE_PATTERN);
+      assert.match(token, /[A-Z]/);
+      assert.match(token, /[0-9]/);
+      assert.doesNotMatch(token, /[a-z]/);
+    }
+  });
+
+  it("hashes tokens with identity-bound HMAC without storing plaintext semantics in hash", () => {
+    const { token, tokenHash } = generateVerificationChallenge(TEST_IDENTITY_ID);
     assert.equal(
-      isVerificationExpired(new Date(Date.now() + 60_000).toISOString()),
-      false,
+      hashVerificationToken(token, TEST_IDENTITY_ID, TEST_SECRET),
+      tokenHash,
     );
+    assert.notEqual(token, tokenHash);
+    assert.equal(tokenHash.length, 64);
+  });
+
+  it("rejects invalid example shapes", () => {
+    assert.equal(isValidVerificationCodeFormat("ABCDEFGH"), false);
+    assert.equal(isValidVerificationCodeFormat("12345678"), false);
+    assert.equal(isValidVerificationCodeFormat("ab3D8K9Q"), false);
+    assert.equal(isValidVerificationCodeFormat("ABC-1234"), false);
+    assert.equal(isValidVerificationCodeFormat("7KQ9M2PX"), true);
   });
 });

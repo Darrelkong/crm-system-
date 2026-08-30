@@ -38,6 +38,12 @@ import {
   type NotificationIdentityDisplayStatus,
   type VerificationTokenModalPayload,
 } from "@/lib/mail/client/notification-identity-management";
+import {
+  VERIFICATION_CODE_INPUT_PROPS,
+  normalizeVerificationCodeFieldValue,
+  parseNotificationVerificationErrorMetadata,
+  resolveNotificationVerificationErrorMessage,
+} from "@/lib/mail/client/notification-verification-client";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import {
   MailAdminEmptyState,
@@ -167,33 +173,35 @@ function VerificationTokenModal({
 
   return (
     <ModalOverlay onClose={onClose}>
-      <ModalPanel className="mx-4 max-w-[calc(100vw-2rem)] p-4 sm:p-6">
-        <h3 className="text-lg font-semibold crm-text">
-          {t("mail.adminCenter.notificationIdentity.tokenModalTitle")}
-        </h3>
-        <p className="mt-2 text-sm crm-text-secondary">
-          {t("mail.adminCenter.notificationIdentity.tokenModalHint")}
-        </p>
-        <p className="mt-1 text-xs crm-text-secondary">
-          {t("mail.adminCenter.notificationIdentity.tokenExpiresAt", {
-            date: formatHongKongDateTime(payload.expiresAt),
-          })}
-        </p>
-        <textarea
-          readOnly
-          value={payload.token}
-          className="surface-input mt-4 w-full resize-none font-mono text-xs"
-          rows={3}
-        />
-        <div className="mt-4 flex flex-wrap gap-2">
-          <Button type="button" size="sm" variant="secondary" onClick={() => void handleCopy()}>
-            {copied
-              ? t("mail.adminCenter.notificationIdentity.tokenCopied")
-              : t("mail.adminCenter.notificationIdentity.copyToken")}
-          </Button>
-          <Button type="button" size="sm" onClick={onClose}>
-            {t("common.close")}
-          </Button>
+      <ModalPanel className="mx-4 w-full max-w-lg overflow-hidden p-0">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
+          <h3 className="text-lg font-semibold crm-text">
+            {t("mail.adminCenter.notificationIdentity.tokenModalTitle")}
+          </h3>
+          <p className="mt-2 break-words text-sm crm-text-secondary">
+            {t("mail.adminCenter.notificationIdentity.tokenModalHint")}
+          </p>
+          <p className="mt-1 text-xs crm-text-secondary">
+            {t("mail.adminCenter.notificationIdentity.tokenExpiresAt", {
+              date: formatHongKongDateTime(payload.expiresAt),
+            })}
+          </p>
+          <textarea
+            readOnly
+            value={payload.token}
+            className="surface-input mt-4 w-full resize-none font-mono text-xs"
+            rows={3}
+          />
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button type="button" size="sm" variant="secondary" onClick={() => void handleCopy()}>
+              {copied
+                ? t("mail.adminCenter.notificationIdentity.tokenCopied")
+                : t("mail.adminCenter.notificationIdentity.copyToken")}
+            </Button>
+            <Button type="button" size="sm" onClick={onClose}>
+              {t("common.close")}
+            </Button>
+          </div>
         </div>
       </ModalPanel>
     </ModalOverlay>
@@ -227,17 +235,28 @@ function NotificationIdentityVerifyForm({
             id="notification-verify-code"
             type="text"
             value={verifyCodeInput}
-            onChange={(event) => onVerifyCodeChange(event.target.value)}
+            onChange={(event) =>
+              onVerifyCodeChange(
+                normalizeVerificationCodeFieldValue(event.target.value),
+              )
+            }
             placeholder={t(
               "mail.adminCenter.notificationIdentity.verifyCodePlaceholder",
             )}
             disabled={busy}
             required
-            autoComplete="off"
-            className="mt-1"
+            className="mt-1 font-mono uppercase tracking-widest"
+            {...VERIFICATION_CODE_INPUT_PROPS}
           />
         </div>
-        <Button type="submit" size="sm" disabled={busy || !verifyCodeInput.trim()}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={
+            busy ||
+            verifyCodeInput.length !== VERIFICATION_CODE_INPUT_PROPS.maxLength
+          }
+        >
           {t("mail.adminCenter.notificationIdentity.verifyAction")}
         </Button>
       </form>
@@ -414,10 +433,15 @@ export function NotificationIdentityManagement() {
     try {
       const result = await verifyNotificationIdentity(
         pending.id,
-        verifyCodeInput.trim(),
+        normalizeVerificationCodeFieldValue(verifyCodeInput),
       );
       if (!result.ok) {
-        setActionMessage(result.error);
+        const localized = resolveNotificationVerificationErrorMessage(
+          t,
+          parseNotificationVerificationErrorMetadata(result.metadata),
+        );
+        setActionMessage(localized ?? result.error);
+        await load();
         return;
       }
       if (result.item.userId !== selfUserId) {

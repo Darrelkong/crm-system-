@@ -62,6 +62,9 @@ import {
   hashVerificationToken,
   verificationExpiresAt,
 } from "@/lib/mail/verification-token";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
 
 const FIXTURE = "mail-phase2h-6j3-delivery";
@@ -200,9 +203,13 @@ describe("notification verification delivery (6J.3)", () => {
   const previousVerificationMode =
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR];
   const previousGeneralTransport = process.env.MAIL_NOTIFICATION_TRANSPORT_ENABLED;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      "notification-verification-delivery-integration-secret";
     const proxy = await getPlatformProxy({
       configPath: "./wrangler.jsonc",
       persist: { path: ".wrangler/state/v3" },
@@ -217,6 +224,12 @@ describe("notification verification delivery (6J.3)", () => {
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] =
       previousVerificationMode;
     process.env.MAIL_NOTIFICATION_TRANSPORT_ENABLED = previousGeneralTransport;
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
     dispose?.();
   });
 
@@ -418,7 +431,10 @@ describe("notification verification delivery (6J.3)", () => {
       .select()
       .from(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
-    assert.equal(identity!.verificationTokenHash, hashVerificationToken(token));
+    assert.equal(
+      identity!.verificationTokenHash,
+      hashVerificationToken(token, identity!.id),
+    );
   });
 
   it("13. expiry begins at dispatch time", async () => {
@@ -626,7 +642,7 @@ describe("notification verification delivery (6J.3)", () => {
       .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
     assert.equal(
       identity!.verificationTokenHash,
-      hashVerificationToken(secondToken),
+      hashVerificationToken(secondToken, identity!.id),
     );
     await assert.rejects(
       () =>
@@ -810,9 +826,13 @@ describe("verification carrier-type isolation (6J.3A gate)", () => {
   const previousVerificationMode =
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR];
   const previousGeneralTransport = process.env.MAIL_NOTIFICATION_TRANSPORT_ENABLED;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      "notification-verification-delivery-integration-secret";
     const proxy = await getPlatformProxy({
       configPath: "./wrangler.jsonc",
       persist: { path: ".wrangler/state/v3" },
@@ -827,6 +847,12 @@ describe("verification carrier-type isolation (6J.3A gate)", () => {
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] =
       previousVerificationMode;
     process.env.MAIL_NOTIFICATION_TRANSPORT_ENABLED = previousGeneralTransport;
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
     dispose?.();
   });
 

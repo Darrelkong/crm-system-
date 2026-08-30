@@ -19,6 +19,7 @@ export type NotificationIdentityApiItem = {
   verificationStatus: NotificationIdentityVerificationStatus;
   verificationRequestedAt: string | null;
   verificationExpiresAt: string | null;
+  verificationAttemptCount: number;
   verifiedAt: string | null;
   revokedAt: string | null;
   revokedBy: string | null;

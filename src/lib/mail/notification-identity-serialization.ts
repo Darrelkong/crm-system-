@@ -8,6 +8,7 @@ export type SafeNotificationIdentityAdminView = {
   verificationStatus: MailNotificationIdentity["verificationStatus"];
   verificationRequestedAt: string | null;
   verificationExpiresAt: string | null;
+  verificationAttemptCount: number;
   verifiedAt: string | null;
   revokedAt: string | null;
   revokedBy: string | null;
@@ -40,6 +41,7 @@ export function toSafeNotificationIdentityAdminView(
     verificationStatus: identity.verificationStatus,
     verificationRequestedAt: identity.verificationRequestedAt,
     verificationExpiresAt: identity.verificationExpiresAt,
+    verificationAttemptCount: identity.verificationAttemptCount,
     verifiedAt: identity.verifiedAt,
     revokedAt: identity.revokedAt,
     revokedBy: identity.revokedBy,

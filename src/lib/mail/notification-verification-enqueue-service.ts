@@ -9,6 +9,7 @@ import {
   runMailBatch,
 } from "@/lib/mail/guarded-batch";
 import {
+  assertVerificationResendCooldown,
   assertVerificationTokenIssueRateLimit,
   findAuthoritativePendingIdentityForUser,
   requireTargetUser,
@@ -59,6 +60,7 @@ export async function enqueueNotificationIdentityVerificationDelivery(
 
   const nowMs = options?.nowMs ?? Date.now();
   await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
+  assertVerificationResendCooldown(pending, nowMs);
 
   const now = new Date(nowMs).toISOString();
   const sourceEntityId = buildVerificationSendSourceEntityId();
