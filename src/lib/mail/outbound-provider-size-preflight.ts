@@ -94,10 +94,17 @@ export function estimateOutboundProviderMessageBytes(
     input.headerEntries ?? [],
   );
 
-  const attachmentBytes = input.attachments.reduce(
-    (sum, attachment) => sum + estimateEncodedAttachmentBytes(attachment.sizeBytes),
-    0,
-  );
+  const attachmentBytes = input.attachments
+    .filter(
+      (attachment) =>
+        !("deliveryMode" in attachment) ||
+        !attachment.deliveryMode ||
+        attachment.deliveryMode === "direct_attachment",
+    )
+    .reduce(
+      (sum, attachment) => sum + estimateEncodedAttachmentBytes(attachment.sizeBytes),
+      0,
+    );
 
   const mimeOverhead =
     input.attachments.length * 512 +

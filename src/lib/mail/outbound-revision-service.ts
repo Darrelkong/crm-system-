@@ -305,6 +305,13 @@ async function createImmutableRevisionFromDraftGraph(
         throw MailServiceError.validation("Invalid secure file expiry days");
       }
     }
+    if (attachment.deliveryMode === "large_attachment") {
+      if (attachment.secureExpiryDays !== null) {
+        throw MailServiceError.validation(
+          "Large attachment must not set secure expiry days",
+        );
+      }
+    }
     revisionAttachments.push({
       id: crypto.randomUUID(),
       storedFileId: stored.id,
@@ -316,9 +323,9 @@ async function createImmutableRevisionFromDraftGraph(
       sortOrder: attachment.sortOrder,
       deliveryMode: attachment.deliveryMode,
       secureExpiryDays:
-        attachment.deliveryMode === "direct_attachment"
-          ? null
-          : attachment.secureExpiryDays,
+        attachment.deliveryMode === "secure_file"
+          ? attachment.secureExpiryDays
+          : null,
     });
   }
 

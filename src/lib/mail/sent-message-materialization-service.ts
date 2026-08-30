@@ -5,6 +5,7 @@ import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound
 import type { MailOutboundRfcIdentity } from "../../../drizzle/schema/mail-outbound-rfc-identities";
 import type { MailSendOperation } from "../../../drizzle/schema/mail-send-operations";
 import type { MailTransportAttempt } from "../../../drizzle/schema/mail-transport-attempts";
+import type { MailDeliveryMode } from "../../../drizzle/schema/mail-draft-attachments";
 import { schema, type Database } from "@/lib/db";
 import { normalizeSubject } from "@/lib/mail/canonical-content-hash-v1-contract";
 import {
@@ -343,7 +344,7 @@ async function createMaterializationGraph(
       mimeType: string;
       sizeBytes: number;
       sortOrder: number;
-      deliveryMode: "direct_attachment" | "secure_file";
+      deliveryMode: MailDeliveryMode;
       secureExpiryDays: number | null;
     }>;
     rfcIdentity: MailOutboundRfcIdentity;

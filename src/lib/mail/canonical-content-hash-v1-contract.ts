@@ -14,7 +14,10 @@ export const CANONICAL_CONTENT_HASH_V1_VERSION = 1;
 export type CanonicalRecipientType = "to" | "cc" | "bcc";
 export type CanonicalSensitivity = "normal" | "sensitive" | "restricted";
 export type CanonicalComposeMode = "new" | "reply" | "reply_all" | "forward";
-export type CanonicalDeliveryMode = "direct_attachment" | "secure_file";
+export type CanonicalDeliveryMode =
+  | "direct_attachment"
+  | "secure_file"
+  | "large_attachment";
 
 export type CanonicalContentHashV1Recipient = {
   type: CanonicalRecipientType;
@@ -187,9 +190,9 @@ function sortAttachments(
         size_bytes: attachment.size_bytes,
         delivery_mode: attachment.delivery_mode,
         secure_expiry_days:
-          attachment.delivery_mode === "direct_attachment"
-            ? null
-            : attachment.secure_expiry_days,
+          attachment.delivery_mode === "secure_file"
+            ? attachment.secure_expiry_days
+            : null,
       },
     }))
     .sort((a, b) => {

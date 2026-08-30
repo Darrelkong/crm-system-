@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import {
-  MAIL_DELIVERY_MODES,
+  MAIL_DELIVERY_MODES_FROZEN_0055,
   MAIL_SECURE_EXPIRY_DAYS,
 } from "../../../../drizzle/schema/mail-draft-attachments";
 import {
@@ -107,7 +107,7 @@ describe("mail attachment storage migration (static)", () => {
 
   it("7: delivery_mode enum", () => {
     const sql = migrationSql();
-    for (const mode of MAIL_DELIVERY_MODES) {
+    for (const mode of MAIL_DELIVERY_MODES_FROZEN_0055) {
       assert.match(sql, new RegExp(`'${mode}'`));
     }
     for (const table of [

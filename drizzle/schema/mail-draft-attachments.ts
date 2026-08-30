@@ -5,6 +5,13 @@ import { mailStoredFiles } from "./mail-stored-files";
 export const MAIL_DELIVERY_MODES = [
   "direct_attachment",
   "secure_file",
+  "large_attachment",
+] as const;
+
+/** Delivery modes frozen in migration 0055 — used when testing legacy SQL only. */
+export const MAIL_DELIVERY_MODES_FROZEN_0055 = [
+  "direct_attachment",
+  "secure_file",
 ] as const;
 export type MailDeliveryMode = (typeof MAIL_DELIVERY_MODES)[number];
 
@@ -17,7 +24,7 @@ export type MailSecureExpiryDays = (typeof MAIL_SECURE_EXPIRY_DAYS)[number];
  *
  * display_filename: user-visible rename — original_filename stays on mail_stored_files.
  *
- * delivery_mode CHECK (SQL): direct_attachment → secure_expiry_days NULL;
+ * delivery_mode CHECK (SQL): direct_attachment | large_attachment → secure_expiry_days NULL;
  * secure_file → secure_expiry_days IS NOT NULL AND IN (1, 3, 7).
  * Explicit IS NOT NULL on secure branch (SQLite NULL IN semantics).
  *
