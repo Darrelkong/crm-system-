@@ -1001,6 +1001,33 @@ html[data-theme="dark"] {
   background: color-mix(in srgb, var(--color-crm-bg-muted) 35%, var(--color-crm-bg));
 }
 
+.mail-compose-attachment-tray {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.mail-compose-attachment-tray-list--desktop {
+  max-height: min(180px, 28dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mail-compose-attachment-tray-list--mobile {
+  max-height: min(140px, 22dvh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mail-compose-body-stack--with-attachments .mail-compose-body-scroll {
+  min-height: 6rem;
+}
+
+@media (min-width: 640px) {
+  .mail-compose-body-stack--with-attachments .mail-compose-body-scroll {
+    min-height: 8rem;
+  }
+}
+
 .mail-compose-input {
   background: var(--color-crm-bg-muted);
   color: var(--color-crm-text);

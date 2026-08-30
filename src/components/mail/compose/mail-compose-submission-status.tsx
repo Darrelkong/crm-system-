@@ -6,18 +6,24 @@ import { resolveLatestReturnReason } from "@/lib/mail/client/approval-workflow-m
 import type { ApprovalApiItem } from "@/lib/mail/client/approval-workflow-management";
 import type { SendDeliveryDisplayPhase } from "@/lib/mail/client/approved-outbound-queue";
 import { resolveSendDeliveryLifecycleLabelKey } from "@/lib/mail/client/approved-outbound-queue";
-import type { ComposeSubmissionPhase } from "@/lib/mail/client/compose-submission";
+import {
+  resolveComposeSubmissionErrorMessage,
+  resolveComposeSubmittingLabelKey,
+  type ComposeSubmissionPhase,
+} from "@/lib/mail/client/compose-submission";
 
 export function MailComposeSubmissionStatus({
   phase,
   approval,
   submissionError,
+  submissionErrorParams,
   outboundDisplayPhase,
   composeOutboundWorkflow,
 }: {
   phase: ComposeSubmissionPhase;
   approval: ApprovalApiItem | null;
   submissionError: string | null;
+  submissionErrorParams?: Record<string, string>;
   outboundDisplayPhase?: SendDeliveryDisplayPhase;
   composeOutboundWorkflow?: "admin_direct" | "staff_approved";
 }) {
@@ -25,8 +31,15 @@ export function MailComposeSubmissionStatus({
 
   if (submissionError) {
     return (
-      <p className="text-sm text-red-600 dark:text-red-400" role="alert">
-        {submissionError}
+      <p
+        className="break-words text-sm text-red-600 dark:text-red-400"
+        role="alert"
+      >
+        {resolveComposeSubmissionErrorMessage(
+          submissionError,
+          t,
+          submissionErrorParams,
+        )}
       </p>
     );
   }
@@ -34,7 +47,11 @@ export function MailComposeSubmissionStatus({
   if (phase === "submitting") {
     return (
       <p className="text-sm crm-text-secondary" aria-live="polite">
-        {t("mail.compose.submitting")}
+        {t(
+          resolveComposeSubmittingLabelKey({
+            workflow: composeOutboundWorkflow ?? "staff_approved",
+          }),
+        )}
       </p>
     );
   }

@@ -49,6 +49,32 @@ const BLOCKED_EXTENSIONS = new Set([
   ".dmg",
 ]);
 
+export function formatComposeAttachmentLimitLabel(bytes: number): string {
+  if (bytes >= 1024 * 1024) {
+    const megabytes = bytes / (1024 * 1024);
+    return Number.isInteger(megabytes)
+      ? `${megabytes} MB`
+      : `${megabytes.toFixed(1)} MB`;
+  }
+  if (bytes >= 1024) {
+    const kilobytes = Math.round(bytes / 1024);
+    return `${kilobytes} KB`;
+  }
+  return `${bytes} B`;
+}
+
+export function composeAttachmentLimitI18nParams(): Record<string, string> {
+  return {
+    size: formatComposeAttachmentLimitLabel(
+      MAIL_COMPOSE_ATTACHMENT_LIMITS.maxSingleFileBytes,
+    ),
+    totalSize: formatComposeAttachmentLimitLabel(
+      MAIL_COMPOSE_ATTACHMENT_LIMITS.maxTotalBytes,
+    ),
+    maxCount: String(MAIL_COMPOSE_ATTACHMENT_LIMITS.maxAttachmentCount),
+  };
+}
+
 export function normalizeAttachmentFilename(filename: string): string {
   const trimmed = filename.trim().normalize("NFC");
   const base = trimmed.split(/[/\\]/).pop() ?? trimmed;

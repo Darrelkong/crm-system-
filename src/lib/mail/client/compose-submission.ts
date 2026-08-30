@@ -233,13 +233,21 @@ export function normalizeRecipientEmailsForSummary(
   return emails;
 }
 
+export function resolveComposeSubmittingLabelKey(input: {
+  workflow: "admin_direct" | "staff_approved";
+}): string {
+  return input.workflow === "admin_direct"
+    ? "mail.compose.submittingSend"
+    : "mail.compose.submittingApproval";
+}
+
 export function resolveComposeSubmitButtonLabelKey(input: {
   submitting: boolean;
   workflow: "admin_direct" | "staff_approved";
   approvalReturned: boolean;
 }): string {
   if (input.submitting) {
-    return "mail.compose.submitting";
+    return resolveComposeSubmittingLabelKey({ workflow: input.workflow });
   }
   if (input.workflow === "admin_direct") {
     return "mail.compose.send";
@@ -248,4 +256,19 @@ export function resolveComposeSubmitButtonLabelKey(input: {
     return "mail.compose.resubmitApproval";
   }
   return "mail.compose.submitApproval";
+}
+
+export function isComposeI18nMessageKey(message: string): boolean {
+  return message.startsWith("mail.");
+}
+
+export function resolveComposeSubmissionErrorMessage(
+  message: string,
+  translate: (key: string, params?: Record<string, string>) => string,
+  params?: Record<string, string>,
+): string {
+  if (isComposeI18nMessageKey(message)) {
+    return translate(message, params);
+  }
+  return message;
 }

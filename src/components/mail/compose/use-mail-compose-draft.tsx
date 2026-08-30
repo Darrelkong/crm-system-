@@ -52,6 +52,7 @@ import {
 } from "@/lib/mail/client/draft-management";
 import {
   buildAttachmentPolicyMessageKey,
+  composeAttachmentPolicyErrorParams,
   createQueuedAttachmentEntry,
   deleteDraftAttachment,
   mergeUploadedDraftAttachments,
@@ -210,6 +211,9 @@ export function useMailComposeDraft(input: {
   const [closing, setClosing] = useState(false);
   const [draftHydrating, setDraftHydrating] = useState(Boolean(input.seed?.draftId));
   const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [submissionErrorParams, setSubmissionErrorParams] = useState<
+    Record<string, string> | undefined
+  >(undefined);
   const [submissionIssues, setSubmissionIssues] = useState<
     ComposeSubmissionIssueCode[]
   >([]);
@@ -798,7 +802,12 @@ export function useMailComposeDraft(input: {
           })),
         ]);
         if (!validation.ok) {
-          setSubmissionError(validation.error);
+          setSubmissionError(
+            buildAttachmentPolicyMessageKey(validation.errorCode),
+          );
+          setSubmissionErrorParams(
+            composeAttachmentPolicyErrorParams(validation.errorCode),
+          );
           continue;
         }
         const entry = createQueuedAttachmentEntry(file, (bytes) =>
@@ -818,6 +827,7 @@ export function useMailComposeDraft(input: {
 
       setSubmissionIssues([]);
       setSubmissionError(null);
+      setSubmissionErrorParams(undefined);
       setUploadAttachments((current) => {
         const next = [...current, ...additions];
         uploadAttachmentsRef.current = next;
@@ -976,6 +986,7 @@ export function useMailComposeDraft(input: {
     ) => {
       setSubmissionIssues([]);
       setSubmissionError(null);
+      setSubmissionErrorParams(undefined);
       setState((current) => {
         const next = { ...current, [key]: value };
         if (key === "bodyHtml") {
@@ -1005,6 +1016,7 @@ export function useMailComposeDraft(input: {
       }
       setSubmissionIssues([]);
       setSubmissionError(null);
+      setSubmissionErrorParams(undefined);
       setState((current) => ({
         ...current,
         senderIdentityId: option.senderIdentityId,
@@ -1087,11 +1099,13 @@ export function useMailComposeDraft(input: {
     if (!validation.ok) {
       setSubmissionIssues(validation.issues);
       setSubmissionError(null);
+      setSubmissionErrorParams(undefined);
       return;
     }
 
     setSubmitting(true);
     setSubmissionError(null);
+    setSubmissionErrorParams(undefined);
     setSubmissionIssues([]);
 
     try {
@@ -1212,6 +1226,7 @@ export function useMailComposeDraft(input: {
     submissionPhase,
     composeOutboundWorkflow,
     submissionError,
+    submissionErrorParams,
     submissionIssues,
     canSubmit,
     closing,

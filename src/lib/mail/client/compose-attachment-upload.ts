@@ -4,6 +4,7 @@ import {
   draftAttachmentsPath,
 } from "@/lib/mail/client/draft-management";
 import {
+  composeAttachmentLimitI18nParams,
   type ComposeAttachmentPolicyIssueCode,
   validateComposeAttachmentCandidate,
 } from "@/lib/mail/compose-attachment-policy";
@@ -40,6 +41,22 @@ export function composeAttachmentRemoveMessageKey(): string {
   return "mail.compose.attachment.removeAttachment";
 }
 
+export function composeAttachmentPolicyErrorParams(
+  code: ComposeAttachmentPolicyIssueCode,
+): Record<string, string> | undefined {
+  const limits = composeAttachmentLimitI18nParams();
+  switch (code) {
+    case "FILE_TOO_LARGE":
+      return { size: limits.size };
+    case "TOTAL_SIZE_EXCEEDED":
+      return { totalSize: limits.totalSize };
+    case "TOO_MANY_ATTACHMENTS":
+      return { maxCount: limits.maxCount };
+    default:
+      return undefined;
+  }
+}
+
 export function composeAttachmentUploadErrorMessageKey(
   errorCode: ComposeAttachmentUploadErrorCode | null | undefined,
 ): string {
@@ -62,6 +79,8 @@ export function composeAttachmentUploadErrorMessageKey(
       return "mail.compose.attachment.unsupportedType";
     case "EMPTY_FILE":
       return "mail.compose.attachment.emptyFile";
+    case "FILENAME_REQUIRED":
+      return "mail.compose.attachment.filenameRequired";
     default:
       return "mail.compose.attachment.uploadFailed";
   }

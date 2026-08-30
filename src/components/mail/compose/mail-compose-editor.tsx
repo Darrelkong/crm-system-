@@ -67,6 +67,7 @@ export function MailComposeEditor({
     submissionPhase,
     composeOutboundWorkflow,
     submissionError,
+    submissionErrorParams,
     submissionIssues,
     canSubmit,
     closing,
@@ -131,6 +132,7 @@ export function MailComposeEditor({
         approval={approval}
         outboundDisplayPhase={outboundDisplayPhase}
         submissionError={submissionError}
+        submissionErrorParams={submissionErrorParams}
         submissionIssues={submissionIssues}
         buildSubmissionIssueMessageKey={buildSubmissionIssueMessageKey}
         onBack={onBack}
@@ -163,6 +165,7 @@ function MailComposeEditorBody({
   approval,
   outboundDisplayPhase,
   submissionError,
+  submissionErrorParams,
   submissionIssues,
   buildSubmissionIssueMessageKey,
   onBack,
@@ -197,6 +200,7 @@ function MailComposeEditorBody({
     typeof useMailComposeDraft
   >["outboundDisplayPhase"];
   submissionError: string | null;
+  submissionErrorParams?: Record<string, string>;
   submissionIssues: ReturnType<typeof useMailComposeDraft>["submissionIssues"];
   buildSubmissionIssueMessageKey: ReturnType<
     typeof useMailComposeDraft
@@ -555,9 +559,24 @@ function MailComposeEditorBody({
               />
             </div>
           </div>
+
+          {state.attachments.length > 0 ? (
+            <MailComposeAttachmentList
+              attachments={state.attachments}
+              variant={variant}
+              onRemove={onRemoveAttachment}
+              onRetry={onRetryAttachment}
+              onCancel={onCancelAttachment}
+            />
+          ) : null}
         </div>
 
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <div
+          className={cn(
+            "flex min-h-0 flex-1 flex-col overflow-hidden",
+            state.attachments.length > 0 && "mail-compose-body-stack--with-attachments",
+          )}
+        >
           {!isEmbeddedExpanded && formattingVisible ? (
             <MailFormattingToolbar editorRef={editorRef} compact={isFloating} />
           ) : null}
@@ -647,16 +666,6 @@ function MailComposeEditorBody({
         </div>
       </div>
 
-      {state.attachments.length > 0 ? (
-        <MailComposeAttachmentList
-          attachments={state.attachments}
-          variant={variant}
-          onRemove={onRemoveAttachment}
-          onRetry={onRetryAttachment}
-          onCancel={onCancelAttachment}
-        />
-      ) : null}
-
       {isEmbeddedExpanded ? (
         <div className="mail-compose-bottom-dock flex shrink-0 flex-col gap-1.5 border-t crm-border px-3 pb-5 pt-2">
           <MailFormattingToolbar editorRef={editorRef} compact dock />
@@ -665,6 +674,7 @@ function MailComposeEditorBody({
             approval={approval}
             outboundDisplayPhase={outboundDisplayPhase}
             submissionError={submissionError}
+            submissionErrorParams={submissionErrorParams}
             composeOutboundWorkflow={composeOutboundWorkflow}
           />
           {submitTouched && submissionIssues.length > 0 ? (
@@ -715,6 +725,7 @@ function MailComposeEditorBody({
             approval={approval}
             outboundDisplayPhase={outboundDisplayPhase}
             submissionError={submissionError}
+            submissionErrorParams={submissionErrorParams}
             composeOutboundWorkflow={composeOutboundWorkflow}
           />
           {submitTouched && submissionIssues.length > 0 ? (

@@ -10,6 +10,7 @@ import {
   resolveComposeOutboundWorkflow,
   resolveComposeSubmissionPhase,
   resolveComposeSubmitButtonLabelKey,
+  resolveComposeSubmittingLabelKey,
   validateComposeForSubmission,
 } from "@/lib/mail/client/compose-submission";
 import {
@@ -225,6 +226,17 @@ describe("compose submission helpers", () => {
   it("routes CRM root admin to admin_direct workflow", () => {
     assert.equal(resolveComposeOutboundWorkflow(true), "admin_direct");
     assert.equal(resolveComposeOutboundWorkflow(false), "staff_approved");
+  });
+
+  it("uses workflow-aware submitting labels", () => {
+    assert.equal(
+      resolveComposeSubmittingLabelKey({ workflow: "admin_direct" }),
+      "mail.compose.submittingSend",
+    );
+    assert.equal(
+      resolveComposeSubmittingLabelKey({ workflow: "staff_approved" }),
+      "mail.compose.submittingApproval",
+    );
   });
 
   it("uses Send label for root admin workflow button", () => {
