@@ -43,6 +43,8 @@ export function MailDesktopWorkspace({
   composeSeedPending = false,
   showAdminEntry = false,
   onOpenAdminCenter,
+  showNotificationMailboxEntry = false,
+  onOpenNotificationMailbox,
   adminCenterReturnFocusRef,
 }: {
   workspaceRef: React.RefObject<HTMLDivElement | null>;
@@ -70,6 +72,8 @@ export function MailDesktopWorkspace({
   composeSeedPending?: boolean;
   showAdminEntry?: boolean;
   onOpenAdminCenter?: () => void;
+  showNotificationMailboxEntry?: boolean;
+  onOpenNotificationMailbox?: () => void;
   adminCenterReturnFocusRef?: React.RefObject<HTMLButtonElement | null>;
 }) {
   const { t } = useTranslation();
@@ -374,6 +378,8 @@ export function MailDesktopWorkspace({
                 onRefresh={() => {}}
                 showAdminEntry={showAdminEntry}
                 onOpenAdminCenter={onOpenAdminCenter}
+                showNotificationMailboxEntry={showNotificationMailboxEntry}
+                onOpenNotificationMailbox={onOpenNotificationMailbox}
                 settingsReturnFocusRef={adminCenterReturnFocusRef}
               />
             </div>

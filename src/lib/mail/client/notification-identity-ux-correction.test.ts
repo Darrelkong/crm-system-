@@ -1,0 +1,121 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { describe, it } from "node:test";
+import {
+  VERIFICATION_CODE_INPUT_PROPS,
+} from "@/lib/mail/client/notification-verification-client";
+
+function read(path: string): string {
+  return readFileSync(path, "utf8");
+}
+
+describe("notification identity UX correction wiring", () => {
+  it("admin notification identity uses full team overview control plane", () => {
+    const admin = read("src/components/mail/admin/notification-identity-management.tsx");
+    const overview = read("src/components/mail/admin/notification-identity-team-overview.tsx");
+    assert.match(admin, /NotificationIdentityTeamOverview/);
+    assert.match(overview, /fetchAdminUsersForMailAccess/);
+    assert.match(overview, /NotificationIdentitySettingsModal/);
+    assert.match(overview, /NotificationIdentityOtpModal/);
+    assert.match(overview, /TargetUserNotificationIdentityPanel/);
+    assert.doesNotMatch(admin, /NotificationIdentityTeamMemberSelector/);
+    assert.doesNotMatch(admin, /selfOnlyHint/);
+  });
+
+  it("staff self-service entry is wired through mail settings", () => {
+    const popover = read("src/components/mail/prototype/mail-settings-popover.tsx");
+    const shell = read("src/components/mail/prototype/mail-prototype-shell.tsx");
+    const selfService = read(
+      "src/components/mail/notification-mailbox-self-service-modal.tsx",
+    );
+    assert.match(popover, /notificationMailbox/);
+    assert.match(popover, /mail\.notificationMailbox\.title/);
+    assert.match(shell, /NotificationMailboxSelfServiceModal/);
+    assert.match(selfService, /NotificationIdentityControlView/);
+    assert.doesNotMatch(selfService, /NotificationIdentityTeamMemberSelector/);
+  });
+
+  it("uses dedicated OTP modal instead of inline verification form", () => {
+    const control = read("src/components/mail/admin/notification-identity-control-view.tsx");
+    const otp = read("src/components/mail/admin/notification-identity-otp-modal.tsx");
+    assert.match(control, /NotificationIdentityOtpModal/);
+    assert.match(otp, /ModalOverlay/);
+    assert.match(otp, /VERIFICATION_CODE_INPUT_PROPS/);
+    assert.doesNotMatch(control, /verifyCodeInput/);
+    assert.doesNotMatch(control, /NotificationIdentityVerifyForm/);
+  });
+
+  it("does not repurpose proof diagnostic token modal for OTP entry", () => {
+    const proofTools = read("src/components/mail/admin/notification-identity-proof-tools.tsx");
+    const otp = read("src/components/mail/admin/notification-identity-otp-modal.tsx");
+    assert.match(proofTools, /NotificationIdentityProofTokenModal/);
+    assert.match(proofTools, /NotificationIdentityProofTools/);
+    assert.doesNotMatch(otp, /tokenModalTitle/);
+    assert.doesNotMatch(otp, /issueToken/);
+  });
+
+  it("moves advanced verification tools to proof diagnostics only", () => {
+    const admin = read("src/components/mail/admin/notification-identity-management.tsx");
+    const proof = read("src/components/mail/admin/proof-diagnostics.tsx");
+    assert.doesNotMatch(admin, /AdvancedVerificationTools/);
+    assert.match(proof, /NotificationIdentityProofDiagnosticsPanel/);
+  });
+
+  it("uses one canonical status summary without duplicate primary cards", () => {
+    const control = read("src/components/mail/admin/notification-identity-control-view.tsx");
+    const summary = read(
+      "src/components/mail/admin/notification-identity-status-summary.tsx",
+    );
+    assert.match(control, /NotificationIdentityStatusSummary/);
+    assert.doesNotMatch(control, /IdentityStatusPanel/);
+    assert.doesNotMatch(summary, /DataTable/);
+  });
+
+  it("shared modal shell uses viewport-centered grid overlay", () => {
+    const modal = read("src/components/ui/modal.tsx");
+    const css = read("src/app/globals.css");
+    assert.match(modal, /createPortal/);
+    assert.match(modal, /document\.body/);
+    assert.match(modal, /modal-overlay-center/);
+    assert.match(css, /\.modal-overlay[\s\S]*display:\s*grid/);
+    assert.match(css, /place-items:\s*center/);
+    assert.match(css, /100dvh/);
+    assert.match(css, /safe-area-inset/);
+    assert.match(css, /\.modal-panel-body/);
+  });
+
+  it("settings and OTP modals use shared modal shell with internal scroll body", () => {
+    const settings = read(
+      "src/components/mail/admin/notification-identity-settings-modal.tsx",
+    );
+    const otp = read("src/components/mail/admin/notification-identity-otp-modal.tsx");
+    assert.match(settings, /ModalOverlay/);
+    assert.match(settings, /modal-panel-body/);
+    assert.match(otp, /modal-panel-body/);
+  });
+
+  it("preserves 8-character OTP input constraints in dedicated modal", () => {
+    assert.equal(VERIFICATION_CODE_INPUT_PROPS.maxLength, 8);
+    const otp = read("src/components/mail/admin/notification-identity-otp-modal.tsx");
+    assert.match(otp, /VERIFICATION_CODE_INPUT_PROPS/);
+    assert.match(otp, /verifyCodeInput\.length !== VERIFICATION_CODE_INPUT_PROPS\.maxLength/);
+  });
+
+  it("staff self-service modal uses session user only and no team overview", () => {
+    const selfService = read(
+      "src/components/mail/notification-mailbox-self-service-modal.tsx",
+    );
+    assert.match(selfService, /session\?\.user/);
+    assert.match(selfService, /targetUserId=\{user\.id\}/);
+    assert.doesNotMatch(selfService, /NotificationIdentityTeamMemberSelector/);
+    assert.doesNotMatch(selfService, /NotificationIdentityTeamOverview/);
+  });
+
+  it("admin self-service entry remains separate from team overview", () => {
+    const shell = read("src/components/mail/prototype/mail-prototype-shell.tsx");
+    const admin = read("src/components/mail/admin/notification-identity-management.tsx");
+    assert.match(shell, /NotificationMailboxSelfServiceModal/);
+    assert.match(admin, /NotificationIdentityTeamOverview/);
+    assert.doesNotMatch(shell, /NotificationIdentityTeamOverview/);
+  });
+});

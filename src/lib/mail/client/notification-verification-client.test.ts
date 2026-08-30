@@ -72,14 +72,17 @@ describe("notification verification client UX", () => {
 
   it("uses viewport-centered modal geometry on mobile", () => {
     const css = readFileSync("src/app/globals.css", "utf8");
-    const panel = readFileSync(
-      "src/components/mail/admin/target-user-notification-identity-panel.tsx",
+    const modal = readFileSync("src/components/ui/modal.tsx", "utf8");
+    const otpModal = readFileSync(
+      "src/components/mail/admin/notification-identity-otp-modal.tsx",
       "utf8",
     );
-    assert.match(css, /align-items:\s*center/);
+    assert.match(css, /place-items:\s*center/);
     assert.match(css, /100dvh/);
     assert.match(css, /safe-area-inset/);
-    assert.match(panel, /overflow-y-auto/);
-    assert.match(panel, /VERIFICATION_CODE_INPUT_PROPS/);
+    assert.match(css, /\.modal-panel-body/);
+    assert.match(modal, /document\.body/);
+    assert.match(otpModal, /modal-panel-body/);
+    assert.match(otpModal, /VERIFICATION_CODE_INPUT_PROPS/);
   });
 });

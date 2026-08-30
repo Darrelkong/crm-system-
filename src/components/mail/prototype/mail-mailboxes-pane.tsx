@@ -18,6 +18,8 @@ export function MailMailboxesPane({
   onRefresh,
   showAdminEntry = false,
   onOpenAdminCenter,
+  showNotificationMailboxEntry = false,
+  onOpenNotificationMailbox,
   settingsReturnFocusRef,
   collapsed = false,
   className,
@@ -30,6 +32,8 @@ export function MailMailboxesPane({
   onRefresh: () => void;
   showAdminEntry?: boolean;
   onOpenAdminCenter?: () => void;
+  showNotificationMailboxEntry?: boolean;
+  onOpenNotificationMailbox?: () => void;
   settingsReturnFocusRef?: React.RefObject<HTMLButtonElement | null>;
   collapsed?: boolean;
   className?: string;
@@ -93,6 +97,8 @@ export function MailMailboxesPane({
         anchorRef={gearRef}
         showAdminEntry={showAdminEntry}
         onOpenAdminCenter={onOpenAdminCenter}
+        showNotificationMailboxEntry={showNotificationMailboxEntry}
+        onOpenNotificationMailbox={onOpenNotificationMailbox}
       />
     </div>
   );

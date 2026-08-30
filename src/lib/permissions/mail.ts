@@ -201,6 +201,22 @@ export function assertMailPermissionManagement(actor: MailActorContext): void {
   );
 }
 
+/**
+ * Notification identity target access:
+ * - admins with permission_mgmt may manage any eligible user
+ * - mail-enabled users may manage only their own notification identity
+ */
+export function assertNotificationIdentityTargetAccess(
+  actor: MailActorContext,
+  targetUserId: string,
+): void {
+  if (actor.userId === targetUserId) {
+    assertEffectiveMailAccess(actor);
+    return;
+  }
+  assertMailPermissionManagement(actor);
+}
+
 /** Sender Identity existence/configuration administration. */
 export function assertMailSenderIdentityManagement(
   actor: MailActorContext,

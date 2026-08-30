@@ -18,6 +18,7 @@ import {
   assertMailOutboundApprovalReview,
   assertMailDeliveryHealth,
   assertMailInboundFallbackConfigManagement,
+  assertNotificationIdentityTargetAccess,
   hasMailDeliveryHealth,
   isEligiblePersonalMailboxOwner,
 } from "@/lib/permissions/mail";
@@ -306,6 +307,53 @@ describe("personal mailbox owner eligibility", () => {
         userStatus: "deleted",
       }),
       false,
+    );
+  });
+});
+
+describe("assertNotificationIdentityTargetAccess", () => {
+  it("allows mail-enabled staff to manage own notification identity", () => {
+    assert.doesNotThrow(() =>
+      assertNotificationIdentityTargetAccess(
+        actor({ userId: "user-1", mailAccessEnabled: true }),
+        "user-1",
+      ),
+    );
+  });
+
+  it("denies staff without mail access for own notification identity", () => {
+    assert.throws(
+      () =>
+        assertNotificationIdentityTargetAccess(
+          actor({ userId: "user-1", mailAccessEnabled: false }),
+          "user-1",
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("denies staff cross-user notification identity access", () => {
+    assert.throws(
+      () =>
+        assertNotificationIdentityTargetAccess(
+          actor({ userId: "user-1", mailAccessEnabled: true }),
+          "user-2",
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("allows permission_mgmt admin to manage another user", () => {
+    assert.doesNotThrow(() =>
+      assertNotificationIdentityTargetAccess(
+        actor({
+          userId: "admin-1",
+          adminGrants: ["permission_mgmt"],
+        }),
+        "user-2",
+      ),
     );
   });
 });

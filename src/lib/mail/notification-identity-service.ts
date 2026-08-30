@@ -15,6 +15,7 @@ import { normalizeMailEmailAddress } from "@/lib/mail/normalize-email-address";
 import {
   assertMailNotificationProofManagement,
   assertMailPermissionManagement,
+  assertNotificationIdentityTargetAccess,
 } from "@/lib/permissions/mail";
 import {
   type NotificationVerificationChallengeSink,
@@ -183,7 +184,7 @@ export async function listNotificationIdentitiesForAdmin(
   actor: MailActorContext,
   targetUserId: string,
 ): Promise<SafeNotificationIdentityAdminView[]> {
-  assertMailPermissionManagement(actor);
+  assertNotificationIdentityTargetAccess(actor, targetUserId);
   await requireTargetUser(db, targetUserId);
   const rows = await db
     .select()
@@ -201,7 +202,7 @@ export async function createPendingNotificationIdentity(
     challengeSink?: NotificationVerificationChallengeSink;
   },
 ): Promise<SafeNotificationIdentityAdminView> {
-  assertMailPermissionManagement(actor);
+  assertNotificationIdentityTargetAccess(actor, input.targetUserId);
   await requireTargetUser(db, input.targetUserId);
 
   let normalizedEmail: string;
@@ -370,8 +371,6 @@ export async function verifyNotificationIdentity(
   actor: MailActorContext,
   input: { identityId: string; token: string },
 ): Promise<SafeNotificationIdentityAdminView> {
-  assertMailPermissionManagement(actor);
-
   const pending = await findNotificationIdentityById(db, input.identityId);
   if (!pending) {
     throw MailServiceError.notFound("Notification identity not found");
@@ -381,6 +380,8 @@ export async function verifyNotificationIdentity(
       "Notification identity is not pending verification",
     );
   }
+
+  assertNotificationIdentityTargetAccess(actor, pending.userId);
 
   const nowMs = Date.now();
   if (isVerificationExpired(pending.verificationExpiresAt, nowMs)) {
@@ -920,7 +921,7 @@ export async function sendNotificationIdentityVerificationChallenge(
     emailBinding?: import("@/lib/mail/cloudflare-email-notification-transport-adapter").CloudflareEmailSendBinding | null;
   },
 ): Promise<SendNotificationVerificationChallengeResult> {
-  assertMailPermissionManagement(actor);
+  assertNotificationIdentityTargetAccess(actor, targetUserId);
   await requireTargetUser(db, targetUserId);
 
   const pending = await findAuthoritativePendingIdentityForUser(

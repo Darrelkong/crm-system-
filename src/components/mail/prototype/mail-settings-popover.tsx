@@ -27,13 +27,17 @@ export function MailSettingsPopover({
   onClose,
   anchorRef,
   showAdminEntry = false,
+  showNotificationMailboxEntry = false,
   onOpenAdminCenter,
+  onOpenNotificationMailbox,
 }: {
   open: boolean;
   onClose: () => void;
   anchorRef: RefObject<HTMLElement | null>;
   showAdminEntry?: boolean;
+  showNotificationMailboxEntry?: boolean;
   onOpenAdminCenter?: () => void;
+  onOpenNotificationMailbox?: () => void;
 }) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -74,6 +78,9 @@ export function MailSettingsPopover({
   const top = anchorRect ? anchorRect.bottom + 4 : 0;
 
   const personalItems: MenuItem[] = [
+    ...(showNotificationMailboxEntry
+      ? [{ id: "notificationMailbox" as const, label: t("mail.notificationMailbox.title") }]
+      : []),
     { id: "display", label: t("mail.settings.display"), comingSoon: true },
     { id: "compose", label: t("mail.settings.composePrefs"), comingSoon: true },
     { id: "notifications", label: t("mail.settings.notifications"), comingSoon: true },
@@ -93,12 +100,20 @@ export function MailSettingsPopover({
     const result = resolveMailSettingsMenuSelect(id, {
       showAdminEntry,
       hasAdminCenterHandler: Boolean(onOpenAdminCenter),
+      showNotificationMailboxEntry,
+      hasNotificationMailboxHandler: Boolean(onOpenNotificationMailbox),
     });
 
     if (!result) return;
 
     if (result.action === "open_admin_center") {
       onOpenAdminCenter!();
+      onClose();
+      return;
+    }
+
+    if (result.action === "open_notification_mailbox") {
+      onOpenNotificationMailbox!();
       onClose();
       return;
     }

@@ -8,6 +8,7 @@ import { useTranslation } from "@/i18n/provider";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { MailAdminCenterDrawer } from "@/components/mail/admin/mail-admin-center-drawer";
+import { NotificationMailboxSelfServiceModal } from "@/components/mail/notification-mailbox-self-service-modal";
 import { MailFolderActionRow } from "./mail-folder-action-row";
 import { MailFolderPopover } from "./mail-folder-popover";
 import { MailMessageList } from "./mail-message-list";
@@ -123,6 +124,7 @@ export function MailPrototypeShell({
 
   const [adminCenterOpen, setAdminCenterOpen] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
+  const [notificationMailboxOpen, setNotificationMailboxOpen] = useState(false);
 
   const {
     messages,
@@ -325,6 +327,12 @@ export function MailPrototypeShell({
     setAdminCenterOpen(true);
   }
 
+  function openNotificationMailbox() {
+    setNotificationMailboxOpen(true);
+  }
+
+  const showNotificationMailboxEntry = effectiveMailAccessEnabled;
+
   useEffect(() => {
     if (!effectiveMailAccessEnabled || !session?.user.id) return;
     void prefetchComposeContext(session.user.id);
@@ -460,6 +468,8 @@ export function MailPrototypeShell({
         composeSeedPending={composeSeedPending}
         showAdminEntry={canOpenAdminCenter}
         onOpenAdminCenter={openAdminCenter}
+        showNotificationMailboxEntry={showNotificationMailboxEntry}
+        onOpenNotificationMailbox={openNotificationMailbox}
         adminCenterReturnFocusRef={desktopSettingsRef}
       />
 
@@ -476,6 +486,8 @@ export function MailPrototypeShell({
               onCloseSettings={() => setMobileSettingsOpen(false)}
               showAdminEntry={canOpenAdminCenter}
               onOpenAdminCenter={openAdminCenter}
+              showNotificationMailboxEntry={showNotificationMailboxEntry}
+              onOpenNotificationMailbox={openNotificationMailbox}
               settingsButtonRef={mobileSettingsRef}
             />
             <MailMessageList
@@ -549,6 +561,10 @@ export function MailPrototypeShell({
         open={adminCenterOpen}
         onRequestClose={() => setAdminCenterOpen(false)}
         returnFocusRef={isMobileViewport ? mobileSettingsRef : desktopSettingsRef}
+      />
+      <NotificationMailboxSelfServiceModal
+        open={notificationMailboxOpen}
+        onClose={() => setNotificationMailboxOpen(false)}
       />
     </div>
   );

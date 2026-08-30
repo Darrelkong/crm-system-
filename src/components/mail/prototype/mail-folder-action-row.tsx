@@ -24,6 +24,8 @@ export const MailFolderActionRow = forwardRef<
     onCloseSettings?: () => void;
     showAdminEntry?: boolean;
     onOpenAdminCenter?: () => void;
+    showNotificationMailboxEntry?: boolean;
+    onOpenNotificationMailbox?: () => void;
     settingsButtonRef?: React.RefObject<HTMLButtonElement | null>;
   }
 >(function MailFolderActionRow(
@@ -36,6 +38,8 @@ export const MailFolderActionRow = forwardRef<
     onCloseSettings,
     showAdminEntry = false,
     onOpenAdminCenter,
+    showNotificationMailboxEntry = false,
+    onOpenNotificationMailbox,
     settingsButtonRef,
   },
   ref,
@@ -101,6 +105,8 @@ export const MailFolderActionRow = forwardRef<
           anchorRef={gearRef}
           showAdminEntry={showAdminEntry}
           onOpenAdminCenter={onOpenAdminCenter}
+          showNotificationMailboxEntry={showNotificationMailboxEntry}
+          onOpenNotificationMailbox={onOpenNotificationMailbox}
         />
       ) : null}
     </>

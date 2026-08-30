@@ -2,26 +2,21 @@
 
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useTranslation } from "@/i18n/provider";
-import { NotificationIdentityControlView } from "./notification-identity-control-view";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import { NotificationIdentityControlView } from "./admin/notification-identity-control-view";
 
-export function TargetUserNotificationIdentityPanel({
+export function NotificationMailboxSelfServiceModal({
   open,
-  targetUserId,
-  targetUserName,
-  targetUserEmail,
   onClose,
-  onUpdated,
 }: {
   open: boolean;
-  targetUserId: string | null;
-  targetUserName: string;
-  targetUserEmail: string;
   onClose: () => void;
-  onUpdated: () => void;
 }) {
   const { t } = useTranslation();
+  const { session } = useMailSession();
+  const user = session?.user;
 
-  if (!open || !targetUserId) {
+  if (!open || !user) {
     return null;
   }
 
@@ -32,17 +27,16 @@ export function TargetUserNotificationIdentityPanel({
           <div className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold crm-text">
-                {t("mail.adminCenter.access.targetNotification.title")}
+                {t("mail.notificationMailbox.title")}
               </h3>
               <p className="text-sm crm-text-secondary">
-                {t("mail.adminCenter.access.targetNotification.description")}
+                {t("mail.notificationMailbox.description")}
               </p>
             </div>
             <NotificationIdentityControlView
-              targetUserId={targetUserId}
-              targetUserName={targetUserName}
-              targetUserEmail={targetUserEmail}
-              onUpdated={onUpdated}
+              targetUserId={user.id}
+              targetUserName={user.name}
+              targetUserEmail={user.email}
             />
             <div className="flex justify-end">
               <button

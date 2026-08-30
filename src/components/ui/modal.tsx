@@ -29,17 +29,15 @@ export function ModalOverlay({
 
   return createPortal(
     <div className={cn("modal-overlay", className)}>
-      {onClose && (
+      {onClose ? (
         <button
           type="button"
-          className="absolute inset-0 cursor-default"
+          className="modal-overlay-dismiss"
           aria-label="Close"
           onClick={onClose}
         />
-      )}
-      <div className="relative z-10 flex w-full max-w-lg min-h-0 max-h-full flex-col">
-        {children}
-      </div>
+      ) : null}
+      <div className="modal-overlay-center">{children}</div>
     </div>,
     document.body,
   );

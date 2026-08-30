@@ -436,6 +436,23 @@ const en = {
       sectionPlaceholder: "This section will be available in a future phase.",
       adminPlaceholder: "Mail administration will be implemented in a later phase.",
     },
+    notificationMailbox: {
+      title: "Notification mailbox",
+      description:
+        "Set your private notification mailbox. When CRM Mail receives new mail, the system sends an alert to this address; message bodies and attachments remain in CRM Mail.",
+      teamMemberLabel: "Team member",
+      notificationEmailLabel: "Notification mailbox",
+      currentVerifiedEmail: "Current notification mailbox",
+      pendingReplacementEmail: "Pending new notification mailbox",
+      changeEmailAction: "Change notification mailbox",
+      changeEmailDescription:
+        "Enter the new private external notification mailbox. Verification is required before it replaces the current address.",
+      completeVerificationAction: "Complete verification",
+      otpModalTitle: "Verify notification mailbox",
+      otpModalSentTo: "We sent an 8-character verification code to:",
+      otpModalValidity: "The code is valid for 5 minutes.",
+      otpModalVerifyAction: "Verify",
+    },
     adminCenter: {
       title: "Mail Admin Center",
       description: "Manage mail access, notification identities, and operational settings.",
@@ -460,6 +477,8 @@ const en = {
         overview: "Your mail account summary and available admin sections.",
         access: "Enable or disable mail access for CRM users.",
         notificationIdentity: "Create and verify notification sender identities.",
+        notificationIdentityTeam:
+          "Manage notification mailboxes for CRM team members.",
         proofDiagnostics: "Run controlled notification transport proof workflows.",
         senderIdentity: "Configure outbound sender identities and grants.",
         signature: "Create and manage HTML signatures for sender identities.",
@@ -622,6 +641,27 @@ const en = {
           email: "Email",
           status: "Status",
           date: "Date",
+        },
+        teamOverview: {
+          searchLabel: "Search team members",
+          searchPlaceholder: "Search name, CRM account, or notification mailbox",
+          statusFilterLabel: "Status",
+          statusAll: "All",
+          noMatches: "No team members match the current search or filter.",
+          manageAction: "Manage",
+          configureAction: "Configure",
+          mailAccessLabel: "Mail",
+          mailEnabled: "Mail enabled",
+          mailDisabled: "Mail not enabled",
+          currentEmailPrefix: "Current:",
+          pendingEmail: "New: {{email}} · Pending verification",
+          columns: {
+            member: "Team member",
+            email: "Notification mailbox",
+            status: "Status",
+            verifiedAt: "Verified at",
+            actions: "Actions",
+          },
         },
         status: {
           pending: "Verification required",
@@ -910,6 +950,8 @@ const en = {
         refresh: "Refresh",
         empty: "No notification proof runs yet.",
         noPermission: "You do not have permission to view proof diagnostics.",
+        pendingIdentityRequired:
+          "Configure a pending notification identity before issuing a proof verification token.",
         notApplicable: "—",
         columns: {
           sourceEntityId: "Source entity ID",

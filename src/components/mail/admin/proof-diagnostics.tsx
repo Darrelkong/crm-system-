@@ -14,12 +14,16 @@ import {
   Tr,
 } from "@/components/ui/table";
 import { useTranslation } from "@/i18n/provider";
-import { fetchNotificationProofRuns } from "@/lib/mail/client/api";
+import { fetchNotificationProofRuns, fetchNotificationIdentities } from "@/lib/mail/client/api";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import {
+  filterSelfNotificationIdentities,
+} from "@/lib/mail/client/notification-identity-management";
 import {
   canViewProofDiagnostics,
   type NotificationProofRunApiItem,
 } from "@/lib/mail/client/proof-diagnostics";
+import { NotificationIdentityProofDiagnosticsPanel } from "./notification-identity-proof-tools";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import {
   MailAdminEmptyState,
@@ -124,10 +128,14 @@ function ProofRunMobileCard({ run }: { run: NotificationProofRunApiItem }) {
 
 export function ProofDiagnostics() {
   const { t } = useTranslation();
-  const { capabilities } = useMailSession();
+  const { capabilities, session } = useMailSession();
   const canView = canViewProofDiagnostics(capabilities);
+  const selfUserId = session?.user.id ?? null;
 
   const [runs, setRuns] = useState<NotificationProofRunApiItem[]>([]);
+  const [selfItems, setSelfItems] = useState<
+    import("@/lib/mail/client/notification-identity-management").NotificationIdentityApiItem[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -142,20 +150,32 @@ export function ProofDiagnostics() {
     setLoading(true);
     setError(null);
     try {
-      const result = await fetchNotificationProofRuns();
+      const [result, identityResult] = await Promise.all([
+        fetchNotificationProofRuns(),
+        selfUserId
+          ? fetchNotificationIdentities(selfUserId)
+          : Promise.resolve({ ok: true as const, items: [] }),
+      ]);
       if (!result.ok) {
         setRuns([]);
         setError(result.error);
         return;
       }
       setRuns(result.items);
+      if (identityResult.ok && selfUserId) {
+        setSelfItems(
+          filterSelfNotificationIdentities(identityResult.items, selfUserId),
+        );
+      } else {
+        setSelfItems([]);
+      }
     } catch {
       setRuns([]);
       setError(t("common.networkError"));
     } finally {
       setLoading(false);
     }
-  }, [canView, t]);
+  }, [canView, selfUserId, t]);
 
   useEffect(() => {
     void load();
@@ -192,14 +212,20 @@ export function ProofDiagnostics() {
 
       {!canView ? (
         <MailAdminEmptyState message={emptyMessage} />
-      ) : loading ? (
-        <MailAdminLoadingState />
-      ) : error ? (
-        <MailAdminErrorState message={error} onRetry={() => void load()} />
-      ) : runs.length === 0 ? (
-        <MailAdminEmptyState message={emptyMessage} />
       ) : (
         <>
+          <NotificationIdentityProofDiagnosticsPanel
+            selfItems={selfItems}
+            onReload={() => void load()}
+          />
+          {loading ? (
+            <MailAdminLoadingState />
+          ) : error ? (
+            <MailAdminErrorState message={error} onRetry={() => void load()} />
+          ) : runs.length === 0 ? (
+            <MailAdminEmptyState message={emptyMessage} />
+          ) : (
+            <>
           <div className={`${MAIL_ADMIN_CARD_STACK_CLASS} md:hidden`}>
             {runs.map((run) => (
               <ProofRunMobileCard key={run.sourceEntityId} run={run} />
@@ -263,6 +289,8 @@ export function ProofDiagnostics() {
               </TableBody>
             </DataTable>
           </TableShell>
+            </>
+          )}
         </>
       )}
     </div>

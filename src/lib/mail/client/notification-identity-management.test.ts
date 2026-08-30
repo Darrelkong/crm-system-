@@ -8,8 +8,15 @@ import {
   filterSelfNotificationIdentities,
   resolveNotificationIdentityDisplayStatus,
   resolveNotificationIdentityManagementActions,
+  resolveNotificationIdentitySurfaceActions,
   resolveNotificationIdentityUxPhase,
   resolvePrimaryNotificationIdentity,
+  buildNotificationIdentityTeamOverviewRows,
+  filterNotificationIdentityTeamOverviewRows,
+  resolveNotificationIdentityTeamOverviewRowActions,
+  resolveNotificationIdentityTeamOverviewPrimaryAction,
+  isActiveCrmTeamMember,
+  shouldRenderDuplicatePrimaryIdentitySummary,
   shouldShowAdvancedVerificationTools,
   type NotificationIdentityApiItem,
 } from "@/lib/mail/client/notification-identity-management";
@@ -113,12 +120,12 @@ describe("resolveNotificationIdentityManagementActions", () => {
       {
         showAddEmail: false,
         showIssueToken: true,
-        showVerify: true,
+        showVerify: false,
       },
     );
   });
 
-  it("shows verify action but not issue token without proof permission", () => {
+  it("hides inline verify action even when pending identity exists", () => {
     assert.deepEqual(
       resolveNotificationIdentityManagementActions({
         canManage: true,
@@ -128,7 +135,7 @@ describe("resolveNotificationIdentityManagementActions", () => {
       {
         showAddEmail: false,
         showIssueToken: false,
-        showVerify: true,
+        showVerify: false,
       },
     );
   });
@@ -248,17 +255,245 @@ describe("shouldShowAdvancedVerificationTools", () => {
 });
 
 describe("notification identity management UX wiring", () => {
-  it("separates normal verification from advanced proof token tools", () => {
+  it("uses full team overview instead of selector-only browsing", () => {
     const source = readFileSync(
       "src/components/mail/admin/notification-identity-management.tsx",
       "utf8",
     );
-    assert.match(source, /NotificationIdentityVerifyForm/);
-    assert.match(source, /AdvancedVerificationTools/);
-    assert.match(source, /verifyCodeLabel/);
-    assert.match(source, /advancedTitle/);
-    assert.match(source, /IdentityStatusPanel/);
-    assert.doesNotMatch(source, /H\.3/);
-    assert.doesNotMatch(source, /verifyTokenLabel/);
+    const overview = readFileSync(
+      "src/components/mail/admin/notification-identity-team-overview.tsx",
+      "utf8",
+    );
+    assert.match(source, /NotificationIdentityTeamOverview/);
+    assert.doesNotMatch(source, /NotificationIdentityTeamMemberSelector/);
+    assert.doesNotMatch(source, /selfOnlyHint/);
+    assert.match(overview, /notification-identity-team-overview-table/);
+    assert.match(overview, /OverviewMemberCell/);
+    assert.doesNotMatch(overview, /TableShell/);
+    assert.match(overview, /filterNotificationIdentityTeamOverviewRows/);
+  });
+});
+
+describe("resolveNotificationIdentitySurfaceActions", () => {
+  it("shows configure email when no identity exists", () => {
+    assert.deepEqual(
+      resolveNotificationIdentitySurfaceActions({
+        verified: null,
+        pending: null,
+      }),
+      {
+        showConfigureEmail: true,
+        showChangeEmail: false,
+        showCompleteVerification: false,
+        showResendVerification: false,
+      },
+    );
+  });
+
+  it("shows change email only for verified identity without pending", () => {
+    const verified = identity({
+      verificationStatus: "verified",
+      verificationPending: false,
+      verifiedAt: "2026-08-22T09:00:00.000Z",
+    });
+    assert.deepEqual(
+      resolveNotificationIdentitySurfaceActions({
+        verified,
+        pending: null,
+      }),
+      {
+        showConfigureEmail: false,
+        showChangeEmail: true,
+        showCompleteVerification: false,
+        showResendVerification: false,
+      },
+    );
+  });
+
+  it("shows complete verification and resend for pending identity", () => {
+    assert.deepEqual(
+      resolveNotificationIdentitySurfaceActions({
+        verified: null,
+        pending: identity(),
+      }),
+      {
+        showConfigureEmail: false,
+        showChangeEmail: false,
+        showCompleteVerification: true,
+        showResendVerification: true,
+      },
+    );
+  });
+
+  it("shows distinct verified and pending replacement actions", () => {
+    const verified = identity({
+      id: "verified-1",
+      email: "old@example.com",
+      verificationStatus: "verified",
+      verificationPending: false,
+      verifiedAt: "2026-08-22T09:00:00.000Z",
+    });
+    const pending = identity({
+      id: "pending-1",
+      email: "new@example.com",
+    });
+    assert.deepEqual(
+      resolveNotificationIdentitySurfaceActions({
+        verified,
+        pending,
+      }),
+      {
+        showConfigureEmail: false,
+        showChangeEmail: false,
+        showCompleteVerification: true,
+        showResendVerification: true,
+      },
+    );
+    assert.equal(
+      shouldRenderDuplicatePrimaryIdentitySummary([verified, pending]),
+      true,
+    );
+  });
+});
+
+describe("notification identity team overview", () => {
+  const users = [
+    {
+      id: "user-a",
+      name: "Alice",
+      email: "alice@example.com",
+      status: "active" as const,
+    },
+    {
+      id: "user-b",
+      name: "Bob",
+      email: "bob@example.com",
+      status: "active" as const,
+    },
+    {
+      id: "user-disabled",
+      name: "Disabled",
+      email: "disabled@example.com",
+      status: "disabled" as const,
+    },
+  ];
+
+  it("includes only active CRM members in the default overview", () => {
+    const rows = buildNotificationIdentityTeamOverviewRows(users, [], new Map());
+    assert.equal(rows.length, 2);
+    assert.deepEqual(
+      rows.map((row) => row.userId),
+      ["user-a", "user-b"],
+    );
+  });
+
+  it("shows unconfigured, pending, verified, and replacement states", () => {
+    const identities = new Map([
+      [
+        "user-a",
+        [
+          identity({
+            userId: "user-a",
+            email: "verified@example.com",
+            verificationStatus: "verified",
+            verificationPending: false,
+            verifiedAt: "2026-08-22T09:00:00.000Z",
+          }),
+          identity({
+            id: "pending-replacement",
+            userId: "user-a",
+            email: "new@example.com",
+          }),
+        ],
+      ],
+      ["user-b", [identity({ userId: "user-b", email: "pending@example.com" })]],
+    ]);
+    const rows = buildNotificationIdentityTeamOverviewRows(
+      users,
+      [{ userId: "user-a", isEnabled: 1 }],
+      identities,
+    );
+    const alice = rows.find((row) => row.userId === "user-a");
+    const bob = rows.find((row) => row.userId === "user-b");
+    assert.equal(alice?.replacementPending, true);
+    assert.equal(alice?.mailAccessEnabled, true);
+    assert.equal(bob?.filterStatus, "pending");
+  });
+
+  it("keeps mail-disabled active members visible", () => {
+    const rows = buildNotificationIdentityTeamOverviewRows(users, [], new Map());
+    const bob = rows.find((row) => row.userId === "user-b");
+    assert.equal(bob?.mailAccessEnabled, false);
+  });
+
+  it("filters by search query and status", () => {
+    const rows = buildNotificationIdentityTeamOverviewRows(
+      users,
+      [],
+      new Map([
+        ["user-a", [identity({ userId: "user-a", email: "notify@example.com" })]],
+      ]),
+    );
+    assert.equal(
+      filterNotificationIdentityTeamOverviewRows(rows, "alice", "all").length,
+      1,
+    );
+    assert.equal(
+      filterNotificationIdentityTeamOverviewRows(rows, "", "pending").length,
+      1,
+    );
+    assert.equal(
+      filterNotificationIdentityTeamOverviewRows(rows, "", "none").length,
+      1,
+    );
+  });
+
+  it("derives row actions for configure, verification, and manage flows", () => {
+    const noneRow = buildNotificationIdentityTeamOverviewRows(users, [], new Map())[0]!;
+    assert.deepEqual(resolveNotificationIdentityTeamOverviewRowActions(noneRow), {
+      showManage: true,
+      showConfigure: true,
+      showCompleteVerification: false,
+      showResendVerification: false,
+    });
+    assert.equal(
+      resolveNotificationIdentityTeamOverviewPrimaryAction(noneRow),
+      "configure",
+    );
+    const pendingRow = buildNotificationIdentityTeamOverviewRows(
+      users,
+      [],
+      new Map([["user-a", [identity({ userId: "user-a" })]]]),
+    )[0]!;
+    assert.equal(
+      resolveNotificationIdentityTeamOverviewPrimaryAction(pendingRow),
+      "completeVerification",
+    );
+    const verifiedRow = buildNotificationIdentityTeamOverviewRows(
+      users,
+      [],
+      new Map([
+        [
+          "user-a",
+          [
+            identity({
+              userId: "user-a",
+              verificationStatus: "verified",
+              verificationPending: false,
+              verifiedAt: "2026-08-22T09:00:00.000Z",
+            }),
+          ],
+        ],
+      ]),
+    )[0]!;
+    assert.equal(
+      resolveNotificationIdentityTeamOverviewPrimaryAction(verifiedRow),
+      "manage",
+    );
+  });
+
+  it("treats disabled users as inactive CRM team members", () => {
+    assert.equal(isActiveCrmTeamMember({ status: "active" }), true);
+    assert.equal(isActiveCrmTeamMember({ status: "disabled" }), false);
   });
 });

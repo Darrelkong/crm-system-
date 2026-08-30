@@ -1371,21 +1371,31 @@ html[data-theme="dark"] {
   position: fixed;
   inset: 0;
   z-index: 60;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   background: rgba(23, 32, 51, 0.45);
-  padding: max(1rem, env(safe-area-inset-top, 0px)) 1rem
-    max(1rem, env(safe-area-inset-bottom, 0px));
-  overflow-y: auto;
+  padding: max(1rem, env(safe-area-inset-top, 0px))
+    max(1rem, env(safe-area-inset-right, 0px))
+    max(1rem, env(safe-area-inset-bottom, 0px))
+    max(1rem, env(safe-area-inset-left, 0px));
+  overflow: hidden;
   overscroll-behavior: contain;
 }
 
-.modal-panel {
-  background: var(--color-crm-card);
-  border: 1px solid var(--color-crm-border);
-  border-radius: var(--radius-crm-xl);
-  box-shadow: var(--shadow-crm-modal);
+.modal-overlay-dismiss {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  cursor: default;
+  border: 0;
+  background: transparent;
+}
+
+.modal-overlay-center {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(100%, 32rem);
   max-height: min(
     90dvh,
     calc(
@@ -1393,11 +1403,97 @@ html[data-theme="dark"] {
         2rem
     )
   );
+  min-height: 0;
+  pointer-events: auto;
+}
+
+.modal-panel {
+  background: var(--color-crm-card);
+  border: 1px solid var(--color-crm-border);
+  border-radius: var(--radius-crm-xl);
+  box-shadow: var(--shadow-crm-modal);
+  max-height: inherit;
   overflow: hidden;
   width: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
+}
+
+.modal-panel-body {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Notification identity team overview — compact admin table without horizontal scroll */
+.notification-identity-team-overview {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.notification-identity-team-overview-filters {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .notification-identity-team-overview-filters {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: end;
+  }
+}
+
+.notification-identity-team-overview-filter-status {
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .notification-identity-team-overview-filter-status {
+    width: 11rem;
+  }
+}
+
+.notification-identity-team-overview-table-shell {
+  overflow: hidden;
+}
+
+.notification-identity-team-overview-table {
+  table-layout: fixed;
+  width: 100%;
+}
+
+.notification-identity-team-overview-table th,
+.notification-identity-team-overview-table td {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.notification-identity-team-overview-table th:nth-child(1),
+.notification-identity-team-overview-table td:nth-child(1) {
+  width: 24%;
+}
+
+.notification-identity-team-overview-table th:nth-child(2),
+.notification-identity-team-overview-table td:nth-child(2) {
+  width: 30%;
+}
+
+.notification-identity-team-overview-table th:nth-child(3),
+.notification-identity-team-overview-table td:nth-child(3) {
+  width: 14%;
+}
+
+.notification-identity-team-overview-table th:nth-child(4),
+.notification-identity-team-overview-table td:nth-child(4) {
+  width: 16%;
+}
+
+.notification-identity-team-overview-table th:nth-child(5),
+.notification-identity-team-overview-table td:nth-child(5) {
+  width: 16%;
 }
 
 /* ── Requested project country/region selector ── */

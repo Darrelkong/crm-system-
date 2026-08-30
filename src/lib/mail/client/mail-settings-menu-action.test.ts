@@ -52,4 +52,28 @@ describe("resolveMailSettingsMenuSelect", () => {
       { action: "show_section", view: "signature" },
     );
   });
+
+  it("opens notification mailbox self-service when entry is enabled", () => {
+    assert.deepEqual(
+      resolveMailSettingsMenuSelect("notificationMailbox", {
+        showAdminEntry: false,
+        hasAdminCenterHandler: false,
+        showNotificationMailboxEntry: true,
+        hasNotificationMailboxHandler: true,
+      }),
+      { action: "open_notification_mailbox" },
+    );
+  });
+
+  it("does not open notification mailbox when handler is missing", () => {
+    assert.equal(
+      resolveMailSettingsMenuSelect("notificationMailbox", {
+        showAdminEntry: false,
+        hasAdminCenterHandler: false,
+        showNotificationMailboxEntry: true,
+        hasNotificationMailboxHandler: false,
+      }),
+      null,
+    );
+  });
 });

@@ -3,11 +3,13 @@ export type MailSettingsMenuView =
   | "compose"
   | "notifications"
   | "signature"
+  | "notificationMailbox"
   | "admin";
 
 export type MailSettingsMenuSelectResult =
   | { action: "open_admin_center" }
-  | { action: "show_section"; view: Exclude<MailSettingsMenuView, "admin"> };
+  | { action: "open_notification_mailbox" }
+  | { action: "show_section"; view: Exclude<MailSettingsMenuView, "admin" | "notificationMailbox"> };
 
 /**
  * Resolves a Mail settings gear menu selection.
@@ -15,11 +17,23 @@ export type MailSettingsMenuSelectResult =
  */
 export function resolveMailSettingsMenuSelect(
   id: MailSettingsMenuView,
-  options: { showAdminEntry: boolean; hasAdminCenterHandler: boolean },
+  options: {
+    showAdminEntry: boolean;
+    hasAdminCenterHandler: boolean;
+    showNotificationMailboxEntry?: boolean;
+    hasNotificationMailboxHandler?: boolean;
+  },
 ): MailSettingsMenuSelectResult | null {
   if (id === "admin") {
     if (options.showAdminEntry && options.hasAdminCenterHandler) {
       return { action: "open_admin_center" };
+    }
+    return null;
+  }
+
+  if (id === "notificationMailbox") {
+    if (options.showNotificationMailboxEntry && options.hasNotificationMailboxHandler) {
+      return { action: "open_notification_mailbox" };
     }
     return null;
   }
