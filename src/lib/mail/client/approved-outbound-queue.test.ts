@@ -64,6 +64,20 @@ function sendOperation(
 }
 
 describe("approved outbound queue", () => {
+  it("maps admin_direct send without approval to outbound display phases", () => {
+    assert.equal(
+      resolveApprovedOutboundDisplayPhase({
+        approval: null,
+        send: sendOperation({
+          authorizationMode: "admin_direct",
+          approvalId: null,
+          revisionKind: "admin_direct",
+        }),
+      }),
+      "waiting_to_send",
+    );
+  });
+
   it("maps pending send operations to queued and ready_for_transport phases", () => {
     assert.equal(resolveOutboundQueuePhase(null), "none");
     assert.equal(

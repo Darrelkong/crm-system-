@@ -28,6 +28,7 @@ import {
 import { recomputeOutboundRevisionContentHash } from "@/lib/mail/outbound-revision-service";
 import {
   assertEffectiveMailAccess,
+  assertMailAccessEnabled,
   assertMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
 import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-outbox-batch-enqueue";
@@ -144,7 +145,7 @@ async function assertRevisionSubmissionAuthorization(
   actor: MailActorContext,
   revision: MailOutboundRevision,
 ): Promise<void> {
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
   if (revision.createdByUserId !== actor.userId) {
     throw MailServiceError.forbidden("Revision author authorization required");
   }
@@ -200,7 +201,7 @@ async function assertCanReadApproval(
   approval: MailOutboundApproval,
 ): Promise<void> {
   if (approval.requestedByUserId === actor.userId) {
-    assertEffectiveMailAccess(actor);
+    assertMailAccessEnabled(actor);
     return;
   }
   assertMailOutboundApprovalReview(actor);
@@ -883,7 +884,7 @@ export async function listApprovalsForAuthor(
   actor: MailActorContext,
   input?: { status?: MailOutboundApproval["status"] },
 ): Promise<SafeApprovalView[]> {
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
 
   const conditions = [
     eq(schema.mailOutboundApprovals.requestedByUserId, actor.userId),

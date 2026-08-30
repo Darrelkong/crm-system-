@@ -147,7 +147,7 @@ async function assertAdminDirectSendAuthority(
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
   await assertCanComposeFromIdentityInMailbox(db, actor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,

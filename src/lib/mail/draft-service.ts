@@ -36,6 +36,7 @@ import {
 } from "@/lib/mail/outbound-recipient-validation";
 import {
   assertEffectiveMailAccess,
+  assertMailAccessEnabled,
   hasEffectiveGlobalMailRead,
 } from "@/lib/permissions/mail";
 import { assertCanReadMailbox } from "@/lib/mail/message-read-permissions";
@@ -131,7 +132,7 @@ export async function requireAuthorDraft(
   actor: MailActorContext,
   draftId: string,
 ): Promise<MailDraft> {
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
   const draft = await findDraftById(db, draftId);
   if (!draft || draft.discardedAt) {
     throw MailServiceError.notFound("Draft not found");
@@ -230,9 +231,8 @@ export async function listDrafts(
   actor: MailActorContext,
   options?: { mailboxId?: string },
 ): Promise<SafeDraftView[]> {
-  assertEffectiveMailAccess(actor);
-
   if (options?.mailboxId && hasEffectiveGlobalMailRead(actor)) {
+    assertEffectiveMailAccess(actor);
     await assertCanReadMailbox(db, actor, options.mailboxId);
     const rows = await db
       .select()
@@ -252,6 +252,8 @@ export async function listDrafts(
       rows.map(toSafeDraftView),
     );
   }
+
+  assertMailAccessEnabled(actor);
 
   const rows = await db
     .select()
@@ -274,13 +276,13 @@ export async function getDraft(
   actor: MailActorContext,
   draftId: string,
 ): Promise<DraftDetailView> {
-  assertEffectiveMailAccess(actor);
   const draft = await findDraftById(db, draftId);
   if (!draft || draft.discardedAt) {
     throw MailServiceError.notFound("Draft not found");
   }
 
   if (draft.authorUserId !== actor.userId) {
+    assertEffectiveMailAccess(actor);
     if (!hasEffectiveGlobalMailRead(actor)) {
       throw MailServiceError.forbidden("Draft access denied");
     }
@@ -295,6 +297,7 @@ export async function getDraft(
     return loadDraftDetail(db, draft, author);
   }
 
+  assertMailAccessEnabled(actor);
   const user = await resolveActorUser(actor);
   return loadDraftDetail(db, draft, user);
 }
@@ -421,6 +424,7 @@ export async function createDraft(
     allowEmptyShell?: boolean;
   },
 ): Promise<CreateDraftResult> {
+  assertMailAccessEnabled(actor);
   if (input.composeMode && input.composeMode !== "new") {
     throw MailServiceError.validation(
       "Only new compose mode is supported in this phase",

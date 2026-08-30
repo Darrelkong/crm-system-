@@ -89,7 +89,7 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
     session?.effectiveMailAccessEnabled ?? false;
   const canOpenAdminCenter = canAccessMailAdminCenter(capabilities);
   const workspaceShellMode = resolveMailWorkspaceShellMode({
-    effectiveMailAccessEnabled,
+    mailAccessEnabled: session?.mailAccessEnabled ?? false,
     canAccessMailAdminCenter: canOpenAdminCenter,
   });
 

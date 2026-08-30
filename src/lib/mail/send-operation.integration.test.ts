@@ -517,7 +517,7 @@ describe("send operation orchestration integration", () => {
     assert.equal(result.status, "accepted");
   });
 
-  it("admin_direct requires sender grant and mail access", async () => {
+  it("admin_direct requires sender grant and enabled mail user access", async () => {
     await cleanupFixtures(db);
     const { identity, revision } = await createProductionAdminDirectRevision(db);
 

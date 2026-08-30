@@ -1,4 +1,5 @@
 import type { ApprovalApiItem } from "@/lib/mail/client/approval-workflow-management";
+import type { SendOperationApiItem } from "@/lib/mail/client/approved-outbound-queue";
 import {
   buildRecipientLists,
   isAuthorizedComposeSelection,
@@ -38,8 +39,27 @@ export function draftRevisionPath(draftId: string): string {
   return `/api/mail/drafts/${encodeURIComponent(draftId)}/revisions`;
 }
 
+export function draftAdminDirectRevisionPath(draftId: string): string {
+  return `/api/mail/drafts/${encodeURIComponent(draftId)}/admin-direct-revision`;
+}
+
 export function submitRevisionApprovalPath(revisionId: string): string {
   return `/api/mail/outbound-revisions/${encodeURIComponent(revisionId)}/submit-approval`;
+}
+
+export function sendAdminDirectPath(revisionId: string): string {
+  return `/api/mail/outbound-revisions/${encodeURIComponent(revisionId)}/send-admin-direct`;
+}
+
+export function buildAdminDirectSendIdempotencyKey(revisionId: string): string {
+  return `mail:admin-direct:${revisionId}:send`;
+}
+
+/** CRM root admin own-compose uses admin_direct; Staff uses staff approval workflow. */
+export function resolveComposeOutboundWorkflow(
+  isCrmRootAdmin: boolean,
+): "admin_direct" | "staff_approved" {
+  return isCrmRootAdmin ? "admin_direct" : "staff_approved";
 }
 
 export function approvalResubmitPath(approvalId: string): string {
@@ -49,11 +69,15 @@ export function approvalResubmitPath(approvalId: string): string {
 export function resolveComposeSubmissionPhase(input: {
   submitting: boolean;
   approval: ApprovalApiItem | null;
+  send?: SendOperationApiItem | null;
 }): ComposeSubmissionPhase {
   if (input.submitting) {
     return "submitting";
   }
   if (!input.approval) {
+    if (input.send?.authorizationMode === "admin_direct") {
+      return "approved";
+    }
     return "draft";
   }
   if (input.approval.status === "pending") {
@@ -66,6 +90,15 @@ export function resolveComposeSubmissionPhase(input: {
     return "approved";
   }
   return "draft";
+}
+
+export function isAdminDirectSendBlockingResubmit(
+  send: SendOperationApiItem | null | undefined,
+): boolean {
+  if (!send || send.authorizationMode !== "admin_direct") {
+    return false;
+  }
+  return send.status !== "failed";
 }
 
 export function validateComposeForSubmission(
@@ -127,7 +160,11 @@ export function canSubmitComposeForApproval(
   state: ComposeEditorState,
   composeOptions: ComposeContextOption[],
   approval: ApprovalApiItem | null,
+  send?: SendOperationApiItem | null,
 ): boolean {
+  if (isAdminDirectSendBlockingResubmit(send)) {
+    return false;
+  }
   return validateComposeForSubmission(state, composeOptions, approval).ok;
 }
 
@@ -194,4 +231,21 @@ export function normalizeRecipientEmailsForSummary(
     }
   }
   return emails;
+}
+
+export function resolveComposeSubmitButtonLabelKey(input: {
+  submitting: boolean;
+  workflow: "admin_direct" | "staff_approved";
+  approvalReturned: boolean;
+}): string {
+  if (input.submitting) {
+    return "mail.compose.submitting";
+  }
+  if (input.workflow === "admin_direct") {
+    return "mail.compose.send";
+  }
+  if (input.approvalReturned) {
+    return "mail.compose.resubmitApproval";
+  }
+  return "mail.compose.submitApproval";
 }

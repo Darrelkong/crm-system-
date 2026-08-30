@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "@/i18n/provider";
 import {
+  createAdminDirectDraftRevision,
   createDraft,
   createDraftRevision,
   discardDraft,
@@ -13,20 +14,23 @@ import {
   fetchOutboundRevision,
   fetchSendOperationDelivery,
   fetchSendOperationForApproval,
+  initiateAdminDirectSend,
   postApprovalResubmit,
   submitRevisionForApproval,
   updateDraft,
 } from "@/lib/mail/client/api";
 import type { ApprovalApiItem } from "@/lib/mail/client/approval-workflow-management";
 import {
-  resolveApprovedOutboundDisplayPhase,
+  resolveOutboundDisplayPhase,
   type SendDeliveryLifecycleApiItem,
   type SendOperationApiItem,
 } from "@/lib/mail/client/approved-outbound-queue";
 import {
+  buildAdminDirectSendIdempotencyKey,
   buildSubmissionIssueMessageKey,
   canSubmitComposeForApproval,
   findAuthorApprovalForDraft,
+  resolveComposeOutboundWorkflow,
   resolveComposeSubmissionPhase,
   validateComposeForSubmission,
   type ComposeSubmissionIssueCode,
@@ -171,6 +175,7 @@ async function loadSendDeliveryLifecycle(
 
 export function useMailComposeDraft(input: {
   actorUserId: string | null;
+  isCrmRootAdmin?: boolean;
   seed?: ComposeInitialSeed;
   bodyHtmlReaderRef?: React.MutableRefObject<(() => string) | null>;
   onClose?: () => void;
@@ -178,6 +183,8 @@ export function useMailComposeDraft(input: {
   onSubmitted?: (approval: ApprovalApiItem) => void;
 }) {
   const actorUserId = input.actorUserId;
+  const isCrmRootAdmin = input.isCrmRootAdmin ?? false;
+  const composeOutboundWorkflow = resolveComposeOutboundWorkflow(isCrmRootAdmin);
   const [composeOptions, setComposeOptions] = useState<ComposeContextOption[]>(
     () => getCachedComposeContext(actorUserId) ?? [],
   );
@@ -1095,6 +1102,43 @@ export function useMailComposeDraft(input: {
         return;
       }
 
+      if (composeOutboundWorkflow === "admin_direct") {
+        const revisionResult = await createAdminDirectDraftRevision(
+          working.draftId,
+          { expectedAutosaveVersion: working.autosaveVersion },
+        );
+        if (!revisionResult.ok) {
+          if (revisionResult.errorCode === "STALE_VERSION") {
+            const refreshed = await fetchDraft(working.draftId);
+            if (refreshed.ok) {
+              const merged = draftDetailToComposeState(refreshed.item);
+              stateRef.current = { ...working, ...merged };
+              setState((current) => ({ ...current, ...merged }));
+            }
+          }
+          setSubmissionError(revisionResult.error);
+          return;
+        }
+
+        const sendResult = await initiateAdminDirectSend(
+          revisionResult.item.id,
+          {
+            idempotencyKey: buildAdminDirectSendIdempotencyKey(
+              revisionResult.item.id,
+            ),
+          },
+        );
+        if (!sendResult.ok) {
+          setSubmissionError(sendResult.error);
+          return;
+        }
+
+        setApproval(null);
+        setSendOperation(sendResult.item);
+        setSendDelivery(await loadSendDeliveryLifecycle(sendResult.item));
+        return;
+      }
+
       const revisionResult = await createDraftRevision(working.draftId, {
         expectedAutosaveVersion: working.autosaveVersion,
       });
@@ -1138,13 +1182,14 @@ export function useMailComposeDraft(input: {
     } finally {
       setSubmitting(false);
     }
-  }, [approval, composeOptions, flushSave, input]);
+  }, [approval, composeOptions, composeOutboundWorkflow, flushSave, input]);
 
   const submissionPhase = resolveComposeSubmissionPhase({
     submitting,
     approval,
+    send: sendOperation,
   });
-  const outboundDisplayPhase = resolveApprovedOutboundDisplayPhase({
+  const outboundDisplayPhase = resolveOutboundDisplayPhase({
     approval,
     send: sendOperation,
     delivery: sendDelivery,
@@ -1153,6 +1198,7 @@ export function useMailComposeDraft(input: {
     stateRef.current,
     composeOptions,
     approval,
+    sendOperation,
   );
 
   return {
@@ -1164,6 +1210,7 @@ export function useMailComposeDraft(input: {
     sendOperation,
     outboundDisplayPhase,
     submissionPhase,
+    composeOutboundWorkflow,
     submissionError,
     submissionIssues,
     canSubmit,

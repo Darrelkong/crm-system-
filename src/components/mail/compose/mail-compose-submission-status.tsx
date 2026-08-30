@@ -13,11 +13,13 @@ export function MailComposeSubmissionStatus({
   approval,
   submissionError,
   outboundDisplayPhase,
+  composeOutboundWorkflow,
 }: {
   phase: ComposeSubmissionPhase;
   approval: ApprovalApiItem | null;
   submissionError: string | null;
   outboundDisplayPhase?: SendDeliveryDisplayPhase;
+  composeOutboundWorkflow?: "admin_direct" | "staff_approved";
 }) {
   const { t } = useTranslation();
 
@@ -38,6 +40,17 @@ export function MailComposeSubmissionStatus({
   }
 
   if (!approval) {
+    if (
+      composeOutboundWorkflow === "admin_direct" &&
+      phase === "approved" &&
+      outboundDisplayPhase
+    ) {
+      return (
+        <p className="text-sm crm-text-secondary" aria-live="polite">
+          {t(resolveSendDeliveryLifecycleLabelKey(outboundDisplayPhase))}
+        </p>
+      );
+    }
     return null;
   }
 

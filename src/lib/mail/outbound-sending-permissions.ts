@@ -6,7 +6,7 @@ import {
   type MailOperationalActor,
 } from "@/lib/mail/system-mail-actor";
 import {
-  assertEffectiveMailAccess,
+  assertMailAccessEnabled,
   assertMailOutboundApprovalReview,
   hasMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
@@ -32,14 +32,13 @@ export function assertCanDispatchOutboundSend(
     return;
   }
 
-  assertEffectiveMailAccess(actor);
-
   if (send.authorizationMode === "staff_approved") {
     assertMailOutboundApprovalReview(actor);
     return;
   }
 
   if (send.authorizationMode === "admin_direct") {
+    assertMailAccessEnabled(actor);
     if (actor.crmRole !== "admin") {
       throw MailServiceError.forbidden(
         "CRM admin role required to dispatch admin_direct send",
@@ -58,14 +57,11 @@ export function hasCanDispatchOutboundSend(
   if (isSystemMailActor(actor)) {
     return true;
   }
-  if (!actor.mailAccessEnabled) {
-    return false;
-  }
   if (send.authorizationMode === "staff_approved") {
     return hasMailOutboundApprovalReview(actor);
   }
   if (send.authorizationMode === "admin_direct") {
-    return actor.crmRole === "admin";
+    return actor.mailAccessEnabled && actor.crmRole === "admin";
   }
   return false;
 }

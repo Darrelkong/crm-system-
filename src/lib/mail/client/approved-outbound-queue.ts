@@ -111,12 +111,59 @@ export function resolveApprovedOutboundDisplayPhase(input: {
   send: SendOperationApiItem | null;
   delivery?: Pick<SendDeliveryLifecycleApiItem, "lifecyclePhase"> | null;
 }): SendDeliveryDisplayPhase {
+  if (input.send?.authorizationMode === "admin_direct" && !input.approval) {
+    return resolveAdminDirectOutboundDisplayPhase({
+      send: input.send,
+      delivery: input.delivery,
+    });
+  }
   if (!input.approval || input.approval.status !== "approved") {
     return "approved_only";
   }
   if (!input.send) {
     return "approved_only";
   }
+  if (input.send.status === "pending") {
+    return "waiting_to_send";
+  }
+  if (input.send.status === "processing") {
+    return "sending";
+  }
+  if (input.send.status === "failed") {
+    return "send_failed";
+  }
+  if (input.send.status === "dispatch_uncertain") {
+    return "dispatch_uncertain";
+  }
+
+  if (input.delivery?.lifecyclePhase === "delivered") {
+    return "delivered";
+  }
+  if (input.delivery?.lifecyclePhase === "deferred") {
+    return "delivery_deferred";
+  }
+  if (input.delivery?.lifecyclePhase === "bounced") {
+    return "delivery_bounced";
+  }
+  if (input.delivery?.lifecyclePhase === "complaint") {
+    return "delivery_complaint";
+  }
+
+  return "sent";
+}
+
+export function resolveOutboundDisplayPhase(input: {
+  approval: ApprovalApiItem | null;
+  send: SendOperationApiItem | null;
+  delivery?: Pick<SendDeliveryLifecycleApiItem, "lifecyclePhase"> | null;
+}): SendDeliveryDisplayPhase {
+  return resolveApprovedOutboundDisplayPhase(input);
+}
+
+function resolveAdminDirectOutboundDisplayPhase(input: {
+  send: SendOperationApiItem;
+  delivery?: Pick<SendDeliveryLifecycleApiItem, "lifecyclePhase"> | null;
+}): SendDeliveryDisplayPhase {
   if (input.send.status === "pending") {
     return "waiting_to_send";
   }

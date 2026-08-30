@@ -205,6 +205,7 @@ async function setupAdminComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,
@@ -238,6 +239,7 @@ async function setupStaffComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,
@@ -333,7 +335,10 @@ describe("admin-direct revision from draft integration", () => {
       .where(eq(schema.mailOutboundApprovals.revisionChainId, revision.revisionChainId));
     assert.equal(approvals.length, 0);
 
-    const sendsBefore = await db.select().from(schema.mailSendOperations);
+    const sendsBefore = await db
+      .select()
+      .from(schema.mailSendOperations)
+      .where(eq(schema.mailSendOperations.outboundRevisionId, revision.id));
     assert.equal(sendsBefore.length, 0);
 
     const initiated = await initiateAdminDirectSend(db, adminActor, {
@@ -357,7 +362,8 @@ describe("admin-direct revision from draft integration", () => {
 
     const materializations = await db
       .select()
-      .from(schema.mailOutboundMessageMaterializations);
+      .from(schema.mailOutboundMessageMaterializations)
+      .where(eq(schema.mailOutboundMessageMaterializations.sendOperationId, initiated.id));
     assert.equal(materializations.length, 0);
   });
 

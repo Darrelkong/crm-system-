@@ -32,6 +32,7 @@ import {
   type ComposeInitialSeed,
 } from "@/lib/mail/client/draft-management";
 import { resolveComposeTitleKey } from "@/lib/mail/client/compose-reply-body";
+import { resolveComposeSubmitButtonLabelKey } from "@/lib/mail/client/compose-submission";
 import { normalizeInvisiblePastedForeground } from "@/lib/mail/client/compose-paste-normalization";
 
 export function MailComposeEditor({
@@ -64,6 +65,7 @@ export function MailComposeEditor({
     approval,
     outboundDisplayPhase,
     submissionPhase,
+    composeOutboundWorkflow,
     submissionError,
     submissionIssues,
     canSubmit,
@@ -84,6 +86,7 @@ export function MailComposeEditor({
     retryBootstrap,
   } = useMailComposeDraft({
     actorUserId: session?.user.id ?? null,
+    isCrmRootAdmin: session?.isCrmRootAdmin ?? false,
     seed,
     bodyHtmlReaderRef,
     onClose: dismiss,
@@ -124,6 +127,7 @@ export function MailComposeEditor({
         }
         canSubmit={canSubmit}
         submissionPhase={submissionPhase}
+        composeOutboundWorkflow={composeOutboundWorkflow}
         approval={approval}
         outboundDisplayPhase={outboundDisplayPhase}
         submissionError={submissionError}
@@ -155,6 +159,7 @@ function MailComposeEditorBody({
   onCancelAttachment,
   canSubmit,
   submissionPhase,
+  composeOutboundWorkflow,
   approval,
   outboundDisplayPhase,
   submissionError,
@@ -184,6 +189,9 @@ function MailComposeEditorBody({
   onCancelAttachment: (attachmentId: string) => void;
   canSubmit: boolean;
   submissionPhase: ReturnType<typeof useMailComposeDraft>["submissionPhase"];
+  composeOutboundWorkflow: ReturnType<
+    typeof useMailComposeDraft
+  >["composeOutboundWorkflow"];
   approval: ReturnType<typeof useMailComposeDraft>["approval"];
   outboundDisplayPhase: ReturnType<
     typeof useMailComposeDraft
@@ -657,6 +665,7 @@ function MailComposeEditorBody({
             approval={approval}
             outboundDisplayPhase={outboundDisplayPhase}
             submissionError={submissionError}
+            composeOutboundWorkflow={composeOutboundWorkflow}
           />
           {submitTouched && submissionIssues.length > 0 ? (
             <ul className="space-y-1 text-sm text-red-600 dark:text-red-400">
@@ -676,11 +685,13 @@ function MailComposeEditorBody({
                   onSubmit();
                 }}
               >
-                {submissionPhase === "submitting"
-                  ? t("mail.compose.submitting")
-                  : approval?.status === "returned"
-                    ? t("mail.compose.resubmitApproval")
-                    : t("mail.compose.submitApproval")}
+                {t(
+                  resolveComposeSubmitButtonLabelKey({
+                    submitting: submissionPhase === "submitting",
+                    workflow: composeOutboundWorkflow,
+                    approvalReturned: approval?.status === "returned",
+                  }),
+                )}
               </Button>
               <button
                 type="button"
@@ -704,6 +715,7 @@ function MailComposeEditorBody({
             approval={approval}
             outboundDisplayPhase={outboundDisplayPhase}
             submissionError={submissionError}
+            composeOutboundWorkflow={composeOutboundWorkflow}
           />
           {submitTouched && submissionIssues.length > 0 ? (
             <ul className="space-y-1 text-sm text-red-600 dark:text-red-400">
@@ -725,11 +737,13 @@ function MailComposeEditorBody({
                       onSubmit();
                     }}
                   >
-                    {submissionPhase === "submitting"
-                      ? t("mail.compose.submitting")
-                      : approval?.status === "returned"
-                        ? t("mail.compose.resubmitApproval")
-                        : t("mail.compose.submitApproval")}
+                    {t(
+                      resolveComposeSubmitButtonLabelKey({
+                        submitting: submissionPhase === "submitting",
+                        workflow: composeOutboundWorkflow,
+                        approvalReturned: approval?.status === "returned",
+                      }),
+                    )}
                   </Button>
                   <button
                     type="button"
@@ -758,11 +772,13 @@ function MailComposeEditorBody({
                     onSubmit();
                   }}
                 >
-                  {submissionPhase === "submitting"
-                    ? t("mail.compose.submitting")
-                    : approval?.status === "returned"
-                      ? t("mail.compose.resubmitApproval")
-                      : t("mail.compose.submitApproval")}
+                  {t(
+                    resolveComposeSubmitButtonLabelKey({
+                      submitting: submissionPhase === "submitting",
+                      workflow: composeOutboundWorkflow,
+                      approvalReturned: approval?.status === "returned",
+                    }),
+                  )}
                 </Button>
               </>
             )}

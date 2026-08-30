@@ -127,6 +127,15 @@ export function assertMailAccessEnabled(actor: MailActorContext): void {
   }
 }
 
+/** Persisted mail_user_access.is_enabled = 1 — required for compose/send (all actors). */
+export function hasEnabledMailUserAccess(actor: MailActorContext): boolean {
+  return actor.mailAccessEnabled;
+}
+
+export function assertEnabledMailUserAccess(actor: MailActorContext): void {
+  assertMailAccessEnabled(actor);
+}
+
 /** Effective Mail workspace / data-plane entry (root admin OR provisioned access). */
 export function hasEffectiveMailAccess(actor: MailActorContext): boolean {
   return isCrmRootAdmin(actor) || actor.mailAccessEnabled;

@@ -68,7 +68,10 @@ import {
 } from "@/lib/mail/client/draft-management";
 import {
   approvalResubmitPath,
+  buildAdminDirectSendIdempotencyKey,
+  draftAdminDirectRevisionPath,
   draftRevisionPath,
+  sendAdminDirectPath,
   submitRevisionApprovalPath,
 } from "@/lib/mail/client/compose-submission";
 import {
@@ -1188,6 +1191,62 @@ export async function createDraftRevision(
     return { ok: false, status: res.status, error, errorCode };
   }
   const data = (await res.json()) as { item: OutboundRevisionCreateApiItem };
+  return { ok: true, item: data.item };
+}
+
+export async function createAdminDirectDraftRevision(
+  draftId: string,
+  input: { expectedAutosaveVersion: number },
+): Promise<{
+  ok: true;
+  item: OutboundRevisionCreateApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(draftAdminDirectRevisionPath(draftId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to create admin-direct revision",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: OutboundRevisionCreateApiItem };
+  return { ok: true, item: data.item };
+}
+
+export async function initiateAdminDirectSend(
+  revisionId: string,
+  input: { idempotencyKey: string },
+): Promise<{
+  ok: true;
+  item: SendOperationApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(sendAdminDirectPath(revisionId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to initiate admin-direct send",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: SendOperationApiItem };
   return { ok: true, item: data.item };
 }
 

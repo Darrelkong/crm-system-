@@ -18,6 +18,7 @@ import {
 import { createMailbox } from "@/lib/mail/mailbox-service";
 import { createSenderIdentity } from "@/lib/mail/sender-identity-service";
 import { listComposeContextOptions } from "@/lib/mail/compose-context-service";
+import { MailServiceError } from "@/lib/mail/errors";
 import {
   buildMailAdminCenterCapabilities,
   buildMailSessionContext,
@@ -212,6 +213,14 @@ describe("CRM root admin derived supervision", () => {
     assert.equal(capabilities.senderIdentityManagement, true);
   });
 
+  it("blocks compose context without enabled mail user access", async () => {
+    await assert.rejects(
+      () => listComposeContextOptions(db, rootAdminActor()),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.status === 403,
+    );
+  });
+
   it("session context exposes persisted vs effective fields", () => {
     const context = buildMailSessionContext(
       {
@@ -227,13 +236,23 @@ describe("CRM root admin derived supervision", () => {
     assert.equal(context.isCrmRootAdmin, true);
   });
 
-  it("resolves full workspace shell for root admin", () => {
+  it("resolves full workspace shell when persisted mail access is enabled", () => {
     assert.equal(
       resolveMailWorkspaceShellMode({
-        effectiveMailAccessEnabled: true,
+        mailAccessEnabled: true,
         canAccessMailAdminCenter: true,
       }),
       "full",
+    );
+  });
+
+  it("resolves admin-only shell for root admin without persisted mail access", () => {
+    assert.equal(
+      resolveMailWorkspaceShellMode({
+        mailAccessEnabled: false,
+        canAccessMailAdminCenter: true,
+      }),
+      "admin_only",
     );
   });
 
@@ -241,7 +260,7 @@ describe("CRM root admin derived supervision", () => {
     const capabilities = buildMailAdminCenterCapabilities(delegatedAdminActor());
     assert.equal(
       resolveMailWorkspaceShellMode({
-        effectiveMailAccessEnabled: false,
+        mailAccessEnabled: false,
         canAccessMailAdminCenter: canAccessMailAdminCenter(capabilities),
       }),
       "admin_only",
@@ -344,7 +363,12 @@ describe("CRM root admin derived supervision", () => {
       updatedAt: now,
     });
 
-    const options = await listComposeContextOptions(db, rootAdminActor());
+    const rootWithMailAccess = actor(SEED_IDS.admin, {
+      crmRole: "admin",
+      mailAccessEnabled: true,
+      adminGrants: [],
+    });
+    const options = await listComposeContextOptions(db, rootWithMailAccess);
     assert.ok(
       !options.some((option) => option.senderIdentityId === identity.id),
       "root admin must not inherit staff sender identity canSend",

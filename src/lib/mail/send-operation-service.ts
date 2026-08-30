@@ -48,7 +48,6 @@ import type {
   NormalizedOutboundSubmission,
 } from "@/lib/mail/transport/mail-transport-adapter";
 import {
-  assertEffectiveMailAccess,
   assertMailAccessEnabled,
   assertMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
@@ -218,7 +217,7 @@ async function assertAdminDirectSendAuthority(
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
   await assertCanComposeFromIdentityInMailbox(db, actor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,
@@ -482,7 +481,7 @@ export async function getSendOperationForApproval(
     throw MailServiceError.notFound("Approval workflow not found");
   }
   if (approval.requestedByUserId === actor.userId) {
-    assertEffectiveMailAccess(actor);
+    assertMailAccessEnabled(actor);
   } else {
     assertMailOutboundApprovalReview(actor);
   }
@@ -571,7 +570,7 @@ export async function getSendOperation(
   actor: MailActorContext,
   sendOperationId: string,
 ): Promise<SafeSendOperationView> {
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
   return loadSafeSendOperationView(db, sendOperationId);
 }
 
@@ -1163,7 +1162,20 @@ export async function dispatchSendOperation(
   },
 ): Promise<SafeSendOperationView> {
   if (!isSystemMailActor(actor)) {
-    assertEffectiveMailAccess(actor);
+    const send = await findSendById(db, input.sendOperationId);
+    if (!send) {
+      throw MailServiceError.notFound("Send operation not found");
+    }
+    if (send.authorizationMode === "admin_direct") {
+      assertMailAccessEnabled(actor);
+      if (actor.crmRole !== "admin") {
+        throw MailServiceError.forbidden(
+          "CRM admin role required to dispatch admin_direct send",
+        );
+      }
+    } else {
+      assertMailOutboundApprovalReview(actor);
+    }
   }
 
   const transportMode =
@@ -1251,7 +1263,7 @@ export async function retrySendOperation(
     adapter: MailTransportAdapter;
   },
 ): Promise<SafeSendOperationView> {
-  assertEffectiveMailAccess(actor);
+  assertMailOutboundApprovalReview(actor);
 
   const send = await findSendById(db, input.sendOperationId);
   if (!send) {

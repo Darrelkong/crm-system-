@@ -6,7 +6,10 @@ import {
   buildSubmissionIssueMessageKey,
   canSubmitComposeForApproval,
   findAuthorApprovalForDraft,
+  isAdminDirectSendBlockingResubmit,
+  resolveComposeOutboundWorkflow,
   resolveComposeSubmissionPhase,
+  resolveComposeSubmitButtonLabelKey,
   validateComposeForSubmission,
 } from "@/lib/mail/client/compose-submission";
 import {
@@ -193,6 +196,102 @@ describe("compose submission helpers", () => {
       }),
       "returned",
     );
+    assert.equal(
+      resolveComposeSubmissionPhase({
+        submitting: false,
+        approval: null,
+        send: {
+          id: "send-1",
+          outboundRevisionId: "revision-1",
+          revisionChainId: "chain-1",
+          contentHash: "hash",
+          hashVersion: 1,
+          revisionKind: "admin_direct",
+          authorizationMode: "admin_direct",
+          approvalId: null,
+          idempotencyKey: "key",
+          status: "pending",
+          orchestrationVersion: 1,
+          initiatedByUserId: "admin",
+          createdAt: "2026-08-22T08:00:00.000Z",
+          completedAt: null,
+          nextAttemptAt: null,
+        },
+      }),
+      "approved",
+    );
+  });
+
+  it("routes CRM root admin to admin_direct workflow", () => {
+    assert.equal(resolveComposeOutboundWorkflow(true), "admin_direct");
+    assert.equal(resolveComposeOutboundWorkflow(false), "staff_approved");
+  });
+
+  it("uses Send label for root admin workflow button", () => {
+    assert.equal(
+      resolveComposeSubmitButtonLabelKey({
+        submitting: false,
+        workflow: "admin_direct",
+        approvalReturned: false,
+      }),
+      "mail.compose.send",
+    );
+    assert.equal(
+      resolveComposeSubmitButtonLabelKey({
+        submitting: false,
+        workflow: "staff_approved",
+        approvalReturned: false,
+      }),
+      "mail.compose.submitApproval",
+    );
+  });
+
+  it("blocks admin_direct resubmit while send is in flight", () => {
+    assert.equal(
+      isAdminDirectSendBlockingResubmit({
+        id: "send-1",
+        outboundRevisionId: "revision-1",
+        revisionChainId: "chain-1",
+        contentHash: "hash",
+        hashVersion: 1,
+        revisionKind: "admin_direct",
+        authorizationMode: "admin_direct",
+        approvalId: null,
+        idempotencyKey: "key",
+        status: "pending",
+        orchestrationVersion: 1,
+        initiatedByUserId: "admin",
+        createdAt: "2026-08-22T08:00:00.000Z",
+        completedAt: null,
+        nextAttemptAt: null,
+      }),
+      true,
+    );
+    assert.equal(
+      canSubmitComposeForApproval(
+        validState(),
+        [composeOption],
+        null,
+        {
+          id: "send-1",
+          outboundRevisionId: "revision-1",
+          revisionChainId: "chain-1",
+          contentHash: "hash",
+          hashVersion: 1,
+          revisionKind: "admin_direct",
+          authorizationMode: "admin_direct",
+          approvalId: null,
+          idempotencyKey: "key",
+          status: "pending",
+          orchestrationVersion: 1,
+          initiatedByUserId: "admin",
+          createdAt: "2026-08-22T08:00:00.000Z",
+          completedAt: null,
+          nextAttemptAt: null,
+        },
+      ),
+      false,
+    );
   });
 });
 
@@ -209,11 +308,16 @@ describe("compose submission wiring", () => {
     const api = readFileSync("src/lib/mail/client/api.ts", "utf8");
 
     assert.match(hook, /createDraftRevision/);
+    assert.match(hook, /createAdminDirectDraftRevision/);
+    assert.match(hook, /initiateAdminDirectSend/);
     assert.match(hook, /submitRevisionForApproval/);
     assert.match(hook, /postApprovalResubmit/);
-    assert.match(editor, /submitApproval/);
+    assert.match(hook, /resolveComposeOutboundWorkflow/);
+    assert.match(editor, /resolveComposeSubmitButtonLabelKey/);
     assert.match(editor, /MailComposeSubmissionStatus/);
     assert.match(api, /draftRevisionPath/);
+    assert.match(api, /draftAdminDirectRevisionPath/);
+    assert.match(api, /sendAdminDirectPath/);
     assert.match(api, /submitRevisionApprovalPath/);
   });
 });

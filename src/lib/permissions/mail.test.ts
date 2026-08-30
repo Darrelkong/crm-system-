@@ -3,8 +3,9 @@ import { describe, it } from "node:test";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
 import {
-  assertEffectiveMailAccess,
   assertMailAccessEnabled,
+  assertEffectiveMailAccess,
+  hasEnabledMailUserAccess,
   assertMailAccountManagement,
   assertMailAddressAssignment,
   assertMailAdminRead,
@@ -63,6 +64,22 @@ describe("mail permissions", () => {
         error instanceof MailServiceError &&
         error.errorCode === "FORBIDDEN",
     );
+    assert.throws(
+      () =>
+        assertMailAccessEnabled(
+          actor({ crmRole: "admin", mailAccessEnabled: false }),
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("separates enabled mail user access from effective mail access for root admin", () => {
+    const rootWithoutRow = actor({ crmRole: "admin", mailAccessEnabled: false });
+    assert.equal(hasEnabledMailUserAccess(rootWithoutRow), false);
+    assert.doesNotThrow(() => assertEffectiveMailAccess(rootWithoutRow));
+    assert.doesNotThrow(() => assertMailAccountManagement(rootWithoutRow));
   });
 
   it("allows CRM root admin for management grants without explicit mail admin grant", () => {

@@ -205,6 +205,7 @@ async function setupComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, setupAdminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, setupAdminActor, {
     address,

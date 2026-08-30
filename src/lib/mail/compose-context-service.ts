@@ -6,7 +6,7 @@ import {
   resolveOutboundComposeMailboxId,
 } from "@/lib/mail/compose-authorization";
 import { MailServiceError } from "@/lib/mail/errors";
-import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
+import { assertMailAccessEnabled } from "@/lib/permissions/mail";
 
 function isSystemNotificationSenderAddress(address: string): boolean {
   const normalized = address.trim().toLowerCase();
@@ -30,7 +30,7 @@ export async function listComposeContextOptions(
   db: Database,
   actor: MailActorContext,
 ): Promise<ComposeContextOptionView[]> {
-  assertEffectiveMailAccess(actor);
+  assertMailAccessEnabled(actor);
 
   const grants = await db
     .select()

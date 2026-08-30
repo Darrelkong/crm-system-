@@ -3,6 +3,7 @@ import type { MailSenderIdentity } from "../../../drizzle/schema/mail-sender-ide
 import { schema, type Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
+import { assertMailAccessEnabled } from "@/lib/permissions/mail";
 
 export type SenderIdentitySendGrantContext = {
   identity: MailSenderIdentity;

@@ -160,10 +160,10 @@ export function buildMailSessionContext(
 }
 
 export function resolveMailWorkspaceShellMode(input: {
-  effectiveMailAccessEnabled: boolean;
+  mailAccessEnabled: boolean;
   canAccessMailAdminCenter: boolean;
 }): MailWorkspaceShellMode {
-  if (input.effectiveMailAccessEnabled) {
+  if (input.mailAccessEnabled) {
     return "full";
   }
   if (input.canAccessMailAdminCenter) {

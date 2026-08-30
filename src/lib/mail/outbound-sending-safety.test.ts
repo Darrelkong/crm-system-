@@ -97,6 +97,23 @@ describe("outbound sending permissions", () => {
     );
   });
 
+  it("requires enabled mail user access to dispatch admin_direct sends", () => {
+    assert.throws(
+      () =>
+        assertCanDispatchOutboundSend(
+          actor({ crmRole: "admin", mailAccessEnabled: false }),
+          { authorizationMode: "admin_direct" },
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
+    assert.doesNotThrow(() =>
+      assertCanDispatchOutboundSend(actor({ crmRole: "admin" }), {
+        authorizationMode: "admin_direct",
+      }),
+    );
+  });
+
   it("exposes dispatch capability helper", () => {
     assert.equal(
       hasCanDispatchOutboundSend(actor({ adminGrants: ["approval_review"] }), {
