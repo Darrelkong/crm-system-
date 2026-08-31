@@ -98,6 +98,8 @@ export type MailBackgroundTickDeps = {
   notificationTransport?: NotificationTransportAdapter;
   /** Verification challenge sink — omit to skip verification dispatch. */
   verificationChallengeSink?: NotificationVerificationChallengeSink;
+  /** HMAC secret for verification challenge generation — required with verification sink. */
+  verificationChallengeSecret?: string;
   /** Business outbound dispatch wiring — omit to skip outbound dispatch category. */
   outboundDispatch?: OutboundBackgroundDispatchDeps;
   trustNow?: () => string;
@@ -174,7 +176,9 @@ export async function runMailBackgroundTick(
     notificationDispatch: emptyCounters(),
     notificationDispatchSkipped: deps.notificationTransport === undefined,
     verificationDispatch: emptyCounters(),
-    verificationDispatchSkipped: deps.verificationChallengeSink === undefined,
+    verificationDispatchSkipped:
+      deps.verificationChallengeSink === undefined ||
+      deps.verificationChallengeSecret === undefined,
     outboundDispatch: emptyCounters(),
     outboundDispatchSkipped: deps.outboundDispatch === undefined,
     outboundSentMaterialization: createOutboundSentMaterializationCounters(),
@@ -429,7 +433,11 @@ export async function runMailBackgroundTick(
   }
 
   // 6. Process due verification outbox — skipped when verification sink absent
-  if (!summary.stoppedReason && deps.verificationChallengeSink) {
+  if (
+    !summary.stoppedReason &&
+    deps.verificationChallengeSink &&
+    deps.verificationChallengeSecret
+  ) {
     const rows = await listDueVerificationNotificationOutboxEvents(db, {
       trustNow: notificationTrustNow,
       limit: remainingCategoryLimit(),
@@ -460,6 +468,7 @@ export async function runMailBackgroundTick(
             {
               outboxId: row.id,
               sink: deps.verificationChallengeSink!,
+              verificationSecret: deps.verificationChallengeSecret!,
             },
           );
           if (processed.outcome === "sent") {

@@ -200,16 +200,24 @@ async function queueVerificationSend(
   );
 }
 
+function configuredVerificationSecret(): string {
+  const secret = process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+  assert.ok(secret);
+  return secret;
+}
+
 async function dispatchVerificationOutbox(
   db: TestDb,
   outboxId: string,
   sink: NotificationVerificationChallengeSink,
+  verificationSecret?: string,
 ) {
   const claim = await claimNotificationOutboxForProcessing(db, { outboxId });
   assert.equal(claim.claimed, true);
   return processClaimedVerificationOutboxDelivery(db, SYSTEM_MAIL_ACTOR, {
     outboxId,
     sink,
+    verificationSecret: verificationSecret ?? configuredVerificationSecret(),
   });
 }
 
@@ -1088,7 +1096,11 @@ describe("notification verification delivery (6J.3)", () => {
     const processed = await processClaimedVerificationOutboxDelivery(
       db,
       SYSTEM_MAIL_ACTOR,
-      { outboxId: outbox!.id, sink },
+      {
+        outboxId: outbox!.id,
+        sink,
+        verificationSecret: configuredVerificationSecret(),
+      },
     );
     assert.equal(processed.outcome, "failed_permanent");
     assert.equal(
@@ -1155,6 +1167,7 @@ describe("notification verification delivery (6J.3)", () => {
         db,
         outbox!.id,
         createCapturingNotificationVerificationChallengeSink().sink,
+        "",
       );
       assert.equal(processed.outcome, "failed_permanent");
       assert.equal(processed.failureCode, VERIFICATION_OUTBOX_FAILURE_CODES.preProviderFailed);
@@ -1314,6 +1327,7 @@ describe("verification carrier-type isolation (6J.3A gate)", () => {
         processClaimedVerificationOutboxDelivery(db, SYSTEM_MAIL_ACTOR, {
           outboxId: outbox.id,
           sink: createCapturingNotificationVerificationChallengeSink().sink,
+          verificationSecret: configuredVerificationSecret(),
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.status === 400,
@@ -1386,6 +1400,7 @@ describe("verification carrier-type isolation (6J.3A gate)", () => {
         processClaimedVerificationOutboxDelivery(db, SYSTEM_MAIL_ACTOR, {
           outboxId: outbox.id,
           sink: createCapturingNotificationVerificationChallengeSink().sink,
+          verificationSecret: configuredVerificationSecret(),
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.status === 400,

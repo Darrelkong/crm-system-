@@ -13,6 +13,10 @@ import {
   isMailNotificationVerificationTransportEnabled,
   MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR,
 } from "../src/lib/mail/notification-verification-transport";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+  requireNotificationVerificationSecretFromEnv,
+} from "../src/lib/mail/notification-verification-secret";
 import { createInboundAttachmentStore } from "../src/lib/mail/inbound-attachment-store";
 import { createInboundRawPayloadStore } from "../src/lib/mail/inbound-raw-payload-store";
 import {
@@ -42,6 +46,7 @@ export interface MailJobsEnv extends OutboundBusinessEmailBindingEnv {
   MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
   MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE?: string;
   MAIL_OUTBOUND_TRANSPORT_MODE?: string;
+  [MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR]?: string;
   [CLOUDFLARE_EMAIL_SENDING_API_TOKEN_ENV]?: string;
   [CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID_ENV]?: string;
 }
@@ -81,6 +86,18 @@ function assertVerificationRestTransportConfig(env: MailJobsEnv): void {
   }
 }
 
+function assertMailJobsVerificationSecret(env: MailJobsEnv): void {
+  try {
+    requireNotificationVerificationSecretFromEnv(
+      env as unknown as Record<string, string | undefined>,
+    );
+  } catch {
+    throw new Error(
+      `Mail Jobs Worker requires ${MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR} secret when MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE is production`,
+    );
+  }
+}
+
 export function buildMailBackgroundTickDeps(
   env: MailJobsEnv,
 ): MailBackgroundTickDeps {
@@ -109,6 +126,12 @@ export function buildMailBackgroundTickDeps(
     })
   ) {
     assertVerificationRestTransportConfig(env);
+    assertMailJobsVerificationSecret(env);
+    const verificationChallengeSecret =
+      requireNotificationVerificationSecretFromEnv(
+        env as unknown as Record<string, string | undefined>,
+      );
+    deps.verificationChallengeSecret = verificationChallengeSecret;
     const restConfig = resolveCloudflareEmailServiceRestVerificationTransportConfig(
       env,
     );

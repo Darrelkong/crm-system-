@@ -45,6 +45,46 @@ describe("verification token helpers", () => {
     assert.equal(tokenHash.length, 64);
   });
 
+  it("generates matching hashes when explicit Worker env secret is supplied", () => {
+    const workerEnvSecret = "standalone-mail-jobs-worker-env-secret";
+    delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    const explicit = generateVerificationChallenge(
+      TEST_IDENTITY_ID,
+      Date.now(),
+      workerEnvSecret,
+    );
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] = workerEnvSecret;
+    const crmImplicit = generateVerificationChallenge(TEST_IDENTITY_ID);
+    const sampleToken = "A1B2C3D4";
+    assert.equal(
+      hashVerificationToken(sampleToken, TEST_IDENTITY_ID, workerEnvSecret),
+      hashVerificationToken(sampleToken, TEST_IDENTITY_ID),
+    );
+    assert.equal(
+      hashVerificationToken(explicit.token, TEST_IDENTITY_ID, workerEnvSecret),
+      explicit.tokenHash,
+    );
+    assert.equal(
+      hashVerificationToken(crmImplicit.token, TEST_IDENTITY_ID),
+      crmImplicit.tokenHash,
+    );
+  });
+
+  it("rejects blank explicit secrets without exposing secret values", () => {
+    assert.throws(
+      () => generateVerificationChallenge(TEST_IDENTITY_ID, Date.now(), "   "),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(
+          error.message,
+          new RegExp(MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR),
+        );
+        assert.doesNotMatch(error.message, /standalone|secret-value/i);
+        return true;
+      },
+    );
+  });
+
   it("rejects invalid example shapes", () => {
     assert.equal(isValidVerificationCodeFormat("ABCDEFGH"), false);
     assert.equal(isValidVerificationCodeFormat("12345678"), false);

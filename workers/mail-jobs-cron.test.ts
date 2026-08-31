@@ -113,6 +113,14 @@ describe("mail jobs cron static config", () => {
     assert.doesNotMatch(worker, /createEmailNotificationVerificationChallengeSink\(\s*env\.EMAIL/);
   });
 
+  it("worker source wires verification secret from Worker env into tick deps", () => {
+    const worker = read("workers/mail-jobs-cron.ts");
+    assert.match(worker, /MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR/);
+    assert.match(worker, /requireNotificationVerificationSecretFromEnv/);
+    assert.match(worker, /verificationChallengeSecret/);
+    assert.doesNotMatch(worker, /process\.env\[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR\]/);
+  });
+
   it("worker source wires Cloudflare notification transport behind explicit flag only", () => {
     const worker = read("workers/mail-jobs-cron.ts");
     assert.doesNotMatch(worker, /FakeNotificationTransportAdapter/);
@@ -195,12 +203,48 @@ describe("mail jobs cron wiring", () => {
       DB: {} as D1Database,
       ATTACHMENTS: {} as R2Bucket,
       MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+      MAIL_NOTIFICATION_VERIFICATION_SECRET: "mail-jobs-test-verification-secret",
       CLOUDFLARE_EMAIL_SENDING_API_TOKEN: "test-token",
       CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID: "test-account-id",
     } satisfies MailJobsEnv;
 
     const deps = buildMailBackgroundTickDeps(env);
     assert.ok(deps.verificationChallengeSink);
+    assert.equal(
+      deps.verificationChallengeSecret,
+      "mail-jobs-test-verification-secret",
+    );
+  });
+
+  it("fails clearly when verification secret is missing for production transport", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+      CLOUDFLARE_EMAIL_SENDING_API_TOKEN: "test-token",
+      CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID: "test-account-id",
+    } satisfies MailJobsEnv;
+
+    assert.throws(
+      () => buildMailBackgroundTickDeps(env),
+      /MAIL_NOTIFICATION_VERIFICATION_SECRET secret when MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE is production/,
+    );
+  });
+
+  it("fails clearly when verification secret is blank for production transport", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+      MAIL_NOTIFICATION_VERIFICATION_SECRET: "   ",
+      CLOUDFLARE_EMAIL_SENDING_API_TOKEN: "test-token",
+      CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID: "test-account-id",
+    } satisfies MailJobsEnv;
+
+    assert.throws(
+      () => buildMailBackgroundTickDeps(env),
+      /MAIL_NOTIFICATION_VERIFICATION_SECRET secret when MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE is production/,
+    );
   });
 
   it("fails clearly when verification REST transport config is missing", () => {
@@ -221,6 +265,7 @@ describe("mail jobs cron wiring", () => {
       DB: {} as D1Database,
       ATTACHMENTS: {} as R2Bucket,
       MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+      MAIL_NOTIFICATION_VERIFICATION_SECRET: "mail-jobs-test-verification-secret",
       CLOUDFLARE_EMAIL_SENDING_API_TOKEN: "test-token",
       CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID: "test-account-id",
     } satisfies MailJobsEnv;

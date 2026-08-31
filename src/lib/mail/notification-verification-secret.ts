@@ -31,3 +31,15 @@ export function requireNotificationVerificationSecret(): string {
   }
   return secret;
 }
+
+export function requireNotificationVerificationSecretFromEnv(
+  env: Record<string, string | undefined>,
+): string {
+  const secret = resolveNotificationVerificationSecret(env);
+  if (!secret) {
+    throw new Error(
+      `${MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR} is not configured`,
+    );
+  }
+  return secret;
+}

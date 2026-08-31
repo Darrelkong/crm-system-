@@ -512,6 +512,7 @@ export async function processClaimedVerificationOutboxDelivery(
   input: {
     outboxId: string;
     sink: NotificationVerificationChallengeSink;
+    verificationSecret: string;
   },
 ): Promise<ProcessNotificationOutboxResult> {
   const outbox = await findNotificationOutboxById(db, input.outboxId);
@@ -591,7 +592,11 @@ export async function processClaimedVerificationOutboxDelivery(
   );
   let challenge: ReturnType<typeof generateVerificationChallenge>;
   try {
-    challenge = generateVerificationChallenge(identity.id, Date.parse(now));
+    challenge = generateVerificationChallenge(
+      identity.id,
+      Date.parse(now),
+      input.verificationSecret,
+    );
   } catch (error) {
     logVerificationDeliveryStage(
       observation,

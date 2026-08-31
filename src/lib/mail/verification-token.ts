@@ -5,7 +5,10 @@ import {
   isValidVerificationCodeFormat,
   verificationExpiresAt,
 } from "@/lib/mail/notification-verification-challenge-policy";
-import { requireNotificationVerificationSecret } from "@/lib/mail/notification-verification-secret";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+  requireNotificationVerificationSecret,
+} from "@/lib/mail/notification-verification-secret";
 
 const VERIFICATION_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 const VERIFICATION_DIGITS = "0123456789";
@@ -89,10 +92,24 @@ function shuffleChars(chars: string[]): string[] {
   return next;
 }
 
+function resolveChallengeHashSecret(secret?: string): string {
+  if (secret === undefined) {
+    return requireNotificationVerificationSecret();
+  }
+  const trimmed = secret.trim();
+  if (!trimmed) {
+    throw new Error(
+      `${MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR} is not configured`,
+    );
+  }
+  return trimmed;
+}
+
 /** Generates an 8-character A-Z0-9 code with at least one letter and one digit. */
 export function generateVerificationChallenge(
   identityId: string,
   nowMs = Date.now(),
+  secret?: string,
 ): {
   token: string;
   tokenHash: string;
@@ -111,7 +128,11 @@ export function generateVerificationChallenge(
   }
   return {
     token,
-    tokenHash: hashVerificationToken(token, identityId),
+    tokenHash: hashVerificationToken(
+      token,
+      identityId,
+      resolveChallengeHashSecret(secret),
+    ),
     expiresAt: verificationExpiresAt(nowMs),
   };
 }
