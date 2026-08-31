@@ -59,7 +59,7 @@ export async function enqueueNotificationIdentityVerificationDelivery(
   }
 
   const nowMs = options?.nowMs ?? Date.now();
-  await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
+  await assertVerificationTokenIssueRateLimit(db, actor, nowMs);
   assertVerificationResendCooldown(pending, nowMs);
 
   const now = new Date(nowMs).toISOString();

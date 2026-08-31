@@ -148,6 +148,8 @@ describe("notification verification security correction", () => {
       "utf8",
     );
     assert.match(serviceSource, /assertVerificationTokenIssueRateLimit/);
+    assert.match(serviceSource, /isVerificationTokenIssueRateLimitExempt/);
+    assert.match(serviceSource, /isCrmRootAdmin\(actor\)/);
   });
 
   it("propagates policy errors instead of swallowing them as delivery_failed", () => {

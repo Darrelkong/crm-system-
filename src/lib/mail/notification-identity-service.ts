@@ -16,6 +16,7 @@ import {
   assertMailNotificationProofManagement,
   assertMailPermissionManagement,
   assertNotificationIdentityTargetAccess,
+  isCrmRootAdmin,
 } from "@/lib/permissions/mail";
 import {
   type NotificationVerificationChallengeSink,
@@ -873,11 +874,22 @@ export async function findAuthoritativePendingIdentityForUser(
   return findActivePendingNotificationIdentity(db, userId);
 }
 
+/** CRM root administrators are exempt from the rolling 24h issue quota only. */
+export function isVerificationTokenIssueRateLimitExempt(
+  actor: MailActorContext,
+): boolean {
+  return isCrmRootAdmin(actor);
+}
+
 export async function assertVerificationTokenIssueRateLimit(
   db: Database,
-  actorUserId: string,
+  actor: MailActorContext,
   nowMs: number,
 ): Promise<void> {
+  if (isVerificationTokenIssueRateLimitExempt(actor)) {
+    return;
+  }
+
   const windowStart = new Date(
     nowMs - VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_WINDOW_MS,
   ).toISOString();
@@ -886,7 +898,7 @@ export async function assertVerificationTokenIssueRateLimit(
     .from(schema.auditLogs)
     .where(
       and(
-        eq(schema.auditLogs.userId, actorUserId),
+        eq(schema.auditLogs.userId, actor.userId),
         or(
           eq(
             schema.auditLogs.action,
@@ -956,7 +968,7 @@ export async function sendNotificationIdentityVerificationChallenge(
     }
 
     const nowMs = options?.nowMs ?? Date.now();
-    await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
+    await assertVerificationTokenIssueRateLimit(db, actor, nowMs);
 
     let delivered = false;
     try {
@@ -1046,7 +1058,7 @@ export async function issueSelfVerificationTokenForAdminProof(
   assertMailNotificationProofManagement(actor);
 
   const nowMs = options?.nowMs ?? Date.now();
-  await assertVerificationTokenIssueRateLimit(db, actor.userId, nowMs);
+  await assertVerificationTokenIssueRateLimit(db, actor, nowMs);
 
   const pending = await findAuthoritativePendingIdentityForUser(
     db,

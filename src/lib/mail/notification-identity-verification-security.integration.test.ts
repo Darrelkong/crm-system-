@@ -19,19 +19,26 @@ import {
 } from "@/lib/mail/notification-identity-service";
 import { assertNotificationIdentityResponseHasNoSecrets } from "@/lib/mail/notification-identity-serialization";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
-import { NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS } from "@/lib/mail/notification-verification-challenge-policy";
+import {
+  NOTIFICATION_VERIFICATION_EXPIRY_MS,
+  NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS,
+  isValidVerificationCodeFormat,
+} from "@/lib/mail/notification-verification-challenge-policy";
 import {
   assertNotificationVerificationProofTokenApiAllowed,
 } from "@/lib/mail/notification-verification-proof-guard";
-import { hashVerificationToken } from "@/lib/mail/verification-token";
+import { hashVerificationToken, generateVerificationChallenge } from "@/lib/mail/verification-token";
 import {
   MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
 } from "@/lib/mail/notification-verification-secret";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
+import { isCrmRootAdmin } from "@/lib/permissions/mail";
 
 const FIXTURE = "mail-phase2h-6j2-security";
 const TARGET_USER = SEED_IDS.staffA;
 const OTHER_USER = SEED_IDS.staffB;
+const RESEND_COOLDOWN_ADVANCE_MS =
+  NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000;
 
 type TestDb = ReturnType<typeof drizzle<typeof schema>>;
 
@@ -60,7 +67,7 @@ function fixtureEmail(localPart: string): string {
 }
 
 async function cleanupFixtures(db: TestDb) {
-  for (const userId of [TARGET_USER, OTHER_USER, SEED_IDS.staffB]) {
+  for (const userId of [TARGET_USER, OTHER_USER, SEED_IDS.staffB, SEED_IDS.admin]) {
     const outboxRows = await db
       .select({ id: schema.mailNotificationOutbox.id })
       .from(schema.mailNotificationOutbox)
@@ -82,6 +89,29 @@ async function cleanupFixtures(db: TestDb) {
     await db
       .delete(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, userId));
+  }
+}
+
+async function seedIssueAuditRows(
+  db: TestDb,
+  actorUserId: string,
+  count: number,
+  baseNowMs: number,
+) {
+  for (let index = 0; index < count; index += 1) {
+    await db.insert(schema.auditLogs).values({
+      id: crypto.randomUUID(),
+      userId: actorUserId,
+      action: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationSendQueued,
+      entityType: "mail_notification_outbox",
+      entityId: crypto.randomUUID(),
+      metadata: JSON.stringify({
+        targetUserId: TARGET_USER,
+        notificationIdentityId: crypto.randomUUID(),
+        destinationEmail: fixtureEmail(`seed-${index}`),
+      }),
+      createdAt: new Date(baseNowMs + index * 1_000).toISOString(),
+    });
   }
 }
 
@@ -393,7 +423,7 @@ describe("notification identity verification security", () => {
     assert.equal(result.delivery.destinationEmail, fixtureEmail("transport-off"));
   });
 
-  it("enforces deterministic send rate limit", async () => {
+  it("enforces deterministic send rate limit for delegated staff", async () => {
     await createPendingNotificationIdentity(db, permissionActor, {
       targetUserId: TARGET_USER,
       email: fixtureEmail("rate-limit"),
@@ -412,8 +442,149 @@ describe("notification identity verification security", () => {
           challengeSink: capture.sink,
           nowMs: baseNowMs + 3 * (NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000),
         }),
-      (error: unknown) =>
-        error instanceof MailServiceError && error.status === 409,
+      (error: unknown) => {
+        assert.ok(error instanceof MailServiceError);
+        assert.equal(error.status, 409);
+        assert.match(error.message, /rate limit exceeded/);
+        return true;
+      },
+    );
+  });
+
+  it("exempts CRM root admin from the 24h issue quota after cooldown", async () => {
+    assert.equal(isCrmRootAdmin(rootAdminActor), true);
+    await createPendingNotificationIdentity(db, rootAdminActor, {
+      targetUserId: TARGET_USER,
+      email: fixtureEmail("root-exempt"),
+    });
+    const capture = createCapturingNotificationVerificationChallengeSink();
+    const baseNowMs = Date.parse("2026-08-31T10:00:00.000Z");
+    await seedIssueAuditRows(db, rootAdminActor.userId, 3, baseNowMs);
+
+    const result = await sendNotificationIdentityVerificationChallenge(
+      db,
+      rootAdminActor,
+      TARGET_USER,
+      {
+        challengeSink: capture.sink,
+        nowMs: baseNowMs + RESEND_COOLDOWN_ADVANCE_MS,
+      },
+    );
+
+    assert.equal(result.delivery.status, "sent");
+    assert.ok(capture.latestToken());
+  });
+
+  it("still blocks CRM root admin resends inside the 60-second cooldown", async () => {
+    await createPendingNotificationIdentity(db, rootAdminActor, {
+      targetUserId: TARGET_USER,
+      email: fixtureEmail("root-cooldown"),
+    });
+    const capture = createCapturingNotificationVerificationChallengeSink();
+    const baseNowMs = Date.parse("2026-08-31T13:00:00.000Z");
+
+    await sendNotificationIdentityVerificationChallenge(
+      db,
+      rootAdminActor,
+      TARGET_USER,
+      {
+        challengeSink: capture.sink,
+        nowMs: baseNowMs,
+      },
+    );
+
+    await assert.rejects(
+      () =>
+        sendNotificationIdentityVerificationChallenge(
+          db,
+          rootAdminActor,
+          TARGET_USER,
+          {
+            challengeSink: capture.sink,
+            nowMs: baseNowMs + 5_000,
+          },
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof MailServiceError);
+        assert.equal(error.status, 409);
+        assert.match(error.message, /cooldown/i);
+        return true;
+      },
+    );
+  });
+
+  it("allows CRM root admin resend after cooldown even with 3 counted rows", async () => {
+    await createPendingNotificationIdentity(db, rootAdminActor, {
+      targetUserId: TARGET_USER,
+      email: fixtureEmail("root-after-cooldown"),
+    });
+    const capture = createCapturingNotificationVerificationChallengeSink();
+    const baseNowMs = Date.parse("2026-08-31T14:00:00.000Z");
+    await seedIssueAuditRows(db, rootAdminActor.userId, 3, baseNowMs - 3_600_000);
+
+    await sendNotificationIdentityVerificationChallenge(
+      db,
+      rootAdminActor,
+      TARGET_USER,
+      {
+        challengeSink: capture.sink,
+        nowMs: baseNowMs,
+      },
+    );
+
+    const token = capture.latestToken();
+    assert.ok(token);
+    assert.equal(token!.length, 8);
+    assert.equal(isValidVerificationCodeFormat(token!), true);
+  });
+
+  it("still writes verification issue audit rows for CRM root admin sends", async () => {
+    await createPendingNotificationIdentity(db, rootAdminActor, {
+      targetUserId: TARGET_USER,
+      email: fixtureEmail("root-audit"),
+    });
+    const capture = createCapturingNotificationVerificationChallengeSink();
+    const baseNowMs = Date.parse("2026-08-31T15:00:00.000Z");
+    await seedIssueAuditRows(db, rootAdminActor.userId, 3, baseNowMs);
+
+    await sendNotificationIdentityVerificationChallenge(
+      db,
+      rootAdminActor,
+      TARGET_USER,
+      {
+        challengeSink: capture.sink,
+        nowMs: baseNowMs + RESEND_COOLDOWN_ADVANCE_MS,
+      },
+    );
+
+    const auditRows = await db
+      .select()
+      .from(schema.auditLogs)
+      .where(
+        and(
+          eq(schema.auditLogs.userId, rootAdminActor.userId),
+          eq(
+            schema.auditLogs.action,
+            MAIL_AUDIT_ACTIONS.notificationIdentityVerificationChallengeSent,
+          ),
+        ),
+      );
+    assert.ok(auditRows.length >= 1);
+  });
+
+  it("preserves verification security contract constants for root admin sends", () => {
+    const { token, expiresAt } = generateVerificationChallenge(
+      "11111111-1111-4111-8111-111111111111",
+      Date.parse("2026-08-31T16:00:00.000Z"),
+    );
+    assert.equal(token.length, 8);
+    assert.equal(isValidVerificationCodeFormat(token), true);
+    assert.equal(
+      expiresAt,
+      new Date(
+        Date.parse("2026-08-31T16:00:00.000Z") +
+          NOTIFICATION_VERIFICATION_EXPIRY_MS,
+      ).toISOString(),
     );
   });
 
