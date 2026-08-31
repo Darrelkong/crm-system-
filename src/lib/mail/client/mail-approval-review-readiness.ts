@@ -23,7 +23,8 @@ export function isValidRevisionAttachmentItem(
     typeof attachment.sizeBytes === "number" &&
     Number.isFinite(attachment.sizeBytes) &&
     (attachment.deliveryMode === "direct_attachment" ||
-      attachment.deliveryMode === "secure_file") &&
+      attachment.deliveryMode === "secure_file" ||
+      attachment.deliveryMode === "large_attachment") &&
     typeof attachment.sortOrder === "number" &&
     Number.isFinite(attachment.sortOrder) &&
     typeof attachment.downloadAvailable === "boolean"

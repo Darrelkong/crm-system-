@@ -28,6 +28,7 @@ import {
 } from "@/lib/mail/outbound-transport-constants";
 import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-eligibility";
 import { assertOrdinaryEmailAttachmentAggregateWithinLimit } from "@/lib/mail/outbound-provider-size-preflight";
+import { assertRevisionHasNoLargeAttachmentsPendingGateway } from "@/lib/mail/large-attachment/large-attachment-provider-send-guard";
 import { assertEffectiveMailAccess, assertMailAccessEnabled } from "@/lib/permissions/mail";
 
 export type OutboundSendPreflightInput = {
@@ -292,6 +293,7 @@ export async function assertOutboundSendPreflight(
   await assertRevisionHashIntegrity(db, revision);
   await assertStoredFilesEligibleForSend(db, revision.id);
   await assertRevisionOrdinaryEmailAttachmentsWithinPolicy(db, revision.id);
+  await assertRevisionHasNoLargeAttachmentsPendingGateway(db, revision.id);
 
   if (send.authorizationMode === "staff_approved") {
     await loadApprovedApprovalForRevision(db, revision);

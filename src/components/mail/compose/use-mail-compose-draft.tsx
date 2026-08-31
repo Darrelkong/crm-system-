@@ -53,6 +53,7 @@ import {
 import {
   buildAttachmentPolicyMessageKey,
   composeAttachmentPolicyErrorParams,
+  composeAttachmentUploadErrorMessageKey,
   createQueuedAttachmentEntry,
   deleteDraftAttachment,
   mergeUploadedDraftAttachments,
@@ -61,6 +62,7 @@ import {
   type ComposeAttachmentUploadErrorCode,
   type ComposeAttachmentUploadState,
 } from "@/lib/mail/client/compose-attachment-upload";
+import { uploadLargeDraftAttachmentWithProgress } from "@/lib/mail/client/compose-large-attachment-upload";
 import {
   ComposeDraftPersistenceError,
   resolvePersistedDraftId,
@@ -78,6 +80,8 @@ type AttachmentUploadSidecar = {
   localId: string;
   file: File;
   abortController: AbortController;
+  largeUploadSessionId?: string;
+  largePutCompleted?: boolean;
 };
 
 function uploadStatesToComposeAttachments(
@@ -91,11 +95,15 @@ function uploadStatesToComposeAttachments(
     kind: attachment.kind,
     pendingUpload:
       attachment.uploadStatus === "queued" ||
-      attachment.uploadStatus === "uploading",
+      attachment.uploadStatus === "preparing" ||
+      attachment.uploadStatus === "hashing" ||
+      attachment.uploadStatus === "uploading" ||
+      attachment.uploadStatus === "finalizing",
     uploadStatus: attachment.uploadStatus,
     uploadProgress: attachment.uploadProgress,
     error: attachment.error,
     errorCode: attachment.errorCode,
+    largeAttachmentExpired: attachment.largeAttachmentExpired ?? false,
   }));
 }
 
@@ -664,6 +672,11 @@ export function useMailComposeDraft(input: {
           continue;
         }
 
+        const finalizeOnlySessionId =
+          sidecar.largePutCompleted && sidecar.largeUploadSessionId
+            ? sidecar.largeUploadSessionId
+            : undefined;
+
         setUploadAttachments((current) =>
           current.map((attachment) =>
             attachment.localId === queued.localId
@@ -698,6 +711,120 @@ export function useMailComposeDraft(input: {
           stateRef.current,
           uploadAttachmentsRef.current,
         );
+
+        if (queued.uploadRoute === "large") {
+          const largeResult = await uploadLargeDraftAttachmentWithProgress({
+            draftId,
+            file: sidecar.file,
+            expectedAutosaveVersion: working.autosaveVersion,
+            signal: sidecar.abortController.signal,
+            finalizeOnly: finalizeOnlySessionId
+              ? { uploadSessionId: finalizeOnlySessionId }
+              : undefined,
+            onPhase: (phase) => {
+              setUploadAttachments((current) =>
+                current.map((attachment) =>
+                  attachment.localId === queued.localId
+                    ? {
+                        ...attachment,
+                        uploadStatus:
+                          phase === "hashing"
+                            ? "hashing"
+                            : phase === "uploading"
+                              ? "uploading"
+                              : phase === "finalizing"
+                                ? "finalizing"
+                                : "preparing",
+                      }
+                    : attachment,
+                ),
+              );
+            },
+            onProgress: (percent) => {
+              setUploadAttachments((current) =>
+                current.map((attachment) =>
+                  attachment.localId === queued.localId
+                    ? { ...attachment, uploadProgress: percent }
+                    : attachment,
+                ),
+              );
+            },
+          });
+
+          if (largeResult.ok) {
+            uploadSidecarsRef.current.delete(queued.localId);
+            setUploadAttachments((current) =>
+              mergeUploadedDraftAttachments(
+                current.filter((attachment) => attachment.localId !== queued.localId),
+                largeResult.item,
+                formatAttachmentSize,
+              ),
+            );
+            setState((current) => ({
+              ...current,
+              autosaveVersion: largeResult.item.autosaveVersion,
+              lastSavedAt: largeResult.item.lastSavedAt,
+            }));
+            continue;
+          }
+
+          if (largeResult.cancelled) {
+            uploadSidecarsRef.current.delete(queued.localId);
+            setUploadAttachments((current) =>
+              current.filter((attachment) => attachment.localId !== queued.localId),
+            );
+            continue;
+          }
+
+          if (largeResult.putCompleted && largeResult.uploadSessionId) {
+            uploadSidecarsRef.current.set(queued.localId, {
+              ...sidecar,
+              largeUploadSessionId: largeResult.uploadSessionId,
+              largePutCompleted: true,
+            });
+          } else {
+            uploadSidecarsRef.current.delete(queued.localId);
+          }
+
+          if (largeResult.errorCode === "STALE_VERSION" && working.draftId) {
+            const refreshed = await fetchDraft(working.draftId);
+            if (refreshed.ok) {
+              setState((current) => ({
+                ...current,
+                autosaveVersion: refreshed.item.autosaveVersion,
+              }));
+              setUploadAttachments((current) =>
+                current.map((attachment) =>
+                  attachment.localId === queued.localId
+                    ? {
+                        ...attachment,
+                        uploadStatus: "queued",
+                        uploadProgress: 0,
+                        error: null,
+                        errorCode: null,
+                      }
+                    : attachment,
+                ),
+              );
+              const preservedSidecar = uploadSidecarsRef.current.get(queued.localId);
+              uploadSidecarsRef.current.set(queued.localId, {
+                localId: queued.localId,
+                file: sidecar.file,
+                abortController: new AbortController(),
+                largeUploadSessionId: preservedSidecar?.largeUploadSessionId,
+                largePutCompleted: preservedSidecar?.largePutCompleted,
+              });
+              continue;
+            }
+          }
+
+          markAttachmentFailed(
+            queued.localId,
+            largeResult.putCompleted ? "LARGE_FINALIZE_FAILED" : "LARGE_UPLOAD_FAILED",
+            largeResult.error,
+          );
+          continue;
+        }
 
         const result = await uploadDraftAttachmentWithProgress({
           draftId,
@@ -761,7 +888,8 @@ export function useMailComposeDraft(input: {
               ),
             );
             uploadSidecarsRef.current.set(queued.localId, {
-              ...sidecar,
+              localId: queued.localId,
+              file: sidecar.file,
               abortController: new AbortController(),
             });
             continue;
@@ -799,19 +927,25 @@ export function useMailComposeDraft(input: {
           ...additions.map((entry) => ({
             sizeBytes: entry.sizeBytes,
             uploadStatus: entry.uploadStatus,
+            kind: entry.kind,
+            uploadRoute: entry.uploadRoute,
           })),
         ]);
         if (!validation.ok) {
           setSubmissionError(
-            buildAttachmentPolicyMessageKey(validation.errorCode),
+            composeAttachmentUploadErrorMessageKey(validation.errorCode),
           );
           setSubmissionErrorParams(
-            composeAttachmentPolicyErrorParams(validation.errorCode),
+            composeAttachmentPolicyErrorParams(
+              validation.errorCode as import("@/lib/mail/compose-attachment-policy").ComposeAttachmentPolicyIssueCode,
+            ),
           );
           continue;
         }
-        const entry = createQueuedAttachmentEntry(file, (bytes) =>
-          formatAttachmentSize(bytes),
+        const entry = createQueuedAttachmentEntry(
+          file,
+          (bytes) => formatAttachmentSize(bytes),
+          validation.uploadRoute,
         );
         additions.push(entry);
         uploadSidecarsRef.current.set(entry.localId, {
@@ -870,10 +1004,13 @@ export function useMailComposeDraft(input: {
           attachment.serverId === attachmentId,
       );
       if (!match?.file) return;
+      const existingSidecar = uploadSidecarsRef.current.get(match.localId);
       uploadSidecarsRef.current.set(match.localId, {
         localId: match.localId,
         file: match.file,
         abortController: new AbortController(),
+        largeUploadSessionId: existingSidecar?.largeUploadSessionId,
+        largePutCompleted: existingSidecar?.largePutCompleted,
       });
       setUploadAttachments((current) =>
         current.map((attachment) =>

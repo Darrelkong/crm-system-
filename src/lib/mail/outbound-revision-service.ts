@@ -131,8 +131,19 @@ export async function getOutboundRevision(
       .from(schema.mailStoredFiles)
       .where(eq(schema.mailStoredFiles.id, attachment.storedFileId))
       .limit(1);
+    let lifecycle = null;
+    if (attachment.deliveryMode === "large_attachment") {
+      const [row] = await db
+        .select()
+        .from(schema.mailLargeAttachmentLifecycle)
+        .where(eq(schema.mailLargeAttachmentLifecycle.storedFileId, attachment.storedFileId))
+        .limit(1);
+      lifecycle = row ?? null;
+    }
     attachments.push(
-      toSafeOutboundRevisionAttachmentView(attachment, storedFile),
+      toSafeOutboundRevisionAttachmentView(attachment, storedFile, {
+        lifecycle,
+      }),
     );
   }
 

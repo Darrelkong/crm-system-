@@ -1,27 +1,46 @@
 export const dynamic = "force-dynamic";
 
 import { authErrorResponse, AuthError } from "@/lib/permissions/auth";
-import { requireMailActor } from "@/lib/mail/api-helpers";
+import { requireMailActor, type MailRouteActorResolver } from "@/lib/mail/api-helpers";
 import {
   MailAttachmentByteIntegrityError,
   MailAttachmentObjectNotFoundError,
   MailAttachmentR2OperationalError,
   R2MailAttachmentByteReader,
+  type MailAttachmentByteReader,
 } from "@/lib/mail/mail-attachment-byte-reader";
 import { buildMailAttachmentDownloadResponse } from "@/lib/mail/mail-attachment-download-response";
 import { recordOutboundRevisionAttachmentDownloaded } from "@/lib/mail/mail-attachment-download-audit";
 import { getAttachmentsBucket } from "@/lib/mail/attachments-env";
+import { getLargeAttachmentsR2Bucket } from "@/lib/mail/large-attachment/large-attachment-r2-env";
 import { MailServiceError, mailErrorResponse } from "@/lib/mail/errors";
 import { resolveDownloadableOutboundRevisionAttachment } from "@/lib/mail/outbound-revision-attachment-download-service";
 
-type RouteContext = {
-  params: Promise<{ id: string; attachmentId: string }>;
+export type OutboundRevisionAttachmentDownloadRouteDeps = {
+  requireMailActor: MailRouteActorResolver;
+  createDirectByteReader: () => MailAttachmentByteReader;
+  createLargeByteReader: () => MailAttachmentByteReader | null;
 };
 
-export async function GET(request: Request, context: RouteContext) {
+const defaultDeps: OutboundRevisionAttachmentDownloadRouteDeps = {
+  requireMailActor,
+  createDirectByteReader: () => new R2MailAttachmentByteReader(getAttachmentsBucket()),
+  createLargeByteReader: () => {
+    const bucket = getLargeAttachmentsR2Bucket();
+    return bucket ? new R2MailAttachmentByteReader(bucket) : null;
+  },
+};
+
+type RouteContext = { params: Promise<{ id: string; attachmentId: string }> };
+
+export async function handleGetOutboundRevisionAttachmentDownload(
+  request: Request,
+  revisionId: string,
+  attachmentId: string,
+  deps: OutboundRevisionAttachmentDownloadRouteDeps = defaultDeps,
+): Promise<Response> {
   try {
-    const { actor, db } = await requireMailActor(request);
-    const { id: revisionId, attachmentId } = await context.params;
+    const { actor, db } = await deps.requireMailActor(request);
     const downloadable = await resolveDownloadableOutboundRevisionAttachment(
       db,
       actor,
@@ -29,7 +48,17 @@ export async function GET(request: Request, context: RouteContext) {
       attachmentId,
     );
 
-    const byteReader = new R2MailAttachmentByteReader(getAttachmentsBucket());
+    const byteReader =
+      downloadable.deliveryMode === "large_attachment"
+        ? deps.createLargeByteReader()
+        : deps.createDirectByteReader();
+    if (!byteReader) {
+      return Response.json(
+        { error: "Large attachment storage is unavailable", errorCode: "SERVER_ERROR" },
+        { status: 503 },
+      );
+    }
+
     const bytes = await byteReader.read(
       downloadable.storageKey,
       downloadable.sizeBytes,
@@ -56,4 +85,13 @@ export async function GET(request: Request, context: RouteContext) {
     }
     return mailErrorResponse(error);
   }
+}
+
+export async function GET(request: Request, context: RouteContext) {
+  const { id: revisionId, attachmentId } = await context.params;
+  return handleGetOutboundRevisionAttachmentDownload(
+    request,
+    revisionId,
+    attachmentId,
+  );
 }

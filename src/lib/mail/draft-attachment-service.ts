@@ -21,6 +21,7 @@ import {
   runMailBatch,
 } from "@/lib/mail/guarded-batch";
 import type { OutboundAttachmentStore } from "@/lib/mail/outbound-attachment-store";
+import { removeLargeDraftAttachment } from "@/lib/mail/large-attachment/large-attachment-remove-service";
 
 async function loadDraftAttachmentTotals(
   db: Database,
@@ -206,6 +207,10 @@ export async function removeDraftAttachment(
 
   if (!attachment) {
     throw MailServiceError.notFound("Draft attachment not found");
+  }
+
+  if (attachment.deliveryMode === "large_attachment") {
+    return removeLargeDraftAttachment(db, actor, input);
   }
 
   const now = new Date().toISOString();

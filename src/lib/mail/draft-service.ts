@@ -20,6 +20,8 @@ import {
   runMailBatch,
 } from "@/lib/mail/guarded-batch";
 import { MailServiceError } from "@/lib/mail/errors";
+import { evaluateTemporaryExpiry } from "@/lib/mail/large-attachment/large-attachment-state-machine";
+import { cleanupTemporaryLargeAttachmentsForDiscardedDraft } from "@/lib/mail/large-attachment/large-attachment-discard-cleanup-service";
 import {
   toSafeDraftAttachmentView,
   toSafeDraftRecipientView,
@@ -161,12 +163,52 @@ export async function loadDraftDetail(
     .orderBy(schema.mailDraftAttachments.sortOrder);
 
   const attachmentViews: SafeDraftAttachmentView[] = [];
+  const trustNowIso = new Date().toISOString();
   for (const attachment of attachments) {
     const [stored] = await db
       .select()
       .from(schema.mailStoredFiles)
       .where(eq(schema.mailStoredFiles.id, attachment.storedFileId))
       .limit(1);
+    let largeAttachmentExpired = false;
+    if (attachment.deliveryMode === "large_attachment" && stored) {
+      const [lifecycle] = await db
+        .select()
+        .from(schema.mailLargeAttachmentLifecycle)
+        .where(eq(schema.mailLargeAttachmentLifecycle.storedFileId, stored.id))
+        .limit(1);
+      if (lifecycle) {
+        largeAttachmentExpired =
+          lifecycle.status === "expired" ||
+          lifecycle.status === "deleted" ||
+          (lifecycle.status === "temporary" &&
+            evaluateTemporaryExpiry(
+              {
+                id: lifecycle.id,
+                storedFileId: lifecycle.storedFileId,
+                status: lifecycle.status,
+                uploadedAt: lifecycle.uploadedAt,
+                temporaryExpiresAt: lifecycle.temporaryExpiresAt,
+                approvalHoldStartedAt: lifecycle.approvalHoldStartedAt,
+                approvalAbsoluteExpiresAt: lifecycle.approvalAbsoluteExpiresAt,
+                sentAt: lifecycle.sentAt,
+                recipientExpiresAt: lifecycle.recipientExpiresAt,
+                deletedAt: lifecycle.deletedAt,
+                deleteReason: lifecycle.deleteReason,
+                downloadTokenHash: lifecycle.downloadTokenHash,
+                downloadCount: lifecycle.downloadCount,
+                lastDownloadedAt: lifecycle.lastDownloadedAt,
+                declaredContentHash: lifecycle.declaredContentHash,
+                storageVersion: lifecycle.storageVersion,
+                storageEtag: lifecycle.storageEtag,
+                finalizedAt: lifecycle.finalizedAt,
+                createdAt: lifecycle.createdAt,
+                updatedAt: lifecycle.updatedAt,
+              },
+              trustNowIso,
+            ));
+      }
+    }
     attachmentViews.push(
       toSafeDraftAttachmentView(
         attachment,
@@ -175,6 +217,7 @@ export async function loadDraftDetail(
               mimeType: stored.mimeType,
               sizeBytes: stored.sizeBytes,
               contentHash: stored.contentHash,
+              largeAttachmentExpired,
             }
           : undefined,
       ),
@@ -750,6 +793,8 @@ export async function discardDraft(
   ]);
 
   assertBatchUpdateChanged(results, 0, "Draft discard conflict");
+
+  await cleanupTemporaryLargeAttachmentsForDiscardedDraft(db, draft.id, now);
 
   const updated = await findDraftById(db, draft.id);
   if (!updated) {

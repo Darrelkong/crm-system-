@@ -46,6 +46,7 @@ describe("compose-attachment-upload", () => {
       {
         sizeBytes: 0,
         uploadStatus: "uploaded",
+        kind: "attachment",
       },
     ]);
     assert.equal(result.ok, false);

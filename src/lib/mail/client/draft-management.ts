@@ -69,11 +69,12 @@ export type DraftDetailApiItem = DraftApiItem & {
     id: string;
     displayFilename: string;
     sortOrder: number;
-    deliveryMode: "attachment" | "secure_file";
+    deliveryMode: "attachment" | "secure_file" | "large_attachment";
     secureExpiryDays: number | null;
     mimeType?: string;
     sizeBytes?: number;
     contentHash?: string;
+    largeAttachmentExpired?: boolean;
   }>;
 };
 
@@ -84,12 +85,21 @@ export type ComposeAttachmentDraft = {
   name: string;
   sizeLabel: string;
   sizeBytes: number;
-  kind: "attachment" | "secure_file";
+  kind: "attachment" | "secure_file" | "large_attachment";
   pendingUpload: boolean;
-  uploadStatus: "queued" | "uploading" | "uploaded" | "failed" | "cancelled";
+  uploadStatus:
+    | "queued"
+    | "preparing"
+    | "hashing"
+    | "uploading"
+    | "finalizing"
+    | "uploaded"
+    | "failed"
+    | "cancelled";
   uploadProgress: number;
   error: string | null;
   errorCode?: import("@/lib/mail/client/compose-attachment-upload").ComposeAttachmentUploadErrorCode | null;
+  largeAttachmentExpired?: boolean;
 };
 
 export type ComposeEditorState = {
@@ -127,6 +137,17 @@ export function draftPath(draftId: string): string {
 
 export function draftAttachmentsPath(draftId: string): string {
   return `${draftPath(draftId)}/attachments`;
+}
+
+export function draftLargeAttachmentsAuthorizePath(draftId: string): string {
+  return `${draftPath(draftId)}/large-attachments/authorize`;
+}
+
+export function draftLargeAttachmentFinalizePath(
+  draftId: string,
+  sessionId: string,
+): string {
+  return `${draftPath(draftId)}/large-attachments/${encodeURIComponent(sessionId)}/finalize`;
 }
 
 export function draftAttachmentPath(
@@ -223,6 +244,7 @@ export function draftDetailToComposeState(item: DraftDetailApiItem): ComposeEdit
       uploadStatus: "uploaded" as const,
       uploadProgress: 100,
       error: null,
+      largeAttachmentExpired: attachment.largeAttachmentExpired ?? false,
     })),
     saveStatus: "saved",
     saveError: null,

@@ -38,7 +38,7 @@ export type SafeDraftRecipientView = {
   sortOrder: number;
 };
 
-export type ClientDraftDeliveryMode = "attachment" | "secure_file";
+export type ClientDraftDeliveryMode = "attachment" | "secure_file" | "large_attachment";
 
 export type SafeDraftAttachmentView = {
   id: string;
@@ -49,12 +49,20 @@ export type SafeDraftAttachmentView = {
   mimeType?: string;
   sizeBytes?: number;
   contentHash?: string;
+  /** Large attachment temporary retention expired — placeholder metadata only. */
+  largeAttachmentExpired?: boolean;
 };
 
 export function toClientDeliveryMode(
   mode: MailDeliveryMode,
 ): ClientDraftDeliveryMode {
-  return mode === "direct_attachment" ? "attachment" : "secure_file";
+  if (mode === "direct_attachment") {
+    return "attachment";
+  }
+  if (mode === "large_attachment") {
+    return "large_attachment";
+  }
+  return "secure_file";
 }
 
 export function toSafeDraftView(draft: MailDraft): SafeDraftView {
@@ -93,7 +101,12 @@ export function toSafeDraftRecipientView(
 
 export function toSafeDraftAttachmentView(
   attachment: MailDraftAttachment,
-  stored?: { mimeType: string; sizeBytes: number; contentHash?: string },
+  stored?: {
+    mimeType: string;
+    sizeBytes: number;
+    contentHash?: string;
+    largeAttachmentExpired?: boolean;
+  },
 ): SafeDraftAttachmentView {
   return {
     id: attachment.id,
@@ -104,5 +117,6 @@ export function toSafeDraftAttachmentView(
     mimeType: stored?.mimeType,
     sizeBytes: stored?.sizeBytes,
     contentHash: stored?.contentHash,
+    largeAttachmentExpired: stored?.largeAttachmentExpired,
   };
 }

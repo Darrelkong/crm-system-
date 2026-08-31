@@ -56,11 +56,9 @@ export function assertStorageIdentityDistinctFromContentHash(input: {
 
 export function hasCompleteLargeAttachmentStorageIdentity(
   input: Partial<LargeAttachmentStorageIdentity> &
-    Pick<LargeAttachmentStorageIdentity, "storageVersion" | "storageEtag">,
+    Pick<LargeAttachmentStorageIdentity, "storageEtag">,
 ): input is LargeAttachmentStorageIdentity {
   return (
-    typeof input.storageVersion === "string" &&
-    input.storageVersion.trim().length > 0 &&
     typeof input.storageEtag === "string" &&
     input.storageEtag.trim().length > 0 &&
     typeof input.sizeBytes === "number" &&
@@ -86,7 +84,7 @@ export type LargeAttachmentChecksumEnforcementCandidate =
   (typeof LARGE_ATTACHMENT_CHECKSUM_ENFORCEMENT_CANDIDATES)[number];
 
 export const LARGE_ATTACHMENT_CHECKSUM_ENFORCEMENT_STATUS =
-  "DEFERRED_TO_PHASE_2B_R2_PROOF" as const;
+  "CONTENT_MD5_TRANSPORT_V1" as const;
 
 /** Full 100 MiB CRM Worker re-read for SHA-256 is NOT the Phase 2B design center. */
 export const LARGE_ATTACHMENT_REQUIRES_FULL_CRM_REREAD_FOR_HASH = false as const;

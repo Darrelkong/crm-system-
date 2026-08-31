@@ -41,6 +41,20 @@ export function composeAttachmentTraySummaryKey(): string {
   return "mail.compose.attachment.traySummary";
 }
 
-export function composeAttachmentTrayKindKey(): string {
+export function composeAttachmentTrayKindKey(
+  attachments: Pick<ComposeAttachmentDraft, "kind">[],
+): string {
+  const hasLarge = attachments.some(
+    (attachment) => attachment.kind === "large_attachment",
+  );
+  const hasDirect = attachments.some(
+    (attachment) => attachment.kind === "attachment",
+  );
+  if (hasLarge && hasDirect) {
+    return "mail.compose.attachment.kindMixed";
+  }
+  if (hasLarge) {
+    return "mail.compose.largeAttachment.trayKind";
+  }
   return "mail.compose.attachment.kindDirect";
 }

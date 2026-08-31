@@ -248,13 +248,13 @@ describe("large attachment phase 2A.1 hardening", () => {
       assert.equal(LARGE_ATTACHMENT_REQUIRES_FULL_CRM_REREAD_FOR_HASH, false);
       assert.equal(
         LARGE_ATTACHMENT_CHECKSUM_ENFORCEMENT_STATUS,
-        "DEFERRED_TO_PHASE_2B_R2_PROOF",
+        "CONTENT_MD5_TRANSPORT_V1",
       );
     });
 
     it("blocks send when storage identity missing", () => {
       const incomplete = lifecycle({
-        storageVersion: null,
+        storageEtag: null,
       });
       const result = evaluateLargeAttachmentSendEligibility({
         deliveryMode: "large_attachment",
@@ -267,6 +267,22 @@ describe("large attachment phase 2A.1 hardening", () => {
       });
       assert.equal(result.ok, false);
       if (!result.ok) assert.equal(result.code, "MISSING_STORAGE_IDENTITY");
+    });
+
+    it("allows send when storage version is deferred but etag is present", () => {
+      const deferredVersion = lifecycle({
+        storageVersion: null,
+      });
+      const result = evaluateLargeAttachmentSendEligibility({
+        deliveryMode: "large_attachment",
+        lifecycle: deferredVersion,
+        sizeBytes: 1024,
+        securityScanStatus: LARGE_ATTACHMENT_REQUIRED_SCAN_STATUS,
+        trustNowIso: UPLOADED_AT,
+        uploadFinalized: true,
+        allowTemporary: true,
+      });
+      assert.equal(result.ok, true);
     });
 
     it("revision snapshot excludes presigned URLs and binds storage identity", () => {
