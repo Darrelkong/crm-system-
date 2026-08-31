@@ -9,8 +9,13 @@ import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import {
+  CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES,
   CLOUDFLARE_EMAIL_NOTIFICATION_FROM_ADDRESS,
+  CloudflareEmailProviderError,
 } from "@/lib/mail/cloudflare-email-notification-transport-adapter";
+import {
+  createEmailNotificationVerificationChallengeSink,
+} from "@/lib/mail/notification-verification-challenge-delivery";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
 import { enableMailAccess } from "@/lib/mail/mail-access-service";
@@ -26,7 +31,11 @@ import {
   claimNotificationOutboxForProcessing,
   findNotificationOutboxById,
   processClaimedNotificationOutbox,
+  recoverExpiredNotificationProcessingAsSystem,
 } from "@/lib/mail/notification-outbox-processing-service";
+import {
+  NOTIFICATION_FAILURE_CODES,
+} from "@/lib/mail/notification-outbox-constants";
 import {
   createPendingNotificationIdentity,
   revokeNotificationIdentity,
@@ -852,6 +861,184 @@ describe("notification verification delivery (6J.3)", () => {
     assert.equal(adminGrantsAfter.length, adminGrantsBefore.length);
     assert.equal(senderGrantsAfter.length, senderGrantsBefore.length);
     assert.equal(mailboxesAfter.length, mailboxesBefore.length);
+  });
+
+  it("28. provider messageId is persisted on successful delivery", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("provider-message-id");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const sink = createEmailNotificationVerificationChallengeSink({
+      async send() {
+        return { messageId: "0101018f-verify-msg-id" };
+      },
+    });
+    await dispatchVerificationOutbox(db, outbox!.id, sink);
+    const [attempt] = await db
+      .select()
+      .from(schema.mailNotificationAttempts)
+      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, outbox!.id));
+    assert.equal(attempt!.providerRequestId, "0101018f-verify-msg-id");
+  });
+
+  it("29. hung EMAIL.send terminalizes as outcome_unknown without retry", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("hung-send");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const sink = createEmailNotificationVerificationChallengeSink(
+      {
+        send() {
+          return new Promise(() => {});
+        },
+      },
+      { timeoutMs: 25 },
+    );
+    const processed = await dispatchVerificationOutbox(db, outbox!.id, sink);
+    assert.equal(processed.outcome, "failed_permanent");
+    assert.equal(
+      processed.failureCode,
+      NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown,
+    );
+    const refreshed = await findNotificationOutboxById(db, outbox!.id);
+    assert.equal(refreshed!.status, "failed_permanent");
+    assert.equal(refreshed!.nextAttemptAt, null);
+    const [attempt] = await db
+      .select()
+      .from(schema.mailNotificationAttempts)
+      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, outbox!.id));
+    assert.equal(attempt!.state, "outcome_unknown");
+    assert.equal(
+      attempt!.errorCode,
+      NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown,
+    );
+    const [identity] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.equal(identity!.verificationStatus, "pending");
+  });
+
+  it("30. explicit permanent provider rejection is not auto-retried", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("provider-permanent");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const sink = createEmailNotificationVerificationChallengeSink({
+      async send() {
+        throw new CloudflareEmailProviderError("E_RECIPIENT_NOT_ALLOWED");
+      },
+    });
+    const processed = await dispatchVerificationOutbox(db, outbox!.id, sink);
+    assert.equal(processed.outcome, "failed_permanent");
+    const refreshed = await findNotificationOutboxById(db, outbox!.id);
+    assert.equal(refreshed!.status, "failed_permanent");
+    assert.equal(refreshed!.nextAttemptAt, null);
+    assert.equal(
+      refreshed!.failureCode,
+      NOTIFICATION_FAILURE_CODES.transportPermanentFailure,
+    );
+    const [attempt] = await db
+      .select()
+      .from(schema.mailNotificationAttempts)
+      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, outbox!.id));
+    assert.equal(attempt!.state, "permanent_failure");
+    assert.equal(
+      attempt!.errorCode,
+      CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES.recipientNotAllowed,
+    );
+  });
+
+  it("31. post-send persistence failure is not safe-to-retry", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("post-send-ambiguous");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const claim = await claimNotificationOutboxForProcessing(db, {
+      outboxId: outbox!.id,
+    });
+    assert.equal(claim.claimed, true);
+
+    const sink: NotificationVerificationChallengeSink = {
+      async deliverChallenge() {
+        const [startedAttempt] = await db
+          .select({ id: schema.mailNotificationAttempts.id })
+          .from(schema.mailNotificationAttempts)
+          .where(eq(schema.mailNotificationAttempts.notificationOutboxId, outbox!.id));
+        assert.ok(startedAttempt);
+        await db
+          .update(schema.mailNotificationAttempts)
+          .set({ processingVersion: claim.outbox!.processingVersion + 99 })
+          .where(eq(schema.mailNotificationAttempts.id, startedAttempt.id));
+        return { providerRequestId: "0101018f-post-send" };
+      },
+    };
+
+    const processed = await processClaimedVerificationOutboxDelivery(
+      db,
+      SYSTEM_MAIL_ACTOR,
+      { outboxId: outbox!.id, sink },
+    );
+    assert.equal(processed.outcome, "failed_permanent");
+    assert.equal(
+      processed.failureCode,
+      NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown,
+    );
+    const refreshed = await findNotificationOutboxById(db, outbox!.id);
+    assert.equal(refreshed!.status, "failed_permanent");
+    assert.equal(refreshed!.nextAttemptAt, null);
+  });
+
+  it("32. lease recovery still terminalizes abandoned started attempts", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("lease-recovery");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const claim = await claimNotificationOutboxForProcessing(db, {
+      outboxId: outbox!.id,
+    });
+    assert.equal(claim.claimed, true);
+    const claimed = claim.outbox!;
+    await db.insert(schema.mailNotificationAttempts).values({
+      id: crypto.randomUUID(),
+      notificationOutboxId: outbox!.id,
+      attemptNumber: 1,
+      processingVersion: claimed.processingVersion,
+      state: "started",
+      provider: "cloudflare-email-sending",
+      startedAt: claimed.processingStartedAt!,
+    });
+    const expiredAt = new Date(
+      Date.parse(claimed.processingLeaseExpiresAt!) + 1000,
+    ).toISOString();
+    setNotificationProcessingLeaseTestClock(expiredAt);
+    const recovery = await recoverExpiredNotificationProcessingAsSystem(
+      db,
+      outbox!.id,
+    );
+    setNotificationProcessingLeaseTestClock(null);
+    assert.equal(recovery.outcome, "AMBIGUOUS_TERMINALIZED");
+    const refreshed = await findNotificationOutboxById(db, outbox!.id);
+    assert.equal(refreshed!.status, "failed_permanent");
+    assert.equal(
+      refreshed!.failureCode,
+      NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown,
+    );
   });
 });
 

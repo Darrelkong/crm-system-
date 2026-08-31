@@ -306,3 +306,96 @@ export class CloudflareEmailProviderError extends Error {
     this.name = "CloudflareEmailProviderError";
   }
 }
+
+/**
+ * Bounded wait for verification EMAIL.send — must stay well below the mail-jobs
+ * 25s soft tick budget and far below the 15-minute processing lease.
+ */
+export const NOTIFICATION_VERIFICATION_EMAIL_SEND_TIMEOUT_MS = 20_000 as const;
+
+export type CloudflareEmailSendDispatchResult =
+  | {
+      outcome: "accepted";
+      providerRequestId: string;
+    }
+  | {
+      outcome: "temporary_failure";
+      errorCode: string;
+      errorMessage?: string;
+    }
+  | {
+      outcome: "permanent_failure";
+      errorCode: string;
+      errorMessage?: string;
+    }
+  | {
+      outcome: "ambiguous";
+    };
+
+function mapTransportResultToDispatchResult(
+  result: NotificationTransportResult,
+): CloudflareEmailSendDispatchResult {
+  if (result.outcome === "accepted") {
+    const providerRequestId = result.providerRequestId?.trim();
+    if (!providerRequestId) {
+      return { outcome: "ambiguous" };
+    }
+    return {
+      outcome: "accepted",
+      providerRequestId,
+    };
+  }
+  if (result.outcome === "temporary_failure") {
+    return {
+      outcome: "temporary_failure",
+      errorCode: result.errorCode,
+      errorMessage: result.errorMessage,
+    };
+  }
+  if (result.outcome === "permanent_failure") {
+    return {
+      outcome: "permanent_failure",
+      errorCode: result.errorCode,
+      errorMessage: result.errorMessage,
+    };
+  }
+  return { outcome: "ambiguous" };
+}
+
+/**
+ * Bounded Cloudflare send_email dispatch for verification delivery.
+ * Never blocks indefinitely; ambiguous outcomes must not be auto-retried.
+ */
+export async function dispatchCloudflareEmailSendWithTimeout(
+  emailBinding: CloudflareEmailSendBinding,
+  request: CloudflareEmailSendRequest,
+  options?: { timeoutMs?: number },
+): Promise<CloudflareEmailSendDispatchResult> {
+  const timeoutMs =
+    options?.timeoutMs ?? NOTIFICATION_VERIFICATION_EMAIL_SEND_TIMEOUT_MS;
+
+  let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<{ kind: "timeout" }>((resolve) => {
+    timeoutHandle = setTimeout(() => resolve({ kind: "timeout" }), timeoutMs);
+  });
+
+  const sendPromise = emailBinding
+    .send(request)
+    .then(
+      (response) => ({ kind: "success" as const, response }),
+      (error: unknown) => ({ kind: "error" as const, error }),
+    );
+
+  const raced = await Promise.race([sendPromise, timeoutPromise]);
+  if (timeoutHandle !== undefined) {
+    clearTimeout(timeoutHandle);
+  }
+
+  if (raced.kind === "timeout") {
+    return { outcome: "ambiguous" };
+  }
+  if (raced.kind === "error") {
+    return mapTransportResultToDispatchResult(mapThrownError(raced.error));
+  }
+  return mapTransportResultToDispatchResult(parseAcceptedResponse(raced.response));
+}

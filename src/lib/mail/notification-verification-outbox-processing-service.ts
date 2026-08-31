@@ -12,18 +12,25 @@ import { CLOUDFLARE_EMAIL_NOTIFICATION_PROVIDER_ID } from "@/lib/mail/cloudflare
 import { findNotificationIdentityById } from "@/lib/mail/notification-identity-service";
 import {
   computeNotificationRetryAfter,
+  NOTIFICATION_ATTEMPT_ERROR_CODES,
   NOTIFICATION_ERROR_MESSAGE_MAX_LENGTH,
   NOTIFICATION_FAILURE_CODES,
   NOTIFICATION_MAX_ATTEMPTS,
 } from "@/lib/mail/notification-outbox-constants";
 import {
   claimNotificationOutboxForProcessing,
+  finalizeAmbiguousNotificationStartedAttempt,
   findNotificationOutboxById,
   type ProcessNotificationOutboxResult,
 } from "@/lib/mail/notification-outbox-processing-service";
 import { getNotificationProcessingTrustNow } from "@/lib/mail/notification-processing-lease";
 import { isMailNotificationIdentityVerificationOutbox } from "@/lib/mail/notification-source-entity-policy";
 import type { NotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
+import {
+  isVerificationChallengeDeliveryAmbiguous,
+  isVerificationChallengeDeliveryFailure,
+  NotificationVerificationChallengeDeliveryError,
+} from "@/lib/mail/notification-verification-challenge-delivery";
 import type { MailOperationalActor } from "@/lib/mail/system-mail-actor";
 import { generateVerificationChallenge } from "@/lib/mail/verification-token";
 
@@ -277,6 +284,159 @@ async function finalizeVerificationRetryableFailure(
   };
 }
 
+async function finalizeVerificationAmbiguousOutcome(
+  db: Database,
+  actor: MailOperationalActor,
+  outbox: MailNotificationOutbox,
+  attemptId: string,
+): Promise<ProcessNotificationOutboxResult> {
+  try {
+    return await finalizeAmbiguousNotificationStartedAttempt(db, actor, outbox, {
+      id: attemptId,
+    });
+  } catch {
+    const now = getNotificationProcessingTrustNow();
+    const failureCode = NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown;
+    const auditId = crypto.randomUUID();
+
+    const results = await runMailBatch(db, [
+      db
+        .update(schema.mailNotificationAttempts)
+        .set({
+          state: "outcome_unknown",
+          completedAt: now,
+          errorCode: NOTIFICATION_ATTEMPT_ERROR_CODES.transportOutcomeUnknown,
+          errorMessage: null,
+        })
+        .where(
+          and(
+            eq(schema.mailNotificationAttempts.id, attemptId),
+            eq(schema.mailNotificationAttempts.state, "started"),
+          ),
+        ),
+      db
+        .update(schema.mailNotificationOutbox)
+        .set({
+          status: "failed_permanent",
+          processingStartedAt: null,
+          processingLeaseExpiresAt: null,
+          nextAttemptAt: null,
+          failureCode,
+          completedAt: now,
+          updatedAt: now,
+        })
+        .where(eq(schema.mailNotificationOutbox.id, outbox.id)),
+      buildNotificationOutboxPostStateAuditInsert(db, actor, {
+        auditId,
+        now,
+        action: MAIL_AUDIT_ACTIONS.notificationPermanentlyFailed,
+        outboxId: outbox.id,
+        expectedProcessingVersion: outbox.processingVersion,
+        expectedStatus: "failed_permanent",
+        metadata: {
+          outboxId: outbox.id,
+          failureCode,
+          attemptId,
+          ambiguousTransport: true,
+          postProviderPersistenceFailure: true,
+        },
+      }),
+    ]);
+
+    if ((results[0]?.meta?.changes ?? 0) !== 1) {
+      throw MailServiceError.staleVersion(
+        "Verification ambiguous attempt finalize failed",
+      );
+    }
+
+    return {
+      outcome: "failed_permanent",
+      outboxId: outbox.id,
+      failureCode,
+    };
+  }
+}
+
+async function finalizeVerificationPermanentFailure(
+  db: Database,
+  actor: MailOperationalActor,
+  outbox: MailNotificationOutbox,
+  attemptId: string,
+  attemptNumber: number,
+  errorCode: string,
+  errorMessage: string | undefined,
+): Promise<ProcessNotificationOutboxResult> {
+  const now = getNotificationProcessingTrustNow();
+  const expectedVersion = outbox.processingVersion;
+  const failureCode = NOTIFICATION_FAILURE_CODES.transportPermanentFailure;
+  const auditId = crypto.randomUUID();
+
+  const results = await runMailBatch(db, [
+    db
+      .update(schema.mailNotificationAttempts)
+      .set({
+        state: "permanent_failure",
+        completedAt: now,
+        errorCode,
+        errorMessage: sanitizeErrorMessage(errorMessage),
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationAttempts.id, attemptId),
+          eq(schema.mailNotificationAttempts.state, "started"),
+          eq(
+            schema.mailNotificationAttempts.processingVersion,
+            expectedVersion,
+          ),
+        ),
+      ),
+    db
+      .update(schema.mailNotificationOutbox)
+      .set({
+        status: "failed_permanent",
+        processingStartedAt: null,
+        processingLeaseExpiresAt: null,
+        nextAttemptAt: null,
+        failureCode,
+        completedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationOutbox.id, outbox.id),
+          eq(schema.mailNotificationOutbox.status, "processing"),
+          eq(
+            schema.mailNotificationOutbox.processingVersion,
+            expectedVersion,
+          ),
+        ),
+      ),
+    buildNotificationOutboxPostStateAuditInsert(db, actor, {
+      auditId,
+      now,
+      action: MAIL_AUDIT_ACTIONS.notificationIdentityVerificationDeliveryFailed,
+      outboxId: outbox.id,
+      expectedProcessingVersion: expectedVersion,
+      expectedStatus: "failed_permanent",
+      metadata: {
+        outboxId: outbox.id,
+        failureCode,
+        attemptNumber,
+        providerErrorCode: errorCode,
+      },
+    }),
+  ]);
+
+  assertBatchUpdateChanged(results, 0, "Verification permanent attempt CAS failed");
+  assertBatchUpdateChanged(results, 1, "Verification permanent outbox CAS failed");
+
+  return {
+    outcome: "failed_permanent",
+    outboxId: outbox.id,
+    failureCode,
+  };
+}
+
 /**
  * Worker-side verification delivery — MODEL B token generation at dispatch.
  * Raw challenge exists only in memory during transport.
@@ -359,16 +519,40 @@ export async function processClaimedVerificationOutboxDelivery(
   );
   const expiresAt = challenge.expiresAt;
 
+  let providerRequestId: string | undefined;
   try {
-    await input.sink.deliverChallenge({
+    const deliveryResult = await input.sink.deliverChallenge({
       notificationIdentityId: identity.id,
       targetEmail: identity.email,
       token: challenge.token,
       expiresAt,
     });
+    providerRequestId = deliveryResult?.providerRequestId;
   } catch (error) {
+    if (isVerificationChallengeDeliveryAmbiguous(error)) {
+      return finalizeVerificationAmbiguousOutcome(
+        db,
+        actor,
+        outbox,
+        attemptId,
+      );
+    }
     const message =
       error instanceof Error ? error.message : "Verification transport failed";
+    if (
+      isVerificationChallengeDeliveryFailure(error) &&
+      error.permanent
+    ) {
+      return finalizeVerificationPermanentFailure(
+        db,
+        actor,
+        outbox,
+        attemptId,
+        attemptNumber,
+        error.errorCode ?? VERIFICATION_OUTBOX_FAILURE_CODES.transportFailed,
+        message,
+      );
+    }
     return finalizeVerificationRetryableFailure(
       db,
       actor,
@@ -380,49 +564,57 @@ export async function processClaimedVerificationOutboxDelivery(
     );
   }
 
-  const hashResults = await runMailBatch(db, [
-    db
-      .update(schema.mailNotificationIdentities)
-      .set({
-        verificationTokenHash: challenge.tokenHash,
-        verificationExpiresAt: expiresAt,
-        verificationAttemptCount: 0,
-        updatedAt: now,
-      })
-      .where(
-        and(
-          eq(schema.mailNotificationIdentities.id, identity.id),
-          eq(schema.mailNotificationIdentities.userId, identity.userId),
-          eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
-          sql`${schema.mailNotificationIdentities.revokedAt} IS NULL`,
-          or(
-            sql`${schema.mailNotificationIdentities.verificationRequestedAt} IS NULL`,
-            lte(
-              schema.mailNotificationIdentities.verificationRequestedAt,
-              outbox.enqueuedAt,
+  try {
+    const hashResults = await runMailBatch(db, [
+      db
+        .update(schema.mailNotificationIdentities)
+        .set({
+          verificationTokenHash: challenge.tokenHash,
+          verificationExpiresAt: expiresAt,
+          verificationAttemptCount: 0,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.mailNotificationIdentities.id, identity.id),
+            eq(schema.mailNotificationIdentities.userId, identity.userId),
+            eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+            sql`${schema.mailNotificationIdentities.revokedAt} IS NULL`,
+            or(
+              sql`${schema.mailNotificationIdentities.verificationRequestedAt} IS NULL`,
+              lte(
+                schema.mailNotificationIdentities.verificationRequestedAt,
+                outbox.enqueuedAt,
+              ),
             ),
           ),
         ),
-      ),
-  ]);
+    ]);
 
-  if ((hashResults[0]?.meta?.changes ?? 0) !== 1) {
-    return terminalVerificationSkip(
+    if ((hashResults[0]?.meta?.changes ?? 0) !== 1) {
+      return terminalVerificationSkip(
+        db,
+        actor,
+        outbox,
+        VERIFICATION_OUTBOX_FAILURE_CODES.superseded,
+      );
+    }
+
+    return await finalizeVerificationSent(
       db,
       actor,
       outbox,
-      VERIFICATION_OUTBOX_FAILURE_CODES.superseded,
+      attemptId,
+      providerRequestId,
+    );
+  } catch {
+    return finalizeVerificationAmbiguousOutcome(
+      db,
+      actor,
+      outbox,
+      attemptId,
     );
   }
-
-  let providerRequestId: string | undefined;
-  return finalizeVerificationSent(
-    db,
-    actor,
-    outbox,
-    attemptId,
-    providerRequestId,
-  );
 }
 
 export {

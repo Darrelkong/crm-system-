@@ -9,10 +9,17 @@ export type NotificationVerificationChallengeDelivery = {
  * Server-internal seam for future Notification Dispatch.
  * Plaintext token exists only transiently inside trusted server execution.
  */
+export type NotificationVerificationChallengeDeliveryResult = {
+  providerRequestId?: string;
+};
+
 export type NotificationVerificationChallengeSink = {
   deliverChallenge(
     input: NotificationVerificationChallengeDelivery,
-  ): void | Promise<void>;
+  ):
+    | void
+    | NotificationVerificationChallengeDeliveryResult
+    | Promise<void | NotificationVerificationChallengeDeliveryResult>;
 };
 
 export const noopNotificationVerificationChallengeSink: NotificationVerificationChallengeSink =

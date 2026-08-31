@@ -720,6 +720,15 @@ async function finalizeAmbiguousStartedAttempt(
   outbox: MailNotificationOutbox,
   attempt: MailNotificationAttempt,
 ): Promise<ProcessNotificationOutboxResult> {
+  return finalizeAmbiguousNotificationStartedAttempt(db, actor, outbox, attempt);
+}
+
+export async function finalizeAmbiguousNotificationStartedAttempt(
+  db: Database,
+  actor: MailOperationalActor,
+  outbox: MailNotificationOutbox,
+  attempt: Pick<MailNotificationAttempt, "id">,
+): Promise<ProcessNotificationOutboxResult> {
   const now = getNotificationProcessingTrustNow();
   const expectedVersion = outbox.processingVersion;
   const failureCode = NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown;

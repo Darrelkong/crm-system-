@@ -37,6 +37,9 @@ import {
   verifyNotificationIdentity,
 } from "@/lib/mail/notification-identity-service";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 import { FakeNotificationTransportAdapter } from "@/lib/mail/notification-transport-adapter";
 
 const FIXTURE = "mail-phase2c12b1";
@@ -164,6 +167,8 @@ describe("notification outbox core integration", () => {
   let db: TestDb;
   let dispose: (() => void) | undefined;
   let identityId: string;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   async function refreshTargetIdentity(): Promise<string> {
     const active = await findActiveVerifiedNotificationIdentity(db, TARGET_USER);
@@ -182,6 +187,8 @@ describe("notification outbox core integration", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      "notification-outbox-integration-secret";
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
@@ -201,6 +208,12 @@ describe("notification outbox core integration", () => {
   after(async () => {
     await cleanupFixtures(db);
     setNotificationProcessingLeaseTestClock(null);
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
     dispose?.();
   });
 

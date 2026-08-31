@@ -23,6 +23,7 @@ import {
 } from "@/lib/mail/notification-verification-challenge-sink";
 import {
   NotificationVerificationChallengeDeliveryError,
+  isVerificationChallengeDeliveryAmbiguous,
   isVerificationChallengeDeliveryFailure,
   resolveNotificationVerificationChallengeSink,
   resolveVerificationChallengeDeliveryStatus,
@@ -989,6 +990,8 @@ export async function sendNotificationIdentityVerificationChallenge(
       delivered = true;
     } catch (error) {
       if (isVerificationChallengeDeliveryFailure(error)) {
+        delivered = false;
+      } else if (isVerificationChallengeDeliveryAmbiguous(error)) {
         delivered = false;
       } else {
         throw error;
