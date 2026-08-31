@@ -59,6 +59,9 @@ import {
 } from "@/lib/mail/notification-processing-lease";
 import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
 import {
+  NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS,
+} from "@/lib/mail/notification-verification-challenge-policy";
+import {
   hashVerificationToken,
   verificationExpiresAt,
 } from "@/lib/mail/verification-token";
@@ -68,6 +71,8 @@ import {
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
 
 const FIXTURE = "mail-phase2h-6j3-delivery";
+const RESEND_COOLDOWN_ADVANCE_MS =
+  NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000;
 const TARGET_USER = SEED_IDS.staffA;
 const OTHER_USER = SEED_IDS.staffB;
 
@@ -171,6 +176,7 @@ async function queueVerificationSend(
   db: TestDb,
   targetUserId: string,
   email: string,
+  options?: { nowMs?: number },
 ) {
   await createPendingNotificationIdentity(db, permissionActor, {
     targetUserId,
@@ -180,6 +186,7 @@ async function queueVerificationSend(
     db,
     permissionActor,
     targetUserId,
+    options,
   );
 }
 
@@ -194,6 +201,26 @@ async function dispatchVerificationOutbox(
     outboxId,
     sink,
   });
+}
+
+/** Outbox enqueue uses wall-clock enqueuedAt; resend tests pass simulated nowMs for cooldown. */
+async function alignVerificationRequestedAtWithOutbox(
+  db: TestDb,
+  targetUserId: string,
+  outbox: { enqueuedAt: string },
+) {
+  await db
+    .update(schema.mailNotificationIdentities)
+    .set({
+      verificationRequestedAt: outbox.enqueuedAt,
+      updatedAt: outbox.enqueuedAt,
+    })
+    .where(
+      and(
+        eq(schema.mailNotificationIdentities.userId, targetUserId),
+        eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+      ),
+    );
 }
 
 describe("notification verification delivery (6J.3)", () => {
@@ -579,7 +606,8 @@ describe("notification verification delivery (6J.3)", () => {
   it("19. resend invalidates older queued challenge", async () => {
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
     const email = fixtureEmail("resend");
-    await queueVerificationSend(db, TARGET_USER, email);
+    const firstNowMs = Date.now();
+    await queueVerificationSend(db, TARGET_USER, email, { nowMs: firstNowMs });
     const [firstOutbox] = await db
       .select()
       .from(schema.mailNotificationOutbox)
@@ -588,6 +616,7 @@ describe("notification verification delivery (6J.3)", () => {
       db,
       permissionActor,
       TARGET_USER,
+      { nowMs: firstNowMs + RESEND_COOLDOWN_ADVANCE_MS },
     );
     const capture = createCapturingNotificationVerificationChallengeSink();
     const firstResult = await dispatchVerificationOutbox(
@@ -605,7 +634,8 @@ describe("notification verification delivery (6J.3)", () => {
   it("20. late worker cannot restore superseded challenge", async () => {
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
     const email = fixtureEmail("race");
-    await queueVerificationSend(db, TARGET_USER, email);
+    const firstNowMs = Date.now();
+    await queueVerificationSend(db, TARGET_USER, email, { nowMs: firstNowMs });
     const [firstOutbox] = await db
       .select()
       .from(schema.mailNotificationOutbox)
@@ -614,6 +644,7 @@ describe("notification verification delivery (6J.3)", () => {
       db,
       permissionActor,
       TARGET_USER,
+      { nowMs: firstNowMs + RESEND_COOLDOWN_ADVANCE_MS },
     );
     const outboxes = await db
       .select()
@@ -622,6 +653,11 @@ describe("notification verification delivery (6J.3)", () => {
       .orderBy(schema.mailNotificationOutbox.enqueuedAt);
     assert.equal(outboxes.length, 2);
     const secondOutbox = outboxes[1]!;
+    await alignVerificationRequestedAtWithOutbox(
+      db,
+      TARGET_USER,
+      secondOutbox,
+    );
     const secondCapture = createCapturingNotificationVerificationChallengeSink();
     await dispatchVerificationOutbox(db, secondOutbox.id, secondCapture.sink);
     const secondToken = secondCapture.latestToken();
@@ -1015,7 +1051,7 @@ describe("verification carrier-type isolation (6J.3A gate)", () => {
         db,
         permissionActor,
         TARGET_USER,
-        { nowMs: nowMs + i * 1000 },
+        { nowMs: nowMs + i * RESEND_COOLDOWN_ADVANCE_MS },
       );
     }
     await assert.rejects(
@@ -1024,7 +1060,7 @@ describe("verification carrier-type isolation (6J.3A gate)", () => {
           db,
           permissionActor,
           TARGET_USER,
-          { nowMs: nowMs + 4000 },
+          { nowMs: nowMs + 3 * RESEND_COOLDOWN_ADVANCE_MS },
         ),
       (error: unknown) =>
         error instanceof MailServiceError && error.status === 409,

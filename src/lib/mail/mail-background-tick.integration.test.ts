@@ -53,8 +53,13 @@ import {
   setNotificationProcessingLeaseTestClock,
 } from "@/lib/mail/notification-processing-lease";
 import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 
 const FIXTURE = "mail-phase2c12c1";
+const TEST_VERIFICATION_SECRET =
+  "mail-background-tick-integration-test-secret";
 const PROVIDER = "fake-local";
 const BASE_TIME = "2026-08-21T14:00:00.000Z";
 
@@ -156,6 +161,29 @@ async function cleanupFixtures(db: TestDb) {
     .delete(schema.mailNotificationOutbox)
     .where(like(schema.mailNotificationOutbox.sourceEntityId, `${FIXTURE}%`));
 
+  const testUserOutboxRows = await db
+    .select({ id: schema.mailNotificationOutbox.id })
+    .from(schema.mailNotificationOutbox)
+    .where(
+      inArray(schema.mailNotificationOutbox.recipientUserId, [
+        SEED_IDS.staffA,
+        SEED_IDS.admin,
+      ]),
+    );
+  for (const row of testUserOutboxRows) {
+    await db
+      .delete(schema.mailNotificationAttempts)
+      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, row.id));
+  }
+  await db
+    .delete(schema.mailNotificationOutbox)
+    .where(
+      inArray(schema.mailNotificationOutbox.recipientUserId, [
+        SEED_IDS.staffA,
+        SEED_IDS.admin,
+      ]),
+    );
+
   const providerEvents = await db
     .select({ id: schema.mailProviderIngestionEvents.id })
     .from(schema.mailProviderIngestionEvents)
@@ -243,7 +271,12 @@ async function cleanupFixtures(db: TestDb) {
 
   await db
     .delete(schema.mailNotificationIdentities)
-    .where(like(schema.mailNotificationIdentities.email, `${FIXTURE}%`));
+    .where(
+      inArray(schema.mailNotificationIdentities.userId, [
+        SEED_IDS.staffA,
+        SEED_IDS.admin,
+      ]),
+    );
 }
 
 async function stagePendingInbound(
@@ -296,9 +329,13 @@ describe("mail background tick Local D1", () => {
   let payloadStore: MemoryInboundRawPayloadStore;
   let attachmentStore: MemoryInboundAttachmentStore;
   let dispose: (() => void) | undefined;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      TEST_VERIFICATION_SECRET;
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
@@ -320,6 +357,12 @@ describe("mail background tick Local D1", () => {
       setIngestionProcessingLeaseTestClock(null);
       setNotificationProcessingLeaseTestClock(null);
       dispose?.();
+      if (previousVerificationSecret === undefined) {
+        delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+      } else {
+        process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+          previousVerificationSecret;
+      }
     }
   });
 

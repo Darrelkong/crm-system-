@@ -22,6 +22,11 @@ import {
   verifyNotificationIdentity,
 } from "@/lib/mail/notification-identity-service";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
+import {
+  NOTIFICATION_VERIFICATION_EXPIRY_MS,
+  NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS,
+  isValidVerificationCodeFormat,
+} from "@/lib/mail/notification-verification-challenge-policy";
 import { hashVerificationToken } from "@/lib/mail/verification-token";
 import {
   MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
@@ -29,6 +34,8 @@ import {
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
 
 const FIXTURE = "mail-phase2c12c3a-h322";
+const RESEND_COOLDOWN_ADVANCE_MS =
+  NOTIFICATION_VERIFICATION_RESEND_COOLDOWN_MS + 1_000;
 const PROOF_USER = SEED_IDS.staffA;
 const OTHER_USER = SEED_IDS.staffB;
 
@@ -191,19 +198,26 @@ describe("admin verification token issue service", () => {
     assert.equal(otherRow.verificationStatus, "pending");
   });
 
-  it("issues 64-char hex token with identityId and expiresAt", async () => {
+  it("issues 8-character OTP with identityId and 5-minute expiresAt", async () => {
     const pending = await createPendingForUser(
       db,
       PROOF_USER,
       fixtureEmail("issue"),
     );
+    const issuedAtMs = Date.now();
     const result = await issueSelfVerificationTokenForAdminProof(
       db,
       superAdminActor,
+      { nowMs: issuedAtMs },
     );
     assert.equal(result.item.identityId, pending.id);
     assert.match(result.item.expiresAt, /^\d{4}-\d{2}-\d{2}T/);
-    assert.match(result.verificationToken, /^[0-9a-f]{64}$/);
+    assert.equal(result.verificationToken.length, 8);
+    assert.equal(isValidVerificationCodeFormat(result.verificationToken), true);
+    assert.equal(
+      Date.parse(result.item.expiresAt),
+      issuedAtMs + NOTIFICATION_VERIFICATION_EXPIRY_MS,
+    );
   });
 
   it("persists token hash but not plaintext in D1", async () => {
@@ -258,13 +272,16 @@ describe("admin verification token issue service", () => {
   it("invalidates first token after regeneration and verifies newest token", async () => {
     await createPendingForUser(db, PROOF_USER, fixtureEmail("regen"));
 
+    const firstNowMs = Date.now();
     const first = await issueSelfVerificationTokenForAdminProof(
       db,
       superAdminActor,
+      { nowMs: firstNowMs },
     );
     const second = await issueSelfVerificationTokenForAdminProof(
       db,
       superAdminActor,
+      { nowMs: firstNowMs + RESEND_COOLDOWN_ADVANCE_MS },
     );
 
     await assert.rejects(
@@ -276,7 +293,7 @@ describe("admin verification token issue service", () => {
       (error: unknown) => {
         assert.ok(error instanceof MailServiceError);
         assert.equal(error.status, 400);
-        assert.match(error.message, /Invalid verification token/);
+        assert.match(error.message, /Invalid verification code/);
         return true;
       },
     );
@@ -320,16 +337,20 @@ describe("admin verification token issue service", () => {
   it("enforces max 3 issuance per rolling 24 hours", async () => {
     await createPendingForUser(db, PROOF_USER, fixtureEmail("rate-limit"));
 
-    const nowMs = Date.now();
+    const baseNowMs = Date.parse("2026-08-26T13:00:00.000Z");
     for (let i = 0; i < VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_MAX; i += 1) {
       await issueSelfVerificationTokenForAdminProof(db, superAdminActor, {
-        nowMs,
+        nowMs: baseNowMs + i * RESEND_COOLDOWN_ADVANCE_MS,
       });
     }
 
     await assert.rejects(
       () =>
-        issueSelfVerificationTokenForAdminProof(db, superAdminActor, { nowMs }),
+        issueSelfVerificationTokenForAdminProof(db, superAdminActor, {
+          nowMs:
+            baseNowMs +
+            VERIFICATION_TOKEN_ISSUE_RATE_LIMIT_MAX * RESEND_COOLDOWN_ADVANCE_MS,
+        }),
       (error: unknown) => {
         assert.ok(error instanceof MailServiceError);
         assert.equal(error.status, 409);
