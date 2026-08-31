@@ -5,6 +5,7 @@ import {
   isVerificationChallengeDeliveryAmbiguous,
   isVerificationChallengeDeliveryFailure,
   NotificationVerificationChallengeDeliveryAmbiguousError,
+  VERIFICATION_PRE_PROVIDER_FAILURE_CODE,
 } from "@/lib/mail/notification-verification-challenge-delivery";
 import type { CloudflareEmailServiceRestVerificationTransportConfig } from "@/lib/mail/cloudflare-email-service-rest-verification-transport";
 
@@ -105,5 +106,39 @@ describe("createEmailNotificationVerificationChallengeSink", () => {
         return true;
       },
     );
+  });
+
+  it("fails before provider dispatch when email content cannot be built", async () => {
+    let fetchCalled = false;
+    const sink = createEmailNotificationVerificationChallengeSink({
+      ...restConfig(async () => {
+        fetchCalled = true;
+        return new Response();
+      }),
+    });
+    await assert.rejects(
+      async () => {
+        await sink.deliverChallenge(
+          undefined as never,
+        );
+      },
+      (error: unknown) => {
+        assert.ok(isVerificationChallengeDeliveryFailure(error));
+        assert.equal(
+          error instanceof Error ? error.name : "",
+          "NotificationVerificationChallengeDeliveryError",
+        );
+        assert.equal(
+          error instanceof Error &&
+            "errorCode" in error &&
+            typeof error.errorCode === "string"
+            ? error.errorCode
+            : null,
+          VERIFICATION_PRE_PROVIDER_FAILURE_CODE,
+        );
+        return true;
+      },
+    );
+    assert.equal(fetchCalled, false);
   });
 });

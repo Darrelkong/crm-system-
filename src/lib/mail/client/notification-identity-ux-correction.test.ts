@@ -71,6 +71,15 @@ describe("notification identity UX correction wiring", () => {
     assert.doesNotMatch(summary, /DataTable/);
   });
 
+  it("only renders verification expiry when the server provides one", () => {
+    const summary = read(
+      "src/components/mail/admin/notification-identity-status-summary.tsx",
+    );
+    assert.match(summary, /status === "pending" && item\.verificationExpiresAt/);
+    assert.match(summary, /formatHongKongDateTime\(item\.verificationExpiresAt\)/);
+    assert.doesNotMatch(summary, /verificationRequestedAt.*\+.*300/);
+  });
+
   it("shared modal shell uses viewport-centered grid overlay", () => {
     const modal = read("src/components/ui/modal.tsx");
     const css = read("src/app/globals.css");

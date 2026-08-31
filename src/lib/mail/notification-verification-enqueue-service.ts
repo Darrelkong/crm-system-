@@ -70,6 +70,9 @@ export async function enqueueNotificationIdentityVerificationDelivery(
       .update(schema.mailNotificationIdentities)
       .set({
         verificationRequestedAt: now,
+        verificationTokenHash: null,
+        verificationExpiresAt: null,
+        verificationAttemptCount: 0,
         updatedAt: now,
       })
       .where(

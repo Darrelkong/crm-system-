@@ -14,6 +14,8 @@ import {
 } from "@/lib/mail/cloudflare-email-notification-transport-adapter";
 import {
   createEmailNotificationVerificationChallengeSink,
+  NotificationVerificationChallengeDeliveryError,
+  VERIFICATION_PRE_PROVIDER_FAILURE_CODE,
 } from "@/lib/mail/notification-verification-challenge-delivery";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
@@ -328,6 +330,56 @@ describe("notification verification delivery (6J.3)", () => {
     assert.equal(outbox.status, "pending");
   });
 
+  it("5. new queued verification send immediately invalidates the old challenge", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("queued-clears-old-challenge");
+    await createPendingNotificationIdentity(db, permissionActor, {
+      targetUserId: TARGET_USER,
+      email,
+    });
+    const [before] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.ok(before?.verificationTokenHash);
+    assert.ok(before?.verificationExpiresAt);
+    const oldToken = "ABCD1234";
+    await db
+      .update(schema.mailNotificationIdentities)
+      .set({
+        verificationTokenHash: hashVerificationToken(oldToken, before!.id),
+        verificationExpiresAt: verificationExpiresAt(Date.now()),
+        verificationAttemptCount: 0,
+      })
+      .where(eq(schema.mailNotificationIdentities.id, before!.id));
+
+    await sendNotificationIdentityVerificationChallenge(
+      db,
+      permissionActor,
+      TARGET_USER,
+    );
+
+    const [after] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.equal(after?.verificationTokenHash, null);
+    assert.equal(after?.verificationExpiresAt, null);
+    assert.equal(after?.verificationAttemptCount, 0);
+    assert.ok(after?.verificationRequestedAt);
+    await assert.rejects(
+      () =>
+        verifyNotificationIdentity(db, permissionActor, {
+          identityId: before!.id,
+          token: oldToken,
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.status === 409 &&
+        error.message === "Verification code has expired",
+    );
+  });
+
   it("5. destination resolves only to target Notification Identity email", async () => {
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
     const email = fixtureEmail("destination");
@@ -481,25 +533,28 @@ describe("notification verification delivery (6J.3)", () => {
       .from(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
     const createExpiry = before!.verificationExpiresAt;
-    assert.ok(createExpiry);
+    assert.equal(createExpiry, null);
 
-    const beforeDispatch = Date.now();
     const capture = createCapturingNotificationVerificationChallengeSink();
     const [outbox] = await db
       .select()
       .from(schema.mailNotificationOutbox)
       .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
     await dispatchVerificationOutbox(db, outbox!.id, capture.sink);
-    const afterDispatch = Date.now();
-
     const [after] = await db
       .select()
       .from(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
     assert.ok(after!.verificationExpiresAt);
+    const [attempt] = await db
+      .select()
+      .from(schema.mailNotificationAttempts)
+      .where(
+        eq(schema.mailNotificationAttempts.notificationOutboxId, outbox!.id),
+      );
+    assert.ok(attempt?.startedAt);
     const expiresMs = Date.parse(after!.verificationExpiresAt!);
-    assert.ok(expiresMs >= beforeDispatch);
-    assert.ok(expiresMs <= afterDispatch + 24 * 60 * 60 * 1000 + 5000);
+    assert.equal(expiresMs - Date.parse(attempt!.startedAt), 300_000);
     assert.notEqual(after!.verificationExpiresAt, createExpiry);
   });
 
@@ -573,11 +628,11 @@ describe("notification verification delivery (6J.3)", () => {
       createFailingVerificationSink(),
     );
     assert.equal(processed.outcome, "failed_retryable");
-    const [identity] = await db
+    const [pendingIdentity] = await db
       .select()
       .from(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
-    assert.equal(identity!.verificationStatus, "pending");
+    assert.equal(pendingIdentity!.verificationStatus, "pending");
   });
 
   it("18. retry remains idempotent after transient failure", async () => {
@@ -927,6 +982,13 @@ describe("notification verification delivery (6J.3)", () => {
     const refreshed = await findNotificationOutboxById(db, outbox!.id);
     assert.equal(refreshed!.status, "failed_permanent");
     assert.equal(refreshed!.nextAttemptAt, null);
+    const [identity] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.equal(identity!.verificationTokenHash, null);
+    assert.equal(identity!.verificationExpiresAt, null);
+    assert.equal(identity!.verificationAttemptCount, 0);
     const [attempt] = await db
       .select()
       .from(schema.mailNotificationAttempts)
@@ -936,11 +998,11 @@ describe("notification verification delivery (6J.3)", () => {
       attempt!.errorCode,
       NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown,
     );
-    const [identity] = await db
+    const [pendingIdentity] = await db
       .select()
       .from(schema.mailNotificationIdentities)
       .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
-    assert.equal(identity!.verificationStatus, "pending");
+    assert.equal(pendingIdentity!.verificationStatus, "pending");
   });
 
   it("30. explicit permanent provider rejection is not auto-retried", async () => {
@@ -973,6 +1035,13 @@ describe("notification verification delivery (6J.3)", () => {
     const refreshed = await findNotificationOutboxById(db, outbox!.id);
     assert.equal(refreshed!.status, "failed_permanent");
     assert.equal(refreshed!.nextAttemptAt, null);
+    const [identity] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.equal(identity!.verificationTokenHash, null);
+    assert.equal(identity!.verificationExpiresAt, null);
+    assert.equal(identity!.verificationAttemptCount, 0);
     assert.equal(
       refreshed!.failureCode,
       NOTIFICATION_FAILURE_CODES.transportPermanentFailure,
@@ -1069,6 +1138,74 @@ describe("notification verification delivery (6J.3)", () => {
       refreshed!.failureCode,
       NOTIFICATION_FAILURE_CODES.transportOutcomeUnknown,
     );
+  });
+
+  it("33. challenge generation failure terminalizes without lease recovery", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("challenge-generation-failure");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const previousSecret = process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    try {
+      const processed = await dispatchVerificationOutbox(
+        db,
+        outbox!.id,
+        createCapturingNotificationVerificationChallengeSink().sink,
+      );
+      assert.equal(processed.outcome, "failed_permanent");
+      assert.equal(processed.failureCode, VERIFICATION_OUTBOX_FAILURE_CODES.preProviderFailed);
+    } finally {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] = previousSecret;
+    }
+    const refreshed = await findNotificationOutboxById(db, outbox!.id);
+    assert.equal(refreshed!.status, "failed_permanent");
+    const [attempt] = await db
+      .select()
+      .from(schema.mailNotificationAttempts)
+      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, outbox!.id));
+    assert.equal(attempt!.state, "permanent_failure");
+    const [identity] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.equal(identity!.verificationTokenHash, null);
+    assert.equal(identity!.verificationExpiresAt, null);
+  });
+
+  it("34. content failure terminalizes without invoking the provider", async () => {
+    process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
+    const email = fixtureEmail("content-build-failure");
+    await queueVerificationSend(db, TARGET_USER, email);
+    const [outbox] = await db
+      .select()
+      .from(schema.mailNotificationOutbox)
+      .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+    const sink: NotificationVerificationChallengeSink = {
+      deliverChallenge() {
+        throw new NotificationVerificationChallengeDeliveryError(
+          "Verification email content could not be built",
+          {
+            permanent: true,
+            errorCode: VERIFICATION_PRE_PROVIDER_FAILURE_CODE,
+          },
+        );
+      },
+    };
+    const processed = await dispatchVerificationOutbox(db, outbox!.id, sink);
+    assert.equal(processed.outcome, "failed_permanent");
+    assert.equal(processed.failureCode, VERIFICATION_OUTBOX_FAILURE_CODES.preProviderFailed);
+    const refreshed = await findNotificationOutboxById(db, outbox!.id);
+    assert.equal(refreshed!.status, "failed_permanent");
+    const [identity] = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    assert.equal(identity!.verificationTokenHash, null);
+    assert.equal(identity!.verificationExpiresAt, null);
   });
 });
 

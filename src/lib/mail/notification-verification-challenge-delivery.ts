@@ -12,6 +12,13 @@ import {
   type NotificationVerificationChallengeDeliveryResult,
   type NotificationVerificationChallengeSink,
 } from "@/lib/mail/notification-verification-challenge-sink";
+import {
+  classifySafeError,
+  logVerificationDeliveryStage,
+} from "@/lib/mail/notification-verification-delivery-observability";
+
+export const VERIFICATION_PRE_PROVIDER_FAILURE_CODE =
+  "verification_pre_provider_failed" as const;
 
 /** Raised when challenge transport delivery fails; must not be treated as policy rejection. */
 export class NotificationVerificationChallengeDeliveryError extends Error {
@@ -60,17 +67,49 @@ export function createEmailNotificationVerificationChallengeSink(
 ): NotificationVerificationChallengeSink {
   return {
     async deliverChallenge(input): Promise<NotificationVerificationChallengeDeliveryResult> {
-      const content = buildNotificationVerificationEmailContent({
-        targetEmail: input.targetEmail,
-        verificationCode: input.token,
-        expiresAt: input.expiresAt,
-      });
+      const observability = input?.observability;
+      if (observability) {
+        logVerificationDeliveryStage(
+          observability,
+          "EMAIL_CONTENT_BUILD_STARTED",
+        );
+      }
+      let content: ReturnType<typeof buildNotificationVerificationEmailContent>;
+      try {
+        content = buildNotificationVerificationEmailContent({
+          targetEmail: input.targetEmail,
+          verificationCode: input.token,
+          expiresAt: input.expiresAt,
+        });
+      } catch (error) {
+        if (observability) {
+          logVerificationDeliveryStage(
+            observability,
+            "EMAIL_CONTENT_BUILD_STARTED",
+            { errorCategory: classifySafeError(error) },
+          );
+        }
+        throw new NotificationVerificationChallengeDeliveryError(
+          "Verification email content could not be built",
+          {
+            permanent: true,
+            errorCode: VERIFICATION_PRE_PROVIDER_FAILURE_CODE,
+          },
+        );
+      }
+      if (observability) {
+        logVerificationDeliveryStage(
+          observability,
+          "EMAIL_CONTENT_BUILT",
+        );
+      }
       const result = await dispatchCloudflareEmailServiceRestVerificationSend(
         config,
         {
           to: content.to,
           subject: content.subject,
           text: content.text,
+          observability,
         },
       );
 

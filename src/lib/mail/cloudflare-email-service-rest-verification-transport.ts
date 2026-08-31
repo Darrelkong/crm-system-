@@ -4,6 +4,11 @@ import {
   CLOUDFLARE_EMAIL_NOTIFICATION_FROM_DISPLAY_NAME,
   type CloudflareEmailSendDispatchResult,
 } from "@/lib/mail/cloudflare-email-notification-transport-adapter";
+import {
+  classifySafeError,
+  logVerificationDeliveryStage,
+  type VerificationDeliveryObservationContext,
+} from "@/lib/mail/notification-verification-delivery-observability";
 
 /** mail-jobs-only secret — never commit, never log. */
 export const CLOUDFLARE_EMAIL_SENDING_API_TOKEN_ENV =
@@ -39,6 +44,7 @@ export type CloudflareEmailServiceRestVerificationSendInput = {
   to: string;
   subject: string;
   text: string;
+  observability?: VerificationDeliveryObservationContext;
 };
 
 type CloudflareEmailServiceRestSendResultPayload = {
@@ -219,44 +225,115 @@ export async function dispatchCloudflareEmailServiceRestVerificationSend(
   const fetchFn = config.fetchFn ?? fetch;
   const controller = new AbortController();
   const timeoutHandle = setTimeout(() => controller.abort(), timeoutMs);
+  const fetchStartedAt = Date.now();
+  if (input.observability) {
+    logVerificationDeliveryStage(
+      input.observability,
+      "REST_FETCH_STARTED",
+    );
+  }
 
   try {
-    const response = await fetchFn(buildCloudflareEmailServiceRestSendUrl(accountId), {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiToken}`,
-        "Content-Type": "application/json",
+    const response = await fetchFn(
+      buildCloudflareEmailServiceRestSendUrl(accountId),
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(
+          buildCloudflareEmailServiceRestVerificationRequestBody(input),
+        ),
+        signal: controller.signal,
       },
-      body: JSON.stringify(
-        buildCloudflareEmailServiceRestVerificationRequestBody(input),
-      ),
-      signal: controller.signal,
-    });
+    );
+    if (input.observability) {
+      logVerificationDeliveryStage(
+        input.observability,
+        "REST_FETCH_RETURNED",
+        {
+          httpStatus: response.status,
+          httpOk: response.ok,
+          elapsedMs: Date.now() - fetchStartedAt,
+        },
+      );
+    }
 
     let payload: unknown;
     try {
       payload = await response.json();
     } catch {
+      if (input.observability) {
+        logVerificationDeliveryStage(
+          input.observability,
+          "REST_RESPONSE_CLASSIFIED",
+          {
+            classification: "ambiguous",
+          },
+        );
+      }
       return { outcome: "ambiguous" };
     }
 
     const parsed = parseCloudflareEmailServiceRestSendResponse(payload);
     if (!parsed) {
+      if (input.observability) {
+        logVerificationDeliveryStage(
+          input.observability,
+          "REST_RESPONSE_CLASSIFIED",
+          {
+            classification: "ambiguous",
+          },
+        );
+      }
       return { outcome: "ambiguous" };
     }
 
+    let result: CloudflareEmailSendDispatchResult;
     if (!response.ok) {
       const statusResult = classifyHttpStatus(response.status);
       if (statusResult.outcome !== "ambiguous") {
-        return statusResult;
+        result = statusResult;
+      } else {
+        result = classifySuccessfulRestPayload(input.to, parsed);
       }
-      return classifySuccessfulRestPayload(input.to, parsed);
+    } else {
+      result = classifySuccessfulRestPayload(input.to, parsed);
     }
-
-    return classifySuccessfulRestPayload(input.to, parsed);
+    if (input.observability) {
+      logVerificationDeliveryStage(
+        input.observability,
+        "REST_RESPONSE_CLASSIFIED",
+        { classification: result.outcome },
+      );
+    }
+    return result;
   } catch (error) {
     if (isAbortError(error)) {
+      if (input.observability) {
+        logVerificationDeliveryStage(
+          input.observability,
+          "REST_FETCH_ABORTED",
+          { elapsedMs: Date.now() - fetchStartedAt },
+        );
+        logVerificationDeliveryStage(
+          input.observability,
+          "REST_RESPONSE_CLASSIFIED",
+          { classification: "ambiguous" },
+        );
+      }
       return { outcome: "ambiguous" };
+    }
+    if (input.observability) {
+      logVerificationDeliveryStage(
+        input.observability,
+        "REST_RESPONSE_CLASSIFIED",
+        {
+          classification: "ambiguous",
+          errorCategory: classifySafeError(error),
+        },
+      );
     }
     return { outcome: "ambiguous" };
   } finally {

@@ -1,8 +1,11 @@
+import type { VerificationDeliveryObservationContext } from "@/lib/mail/notification-verification-delivery-observability";
+
 export type NotificationVerificationChallengeDelivery = {
   notificationIdentityId: string;
   targetEmail: string;
   token: string;
   expiresAt: string;
+  observability?: VerificationDeliveryObservationContext;
 };
 
 /**
