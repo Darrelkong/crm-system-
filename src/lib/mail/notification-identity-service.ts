@@ -931,7 +931,7 @@ export async function sendNotificationIdentityVerificationChallenge(
   options?: {
     nowMs?: number;
     challengeSink?: NotificationVerificationChallengeSink;
-    emailBinding?: import("@/lib/mail/cloudflare-email-notification-transport-adapter").CloudflareEmailSendBinding | null;
+    restConfig?: import("@/lib/mail/cloudflare-email-service-rest-verification-transport").CloudflareEmailServiceRestVerificationTransportConfig | null;
   },
 ): Promise<SendNotificationVerificationChallengeResult> {
   assertNotificationIdentityTargetAccess(actor, targetUserId);
@@ -949,12 +949,12 @@ export async function sendNotificationIdentityVerificationChallenge(
 
   const transportEnabled = isMailNotificationVerificationTransportEnabled();
   const testDelivery =
-    options?.challengeSink !== undefined || options?.emailBinding !== undefined;
+    options?.challengeSink !== undefined || options?.restConfig !== undefined;
 
   if (testDelivery) {
     const { sink, transportEnabled: sinkEnabled } =
       resolveNotificationVerificationChallengeSink({
-        emailBinding: options?.emailBinding ?? null,
+        restConfig: options?.restConfig ?? null,
         overrideSink: options?.challengeSink,
       });
 

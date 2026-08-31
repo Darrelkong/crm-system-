@@ -37,5 +37,8 @@
     "MAIL_NOTIFICATION_TRANSPORT_ENABLED": "false",
     "MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "production",
     "MAIL_OUTBOUND_TRANSPORT_MODE": "production"
+    // Verification OTP REST transport (Phase 1C.6A):
+    // - Secret: CLOUDFLARE_EMAIL_SENDING_API_TOKEN (wrangler secret put)
+    // - Non-secret: CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID (set at deploy; no real value in repo)
   }
 }

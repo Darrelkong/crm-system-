@@ -3,6 +3,11 @@
 import { drizzle } from "drizzle-orm/d1";
 import * as schema from "../drizzle/schema";
 import { createCloudflareEmailNotificationTransport } from "../src/lib/mail/cloudflare-email-notification-transport-adapter";
+import {
+  CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID_ENV,
+  CLOUDFLARE_EMAIL_SENDING_API_TOKEN_ENV,
+  resolveCloudflareEmailServiceRestVerificationTransportConfig,
+} from "../src/lib/mail/cloudflare-email-service-rest-verification-transport";
 import { createEmailNotificationVerificationChallengeSink } from "../src/lib/mail/notification-verification-challenge-delivery";
 import {
   isMailNotificationVerificationTransportEnabled,
@@ -37,6 +42,8 @@ export interface MailJobsEnv extends OutboundBusinessEmailBindingEnv {
   MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
   MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE?: string;
   MAIL_OUTBOUND_TRANSPORT_MODE?: string;
+  [CLOUDFLARE_EMAIL_SENDING_API_TOKEN_ENV]?: string;
+  [CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID_ENV]?: string;
 }
 
 export type MailJobsTickRunner = typeof runMailBackgroundTick;
@@ -60,6 +67,16 @@ function assertNotificationTransportBindings(env: MailJobsEnv): void {
   if (!env.EMAIL) {
     throw new Error(
       "Mail Jobs Worker requires EMAIL send_email binding when MAIL_NOTIFICATION_TRANSPORT_ENABLED is true",
+    );
+  }
+}
+
+function assertVerificationRestTransportConfig(env: MailJobsEnv): void {
+  try {
+    resolveCloudflareEmailServiceRestVerificationTransportConfig(env);
+  } catch {
+    throw new Error(
+      "Mail Jobs Worker requires CLOUDFLARE_EMAIL_SENDING_API_TOKEN secret and CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID when MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE is production",
     );
   }
 }
@@ -91,10 +108,12 @@ export function buildMailBackgroundTickDeps(
         env.MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE,
     })
   ) {
-    assertNotificationTransportBindings(env);
-    deps.verificationChallengeSink = createEmailNotificationVerificationChallengeSink(
-      env.EMAIL!,
+    assertVerificationRestTransportConfig(env);
+    const restConfig = resolveCloudflareEmailServiceRestVerificationTransportConfig(
+      env,
     );
+    deps.verificationChallengeSink =
+      createEmailNotificationVerificationChallengeSink(restConfig);
   }
 
   if (isMailNotificationTransportEnabled(env)) {

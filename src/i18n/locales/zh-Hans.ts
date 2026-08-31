@@ -590,7 +590,7 @@ const zhHans: Messages = {
         verifyTitle: "完成验证",
         verifyHint: "输入 {{email}} 的验证码以确认此通知邮箱。",
         verifyCodeLabel: "验证码",
-        verifyCodePlaceholder: "输入 8 位验证码",
+        verifyCodePlaceholder: "请输入验证码",
         verifyAction: "验证通知邮箱",
         verifySentInitial: "验证码已发送至你的通知邮箱，有效期 5 分钟。",
         verifyWrongTwoRemaining: "验证码不正确，还可尝试 2 次。",

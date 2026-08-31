@@ -105,6 +105,14 @@ describe("mail jobs cron static config", () => {
     assert.doesNotMatch(main, /mail-jobs-cron/);
   });
 
+  it("worker source wires verification REST transport for production mode", () => {
+    const worker = read("workers/mail-jobs-cron.ts");
+    assert.match(worker, /createEmailNotificationVerificationChallengeSink/);
+    assert.match(worker, /resolveCloudflareEmailServiceRestVerificationTransportConfig/);
+    assert.match(worker, /CLOUDFLARE_EMAIL_SENDING_API_TOKEN/);
+    assert.doesNotMatch(worker, /createEmailNotificationVerificationChallengeSink\(\s*env\.EMAIL/);
+  });
+
   it("worker source wires Cloudflare notification transport behind explicit flag only", () => {
     const worker = read("workers/mail-jobs-cron.ts");
     assert.doesNotMatch(worker, /FakeNotificationTransportAdapter/);
@@ -180,6 +188,46 @@ describe("mail jobs cron wiring", () => {
     });
 
     assert.equal(capturedTransport, undefined);
+  });
+
+  it("provides verification REST sink when verification transport mode is production", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+      CLOUDFLARE_EMAIL_SENDING_API_TOKEN: "test-token",
+      CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID: "test-account-id",
+    } satisfies MailJobsEnv;
+
+    const deps = buildMailBackgroundTickDeps(env);
+    assert.ok(deps.verificationChallengeSink);
+  });
+
+  it("fails clearly when verification REST transport config is missing", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+    } satisfies MailJobsEnv;
+
+    assert.throws(
+      () => buildMailBackgroundTickDeps(env),
+      /CLOUDFLARE_EMAIL_SENDING_API_TOKEN secret and CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID/,
+    );
+  });
+
+  it("does not require EMAIL binding for verification-only production transport", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE: "production",
+      CLOUDFLARE_EMAIL_SENDING_API_TOKEN: "test-token",
+      CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID: "test-account-id",
+    } satisfies MailJobsEnv;
+
+    const deps = buildMailBackgroundTickDeps(env);
+    assert.ok(deps.verificationChallengeSink);
+    assert.equal(deps.notificationTransport, undefined);
   });
 
   it("provides Cloudflare notification transport only when flag is enabled", () => {

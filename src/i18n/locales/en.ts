@@ -622,7 +622,7 @@ const en = {
         verifyHint:
           "Enter the verification code for {{email}} to confirm this notification email address.",
         verifyCodeLabel: "Verification code",
-        verifyCodePlaceholder: "Enter 8-character code",
+        verifyCodePlaceholder: "Enter verification code",
         verifyAction: "Verify notification email",
         verifySentInitial:
           "A verification code was sent to your notification email. It expires in 5 minutes.",

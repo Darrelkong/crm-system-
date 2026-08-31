@@ -11,7 +11,6 @@ import type { MailActorContext } from "@/lib/mail/actor-context";
 import {
   CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES,
   CLOUDFLARE_EMAIL_NOTIFICATION_FROM_ADDRESS,
-  CloudflareEmailProviderError,
 } from "@/lib/mail/cloudflare-email-notification-transport-adapter";
 import {
   createEmailNotificationVerificationChallengeSink,
@@ -872,9 +871,21 @@ describe("notification verification delivery (6J.3)", () => {
       .from(schema.mailNotificationOutbox)
       .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
     const sink = createEmailNotificationVerificationChallengeSink({
-      async send() {
-        return { messageId: "0101018f-verify-msg-id" };
-      },
+      accountId: "test-account-id",
+      apiToken: "test-api-token",
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            result: {
+              message_id: "0101018f-verify-msg-id",
+              delivered: [email],
+              queued: [],
+              permanent_bounces: [],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
     });
     await dispatchVerificationOutbox(db, outbox!.id, sink);
     const [attempt] = await db
@@ -884,7 +895,7 @@ describe("notification verification delivery (6J.3)", () => {
     assert.equal(attempt!.providerRequestId, "0101018f-verify-msg-id");
   });
 
-  it("29. hung EMAIL.send terminalizes as outcome_unknown without retry", async () => {
+  it("29. hung REST fetch terminalizes as outcome_unknown without retry", async () => {
     process.env[MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE_VAR] = "production";
     const email = fixtureEmail("hung-send");
     await queueVerificationSend(db, TARGET_USER, email);
@@ -894,11 +905,18 @@ describe("notification verification delivery (6J.3)", () => {
       .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
     const sink = createEmailNotificationVerificationChallengeSink(
       {
-        send() {
-          return new Promise(() => {});
-        },
+        accountId: "test-account-id",
+        apiToken: "test-api-token",
+        timeoutMs: 25,
+        fetchFn: async (_url, init) =>
+          new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => {
+              const error = new Error("Aborted");
+              error.name = "AbortError";
+              reject(error);
+            });
+          }),
       },
-      { timeoutMs: 25 },
     );
     const processed = await dispatchVerificationOutbox(db, outbox!.id, sink);
     assert.equal(processed.outcome, "failed_permanent");
@@ -934,9 +952,21 @@ describe("notification verification delivery (6J.3)", () => {
       .from(schema.mailNotificationOutbox)
       .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
     const sink = createEmailNotificationVerificationChallengeSink({
-      async send() {
-        throw new CloudflareEmailProviderError("E_RECIPIENT_NOT_ALLOWED");
-      },
+      accountId: "test-account-id",
+      apiToken: "test-api-token",
+      fetchFn: async () =>
+        new Response(
+          JSON.stringify({
+            success: true,
+            result: {
+              message_id: "0101018f-permanent",
+              delivered: [],
+              queued: [],
+              permanent_bounces: [email],
+            },
+          }),
+          { status: 200, headers: { "Content-Type": "application/json" } },
+        ),
     });
     const processed = await dispatchVerificationOutbox(db, outbox!.id, sink);
     assert.equal(processed.outcome, "failed_permanent");
@@ -954,7 +984,7 @@ describe("notification verification delivery (6J.3)", () => {
     assert.equal(attempt!.state, "permanent_failure");
     assert.equal(
       attempt!.errorCode,
-      CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES.recipientNotAllowed,
+      CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES.recipientSuppressed,
     );
   });
 
@@ -1280,7 +1310,7 @@ describe("verification worker config guards", () => {
     );
   });
 
-  it("mail-jobs wrangler has restricted EMAIL binding", () => {
+  it("mail-jobs wrangler documents REST verification transport contract", () => {
     const config = readFileSync("wrangler.mail-jobs-cron.jsonc", "utf8");
     assert.ok(config.includes("send_email"));
     assert.ok(config.includes("notifications@send.echfronthk.com"));
@@ -1288,5 +1318,7 @@ describe("verification worker config guards", () => {
     assert.ok(
       config.includes('"MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "production"'),
     );
+    assert.ok(config.includes("CLOUDFLARE_EMAIL_SENDING_API_TOKEN"));
+    assert.ok(config.includes("CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID"));
   });
 });

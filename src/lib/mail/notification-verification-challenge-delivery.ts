@@ -1,7 +1,7 @@
 import {
-  dispatchCloudflareEmailSendWithTimeout,
-  type CloudflareEmailSendBinding,
-} from "@/lib/mail/cloudflare-email-notification-transport-adapter";
+  dispatchCloudflareEmailServiceRestVerificationSend,
+  type CloudflareEmailServiceRestVerificationTransportConfig,
+} from "@/lib/mail/cloudflare-email-service-rest-verification-transport";
 import { buildNotificationVerificationEmailContent } from "@/lib/mail/notification-verification-email";
 import {
   isMailNotificationVerificationTransportEnabled,
@@ -56,8 +56,7 @@ export function isVerificationChallengeDeliveryAmbiguous(
 }
 
 export function createEmailNotificationVerificationChallengeSink(
-  emailBinding: CloudflareEmailSendBinding,
-  options?: { timeoutMs?: number },
+  config: CloudflareEmailServiceRestVerificationTransportConfig,
 ): NotificationVerificationChallengeSink {
   return {
     async deliverChallenge(input): Promise<NotificationVerificationChallengeDeliveryResult> {
@@ -66,15 +65,13 @@ export function createEmailNotificationVerificationChallengeSink(
         verificationCode: input.token,
         expiresAt: input.expiresAt,
       });
-      const result = await dispatchCloudflareEmailSendWithTimeout(
-        emailBinding,
+      const result = await dispatchCloudflareEmailServiceRestVerificationSend(
+        config,
         {
           to: content.to,
-          from: content.from,
           subject: content.subject,
           text: content.text,
         },
-        { timeoutMs: options?.timeoutMs },
       );
 
       if (result.outcome === "accepted") {
@@ -104,7 +101,7 @@ export function createEmailNotificationVerificationChallengeSink(
 }
 
 export function resolveNotificationVerificationChallengeSink(input?: {
-  emailBinding?: CloudflareEmailSendBinding | null;
+  restConfig?: CloudflareEmailServiceRestVerificationTransportConfig | null;
   overrideSink?: NotificationVerificationChallengeSink;
 }): {
   sink: NotificationVerificationChallengeSink;
@@ -115,7 +112,7 @@ export function resolveNotificationVerificationChallengeSink(input?: {
   }
 
   const transportEnabled = isMailNotificationVerificationTransportEnabled();
-  if (!transportEnabled || !input?.emailBinding) {
+  if (!transportEnabled || !input?.restConfig) {
     return {
       sink: noopNotificationVerificationChallengeSink,
       transportEnabled: false,
@@ -123,7 +120,7 @@ export function resolveNotificationVerificationChallengeSink(input?: {
   }
 
   return {
-    sink: createEmailNotificationVerificationChallengeSink(input.emailBinding),
+    sink: createEmailNotificationVerificationChallengeSink(input.restConfig),
     transportEnabled: true,
   };
 }
