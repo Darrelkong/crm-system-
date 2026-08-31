@@ -460,11 +460,25 @@ const en = {
       teamMemberLabel: "Team member",
       notificationEmailLabel: "Notification mailbox",
       currentVerifiedEmail: "Current notification mailbox",
-      pendingReplacementEmail: "Pending new notification mailbox",
+      pendingReplacementEmail: "New notification mailbox",
+      disabledStateLabel: "Notification mailbox disabled",
       changeEmailAction: "Change notification mailbox",
       changeEmailDescription:
         "Enter the new private external notification mailbox. Verification is required before it replaces the current address.",
       completeVerificationAction: "Complete verification",
+      completeReplacementAction: "Complete replacement",
+      cancelSetupAction: "Cancel setup",
+      cancelReplacementAction: "Cancel replacement",
+      cancelSetupSuccess: "Notification mailbox setup cancelled.",
+      cancelReplacementSuccess:
+        "Replacement cancelled. The current notification mailbox remains active.",
+      replacementSuccess: "Notification mailbox replacement completed.",
+      disableAction: "Disable notification mailbox",
+      disableConfirmTitle: "Disable notification mailbox",
+      disableConfirmBody:
+        "After disabling, this notification mailbox will no longer be used for CRM Mail alerts, and this member's Mail access will be suspended. Work mailboxes and mail history will not be deleted. Mail access can be restored after a new notification mailbox is verified.",
+      disableSuccess:
+        "Notification mailbox disabled and Mail access suspended.",
       otpModalTitle: "Verify notification mailbox",
       otpModalSentTo: "We sent an 8-character verification code to:",
       otpModalValidity: "The code is valid for 5 minutes.",
@@ -571,10 +585,12 @@ const en = {
           none: "Not set",
           pending: "Pending verification",
           verified: "Verified",
+          replacement_pending: "Replacement in progress",
         },
         actions: {
           configureNotificationEmail: "Set notification email",
           completeVerification: "Complete verification",
+          manageNotificationEmail: "Manage notification mailbox",
         },
         targetNotification: {
           title: "Notification email setup",

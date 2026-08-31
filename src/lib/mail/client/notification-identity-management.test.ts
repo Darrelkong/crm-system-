@@ -286,6 +286,10 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
         showChangeEmail: false,
         showCompleteVerification: false,
         showResendVerification: false,
+        showCancelPending: false,
+        showDisable: false,
+        isReplacementPending: false,
+        isPendingOnly: false,
       },
     );
   });
@@ -306,6 +310,10 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
         showChangeEmail: true,
         showCompleteVerification: false,
         showResendVerification: false,
+        showCancelPending: false,
+        showDisable: true,
+        isReplacementPending: false,
+        isPendingOnly: false,
       },
     );
   });
@@ -318,9 +326,13 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
       }),
       {
         showConfigureEmail: false,
-        showChangeEmail: false,
+        showChangeEmail: true,
         showCompleteVerification: true,
         showResendVerification: true,
+        showCancelPending: true,
+        showDisable: false,
+        isReplacementPending: false,
+        isPendingOnly: true,
       },
     );
   });
@@ -347,6 +359,10 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
         showChangeEmail: false,
         showCompleteVerification: true,
         showResendVerification: true,
+        showCancelPending: true,
+        showDisable: true,
+        isReplacementPending: true,
+        isPendingOnly: false,
       },
     );
     assert.equal(

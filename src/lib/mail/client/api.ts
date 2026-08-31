@@ -264,6 +264,54 @@ export async function createNotificationIdentity(
   return { ok: true, item: data.item };
 }
 
+export async function cancelPendingNotificationIdentity(
+  userId: string,
+): Promise<{
+  ok: true;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(
+    `/api/mail/access/${encodeURIComponent(userId)}/notification-identities/cancel-pending`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to cancel pending notification identity",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  return { ok: true };
+}
+
+export async function disableNotificationIdentity(
+  userId: string,
+): Promise<{
+  ok: true;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(
+    `/api/mail/access/${encodeURIComponent(userId)}/notification-identities/disable`,
+    { method: "POST" },
+  );
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to disable notification identity",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  return { ok: true };
+}
+
 export async function sendTargetNotificationVerificationChallenge(
   userId: string,
 ): Promise<{

@@ -29,7 +29,11 @@ export type MailAccessLifecycleStatus =
   | "disabled"
   | "enabled";
 
-export type NotificationIdentityLifecycleStatus = "none" | "pending" | "verified";
+export type NotificationIdentityLifecycleStatus =
+  | "none"
+  | "pending"
+  | "verified"
+  | "replacement_pending";
 
 export type MailAccessUserRow = {
   userId: string;
@@ -43,6 +47,7 @@ export type MailAccessUserRow = {
   notificationIdentityStatus: NotificationIdentityLifecycleStatus;
   notificationIdentityEmail: string | null;
   pendingNotificationIdentityId: string | null;
+  replacementPending: boolean;
 };
 
 export type MailAccessOnboardingActionKind =
@@ -50,6 +55,7 @@ export type MailAccessOnboardingActionKind =
   | "completeVerification"
   | "enableMail"
   | "disableMail"
+  | "manageNotificationEmail"
   | "none";
 
 export type MailAccessOnboardingAction = {
@@ -69,24 +75,40 @@ function resolveNotificationIdentityLifecycle(
   email: string | null;
   pendingIdentityId: string | null;
   hasVerified: boolean;
+  replacementPending: boolean;
 } {
   const verified = findActiveVerifiedNotificationIdentity(items);
+  const pending = findActivePendingNotificationIdentity(items);
+
+  if (verified && pending) {
+    const replacementPending =
+      pending.email.trim().toLowerCase() !== verified.email.trim().toLowerCase();
+    return {
+      status: replacementPending ? "replacement_pending" : "pending",
+      email: verified.email,
+      pendingIdentityId: pending.id,
+      hasVerified: true,
+      replacementPending,
+    };
+  }
+
   if (verified) {
     return {
       status: "verified",
       email: verified.email,
       pendingIdentityId: null,
       hasVerified: true,
+      replacementPending: false,
     };
   }
 
-  const pending = findActivePendingNotificationIdentity(items);
   if (pending) {
     return {
       status: "pending",
       email: pending.email,
       pendingIdentityId: pending.id,
       hasVerified: false,
+      replacementPending: false,
     };
   }
 
@@ -95,6 +117,7 @@ function resolveNotificationIdentityLifecycle(
     email: null,
     pendingIdentityId: null,
     hasVerified: false,
+    replacementPending: false,
   };
 }
 
@@ -123,13 +146,19 @@ export function resolveMailAccessOnboardingAction(
   if (!canManage) {
     return { kind: "none" };
   }
+  if (row.replacementPending && row.isEnabled) {
+    return { kind: "manageNotificationEmail" };
+  }
   if (row.isEnabled) {
     return { kind: "disableMail" };
   }
   if (row.notificationIdentityStatus === "none") {
     return { kind: "configureNotificationEmail" };
   }
-  if (row.notificationIdentityStatus === "pending") {
+  if (
+    row.notificationIdentityStatus === "pending" ||
+    row.notificationIdentityStatus === "replacement_pending"
+  ) {
     return { kind: "completeVerification" };
   }
   if (row.hasVerifiedNotificationIdentity) {
@@ -166,6 +195,7 @@ export function buildMailAccessUserRows(
         notificationIdentityStatus: identityLifecycle.status,
         notificationIdentityEmail: identityLifecycle.email,
         pendingNotificationIdentityId: identityLifecycle.pendingIdentityId,
+        replacementPending: identityLifecycle.replacementPending,
       };
     })
     .sort((left, right) => left.name.localeCompare(right.name));

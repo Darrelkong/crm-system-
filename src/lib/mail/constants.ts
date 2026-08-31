@@ -26,8 +26,13 @@ export const MAIL_AUDIT_ACTIONS = {
   notificationIdentityVerificationDeliveryFailed:
     "mail.notification_identity.verification_delivery_failed",
   notificationIdentityRevoked: "mail.notification_identity.revoked",
+  notificationIdentityPendingCancelled:
+    "mail.notification_identity.pending_cancelled",
+  notificationIdentityDisabled: "mail.notification_identity.disabled",
   notificationIdentityDeliveryHealthChanged:
     "mail.notification_identity.delivery_health_changed",
+  accessDisabledDueToNotificationIdentity:
+    "mail.access.disabled_due_to_notification_identity",
   adminGrantGranted: "mail.admin_grant.granted",
   adminGrantRevoked: "mail.admin_grant.revoked",
   senderIdentityCreated: "mail.sender_identity.created",

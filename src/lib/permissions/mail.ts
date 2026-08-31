@@ -211,7 +211,6 @@ export function assertNotificationIdentityTargetAccess(
   targetUserId: string,
 ): void {
   if (actor.userId === targetUserId) {
-    assertEffectiveMailAccess(actor);
     return;
   }
   assertMailPermissionManagement(actor);

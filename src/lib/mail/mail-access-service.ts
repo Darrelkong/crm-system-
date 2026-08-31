@@ -278,3 +278,60 @@ export async function disableMailAccess(
   }
   return toAdminView(db, row);
 }
+
+/**
+ * Disables Mail access when enabled. Caller must enforce authorization.
+ * Returns whether access was disabled in this call.
+ */
+export async function disableMailAccessIfEnabled(
+  db: Database,
+  actor: MailActorContext,
+  targetUserId: string,
+  input?: {
+    auditAction?: string;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<boolean> {
+  await requireTargetUser(db, targetUserId);
+
+  const existing = await getMailAccessRow(db, targetUserId);
+  if (!existing || existing.isEnabled === 0) {
+    return false;
+  }
+
+  const now = new Date().toISOString();
+  const auditId = crypto.randomUUID();
+
+  await runMailBatch(db, [
+    db
+      .update(schema.mailUserAccess)
+      .set({
+        isEnabled: 0,
+        disabledAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailUserAccess.userId, targetUserId),
+          eq(schema.mailUserAccess.isEnabled, 1),
+        ),
+      ),
+    buildMailAccessAuditInsert(db, actor, {
+      auditId,
+      now,
+      action: input?.auditAction ?? MAIL_AUDIT_ACTIONS.accessDisabled,
+      targetUserId,
+      metadata: {
+        targetUserId,
+        actorUserId: actor.userId,
+        ...input?.metadata,
+      },
+    }),
+  ]);
+
+  const row = await getMailAccessRow(db, targetUserId);
+  if (!row || row.isEnabled !== 0) {
+    throw MailServiceError.integrityConflict("Mail access disable failed");
+  }
+  return true;
+}

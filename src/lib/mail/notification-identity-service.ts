@@ -595,6 +595,320 @@ export async function revokeNotificationIdentity(
   return toSafeNotificationIdentityAdminView(revoked);
 }
 
+async function softRevokeActiveNotificationIdentity(
+  db: Database,
+  actor: MailActorContext,
+  identity: MailNotificationIdentity,
+  input: {
+    reason: string;
+    auditAction: string;
+    metadata?: Record<string, unknown>;
+  },
+): Promise<void> {
+  if (identity.verificationStatus === "revoked" || identity.revokedAt) {
+    throw MailServiceError.conflict("Notification identity is already revoked");
+  }
+
+  const now = new Date().toISOString();
+  const auditId = crypto.randomUUID();
+
+  const results = await runMailBatch(db, [
+    db
+      .update(schema.mailNotificationIdentities)
+      .set({
+        verificationStatus: "revoked",
+        revokedAt: now,
+        revokedBy: actor.userId,
+        revokeReason: input.reason,
+        verificationTokenHash: null,
+        verificationExpiresAt: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationIdentities.id, identity.id),
+          eq(
+            schema.mailNotificationIdentities.verificationStatus,
+            identity.verificationStatus,
+          ),
+          isNull(schema.mailNotificationIdentities.revokedAt),
+        ),
+      ),
+    buildNotificationIdentityAuditInsert(db, actor, {
+      auditId,
+      now,
+      action: input.auditAction,
+      entityId: identity.id,
+      metadata: {
+        targetUserId: identity.userId,
+        notificationIdentityId: identity.id,
+        previousStatus: identity.verificationStatus,
+        actorUserId: actor.userId,
+        revokeReason: input.reason,
+        ...input.metadata,
+      },
+    }),
+  ]);
+
+  assertBatchUpdateChanged(results, 0, "Notification identity revoke conflict");
+}
+
+async function insertPendingNotificationIdentityRecord(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    targetUserId: string;
+    normalizedEmail: string;
+    challengeSink?: NotificationVerificationChallengeSink;
+  },
+): Promise<SafeNotificationIdentityAdminView> {
+  const identityId = crypto.randomUUID();
+  const { token, tokenHash, expiresAt } = generateVerificationChallenge(identityId);
+  const now = new Date().toISOString();
+  const auditId = crypto.randomUUID();
+
+  try {
+    await runMailBatch(db, [
+      db.insert(schema.mailNotificationIdentities).values({
+        id: identityId,
+        userId: input.targetUserId,
+        email: input.normalizedEmail,
+        verificationStatus: "pending",
+        verificationTokenHash: tokenHash,
+        verificationRequestedAt: null,
+        verificationExpiresAt: expiresAt,
+        verificationAttemptCount: 0,
+        deliveryHealth: "unknown",
+        createdAt: now,
+        updatedAt: now,
+      }),
+      buildNotificationIdentityAuditInsert(db, actor, {
+        auditId,
+        now,
+        action: MAIL_AUDIT_ACTIONS.notificationIdentityCreated,
+        entityId: identityId,
+        metadata: {
+          targetUserId: input.targetUserId,
+          notificationIdentityId: identityId,
+          email: input.normalizedEmail,
+          actorUserId: actor.userId,
+        },
+      }),
+    ]);
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      throw MailServiceError.conflict("Notification email is already in use");
+    }
+    throw error;
+  }
+
+  const identity = await findNotificationIdentityById(db, identityId);
+  if (!identity) {
+    throw MailServiceError.integrityConflict(
+      "Notification identity creation failed",
+    );
+  }
+
+  if (input.challengeSink) {
+    await input.challengeSink.deliverChallenge({
+      notificationIdentityId: identity.id,
+      targetEmail: identity.email,
+      token,
+      expiresAt,
+    });
+  }
+
+  return toSafeNotificationIdentityAdminView(identity);
+}
+
+/**
+ * Canonical email configuration: add, replace pending-only, or start verified replacement.
+ */
+export async function configureNotificationIdentityEmail(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    targetUserId: string;
+    email: string;
+    challengeSink?: NotificationVerificationChallengeSink;
+  },
+): Promise<SafeNotificationIdentityAdminView> {
+  assertNotificationIdentityTargetAccess(actor, input.targetUserId);
+  await requireTargetUser(db, input.targetUserId);
+
+  let normalizedEmail: string;
+  try {
+    normalizedEmail = normalizeMailEmailAddress(input.email);
+  } catch (error) {
+    throw MailServiceError.validation(
+      error instanceof Error ? error.message : "Invalid email address",
+    );
+  }
+
+  const verified = await findActiveVerifiedNotificationIdentity(
+    db,
+    input.targetUserId,
+  );
+  const pending = await findActivePendingNotificationIdentity(
+    db,
+    input.targetUserId,
+  );
+
+  if (verified && pending) {
+    throw MailServiceError.conflict(
+      "Active pending replacement already exists for this user",
+    );
+  }
+
+  if (pending && !verified) {
+    await softRevokeActiveNotificationIdentity(db, actor, pending, {
+      reason: "pending_email_changed",
+      auditAction: MAIL_AUDIT_ACTIONS.notificationIdentityRevoked,
+    });
+  }
+
+  return insertPendingNotificationIdentityRecord(db, actor, {
+    targetUserId: input.targetUserId,
+    normalizedEmail,
+    challengeSink: input.challengeSink,
+  });
+}
+
+export async function cancelPendingNotificationIdentity(
+  db: Database,
+  actor: MailActorContext,
+  targetUserId: string,
+): Promise<void> {
+  assertNotificationIdentityTargetAccess(actor, targetUserId);
+  await requireTargetUser(db, targetUserId);
+
+  const pending = await findActivePendingNotificationIdentity(db, targetUserId);
+  if (!pending) {
+    throw MailServiceError.conflict(
+      "No active pending notification identity to cancel",
+    );
+  }
+
+  const verified = await findActiveVerifiedNotificationIdentity(db, targetUserId);
+  const reason = verified ? "replacement_cancelled" : "setup_cancelled";
+
+  await softRevokeActiveNotificationIdentity(db, actor, pending, {
+    reason,
+    auditAction: MAIL_AUDIT_ACTIONS.notificationIdentityPendingCancelled,
+    metadata: {
+      cancelledReplacement: verified != null,
+    },
+  });
+}
+
+export async function disableActiveNotificationIdentity(
+  db: Database,
+  actor: MailActorContext,
+  targetUserId: string,
+): Promise<void> {
+  assertNotificationIdentityTargetAccess(actor, targetUserId);
+  await requireTargetUser(db, targetUserId);
+
+  const verified = await findActiveVerifiedNotificationIdentity(db, targetUserId);
+  if (!verified) {
+    throw MailServiceError.conflict(
+      "Active verified notification identity is required before disable",
+    );
+  }
+
+  const pending = await findActivePendingNotificationIdentity(db, targetUserId);
+  const now = new Date().toISOString();
+  const verifiedAuditId = crypto.randomUUID();
+
+  const statements = [
+    db
+      .update(schema.mailNotificationIdentities)
+      .set({
+        verificationStatus: "revoked",
+        revokedAt: now,
+        revokedBy: actor.userId,
+        revokeReason: "notification_identity_disabled",
+        verificationTokenHash: null,
+        verificationExpiresAt: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.mailNotificationIdentities.id, verified.id),
+          eq(schema.mailNotificationIdentities.verificationStatus, "verified"),
+          isNull(schema.mailNotificationIdentities.revokedAt),
+        ),
+      ),
+    buildNotificationIdentityAuditInsert(db, actor, {
+      auditId: verifiedAuditId,
+      now,
+      action: MAIL_AUDIT_ACTIONS.notificationIdentityDisabled,
+      entityId: verified.id,
+      metadata: {
+        targetUserId,
+        notificationIdentityId: verified.id,
+        actorUserId: actor.userId,
+        revokeReason: "notification_identity_disabled",
+      },
+    }),
+  ];
+
+  if (pending) {
+    const pendingAuditId = crypto.randomUUID();
+    statements.push(
+      db
+        .update(schema.mailNotificationIdentities)
+        .set({
+          verificationStatus: "revoked",
+          revokedAt: now,
+          revokedBy: actor.userId,
+          revokeReason: "replacement_cancelled_on_disable",
+          verificationTokenHash: null,
+          verificationExpiresAt: null,
+          updatedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.mailNotificationIdentities.id, pending.id),
+            eq(schema.mailNotificationIdentities.verificationStatus, "pending"),
+            isNull(schema.mailNotificationIdentities.revokedAt),
+          ),
+        ),
+      buildNotificationIdentityAuditInsert(db, actor, {
+        auditId: pendingAuditId,
+        now,
+        action: MAIL_AUDIT_ACTIONS.notificationIdentityPendingCancelled,
+        entityId: pending.id,
+        metadata: {
+          targetUserId,
+          notificationIdentityId: pending.id,
+          actorUserId: actor.userId,
+          revokeReason: "replacement_cancelled_on_disable",
+          cancelledReplacement: true,
+          disabledWithVerified: true,
+        },
+      }),
+    );
+  }
+
+  const results = await runMailBatch(db, statements);
+  assertBatchUpdateChanged(results, 0, "Verified identity disable conflict");
+  if (pending) {
+    assertBatchUpdateChanged(results, 2, "Pending identity disable conflict");
+  }
+
+  const { disableMailAccessIfEnabled } = await import(
+    "@/lib/mail/mail-access-service"
+  );
+  await disableMailAccessIfEnabled(db, actor, targetUserId, {
+    auditAction: MAIL_AUDIT_ACTIONS.accessDisabledDueToNotificationIdentity,
+    metadata: {
+      notificationIdentityId: verified.id,
+      reason: "notification_identity_disabled",
+    },
+  });
+}
+
 export async function updateNotificationDeliveryHealth(
   db: Database,
   actor: MailActorContext,

@@ -23,6 +23,7 @@ export function NotificationIdentityOtpModal({
   open,
   targetUserId,
   pending,
+  replacementPending = false,
   onClose,
   onVerified,
   onPendingUpdated,
@@ -30,6 +31,7 @@ export function NotificationIdentityOtpModal({
   open: boolean;
   targetUserId: string;
   pending: NotificationIdentityApiItem | null;
+  replacementPending?: boolean;
   onClose: () => void;
   onVerified: () => void;
   onPendingUpdated: () => void;
@@ -146,7 +148,9 @@ export function NotificationIdentityOtpModal({
           <div className="space-y-4">
             <div className="space-y-2">
               <h3 className="text-lg font-semibold crm-text">
-                {t("mail.notificationMailbox.otpModalTitle")}
+                {replacementPending
+                  ? t("mail.notificationMailbox.completeReplacementAction")
+                  : t("mail.notificationMailbox.otpModalTitle")}
               </h3>
               <p className="text-sm crm-text-secondary">
                 {t("mail.notificationMailbox.otpModalSentTo")}

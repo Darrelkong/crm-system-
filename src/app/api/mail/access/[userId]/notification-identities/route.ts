@@ -8,7 +8,7 @@ import {
   requireMailActor,
 } from "@/lib/mail/api-helpers";
 import {
-  createPendingNotificationIdentity,
+  configureNotificationIdentityEmail,
   listNotificationIdentitiesForAdmin,
 } from "@/lib/mail/notification-identity-service";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
@@ -49,7 +49,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const item = await createPendingNotificationIdentity(db, actor, {
+    const item = await configureNotificationIdentityEmail(db, actor, {
       targetUserId: userId,
       email,
     });

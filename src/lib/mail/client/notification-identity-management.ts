@@ -56,6 +56,10 @@ export type NotificationIdentitySurfaceActions = {
   showChangeEmail: boolean;
   showCompleteVerification: boolean;
   showResendVerification: boolean;
+  showCancelPending: boolean;
+  showDisable: boolean;
+  isReplacementPending: boolean;
+  isPendingOnly: boolean;
 };
 
 export type NotificationIdentityTeamOverviewStatusFilter =
@@ -261,6 +265,10 @@ export function resolveNotificationIdentitySurfaceActions(
       showChangeEmail: false,
       showCompleteVerification: false,
       showResendVerification: false,
+      showCancelPending: false,
+      showDisable: false,
+      isReplacementPending: false,
+      isPendingOnly: false,
     };
   }
 
@@ -270,18 +278,26 @@ export function resolveNotificationIdentitySurfaceActions(
       showChangeEmail: true,
       showCompleteVerification: false,
       showResendVerification: false,
+      showCancelPending: false,
+      showDisable: true,
+      isReplacementPending: false,
+      isPendingOnly: false,
     };
   }
 
   if (pending) {
     const replacementPending =
-      !verified ||
+      verified != null &&
       pending.email.trim().toLowerCase() !== verified.email.trim().toLowerCase();
     return {
       showConfigureEmail: false,
-      showChangeEmail: verified != null && !replacementPending,
+      showChangeEmail: !replacementPending,
       showCompleteVerification: true,
       showResendVerification: true,
+      showCancelPending: true,
+      showDisable: verified != null,
+      isReplacementPending: replacementPending,
+      isPendingOnly: verified == null,
     };
   }
 
@@ -290,6 +306,10 @@ export function resolveNotificationIdentitySurfaceActions(
     showChangeEmail: true,
     showCompleteVerification: false,
     showResendVerification: false,
+    showCancelPending: false,
+    showDisable: true,
+    isReplacementPending: false,
+    isPendingOnly: false,
   };
 }
 

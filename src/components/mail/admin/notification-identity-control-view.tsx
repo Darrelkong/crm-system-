@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import {
+  cancelPendingNotificationIdentity,
+  disableNotificationIdentity,
   fetchNotificationIdentities,
   sendTargetNotificationVerificationChallenge,
 } from "@/lib/mail/client/api";
@@ -17,6 +19,7 @@ import {
   resolveNotificationIdentitySurfaceActions,
   type NotificationIdentityApiItem,
 } from "@/lib/mail/client/notification-identity-management";
+import { NotificationIdentityDisableConfirmModal } from "./notification-identity-disable-confirm-modal";
 import { NotificationIdentityOtpModal } from "./notification-identity-otp-modal";
 import { NotificationIdentitySettingsModal } from "./notification-identity-settings-modal";
 import { NotificationIdentityStatusSummary } from "./notification-identity-status-summary";
@@ -47,7 +50,9 @@ export function NotificationIdentityControlView({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<SettingsMode>(null);
   const [otpOpen, setOtpOpen] = useState(false);
+  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
+  const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [resendTick, setResendTick] = useState(0);
 
   const state = useMemo(
@@ -65,6 +70,14 @@ export function NotificationIdentityControlView({
       state.pending?.verificationRequestedAt ?? null,
     );
   }, [state.pending?.verificationRequestedAt, resendTick]);
+
+  const completeActionLabel = actions.isReplacementPending
+    ? t("mail.notificationMailbox.completeReplacementAction")
+    : t("mail.notificationMailbox.completeVerificationAction");
+
+  const cancelActionLabel = actions.isPendingOnly
+    ? t("mail.notificationMailbox.cancelSetupAction")
+    : t("mail.notificationMailbox.cancelReplacementAction");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -135,6 +148,47 @@ export function NotificationIdentityControlView({
     }
   }
 
+  async function handleCancelPending() {
+    setLifecycleBusy(true);
+    setActionMessage(null);
+    try {
+      const result = await cancelPendingNotificationIdentity(targetUserId);
+      if (!result.ok) {
+        setActionMessage(result.error);
+        return;
+      }
+      setActionMessage(
+        actions.isPendingOnly
+          ? t("mail.notificationMailbox.cancelSetupSuccess")
+          : t("mail.notificationMailbox.cancelReplacementSuccess"),
+      );
+      notifyUpdated();
+    } catch {
+      setActionMessage(t("common.networkError"));
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
+
+  async function handleDisableConfirmed() {
+    setLifecycleBusy(true);
+    setActionMessage(null);
+    try {
+      const result = await disableNotificationIdentity(targetUserId);
+      if (!result.ok) {
+        setActionMessage(result.error);
+        return;
+      }
+      setDisableConfirmOpen(false);
+      setActionMessage(t("mail.notificationMailbox.disableSuccess"));
+      notifyUpdated();
+    } catch {
+      setActionMessage(t("common.networkError"));
+    } finally {
+      setLifecycleBusy(false);
+    }
+  }
+
   if (loading) {
     return <MailAdminLoadingState />;
   }
@@ -183,7 +237,7 @@ export function NotificationIdentityControlView({
         ) : null}
         {actions.showCompleteVerification ? (
           <Button type="button" size="sm" onClick={openOtpModal}>
-            {t("mail.notificationMailbox.completeVerificationAction")}
+            {completeActionLabel}
           </Button>
         ) : null}
         {actions.showResendVerification ? (
@@ -195,6 +249,28 @@ export function NotificationIdentityControlView({
             onClick={() => void handleResendVerification()}
           >
             {formatVerificationResendActionLabel(t, resendCooldownSeconds)}
+          </Button>
+        ) : null}
+        {actions.showCancelPending ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            disabled={lifecycleBusy}
+            onClick={() => void handleCancelPending()}
+          >
+            {cancelActionLabel}
+          </Button>
+        ) : null}
+        {actions.showDisable ? (
+          <Button
+            type="button"
+            size="sm"
+            variant="danger"
+            disabled={lifecycleBusy}
+            onClick={() => setDisableConfirmOpen(true)}
+          >
+            {t("mail.notificationMailbox.disableAction")}
           </Button>
         ) : null}
       </div>
@@ -219,12 +295,24 @@ export function NotificationIdentityControlView({
         open={otpOpen}
         targetUserId={targetUserId}
         pending={state.pending}
+        replacementPending={actions.isReplacementPending}
         onClose={() => setOtpOpen(false)}
         onVerified={() => {
-          setActionMessage(t("mail.adminCenter.notificationIdentity.verifySuccess"));
+          setActionMessage(
+            actions.isReplacementPending
+              ? t("mail.notificationMailbox.replacementSuccess")
+              : t("mail.adminCenter.notificationIdentity.verifySuccess"),
+          );
           notifyUpdated();
         }}
         onPendingUpdated={() => notifyUpdated()}
+      />
+
+      <NotificationIdentityDisableConfirmModal
+        open={disableConfirmOpen}
+        busy={lifecycleBusy}
+        onClose={() => setDisableConfirmOpen(false)}
+        onConfirm={() => void handleDisableConfirmed()}
       />
     </div>
   );

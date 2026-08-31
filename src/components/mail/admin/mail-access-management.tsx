@@ -74,7 +74,11 @@ function NotificationIdentityStatusBadge({
 }) {
   const { t } = useTranslation();
   const variant =
-    status === "verified" ? "success" : status === "pending" ? "warning" : "default";
+    status === "verified" || status === "replacement_pending"
+      ? "success"
+      : status === "pending"
+        ? "warning"
+        : "default";
 
   return (
     <Badge variant={variant}>
@@ -155,6 +159,8 @@ function onboardingActionLabelKey(
       return "mail.adminCenter.access.enable";
     case "disableMail":
       return "mail.adminCenter.access.disable";
+    case "manageNotificationEmail":
+      return "mail.adminCenter.access.actions.manageNotificationEmail";
     default:
       return null;
   }
@@ -186,7 +192,8 @@ function MailAccessRowActions({
     return null;
   }
 
-  const variant = action.kind === "disableMail" ? "danger" : "secondary";
+  const variant =
+    action.kind === "disableMail" ? "danger" : "secondary";
 
   return (
     <Button
@@ -425,7 +432,11 @@ export function MailAccessManagement() {
   }
 
   function handleRowAction(userId: string, kind: MailAccessOnboardingActionKind) {
-    if (kind === "configureNotificationEmail" || kind === "completeVerification") {
+    if (
+      kind === "configureNotificationEmail" ||
+      kind === "completeVerification" ||
+      kind === "manageNotificationEmail"
+    ) {
       openNotificationPanel(userId);
       return;
     }

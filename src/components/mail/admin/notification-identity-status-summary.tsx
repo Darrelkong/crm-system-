@@ -77,6 +77,30 @@ export function NotificationIdentityStatusSummary({
   const state = resolveNotificationIdentityStateModel(items);
 
   if (!state.verified && !state.pending) {
+    const latestRevoked = items
+      .filter(
+        (item) =>
+          item.revokedAt != null || item.verificationStatus === "revoked",
+      )
+      .sort((left, right) =>
+        (right.revokedAt ?? right.updatedAt).localeCompare(
+          left.revokedAt ?? left.updatedAt,
+        ),
+      )[0];
+
+    if (latestRevoked) {
+      return (
+        <Card padding className="space-y-2 border p-4 md:p-6">
+          <Badge variant="danger">
+            {t("mail.notificationMailbox.disabledStateLabel")}
+          </Badge>
+          <p className="text-sm crm-text-secondary">
+            {t("mail.adminCenter.notificationIdentity.revokedStateMessage")}
+          </p>
+        </Card>
+      );
+    }
+
     return (
       <Card padding className="space-y-2 border p-4 md:p-6">
         <Badge variant="default">
