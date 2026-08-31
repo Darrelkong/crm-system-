@@ -8,20 +8,33 @@ import {
   type ComposeAttachmentPolicyIssueCode,
   validateComposeAttachmentCandidate,
 } from "@/lib/mail/compose-attachment-policy";
+import {
+  resolveComposeAttachmentRoute,
+  unifiedComposeAttachmentI18nKey,
+  type UnifiedComposeAttachmentIssueCode,
+} from "@/lib/mail/client/compose-attachment-classifier-client";
+import type { MailDeliveryMode } from "../../../../drizzle/schema/mail-draft-attachments";
 
 export type ComposeAttachmentUploadStatus =
   | "queued"
+  | "preparing"
+  | "hashing"
   | "uploading"
+  | "finalizing"
   | "uploaded"
   | "failed"
   | "cancelled";
 
 export type ComposeAttachmentUploadErrorCode =
   | ComposeAttachmentPolicyIssueCode
+  | UnifiedComposeAttachmentIssueCode
   | "DRAFT_SAVE_FAILED"
   | "DRAFT_NOT_PERSISTED"
   | "MISSING_FROM"
-  | "UPLOAD_FILE_MISSING";
+  | "UPLOAD_FILE_MISSING"
+  | "LARGE_UPLOAD_FAILED"
+  | "LARGE_FINALIZE_FAILED"
+  | "LARGE_AUTHORIZE_FAILED";
 
 export type ComposeAttachmentUploadState = {
   localId: string;
@@ -29,12 +42,14 @@ export type ComposeAttachmentUploadState = {
   name: string;
   sizeBytes: number;
   sizeLabel: string;
-  kind: "attachment" | "secure_file";
+  kind: "attachment" | "secure_file" | "large_attachment";
+  uploadRoute?: "direct" | "large";
   uploadStatus: ComposeAttachmentUploadStatus;
   uploadProgress: number;
   error: string | null;
   errorCode: ComposeAttachmentUploadErrorCode | null;
   file: File | null;
+  largeAttachmentExpired?: boolean;
 };
 
 export function composeAttachmentRemoveMessageKey(): string {
@@ -70,17 +85,23 @@ export function composeAttachmentUploadErrorMessageKey(
     case "UPLOAD_FILE_MISSING":
       return "mail.compose.attachment.uploadFileMissing";
     case "FILE_TOO_LARGE":
-      return "mail.compose.attachment.fileTooLarge";
+      return "mail.compose.largeAttachment.fileTooLarge";
     case "TOTAL_SIZE_EXCEEDED":
       return "mail.compose.attachment.totalSizeExceeded";
     case "TOO_MANY_ATTACHMENTS":
-      return "mail.compose.attachment.tooMany";
+      return "mail.compose.largeAttachment.tooMany";
     case "UNSUPPORTED_FILE_TYPE":
       return "mail.compose.attachment.unsupportedType";
     case "EMPTY_FILE":
       return "mail.compose.attachment.emptyFile";
     case "FILENAME_REQUIRED":
       return "mail.compose.attachment.filenameRequired";
+    case "LARGE_AGGREGATE_EXCEEDED":
+      return "mail.compose.largeAttachment.aggregateExceeded";
+    case "LARGE_UPLOAD_FAILED":
+    case "LARGE_FINALIZE_FAILED":
+    case "LARGE_AUTHORIZE_FAILED":
+      return "mail.compose.largeAttachment.uploadFailed";
     default:
       return "mail.compose.attachment.uploadFailed";
   }
@@ -91,39 +112,86 @@ export function isAttachmentPendingUpload(
 ): boolean {
   return (
     attachment.uploadStatus === "queued" ||
-    attachment.uploadStatus === "uploading"
+    attachment.uploadStatus === "preparing" ||
+    attachment.uploadStatus === "hashing" ||
+    attachment.uploadStatus === "uploading" ||
+    attachment.uploadStatus === "finalizing"
   );
+}
+
+function toClassificationDeliveryMode(
+  attachment: Pick<ComposeAttachmentUploadState, "kind" | "uploadRoute">,
+): MailDeliveryMode {
+  if (attachment.kind === "large_attachment" || attachment.uploadRoute === "large") {
+    return "large_attachment";
+  }
+  if (attachment.kind === "secure_file") {
+    return "secure_file";
+  }
+  return "direct_attachment";
 }
 
 export function validateLocalAttachmentFile(
   file: File,
-  existing: Pick<ComposeAttachmentUploadState, "sizeBytes" | "uploadStatus">[],
-): { ok: true } | { ok: false; error: string; errorCode: ComposeAttachmentPolicyIssueCode } {
+  existing: Pick<
+    ComposeAttachmentUploadState,
+    "sizeBytes" | "uploadStatus" | "kind" | "uploadRoute"
+  >[],
+): { ok: true; uploadRoute: "direct" | "large" } | {
+  ok: false;
+  error: string;
+  errorCode: ComposeAttachmentUploadErrorCode;
+} {
   const active = existing.filter(
     (attachment) =>
       attachment.uploadStatus === "uploaded" ||
-      attachment.uploadStatus === "queued" ||
-      attachment.uploadStatus === "uploading",
+      isAttachmentPendingUpload(attachment),
   );
-  const issue = validateComposeAttachmentCandidate({
+  const route = resolveComposeAttachmentRoute({
     filename: file.name,
     mimeType: file.type || "application/octet-stream",
     sizeBytes: file.size,
-    existingAttachmentCount: active.length,
-    existingTotalBytes: active.reduce(
-      (sum, attachment) => sum + attachment.sizeBytes,
-      0,
-    ),
+    existing: active.map((attachment) => ({
+      sizeBytes: attachment.sizeBytes,
+      deliveryMode: toClassificationDeliveryMode(attachment),
+      uploadStatus: attachment.uploadStatus,
+    })),
   });
-  if (issue) {
-    return { ok: false, error: issue.message, errorCode: issue.code };
+  if (route !== "direct" && route !== "large") {
+    return {
+      ok: false,
+      error: route.message,
+      errorCode: route.code,
+    };
   }
-  return { ok: true };
+
+  if (route === "direct") {
+    const issue = validateComposeAttachmentCandidate({
+      filename: file.name,
+      mimeType: file.type || "application/octet-stream",
+      sizeBytes: file.size,
+      existingAttachmentCount: active.filter(
+        (attachment) => toClassificationDeliveryMode(attachment) === "direct_attachment",
+      ).length,
+      existingTotalBytes: active
+        .filter(
+          (attachment) =>
+            toClassificationDeliveryMode(attachment) === "direct_attachment",
+        )
+        .reduce((sum, attachment) => sum + attachment.sizeBytes, 0),
+    });
+    if (issue) {
+      return { ok: false, error: issue.message, errorCode: issue.code };
+    }
+  }
+
+  return { ok: true, uploadRoute: route };
 }
 
 export function createQueuedAttachmentEntry(
   file: File,
   formatSize: (bytes: number) => string,
+  uploadRoute: "direct" | "large" = "direct",
 ): ComposeAttachmentUploadState {
   return {
     localId: crypto.randomUUID(),
@@ -131,7 +199,8 @@ export function createQueuedAttachmentEntry(
     name: file.name,
     sizeBytes: file.size,
     sizeLabel: formatSize(file.size),
-    kind: "attachment",
+    kind: uploadRoute === "large" ? "large_attachment" : "attachment",
+    uploadRoute,
     uploadStatus: "queued",
     uploadProgress: 0,
     error: null,
@@ -149,7 +218,10 @@ export function mergeUploadedDraftAttachments(
   const retainedPending = current.filter(
     (attachment) =>
       attachment.uploadStatus === "queued" ||
+      attachment.uploadStatus === "preparing" ||
+      attachment.uploadStatus === "hashing" ||
       attachment.uploadStatus === "uploading" ||
+      attachment.uploadStatus === "finalizing" ||
       attachment.uploadStatus === "failed",
   );
 
@@ -160,11 +232,16 @@ export function mergeUploadedDraftAttachments(
     sizeBytes: attachment.sizeBytes ?? 0,
     sizeLabel: formatSize(attachment.sizeBytes),
     kind: attachment.deliveryMode,
+    uploadRoute:
+      attachment.deliveryMode === "large_attachment"
+        ? ("large" as const)
+        : ("direct" as const),
     uploadStatus: "uploaded" as const,
     uploadProgress: 100,
     error: null,
     errorCode: null,
     file: null,
+    largeAttachmentExpired: attachment.largeAttachmentExpired ?? false,
   }));
 
   const pendingWithoutDupes = retainedPending.filter(

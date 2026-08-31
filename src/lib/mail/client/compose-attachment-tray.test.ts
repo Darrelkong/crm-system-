@@ -134,7 +134,7 @@ describe("compose attachment tray", () => {
     assert.match(zhHantLabel, /附件 8 個 · 2\.6 MB/);
     assert.match(zhHansLabel, /附件 8 个 · 2\.6 MB/);
     assert.match(
-      translate(zhHant, composeAttachmentTrayKindKey()),
+      translate(zhHant, composeAttachmentTrayKindKey([{ kind: "attachment" }])),
       /普通附件/,
     );
   });

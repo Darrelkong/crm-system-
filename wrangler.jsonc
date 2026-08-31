@@ -38,6 +38,11 @@
       "binding": "ATTACHMENTS",
       "bucket_name": "crm-attachments",
       "preview_bucket_name": "crm-attachments-preview"
+    },
+    {
+      "binding": "LARGE_ATTACHMENTS",
+      "bucket_name": "crm-mail-large-attachments",
+      "preview_bucket_name": "crm-mail-large-attachments"
     }
   ],
   "routes": [

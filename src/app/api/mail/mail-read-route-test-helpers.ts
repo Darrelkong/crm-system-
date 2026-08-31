@@ -118,6 +118,26 @@ export async function cleanupFixtures(db: TestDb) {
       .delete(schema.mailMailboxMembers)
       .where(inArray(schema.mailMailboxMembers.mailboxId, mailboxIds));
 
+    const drafts = await db
+      .select({ id: schema.mailDrafts.id })
+      .from(schema.mailDrafts)
+      .where(inArray(schema.mailDrafts.mailboxId, mailboxIds));
+    const draftIds = drafts.map((row) => row.id);
+    if (draftIds.length) {
+      await db
+        .delete(schema.mailLargeAttachmentUploadSessions)
+        .where(inArray(schema.mailLargeAttachmentUploadSessions.draftId, draftIds));
+      await db
+        .delete(schema.mailDraftAttachments)
+        .where(inArray(schema.mailDraftAttachments.draftId, draftIds));
+      await db
+        .delete(schema.mailDraftRecipients)
+        .where(inArray(schema.mailDraftRecipients.draftId, draftIds));
+      await db
+        .delete(schema.mailDrafts)
+        .where(inArray(schema.mailDrafts.id, draftIds));
+    }
+
     const identities = await db
       .select({ id: schema.mailSenderIdentities.id })
       .from(schema.mailSenderIdentities)
@@ -142,6 +162,33 @@ export async function cleanupFixtures(db: TestDb) {
     await db
       .delete(schema.mailMailboxes)
       .where(inArray(schema.mailMailboxes.id, mailboxIds));
+  }
+
+  const fixtureIdentities = await db
+    .select({ id: schema.mailSenderIdentities.id })
+    .from(schema.mailSenderIdentities)
+    .where(like(schema.mailSenderIdentities.address, `${FIXTURE}%`));
+  const fixtureIdentityIds = fixtureIdentities.map((row) => row.id);
+  if (fixtureIdentityIds.length) {
+    const draftsByIdentity = await db
+      .select({ id: schema.mailDrafts.id })
+      .from(schema.mailDrafts)
+      .where(inArray(schema.mailDrafts.senderIdentityId, fixtureIdentityIds));
+    const draftIdsByIdentity = draftsByIdentity.map((row) => row.id);
+    if (draftIdsByIdentity.length) {
+      await db
+        .delete(schema.mailLargeAttachmentUploadSessions)
+        .where(inArray(schema.mailLargeAttachmentUploadSessions.draftId, draftIdsByIdentity));
+      await db
+        .delete(schema.mailDraftAttachments)
+        .where(inArray(schema.mailDraftAttachments.draftId, draftIdsByIdentity));
+      await db
+        .delete(schema.mailDraftRecipients)
+        .where(inArray(schema.mailDraftRecipients.draftId, draftIdsByIdentity));
+      await db
+        .delete(schema.mailDrafts)
+        .where(inArray(schema.mailDrafts.id, draftIdsByIdentity));
+    }
   }
 
   await db

@@ -319,6 +319,23 @@ const en = {
         filenameRequired: "Attachment filename is required",
         traySummary: "{{count}} attachments · {{totalSize}}",
         kindDirect: "Standard attachments",
+        kindMixed: "Standard and large attachments",
+      },
+      largeAttachment: {
+        label: "Large attachment",
+        trayKind: "Large attachments",
+        preparing: "Preparing attachment…",
+        hashing: "Preparing attachment…",
+        uploading: "Uploading {{percent}}%",
+        finalizing: "Finalizing…",
+        ready: "Attachment ready",
+        uploadFailed: "Large attachment upload failed",
+        expiredPlaceholder:
+          "This large attachment has expired and was automatically deleted. Please upload again.",
+        fileTooLarge: "Each large attachment must be {{size}} or smaller.",
+        aggregateExceeded:
+          "Total large attachments per message must be {{totalSize}} or smaller.",
+        tooMany: "You can attach up to {{maxCount}} files",
       },
       sendDisabled: "Send unavailable in this phase",
       seedDraftUnavailable:

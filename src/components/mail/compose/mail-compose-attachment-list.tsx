@@ -47,6 +47,37 @@ function CompactAttachmentStatus({
 }) {
   const { t } = useTranslation();
 
+  if (attachment.largeAttachmentExpired) {
+    return (
+      <p className="mt-0.5 break-words text-[11px] text-amber-700 dark:text-amber-400">
+        {t("mail.compose.largeAttachment.expiredPlaceholder")}
+      </p>
+    );
+  }
+
+  if (
+    attachment.uploadStatus === "preparing" ||
+    attachment.uploadStatus === "hashing"
+  ) {
+    return (
+      <p className="mt-0.5 truncate text-[11px] crm-text-secondary">
+        {t(
+          attachment.uploadStatus === "hashing"
+            ? "mail.compose.largeAttachment.hashing"
+            : "mail.compose.largeAttachment.preparing",
+        )}
+      </p>
+    );
+  }
+
+  if (attachment.uploadStatus === "finalizing") {
+    return (
+      <p className="mt-0.5 truncate text-[11px] crm-text-secondary">
+        {t("mail.compose.largeAttachment.finalizing")}
+      </p>
+    );
+  }
+
   if (attachment.uploadStatus === "uploading") {
     return (
       <div className="mt-1 space-y-1">
@@ -119,7 +150,7 @@ export function MailComposeAttachmentList({
           })}
         </p>
         <p className="text-[11px] crm-text-secondary">
-          {t(composeAttachmentTrayKindKey())}
+          {t(composeAttachmentTrayKindKey(attachments))}
         </p>
       </div>
 
@@ -137,7 +168,9 @@ export function MailComposeAttachmentList({
                     className="min-w-0 flex-1 truncate text-xs crm-text"
                     title={attachment.name}
                   >
-                    {attachment.name}
+                    {attachment.kind === "large_attachment"
+                      ? `${t("mail.compose.largeAttachment.label")} · ${attachment.name}`
+                      : attachment.name}
                   </p>
                   <span className="shrink-0 text-[11px] tabular-nums crm-text-secondary">
                     {attachment.sizeLabel}

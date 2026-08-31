@@ -173,10 +173,8 @@ export function evaluateLargeAttachmentSendEligibility(input: {
   if (
     !lifecycle.finalizedAt ||
     !lifecycle.declaredContentHash ||
-    !lifecycle.storageVersion ||
     !lifecycle.storageEtag ||
     !hasCompleteLargeAttachmentStorageIdentity({
-      storageVersion: lifecycle.storageVersion,
       storageEtag: lifecycle.storageEtag,
       sizeBytes: input.sizeBytes,
       finalizedAt: lifecycle.finalizedAt,

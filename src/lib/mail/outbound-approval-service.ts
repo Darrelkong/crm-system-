@@ -35,6 +35,8 @@ import { buildResolvedNotificationIntentInsert } from "@/lib/mail/notification-o
 import { resolveApprovalReturnedNotificationTarget } from "@/lib/mail/notification-source-recipient-resolution";
 import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 import { assertRevisionOrdinaryEmailAttachmentsWithinPolicy } from "@/lib/mail/outbound-send-preflight-service";
+import { transitionRevisionLargeAttachmentsForStaffSubmit } from "@/lib/mail/large-attachment/large-attachment-approval-lifecycle-service";
+import { assertRevisionLargeAttachmentsInspectableForApproval } from "@/lib/mail/large-attachment/large-attachment-approval-inspection-service";
 
 /**
  * Staff outbound Approval workflow service (frozen 0056).
@@ -336,6 +338,12 @@ export async function submitRevisionForApproval(
     handleApprovalBatchError(error);
   }
 
+  await transitionRevisionLargeAttachmentsForStaffSubmit(db, {
+    revisionId: revision.id,
+    firstSubmittedAt: now,
+    now,
+  });
+
   const approval = await findApprovalById(db, approvalId);
   if (!approval) {
     throw MailServiceError.integrityConflict("Approval submission failed");
@@ -472,6 +480,12 @@ export async function resubmitRevisionForApproval(
   } catch (error) {
     handleApprovalBatchError(error);
   }
+
+  await transitionRevisionLargeAttachmentsForStaffSubmit(db, {
+    revisionId: revision.id,
+    firstSubmittedAt: approval.requestedAt,
+    now,
+  });
 
   const updated = await findApprovalById(db, approval.id);
   if (!updated) {
@@ -778,6 +792,13 @@ export async function approveRevision(
   }
 
   const now = new Date().toISOString();
+
+  await assertRevisionLargeAttachmentsInspectableForApproval(
+    db,
+    approval.currentRevisionId,
+    now,
+  );
+
   const newVersion = approval.workflowVersion + 1;
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();

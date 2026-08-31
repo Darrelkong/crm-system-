@@ -3,6 +3,9 @@ import type { MailOutboundRevisionRecipient } from "../../../drizzle/schema/mail
 import type { MailOutboundRevisionAttachment } from "../../../drizzle/schema/mail-outbound-revision-attachments";
 import type { MailStoredFile } from "../../../drizzle/schema/mail-stored-files";
 import type { MailDeliveryMode } from "../../../drizzle/schema/mail-draft-attachments";
+import type { MailLargeAttachmentLifecycle } from "../../../drizzle/schema/mail-large-attachment-lifecycle";
+import { evaluateLargeAttachmentReviewerDownloadEligibility } from "@/lib/mail/large-attachment/large-attachment-reviewer-download-eligibility";
+import type { LargeAttachmentLifecycleRecord } from "@/lib/mail/large-attachment/large-attachment-state-machine";
 import { resolveMailAttachmentDownloadFilename } from "@/lib/mail/mail-attachment-download-content-disposition";
 
 export type SafeOutboundRevisionRecipientView = {
@@ -53,10 +56,17 @@ export type SafeOutboundRevisionDetailView = SafeOutboundRevisionView & {
 export function toSafeOutboundRevisionAttachmentView(
   attachment: MailOutboundRevisionAttachment,
   storedFile: Pick<MailStoredFile, "securityScanStatus"> | null | undefined,
+  options?: {
+    lifecycle?: MailLargeAttachmentLifecycle | null;
+    trustNowIso?: string;
+  },
 ): SafeOutboundRevisionAttachmentView {
-  const downloadAvailable =
-    attachment.deliveryMode === "direct_attachment" &&
-    storedFile?.securityScanStatus === "clean";
+  const downloadAvailable = resolveOutboundRevisionAttachmentDownloadAvailable({
+    attachment,
+    storedFile,
+    lifecycle: options?.lifecycle,
+    trustNowIso: options?.trustNowIso,
+  });
 
   return {
     id: attachment.id,
@@ -70,6 +80,55 @@ export function toSafeOutboundRevisionAttachmentView(
     sortOrder: attachment.sortOrder,
     downloadAvailable,
   };
+}
+
+function mapLifecycleForReviewerDownload(
+  lifecycle: MailLargeAttachmentLifecycle | null | undefined,
+): LargeAttachmentLifecycleRecord | null {
+  if (!lifecycle) {
+    return null;
+  }
+  return {
+    id: lifecycle.id,
+    storedFileId: lifecycle.storedFileId,
+    status: lifecycle.status,
+    uploadedAt: lifecycle.uploadedAt,
+    temporaryExpiresAt: lifecycle.temporaryExpiresAt,
+    approvalHoldStartedAt: lifecycle.approvalHoldStartedAt,
+    approvalAbsoluteExpiresAt: lifecycle.approvalAbsoluteExpiresAt,
+    sentAt: lifecycle.sentAt,
+    recipientExpiresAt: lifecycle.recipientExpiresAt,
+    deletedAt: lifecycle.deletedAt,
+    deleteReason: lifecycle.deleteReason,
+    downloadTokenHash: lifecycle.downloadTokenHash,
+    downloadCount: lifecycle.downloadCount,
+    lastDownloadedAt: lifecycle.lastDownloadedAt,
+    declaredContentHash: lifecycle.declaredContentHash,
+    storageVersion: lifecycle.storageVersion,
+    storageEtag: lifecycle.storageEtag,
+    finalizedAt: lifecycle.finalizedAt,
+    createdAt: lifecycle.createdAt,
+    updatedAt: lifecycle.updatedAt,
+  };
+}
+
+export function resolveOutboundRevisionAttachmentDownloadAvailable(input: {
+  attachment: MailOutboundRevisionAttachment;
+  storedFile: Pick<MailStoredFile, "securityScanStatus"> | null | undefined;
+  lifecycle?: MailLargeAttachmentLifecycle | null;
+  trustNowIso?: string;
+}): boolean {
+  if (input.attachment.deliveryMode === "direct_attachment") {
+    return input.storedFile?.securityScanStatus === "clean";
+  }
+  if (input.attachment.deliveryMode === "large_attachment") {
+    return evaluateLargeAttachmentReviewerDownloadEligibility({
+      lifecycle: mapLifecycleForReviewerDownload(input.lifecycle),
+      sizeBytes: input.attachment.sizeBytes,
+      trustNowIso: input.trustNowIso ?? new Date().toISOString(),
+    }).ok;
+  }
+  return false;
 }
 
 export function toSafeOutboundRevisionRecipientView(

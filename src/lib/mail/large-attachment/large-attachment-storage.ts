@@ -6,6 +6,7 @@ export type LargeAttachmentObjectHeadResult = {
   sizeBytes: number;
   etag: string | null;
   contentType: string | null;
+  storageVersion?: string | null;
 };
 
 /**
