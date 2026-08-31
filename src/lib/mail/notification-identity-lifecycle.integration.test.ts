@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { and, eq, isNull, like } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
@@ -27,8 +27,12 @@ import {
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
 import type { SafeNotificationIdentityAdminView } from "@/lib/mail/notification-identity-serialization";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 
 const FIXTURE = "mail-phase1d1";
+const TEST_VERIFICATION_SECRET = "mail-phase1d1-integration-test-secret";
 const TARGET_USER = SEED_IDS.staffA;
 const STAFF_SELF = SEED_IDS.staffA;
 
@@ -75,41 +79,60 @@ async function createPendingWithTestToken(
 }
 
 async function cleanupFixtures(db: TestDb) {
-  const identities = await db
-    .select({ id: schema.mailNotificationIdentities.id })
-    .from(schema.mailNotificationIdentities)
-    .where(like(schema.mailNotificationIdentities.email, `${FIXTURE}%`));
-  for (const row of identities) {
+  const outboxRows = await db
+    .select({ id: schema.mailNotificationOutbox.id })
+    .from(schema.mailNotificationOutbox)
+    .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+
+  for (const row of outboxRows) {
     await db
-      .delete(schema.mailNotificationIdentities)
-      .where(eq(schema.mailNotificationIdentities.id, row.id));
+      .delete(schema.mailNotificationAttempts)
+      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, row.id));
   }
+
+  await db
+    .delete(schema.mailNotificationOutbox)
+    .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
+
+  await db
+    .delete(schema.mailNotificationIdentities)
+    .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+
   await db
     .update(schema.mailUserAccess)
     .set({ isEnabled: 0, disabledAt: new Date().toISOString() })
     .where(eq(schema.mailUserAccess.userId, TARGET_USER));
-  const mailboxes = await db
-    .select({ id: schema.mailMailboxes.id })
-    .from(schema.mailMailboxes)
-    .where(like(schema.mailMailboxes.address, `${FIXTURE}%`));
-  for (const row of mailboxes) {
-    await db.delete(schema.mailMailboxes).where(eq(schema.mailMailboxes.id, row.id));
-  }
 }
 
 describe("notification identity lifecycle (phase 1D.1)", () => {
   let db: TestDb;
+  let dispose: (() => void) | undefined;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy({ configPath: "./wrangler.jsonc" });
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      TEST_VERIFICATION_SECRET;
+    const proxy = await getPlatformProxy<{ DB: unknown }>({
+      configPath: "./wrangler.jsonc",
+    });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
+    dispose = proxy.dispose;
     await cleanupFixtures(db);
   });
 
   after(async () => {
     await cleanupFixtures(db);
+    bindTestDatabase(null);
+    dispose?.();
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
   });
 
   it("staff can configure own notification identity without admin grant", async () => {
@@ -220,7 +243,7 @@ describe("notification identity lifecycle (phase 1D.1)", () => {
   it("disable preserves mailbox records", async () => {
     await cleanupFixtures(db);
     const mailbox = await createMailbox(db, adminActor, {
-      address: `${FIXTURE}-work@echfronthk.com`,
+      address: `${FIXTURE}-work-${crypto.randomUUID().slice(0, 8)}@echfronthk.com`,
       displayName: "Work mailbox",
       mailboxType: "personal",
       ownerUserId: TARGET_USER,
