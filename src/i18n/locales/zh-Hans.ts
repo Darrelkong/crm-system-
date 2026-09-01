@@ -453,10 +453,17 @@ const zhHans: Messages = {
       disableConfirmBody:
         "停用后，此通知邮箱将不再用于 CRM Mail 通知，并会暂停此成员的 Mail 访问权限。工作邮箱及历史邮件不会被删除。完成新的通知邮箱验证后可重新开通 Mail。",
       disableSuccess: "通知邮箱已停用，Mail 访问权限已暂停。",
+      disableSectionTitle: "停用通知邮箱",
+      disableSectionDescription:
+        "停用后将停止使用此通知邮箱，并同时暂停 Mail 访问权限。",
       otpModalTitle: "验证通知邮箱",
       otpModalSentTo: "我们已向以下邮箱发送 8 位验证码：",
+      otpModalReplacementTitle: "完成通知邮箱更换",
+      otpModalReplacementBody:
+        "我们已向新的通知邮箱发送 8 位验证码。验证成功后，新邮箱将替换当前的通知邮箱。",
       otpModalValidity: "验证码有效期 5 分钟。",
       otpModalVerifyAction: "验证",
+      otpModalReplacementVerifyAction: "验证并完成更换",
     },
     adminCenter: {
       title: "邮件管理中心",
@@ -562,7 +569,7 @@ const zhHans: Messages = {
           manageNotificationEmail: "管理通知邮箱",
         },
         targetNotification: {
-          title: "通知邮箱设置",
+          title: "通知邮箱管理",
           description:
             "输入此团队成员的私人外部通知邮箱。开通 Mail 前必须完成验证。",
           empty: "尚未设置通知邮箱。",

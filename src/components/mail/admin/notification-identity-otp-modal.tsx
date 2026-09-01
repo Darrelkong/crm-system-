@@ -149,11 +149,13 @@ export function NotificationIdentityOtpModal({
             <div className="space-y-2">
               <h3 className="text-lg font-semibold crm-text">
                 {replacementPending
-                  ? t("mail.notificationMailbox.completeReplacementAction")
+                  ? t("mail.notificationMailbox.otpModalReplacementTitle")
                   : t("mail.notificationMailbox.otpModalTitle")}
               </h3>
               <p className="text-sm crm-text-secondary">
-                {t("mail.notificationMailbox.otpModalSentTo")}
+                {replacementPending
+                  ? t("mail.notificationMailbox.otpModalReplacementBody")
+                  : t("mail.notificationMailbox.otpModalSentTo")}
               </p>
               <p className="break-all text-sm font-medium crm-text">
                 {pending.email}
@@ -201,7 +203,9 @@ export function NotificationIdentityOtpModal({
                     verifyCodeInput.length !== VERIFICATION_CODE_INPUT_PROPS.maxLength
                   }
                 >
-                  {t("mail.notificationMailbox.otpModalVerifyAction")}
+                  {replacementPending
+                    ? t("mail.notificationMailbox.otpModalReplacementVerifyAction")
+                    : t("mail.notificationMailbox.otpModalVerifyAction")}
                 </Button>
                 <Button
                   type="button"

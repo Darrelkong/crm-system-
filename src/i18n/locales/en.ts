@@ -479,10 +479,17 @@ const en = {
         "After disabling, this notification mailbox will no longer be used for CRM Mail alerts, and this member's Mail access will be suspended. Work mailboxes and mail history will not be deleted. Mail access can be restored after a new notification mailbox is verified.",
       disableSuccess:
         "Notification mailbox disabled and Mail access suspended.",
+      disableSectionTitle: "Disable notification mailbox",
+      disableSectionDescription:
+        "Disabling this notification email will stop notification delivery and suspend Mail access.",
       otpModalTitle: "Verify notification mailbox",
       otpModalSentTo: "We sent an 8-character verification code to:",
+      otpModalReplacementTitle: "Complete Notification Email Change",
+      otpModalReplacementBody:
+        "We sent an 8-character verification code to the new notification email. After verification, the new address will replace the current notification email.",
       otpModalValidity: "The code is valid for 5 minutes.",
       otpModalVerifyAction: "Verify",
+      otpModalReplacementVerifyAction: "Verify and Complete Change",
     },
     adminCenter: {
       title: "Mail Admin Center",
@@ -593,7 +600,7 @@ const en = {
           manageNotificationEmail: "Manage notification mailbox",
         },
         targetNotification: {
-          title: "Notification email setup",
+          title: "Notification Email Management",
           description:
             "Enter this team member's private external notification email. Verification is required before Mail access can be enabled.",
           empty: "No notification email has been configured yet.",

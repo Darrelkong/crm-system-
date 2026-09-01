@@ -27,7 +27,7 @@ export function NotificationMailboxSelfServiceModal({
           <div className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold crm-text">
-                {t("mail.notificationMailbox.title")}
+                {t("mail.adminCenter.access.targetNotification.title")}
               </h3>
               <p className="text-sm crm-text-secondary">
                 {t("mail.notificationMailbox.description")}

@@ -262,7 +262,18 @@ export function NotificationIdentityControlView({
             {cancelActionLabel}
           </Button>
         ) : null}
-        {actions.showDisable ? (
+      </div>
+
+      {actions.showDisable ? (
+        <div className="notification-identity-disable-section space-y-2 border-t border-[var(--crm-border)] pt-4">
+          <div className="space-y-1">
+            <p className="text-sm font-medium crm-text">
+              {t("mail.notificationMailbox.disableSectionTitle")}
+            </p>
+            <p className="text-sm crm-text-secondary">
+              {t("mail.notificationMailbox.disableSectionDescription")}
+            </p>
+          </div>
           <Button
             type="button"
             size="sm"
@@ -272,8 +283,8 @@ export function NotificationIdentityControlView({
           >
             {t("mail.notificationMailbox.disableAction")}
           </Button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       <NotificationIdentitySettingsModal
         open={settingsMode != null}

@@ -127,4 +127,66 @@ describe("notification identity UX correction wiring", () => {
     assert.match(admin, /NotificationIdentityTeamOverview/);
     assert.doesNotMatch(shell, /NotificationIdentityTeamOverview/);
   });
+
+  it("canonical lifecycle management title uses management wording", () => {
+    const zhHant = read("src/i18n/locales/zh-Hant.ts");
+    const panel = read(
+      "src/components/mail/admin/target-user-notification-identity-panel.tsx",
+    );
+    const selfService = read(
+      "src/components/mail/notification-mailbox-self-service-modal.tsx",
+    );
+    assert.match(zhHant, /title: "通知郵箱管理"/);
+    assert.doesNotMatch(zhHant, /title: "通知郵箱設定"/);
+    assert.match(panel, /mail\.adminCenter\.access\.targetNotification\.title/);
+    assert.match(selfService, /mail\.adminCenter\.access\.targetNotification\.title/);
+  });
+
+  it("pending-only OTP modal keeps normal verification wording", () => {
+    const zhHant = read("src/i18n/locales/zh-Hant.ts");
+    const otp = read("src/components/mail/admin/notification-identity-otp-modal.tsx");
+    assert.match(zhHant, /otpModalTitle: "驗證通知郵箱"/);
+    assert.match(zhHant, /otpModalSentTo: "我們已向以下郵箱發送 8 位驗證碼："/);
+    assert.match(otp, /replacementPending\s*\?\s*t\("mail\.notificationMailbox\.otpModalReplacementTitle"\)/);
+    assert.match(otp, /:\s*t\("mail\.notificationMailbox\.otpModalTitle"\)/);
+    assert.match(otp, /:\s*t\("mail\.notificationMailbox\.otpModalSentTo"\)/);
+  });
+
+  it("replacement OTP modal uses replacement-specific title and primary action", () => {
+    const zhHant = read("src/i18n/locales/zh-Hant.ts");
+    const otp = read("src/components/mail/admin/notification-identity-otp-modal.tsx");
+    assert.match(zhHant, /otpModalReplacementTitle: "完成通知郵箱更換"/);
+    assert.match(zhHant, /otpModalReplacementVerifyAction: "驗證並完成更換"/);
+    assert.match(otp, /otpModalReplacementTitle/);
+    assert.match(otp, /otpModalReplacementBody/);
+    assert.match(otp, /otpModalReplacementVerifyAction/);
+  });
+
+  it("replacement workflow keeps normal action group separate from disable area", () => {
+    const zhHant = read("src/i18n/locales/zh-Hant.ts");
+    const control = read("src/components/mail/admin/notification-identity-control-view.tsx");
+    assert.match(zhHant, /completeReplacementAction: "完成更換"/);
+    assert.match(control, /completeActionLabel/);
+    assert.match(control, /formatVerificationResendActionLabel/);
+    assert.match(control, /cancelActionLabel/);
+    assert.match(control, /notification-identity-disable-section/);
+    assert.match(control, /disableSectionTitle/);
+    assert.match(control, /disableSectionDescription/);
+    const actionRowEnd = control.indexOf("notification-identity-disable-section");
+    const actionRowStart = control.indexOf('className="flex flex-wrap gap-2"');
+    assert.ok(actionRowStart >= 0 && actionRowEnd > actionRowStart);
+    assert.doesNotMatch(
+      control.slice(actionRowStart, actionRowEnd),
+      /variant="danger"/,
+    );
+  });
+
+  it("does not change notification identity API or service wiring", () => {
+    const control = read("src/components/mail/admin/notification-identity-control-view.tsx");
+    assert.match(control, /cancelPendingNotificationIdentity/);
+    assert.match(control, /disableNotificationIdentity/);
+    assert.match(control, /sendTargetNotificationVerificationChallenge/);
+    assert.doesNotMatch(control, /notification-identity-service/);
+    assert.doesNotMatch(control, /\/api\/mail\/access/);
+  });
 });
