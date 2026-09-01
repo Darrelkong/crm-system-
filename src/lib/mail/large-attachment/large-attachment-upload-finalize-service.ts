@@ -31,6 +31,7 @@ import {
   findUploadSessionById,
   markUploadSessionFinalized,
 } from "@/lib/mail/large-attachment/large-attachment-upload-repository";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import {
   evaluateLargeAttachmentUploadFinalize,
   type LargeAttachmentUploadSession,
@@ -39,6 +40,7 @@ import {
 export type LargeAttachmentFinalizePorts = {
   headObject?: typeof headLargeAttachmentObjectAuthoritative;
   trustNow?: () => Date;
+  runtimeEnabled?: boolean;
 };
 
 function normalizeContentType(value: string | null | undefined): string | null {
@@ -58,6 +60,9 @@ export async function finalizeLargeAttachmentUpload(
     ports?: LargeAttachmentFinalizePorts;
   },
 ): Promise<DraftDetailView> {
+  assertLargeAttachmentRuntimeReady({
+    enabled: input.ports?.runtimeEnabled,
+  });
   const draft = await requireAuthorDraft(db, actor, input.draftId);
   const session = await findUploadSessionById(db, input.sessionId);
   if (!session || session.draftId !== draft.id) {

@@ -24,6 +24,7 @@ import {
   createLargeAttachmentS3Client,
 } from "@/lib/mail/large-attachment/large-attachment-r2-s3-client";
 import { resolveLargeAttachmentR2Env } from "@/lib/mail/large-attachment/large-attachment-r2-env";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 
 function mapLifecycleRow(
   row: typeof schema.mailLargeAttachmentLifecycle.$inferSelect,
@@ -93,6 +94,7 @@ export async function removeLargeDraftAttachment(
   if (!attachment || attachment.deliveryMode !== "large_attachment") {
     throw MailServiceError.notFound("Large draft attachment not found");
   }
+  assertLargeAttachmentRuntimeReady();
 
   const [stored] = await db
     .select()

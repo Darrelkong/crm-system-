@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import { MailServiceError } from "@/lib/mail/errors";
 import { evaluateLargeAttachmentReviewerDownloadEligibility } from "@/lib/mail/large-attachment/large-attachment-reviewer-download-eligibility";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import type { LargeAttachmentLifecycleRecord } from "@/lib/mail/large-attachment/large-attachment-state-machine";
 
 function mapLifecycleRow(
@@ -39,6 +40,7 @@ export async function assertRevisionLargeAttachmentsInspectableForApproval(
   db: Database,
   revisionId: string,
   trustNowIso: string = new Date().toISOString(),
+  options: { runtimeEnabled?: boolean } = {},
 ): Promise<void> {
   const attachments = await db
     .select({
@@ -54,6 +56,9 @@ export async function assertRevisionLargeAttachmentsInspectableForApproval(
     if (attachment.deliveryMode !== "large_attachment") {
       continue;
     }
+    assertLargeAttachmentRuntimeReady({
+      enabled: options.runtimeEnabled,
+    });
 
     const [lifecycleRow] = await db
       .select()

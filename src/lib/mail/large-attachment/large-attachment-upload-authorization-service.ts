@@ -24,6 +24,7 @@ import {
 } from "@/lib/mail/large-attachment/large-attachment-storage-key";
 import { assertDeclaredContentHashFormat } from "@/lib/mail/large-attachment/large-attachment-storage-identity";
 import { insertUploadSession } from "@/lib/mail/large-attachment/large-attachment-upload-repository";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import {
   evaluateLargeAttachmentUploadSessionValidity,
   type LargeAttachmentUploadSession,
@@ -52,6 +53,7 @@ export type LargeAttachmentAuthorizeResult = {
 export type LargeAttachmentAuthorizePorts = {
   presignPut?: typeof presignLargeAttachmentPut;
   trustNow?: () => Date;
+  runtimeEnabled?: boolean;
 };
 
 function mapClassifierReject(code: string): never {
@@ -135,6 +137,9 @@ export async function authorizeLargeAttachmentUpload(
     ports?: LargeAttachmentAuthorizePorts;
   },
 ): Promise<LargeAttachmentAuthorizeResult> {
+  assertLargeAttachmentRuntimeReady({
+    enabled: input.ports?.runtimeEnabled,
+  });
   const draft = await requireAuthorDraft(db, actor, input.draftId);
   if (!draft.mailboxId || !draft.senderIdentityId) {
     throw MailServiceError.validation(

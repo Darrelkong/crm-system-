@@ -9,6 +9,7 @@ import {
 import { assertEffectiveMailAccess, hasMailOutboundApprovalReview } from "@/lib/permissions/mail";
 import { LARGE_ATTACHMENT_DEDICATED_BUCKET_NAME } from "@/lib/mail/large-attachment/large-attachment-constants";
 import { evaluateLargeAttachmentReviewerDownloadEligibility } from "@/lib/mail/large-attachment/large-attachment-reviewer-download-eligibility";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import type { LargeAttachmentLifecycleRecord } from "@/lib/mail/large-attachment/large-attachment-state-machine";
 
 export type DownloadableOutboundRevisionAttachment = {
@@ -107,7 +108,7 @@ export async function resolveDownloadableOutboundRevisionAttachment(
   actor: MailActorContext,
   revisionId: string,
   attachmentId: string,
-  options?: { trustNowIso?: string },
+  options?: { trustNowIso?: string; runtimeEnabled?: boolean },
 ): Promise<DownloadableOutboundRevisionAttachment> {
   const [attachment] = await db
     .select()
@@ -122,6 +123,11 @@ export async function resolveDownloadableOutboundRevisionAttachment(
 
   if (!attachment) {
     throw MailServiceError.notFound();
+  }
+  if (attachment.deliveryMode === "large_attachment") {
+    assertLargeAttachmentRuntimeReady({
+      enabled: options?.runtimeEnabled,
+    });
   }
 
   const [revision] = await db

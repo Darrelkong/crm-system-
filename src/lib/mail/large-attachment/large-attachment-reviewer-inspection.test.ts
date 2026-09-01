@@ -90,6 +90,7 @@ describe("large attachment reviewer inspection policy", () => {
           proxyDb as never,
           "revision-1",
           NOW,
+          { runtimeEnabled: true },
         ),
       /cannot be inspected/i,
     );

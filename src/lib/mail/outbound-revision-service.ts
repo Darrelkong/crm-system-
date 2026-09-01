@@ -27,6 +27,7 @@ import {
   toSafeOutboundRevisionRecipientView,
   toSafeOutboundRevisionView,
 } from "@/lib/mail/outbound-revision-serialization";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import { materializeSignatureSnapshotForRevision } from "@/lib/mail/signature-snapshot-service";
 import {
   assertEffectiveMailAccess,
@@ -133,6 +134,7 @@ export async function getOutboundRevision(
       .limit(1);
     let lifecycle = null;
     if (attachment.deliveryMode === "large_attachment") {
+      assertLargeAttachmentRuntimeReady();
       const [row] = await db
         .select()
         .from(schema.mailLargeAttachmentLifecycle)
@@ -317,6 +319,7 @@ async function createImmutableRevisionFromDraftGraph(
       }
     }
     if (attachment.deliveryMode === "large_attachment") {
+      assertLargeAttachmentRuntimeReady();
       if (attachment.secureExpiryDays !== null) {
         throw MailServiceError.validation(
           "Large attachment must not set secure expiry days",

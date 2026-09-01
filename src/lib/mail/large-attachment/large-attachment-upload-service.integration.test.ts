@@ -26,6 +26,7 @@ import {
   LARGE_ATTACHMENT_UPLOAD_AUTH_TTL_MS,
   addMillisecondsToIsoTimestamp,
 } from "@/lib/mail/large-attachment/large-attachment-constants";
+import { LARGE_ATTACHMENT_RUNTIME_ENABLED_ENV } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import { MailServiceError } from "@/lib/mail/errors";
 
 const TRUST_NOW = new Date("2026-08-30T10:00:00.000Z");
@@ -39,6 +40,8 @@ describe("large attachment upload service integration", () => {
   let dispose: (() => Promise<void>) | undefined;
   let mailboxId: string;
   let senderIdentityId: string;
+  const previousRuntimeEnabled =
+    process.env[LARGE_ATTACHMENT_RUNTIME_ENABLED_ENV];
   const staffActor = actor(SEED_IDS.staffA);
   const staffBActor = actor(SEED_IDS.staffB);
   const adminActor = actor(SEED_IDS.admin, {
@@ -46,6 +49,7 @@ describe("large attachment upload service integration", () => {
   });
 
   before(async () => {
+    process.env[LARGE_ATTACHMENT_RUNTIME_ENABLED_ENV] = "1";
     const setup = await setupMailReadApiDb();
     db = setup.db;
     dispose = setup.dispose;
@@ -71,6 +75,11 @@ describe("large attachment upload service integration", () => {
 
   after(async () => {
     await teardownMailReadApiDb(db, dispose);
+    if (previousRuntimeEnabled === undefined) {
+      delete process.env[LARGE_ATTACHMENT_RUNTIME_ENABLED_ENV];
+    } else {
+      process.env[LARGE_ATTACHMENT_RUNTIME_ENABLED_ENV] = previousRuntimeEnabled;
+    }
   });
 
   async function createDraftItem() {

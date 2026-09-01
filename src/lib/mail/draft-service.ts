@@ -22,6 +22,7 @@ import {
 import { MailServiceError } from "@/lib/mail/errors";
 import { evaluateTemporaryExpiry } from "@/lib/mail/large-attachment/large-attachment-state-machine";
 import { cleanupTemporaryLargeAttachmentsForDiscardedDraft } from "@/lib/mail/large-attachment/large-attachment-discard-cleanup-service";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 import {
   toSafeDraftAttachmentView,
   toSafeDraftRecipientView,
@@ -172,6 +173,7 @@ export async function loadDraftDetail(
       .limit(1);
     let largeAttachmentExpired = false;
     if (attachment.deliveryMode === "large_attachment" && stored) {
+      assertLargeAttachmentRuntimeReady();
       const [lifecycle] = await db
         .select()
         .from(schema.mailLargeAttachmentLifecycle)

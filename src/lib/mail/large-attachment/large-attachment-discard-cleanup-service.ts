@@ -5,6 +5,7 @@ import {
   transitionToDeleted,
   type LargeAttachmentLifecycleRecord,
 } from "@/lib/mail/large-attachment/large-attachment-state-machine";
+import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
 
 function mapLifecycleRow(
   row: typeof schema.mailLargeAttachmentLifecycle.$inferSelect,
@@ -53,6 +54,7 @@ export async function cleanupTemporaryLargeAttachmentsForDiscardedDraft(
   if (largeStoredFileIds.length === 0) {
     return;
   }
+  assertLargeAttachmentRuntimeReady();
 
   const lifecycleRows = await db
     .select()
