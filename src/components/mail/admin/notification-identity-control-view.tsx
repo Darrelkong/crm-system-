@@ -279,7 +279,13 @@ export function NotificationIdentityControlView({
             size="sm"
             variant="danger"
             disabled={lifecycleBusy}
-            onClick={() => setDisableConfirmOpen(true)}
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              window.requestAnimationFrame(() => {
+                setDisableConfirmOpen(true);
+              });
+            }}
           >
             {t("mail.notificationMailbox.disableAction")}
           </Button>
