@@ -50,11 +50,18 @@ export function NotificationIdentityOtpModal({
   }, [pending?.verificationRequestedAt, resendTick]);
 
   useEffect(() => {
+    let cancelled = false;
     if (!open) {
-      setVerifyCodeInput("");
-      setFeedback(null);
-      return;
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setVerifyCodeInput("");
+          setFeedback(null);
+        }
+      });
     }
+    return () => {
+      cancelled = true;
+    };
   }, [open]);
 
   useEffect(() => {
@@ -143,7 +150,15 @@ export function NotificationIdentityOtpModal({
 
   return (
     <ModalOverlay onClose={onClose}>
-      <ModalPanel className="overflow-hidden p-0">
+      <ModalPanel className="relative overflow-hidden p-0">
+        <button
+          type="button"
+          className="qe-drawer-close absolute right-3 top-3 z-10"
+          aria-label={t("common.close")}
+          onClick={onClose}
+        >
+          <span aria-hidden="true">×</span>
+        </button>
         <div className="modal-panel-body p-4 sm:p-6">
           <div className="space-y-4">
             <div className="space-y-2">
@@ -215,9 +230,6 @@ export function NotificationIdentityOtpModal({
                   onClick={() => void handleSendVerification()}
                 >
                   {formatVerificationResendActionLabel(t, resendCooldownSeconds)}
-                </Button>
-                <Button type="button" size="sm" variant="secondary" onClick={onClose}>
-                  {t("common.close")}
                 </Button>
               </div>
             </form>

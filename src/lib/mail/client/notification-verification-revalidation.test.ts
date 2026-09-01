@@ -64,6 +64,22 @@ describe("notification verification revalidation stability", () => {
     assert.doesNotMatch(resendPath, /onClose\(\)/);
   });
 
+  it("uses a top-right accessible close button without a bottom close action", () => {
+    const otp = read(
+      "src/components/mail/admin/notification-identity-otp-modal.tsx",
+    );
+    assert.match(
+      otp,
+      /className="qe-drawer-close absolute right-3 top-3 z-10"/,
+    );
+    assert.match(otp, /aria-label=\{t\("common\.close"\)\}/);
+    assert.match(otp, /<span aria-hidden="true">×<\/span>/);
+
+    const actionsStart = otp.indexOf('<div className="flex flex-wrap gap-2">');
+    assert.ok(actionsStart >= 0);
+    assert.doesNotMatch(otp.slice(actionsStart), /common\.close/);
+  });
+
   it("refreshes the session endpoint through the canonical disabled-access event", () => {
     const api = read("src/lib/mail/client/api.ts");
     assert.match(api, /isMailAccessDisabledError\(\{/);
