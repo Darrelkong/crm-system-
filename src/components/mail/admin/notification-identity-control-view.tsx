@@ -81,22 +81,30 @@ export function NotificationIdentityControlView({
     ? t("mail.notificationMailbox.cancelSetupAction")
     : t("mail.notificationMailbox.cancelReplacementAction");
 
-  const load = useCallback(async () => {
-    setLoading(true);
+  const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
+    if (!background) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const result = await fetchNotificationIdentities(targetUserId);
       if (!result.ok) {
-        setError(result.error);
-        setItems([]);
+        if (!background) {
+          setError(result.error);
+          setItems([]);
+        }
         return;
       }
       setItems(result.items);
     } catch {
-      setError(t("common.networkError"));
-      setItems([]);
+      if (!background) {
+        setError(t("common.networkError"));
+        setItems([]);
+      }
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }, [targetUserId, t]);
 
@@ -126,7 +134,7 @@ export function NotificationIdentityControlView({
   }, [state.pending?.verificationRequestedAt, resendCooldownSeconds]);
 
   function notifyUpdated() {
-    void load();
+    void load({ background: true });
     onUpdated?.();
   }
 

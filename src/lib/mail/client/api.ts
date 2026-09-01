@@ -140,10 +140,20 @@ export async function fetchMailSession(): Promise<{
   const res = await fetch("/api/mail/me", { cache: "no-store" });
   const data = (await res.json()) as MailSessionResponse;
   if (!res.ok) {
+    const error = data.error ?? "Failed to load mail session";
+    if (
+      isMailAccessDisabledError({
+        status: res.status,
+        errorCode: data.errorCode,
+        error,
+      })
+    ) {
+      notifyMailAccessDisabled();
+    }
     return {
       ok: false,
       status: res.status,
-      error: data.error ?? "Failed to load mail session",
+      error,
       errorCode: data.errorCode,
     };
   }

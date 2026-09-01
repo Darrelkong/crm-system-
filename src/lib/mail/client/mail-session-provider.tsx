@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { fetchMailSession } from "@/lib/mail/client/api";
+import { isMailAccessDisabledError } from "@/lib/mail/client/mail-access-revalidation";
 import {
   clearComposeContextCacheForActor,
   clearComposeContextCacheOnSessionEnd,
@@ -28,7 +29,7 @@ type MailSessionState = {
   session: MailSessionContext | null;
   loading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
+  refresh: (options?: { background?: boolean }) => Promise<void>;
   mailAccessEnabled: boolean;
   effectiveMailAccessEnabled: boolean;
   effectiveGlobalMailRead: boolean;
@@ -59,29 +60,44 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<MailSessionContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const sessionRef = useRef<MailSessionContext | null>(null);
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (options: { background?: boolean } = {}) => {
     if (refreshInFlightRef.current) {
       return refreshInFlightRef.current;
     }
 
+    const background =
+      options.background ?? sessionRef.current !== null;
     const refreshPromise = (async () => {
-      setLoading(true);
+      if (!background) {
+        setLoading(true);
+      }
       setError(null);
       try {
         const result = await fetchMailSession();
         if (!result.ok) {
-          setSession(null);
+          const accessDisabled = isMailAccessDisabledError(result);
+          if (!background || accessDisabled) {
+            sessionRef.current = null;
+            setSession(null);
+          }
           setError(result.error);
           return;
         }
+        sessionRef.current = result.session;
         setSession(result.session);
       } catch {
-        setSession(null);
+        if (!background) {
+          sessionRef.current = null;
+          setSession(null);
+        }
         setError("Network error");
       } finally {
-        setLoading(false);
+        if (!background) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -102,11 +118,11 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const refreshIfVisible = () => {
       if (document.visibilityState === "visible") {
-        void refresh();
+        void refresh({ background: true });
       }
     };
-    const refreshOnFocus = () => void refresh();
-    const refreshOnAccessDenied = () => void refresh();
+    const refreshOnFocus = () => void refresh({ background: true });
+    const refreshOnAccessDenied = () => void refresh({ background: true });
     const interval = window.setInterval(refreshIfVisible, 60_000);
 
     window.addEventListener("focus", refreshOnFocus);

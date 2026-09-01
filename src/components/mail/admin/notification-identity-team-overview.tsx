@@ -236,7 +236,11 @@ export function NotificationIdentityTeamOverview({
   );
   const [actionMessage, setActionMessage] = useState<string | null>(null);
 
-  const load = useCallback(async (): Promise<NotificationIdentityTeamOverviewRow[]> => {
+  const load = useCallback(async ({
+    background = false,
+  }: {
+    background?: boolean;
+  } = {}): Promise<NotificationIdentityTeamOverviewRow[]> => {
     if (!canManage) {
       setRows([]);
       setIdentityItemsByUserId(new Map());
@@ -245,7 +249,9 @@ export function NotificationIdentityTeamOverview({
       return [];
     }
 
-    setLoading(true);
+    if (!background) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [usersResult, accessResult] = await Promise.all([
@@ -254,13 +260,17 @@ export function NotificationIdentityTeamOverview({
       ]);
 
       if (!usersResult.ok) {
-        setError(usersResult.error);
-        setRows([]);
+        if (!background) {
+          setError(usersResult.error);
+          setRows([]);
+        }
         return [];
       }
       if (!accessResult.ok) {
-        setError(accessResult.error);
-        setRows([]);
+        if (!background) {
+          setError(accessResult.error);
+          setRows([]);
+        }
         return [];
       }
 
@@ -284,16 +294,28 @@ export function NotificationIdentityTeamOverview({
       setRows(nextRows);
       return nextRows;
     } catch {
-      setError(t("common.networkError"));
-      setRows([]);
+      if (!background) {
+        setError(t("common.networkError"));
+        setRows([]);
+      }
       return [];
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }, [canManage, t]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const filteredRows = useMemo(
@@ -308,7 +330,7 @@ export function NotificationIdentityTeamOverview({
   }, [identityItemsByUserId, otpTarget]);
 
   function handleReload() {
-    void load();
+    void load({ background: true });
   }
 
   if (loading) {

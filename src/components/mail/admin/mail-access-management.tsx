@@ -277,7 +277,7 @@ export function MailAccessManagement() {
     null,
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
     if (!canManage) {
       setRows([]);
       setLoading(false);
@@ -285,7 +285,9 @@ export function MailAccessManagement() {
       return;
     }
 
-    setLoading(true);
+    if (!background) {
+      setLoading(true);
+    }
     setError(null);
     try {
       const [usersResult, accessResult] = await Promise.all([
@@ -294,21 +296,25 @@ export function MailAccessManagement() {
       ]);
 
       if (!usersResult.ok) {
-        setError(
-          resolveMailAccessListErrorFeedback(usersResult) === "permissionDenied"
-            ? t("mail.adminCenter.access.permissionDenied")
-            : usersResult.error,
-        );
-        setRows([]);
+        if (!background) {
+          setError(
+            resolveMailAccessListErrorFeedback(usersResult) === "permissionDenied"
+              ? t("mail.adminCenter.access.permissionDenied")
+              : usersResult.error,
+          );
+          setRows([]);
+        }
         return;
       }
       if (!accessResult.ok) {
-        setError(
-          resolveMailAccessListErrorFeedback(accessResult) === "permissionDenied"
-            ? t("mail.adminCenter.access.permissionDenied")
-            : accessResult.error,
-        );
-        setRows([]);
+        if (!background) {
+          setError(
+            resolveMailAccessListErrorFeedback(accessResult) === "permissionDenied"
+              ? t("mail.adminCenter.access.permissionDenied")
+              : accessResult.error,
+          );
+          setRows([]);
+        }
         return;
       }
 
@@ -334,15 +340,27 @@ export function MailAccessManagement() {
         ),
       );
     } catch {
-      setError(t("common.networkError"));
-      setRows([]);
+      if (!background) {
+        setError(t("common.networkError"));
+        setRows([]);
+      }
     } finally {
-      setLoading(false);
+      if (!background) {
+        setLoading(false);
+      }
     }
   }, [canManage, t]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   const pending = pendingUserId !== null;
@@ -585,7 +603,7 @@ export function MailAccessManagement() {
         targetUserName={notificationPanelRow?.name ?? ""}
         targetUserEmail={notificationPanelRow?.email ?? ""}
         onClose={() => setNotificationPanelUserId(null)}
-        onUpdated={() => void load()}
+        onUpdated={() => void load({ background: true })}
       />
     </div>
   );
