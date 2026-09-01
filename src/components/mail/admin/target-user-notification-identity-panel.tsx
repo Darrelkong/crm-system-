@@ -32,7 +32,7 @@ export function TargetUserNotificationIdentityPanel({
           <div className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold crm-text">
-                {t("mail.adminCenter.access.targetNotification.title")}
+                {t("mail.notificationMailbox.managementTitle")}
               </h3>
               <p className="text-sm crm-text-secondary">
                 {t("mail.adminCenter.access.targetNotification.description")}

@@ -455,6 +455,8 @@ const en = {
     },
     notificationMailbox: {
       title: "Notification mailbox",
+      managementTitle: "Notification Email Management",
+      configureTitle: "Notification Email Setup",
       description:
         "Set your private notification mailbox. When CRM Mail receives new mail, the system sends an alert to this address; message bodies and attachments remain in CRM Mail.",
       teamMemberLabel: "Team member",
@@ -479,7 +481,7 @@ const en = {
         "After disabling, this notification mailbox will no longer be used for CRM Mail alerts, and this member's Mail access will be suspended. Work mailboxes and mail history will not be deleted. Mail access can be restored after a new notification mailbox is verified.",
       disableSuccess:
         "Notification mailbox disabled and Mail access suspended.",
-      disableSectionTitle: "Disable notification mailbox",
+      disableSectionTitle: "Disable Notification Email",
       disableSectionDescription:
         "Disabling this notification email will stop notification delivery and suspend Mail access.",
       otpModalTitle: "Verify notification mailbox",

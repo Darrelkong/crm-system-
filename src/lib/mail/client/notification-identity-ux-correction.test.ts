@@ -136,10 +136,15 @@ describe("notification identity UX correction wiring", () => {
     const selfService = read(
       "src/components/mail/notification-mailbox-self-service-modal.tsx",
     );
-    assert.match(zhHant, /title: "通知郵箱管理"/);
-    assert.doesNotMatch(zhHant, /title: "通知郵箱設定"/);
-    assert.match(panel, /mail\.adminCenter\.access\.targetNotification\.title/);
-    assert.match(selfService, /mail\.adminCenter\.access\.targetNotification\.title/);
+    const settings = read(
+      "src/components/mail/admin/notification-identity-settings-modal.tsx",
+    );
+    assert.match(zhHant, /managementTitle: "通知郵箱管理"/);
+    assert.match(zhHant, /configureTitle: "通知郵箱設定"/);
+    assert.match(panel, /mail\.notificationMailbox\.managementTitle/);
+    assert.match(selfService, /mail\.notificationMailbox\.managementTitle/);
+    assert.match(settings, /mail\.notificationMailbox\.managementTitle/);
+    assert.match(settings, /mail\.notificationMailbox\.configureTitle/);
   });
 
   it("pending-only OTP modal keeps normal verification wording", () => {

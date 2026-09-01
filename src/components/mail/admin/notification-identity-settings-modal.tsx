@@ -70,7 +70,9 @@ export function NotificationIdentitySettingsModal({
           <div className="space-y-4">
             <div className="space-y-1">
               <h3 className="text-lg font-semibold crm-text">
-                {t("mail.adminCenter.access.targetNotification.title")}
+                {mode === "configure"
+                  ? t("mail.notificationMailbox.configureTitle")
+                  : t("mail.notificationMailbox.managementTitle")}
               </h3>
               <p className="text-sm crm-text-secondary">
                 {mode === "change"

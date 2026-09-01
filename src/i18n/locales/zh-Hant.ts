@@ -431,6 +431,8 @@ const zhHant: Messages = {
     },
     notificationMailbox: {
       title: "通知郵箱",
+      managementTitle: "通知郵箱管理",
+      configureTitle: "通知郵箱設定",
       description:
         "設定你的私人通知郵箱。當 CRM Mail 收到新郵件時，系統會向此郵箱發送提醒；郵件正文與附件仍保留在 CRM Mail 中。",
       teamMemberLabel: "團隊成員",

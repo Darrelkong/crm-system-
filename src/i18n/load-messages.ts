@@ -33,7 +33,9 @@ export async function loadMessages(
     return cached;
   }
 
-  const response = await fetchImpl(LOCALE_JSON_PATH[locale]);
+  const response = await fetchImpl(LOCALE_JSON_PATH[locale], {
+    cache: "no-store",
+  });
   if (!response.ok) {
     throw new Error(`Failed to load locale: ${locale}`);
   }
