@@ -15,6 +15,7 @@ import { normalizeMailEmailAddress } from "@/lib/mail/normalize-email-address";
 import {
   assertMailNotificationProofManagement,
   assertMailPermissionManagement,
+  assertNotificationIdentitySecurityManagement,
   assertNotificationIdentityTargetAccess,
   isCrmRootAdmin,
 } from "@/lib/permissions/mail";
@@ -540,7 +541,7 @@ export async function revokeNotificationIdentity(
   actor: MailActorContext,
   input: { identityId: string; reason?: string },
 ): Promise<SafeNotificationIdentityAdminView> {
-  assertMailPermissionManagement(actor);
+  assertNotificationIdentitySecurityManagement(actor);
 
   const identity = await findNotificationIdentityById(db, input.identityId);
   if (!identity) {
@@ -593,6 +594,38 @@ export async function revokeNotificationIdentity(
     throw MailServiceError.integrityConflict("Notification identity revoke failed");
   }
   return toSafeNotificationIdentityAdminView(revoked);
+}
+
+/**
+ * Exceptional security revocation. Routine Mail suspension must use
+ * disableMailAccess(), which preserves the verified notification identity.
+ */
+export async function revokeNotificationIdentityForSecurity(
+  db: Database,
+  actor: MailActorContext,
+  input: { identityId: string; reason?: string },
+): Promise<SafeNotificationIdentityAdminView> {
+  assertNotificationIdentitySecurityManagement(actor);
+
+  const identity = await findNotificationIdentityById(db, input.identityId);
+  if (!identity) {
+    throw MailServiceError.notFound("Notification identity not found");
+  }
+
+  const revoked = await revokeNotificationIdentity(db, actor, input);
+  if (identity.verificationStatus === "verified" && identity.revokedAt == null) {
+    const { disableMailAccessIfEnabled } = await import(
+      "@/lib/mail/mail-access-service"
+    );
+    await disableMailAccessIfEnabled(db, actor, identity.userId, {
+      auditAction: MAIL_AUDIT_ACTIONS.accessDisabledDueToNotificationIdentity,
+      metadata: {
+        notificationIdentityId: identity.id,
+        reason: input.reason?.trim() || "admin_security_revocation",
+      },
+    });
+  }
+  return revoked;
 }
 
 async function softRevokeActiveNotificationIdentity(
@@ -806,7 +839,7 @@ export async function disableActiveNotificationIdentity(
   actor: MailActorContext,
   targetUserId: string,
 ): Promise<void> {
-  assertNotificationIdentityTargetAccess(actor, targetUserId);
+  assertNotificationIdentitySecurityManagement(actor);
   await requireTargetUser(db, targetUserId);
 
   const verified = await findActiveVerifiedNotificationIdentity(db, targetUserId);

@@ -1,4 +1,8 @@
 import type { MailSessionContext } from "@/lib/mail/mail-session-context";
+import {
+  isMailAccessDisabledError,
+  notifyMailAccessDisabled,
+} from "@/lib/mail/client/mail-access-revalidation";
 import type {
   MailAccessAdminUser,
   MailAccessApiItem,
@@ -55,6 +59,7 @@ import {
 import {
   NOTIFICATION_IDENTITY_SELF_ISSUE_TOKEN_PATH,
   notificationIdentitiesPath,
+  notificationIdentityRevokePath,
   notificationIdentityVerifyPath,
 } from "@/lib/mail/client/notification-identity-management";
 import {
@@ -107,6 +112,15 @@ async function readApiError(
   metadata?: Record<string, unknown>;
 }> {
   const data = (await res.json().catch(() => ({}))) as ApiErrorBody;
+  if (
+    isMailAccessDisabledError({
+      status: res.status,
+      errorCode: data.errorCode,
+      error: data.error,
+    })
+  ) {
+    notifyMailAccessDisabled();
+  }
   return {
     error: data.error ?? fallback,
     errorCode: data.errorCode,
@@ -310,6 +324,34 @@ export async function disableNotificationIdentity(
     return { ok: false, status: res.status, error, errorCode };
   }
   return { ok: true };
+}
+
+export async function revokeNotificationIdentity(
+  identityId: string,
+  reason?: string,
+): Promise<{
+  ok: true;
+  item: NotificationIdentityApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(notificationIdentityRevokePath(identityId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reason }),
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to revoke notification identity",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: NotificationIdentityApiItem };
+  return { ok: true, item: data.item };
 }
 
 export async function sendTargetNotificationVerificationChallenge(

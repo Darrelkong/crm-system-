@@ -450,6 +450,14 @@ const zhHant: Messages = {
       cancelSetupSuccess: "已取消通知郵箱設定。",
       cancelReplacementSuccess: "已取消更換，目前通知郵箱維持不變。",
       replacementSuccess: "通知郵箱更換完成。",
+      revokeAction: "撤銷通知身份",
+      revokeConfirmTitle: "撤銷通知身份",
+      revokeConfirmBody:
+        "此安全操作將撤銷已驗證的通知身份；如有需要，也會停用 Mail 存取。工作郵箱及歷史郵件仍會保留。這與一般停用 Mail 存取是兩項不同操作。",
+      revokeSuccess: "通知身份已撤銷；如有需要，Mail 存取已停用。",
+      revokeSectionTitle: "安全操作：撤銷通知身份",
+      revokeSectionDescription:
+        "只適用於通知電郵錯誤、已被入侵或不再可信的情況。這不是一般的停用 Mail 存取操作。",
       disableAction: "停用通知郵箱",
       disableConfirmTitle: "停用通知郵箱",
       disableConfirmBody:
@@ -1096,8 +1104,9 @@ const zhHant: Messages = {
       tooltip: "將在 Mail Admin 中管理",
     },
     noAccess: {
-      title: "該 Mail 尚未開放權限",
-      description: "該 Mail 尚未開放權限，請聯絡管理員，謝謝。",
+      title: "Mail 存取權限已停用",
+      description:
+        "您的 Mail 存取權限已由管理員停用。\n您目前無法繼續使用 CRM Mail，請聯繫管理員。\n\n工作郵箱及歷史郵件仍會保留。",
       backToDashboard: "返回儀表盤",
     },
     adminOnlyShell: {

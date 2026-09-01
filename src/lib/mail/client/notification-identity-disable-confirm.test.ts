@@ -70,7 +70,7 @@ describe("notification identity disable confirmation wiring", () => {
     "src/components/mail/admin/notification-identity-control-view.tsx",
   );
   const confirmModal = read(
-    "src/components/mail/admin/notification-identity-disable-confirm-modal.tsx",
+    "src/components/mail/admin/notification-identity-revoke-confirm-modal.tsx",
   );
   const selfService = read(
     "src/components/mail/notification-mailbox-self-service-modal.tsx",
@@ -80,15 +80,15 @@ describe("notification identity disable confirmation wiring", () => {
   );
 
   it("outer destructive button only schedules opening the confirm modal", () => {
-    assert.match(control, /setDisableConfirmOpen\(true\)/);
+    assert.match(control, /setRevokeConfirmOpen\(true\)/);
     assert.match(control, /requestAnimationFrame/);
     assert.doesNotMatch(
-      control.slice(control.indexOf("notification-identity-disable-section")),
+      control.slice(control.indexOf("notification-identity-revoke-section")),
       /onClick=\{\(\) => void handleDisableConfirmed\(\)\}/,
     );
     assert.doesNotMatch(
-      control.slice(control.indexOf("notification-identity-disable-section")),
-      /disableNotificationIdentity\(/,
+      control.slice(control.indexOf("notification-identity-revoke-section")),
+      /revokeNotificationIdentity\(/,
     );
   });
 
@@ -99,11 +99,14 @@ describe("notification identity disable confirmation wiring", () => {
     assert.match(confirmModal, /if \(!canConfirm\)/);
   });
 
-  it("cancel closes modal without invoking disable API in control view", () => {
-    assert.match(control, /onClose=\{\(\) => setDisableConfirmOpen\(false\)\}/);
-    assert.match(control, /onConfirm=\{\(\) => void handleDisableConfirmed\(\)\}/);
+  it("cancel closes modal without invoking revoke API in control view", () => {
+    assert.match(control, /onClose=\{\(\) => setRevokeConfirmOpen\(false\)\}/);
+    assert.match(
+      control,
+      /onConfirm=\{\(\) => void handleSecurityRevokeConfirmed\(\)\}/,
+    );
     assert.equal(
-      (control.match(/disableNotificationIdentity\(/g) ?? []).length,
+      (control.match(/revokeNotificationIdentity\(/g) ?? []).length,
       1,
     );
   });
@@ -111,7 +114,7 @@ describe("notification identity disable confirmation wiring", () => {
   it("self-service and admin canonical surfaces share the same control contract", () => {
     assert.match(selfService, /NotificationIdentityControlView/);
     assert.match(adminPanel, /NotificationIdentityControlView/);
-    assert.match(control, /NotificationIdentityDisableConfirmModal/);
+    assert.match(control, /NotificationIdentityRevokeConfirmModal/);
   });
 
   it("busy state prevents duplicate disable submission", () => {
@@ -123,8 +126,8 @@ describe("notification identity disable confirmation wiring", () => {
 
   it("failure path keeps modal open until success closes it", () => {
     assert.match(control, /if \(!result\.ok\)/);
-    assert.match(control, /setDisableConfirmOpen\(false\)/);
-    const successIndex = control.indexOf("setDisableConfirmOpen(false)");
+    assert.match(control, /setRevokeConfirmOpen\(false\)/);
+    const successIndex = control.indexOf("setRevokeConfirmOpen(false)");
     const failureIndex = control.indexOf("if (!result.ok)");
     assert.ok(failureIndex < successIndex);
   });

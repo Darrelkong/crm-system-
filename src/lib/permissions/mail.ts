@@ -204,15 +204,28 @@ export function assertMailPermissionManagement(actor: MailActorContext): void {
 /**
  * Notification identity target access:
  * - admins with permission_mgmt may manage any eligible user
- * - mail-enabled users may manage only their own notification identity
+ * - staff may manage only their own identity while Mail access is enabled
+ *
+ * Identity configuration and verification remain self-service. Destructive
+ * identity revocation is intentionally guarded by its own admin-only helper.
  */
 export function assertNotificationIdentityTargetAccess(
   actor: MailActorContext,
   targetUserId: string,
 ): void {
   if (actor.userId === targetUserId) {
+    if (!isCrmRootAdmin(actor)) {
+      assertMailAccessEnabled(actor);
+    }
     return;
   }
+  assertMailPermissionManagement(actor);
+}
+
+/** Security lifecycle: only Mail permission administrators may revoke identity. */
+export function assertNotificationIdentitySecurityManagement(
+  actor: MailActorContext,
+): void {
   assertMailPermissionManagement(actor);
 }
 

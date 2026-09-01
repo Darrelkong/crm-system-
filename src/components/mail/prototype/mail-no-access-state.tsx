@@ -20,7 +20,7 @@ export function MailNoAccessState({
       <h2 className="text-lg font-semibold crm-text">
         {t("mail.noAccess.title")}
       </h2>
-      <p className="mt-2 max-w-sm text-sm crm-text-secondary">
+      <p className="mt-2 max-w-sm whitespace-pre-line text-sm crm-text-secondary">
         {t("mail.noAccess.description")}
       </p>
       <Button

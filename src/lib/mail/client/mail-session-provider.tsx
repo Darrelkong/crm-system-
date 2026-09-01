@@ -6,11 +6,16 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { fetchMailSession } from "@/lib/mail/client/api";
-import { clearComposeContextCacheOnSessionEnd } from "@/lib/mail/client/compose-context-cache";
+import {
+  clearComposeContextCacheForActor,
+  clearComposeContextCacheOnSessionEnd,
+} from "@/lib/mail/client/compose-context-cache";
+import { MAIL_ACCESS_DISABLED_EVENT } from "@/lib/mail/client/mail-access-revalidation";
 import type { MailSessionContext } from "@/lib/mail/mail-session-context";
 import {
   canAccessMailAdminCenter,
@@ -54,23 +59,39 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<MailSessionContext | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const result = await fetchMailSession();
-      if (!result.ok) {
+    if (refreshInFlightRef.current) {
+      return refreshInFlightRef.current;
+    }
+
+    const refreshPromise = (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const result = await fetchMailSession();
+        if (!result.ok) {
+          setSession(null);
+          setError(result.error);
+          return;
+        }
+        setSession(result.session);
+      } catch {
         setSession(null);
-        setError(result.error);
-        return;
+        setError("Network error");
+      } finally {
+        setLoading(false);
       }
-      setSession(result.session);
-    } catch {
-      setSession(null);
-      setError("Network error");
+    })();
+
+    refreshInFlightRef.current = refreshPromise;
+    try {
+      await refreshPromise;
     } finally {
-      setLoading(false);
+      if (refreshInFlightRef.current === refreshPromise) {
+        refreshInFlightRef.current = null;
+      }
     }
   }, []);
 
@@ -79,10 +100,36 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
+    const refreshIfVisible = () => {
+      if (document.visibilityState === "visible") {
+        void refresh();
+      }
+    };
+    const refreshOnFocus = () => void refresh();
+    const refreshOnAccessDenied = () => void refresh();
+    const interval = window.setInterval(refreshIfVisible, 60_000);
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshIfVisible);
+    window.addEventListener(MAIL_ACCESS_DISABLED_EVENT, refreshOnAccessDenied);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshIfVisible);
+      window.removeEventListener(
+        MAIL_ACCESS_DISABLED_EVENT,
+        refreshOnAccessDenied,
+      );
+    };
+  }, [refresh]);
+
+  useEffect(() => {
     if (!session?.user.id) {
       clearComposeContextCacheOnSessionEnd();
+    } else if (!session.mailAccessEnabled) {
+      clearComposeContextCacheForActor(session.user.id);
     }
-  }, [session?.user.id]);
+  }, [session?.mailAccessEnabled, session?.user.id]);
 
   const capabilities = session?.capabilities ?? DISABLED_CAPABILITIES;
   const effectiveMailAccessEnabled =

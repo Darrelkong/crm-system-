@@ -57,7 +57,7 @@ export type NotificationIdentitySurfaceActions = {
   showCompleteVerification: boolean;
   showResendVerification: boolean;
   showCancelPending: boolean;
-  showDisable: boolean;
+  showRevoke: boolean;
   isReplacementPending: boolean;
   isPendingOnly: boolean;
 };
@@ -256,8 +256,10 @@ export function resolveNotificationIdentityStateModel(
 
 export function resolveNotificationIdentitySurfaceActions(
   state: NotificationIdentityStateModel,
+  options: { allowSecurityRevoke?: boolean } = {},
 ): NotificationIdentitySurfaceActions {
   const { verified, pending } = state;
+  const allowSecurityRevoke = options.allowSecurityRevoke === true;
 
   if (!verified && !pending) {
     return {
@@ -266,7 +268,7 @@ export function resolveNotificationIdentitySurfaceActions(
       showCompleteVerification: false,
       showResendVerification: false,
       showCancelPending: false,
-      showDisable: false,
+      showRevoke: false,
       isReplacementPending: false,
       isPendingOnly: false,
     };
@@ -279,7 +281,7 @@ export function resolveNotificationIdentitySurfaceActions(
       showCompleteVerification: false,
       showResendVerification: false,
       showCancelPending: false,
-      showDisable: true,
+      showRevoke: allowSecurityRevoke,
       isReplacementPending: false,
       isPendingOnly: false,
     };
@@ -295,7 +297,7 @@ export function resolveNotificationIdentitySurfaceActions(
       showCompleteVerification: true,
       showResendVerification: true,
       showCancelPending: true,
-      showDisable: verified != null,
+      showRevoke: allowSecurityRevoke && verified != null,
       isReplacementPending: replacementPending,
       isPendingOnly: verified == null,
     };
@@ -307,7 +309,7 @@ export function resolveNotificationIdentitySurfaceActions(
     showCompleteVerification: false,
     showResendVerification: false,
     showCancelPending: false,
-    showDisable: true,
+    showRevoke: allowSecurityRevoke,
     isReplacementPending: false,
     isPendingOnly: false,
   };
@@ -517,6 +519,10 @@ export function notificationIdentitiesPath(userId: string): string {
 
 export function notificationIdentityVerifyPath(identityId: string): string {
   return `/api/mail/notification-identities/${encodeURIComponent(identityId)}/verify`;
+}
+
+export function notificationIdentityRevokePath(identityId: string): string {
+  return `/api/mail/notification-identities/${encodeURIComponent(identityId)}/revoke`;
 }
 
 export const NOTIFICATION_IDENTITY_SELF_ISSUE_TOKEN_PATH =

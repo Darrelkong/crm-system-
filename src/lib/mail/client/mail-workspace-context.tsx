@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useSyncExternalStore,
   type ReactNode,
@@ -17,6 +18,7 @@ import { fetchDrafts as fetchDraftsFromApi } from "@/lib/mail/client/api";
 import type { DraftApiItem } from "@/lib/mail/client/draft-management";
 import { sortDraftsByRecency } from "@/lib/mail/client/draft-management";
 import { MailReadApiError } from "@/lib/mail/client/mail-read-api-errors";
+import { MAIL_ACCESS_DISABLED_EVENT } from "@/lib/mail/client/mail-access-revalidation";
 import type {
   AccessibleMailboxView,
   FetchMessageDetailInput,
@@ -84,6 +86,7 @@ export type MailWorkspaceContextValue = MailWorkspaceState & {
   selectFolder: (folder: MailWorkspaceFolder) => Promise<void>;
   selectMessage: (messageId: string) => Promise<void>;
   clearReadingSelection: () => void;
+  clearSensitiveState: () => void;
   refreshMessages: () => Promise<void>;
   markMessageRead: (input: MarkMessageReadInput) => Promise<void>;
 };
@@ -281,6 +284,7 @@ export function createMailWorkspaceRuntime(
       selectFolder,
       selectMessage,
       clearReadingSelection,
+      clearSensitiveState,
       refreshMessages,
       markMessageRead,
     };
@@ -708,6 +712,29 @@ export function createMailWorkspaceRuntime(
     });
   }
 
+  function clearSensitiveState() {
+    if (
+      state.mailboxes.length === 0 &&
+      state.messages.length === 0 &&
+      state.drafts.length === 0 &&
+      state.selectedMessageId === null &&
+      state.selectedMessage === null &&
+      state.error === null &&
+      messageFolderCache.size === 0 &&
+      draftFolderCache.size === 0
+    ) {
+      return;
+    }
+    detailRequestSequence += 1;
+    messagesRequestSequence += 1;
+    draftsRequestSequence += 1;
+    messageFolderCache.clear();
+    draftFolderCache.clear();
+    state = { ...INITIAL_MAIL_WORKSPACE_STATE };
+    rebuildSnapshot();
+    notify();
+  }
+
   async function selectMessage(messageId: string) {
     if (
       state.selectedFolder === "drafts" ||
@@ -834,6 +861,17 @@ export function MailWorkspaceProvider({
     runtime.getSnapshot,
     runtime.getSnapshot,
   );
+
+  useEffect(() => {
+    const clearOnAccessDisabled = () =>
+      runtime.getSnapshot().clearSensitiveState();
+    window.addEventListener(MAIL_ACCESS_DISABLED_EVENT, clearOnAccessDisabled);
+    return () =>
+      window.removeEventListener(
+        MAIL_ACCESS_DISABLED_EVENT,
+        clearOnAccessDisabled,
+      );
+  }, [runtime]);
 
   return (
     <MailWorkspaceContext.Provider value={value}>

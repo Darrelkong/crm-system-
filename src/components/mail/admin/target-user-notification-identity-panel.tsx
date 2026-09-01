@@ -42,6 +42,7 @@ export function TargetUserNotificationIdentityPanel({
               targetUserId={targetUserId}
               targetUserName={targetUserName}
               targetUserEmail={targetUserEmail}
+              allowSecurityRevoke
               onUpdated={onUpdated}
             />
             <div className="flex justify-end">

@@ -287,7 +287,7 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
         showCompleteVerification: false,
         showResendVerification: false,
         showCancelPending: false,
-        showDisable: false,
+        showRevoke: false,
         isReplacementPending: false,
         isPendingOnly: false,
       },
@@ -301,20 +301,38 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
       verifiedAt: "2026-08-22T09:00:00.000Z",
     });
     assert.deepEqual(
-      resolveNotificationIdentitySurfaceActions({
-        verified,
-        pending: null,
-      }),
+      resolveNotificationIdentitySurfaceActions(
+        {
+          verified,
+          pending: null,
+        },
+        { allowSecurityRevoke: true },
+      ),
       {
         showConfigureEmail: false,
         showChangeEmail: true,
         showCompleteVerification: false,
         showResendVerification: false,
         showCancelPending: false,
-        showDisable: true,
+        showRevoke: true,
         isReplacementPending: false,
         isPendingOnly: false,
       },
+    );
+  });
+
+  it("does not expose security revoke to the self-service surface", () => {
+    const verified = identity({
+      verificationStatus: "verified",
+      verificationPending: false,
+      verifiedAt: "2026-08-22T09:00:00.000Z",
+    });
+    assert.equal(
+      resolveNotificationIdentitySurfaceActions({
+        verified,
+        pending: null,
+      }).showRevoke,
+      false,
     );
   });
 
@@ -330,7 +348,7 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
         showCompleteVerification: true,
         showResendVerification: true,
         showCancelPending: true,
-        showDisable: false,
+        showRevoke: false,
         isReplacementPending: false,
         isPendingOnly: true,
       },
@@ -350,17 +368,20 @@ describe("resolveNotificationIdentitySurfaceActions", () => {
       email: "new@example.com",
     });
     assert.deepEqual(
-      resolveNotificationIdentitySurfaceActions({
-        verified,
-        pending,
-      }),
+      resolveNotificationIdentitySurfaceActions(
+        {
+          verified,
+          pending,
+        },
+        { allowSecurityRevoke: true },
+      ),
       {
         showConfigureEmail: false,
         showChangeEmail: false,
         showCompleteVerification: true,
         showResendVerification: true,
         showCancelPending: true,
-        showDisable: true,
+        showRevoke: true,
         isReplacementPending: true,
         isPendingOnly: false,
       },

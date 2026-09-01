@@ -9,7 +9,7 @@ import {
   shouldAllowDisableConfirmAction,
 } from "@/lib/mail/client/notification-identity-disable-confirm-behavior";
 
-export function NotificationIdentityDisableConfirmModal({
+export function NotificationIdentityRevokeConfirmModal({
   open,
   busy,
   onClose,
@@ -25,8 +25,15 @@ export function NotificationIdentityDisableConfirmModal({
 
   useEffect(() => {
     if (!open) {
-      setConfirmArmed(false);
-      return;
+      let cancelled = false;
+      queueMicrotask(() => {
+        if (!cancelled) {
+          setConfirmArmed(false);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
     }
 
     return scheduleDisableConfirmArm(() => {
@@ -59,10 +66,10 @@ export function NotificationIdentityDisableConfirmModal({
         >
           <div className="space-y-2">
             <h3 className="text-lg font-semibold crm-text">
-              {t("mail.notificationMailbox.disableConfirmTitle")}
+              {t("mail.notificationMailbox.revokeConfirmTitle")}
             </h3>
             <p className="text-sm crm-text-secondary">
-              {t("mail.notificationMailbox.disableConfirmBody")}
+              {t("mail.notificationMailbox.revokeConfirmBody")}
             </p>
           </div>
           <div className="flex flex-wrap justify-end gap-2">
@@ -82,7 +89,7 @@ export function NotificationIdentityDisableConfirmModal({
               disabled={!canConfirm}
               onClick={handleConfirm}
             >
-              {t("mail.notificationMailbox.disableAction")}
+              {t("mail.notificationMailbox.revokeAction")}
             </Button>
           </div>
         </div>

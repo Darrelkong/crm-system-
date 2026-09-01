@@ -475,6 +475,14 @@ const en = {
       cancelReplacementSuccess:
         "Replacement cancelled. The current notification mailbox remains active.",
       replacementSuccess: "Notification mailbox replacement completed.",
+      revokeAction: "Revoke notification identity",
+      revokeConfirmTitle: "Revoke notification identity",
+      revokeConfirmBody:
+        "This exceptional security action will revoke the verified notification identity and suspend Mail access if required. Work mailboxes and mail history will remain intact. This is separate from routine Mail access suspension.",
+      revokeSuccess: "Notification identity revoked and Mail access suspended if required.",
+      revokeSectionTitle: "Security: revoke notification identity",
+      revokeSectionDescription:
+        "Use only for an incorrect, compromised, or no-longer-trusted notification email. This is not the routine Mail access disable action.",
       disableAction: "Disable notification mailbox",
       disableConfirmTitle: "Disable notification mailbox",
       disableConfirmBody:
@@ -1147,9 +1155,9 @@ const en = {
       tooltip: "Managed in Mail Admin (future)",
     },
     noAccess: {
-      title: "Mail access unavailable",
+      title: "Mail Access Disabled",
       description:
-        "Mail access has not been enabled for your account. Please contact an administrator. Thank you.",
+        "Your Mail access has been disabled by an administrator. You can no longer use CRM Mail. Please contact your administrator.\n\nYour work mailbox and mail history are retained.",
       backToDashboard: "Back to dashboard",
     },
     adminOnlyShell: {

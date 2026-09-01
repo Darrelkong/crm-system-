@@ -7,8 +7,10 @@ import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
+import { resolveMailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
+import { listAccessibleMailboxes } from "@/lib/mail/mail-read-mailbox-service";
 import {
   disableMailAccess,
   enableMailAccess,
@@ -31,11 +33,17 @@ import { assertNotificationIdentityResponseHasNoSecrets } from "@/lib/mail/notif
 import type { SafeNotificationIdentityAdminView } from "@/lib/mail/notification-identity-serialization";
 import { runMailBatch } from "@/lib/mail/guarded-batch";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
+import { MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR } from "@/lib/mail/notification-verification-secret";
 
 const FIXTURE = "mail-phase2c3";
 const TARGET_USER = SEED_IDS.staffA;
+const TEST_VERIFICATION_SECRET = "mail-phase2c3-integration-test-secret";
 
 type TestDb = ReturnType<typeof drizzle<typeof schema>>;
+let baselineTargetAccess: typeof schema.mailUserAccess.$inferSelect | null =
+  null;
+let baselineTargetIdentities: typeof schema.mailNotificationIdentities.$inferSelect[] =
+  [];
 
 function actor(
   userId: string,
@@ -106,7 +114,12 @@ async function cleanupFixtures(db: TestDb) {
 
   await db
     .delete(schema.mailNotificationIdentities)
-    .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    .where(
+      and(
+        eq(schema.mailNotificationIdentities.userId, TARGET_USER),
+        like(schema.mailNotificationIdentities.email, `${FIXTURE}%`),
+      ),
+    );
 
   await db
     .delete(schema.mailAdminGrants)
@@ -126,36 +139,110 @@ async function cleanupFixtures(db: TestDb) {
       ),
     );
 
+  if (baselineTargetAccess) {
+    await db
+      .update(schema.mailUserAccess)
+      .set(baselineTargetAccess)
+      .where(eq(schema.mailUserAccess.userId, TARGET_USER));
+  } else {
+    await db
+      .delete(schema.mailUserAccess)
+      .where(eq(schema.mailUserAccess.userId, TARGET_USER));
+  }
+}
+
+const PRESERVATION_MAILBOX_ID = `${FIXTURE}-mailbox`;
+const PRESERVATION_THREAD_ID = `${FIXTURE}-thread`;
+const PRESERVATION_MESSAGE_ID = `${FIXTURE}-message`;
+const PRESERVATION_SENDER_IDENTITY_ID = `${FIXTURE}-sender`;
+const PRESERVATION_SENDER_GRANT_ID = `${FIXTURE}-sender-grant`;
+const PRESERVATION_MEMBER_ID = `${FIXTURE}-member`;
+
+async function cleanupPreservationFixture(db: TestDb) {
   await db
-    .update(schema.mailUserAccess)
-    .set({
-      isEnabled: 0,
-      disabledAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(eq(schema.mailUserAccess.userId, TARGET_USER));
+    .delete(schema.mailSenderIdentityGrants)
+    .where(eq(schema.mailSenderIdentityGrants.id, PRESERVATION_SENDER_GRANT_ID));
+  await db
+    .delete(schema.mailSenderIdentities)
+    .where(eq(schema.mailSenderIdentities.id, PRESERVATION_SENDER_IDENTITY_ID));
+  await db
+    .delete(schema.mailMessageBodies)
+    .where(eq(schema.mailMessageBodies.messageId, PRESERVATION_MESSAGE_ID));
+  await db
+    .delete(schema.mailMessages)
+    .where(eq(schema.mailMessages.id, PRESERVATION_MESSAGE_ID));
+  await db
+    .delete(schema.mailThreads)
+    .where(eq(schema.mailThreads.id, PRESERVATION_THREAD_ID));
+  await db
+    .delete(schema.mailMailboxMembers)
+    .where(eq(schema.mailMailboxMembers.id, PRESERVATION_MEMBER_ID));
+  await db
+    .delete(schema.mailMailboxes)
+    .where(eq(schema.mailMailboxes.id, PRESERVATION_MAILBOX_ID));
 }
 
 describe("mail access + notification identity integration", () => {
   let db: TestDb;
   let dispose: (() => void) | undefined;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      TEST_VERIFICATION_SECRET;
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
+    baselineTargetAccess =
+      (await db
+        .select()
+        .from(schema.mailUserAccess)
+        .where(eq(schema.mailUserAccess.userId, TARGET_USER))
+        .limit(1))[0] ?? null;
+    baselineTargetIdentities = await db
+      .select()
+      .from(schema.mailNotificationIdentities)
+      .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    if (baselineTargetIdentities.length > 0) {
+      const snapshotAt = new Date().toISOString();
+      await db
+        .update(schema.mailNotificationIdentities)
+        .set({
+          verificationStatus: "revoked",
+          revokedAt: snapshotAt,
+          revokedBy: SEED_IDS.admin,
+          revokeReason: "integration_test_snapshot",
+          verificationTokenHash: null,
+          verificationExpiresAt: null,
+          updatedAt: snapshotAt,
+        })
+        .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    }
     await ensureActorMailAccess(db, SEED_IDS.admin);
     await cleanupFixtures(db);
   });
 
   after(async () => {
     await cleanupFixtures(db);
+    for (const identity of baselineTargetIdentities) {
+      await db
+        .update(schema.mailNotificationIdentities)
+        .set(identity)
+        .where(eq(schema.mailNotificationIdentities.id, identity.id));
+    }
     bindTestDatabase(null);
     dispose?.();
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
   });
 
   it("rejects enable without verified notification identity", async () => {
@@ -494,6 +581,76 @@ describe("mail access + notification identity integration", () => {
 
   it("disable mail access leaves notification identity intact", async () => {
     await cleanupFixtures(db);
+    await cleanupPreservationFixture(db);
+    const now = new Date().toISOString();
+    await db.insert(schema.mailMailboxes).values({
+      id: PRESERVATION_MAILBOX_ID,
+      address: `${FIXTURE}-preserved@echfronthk.com`,
+      displayName: "Preserved mailbox",
+      mailboxType: "personal",
+      status: "active",
+      createdBy: TARGET_USER,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailMailboxMembers).values({
+      id: PRESERVATION_MEMBER_ID,
+      mailboxId: PRESERVATION_MAILBOX_ID,
+      userId: TARGET_USER,
+      canRead: 1,
+      canReply: 1,
+      canSend: 1,
+      grantedBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailThreads).values({
+      id: PRESERVATION_THREAD_ID,
+      mailboxId: PRESERVATION_MAILBOX_ID,
+      subjectNormalized: "preserved",
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailMessages).values({
+      id: PRESERVATION_MESSAGE_ID,
+      threadId: PRESERVATION_THREAD_ID,
+      mailboxId: PRESERVATION_MAILBOX_ID,
+      direction: "inbound",
+      fromAddress: "customer@example.com",
+      subject: "Preserved history",
+      previewText: "Preserved",
+      receivedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailMessageBodies).values({
+      messageId: PRESERVATION_MESSAGE_ID,
+      bodyText: "History remains",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailSenderIdentities).values({
+      id: PRESERVATION_SENDER_IDENTITY_ID,
+      address: `${FIXTURE}-sender@echfronthk.com`,
+      displayName: "Preserved sender",
+      status: "active",
+      defaultMailboxId: PRESERVATION_MAILBOX_ID,
+      createdBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailSenderIdentityGrants).values({
+      id: PRESERVATION_SENDER_GRANT_ID,
+      senderIdentityId: PRESERVATION_SENDER_IDENTITY_ID,
+      userId: TARGET_USER,
+      canReply: 1,
+      canSend: 1,
+      grantedBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
+    });
+
     const { identity: created, token } = await createPendingWithTestToken(
       db,
       permissionActor,
@@ -514,7 +671,70 @@ describe("mail access + notification identity integration", () => {
       .from(schema.mailUserAccess)
       .where(eq(schema.mailUserAccess.userId, TARGET_USER));
     assert.equal(access[0]?.isEnabled, 0);
+    assert.equal(
+      (
+        await db
+          .select()
+          .from(schema.mailMailboxes)
+          .where(eq(schema.mailMailboxes.id, PRESERVATION_MAILBOX_ID))
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await db
+          .select()
+          .from(schema.mailMailboxMembers)
+          .where(eq(schema.mailMailboxMembers.id, PRESERVATION_MEMBER_ID))
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await db
+          .select()
+          .from(schema.mailMessages)
+          .where(eq(schema.mailMessages.id, PRESERVATION_MESSAGE_ID))
+      ).length,
+      1,
+    );
+    assert.equal(
+      (
+        await db
+          .select()
+          .from(schema.mailSenderIdentities)
+          .where(eq(schema.mailSenderIdentities.id, PRESERVATION_SENDER_IDENTITY_ID))
+      ).length,
+      1,
+    );
 
+    const targetUser = (
+      await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, TARGET_USER))
+        .limit(1)
+    )[0];
+    assert.ok(targetUser);
+    const liveStaffActor = await resolveMailActorContext(targetUser, { db });
+    await assert.rejects(
+      () => listAccessibleMailboxes(db, liveStaffActor),
+      (error: unknown) =>
+        error instanceof MailServiceError &&
+        error.errorCode === "FORBIDDEN" &&
+        error.message === "Mail access is not enabled for this user",
+    );
+
+    const reenabled = await enableMailAccess(db, permissionActor, TARGET_USER);
+    assert.equal(reenabled.isEnabled, 1);
+    const identityAfterReenable = await findNotificationIdentityById(
+      db,
+      created.id,
+    );
+    assert.equal(identityAfterReenable?.verificationStatus, "verified");
+    assert.equal(identityAfterReenable?.revokedAt, null);
+
+    await cleanupPreservationFixture(db);
     await cleanupFixtures(db);
   });
 

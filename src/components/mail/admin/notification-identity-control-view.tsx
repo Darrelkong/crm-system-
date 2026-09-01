@@ -6,8 +6,8 @@ import { Label } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
 import {
   cancelPendingNotificationIdentity,
-  disableNotificationIdentity,
   fetchNotificationIdentities,
+  revokeNotificationIdentity,
   sendTargetNotificationVerificationChallenge,
 } from "@/lib/mail/client/api";
 import {
@@ -19,7 +19,7 @@ import {
   resolveNotificationIdentitySurfaceActions,
   type NotificationIdentityApiItem,
 } from "@/lib/mail/client/notification-identity-management";
-import { NotificationIdentityDisableConfirmModal } from "./notification-identity-disable-confirm-modal";
+import { NotificationIdentityRevokeConfirmModal } from "./notification-identity-revoke-confirm-modal";
 import { NotificationIdentityOtpModal } from "./notification-identity-otp-modal";
 import { NotificationIdentitySettingsModal } from "./notification-identity-settings-modal";
 import { NotificationIdentityStatusSummary } from "./notification-identity-status-summary";
@@ -35,12 +35,14 @@ export function NotificationIdentityControlView({
   targetUserName,
   targetUserEmail,
   showMemberHeader = false,
+  allowSecurityRevoke = false,
   onUpdated,
 }: {
   targetUserId: string;
   targetUserName: string;
   targetUserEmail: string;
   showMemberHeader?: boolean;
+  allowSecurityRevoke?: boolean;
   onUpdated?: () => void;
 }) {
   const { t } = useTranslation();
@@ -50,7 +52,7 @@ export function NotificationIdentityControlView({
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [settingsMode, setSettingsMode] = useState<SettingsMode>(null);
   const [otpOpen, setOtpOpen] = useState(false);
-  const [disableConfirmOpen, setDisableConfirmOpen] = useState(false);
+  const [revokeConfirmOpen, setRevokeConfirmOpen] = useState(false);
   const [resendBusy, setResendBusy] = useState(false);
   const [lifecycleBusy, setLifecycleBusy] = useState(false);
   const [resendTick, setResendTick] = useState(0);
@@ -60,8 +62,8 @@ export function NotificationIdentityControlView({
     [items],
   );
   const actions = useMemo(
-    () => resolveNotificationIdentitySurfaceActions(state),
-    [state],
+    () => resolveNotificationIdentitySurfaceActions(state, { allowSecurityRevoke }),
+    [allowSecurityRevoke, state],
   );
 
   const resendCooldownSeconds = useMemo(() => {
@@ -99,7 +101,15 @@ export function NotificationIdentityControlView({
   }, [targetUserId, t]);
 
   useEffect(() => {
-    void load();
+    let cancelled = false;
+    queueMicrotask(() => {
+      if (!cancelled) {
+        void load();
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [load]);
 
   useEffect(() => {
@@ -170,17 +180,20 @@ export function NotificationIdentityControlView({
     }
   }
 
-  async function handleDisableConfirmed() {
+  async function handleSecurityRevokeConfirmed() {
+    if (!state.verified) {
+      return;
+    }
     setLifecycleBusy(true);
     setActionMessage(null);
     try {
-      const result = await disableNotificationIdentity(targetUserId);
+      const result = await revokeNotificationIdentity(state.verified.id);
       if (!result.ok) {
         setActionMessage(result.error);
         return;
       }
-      setDisableConfirmOpen(false);
-      setActionMessage(t("mail.notificationMailbox.disableSuccess"));
+      setRevokeConfirmOpen(false);
+      setActionMessage(t("mail.notificationMailbox.revokeSuccess"));
       notifyUpdated();
     } catch {
       setActionMessage(t("common.networkError"));
@@ -264,14 +277,14 @@ export function NotificationIdentityControlView({
         ) : null}
       </div>
 
-      {actions.showDisable ? (
-        <div className="notification-identity-disable-section space-y-2 border-t border-[var(--crm-border)] pt-4">
+      {actions.showRevoke ? (
+        <div className="notification-identity-revoke-section space-y-2 border-t border-[var(--crm-border)] pt-4">
           <div className="space-y-1">
             <p className="text-sm font-medium crm-text">
-              {t("mail.notificationMailbox.disableSectionTitle")}
+              {t("mail.notificationMailbox.revokeSectionTitle")}
             </p>
             <p className="text-sm crm-text-secondary">
-              {t("mail.notificationMailbox.disableSectionDescription")}
+              {t("mail.notificationMailbox.revokeSectionDescription")}
             </p>
           </div>
           <Button
@@ -283,11 +296,11 @@ export function NotificationIdentityControlView({
               event.preventDefault();
               event.stopPropagation();
               window.requestAnimationFrame(() => {
-                setDisableConfirmOpen(true);
+                setRevokeConfirmOpen(true);
               });
             }}
           >
-            {t("mail.notificationMailbox.disableAction")}
+            {t("mail.notificationMailbox.revokeAction")}
           </Button>
         </div>
       ) : null}
@@ -325,11 +338,11 @@ export function NotificationIdentityControlView({
         onPendingUpdated={() => notifyUpdated()}
       />
 
-      <NotificationIdentityDisableConfirmModal
-        open={disableConfirmOpen}
+      <NotificationIdentityRevokeConfirmModal
+        open={revokeConfirmOpen}
         busy={lifecycleBusy}
-        onClose={() => setDisableConfirmOpen(false)}
-        onConfirm={() => void handleDisableConfirmed()}
+        onClose={() => setRevokeConfirmOpen(false)}
+        onConfirm={() => void handleSecurityRevokeConfirmed()}
       />
     </div>
   );

@@ -28,6 +28,7 @@ function MailProductionWorkspaceBootstrap() {
 
   useEffect(() => {
     if (!mailAccessEnabled) {
+      workspace.clearSensitiveState();
       return;
     }
 
@@ -83,6 +84,7 @@ function MailProductionWorkspaceBootstrap() {
     workspace.isLoadingMessages,
     workspace.loadMailboxes,
     workspace.loadMessages,
+    workspace.clearSensitiveState,
   ]);
 
   return null;

@@ -1,3 +1,8 @@
+import {
+  isMailAccessDisabledError,
+  notifyMailAccessDisabled,
+} from "@/lib/mail/client/mail-access-revalidation";
+
 export type MailReadApiErrorBody = {
   error?: string;
   errorCode?: string;
@@ -26,6 +31,15 @@ export async function normalizeMailReadApiError(
   const body = (await response.json().catch(() => ({}))) as MailReadApiErrorBody;
   const message = body.error ?? fallbackMessage;
   const code = body.errorCode;
+  if (
+    isMailAccessDisabledError({
+      status: response.status,
+      errorCode: code,
+      error: message,
+    })
+  ) {
+    notifyMailAccessDisabled();
+  }
 
   switch (response.status) {
     case 400:

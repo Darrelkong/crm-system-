@@ -7,7 +7,7 @@ import {
   readStringField,
   requireMailActor,
 } from "@/lib/mail/api-helpers";
-import { revokeNotificationIdentity } from "@/lib/mail/notification-identity-service";
+import { revokeNotificationIdentityForSecurity } from "@/lib/mail/notification-identity-service";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -23,7 +23,7 @@ export async function POST(request: Request, context: RouteContext) {
     const body = bodyResult.ok ? parseJsonRecord(bodyResult.value) : {};
     const reason = readStringField(body, "reason");
 
-    const item = await revokeNotificationIdentity(db, actor, {
+    const item = await revokeNotificationIdentityForSecurity(db, actor, {
       identityId: id,
       reason,
     });

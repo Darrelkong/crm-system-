@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
@@ -9,10 +9,7 @@ import { bindTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
-import {
-  disableMailAccess,
-  enableMailAccess,
-} from "@/lib/mail/mail-access-service";
+import { enableMailAccess } from "@/lib/mail/mail-access-service";
 import { createMailbox } from "@/lib/mail/mailbox-service";
 import {
   cancelPendingNotificationIdentity,
@@ -22,6 +19,8 @@ import {
   findActivePendingNotificationIdentity,
   findActiveVerifiedNotificationIdentity,
   findNotificationIdentityById,
+  revokeNotificationIdentity,
+  revokeNotificationIdentityForSecurity,
   verifyNotificationIdentity,
 } from "@/lib/mail/notification-identity-service";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
@@ -37,6 +36,8 @@ const TARGET_USER = SEED_IDS.staffA;
 const STAFF_SELF = SEED_IDS.staffA;
 
 type TestDb = ReturnType<typeof drizzle<typeof schema>>;
+let baselineTargetAccess: typeof schema.mailUserAccess.$inferSelect | null =
+  null;
 
 function actor(
   userId: string,
@@ -79,29 +80,42 @@ async function createPendingWithTestToken(
 }
 
 async function cleanupFixtures(db: TestDb) {
-  const outboxRows = await db
-    .select({ id: schema.mailNotificationOutbox.id })
-    .from(schema.mailNotificationOutbox)
-    .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
-
-  for (const row of outboxRows) {
-    await db
-      .delete(schema.mailNotificationAttempts)
-      .where(eq(schema.mailNotificationAttempts.notificationOutboxId, row.id));
-  }
-
-  await db
-    .delete(schema.mailNotificationOutbox)
-    .where(eq(schema.mailNotificationOutbox.recipientUserId, TARGET_USER));
-
   await db
     .delete(schema.mailNotificationIdentities)
-    .where(eq(schema.mailNotificationIdentities.userId, TARGET_USER));
+    .where(
+      and(
+        eq(schema.mailNotificationIdentities.userId, TARGET_USER),
+        like(schema.mailNotificationIdentities.email, `${FIXTURE}%`),
+      ),
+    );
 
-  await db
-    .update(schema.mailUserAccess)
-    .set({ isEnabled: 0, disabledAt: new Date().toISOString() })
-    .where(eq(schema.mailUserAccess.userId, TARGET_USER));
+  const fixtureMailboxes = await db
+    .select({ id: schema.mailMailboxes.id })
+    .from(schema.mailMailboxes)
+    .where(like(schema.mailMailboxes.address, `${FIXTURE}%`));
+  const fixtureMailboxIds = fixtureMailboxes.map((row) => row.id);
+  if (fixtureMailboxIds.length > 0) {
+    await db
+      .delete(schema.mailMailboxMembers)
+      .where(inArray(schema.mailMailboxMembers.mailboxId, fixtureMailboxIds));
+    await db
+      .delete(schema.mailReceivingAddresses)
+      .where(inArray(schema.mailReceivingAddresses.mailboxId, fixtureMailboxIds));
+    await db
+      .delete(schema.mailMailboxes)
+      .where(inArray(schema.mailMailboxes.id, fixtureMailboxIds));
+  }
+
+  if (baselineTargetAccess) {
+    await db
+      .update(schema.mailUserAccess)
+      .set(baselineTargetAccess)
+      .where(eq(schema.mailUserAccess.userId, TARGET_USER));
+  } else {
+    await db
+      .delete(schema.mailUserAccess)
+      .where(eq(schema.mailUserAccess.userId, TARGET_USER));
+  }
 }
 
 describe("notification identity lifecycle (phase 1D.1)", () => {
@@ -120,6 +134,12 @@ describe("notification identity lifecycle (phase 1D.1)", () => {
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
+    baselineTargetAccess =
+      (await db
+        .select()
+        .from(schema.mailUserAccess)
+        .where(eq(schema.mailUserAccess.userId, TARGET_USER))
+        .limit(1))[0] ?? null;
     await cleanupFixtures(db);
   });
 
@@ -237,6 +257,67 @@ describe("notification identity lifecycle (phase 1D.1)", () => {
     const revoked = await findNotificationIdentityById(db, identity.id);
     assert.equal(revoked?.verificationStatus, "revoked");
     assert.equal(revoked?.revokeReason, "notification_identity_disabled");
+    await cleanupFixtures(db);
+  });
+
+  it("staff cannot disable or revoke an active verified identity", async () => {
+    await cleanupFixtures(db);
+    const { identity, token } = await createPendingWithTestToken(
+      db,
+      adminActor,
+      TARGET_USER,
+      fixtureEmail("staff-cannot-revoke"),
+    );
+    await verifyNotificationIdentity(db, adminActor, {
+      identityId: identity.id,
+      token,
+    });
+
+    await assert.rejects(
+      () => disableActiveNotificationIdentity(db, staffActor, TARGET_USER),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
+    await assert.rejects(
+      () => revokeNotificationIdentity(db, staffActor, { identityId: identity.id }),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
+
+    const unchanged = await findNotificationIdentityById(db, identity.id);
+    assert.equal(unchanged?.verificationStatus, "verified");
+    assert.equal(unchanged?.revokedAt, null);
+    await cleanupFixtures(db);
+  });
+
+  it("admin security revoke separately suspends Mail access", async () => {
+    await cleanupFixtures(db);
+    const { identity, token } = await createPendingWithTestToken(
+      db,
+      adminActor,
+      TARGET_USER,
+      fixtureEmail("security-revoke"),
+    );
+    await verifyNotificationIdentity(db, adminActor, {
+      identityId: identity.id,
+      token,
+    });
+    await enableMailAccess(db, adminActor, TARGET_USER);
+
+    await revokeNotificationIdentityForSecurity(db, adminActor, {
+      identityId: identity.id,
+      reason: "security incident",
+    });
+
+    const access = await db
+      .select()
+      .from(schema.mailUserAccess)
+      .where(eq(schema.mailUserAccess.userId, TARGET_USER))
+      .limit(1);
+    const revoked = await findNotificationIdentityById(db, identity.id);
+    assert.equal(access[0]?.isEnabled, 0);
+    assert.equal(revoked?.verificationStatus, "revoked");
+    assert.equal(revoked?.revokeReason, "security incident");
     await cleanupFixtures(db);
   });
 

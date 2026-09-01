@@ -118,6 +118,7 @@ describe("notification identity UX correction wiring", () => {
     assert.match(selfService, /targetUserId=\{user\.id\}/);
     assert.doesNotMatch(selfService, /NotificationIdentityTeamMemberSelector/);
     assert.doesNotMatch(selfService, /NotificationIdentityTeamOverview/);
+    assert.doesNotMatch(selfService, /allowSecurityRevoke/);
   });
 
   it("admin self-service entry remains separate from team overview", () => {
@@ -167,17 +168,17 @@ describe("notification identity UX correction wiring", () => {
     assert.match(otp, /otpModalReplacementVerifyAction/);
   });
 
-  it("replacement workflow keeps normal action group separate from disable area", () => {
+  it("replacement workflow keeps normal action group separate from security revoke area", () => {
     const zhHant = read("src/i18n/locales/zh-Hant.ts");
     const control = read("src/components/mail/admin/notification-identity-control-view.tsx");
     assert.match(zhHant, /completeReplacementAction: "完成更換"/);
     assert.match(control, /completeActionLabel/);
     assert.match(control, /formatVerificationResendActionLabel/);
     assert.match(control, /cancelActionLabel/);
-    assert.match(control, /notification-identity-disable-section/);
-    assert.match(control, /disableSectionTitle/);
-    assert.match(control, /disableSectionDescription/);
-    const actionRowEnd = control.indexOf("notification-identity-disable-section");
+    assert.match(control, /notification-identity-revoke-section/);
+    assert.match(control, /revokeSectionTitle/);
+    assert.match(control, /revokeSectionDescription/);
+    const actionRowEnd = control.indexOf("notification-identity-revoke-section");
     const actionRowStart = control.indexOf('className="flex flex-wrap gap-2"');
     assert.ok(actionRowStart >= 0 && actionRowEnd > actionRowStart);
     assert.doesNotMatch(
@@ -186,10 +187,10 @@ describe("notification identity UX correction wiring", () => {
     );
   });
 
-  it("does not change notification identity API or service wiring", () => {
+  it("keeps notification identity API and service wiring separated", () => {
     const control = read("src/components/mail/admin/notification-identity-control-view.tsx");
     assert.match(control, /cancelPendingNotificationIdentity/);
-    assert.match(control, /disableNotificationIdentity/);
+    assert.match(control, /revokeNotificationIdentity/);
     assert.match(control, /sendTargetNotificationVerificationChallenge/);
     assert.doesNotMatch(control, /notification-identity-service/);
     assert.doesNotMatch(control, /\/api\/mail\/access/);

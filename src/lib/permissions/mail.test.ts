@@ -18,6 +18,7 @@ import {
   assertMailOutboundApprovalReview,
   assertMailDeliveryHealth,
   assertMailInboundFallbackConfigManagement,
+  assertNotificationIdentitySecurityManagement,
   assertNotificationIdentityTargetAccess,
   hasMailDeliveryHealth,
   isEligiblePersonalMailboxOwner,
@@ -353,6 +354,27 @@ describe("assertNotificationIdentityTargetAccess", () => {
           adminGrants: ["permission_mgmt"],
         }),
         "user-2",
+      ),
+    );
+  });
+});
+
+describe("notification identity security management", () => {
+  it("denies staff identity revocation even for their own identity", () => {
+    assert.throws(
+      () =>
+        assertNotificationIdentitySecurityManagement(
+          actor({ userId: "user-1", mailAccessEnabled: true }),
+        ),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
+    );
+  });
+
+  it("allows permission administrators to revoke identities", () => {
+    assert.doesNotThrow(() =>
+      assertNotificationIdentitySecurityManagement(
+        actor({ adminGrants: ["permission_mgmt"] }),
       ),
     );
   });

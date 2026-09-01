@@ -450,6 +450,14 @@ const zhHans: Messages = {
       cancelSetupSuccess: "已取消通知邮箱设置。",
       cancelReplacementSuccess: "已取消更换，当前通知邮箱维持不变。",
       replacementSuccess: "通知邮箱更换完成。",
+      revokeAction: "撤销通知身份",
+      revokeConfirmTitle: "撤销通知身份",
+      revokeConfirmBody:
+        "此安全操作将撤销已验证的通知身份；如有需要，也会停用 Mail 访问。工作邮箱及历史邮件仍会保留。这与一般停用 Mail 访问是两项不同操作。",
+      revokeSuccess: "通知身份已撤销；如有需要，Mail 访问已停用。",
+      revokeSectionTitle: "安全操作：撤销通知身份",
+      revokeSectionDescription:
+        "仅适用于通知邮箱错误、已被入侵或不再可信的情况。这不是一般的停用 Mail 访问操作。",
       disableAction: "停用通知邮箱",
       disableConfirmTitle: "停用通知邮箱",
       disableConfirmBody:
@@ -1096,8 +1104,9 @@ const zhHans: Messages = {
       tooltip: "将在 Mail Admin 中管理",
     },
     noAccess: {
-      title: "该 Mail 尚未开放权限",
-      description: "该 Mail 尚未开放权限，请联系管理员，谢谢。",
+      title: "Mail 访问权限已停用",
+      description:
+        "您的 Mail 访问权限已由管理员停用。\n您目前无法继续使用 CRM Mail，请联系管理员。\n\n工作邮箱及历史邮件仍会保留。",
       backToDashboard: "返回仪表盘",
     },
     adminOnlyShell: {

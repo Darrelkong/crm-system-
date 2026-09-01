@@ -572,6 +572,46 @@ describe("mail workspace runtime", () => {
     assert.equal(error?.code, "FORBIDDEN");
   });
 
+  it("clears sensitive workspace state and cached folders", async () => {
+    const { api } = createApiMock();
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-1",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectMessage("message-1");
+    assert.equal(runtime.getSnapshot().messages.length, 1);
+    assert.ok(runtime.getSnapshot().selectedMessage);
+
+    runtime.getSnapshot().clearSensitiveState();
+
+    assert.deepEqual(
+      {
+        mailboxes: runtime.getSnapshot().mailboxes,
+        messages: runtime.getSnapshot().messages,
+        drafts: runtime.getSnapshot().drafts,
+        selectedMailboxId: runtime.getSnapshot().selectedMailboxId,
+        selectedFolder: runtime.getSnapshot().selectedFolder,
+        selectedMessageId: runtime.getSnapshot().selectedMessageId,
+        selectedMessage: runtime.getSnapshot().selectedMessage,
+        nextCursor: runtime.getSnapshot().nextCursor,
+        error: runtime.getSnapshot().error,
+      },
+      {
+        mailboxes: [],
+        messages: [],
+        drafts: [],
+        selectedMailboxId: null,
+        selectedFolder: "inbox",
+        selectedMessageId: null,
+        selectedMessage: null,
+        nextCursor: null,
+        error: null,
+      },
+    );
+  });
+
   it("selectFolder drafts loads drafts without message API calls", async () => {
     const { api, calls } = createApiMock();
     const runtime = createMailWorkspaceRuntime(api);
