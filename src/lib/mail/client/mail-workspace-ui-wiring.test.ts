@@ -518,4 +518,19 @@ describe("mail workspace production ui wiring", () => {
       "expected both wide and stack layouts to forward message selection",
     );
   });
+
+  it("revalidates visible production mail on focus and bounded interval", () => {
+    const source = readFileSync(
+      new URL(
+        "./mail-workspace-data-source-boundary.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    assert.match(source, /MAIL_WORKSPACE_REVALIDATION_INTERVAL_MS = 60_000/);
+    assert.match(source, /workspace\.refreshMessages\(\)/);
+    assert.match(source, /window\.addEventListener\("focus"/);
+    assert.match(source, /document\.addEventListener\("visibilitychange"/);
+    assert.match(source, /document\.visibilityState !== "visible"/);
+  });
 });

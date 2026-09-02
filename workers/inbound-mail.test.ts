@@ -256,6 +256,8 @@ describe("inbound mail worker static config", () => {
     assert.doesNotMatch(worker, /async fetch/);
     assert.doesNotMatch(worker, /async scheduled/);
     assert.match(worker, /stageCloudflareInboundEmail/);
+    assert.match(worker, /materializeStagedInboundMessages/);
+    assert.match(worker, /ctx\.waitUntil/);
     assert.match(worker, /rejectInboundEmailRecipient/);
     assert.match(worker, /handleInboundEmailDelivery/);
     assert.doesNotMatch(worker, /\.reply\(/);

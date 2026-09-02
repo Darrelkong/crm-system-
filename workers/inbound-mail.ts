@@ -7,6 +7,13 @@ import {
   type CloudflareForwardableEmailMessage,
 } from "../src/lib/mail/cloudflare-email-inbound-adapter";
 import {
+  materializeInboundIngestionEvent,
+} from "../src/lib/mail/inbound-message-materialization-service";
+import {
+  createInboundAttachmentStore,
+} from "../src/lib/mail/inbound-attachment-store";
+import type { StageInboundProviderEventResult } from "../src/lib/mail/inbound-provider-staging-service";
+import {
   rejectInboundEmailRecipient,
 } from "../src/lib/mail/inbound-email-recipient-reject";
 import { createInboundRawPayloadStore } from "../src/lib/mail/inbound-raw-payload-store";
@@ -27,17 +34,59 @@ export function assertInboundMailBindings(env: InboundMailEnv): void {
 }
 
 /**
+ * Best-effort fast path after durable staging. The raw MIME and routing rows
+ * already exist before this runs, so a timeout or failure remains recoverable
+ * by mail-jobs-cron.
+ */
+export async function materializeStagedInboundMessages(
+  staged: StageInboundProviderEventResult,
+  env: InboundMailEnv,
+): Promise<void> {
+  if (!staged.durablyStaged || !staged.safeToAcknowledgeProvider) {
+    return;
+  }
+
+  const db = drizzle(env.DB, { schema });
+  const rawPayloadStore = createInboundRawPayloadStore(env.ATTACHMENTS);
+  const attachmentStore = createInboundAttachmentStore(
+    env.ATTACHMENTS,
+    "crm-attachments",
+  );
+
+  for (const envelopeResult of staged.envelopeResults) {
+    if (envelopeResult.providerStatus !== "pending") {
+      continue;
+    }
+
+    try {
+      await materializeInboundIngestionEvent(
+        db,
+        { rawPayloadStore, attachmentStore },
+        { ingestionEventId: envelopeResult.ingestionEventId },
+      );
+    } catch (error: unknown) {
+      // Durable staging has already succeeded. Leave recovery to the existing
+      // leased cron path and keep the Email Routing acceptance successful.
+      console.error(
+        "[inbound-mail] fast-path materialization failed",
+        error instanceof Error ? error.name : "unknown",
+      );
+    }
+  }
+}
+
+/**
  * Execute one Cloudflare Email Routing ingress event into durable inbound staging.
  * Acknowledges only when raw payload and dedupe rows are durably persisted.
  */
 export async function handleCloudflareInboundEmail(
   message: CloudflareForwardableEmailMessage,
   env: InboundMailEnv,
-): Promise<void> {
+): Promise<StageInboundProviderEventResult> {
   assertInboundMailBindings(env);
   const db = drizzle(env.DB, { schema });
   const payloadStore = createInboundRawPayloadStore(env.ATTACHMENTS);
-  await stageCloudflareInboundEmail(db, payloadStore, message);
+  return stageCloudflareInboundEmail(db, payloadStore, message);
 }
 
 export type InboundEmailDeliveryOutcome = "accepted" | "rejected";
@@ -49,9 +98,13 @@ export type InboundEmailDeliveryOutcome = "accepted" | "rejected";
 export async function handleInboundEmailDelivery(
   message: CloudflareForwardableEmailMessage,
   env: InboundMailEnv,
+  ctx?: Pick<ExecutionContext, "waitUntil">,
 ): Promise<InboundEmailDeliveryOutcome> {
   try {
-    await handleCloudflareInboundEmail(message, env);
+    const staged = await handleCloudflareInboundEmail(message, env);
+    if (ctx) {
+      ctx.waitUntil(materializeStagedInboundMessages(staged, env));
+    }
     return "accepted";
   } catch (error: unknown) {
     if (rejectInboundEmailRecipient(message, error)) {
@@ -77,8 +130,8 @@ export default {
   async email(
     message: CloudflareForwardableEmailMessage,
     env: InboundMailEnv,
-    _ctx: ExecutionContext,
+    ctx: ExecutionContext,
   ): Promise<void> {
-    await handleInboundEmailDelivery(message, env);
+    await handleInboundEmailDelivery(message, env, ctx);
   },
 };

@@ -19,6 +19,8 @@ import {
   PRODUCTION_BOOTSTRAP_INITIAL_FOLDER,
 } from "@/lib/mail/client/mail-workspace-bootstrap";
 
+const MAIL_WORKSPACE_REVALIDATION_INTERVAL_MS = 60_000;
+
 function MailProductionWorkspaceBootstrap() {
   const { effectiveMailAccessEnabled } = useMailSession();
   const workspace = useMailWorkspace();
@@ -93,6 +95,76 @@ function MailProductionWorkspaceBootstrap() {
   return null;
 }
 
+function MailProductionWorkspaceRevalidation() {
+  const { effectiveMailAccessEnabled } = useMailSession();
+  const workspace = useMailWorkspace();
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    if (!effectiveMailAccessEnabled) {
+      return;
+    }
+
+    function refreshVisibleMessages() {
+      if (
+        document.visibilityState !== "visible" ||
+        !workspace.selectedMailboxId ||
+        workspace.isLoadingMessages ||
+        workspace.selectedFolder === "pending_approval" ||
+        workspace.selectedFolder === "drafts" ||
+        refreshInFlightRef.current
+      ) {
+        return;
+      }
+
+      const refreshPromise = workspace.refreshMessages();
+      refreshInFlightRef.current = refreshPromise;
+      void refreshPromise.then(
+        () => {
+          if (refreshInFlightRef.current === refreshPromise) {
+            refreshInFlightRef.current = null;
+          }
+        },
+        () => {
+          if (refreshInFlightRef.current === refreshPromise) {
+            refreshInFlightRef.current = null;
+          }
+        },
+      );
+    }
+
+    const refreshOnFocus = () => refreshVisibleMessages();
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshVisibleMessages();
+      }
+    };
+    const interval = window.setInterval(
+      refreshVisibleMessages,
+      MAIL_WORKSPACE_REVALIDATION_INTERVAL_MS,
+    );
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnVisibilityChange,
+      );
+    };
+  }, [
+    effectiveMailAccessEnabled,
+    workspace.isLoadingMessages,
+    workspace.selectedFolder,
+    workspace.selectedMailboxId,
+    workspace.refreshMessages,
+  ]);
+
+  return null;
+}
+
 export type MailWorkspaceDataSourceBoundaryProps = {
   children: ReactNode;
   source?: MailReadSource;
@@ -105,6 +177,7 @@ export function MailWorkspaceDataSourceBoundary({
   const content = usesProductionMailReadSource(source) ? (
     <MailWorkspaceProvider>
       <MailProductionWorkspaceBootstrap />
+      <MailProductionWorkspaceRevalidation />
       {children}
     </MailWorkspaceProvider>
   ) : (
