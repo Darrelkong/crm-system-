@@ -6,6 +6,9 @@ import {
   stageCloudflareInboundEmail,
   type CloudflareForwardableEmailMessage,
 } from "../src/lib/mail/cloudflare-email-inbound-adapter";
+import {
+  rejectInboundEmailRecipient,
+} from "../src/lib/mail/inbound-email-recipient-reject";
 import { createInboundRawPayloadStore } from "../src/lib/mail/inbound-raw-payload-store";
 
 /** Dedicated inbound-mail Worker bindings — D1 + R2 only. No outbound email capability. */
@@ -37,6 +40,32 @@ export async function handleCloudflareInboundEmail(
   await stageCloudflareInboundEmail(db, payloadStore, message);
 }
 
+export type InboundEmailDeliveryOutcome = "accepted" | "rejected";
+
+/**
+ * Email Worker boundary — explicit SMTP reject for deterministic recipient-invalid
+ * ingress errors; infrastructure failures remain internal Worker failures.
+ */
+export async function handleInboundEmailDelivery(
+  message: CloudflareForwardableEmailMessage,
+  env: InboundMailEnv,
+): Promise<InboundEmailDeliveryOutcome> {
+  try {
+    await handleCloudflareInboundEmail(message, env);
+    return "accepted";
+  } catch (error: unknown) {
+    if (rejectInboundEmailRecipient(message, error)) {
+      console.error("[inbound-mail] recipient rejected");
+      return "rejected";
+    }
+
+    const messageText =
+      error instanceof Error ? error.message : "Inbound email staging failed";
+    console.error("[inbound-mail] failed", messageText);
+    throw error;
+  }
+}
+
 /**
  * Standalone Cloudflare Worker for inbound Email Routing (Phase 2H-6M.2).
  * Deploy with: npm run inbound-mail:deploy
@@ -50,13 +79,6 @@ export default {
     env: InboundMailEnv,
     _ctx: ExecutionContext,
   ): Promise<void> {
-    try {
-      await handleCloudflareInboundEmail(message, env);
-    } catch (error: unknown) {
-      const messageText =
-        error instanceof Error ? error.message : "Inbound email staging failed";
-      console.error("[inbound-mail] failed", messageText);
-      throw error;
-    }
+    await handleInboundEmailDelivery(message, env);
   },
 };

@@ -119,6 +119,28 @@ describe("cloudflare email inbound adapter", () => {
       (error: unknown) => {
         assert.ok(error instanceof InboundEmailIngressError);
         assert.equal(error.code, "UNKNOWN_RECIPIENT");
+        assert.equal(error.message, "Envelope recipient cannot be accepted");
+        assert.doesNotMatch(error.message, /@|mailbox|user/i);
+        return true;
+      },
+    );
+  });
+
+  it("rejects routing integrity conflicts without leaking recipient details", () => {
+    assert.throws(
+      () =>
+        assertInboundEnvelopeRecipientsKnown({
+          envelopeResults: [
+            {
+              envelopeRecipientAddress: "broken@echfronthk.com",
+              quarantineReason: "routing_integrity_conflict",
+            },
+          ],
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof InboundEmailIngressError);
+        assert.equal(error.code, "RECIPIENT_NOT_ACCEPTABLE");
+        assert.equal(error.message, "Envelope recipient cannot be accepted");
         return true;
       },
     );

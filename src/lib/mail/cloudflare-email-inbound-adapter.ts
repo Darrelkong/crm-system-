@@ -14,13 +14,18 @@ import {
 } from "@/lib/mail/inbound-provider-staging-service";
 import { INBOUND_QUARANTINE_REASONS } from "@/lib/mail/inbound-quarantine-reasons";
 
-/** Subset of Cloudflare ForwardableEmailMessage used by the ingress adapter. */
+/** Cloudflare Email Routing `email()` message surface used by inbound ingress. */
 export type CloudflareForwardableEmailMessage = {
   from: string;
   to: string;
   headers: Headers;
   raw: ReadableStream<Uint8Array>;
   rawSize: number;
+  /**
+   * Rejects with a permanent SMTP error. Handler should return after calling.
+   * @see ForwardableEmailMessage in @cloudflare/workers-types
+   */
+  setReject?(reason: string): void;
 };
 
 export type InboundEmailIngressErrorCode =
@@ -28,7 +33,16 @@ export type InboundEmailIngressErrorCode =
   | "EMPTY_RAW_MIME"
   | "MISSING_ENVELOPE_RECIPIENT"
   | "UNKNOWN_RECIPIENT"
+  | "RECIPIENT_NOT_ACCEPTABLE"
   | "STAGING_NOT_ACK_SAFE";
+
+const ENVELOPE_RECIPIENT_REJECT_QUARANTINE_REASONS: Record<
+  string,
+  InboundEmailIngressErrorCode
+> = {
+  [INBOUND_QUARANTINE_REASONS.unknownReceivingAddress]: "UNKNOWN_RECIPIENT",
+  [INBOUND_QUARANTINE_REASONS.routingIntegrityConflict]: "RECIPIENT_NOT_ACCEPTABLE",
+};
 
 export class InboundEmailIngressError extends Error {
   readonly code: InboundEmailIngressErrorCode;
@@ -141,15 +155,18 @@ export function assertInboundEnvelopeRecipientsKnown(input: {
     quarantineReason: string | null;
   }>;
 }): void {
-  const unknownRecipient = input.envelopeResults.find(
-    (result) =>
-      result.quarantineReason === INBOUND_QUARANTINE_REASONS.unknownReceivingAddress,
-  );
-  if (unknownRecipient) {
-    throw new InboundEmailIngressError(
-      "UNKNOWN_RECIPIENT",
-      `No active CRM mailbox is registered for ${unknownRecipient.envelopeRecipientAddress}`,
-    );
+  for (const envelopeResult of input.envelopeResults) {
+    if (!envelopeResult.quarantineReason) {
+      continue;
+    }
+    const ingressCode =
+      ENVELOPE_RECIPIENT_REJECT_QUARANTINE_REASONS[envelopeResult.quarantineReason];
+    if (ingressCode) {
+      throw new InboundEmailIngressError(
+        ingressCode,
+        "Envelope recipient cannot be accepted",
+      );
+    }
   }
 }
 
