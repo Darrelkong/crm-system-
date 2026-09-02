@@ -247,6 +247,7 @@ const en = {
       to: "To",
       subject: "Subject",
       body: "Body",
+      emptyBody: "This message has no readable content.",
       attachments: "Attachments",
       customerMatch: "Linked customer",
       returnReason: "Return reason",

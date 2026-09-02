@@ -1,7 +1,7 @@
 import sanitizeHtml from "sanitize-html";
 
 /** Frozen inbound HTML policy — bump when allowlist changes (does not re-sanitize history). */
-export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v1";
+export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v2";
 
 const INBOUND_BODY_ALLOWED_TAGS = [
   "p",
@@ -34,13 +34,32 @@ const INBOUND_BODY_ALLOWED_TAGS = [
   "td",
 ] as const;
 
+const SAFE_CSS_COLOR = /^(?:transparent|currentcolor|#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\([0-9a-z%+,\s.-]{1,80}\))$/i;
+const SAFE_CSS_SIZE = /^(?:0|[1-9][0-9]{0,2}(?:\.[0-9]{1,2})?(?:px|pt|em|rem|%)?)$/i;
+
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [...INBOUND_BODY_ALLOWED_TAGS],
   disallowedTagsMode: "discard",
   allowedAttributes: {
+    "*": ["style"],
     a: ["href", "target", "rel"],
     th: ["colspan", "rowspan"],
     td: ["colspan", "rowspan"],
+  },
+  allowedStyles: {
+    "*": {
+      color: [SAFE_CSS_COLOR],
+      "background-color": [SAFE_CSS_COLOR],
+      "font-weight": [/^(?:normal|bold|bolder|lighter|[1-9]00)$/i],
+      "font-style": [/^(?:normal|italic|oblique)$/i],
+      "text-decoration": [
+        /^(?:none|underline|overline|line-through)(?:\s+(?:solid|dotted|dashed))?$/i,
+      ],
+      "text-align": [/^(?:left|right|center|justify|start|end)$/i],
+      "vertical-align": [/^(?:baseline|top|middle|bottom|sub|super)$/i],
+      "font-size": [SAFE_CSS_SIZE],
+      "line-height": [/^(?:normal|[1-9][0-9]{0,2}(?:\.[0-9]{1,2})?(?:px|pt|em|rem|%)?)$/i],
+    },
   },
   allowedSchemes: ["http", "https", "mailto", "tel"],
   allowProtocolRelative: false,
@@ -49,7 +68,11 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
       const href = attribs.href?.trim();
       if (!href) return { tagName: "a", attribs: {} };
       const lower = href.toLowerCase();
-      if (lower.startsWith("javascript:") || lower.startsWith("data:")) {
+      if (
+        lower.startsWith("javascript:") ||
+        lower.startsWith("data:") ||
+        !/^(?:https?:\/\/|mailto:|tel:)/i.test(href)
+      ) {
         return { tagName: "span", attribs: {}, text: "" };
       }
       const next: Record<string, string> = { href };
@@ -86,12 +109,8 @@ export function sanitizeInboundBodyHtml(rawHtml: string): string | null {
 
   if (/<img\b/i.test(trimmed)) {
     const withoutImages = sanitizeHtml(trimmed, {
+      ...SANITIZE_OPTIONS,
       allowedTags: [...INBOUND_BODY_ALLOWED_TAGS],
-      disallowedTagsMode: "discard",
-      allowedAttributes: SANITIZE_OPTIONS.allowedAttributes,
-      allowedSchemes: SANITIZE_OPTIONS.allowedSchemes,
-      allowProtocolRelative: false,
-      transformTags: SANITIZE_OPTIONS.transformTags,
     }).trim();
     if (!withoutImages) {
       return null;

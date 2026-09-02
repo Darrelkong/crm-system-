@@ -533,4 +533,33 @@ describe("mail workspace production ui wiring", () => {
     assert.match(source, /document\.addEventListener\("visibilitychange"/);
     assert.match(source, /document\.visibilityState !== "visible"/);
   });
+
+  it("uses the shared contained body renderer for production reading", () => {
+    const pane = readFileSync(
+      new URL(
+        "../../../components/mail/prototype/mail-production-reading-pane.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const renderer = readFileSync(
+      new URL(
+        "../../../components/mail/mail-message-body-renderer.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const styles = readFileSync(
+      new URL("../../../app/globals.css", import.meta.url),
+      "utf8",
+    );
+
+    assert.match(pane, /MailMessageBodyRenderer/);
+    assert.doesNotMatch(pane, /dangerouslySetInnerHTML/);
+    assert.match(renderer, /resolveMailMessageBody/);
+    assert.match(renderer, /noopener noreferrer/);
+    assert.match(styles, /\.mail-message-body--html/);
+    assert.match(styles, /overflow-wrap: anywhere/);
+    assert.match(styles, /overflow-x: auto/);
+  });
 });

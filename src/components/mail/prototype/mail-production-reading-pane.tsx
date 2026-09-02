@@ -3,6 +3,7 @@
 import { PanelLeft } from "lucide-react";
 import { useState } from "react";
 import { MailAttachmentViewer } from "@/components/mail/mail-attachment-viewer";
+import { MailMessageBodyRenderer } from "@/components/mail/mail-message-body-renderer";
 import { MailCrmContextPanel } from "@/components/mail/crm/mail-crm-context-panel";
 import { useTranslation } from "@/i18n/provider";
 import { formatHongKongDateTime } from "@/lib/timezone";
@@ -41,16 +42,12 @@ function ProductionDetailBody({
 
   return (
     <div className={bodyClassName}>
-      {detail.bodyHtml?.trim() ? (
-        <div
-          className="text-sm leading-relaxed crm-text"
-          dangerouslySetInnerHTML={{ __html: detail.bodyHtml }}
-        />
-      ) : (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed crm-text">
-          {detail.bodyText}
-        </p>
-      )}
+      <MailMessageBodyRenderer
+        bodyHtml={detail.bodyHtml}
+        bodyText={detail.bodyText}
+        className="text-sm leading-relaxed crm-text"
+        emptyLabel={t("mail.detail.emptyBody")}
+      />
 
       {(canRenderProductionQuotedHtml(detail.quotedHtml) ||
         detail.quotedText?.trim()) && (
@@ -58,16 +55,15 @@ function ProductionDetailBody({
           <p className="mb-2 text-xs font-medium uppercase tracking-wide crm-text-secondary">
             {t("mail.compose.showQuoted")}
           </p>
-          {canRenderProductionQuotedHtml(detail.quotedHtml) ? (
-            <div
-              className="text-sm leading-relaxed crm-text-secondary"
-              dangerouslySetInnerHTML={{ __html: detail.quotedHtml! }}
-            />
-          ) : (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed crm-text-secondary">
-              {detail.quotedText}
-            </p>
-          )}
+          <MailMessageBodyRenderer
+            bodyHtml={
+              canRenderProductionQuotedHtml(detail.quotedHtml)
+                ? detail.quotedHtml
+                : null
+            }
+            bodyText={detail.quotedText}
+            className="text-sm leading-relaxed crm-text-secondary"
+          />
         </div>
       )}
 

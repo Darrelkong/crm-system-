@@ -235,6 +235,7 @@ const zhHans: Messages = {
       to: "收件人",
       subject: "主题",
       body: "正文",
+      emptyBody: "此邮件没有可读取的内容。",
       attachments: "附件",
       customerMatch: "关联客户",
       returnReason: "退回原因",

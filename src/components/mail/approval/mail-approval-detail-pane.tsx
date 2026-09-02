@@ -7,6 +7,7 @@ import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/form";
 import { MailApprovalStatusBadge } from "@/components/mail/shared/mail-approval-status-badge";
+import { MailMessageBodyRenderer } from "@/components/mail/mail-message-body-renderer";
 import {
   isApprovalDetailReadyForReview,
   useOptionalMailApprovalWorkspace,
@@ -324,15 +325,15 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
             <p className="text-xs font-medium uppercase tracking-wide crm-text-secondary">
               {t("mail.approval.body")}
             </p>
-            <div className="mail-reading-body text-sm leading-relaxed crm-text">
-              {detail.editableBodyHtml.trim() ? (
-                <div dangerouslySetInnerHTML={{ __html: detail.editableBodyHtml }} />
-              ) : revision.bodyHtmlSanitized?.trim() ? (
-                <div dangerouslySetInnerHTML={{ __html: revision.bodyHtmlSanitized }} />
-              ) : (
-                <p className="whitespace-pre-wrap">{revision.bodyText}</p>
-              )}
-            </div>
+            <MailMessageBodyRenderer
+              bodyHtml={
+                detail.editableBodyHtml.trim()
+                  ? detail.editableBodyHtml
+                  : revision.bodyHtmlSanitized
+              }
+              bodyText={revision.bodyText}
+              className="mail-reading-body text-sm leading-relaxed crm-text"
+            />
 
             {detail.quotedBodyHtml ? (
               <div className="mt-6">
@@ -349,9 +350,10 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
                   {t("mail.compose.showQuoted")}
                 </button>
                 {quotedExpanded ? (
-                  <div
+                  <MailMessageBodyRenderer
+                    bodyHtml={detail.quotedBodyHtml}
+                    bodyText={null}
                     className="mail-approval-quoted mt-3 rounded-lg border crm-border bg-[var(--color-crm-bg-muted)] px-4 py-3 text-sm leading-relaxed crm-text-secondary"
-                    dangerouslySetInnerHTML={{ __html: detail.quotedBodyHtml }}
                   />
                 ) : null}
               </div>

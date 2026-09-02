@@ -235,6 +235,7 @@ const zhHant: Messages = {
       to: "收件人",
       subject: "主旨",
       body: "正文",
+      emptyBody: "此郵件沒有可讀取的內容。",
       attachments: "附件",
       customerMatch: "關聯客戶",
       returnReason: "退回原因",
