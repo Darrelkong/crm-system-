@@ -46,8 +46,11 @@ export function MailSettingsPopover({
   useEffect(() => {
     if (!open) {
       setView("menu");
-      return;
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     function handleKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
     }
