@@ -90,6 +90,44 @@ function buildMailboxAuditInsert(
   );
 }
 
+function buildMailboxMemberAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    memberId: string;
+    mailboxId: string;
+    userId: string;
+  },
+) {
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        ${input.auditId} AS id,
+        ${actor.userId} AS user_id,
+        ${MAIL_AUDIT_ACTIONS.mailboxMemberGranted} AS action,
+        ${"mail_mailbox_member"} AS entity_type,
+        ${input.memberId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${JSON.stringify({
+          mailboxId: input.mailboxId,
+          targetUserId: input.userId,
+          canRead: true,
+          canReply: false,
+          canSend: false,
+          canAssign: false,
+          canManageProcessing: false,
+          canAddInternalNote: false,
+          actorUserId: actor.userId,
+        })} AS metadata,
+        ${input.now} AS created_at
+    `,
+  );
+}
+
 async function resolvePersonalMailboxOwnerUserId(
   db: Database,
   ownerUserId: string,
@@ -175,9 +213,14 @@ export async function createMailbox(
   const mailboxId = crypto.randomUUID();
   const primaryId = primaryReceivingAddressId(mailboxId);
   const auditId = crypto.randomUUID();
+  const ownerMembershipId =
+    input.mailboxType === "personal" && mailboxOwnerUserId
+      ? crypto.randomUUID()
+      : null;
+  const ownerMembershipAuditId = ownerMembershipId ? crypto.randomUUID() : null;
 
   try {
-    await runMailBatch(db, [
+    const statements: Parameters<typeof runMailBatch>[1] = [
       db.insert(schema.mailMailboxes).values({
         id: mailboxId,
         address: normalizedAddress,
@@ -198,6 +241,37 @@ export async function createMailbox(
         createdAt: now,
         updatedAt: now,
       }),
+    ];
+
+    if (ownerMembershipId) {
+      statements.push(
+        db.insert(schema.mailMailboxMembers).values({
+          id: ownerMembershipId,
+          mailboxId,
+          userId: mailboxOwnerUserId,
+          canRead: 1,
+          canReply: 0,
+          canSend: 0,
+          canAssign: 0,
+          canManageProcessing: 0,
+          canAddInternalNote: 0,
+          grantedBy: actor.userId,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+      statements.push(
+        buildMailboxMemberAuditInsert(db, actor, {
+          auditId: ownerMembershipAuditId!,
+          now,
+          memberId: ownerMembershipId,
+          mailboxId,
+          userId: mailboxOwnerUserId,
+        }),
+      );
+    }
+
+    statements.push(
       buildMailboxAuditInsert(db, actor, {
         auditId,
         now,
@@ -214,7 +288,8 @@ export async function createMailbox(
           actorUserId: actor.userId,
         },
       }),
-    ]);
+    );
+    await runMailBatch(db, statements);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       throw MailServiceError.conflict("Address is already reserved");
