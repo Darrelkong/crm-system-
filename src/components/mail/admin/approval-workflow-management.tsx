@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/form";
@@ -112,7 +112,9 @@ function ApprovalRejectPanel({
           disabled={pending || !isRejectReasonValid(reason)}
           onClick={() => onSubmit(reason.trim())}
         >
-          {t("mail.adminCenter.approval.rejectAction")}
+          {pending
+            ? t("mail.adminCenter.approval.rejectPending")
+            : t("mail.adminCenter.approval.rejectAction")}
         </Button>
         <Button type="button" variant="secondary" size="sm" disabled={pending} onClick={onCancel}>
           {t("common.cancel")}
@@ -161,9 +163,12 @@ function ApprovalRowActions({
           type="button"
           size="sm"
           disabled={pending}
+          aria-busy={pending}
           onClick={() => onApprove(row.id)}
         >
-          {t("mail.adminCenter.approval.approveAction")}
+          {pending
+            ? t("mail.adminCenter.approval.approvePending")
+            : t("mail.adminCenter.approval.approveAction")}
         </Button>
       ) : null}
       {actions.showReject ? (
@@ -316,6 +321,7 @@ export function ApprovalWorkflowManagement() {
   const [error, setError] = useState<string | null>(null);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [pendingApprovalId, setPendingApprovalId] = useState<string | null>(null);
+  const pendingApprovalRef = useRef<string | null>(null);
   const [rejectingApprovalId, setRejectingApprovalId] = useState<string | null>(null);
   const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<string>>(
     () => new Set(),
@@ -408,8 +414,9 @@ export function ApprovalWorkflowManagement() {
 
   async function handleApprove(approvalId: string) {
     const row = rows.find((entry) => entry.id === approvalId);
-    if (!row || !canReview) return;
+    if (!row || !canReview || pendingApprovalRef.current) return;
 
+    pendingApprovalRef.current = approvalId;
     setPendingApprovalId(approvalId);
     setActionMessage(null);
     try {
@@ -424,14 +431,23 @@ export function ApprovalWorkflowManagement() {
     } catch {
       setActionMessage(t("common.networkError"));
     } finally {
+      pendingApprovalRef.current = null;
       setPendingApprovalId(null);
     }
   }
 
   async function handleReject(approvalId: string, reason: string) {
     const row = rows.find((entry) => entry.id === approvalId);
-    if (!row || !canReview || !isRejectReasonValid(reason)) return;
+    if (
+      !row ||
+      !canReview ||
+      !isRejectReasonValid(reason) ||
+      pendingApprovalRef.current
+    ) {
+      return;
+    }
 
+    pendingApprovalRef.current = approvalId;
     setPendingApprovalId(approvalId);
     setActionMessage(null);
     try {
@@ -449,6 +465,7 @@ export function ApprovalWorkflowManagement() {
     } catch {
       setActionMessage(t("common.networkError"));
     } finally {
+      pendingApprovalRef.current = null;
       setPendingApprovalId(null);
     }
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
@@ -135,7 +135,9 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
   const [rejecting, setRejecting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [actionPending, setActionPending] = useState(false);
+  const actionPendingRef = useRef(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [quotedExpanded, setQuotedExpanded] = useState(false);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
 
@@ -153,7 +155,6 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
     canReview,
     loadApprovals,
     refreshDetail,
-    clearSelection,
   } = approvalWorkspace;
 
   if (!selectedApprovalId) {
@@ -215,42 +216,68 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
   const showActions = canReview && approval.status === "pending";
 
   async function handleApprove() {
-    if (!reviewReady || actionPending) return;
+    if (!reviewReady || actionPendingRef.current) return;
+    actionPendingRef.current = true;
     setActionPending(true);
     setActionError(null);
-    const result = await postApprovalApprove(approval.id, approval.workflowVersion);
-    setActionPending(false);
-    if (!result.ok) {
-      setActionError(result.error);
-      return;
+    setActionMessage(null);
+    try {
+      const result = await postApprovalApprove(
+        approval.id,
+        approval.workflowVersion,
+      );
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      setActionMessage(t("mail.adminCenter.approval.approveSuccess"));
+      await loadApprovals();
+      await refreshDetail();
+    } catch {
+      setActionError(t("common.networkError"));
+    } finally {
+      actionPendingRef.current = false;
+      setActionPending(false);
     }
-    await loadApprovals();
-    clearSelection();
   }
 
   async function handleReject() {
-    if (actionPending || !isRejectReasonValid(rejectReason)) return;
+    if (actionPendingRef.current || !isRejectReasonValid(rejectReason)) return;
+    actionPendingRef.current = true;
     setActionPending(true);
     setActionError(null);
-    const result = await postApprovalReturn(approval.id, {
-      expectedWorkflowVersion: approval.workflowVersion,
-      note: rejectReason.trim(),
-    });
-    setActionPending(false);
-    if (!result.ok) {
-      setActionError(result.error);
-      return;
+    setActionMessage(null);
+    try {
+      const result = await postApprovalReturn(approval.id, {
+        expectedWorkflowVersion: approval.workflowVersion,
+        note: rejectReason.trim(),
+      });
+      if (!result.ok) {
+        setActionError(result.error);
+        return;
+      }
+      setRejecting(false);
+      setRejectReason("");
+      setActionMessage(t("mail.adminCenter.approval.rejectSuccess"));
+      await loadApprovals();
+      await refreshDetail();
+    } catch {
+      setActionError(t("common.networkError"));
+    } finally {
+      actionPendingRef.current = false;
+      setActionPending(false);
     }
-    setRejecting(false);
-    setRejectReason("");
-    await loadApprovals();
-    clearSelection();
   }
 
   return (
     <div className={cn("mail-approval-detail flex min-h-0 min-w-0 flex-1 flex-col", className)}>
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mail-approval-detail-inner mx-auto w-full max-w-[52rem] px-4 py-5 sm:px-6">
+          {actionMessage ? (
+            <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300" role="status">
+              {actionMessage}
+            </p>
+          ) : null}
           <div className="space-y-4 border-b crm-border pb-5">
             <div className="flex flex-wrap items-center gap-2">
               <MailApprovalStatusBadge status={approval.status} />
@@ -422,14 +449,19 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
                 disabled={actionPending}
                 onClick={() => setRejecting(true)}
               >
-                {t("mail.adminCenter.approval.rejectAction")}
+                  {actionPending
+                    ? t("mail.adminCenter.approval.rejectPending")
+                    : t("mail.adminCenter.approval.rejectAction")}
               </Button>
               <Button
                 type="button"
                 disabled={!reviewReady || actionPending}
+                  aria-busy={actionPending}
                 onClick={() => void handleApprove()}
               >
-                {t("mail.adminCenter.approval.approveAction")}
+                  {actionPending
+                    ? t("mail.adminCenter.approval.approvePending")
+                    : t("mail.adminCenter.approval.approveAction")}
               </Button>
             </div>
           )}
