@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CLOUDFLARE_EMAIL_ROUTING_PROVIDER } from "@/lib/mail/inbound-ingress-constants";
 import {
+  assertInboundEnvelopeRecipientsKnown,
   buildCloudflareEmailStagingInput,
   InboundEmailIngressError,
   readInboundRawMimeBytes,
@@ -99,6 +100,25 @@ describe("cloudflare email inbound adapter", () => {
       (error: unknown) => {
         assert.ok(error instanceof InboundEmailIngressError);
         assert.equal(error.code, "MISSING_ENVELOPE_RECIPIENT");
+        return true;
+      },
+    );
+  });
+
+  it("rejects an unknown recipient after durable staging", () => {
+    assert.throws(
+      () =>
+        assertInboundEnvelopeRecipientsKnown({
+          envelopeResults: [
+            {
+              envelopeRecipientAddress: "unknown@echfronthk.com",
+              quarantineReason: "unknown_receiving_address",
+            },
+          ],
+        }),
+      (error: unknown) => {
+        assert.ok(error instanceof InboundEmailIngressError);
+        assert.equal(error.code, "UNKNOWN_RECIPIENT");
         return true;
       },
     );

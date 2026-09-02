@@ -12,6 +12,7 @@ import {
   stageInboundProviderEvent,
   type StageInboundProviderEventResult,
 } from "@/lib/mail/inbound-provider-staging-service";
+import { INBOUND_QUARANTINE_REASONS } from "@/lib/mail/inbound-quarantine-reasons";
 
 /** Subset of Cloudflare ForwardableEmailMessage used by the ingress adapter. */
 export type CloudflareForwardableEmailMessage = {
@@ -26,6 +27,7 @@ export type InboundEmailIngressErrorCode =
   | "MIME_TOO_LARGE"
   | "EMPTY_RAW_MIME"
   | "MISSING_ENVELOPE_RECIPIENT"
+  | "UNKNOWN_RECIPIENT"
   | "STAGING_NOT_ACK_SAFE";
 
 export class InboundEmailIngressError extends Error {
@@ -133,6 +135,24 @@ export function buildCloudflareEmailStagingInput(input: {
   };
 }
 
+export function assertInboundEnvelopeRecipientsKnown(input: {
+  envelopeResults: Array<{
+    envelopeRecipientAddress: string;
+    quarantineReason: string | null;
+  }>;
+}): void {
+  const unknownRecipient = input.envelopeResults.find(
+    (result) =>
+      result.quarantineReason === INBOUND_QUARANTINE_REASONS.unknownReceivingAddress,
+  );
+  if (unknownRecipient) {
+    throw new InboundEmailIngressError(
+      "UNKNOWN_RECIPIENT",
+      `No active CRM mailbox is registered for ${unknownRecipient.envelopeRecipientAddress}`,
+    );
+  }
+}
+
 /**
  * Thin Cloudflare Email ingress adapter — durable staging only.
  * Parsing, sanitization, and materialization remain async in mail-jobs-cron.
@@ -151,6 +171,7 @@ export async function stageCloudflareInboundEmail(
   });
 
   const result = await stageInboundProviderEvent(db, payloadStore, stagingInput);
+  assertInboundEnvelopeRecipientsKnown(result);
   if (!result.safeToAcknowledgeProvider) {
     throw new InboundEmailIngressError(
       "STAGING_NOT_ACK_SAFE",
