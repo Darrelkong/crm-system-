@@ -31,12 +31,22 @@ import {
   verifyNotificationIdentity,
 } from "@/lib/mail/notification-identity-service";
 import { enqueueMailNotificationIntent } from "@/lib/mail/notification-outbox-enqueue-service";
+import {
+  claimAndProcessNotificationOutbox,
+} from "@/lib/mail/notification-outbox-processing-service";
 import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
+import {
+  NEW_INCOMING_NOTIFICATION_SUBJECT,
+} from "@/lib/mail/notification-privacy-renderer";
 import {
   FakeNotificationTransportAdapter,
   type NotificationTransportAdapter,
+  type NotificationTransportInput,
 } from "@/lib/mail/notification-transport-adapter";
 import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail/notification-verification-challenge-sink";
+import {
+  MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR,
+} from "@/lib/mail/notification-verification-secret";
 import { createAdminDirectRevisionFromDraft } from "@/lib/mail/outbound-revision-service";
 import {
   resubmitRevisionForApproval,
@@ -71,6 +81,18 @@ class CountingNotificationTransportAdapter
   ) {
     this.callCount += 1;
     return new FakeNotificationTransportAdapter().send(...args);
+  }
+}
+
+class CapturingNotificationTransportAdapter
+  implements NotificationTransportAdapter
+{
+  readonly providerId = "capturing-fake";
+  lastInput: NotificationTransportInput | null = null;
+
+  async send(input: NotificationTransportInput) {
+    this.lastInput = input;
+    return new FakeNotificationTransportAdapter().send(input);
   }
 }
 
@@ -536,11 +558,7 @@ async function setupPersonalInboundMailbox(
   const mailbox = await createMailbox(db, adminActor, {
     address: fixtureAddress(`personal-${suffix}`),
     mailboxType: "personal",
-  });
-  await insertMailboxMember(db, {
-    id: `${FIXTURE}-member-${suffix}-primary`,
-    mailboxId: mailbox.id,
-    userId: memberUserId,
+    ownerUserId: memberUserId,
   });
   for (const [index, member] of extraMembers.entries()) {
     await insertMailboxMember(db, {
@@ -591,6 +609,7 @@ async function setupApprovalFixture(db: TestDb, suffix: string) {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address: fixtureAddress(`approval-sender-${suffix}`),
@@ -601,14 +620,16 @@ async function setupApprovalFixture(db: TestDb, suffix: string) {
     targetUserId: SEED_IDS.staffA,
     canSend: true,
   });
-  await insertMailboxMember(db, {
-    id: `${FIXTURE}-approval-member-${suffix}`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canSend: 1,
-    canReply: 1,
-  });
+  const memberNow = new Date().toISOString();
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canSend: 1, canReply: 1, updatedAt: memberNow })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
   const created = await createDraft(db, staffActor, {
     senderIdentityId: identity.id,
     mailboxId: mailbox.id,
@@ -638,6 +659,7 @@ async function setupSendFixture(db: TestDb, suffix: string) {
     const mailbox = await createMailbox(db, adminActor, {
       address,
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.admin,
     });
     const identity = await createSenderIdentity(db, adminActor, {
       address: fixtureAddress(`send-sender-${suffix}`),
@@ -648,14 +670,16 @@ async function setupSendFixture(db: TestDb, suffix: string) {
       targetUserId: SEED_IDS.admin,
       canSend: true,
     });
-    await insertMailboxMember(db, {
-      id: `${FIXTURE}-send-member-${suffix}`,
-      mailboxId: mailbox.id,
-      userId: SEED_IDS.admin,
-      canRead: 1,
-      canSend: 1,
-      canReply: 1,
-    });
+    const memberNow = new Date().toISOString();
+    await db
+      .update(schema.mailMailboxMembers)
+      .set({ canSend: 1, canReply: 1, updatedAt: memberNow })
+      .where(
+        and(
+          eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+          eq(schema.mailMailboxMembers.userId, SEED_IDS.admin),
+        ),
+      );
     return { mailbox, identity };
   })();
 
@@ -698,9 +722,13 @@ describe("notification source wiring integration", () => {
   let adminIdentityId: string;
   let staffIdentityId: string;
   let dispose: (() => void) | undefined;
+  const previousVerificationSecret =
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+      "notification-source-wiring-integration-secret";
     const proxy = await getPlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
@@ -726,6 +754,12 @@ describe("notification source wiring integration", () => {
   });
 
   after(async () => {
+    if (previousVerificationSecret === undefined) {
+      delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
+    } else {
+      process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
+        previousVerificationSecret;
+    }
     try {
       await safeCleanupFixtures(db);
     } catch {
@@ -823,7 +857,11 @@ describe("notification source wiring integration", () => {
       const mailbox = await createMailbox(db, adminActor, {
         address: fixtureAddress("personal-zero"),
         mailboxType: "personal",
+        ownerUserId: SEED_IDS.staffB,
       });
+      await db
+        .delete(schema.mailMailboxMembers)
+        .where(eq(schema.mailMailboxMembers.mailboxId, mailbox.id));
       const [primary] = await db
         .select()
         .from(schema.mailReceivingAddresses)
@@ -889,6 +927,76 @@ describe("notification source wiring integration", () => {
         await countOutbox(db, { sourceEntityId: result.message.id }),
         0,
       );
+    });
+
+    it("skips when notification identity equals mailbox receiving address", async () => {
+      await safeCleanupFixtures(db);
+      const loopAddress = fixtureAddress("loop-identity");
+      const mailbox = await createMailbox(db, adminActor, {
+        address: loopAddress,
+        mailboxType: "personal",
+        ownerUserId: SEED_IDS.staffA,
+      });
+      await createVerifiedIdentity(db, SEED_IDS.staffA, loopAddress);
+      const [primary] = await db
+        .select()
+        .from(schema.mailReceivingAddresses)
+        .where(eq(schema.mailReceivingAddresses.mailboxId, mailbox.id));
+      const result = await materializeInboundToMailbox(
+        db,
+        payloadStore,
+        attachmentStore,
+        {
+          providerEventId: `${FIXTURE}-incoming-loop`,
+          recipientAddress: primary!.address,
+        },
+      );
+      assert.equal(
+        await countOutbox(db, { sourceEntityId: result.message.id }),
+        0,
+      );
+    });
+
+    it("dispatch renders privacy-safe new incoming metadata", async () => {
+      await safeCleanupFixtures(db);
+      const { mailbox, primary } = await setupPersonalInboundMailbox(
+        db,
+        "dispatch-content",
+        SEED_IDS.staffA,
+      );
+      const result = await materializeInboundToMailbox(
+        db,
+        payloadStore,
+        attachmentStore,
+        {
+          providerEventId: `${FIXTURE}-incoming-dispatch-content`,
+          recipientAddress: primary.address,
+          messageId: "<dispatch-content@external.test>",
+        },
+      );
+      const [outbox] = await db
+        .select()
+        .from(schema.mailNotificationOutbox)
+        .where(eq(schema.mailNotificationOutbox.sourceEntityId, result.message.id));
+      assert.ok(outbox);
+      const capturing = new CapturingNotificationTransportAdapter();
+      const processed = await claimAndProcessNotificationOutbox(db, adminActor, {
+        outboxId: outbox!.id,
+        adapter: capturing,
+      });
+      assert.equal(processed.phase, "processed");
+      assert.ok(capturing.lastInput);
+      assert.equal(
+        capturing.lastInput.payload.subjectText,
+        NEW_INCOMING_NOTIFICATION_SUBJECT,
+      );
+      assert.match(
+        capturing.lastInput.payload.bodyText,
+        new RegExp(primary.address.replace(/\./g, "\\.")),
+      );
+      assert.match(capturing.lastInput.payload.bodyText, /sender@external\.test/);
+      assert.doesNotMatch(capturing.lastInput.payload.bodyText, /Notification wiring inbound/);
+      assert.doesNotMatch(capturing.lastInput.payload.bodyText, /MIME/i);
     });
 
     it("RFC convergence creates one notification for two provenance rows", async () => {

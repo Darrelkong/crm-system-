@@ -1,6 +1,9 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import { findActiveVerifiedNotificationIdentity } from "@/lib/mail/notification-identity-service";
+import {
+  notificationIdentityWouldLoopWithMailboxReceivingAddresses,
+} from "@/lib/mail/notification-identity-loop-prevention";
 
 export type ResolvedNotificationTarget = {
   recipientUserId: string;
@@ -30,6 +33,16 @@ async function resolveUserNotificationTarget(
   }
   const identity = await findActiveVerifiedNotificationIdentity(db, userId);
   if (!identity) {
+    return null;
+  }
+  if (
+    mailboxId &&
+    (await notificationIdentityWouldLoopWithMailboxReceivingAddresses(
+      db,
+      mailboxId,
+      identity.email,
+    ))
+  ) {
     return null;
   }
   return {

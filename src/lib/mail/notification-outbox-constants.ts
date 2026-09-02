@@ -17,6 +17,7 @@ export const NOTIFICATION_RETRY_DELAY_MS: Readonly<Record<number, number>> = {
 export const NOTIFICATION_FAILURE_CODES = {
   notificationIdentityInvalid: "notification_identity_invalid",
   notificationIdentityBounced: "notification_identity_bounced",
+  notificationLoopPrevented: "notification_loop_prevented",
   mailAccessDisabled: "mail_access_disabled",
   retryExhausted: "retry_exhausted",
   transportOutcomeUnknown: "transport_outcome_unknown",

@@ -123,7 +123,7 @@ function buildSendRequest(
   return {
     to: input.targetEmail,
     from: formatFromAddress(fromAddress),
-    subject: CLOUDFLARE_EMAIL_NOTIFICATION_SUBJECT,
+    subject: input.payload.subjectText ?? CLOUDFLARE_EMAIL_NOTIFICATION_SUBJECT,
     text: input.payload.bodyText,
   };
 }

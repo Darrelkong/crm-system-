@@ -24,7 +24,15 @@ import {
   getNotificationProcessingTrustNow,
   isNotificationProcessingLeaseExpired,
 } from "@/lib/mail/notification-processing-lease";
-import { renderNotificationPayload } from "@/lib/mail/notification-privacy-renderer";
+import {
+  notificationIdentityWouldLoopWithMailboxReceivingAddresses,
+} from "@/lib/mail/notification-identity-loop-prevention";
+import { loadNewIncomingNotificationContext } from "@/lib/mail/notification-new-incoming-context-service";
+import {
+  renderNotificationPayload,
+  type RenderedNotificationPayload,
+} from "@/lib/mail/notification-privacy-renderer";
+import { MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES } from "@/lib/mail/notification-source-entity-policy";
 import type {
   NotificationTransportAdapter,
   NotificationTransportResult,
@@ -149,6 +157,19 @@ async function evaluateDispatchGates(
   if (identity.deliveryHealth === "bounced") {
     return {
       failureCode: NOTIFICATION_FAILURE_CODES.notificationIdentityBounced,
+    };
+  }
+  if (
+    outbox.notificationType === "new_incoming" &&
+    outbox.mailboxId &&
+    (await notificationIdentityWouldLoopWithMailboxReceivingAddresses(
+      db,
+      outbox.mailboxId,
+      identity.email,
+    ))
+  ) {
+    return {
+      failureCode: NOTIFICATION_FAILURE_CODES.notificationLoopPrevented,
     };
   }
   const accessEnabled = await isMailAccessEnabled(db, outbox.recipientUserId);
@@ -603,6 +624,25 @@ function mapTransportResult(
   return result;
 }
 
+async function buildNotificationPayloadForOutbox(
+  db: Database,
+  outbox: MailNotificationOutbox,
+): Promise<RenderedNotificationPayload> {
+  if (outbox.notificationType !== "new_incoming") {
+    return renderNotificationPayload(outbox.notificationType);
+  }
+
+  if (outbox.sourceEntityType !== MAIL_NOTIFICATION_SOURCE_ENTITY_TYPES.mailMessage) {
+    return renderNotificationPayload("new_incoming");
+  }
+
+  const context = await loadNewIncomingNotificationContext(db, {
+    sourceEntityId: outbox.sourceEntityId,
+    mailboxId: outbox.mailboxId,
+  });
+  return renderNotificationPayload("new_incoming", context);
+}
+
 /**
  * Process a claimed notification outbox row through dispatch gates, started
  * attempt persistence, fake/real adapter call, and terminal transitions.
@@ -647,7 +687,7 @@ export async function processClaimedNotificationOutbox(
   }
 
   const attempt = await createStartedAttempt(db, outbox, input.adapter.providerId);
-  const payload = renderNotificationPayload(outbox.notificationType);
+  const payload = await buildNotificationPayloadForOutbox(db, outbox);
 
   let transportResult: NotificationTransportResult;
   try {
