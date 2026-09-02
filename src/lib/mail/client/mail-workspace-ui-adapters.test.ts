@@ -290,6 +290,9 @@ function detailFixture(
         deliveryMode: "direct_attachment",
         sortOrder: 0,
         downloadAvailable: true,
+        downloadable: true,
+        previewable: true,
+        previewType: "pdf",
       },
     ],
     thread: {
@@ -375,10 +378,14 @@ describe("production detail adapters", () => {
       ? JSON.stringify({
           id: "attachment-1",
           filename: "invoice.pdf",
+          sizeBytes: 2048,
           mimeType: "application/pdf",
           sizeLabel: "2.0 KB",
           deliveryMode: "direct_attachment",
           downloadAvailable: true,
+          downloadable: true,
+          previewable: true,
+          previewType: "pdf",
         })
       : null);
   });
@@ -395,6 +402,9 @@ describe("production detail adapters", () => {
             deliveryMode: "direct_attachment",
             sortOrder: 0,
             downloadAvailable: false,
+          downloadable: false,
+            previewable: false,
+            previewType: null,
           },
         ],
       }),

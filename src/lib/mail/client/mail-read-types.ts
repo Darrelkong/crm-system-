@@ -64,6 +64,9 @@ export type MailMessageAttachmentMetadataView = {
   deliveryMode: "direct_attachment" | "secure_file";
   sortOrder: number;
   downloadAvailable: boolean;
+  downloadable: boolean;
+  previewable: boolean;
+  previewType: "image" | "pdf" | null;
 };
 
 export type MailThreadSummaryView = {

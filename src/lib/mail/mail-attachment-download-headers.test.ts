@@ -31,6 +31,15 @@ describe("mail attachment download headers", () => {
     assert.match(header, /filename\*=UTF-8''/);
   });
 
+  it("supports inline disposition for validated preview responses", () => {
+    const header = buildMailAttachmentContentDispositionHeader(
+      "報告.pdf",
+      "inline",
+    );
+    assert.match(header, /^inline;/);
+    assert.match(header, /filename\*=UTF-8''/);
+  });
+
   it("strips CR/LF from filenames", () => {
     const filename = resolveMailAttachmentDownloadFilename({
       displayFilename: 'bad\r\nname.pdf',

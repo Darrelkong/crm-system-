@@ -164,6 +164,9 @@ function mapAttachmentMetadataView(
   const deliveryMode = record.deliveryMode;
   const sortOrder = record.sortOrder;
   const downloadAvailable = record.downloadAvailable;
+  const downloadable = record.downloadable;
+  const previewable = record.previewable;
+  const previewType = record.previewType;
 
   if (
     typeof id !== "string" ||
@@ -175,7 +178,13 @@ function mapAttachmentMetadataView(
     (deliveryMode !== "direct_attachment" && deliveryMode !== "secure_file") ||
     typeof sortOrder !== "number" ||
     !Number.isFinite(sortOrder) ||
-    typeof downloadAvailable !== "boolean"
+    typeof downloadAvailable !== "boolean" ||
+    (downloadable !== undefined && typeof downloadable !== "boolean") ||
+    (previewable !== undefined && typeof previewable !== "boolean") ||
+    (previewType !== undefined &&
+      previewType !== null &&
+      previewType !== "image" &&
+      previewType !== "pdf")
   ) {
     throw MailReadApiError.validation("Invalid attachment metadata response");
   }
@@ -197,6 +206,11 @@ function mapAttachmentMetadataView(
     deliveryMode,
     sortOrder,
     downloadAvailable,
+    downloadable:
+      typeof downloadable === "boolean" ? downloadable : downloadAvailable,
+    previewable: previewable === true,
+    previewType:
+      previewType === "image" || previewType === "pdf" ? previewType : null,
   };
 }
 

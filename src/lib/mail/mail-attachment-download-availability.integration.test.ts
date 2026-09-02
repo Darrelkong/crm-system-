@@ -24,7 +24,7 @@ describe("mail attachment download availability API contract", () => {
     process.env[LOCAL_MAIL_ATTACHMENT_VERIFY_OPT_IN_ENV] = "1";
   });
 
-  it("returns downloadAvailable=true for clean direct attachments only", async () => {
+  it("returns explicit download and preview capability for direct attachments", async () => {
     const { db, attachmentsBucket, dispose } =
       await connectLocalAttachmentVerificationFixtureEnv({ local: true, remote: false });
     try {
@@ -53,6 +53,18 @@ describe("mail attachment download availability API contract", () => {
         )?.downloadAvailable,
         true,
       );
+      assert.equal(
+        cleanPdf.item.attachments.find(
+          (row) => row.id === LOCAL_MAIL_ATTACHMENT_VERIFY_ATTACHMENT_IDS.cleanPdf,
+        )?.previewable,
+        true,
+      );
+      assert.equal(
+        cleanPdf.item.attachments.find(
+          (row) => row.id === LOCAL_MAIL_ATTACHMENT_VERIFY_ATTACHMENT_IDS.cleanPdf,
+        )?.previewType,
+        "pdf",
+      );
 
       const unscanned = await detailFor(
         LOCAL_MAIL_ATTACHMENT_VERIFY_MESSAGE_IDS.unscanned,
@@ -62,7 +74,7 @@ describe("mail attachment download availability API contract", () => {
           (row) =>
             row.id === LOCAL_MAIL_ATTACHMENT_VERIFY_ATTACHMENT_IDS.unscanned,
         )?.downloadAvailable,
-        false,
+        true,
       );
 
       const secureFile = await detailFor(

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { MailReadApiError } from "@/lib/mail/client/mail-read-api-errors";
 import {
+  buildProductionAttachmentPreviewHref,
   buildProductionAttachmentDownloadHref,
   buildProductionAttachmentRowPresentation,
 } from "@/lib/mail/client/mail-attachment-download-ui";
@@ -14,6 +15,7 @@ function attachmentFixture(
     id: "attachment-1",
     filename: "invoice.pdf",
     mimeType: "application/pdf",
+    sizeBytes: 2048,
     sizeLabel: "2.0 KB",
     deliveryMode: "direct_attachment",
     downloadAvailable: true,
@@ -28,11 +30,18 @@ describe("mail attachment download UI helpers", () => {
         "LOCAL_MAIL_ATTACHMENT_VERIFY_2H5B-ATT-CLEAN-PDF",
         "inbox",
       ),
-      "/api/mail/attachments/LOCAL_MAIL_ATTACHMENT_VERIFY_2H5B-ATT-CLEAN-PDF/download?folder=inbox",
+      "/api/mail/attachments/LOCAL_MAIL_ATTACHMENT_VERIFY_2H5B-ATT-CLEAN-PDF/content?folder=inbox&disposition=attachment",
     );
     assert.equal(
       buildProductionAttachmentDownloadHref("attachment/id", "trash"),
-      "/api/mail/attachments/attachment%2Fid/download?folder=trash",
+      "/api/mail/attachments/attachment%2Fid/content?folder=trash&disposition=attachment",
+    );
+  });
+
+  it("builds inline preview href with canonical attachment id only", () => {
+    assert.equal(
+      buildProductionAttachmentPreviewHref("attachment/id", "inbox"),
+      "/api/mail/attachments/attachment%2Fid/content?folder=inbox&disposition=inline",
     );
   });
 
@@ -51,7 +60,7 @@ describe("mail attachment download UI helpers", () => {
     assert.equal(available.downloadAvailable, true);
     assert.equal(
       available.downloadHref,
-      "/api/mail/attachments/attachment-1/download?folder=sent",
+      "/api/mail/attachments/attachment-1/content?folder=sent&disposition=attachment",
     );
 
     const unavailable = buildProductionAttachmentRowPresentation({
@@ -63,10 +72,15 @@ describe("mail attachment download UI helpers", () => {
 
   it("does not include storage identifiers in href", () => {
     const row = buildProductionAttachmentRowPresentation({
-      attachment: attachmentFixture({ id: "opaque-id" }),
+      attachment: attachmentFixture({
+        id: "opaque-id",
+        previewable: true,
+        previewType: "pdf",
+      }),
       folder: "inbox",
     });
     assert.match(row.downloadHref ?? "", /^\/api\/mail\/attachments\//);
+    assert.match(row.previewHref ?? "", /^\/api\/mail\/attachments\//);
     assert.equal(row.downloadHref?.includes("storageKey"), false);
     assert.equal(row.downloadHref?.includes("storedFileId"), false);
   });
@@ -76,7 +90,7 @@ describe("mail attachment download UI helpers", () => {
       attachment: attachmentFixture(),
       folder: "trash",
     });
-    assert.match(row.downloadHref ?? "", /folder=trash$/);
+    assert.match(row.downloadHref ?? "", /folder=trash&disposition=attachment$/);
   });
 
   it("marks secure_file rows as non-downloadable even if boolean were true", () => {

@@ -15,11 +15,19 @@ export function buildMailAttachmentDownloadResponse(
     DownloadableMailAttachment,
     "filename" | "mimeType" | "sizeBytes"
   >,
+  options?: {
+    disposition?: "inline" | "attachment";
+    contentType?: string;
+  },
 ): Response {
+  const disposition = options?.disposition ?? "attachment";
   const headers = new Headers({
-    "Content-Type": resolveMailAttachmentDownloadContentType(attachment.mimeType),
+    "Content-Type":
+      options?.contentType ??
+      resolveMailAttachmentDownloadContentType(attachment.mimeType),
     "Content-Disposition": buildMailAttachmentContentDispositionHeader(
       attachment.filename,
+      disposition,
     ),
     "Cache-Control": "private, no-store",
     "X-Content-Type-Options": "nosniff",

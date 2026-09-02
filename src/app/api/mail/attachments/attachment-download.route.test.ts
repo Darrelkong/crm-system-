@@ -12,7 +12,10 @@ import {
   teardownMailReadApiDb,
   type TestDb,
 } from "@/app/api/mail/mail-read-route-test-helpers";
-import { handleGetMailAttachmentDownload } from "@/app/api/mail/attachments/[attachmentId]/download/route";
+import {
+  handleGetMailAttachmentContent,
+  handleGetMailAttachmentDownload,
+} from "@/app/api/mail/attachments/[attachmentId]/download/route";
 import {
   MailAttachmentObjectNotFoundError,
   MailAttachmentR2OperationalError,
@@ -30,24 +33,33 @@ function bytes(label: string): Uint8Array {
   return new TextEncoder().encode(`${FIXTURE}:${label}`);
 }
 
+const PNG_BYTES = Uint8Array.from([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+]);
+
 async function insertAttachment(
   db: TestDb,
   input: {
     attachmentId: string;
     messageId: string;
+    fileBytes?: Uint8Array;
+    filename?: string;
+    mimeType?: string;
     scanStatus?: "clean" | "unscanned" | "blocked" | "scan_failed";
     deliveryMode?: "direct_attachment" | "secure_file";
   },
 ) {
-  const fileBytes = bytes(input.attachmentId);
+  const fileBytes = input.fileBytes ?? bytes(input.attachmentId);
+  const filename = input.filename ?? "doc.pdf";
+  const mimeType = input.mimeType ?? "application/pdf";
   const contentHash = computeInboundPayloadContentHash(fileBytes);
   const storedFileId = `${input.attachmentId}-file`;
   const storageKey = `mail/test/${storedFileId}`;
   await db.insert(schema.mailStoredFiles).values({
     id: storedFileId,
     contentHash,
-    originalFilename: "doc.pdf",
-    mimeType: "application/pdf",
+    originalFilename: filename,
+    mimeType,
     sizeBytes: fileBytes.byteLength,
     storageProvider: "r2",
     storageBucket: "crm-attachments",
@@ -64,9 +76,9 @@ async function insertAttachment(
     messageId: input.messageId,
     storedFileId,
     contentHash,
-    originalFilename: "doc.pdf",
-    displayFilename: "doc.pdf",
-    mimeType: "application/pdf",
+    originalFilename: filename,
+    displayFilename: filename,
+    mimeType,
     sizeBytes: fileBytes.byteLength,
     sortOrder: 0,
     deliveryMode: input.deliveryMode ?? "direct_attachment",
@@ -134,6 +146,66 @@ describe("GET /api/mail/attachments/[attachmentId]/download", () => {
     assert.equal(res.headers.get("Content-Length"), String(fileBytes.byteLength));
   });
 
+  it("returns an authenticated inline response for a supported image", async () => {
+    const messageId = `${fixtureAddress("route-inline")}-msg`;
+    const attachmentId = `${messageId}-att`;
+    await insertMessage(db, { id: messageId, mailboxId, direction: "inbound" });
+    const { fileBytes, storageKey } = await insertAttachment(db, {
+      attachmentId,
+      messageId,
+      fileBytes: PNG_BYTES,
+      filename: "preview.png",
+      mimeType: "application/octet-stream",
+    });
+    r2Objects.set(storageKey, fileBytes);
+
+    const res = await handleGetMailAttachmentContent(
+      new Request(
+        `http://localhost/api/mail/attachments/${attachmentId}/content?folder=inbox&disposition=inline`,
+      ),
+      attachmentId,
+      {
+        requireMailActor: makeRequireMailActor(db, actor(SEED_IDS.staffA)),
+        createByteReader: byteReader,
+      },
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get("Content-Type"), "image/png");
+    assert.match(res.headers.get("Content-Disposition") ?? "", /^inline;/);
+    assert.equal(res.headers.get("X-Content-Type-Options"), "nosniff");
+    assert.deepEqual(new Uint8Array(await res.arrayBuffer()), PNG_BYTES);
+  });
+
+  it("does not inline unsupported or active content", async () => {
+    const messageId = `${fixtureAddress("route-inline-html")}-msg`;
+    const attachmentId = `${messageId}-att`;
+    const htmlBytes = new TextEncoder().encode("<script>alert(1)</script>");
+    await insertMessage(db, { id: messageId, mailboxId, direction: "inbound" });
+    const { storageKey, fileBytes } = await insertAttachment(db, {
+      attachmentId,
+      messageId,
+      fileBytes: htmlBytes,
+      filename: "page.html",
+      mimeType: "text/html",
+    });
+    r2Objects.set(storageKey, fileBytes);
+
+    const res = await handleGetMailAttachmentContent(
+      new Request(
+        `http://localhost/api/mail/attachments/${attachmentId}/content?folder=inbox&disposition=inline`,
+      ),
+      attachmentId,
+      {
+        requireMailActor: makeRequireMailActor(db, actor(SEED_IDS.staffA)),
+        createByteReader: byteReader,
+      },
+    );
+
+    assert.equal(res.status, 415);
+    assert.equal((await res.json()).errorCode, "ATTACHMENT_PREVIEW_NOT_SUPPORTED");
+  });
+
   it("returns 401 when unauthenticated", async () => {
     const res = await handleGetMailAttachmentDownload(
       new Request("http://localhost/api/mail/attachments/x/download"),
@@ -182,6 +254,18 @@ describe("GET /api/mail/attachments/[attachmentId]/download", () => {
     assert.equal(res.status, 400);
   });
 
+  it("rejects uncontrolled content dispositions", async () => {
+    const res = await handleGetMailAttachmentContent(
+      new Request("http://localhost/api/mail/attachments/x/content?disposition=javascript"),
+      "x",
+      {
+        requireMailActor: makeRequireMailActor(db, actor(SEED_IDS.staffA)),
+        createByteReader: byteReader,
+      },
+    );
+    assert.equal(res.status, 400);
+  });
+
   it("returns 404 for valid missing attachment id", async () => {
     const attachmentId = `${fixtureAddress("missing-att")}`;
     const res = await handleGetMailAttachmentDownload(
@@ -197,7 +281,7 @@ describe("GET /api/mail/attachments/[attachmentId]/download", () => {
     assert.equal(res.status, 404);
   });
 
-  it("returns 404 for scan-gated attachment", async () => {
+  it("returns 200 for an unscanned normal attachment", async () => {
     const messageId = `${fixtureAddress("route-unscanned")}-msg`;
     const attachmentId = `${messageId}-att`;
     await insertMessage(db, { id: messageId, mailboxId, direction: "inbound" });
@@ -218,7 +302,7 @@ describe("GET /api/mail/attachments/[attachmentId]/download", () => {
         createByteReader: byteReader,
       },
     );
-    assert.equal(res.status, 404);
+    assert.equal(res.status, 200);
   });
 
   it("returns 404 for secure_file attachment", async () => {
@@ -262,6 +346,7 @@ describe("GET /api/mail/attachments/[attachmentId]/download", () => {
       },
     );
     assert.equal(res.status, 404);
+    assert.equal((await res.json()).errorCode, "ATTACHMENT_OBJECT_MISSING");
   });
 
   it("returns 500 for R2 operational failure without leaking internals", async () => {

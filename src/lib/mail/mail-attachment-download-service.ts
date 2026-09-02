@@ -7,6 +7,7 @@ import {
   assertCanReadMessageForPublicApi,
   type MailMessageReadContext,
 } from "@/lib/mail/message-read-permissions";
+import { resolveMailAttachmentDownloadable } from "@/lib/mail/mail-attachment-preview";
 
 export type DownloadableMailAttachment = {
   attachmentId: string;
@@ -53,10 +54,12 @@ export function assertAttachmentDownloadEligibility(input: {
   deliveryMode: string;
   securityScanStatus: string;
 }): void {
-  if (input.deliveryMode !== "direct_attachment") {
-    throw MailServiceError.notFound();
-  }
-  if (input.securityScanStatus !== "clean") {
+  if (
+    !resolveMailAttachmentDownloadable({
+      deliveryMode: input.deliveryMode,
+      securityScanStatus: input.securityScanStatus,
+    })
+  ) {
     throw MailServiceError.notFound();
   }
 }
@@ -91,6 +94,12 @@ export async function resolveDownloadableMailAttachment(
     .limit(1);
 
   assertStoredFileRelationshipIntegrity(attachment, storedFile);
+  if (
+    storedFile.sizeBytes !== attachment.sizeBytes ||
+    storedFile.storageProvider !== "r2"
+  ) {
+    throw MailServiceError.notFound();
+  }
   assertAttachmentDownloadEligibility({
     deliveryMode: attachment.deliveryMode,
     securityScanStatus: storedFile.securityScanStatus,
@@ -104,8 +113,8 @@ export async function resolveDownloadableMailAttachment(
       displayFilename: attachment.displayFilename,
       originalFilename: attachment.originalFilename,
     }),
-    mimeType: attachment.mimeType,
-    sizeBytes: attachment.sizeBytes,
+    mimeType: storedFile.mimeType,
+    sizeBytes: storedFile.sizeBytes,
     storageKey: storedFile.storageKey,
   };
 }

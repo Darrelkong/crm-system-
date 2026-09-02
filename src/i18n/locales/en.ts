@@ -1057,6 +1057,10 @@ const en = {
     attachment: {
       secureFile: "Secure File",
       downloadUnavailable: "Download unavailable",
+      preview: "Preview",
+      downloadFile: "Download this attachment",
+      unavailable: "Unable to retrieve this attachment",
+      pdfPreviewUnavailable: "This PDF cannot be previewed on this device",
     },
     assignment: {
       unassigned: "Unassigned",

@@ -171,7 +171,26 @@ describe("resolveDownloadableMailAttachment", () => {
     );
   });
 
-  for (const scanStatus of ["unscanned", "blocked", "scan_failed"] as const) {
+  it("allows an unscanned direct attachment", async () => {
+      const messageId = `${fixtureAddress("dl-unscanned")}-msg`;
+      const attachmentId = `${messageId}-att`;
+      await insertMessage(db, { id: messageId, mailboxId, direction: "inbound" });
+      await insertAttachment(db, {
+        attachmentId,
+        messageId,
+        scanStatus: "unscanned",
+      });
+
+      const resolved = await resolveDownloadableMailAttachment(
+        db,
+        actor(SEED_IDS.staffA),
+        attachmentId,
+        { folder: "inbox" },
+      );
+      assert.equal(resolved.attachmentId, attachmentId);
+  });
+
+  for (const scanStatus of ["blocked", "scan_failed"] as const) {
     it(`denies ${scanStatus} scan status`, async () => {
       const messageId = `${fixtureAddress(`dl-${scanStatus}`)}-msg`;
       const attachmentId = `${messageId}-att`;

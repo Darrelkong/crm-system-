@@ -42,6 +42,7 @@ export function resolveMailAttachmentDownloadFilename(input: {
 
 export function buildMailAttachmentContentDispositionHeader(
   filename: string,
+  disposition: "inline" | "attachment" = "attachment",
 ): string {
   const sanitized = resolveMailAttachmentDownloadFilename({
     displayFilename: filename,
@@ -49,5 +50,5 @@ export function buildMailAttachmentContentDispositionHeader(
   });
   const asciiFallback = toAsciiFilenameFallback(sanitized);
   const encoded = encodeRFC5987Filename(sanitized);
-  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
+  return `${disposition}; filename="${asciiFallback}"; filename*=UTF-8''${encoded}`;
 }

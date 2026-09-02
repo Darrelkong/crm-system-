@@ -353,9 +353,13 @@ export type MailDetailAttachmentPresentation = {
   id: string;
   filename: string;
   mimeType: string;
+  sizeBytes: number;
   sizeLabel: string;
   deliveryMode: "direct_attachment" | "secure_file";
   downloadAvailable: boolean;
+  downloadable?: boolean;
+  previewable?: boolean;
+  previewType?: "image" | "pdf" | null;
 };
 
 export type MailDetailPresentation = {
@@ -437,10 +441,14 @@ export function adaptProductionDetailView(
       .map((attachment) => ({
         id: attachment.id,
         filename: attachment.filename,
+        sizeBytes: attachment.sizeBytes,
         mimeType: attachment.mimeType,
         sizeLabel: formatAttachmentSize(attachment.sizeBytes),
         deliveryMode: attachment.deliveryMode,
         downloadAvailable: attachment.downloadAvailable,
+        downloadable: attachment.downloadable ?? attachment.downloadAvailable,
+        previewable: attachment.previewable,
+        previewType: attachment.previewType,
       })),
   };
 }

@@ -1,6 +1,8 @@
 "use client";
 
 import { PanelLeft } from "lucide-react";
+import { useState } from "react";
+import { MailAttachmentViewer } from "@/components/mail/mail-attachment-viewer";
 import { MailCrmContextPanel } from "@/components/mail/crm/mail-crm-context-panel";
 import { useTranslation } from "@/i18n/provider";
 import { formatHongKongDateTime } from "@/lib/timezone";
@@ -31,6 +33,9 @@ function ProductionDetailBody({
   variant: "default" | "desktop";
 }) {
   const { t } = useTranslation();
+  const [previewAttachment, setPreviewAttachment] = useState<
+    MailDetailPresentation["attachments"][number] | null
+  >(null);
   const bodyClassName =
     variant === "desktop" ? "mail-reading-body mx-auto max-w-[52rem]" : "mail-reading-body";
 
@@ -80,17 +85,38 @@ function ProductionDetailBody({
               return (
                 <li
                   key={attachment.id}
-                  className="mail-attachment-row flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
+                  className="mail-attachment-row flex min-w-0 items-center justify-between gap-3 px-3 py-2.5 text-sm"
                 >
-                  <span className="min-w-0 flex-1 truncate crm-text">
-                    {row.filename}
-                  </span>
-                  <div className="flex shrink-0 items-center gap-2 text-xs crm-text-secondary">
-                    <span className="whitespace-nowrap">
-                      {row.sizeLabel}
-                      {row.showSecureFileLabel &&
-                        ` · ${t("mail.attachment.secureFile")}`}
+                  {row.previewable && row.previewHref ? (
+                    <button
+                      type="button"
+                      onClick={() => setPreviewAttachment(attachment)}
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left crm-text hover:underline"
+                      aria-label={`${t("mail.attachment.preview")} ${row.filename}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{row.filename}</span>
+                      <span className="shrink-0 whitespace-nowrap text-xs crm-text-secondary">
+                        {row.sizeLabel}
+                      </span>
+                    </button>
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate crm-text">
+                      {row.filename}
                     </span>
+                  )}
+                  <div className="flex shrink-0 items-center gap-2 text-xs crm-text-secondary">
+                    {!row.previewable ? (
+                      <span className="whitespace-nowrap">
+                        {row.sizeLabel}
+                        {row.showSecureFileLabel &&
+                          ` · ${t("mail.attachment.secureFile")}`}
+                      </span>
+                    ) : null}
+                    {row.previewable && row.previewHref ? (
+                      <span className="hidden whitespace-nowrap sm:inline">
+                        {t("mail.attachment.preview")}
+                      </span>
+                    ) : null}
                     {row.downloadAvailable && row.downloadHref ? (
                       <a
                         href={row.downloadHref}
@@ -104,7 +130,7 @@ function ProductionDetailBody({
                         className="rounded-md px-2 py-1 crm-text-secondary"
                         aria-disabled="true"
                       >
-                        {t("mail.attachment.downloadUnavailable")}
+                        {t("mail.attachment.unavailable")}
                       </span>
                     )}
                   </div>
@@ -112,6 +138,32 @@ function ProductionDetailBody({
               );
             })}
           </ul>
+          {previewAttachment ? (
+            (() => {
+              const previewRow = buildProductionAttachmentRowPresentation({
+                attachment: previewAttachment,
+                folder,
+              });
+              if (
+                !previewRow.previewable ||
+                !previewRow.previewHref ||
+                !previewRow.previewType
+              ) {
+                return null;
+              }
+              return (
+                <MailAttachmentViewer
+                  key={previewAttachment.id}
+                  filename={previewRow.filename}
+                  sizeBytes={previewAttachment.sizeBytes}
+                  previewType={previewRow.previewType}
+                  previewHref={previewRow.previewHref}
+                  downloadHref={previewRow.downloadHref}
+                  onClose={() => setPreviewAttachment(null)}
+                />
+              );
+            })()
+          ) : null}
         </div>
       )}
     </div>

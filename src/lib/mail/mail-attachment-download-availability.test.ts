@@ -13,7 +13,17 @@ describe("isMailAttachmentDownloadAvailable", () => {
     );
   });
 
-  for (const scanStatus of ["unscanned", "blocked", "scan_failed"] as const) {
+  it("returns true for an unscanned direct attachment", () => {
+    assert.equal(
+      isMailAttachmentDownloadAvailable({
+        deliveryMode: "direct_attachment",
+        securityScanStatus: "unscanned",
+      }),
+      true,
+    );
+  });
+
+  for (const scanStatus of ["blocked", "scan_failed"] as const) {
     it(`returns false for ${scanStatus}`, () => {
       assert.equal(
         isMailAttachmentDownloadAvailable({

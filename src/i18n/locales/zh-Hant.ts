@@ -1009,6 +1009,10 @@ const zhHant: Messages = {
     attachment: {
       secureFile: "安全檔案",
       downloadUnavailable: "目前無法下載",
+      preview: "預覽",
+      downloadFile: "下載此附件",
+      unavailable: "目前無法取得此附件",
+      pdfPreviewUnavailable: "無法在此裝置預覽此 PDF",
     },
     assignment: {
       unassigned: "未接手",

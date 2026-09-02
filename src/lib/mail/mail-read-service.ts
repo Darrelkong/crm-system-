@@ -281,6 +281,7 @@ export async function getMessageDetail(
     .select({
       attachment: schema.mailMessageAttachments,
       securityScanStatus: schema.mailStoredFiles.securityScanStatus,
+      trustedMimeType: schema.mailStoredFiles.mimeType,
     })
     .from(schema.mailMessageAttachments)
     .innerJoin(
@@ -307,6 +308,7 @@ export async function getMessageDetail(
       toMailMessageAttachmentMetadataView({
         attachment: row.attachment,
         securityScanStatus: row.securityScanStatus,
+        trustedMimeType: row.trustedMimeType,
       }),
     ),
     thread,

@@ -6,6 +6,10 @@ import type { MailSecurityScanStatus } from "../../../drizzle/schema/mail-stored
 import type { FilterableMailRecipient } from "@/lib/mail/message-read-permissions";
 import type { SafeDraftCustomerAssociationView } from "@/lib/mail/mail-customer-association-service";
 import { isMailAttachmentDownloadAvailable } from "@/lib/mail/mail-attachment-download-availability";
+import {
+  resolveMailAttachmentPreviewType,
+  type MailAttachmentPreviewType,
+} from "@/lib/mail/mail-attachment-preview";
 import { projectMessageReadState } from "@/lib/mail/mail-read-state-projection";
 import type { MailThreadSummaryView } from "@/lib/mail/mail-thread-service";
 
@@ -45,6 +49,9 @@ export type MailMessageAttachmentMetadataView = {
   deliveryMode: MailMessageAttachment["deliveryMode"];
   sortOrder: number;
   downloadAvailable: boolean;
+  downloadable: boolean;
+  previewable: boolean;
+  previewType: MailAttachmentPreviewType | null;
 };
 
 /** Safe detail view — CRM association resolved server-side with independent CRM gate. */
@@ -116,19 +123,29 @@ export function toMailMessageDetailRecipientView(
 export function toMailMessageAttachmentMetadataView(input: {
   attachment: MailMessageAttachment;
   securityScanStatus: MailSecurityScanStatus;
+  trustedMimeType?: string;
 }): MailMessageAttachmentMetadataView {
   const { attachment, securityScanStatus } = input;
+  const mimeType = input.trustedMimeType ?? attachment.mimeType;
+  const previewType = resolveMailAttachmentPreviewType({
+    mimeType,
+    filename: attachment.displayFilename,
+  });
+  const downloadAvailable = isMailAttachmentDownloadAvailable({
+    deliveryMode: attachment.deliveryMode,
+    securityScanStatus,
+  });
   return {
     id: attachment.id,
     filename: attachment.displayFilename,
-    mimeType: attachment.mimeType,
+    mimeType,
     sizeBytes: attachment.sizeBytes,
     deliveryMode: attachment.deliveryMode,
     sortOrder: attachment.sortOrder,
-    downloadAvailable: isMailAttachmentDownloadAvailable({
-      deliveryMode: attachment.deliveryMode,
-      securityScanStatus,
-    }),
+    downloadAvailable,
+    downloadable: downloadAvailable,
+    previewable: downloadAvailable && previewType !== null,
+    previewType: downloadAvailable ? previewType : null,
   };
 }
 

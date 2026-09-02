@@ -329,6 +329,7 @@ describe("mail read api client", () => {
       { fetch: fetchMock },
     );
     assert.equal(item.attachments[0]?.downloadAvailable, true);
+    assert.equal(item.attachments[0]?.downloadable, true);
 
     const rejectSecurityField = async () =>
       fetchMessageDetail(
