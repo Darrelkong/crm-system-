@@ -258,7 +258,32 @@ async function loadApprovedApprovalForRevision(
   return approval;
 }
 
-async function createSendOperationWithRfcIdentity(
+export async function validateStaffApprovedSendRevision(
+  db: Database,
+  actor: MailActorContext,
+  revision: MailOutboundRevision,
+): Promise<void> {
+  if (!STAFF_APPROVED_REVISION_KINDS.has(revision.revisionKind)) {
+    throw MailServiceError.validation(
+      "Staff approved send requires staff revision kind",
+    );
+  }
+
+  await assertRevisionHashIntegrity(db, revision);
+  await assertStaffAuthorSendAuthority(db, revision, actor.audit);
+  await assertStoredFilesEligibleForSend(db, revision.id);
+
+  const recipientRows = await db
+    .select({ id: schema.mailOutboundRevisionRecipients.id })
+    .from(schema.mailOutboundRevisionRecipients)
+    .where(eq(schema.mailOutboundRevisionRecipients.revisionId, revision.id));
+  await assertOutboundSendRateLimitsWithinPolicy(db, actor, {
+    phase: "initiate",
+    recipientCount: recipientRows.length,
+  });
+}
+
+export function buildSendOperationCreation(
   db: Database,
   actor: MailActorContext,
   input: {
@@ -267,14 +292,18 @@ async function createSendOperationWithRfcIdentity(
     approvalId: string | null;
     idempotencyKey: string;
   },
-): Promise<MailSendOperation> {
+): {
+  sendOperationId: string;
+  sendRow: MailSendOperation;
+  statements: Parameters<typeof runMailBatch>[1];
+} {
   const now = new Date().toISOString();
   const sendOperationId = crypto.randomUUID();
   const rfcIdentityId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
   const rfcMessageId = generateRfcMessageId();
 
-  const sendRow = {
+  const sendRow: MailSendOperation = {
     id: sendOperationId,
     outboundRevisionId: input.revision.id,
     revisionChainId: input.revision.revisionChainId,
@@ -299,8 +328,10 @@ async function createSendOperationWithRfcIdentity(
     status: "pending",
   };
 
-  try {
-    await runMailBatch(db, [
+  return {
+    sendOperationId,
+    sendRow,
+    statements: [
       db.insert(schema.mailSendOperations).values(sendRow),
       buildRfcIdentityGuardedInsert(db, postGuard, {
         id: rfcIdentityId,
@@ -319,30 +350,44 @@ async function createSendOperationWithRfcIdentity(
           rfcMessageId,
         },
       }),
-    ]);
+    ],
+  };
+}
+
+async function createSendOperationWithRfcIdentity(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    revision: MailOutboundRevision;
+    authorizationMode: MailSendOperation["authorizationMode"];
+    approvalId: string | null;
+    idempotencyKey: string;
+  },
+): Promise<MailSendOperation> {
+  const prepared = buildSendOperationCreation(db, actor, input);
+
+  try {
+    await runMailBatch(db, prepared.statements);
   } catch (error) {
     if (isUniqueConstraintError(error)) {
       const byRevision = await findSendByRevisionId(db, input.revision.id);
       if (byRevision) {
-        assertMatchingSendSemantics(byRevision, sendSemanticFromRow({
-          ...sendRow,
-          approvalId: sendRow.approvalId ?? null,
-        } as MailSendOperation));
+        assertMatchingSendSemantics(
+          byRevision,
+          sendSemanticFromRow(prepared.sendRow),
+        );
         return byRevision;
       }
       const byKey = await findSendByIdempotencyKey(db, input.idempotencyKey);
       if (byKey) {
-        assertMatchingSendSemantics(byKey, sendSemanticFromRow({
-          ...sendRow,
-          approvalId: sendRow.approvalId ?? null,
-        } as MailSendOperation));
+        assertMatchingSendSemantics(byKey, sendSemanticFromRow(prepared.sendRow));
         return byKey;
       }
     }
     throw error;
   }
 
-  const created = await findSendById(db, sendOperationId);
+  const created = await findSendById(db, prepared.sendOperationId);
   if (!created) {
     throw MailServiceError.conflict("Send operation creation failed");
   }
@@ -374,25 +419,8 @@ export async function initiateStaffApprovedSend(
   if (!revision) {
     throw MailServiceError.notFound("Outbound revision not found");
   }
-  if (!STAFF_APPROVED_REVISION_KINDS.has(revision.revisionKind)) {
-    throw MailServiceError.validation(
-      "Staff approved send requires staff revision kind",
-    );
-  }
-
-  await assertRevisionHashIntegrity(db, revision);
   const approval = await loadApprovedApprovalForRevision(db, revision);
-  await assertStaffAuthorSendAuthority(db, revision, actor.audit);
-  await assertStoredFilesEligibleForSend(db, revision.id);
-
-  const recipientRows = await db
-    .select({ id: schema.mailOutboundRevisionRecipients.id })
-    .from(schema.mailOutboundRevisionRecipients)
-    .where(eq(schema.mailOutboundRevisionRecipients.revisionId, revision.id));
-  await assertOutboundSendRateLimitsWithinPolicy(db, actor, {
-    phase: "initiate",
-    recipientCount: recipientRows.length,
-  });
+  await validateStaffApprovedSendRevision(db, actor, revision);
 
   const existing = await findSendByRevisionId(db, revision.id);
   if (existing) {

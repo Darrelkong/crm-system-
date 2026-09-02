@@ -177,8 +177,8 @@ describe("approved outbound queue wiring", () => {
       "utf8",
     );
 
-    assert.match(approvalService, /prepareApprovedOutboundSend/);
-    assert.match(sendService, /prepareApprovedOutboundSend/);
+    assert.match(approvalService, /buildSendOperationCreation/);
+    assert.match(sendService, /buildSendOperationCreation/);
     assert.match(sendService, /status: "pending"/);
     assert.match(composeStatus, /resolveSendDeliveryLifecycleLabelKey/);
   });

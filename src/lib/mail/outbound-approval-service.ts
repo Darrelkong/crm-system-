@@ -13,7 +13,11 @@ import {
   MAIL_AUDIT_ACTIONS,
 } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
-import { prepareApprovedOutboundSend } from "@/lib/mail/send-operation-service";
+import {
+  buildApprovedSendIdempotencyKey,
+  buildSendOperationCreation,
+  validateStaffApprovedSendRevision,
+} from "@/lib/mail/send-operation-service";
 import {
   buildApprovalPostStateGuardedAuditInsert,
   buildApprovalTransitionGuardedEventInsert,
@@ -798,10 +802,17 @@ export async function approveRevision(
     approval.currentRevisionId,
     now,
   );
+  await validateStaffApprovedSendRevision(db, actor, revision);
 
   const newVersion = approval.workflowVersion + 1;
   const eventId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
+  const sendOperation = buildSendOperationCreation(db, actor, {
+    revision,
+    authorizationMode: "staff_approved",
+    approvalId: approval.id,
+    idempotencyKey: buildApprovedSendIdempotencyKey(approval.id),
+  });
 
   const postState: ApprovalPostStateGuard = {
     approvalId: approval.id,
@@ -874,6 +885,7 @@ export async function approveRevision(
           status: "approved",
         },
       }),
+      ...sendOperation.statements,
     ]);
   } catch (error) {
     handleApprovalBatchError(error);
@@ -883,7 +895,6 @@ export async function approveRevision(
   if (!updated) {
     throw MailServiceError.integrityConflict("Approval approve failed");
   }
-  await prepareApprovedOutboundSend(db, actor, { approvalId: approval.id });
   return loadApprovalView(db, updated, true);
 }
 

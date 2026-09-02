@@ -65,11 +65,11 @@ const setupAdminActor = actor(SEED_IDS.admin, [
 ]);
 const superAdminActor = actor(SEED_IDS.admin, ["super_admin"]);
 const approvalReviewActor = actor(SEED_IDS.staffB, ["approval_review"]);
-const permissionMgmtActor = actor(SEED_IDS.admin, ["permission_mgmt"]);
+const permissionMgmtActor = actor(SEED_IDS.staffB, ["permission_mgmt"]);
 const reviewerActor = approvalReviewActor;
 const staffActor = actor(SEED_IDS.staffA, []);
 const staffBActor = actor(SEED_IDS.staffB, []);
-const globalReadActor = actor(SEED_IDS.admin, ["global_mail_read"]);
+const globalReadActor = actor(SEED_IDS.staffB, ["global_mail_read"]);
 
 function fixtureAddress(localPart: string): string {
   return `${FIXTURE}-${localPart}@echfronthk.com`;
@@ -123,6 +123,26 @@ async function cleanupFixtures(db: TestDb) {
     : [];
   const revisionIds = revisions.map((row) => row.id);
   const chainIds = [...new Set(revisions.map((row) => row.chainId))];
+
+  const sendOperations = revisionIds.length
+    ? await db
+        .select({ id: schema.mailSendOperations.id })
+        .from(schema.mailSendOperations)
+        .where(inArray(schema.mailSendOperations.outboundRevisionId, revisionIds))
+    : [];
+  const sendOperationIds = sendOperations.map((row) => row.id);
+
+  if (sendOperationIds.length) {
+    await db
+      .delete(schema.mailTransportAttempts)
+      .where(inArray(schema.mailTransportAttempts.sendOperationId, sendOperationIds));
+    await db
+      .delete(schema.mailOutboundRfcIdentities)
+      .where(inArray(schema.mailOutboundRfcIdentities.sendOperationId, sendOperationIds));
+    await db
+      .delete(schema.mailSendOperations)
+      .where(inArray(schema.mailSendOperations.id, sendOperationIds));
+  }
 
   if (chainIds.length) {
     await db
@@ -218,20 +238,20 @@ async function setupComposeFixture(db: TestDb) {
   });
 
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({
+      canRead: 1,
+      canReply: 1,
+      canSend: 1,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
 
   return { mailbox, identity };
 }
@@ -344,6 +364,31 @@ describe("outbound approval workflow integration", () => {
     assert.equal(approved.approvedRevisionId, r2.id);
     assert.equal(approved.approvedContentHash, r2.contentHash);
     assert.equal(approved.workflowVersion, 4);
+
+    const approvedSendOperations = await db
+      .select()
+      .from(schema.mailSendOperations)
+      .where(eq(schema.mailSendOperations.approvalId, approval.id));
+    assert.equal(approvedSendOperations.length, 1);
+    assert.equal(approvedSendOperations[0]?.status, "pending");
+    assert.equal(
+      approvedSendOperations[0]?.outboundRevisionId,
+      r2.id,
+    );
+    await assert.rejects(
+      () =>
+        approveRevision(db, reviewerActor, {
+          approvalId: approval.id,
+          expectedWorkflowVersion: approved.workflowVersion,
+        }),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "CONFLICT",
+    );
+    const duplicateCheck = await db
+      .select({ id: schema.mailSendOperations.id })
+      .from(schema.mailSendOperations)
+      .where(eq(schema.mailSendOperations.approvalId, approval.id));
+    assert.equal(duplicateCheck.length, 1);
 
     const [storedR1] = await db
       .select()
@@ -596,7 +641,7 @@ describe("outbound approval workflow integration", () => {
         error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
     );
 
-    const accountMgmtReviewer = actor(SEED_IDS.admin, ["account_mgmt"]);
+    const accountMgmtReviewer = actor(SEED_IDS.staffB, ["account_mgmt"]);
     await assert.rejects(
       () =>
         approveRevision(db, accountMgmtReviewer, {
@@ -815,11 +860,6 @@ describe("outbound approval workflow integration", () => {
   it("rejects self-approval even when reviewer holds super_admin", async () => {
     await cleanupFixtures(db);
     const { mailbox, identity } = await setupComposeFixture(db);
-    await grantSenderIdentityAccess(db, setupAdminActor, {
-      senderIdentityId: identity.id,
-      targetUserId: SEED_IDS.admin,
-      canSend: true,
-    });
     const now = new Date().toISOString();
     await db.insert(schema.mailMailboxMembers).values({
       id: `${FIXTURE}-admin-member`,
@@ -834,6 +874,11 @@ describe("outbound approval workflow integration", () => {
       grantedBy: SEED_IDS.admin,
       createdAt: now,
       updatedAt: now,
+    });
+    await grantSenderIdentityAccess(db, setupAdminActor, {
+      senderIdentityId: identity.id,
+      targetUserId: SEED_IDS.admin,
+      canSend: true,
     });
 
     const draft = await createSendReadyDraft(
@@ -870,7 +915,7 @@ describe("outbound approval workflow integration", () => {
     });
 
     const grant = await grantMailAdminPermission(db, permissionMgmtActor, {
-      targetUserId: SEED_IDS.admin,
+      targetUserId: SEED_IDS.staffB,
       permission: "approval_review",
     });
     assert.equal(grant.permission, "approval_review");
@@ -885,7 +930,7 @@ describe("outbound approval workflow integration", () => {
         error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
     );
 
-    const grantedReviewer = actor(SEED_IDS.admin, ["approval_review"]);
+    const grantedReviewer = actor(SEED_IDS.staffB, ["approval_review"]);
     await approveRevision(db, grantedReviewer, {
       approvalId: approval.id,
       expectedWorkflowVersion: 1,
@@ -902,7 +947,7 @@ describe("outbound approval workflow integration", () => {
     const revision = await createRevisionFromDraft(db, staffActor, draft);
     await submitRevisionForApproval(db, staffActor, { revisionId: revision.id });
 
-    const accountMgmtReviewer = actor(SEED_IDS.admin, ["account_mgmt"]);
+    const accountMgmtReviewer = actor(SEED_IDS.staffB, ["account_mgmt"]);
     await assert.rejects(
       () => listApprovalsForReviewer(db, accountMgmtReviewer),
       (error: unknown) =>
