@@ -29,7 +29,7 @@ import {
 import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-eligibility";
 import { assertOrdinaryEmailAttachmentAggregateWithinLimit } from "@/lib/mail/outbound-provider-size-preflight";
 import { assertRevisionHasNoLargeAttachmentsPendingGateway } from "@/lib/mail/large-attachment/large-attachment-provider-send-guard";
-import { assertEffectiveMailAccess, assertMailAccessEnabled } from "@/lib/permissions/mail";
+import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
 
 export type OutboundSendPreflightInput = {
   db: Database;
@@ -130,7 +130,7 @@ async function assertStaffAuthorSendAuthority(
     revision.createdByUserId,
     audit,
   );
-  assertMailAccessEnabled(staffAuthor);
+  assertEffectiveMailAccess(staffAuthor);
   await assertCanComposeFromIdentityInMailbox(db, staffAuthor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,
@@ -148,7 +148,7 @@ async function assertAdminDirectSendAuthority(
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   await assertCanComposeFromIdentityInMailbox(db, actor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,

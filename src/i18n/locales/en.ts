@@ -1164,6 +1164,25 @@ const en = {
         "Your Mail access has been disabled by an administrator. You can no longer use CRM Mail. Please contact your administrator.\n\nYour work mailbox and mail history are retained.",
       backToDashboard: "Back to dashboard",
     },
+    onboarding: {
+      title: "Complete Mail security setup",
+      description:
+        "An administrator has enabled CRM Mail for you.\nSet up and verify a notification mailbox before using Mail.",
+      configure: "Set up notification mailbox",
+      explanation:
+        "Your notification mailbox is used only for security verification and related notifications.\nIt does not replace your company work mailbox.",
+      pendingTitle: "Verify your notification mailbox",
+      pendingDescription: "Verify your notification mailbox to use CRM Mail.",
+      continueVerification: "Continue verification",
+    },
+    accessState: {
+      identityRevokedTitle: "Notification identity revoked",
+      identityRevokedDescription:
+        "Your notification identity was revoked. Set up and verify a new notification mailbox before using CRM Mail.",
+      mailboxArchivedTitle: "Work mailbox archived",
+      mailboxArchivedDescription:
+        "Your work mailbox has been archived, so CRM Mail is unavailable. Please contact an administrator.",
+    },
     adminOnlyShell: {
       title: "Mail administration",
       description:

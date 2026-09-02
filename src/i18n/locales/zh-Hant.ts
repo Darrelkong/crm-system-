@@ -1113,6 +1113,25 @@ const zhHant: Messages = {
         "您的 Mail 存取權限已由管理員停用。\n您目前無法繼續使用 CRM Mail，請聯繫管理員。\n\n工作郵箱及歷史郵件仍會保留。",
       backToDashboard: "返回儀表盤",
     },
+    onboarding: {
+      title: "完成 Mail 安全設定",
+      description:
+        "管理員已為您開通 CRM Mail。\n使用 Mail 前，請先設定並驗證通知郵箱。",
+      configure: "設定通知郵箱",
+      explanation:
+        "通知郵箱僅用於安全驗證及相關通知，\n不會取代您的公司工作郵箱。",
+      pendingTitle: "完成通知郵箱驗證",
+      pendingDescription: "驗證通知郵箱後即可使用 CRM Mail。",
+      continueVerification: "繼續驗證",
+    },
+    accessState: {
+      identityRevokedTitle: "通知身份已撤銷",
+      identityRevokedDescription:
+        "您的通知身份已被撤銷。請重新設定並驗證通知郵箱後再使用 CRM Mail。",
+      mailboxArchivedTitle: "工作郵箱已封存",
+      mailboxArchivedDescription:
+        "您的工作郵箱已被封存，因此目前無法使用 CRM Mail。請聯繫管理員。",
+    },
     adminOnlyShell: {
       title: "Mail 管理",
       description:

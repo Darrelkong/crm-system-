@@ -128,6 +128,36 @@ function buildMailboxMemberAuditInsert(
   );
 }
 
+function buildMailAccessAuditInsert(
+  db: Database,
+  actor: MailActorContext,
+  input: {
+    auditId: string;
+    now: string;
+    userId: string;
+  },
+) {
+  return buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        ${input.auditId} AS id,
+        ${actor.userId} AS user_id,
+        ${MAIL_AUDIT_ACTIONS.accessEnabled} AS action,
+        ${"mail_user_access"} AS entity_type,
+        ${input.userId} AS entity_id,
+        ${actor.audit.ipAddress ?? null} AS ip_address,
+        ${actor.audit.userAgent ?? null} AS user_agent,
+        ${JSON.stringify({
+          targetUserId: input.userId,
+          provisionedByMailboxAssignment: true,
+          actorUserId: actor.userId,
+        })} AS metadata,
+        ${input.now} AS created_at
+    `,
+  );
+}
+
 async function resolvePersonalMailboxOwnerUserId(
   db: Database,
   ownerUserId: string,
@@ -208,6 +238,20 @@ export async function createMailbox(
 
   const normalizedAddress = assertValidEchfrontMailAddress(input.address);
   const mailboxOwnerUserId = await resolveMailboxOwnerUserId(db, actor, input);
+  const [mailboxOwner] = await db
+    .select({ role: schema.users.role })
+    .from(schema.users)
+    .where(eq(schema.users.id, mailboxOwnerUserId))
+    .limit(1);
+  const shouldProvisionMailAccess =
+    input.mailboxType === "personal" && mailboxOwner?.role === "staff";
+  const [existingMailAccess] = shouldProvisionMailAccess
+    ? await db
+        .select()
+        .from(schema.mailUserAccess)
+        .where(eq(schema.mailUserAccess.userId, mailboxOwnerUserId))
+        .limit(1)
+    : [];
 
   const now = new Date().toISOString();
   const mailboxId = crypto.randomUUID();
@@ -218,6 +262,9 @@ export async function createMailbox(
       ? crypto.randomUUID()
       : null;
   const ownerMembershipAuditId = ownerMembershipId ? crypto.randomUUID() : null;
+  const mailAccessAuditId = shouldProvisionMailAccess
+    ? crypto.randomUUID()
+    : null;
 
   try {
     const statements: Parameters<typeof runMailBatch>[1] = [
@@ -266,6 +313,37 @@ export async function createMailbox(
           now,
           memberId: ownerMembershipId,
           mailboxId,
+          userId: mailboxOwnerUserId,
+        }),
+      );
+    }
+
+    if (shouldProvisionMailAccess) {
+      statements.push(
+        existingMailAccess
+          ? db
+              .update(schema.mailUserAccess)
+              .set({
+                isEnabled: 1,
+                enabledAt: now,
+                enabledBy: actor.userId,
+                disabledAt: null,
+                updatedAt: now,
+              })
+              .where(eq(schema.mailUserAccess.userId, mailboxOwnerUserId))
+          : db.insert(schema.mailUserAccess).values({
+              userId: mailboxOwnerUserId,
+              isEnabled: 1,
+              enabledAt: now,
+              enabledBy: actor.userId,
+              createdAt: now,
+              updatedAt: now,
+            }),
+      );
+      statements.push(
+        buildMailAccessAuditInsert(db, actor, {
+          auditId: mailAccessAuditId!,
+          now,
           userId: mailboxOwnerUserId,
         }),
       );

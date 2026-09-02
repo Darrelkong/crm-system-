@@ -19,7 +19,7 @@ describe("MailSessionProvider access revalidation wiring", () => {
     const source = read("src/lib/mail/client/mail-session-provider.tsx");
     assert.match(source, /setSession\(null\)/);
     assert.match(source, /clearComposeContextCacheForActor/);
-    assert.match(source, /!session\.mailAccessEnabled/);
+    assert.match(source, /!session\.effectiveMailAccessEnabled/);
   });
 
   it("clears the production workspace when access is disabled", () => {
@@ -28,6 +28,7 @@ describe("MailSessionProvider access revalidation wiring", () => {
     );
     const workspace = read("src/lib/mail/client/mail-workspace-context.tsx");
     assert.match(boundary, /workspace\.clearSensitiveState\(\)/);
+    assert.match(boundary, /trackerRef\.current\.reset\(\)/);
     assert.match(workspace, /MAIL_ACCESS_DISABLED_EVENT/);
     assert.match(workspace, /state = \{ \.\.\.INITIAL_MAIL_WORKSPACE_STATE \}/);
   });

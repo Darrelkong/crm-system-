@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import type { MailUserAccess } from "../../../drizzle/schema/mail-user-access";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
@@ -162,11 +162,6 @@ export async function enableMailAccess(
     db,
     targetUserId,
   );
-  if (!verifiedIdentity) {
-    throw MailServiceError.conflict(
-      "Verified notification identity is required before enabling Mail access",
-    );
-  }
 
   const now = new Date().toISOString();
   const auditId = crypto.randomUUID();
@@ -191,7 +186,7 @@ export async function enableMailAccess(
           targetUserId,
           metadata: {
             targetUserId,
-            notificationIdentityId: verifiedIdentity.id,
+            notificationIdentityId: verifiedIdentity?.id ?? null,
             actorUserId: actor.userId,
           },
         }),
@@ -212,7 +207,7 @@ export async function enableMailAccess(
           targetUserId,
           metadata: {
             targetUserId,
-            notificationIdentityId: verifiedIdentity.id,
+            notificationIdentityId: verifiedIdentity?.id ?? null,
             actorUserId: actor.userId,
           },
         }),

@@ -20,7 +20,6 @@ import {
   buildRfcIdentityGuardedInsert,
   buildSendPostStateGuardedAuditInsert,
   buildTransportAttemptGuardedInsert,
-  isMailPostStateGuardError,
   runMailBatch,
   type SendPostStateGuard,
 } from "@/lib/mail/guarded-batch";
@@ -53,7 +52,7 @@ import type {
   NormalizedOutboundSubmission,
 } from "@/lib/mail/transport/mail-transport-adapter";
 import {
-  assertMailAccessEnabled,
+  assertEffectiveMailAccess,
   assertMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
 import {
@@ -207,7 +206,7 @@ async function assertStaffAuthorSendAuthority(
     revision.createdByUserId,
     audit,
   );
-  assertMailAccessEnabled(staffAuthor);
+  assertEffectiveMailAccess(staffAuthor);
   await assertCanComposeFromIdentityInMailbox(db, staffAuthor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,
@@ -222,7 +221,7 @@ async function assertAdminDirectSendAuthority(
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden("CRM admin role required for admin_direct send");
   }
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   await assertCanComposeFromIdentityInMailbox(db, actor, {
     senderIdentityId: revision.senderIdentityId,
     mailboxId: revision.mailboxId,
@@ -514,7 +513,7 @@ export async function getSendOperationForApproval(
     throw MailServiceError.notFound("Approval workflow not found");
   }
   if (approval.requestedByUserId === actor.userId) {
-    assertMailAccessEnabled(actor);
+    assertEffectiveMailAccess(actor);
   } else {
     assertMailOutboundApprovalReview(actor);
   }
@@ -603,7 +602,7 @@ export async function getSendOperation(
   actor: MailActorContext,
   sendOperationId: string,
 ): Promise<SafeSendOperationView> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   return loadSafeSendOperationView(db, sendOperationId);
 }
 
@@ -1221,7 +1220,7 @@ export async function dispatchSendOperation(
       throw MailServiceError.notFound("Send operation not found");
     }
     if (send.authorizationMode === "admin_direct") {
-      assertMailAccessEnabled(actor);
+      assertEffectiveMailAccess(actor);
       if (actor.crmRole !== "admin") {
         throw MailServiceError.forbidden(
           "CRM admin role required to dispatch admin_direct send",

@@ -215,45 +215,36 @@ describe("mail access API paths", () => {
 describe("resolveMailAccessEnablePreCheck", () => {
   const disabledRow = buildMailAccessUserRows(USERS, ACCESS_ITEMS)[1]!;
 
-  it("returns missing identity feedback when verified identity is absent", () => {
+  it("does not block Mail Access enablement on notification identity", () => {
     assert.deepEqual(
       resolveMailAccessEnablePreCheck({
         row: disabledRow,
         selfUserId: "user-b",
         canConfigureNotificationIdentity: true,
       }),
-      {
-        kind: "missingIdentity",
-        showConfigureAction: true,
-      },
+      null,
     );
   });
 
-  it("hides configure action for other users without verified identity", () => {
+  it("does not require identity management permission for enablement", () => {
     assert.deepEqual(
       resolveMailAccessEnablePreCheck({
         row: disabledRow,
         selfUserId: "user-a",
         canConfigureNotificationIdentity: true,
       }),
-      {
-        kind: "missingIdentity",
-        showConfigureAction: true,
-      },
+      null,
     );
   });
 
-  it("hides configure action when notification identity management is unavailable", () => {
+  it("still permits enablement when identity management is unavailable", () => {
     assert.deepEqual(
       resolveMailAccessEnablePreCheck({
         row: disabledRow,
         selfUserId: "user-a",
         canConfigureNotificationIdentity: false,
       }),
-      {
-        kind: "missingIdentity",
-        showConfigureAction: false,
-      },
+      null,
     );
   });
 
@@ -413,7 +404,7 @@ describe("isMissingVerifiedNotificationIdentityError", () => {
 });
 
 describe("resolveMailAccessOnboardingAction", () => {
-  it("guides admins to configure notification email before enable", () => {
+  it("allows admins to enable access before notification setup", () => {
     const row = buildMailAccessUserRows(
       [
         {
@@ -426,11 +417,11 @@ describe("resolveMailAccessOnboardingAction", () => {
       [],
     )[0]!;
     assert.deepEqual(resolveMailAccessOnboardingAction(row, true), {
-      kind: "configureNotificationEmail",
+      kind: "enableMail",
     });
   });
 
-  it("shows enable only after verified notification identity exists", () => {
+  it("shows enable when a verified notification identity exists", () => {
     const identities = new Map<string, NotificationIdentityApiItem[]>([
       [
         "staff-1",
@@ -477,7 +468,7 @@ describe("resolveMailAccessOnboardingAction", () => {
 });
 
 describe("mail access management onboarding wiring", () => {
-  it("guides users to notification identity setup from enable flow", () => {
+  it("links notification identity work to the canonical management section", () => {
     const source = readFileSync(
       "src/components/mail/admin/mail-access-management.tsx",
       "utf8",
@@ -486,7 +477,7 @@ describe("mail access management onboarding wiring", () => {
     assert.match(source, /resolveMailAccessEnableApiFeedback/);
     assert.match(source, /notificationIdentityRequired/);
     assert.match(source, /configureNotificationEmail/);
-    assert.match(source, /TargetUserNotificationIdentityPanel/);
-    assert.match(source, /MailAccessEnableFeedbackPanel/);
+    assert.match(source, /useMailAdminCenterNavigation/);
+    assert.match(source, /navigateToSection\("notificationIdentity"\)/);
   });
 });

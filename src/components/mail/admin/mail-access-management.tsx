@@ -41,7 +41,7 @@ import {
   type NotificationIdentityApiItem,
 } from "@/lib/mail/client/notification-identity-management";
 import { formatHongKongDateTime } from "@/lib/timezone";
-import { TargetUserNotificationIdentityPanel } from "./target-user-notification-identity-panel";
+import { useMailAdminCenterNavigation } from "@/lib/mail/client/mail-admin-center-navigation";
 import {
   MailAdminEmptyState,
   MailAdminErrorState,
@@ -196,15 +196,28 @@ function MailAccessRowActions({
     action.kind === "disableMail" ? "danger" : "secondary";
 
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant={variant}
-      disabled={pending}
-      onClick={() => onAction(row.userId, action.kind)}
-    >
-      {t(labelKey)}
-    </Button>
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <Button
+        type="button"
+        size="sm"
+        variant={variant}
+        disabled={pending}
+        onClick={() => onAction(row.userId, action.kind)}
+      >
+        {t(labelKey)}
+      </Button>
+      {action.kind !== "manageNotificationEmail" ? (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={pending}
+          onClick={() => onAction(row.userId, "manageNotificationEmail")}
+        >
+          {t("mail.adminCenter.access.actions.manageNotificationEmail")}
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -270,12 +283,10 @@ export function MailAccessManagement() {
   );
   const [disableMessage, setDisableMessage] = useState<string | null>(null);
   const [pendingUserId, setPendingUserId] = useState<string | null>(null);
-  const [notificationPanelUserId, setNotificationPanelUserId] = useState<string | null>(
-    null,
-  );
   const [feedbackTargetUserId, setFeedbackTargetUserId] = useState<string | null>(
     null,
   );
+  const { navigateToSection } = useMailAdminCenterNavigation();
 
   const load = useCallback(async ({ background = false }: { background?: boolean } = {}) => {
     if (!canManage) {
@@ -364,14 +375,9 @@ export function MailAccessManagement() {
   }, [load]);
 
   const pending = pendingUserId !== null;
-  const notificationPanelRow = useMemo(
-    () => rows.find((row) => row.userId === notificationPanelUserId) ?? null,
-    [notificationPanelUserId, rows],
-  );
-
   function openNotificationPanel(userId: string) {
-    setNotificationPanelUserId(userId);
     setFeedbackTargetUserId(userId);
+    navigateToSection("notificationIdentity");
   }
 
   async function handleEnable(userId: string) {
@@ -597,14 +603,6 @@ export function MailAccessManagement() {
         </>
       )}
 
-      <TargetUserNotificationIdentityPanel
-        open={notificationPanelUserId != null}
-        targetUserId={notificationPanelUserId}
-        targetUserName={notificationPanelRow?.name ?? ""}
-        targetUserEmail={notificationPanelRow?.email ?? ""}
-        onClose={() => setNotificationPanelUserId(null)}
-        onUpdated={() => void load({ background: true })}
-      />
     </div>
   );
 }

@@ -39,7 +39,6 @@ import {
 } from "@/lib/mail/outbound-recipient-validation";
 import {
   assertEffectiveMailAccess,
-  assertMailAccessEnabled,
   hasEffectiveGlobalMailRead,
 } from "@/lib/permissions/mail";
 import { assertCanReadMailbox } from "@/lib/mail/message-read-permissions";
@@ -135,7 +134,7 @@ export async function requireAuthorDraft(
   actor: MailActorContext,
   draftId: string,
 ): Promise<MailDraft> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   const draft = await findDraftById(db, draftId);
   if (!draft || draft.discardedAt) {
     throw MailServiceError.notFound("Draft not found");
@@ -298,7 +297,7 @@ export async function listDrafts(
     );
   }
 
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
 
   const rows = await db
     .select()
@@ -342,7 +341,7 @@ export async function getDraft(
     return loadDraftDetail(db, draft, author);
   }
 
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   const user = await resolveActorUser(actor);
   return loadDraftDetail(db, draft, user);
 }
@@ -469,7 +468,7 @@ export async function createDraft(
     allowEmptyShell?: boolean;
   },
 ): Promise<CreateDraftResult> {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   if (input.composeMode && input.composeMode !== "new") {
     throw MailServiceError.validation(
       "Only new compose mode is supported in this phase",

@@ -142,10 +142,10 @@ export function MailSessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!session?.user.id) {
       clearComposeContextCacheOnSessionEnd();
-    } else if (!session.mailAccessEnabled) {
+    } else if (!session.effectiveMailAccessEnabled) {
       clearComposeContextCacheForActor(session.user.id);
     }
-  }, [session?.mailAccessEnabled, session?.user.id]);
+  }, [session?.effectiveMailAccessEnabled, session?.user.id]);
 
   const capabilities = session?.capabilities ?? DISABLED_CAPABILITIES;
   const effectiveMailAccessEnabled =

@@ -152,19 +152,7 @@ export function resolveMailAccessOnboardingAction(
   if (row.isEnabled) {
     return { kind: "disableMail" };
   }
-  if (row.notificationIdentityStatus === "none") {
-    return { kind: "configureNotificationEmail" };
-  }
-  if (
-    row.notificationIdentityStatus === "pending" ||
-    row.notificationIdentityStatus === "replacement_pending"
-  ) {
-    return { kind: "completeVerification" };
-  }
-  if (row.hasVerifiedNotificationIdentity) {
-    return { kind: "enableMail" };
-  }
-  return { kind: "none" };
+  return { kind: "enableMail" };
 }
 
 export function buildMailAccessUserRows(
@@ -251,13 +239,8 @@ export function resolveMailAccessEnablePreCheck(input: {
   selfUserId: string | null;
   canConfigureNotificationIdentity: boolean;
 }): MailAccessEnableFeedback | null {
-  if (input.row.hasVerifiedNotificationIdentity) {
-    return null;
-  }
-  return {
-    kind: "missingIdentity",
-    showConfigureAction: input.canConfigureNotificationIdentity,
-  };
+  void input;
+  return null;
 }
 
 export function resolveMailAccessEnableApiFeedback(input: {

@@ -245,7 +245,7 @@ describe("mail access + notification identity integration", () => {
     }
   });
 
-  it("rejects enable without verified notification identity", async () => {
+  it("enables Mail before notification identity verification for onboarding", async () => {
     await cleanupFixtures(db);
     await prepareMailAccess(db, permissionActor, TARGET_USER);
     const pending = await createPendingNotificationIdentity(db, permissionActor, {
@@ -254,11 +254,9 @@ describe("mail access + notification identity integration", () => {
     });
     assert.equal(pending.verificationStatus, "pending");
 
-    await assert.rejects(
-      () => enableMailAccess(db, permissionActor, TARGET_USER),
-      (error: unknown) =>
-        error instanceof MailServiceError && error.errorCode === "CONFLICT",
-    );
+    const enabled = await enableMailAccess(db, permissionActor, TARGET_USER);
+    assert.equal(enabled.isEnabled, 1);
+    assert.equal(enabled.hasVerifiedNotificationIdentity, false);
 
     await cleanupFixtures(db);
   });

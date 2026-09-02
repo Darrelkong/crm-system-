@@ -276,6 +276,11 @@ describe("buildMailSessionContext", () => {
       },
       mailAccessEnabled: true,
       effectiveMailAccessEnabled: true,
+      mailboxState: "none",
+      notificationIdentityState: "missing",
+      effectiveState: "READY",
+      canUseMailbox: true,
+      canUseMailAdmin: true,
       effectiveGlobalMailRead: false,
       isCrmRootAdmin: false,
       capabilities: buildMailAdminCenterCapabilities(

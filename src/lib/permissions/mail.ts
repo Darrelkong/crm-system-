@@ -138,7 +138,10 @@ export function assertEnabledMailUserAccess(actor: MailActorContext): void {
 
 /** Effective Mail workspace / data-plane entry (root admin OR provisioned access). */
 export function hasEffectiveMailAccess(actor: MailActorContext): boolean {
-  return isCrmRootAdmin(actor) || actor.mailAccessEnabled;
+  return (
+    actor.effectiveMailAccess?.canUseMailbox ??
+    (isCrmRootAdmin(actor) || actor.mailAccessEnabled)
+  );
 }
 
 export type PersonalMailboxOwnerEligibilityInput = {

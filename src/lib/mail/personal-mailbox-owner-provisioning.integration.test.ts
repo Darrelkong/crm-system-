@@ -9,13 +9,17 @@ import { handleGetAccessibleMailboxes } from "@/app/api/mail/mailboxes/accessibl
 import { makeRequireMailActor } from "@/app/api/mail/mail-read-route-test-helpers";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
-import type { MailActorContext } from "@/lib/mail/actor-context";
+import {
+  resolveMailActorContext,
+  type MailActorContext,
+} from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { listComposeContextOptions } from "@/lib/mail/compose-context-service";
 import { MailServiceError } from "@/lib/mail/errors";
 import { listAccessibleMailboxes } from "@/lib/mail/mail-read-mailbox-service";
 import { createMailbox } from "@/lib/mail/mailbox-service";
 import { grantMailboxMember } from "@/lib/mail/mailbox-member-service";
+import { resolveEffectiveStateFromSnapshot } from "@/lib/mail/effective-mail-access-state";
 import type { MailAdminPermission } from "../../../drizzle/schema/mail-admin-grants";
 
 const FIXTURE = "personal-mailbox-owner";
@@ -35,6 +39,7 @@ function actor(
     crmRole?: "admin" | "staff";
     mailAccessEnabled?: boolean;
     adminGrants?: MailAdminPermission[];
+    effectiveMailAccess?: MailActorContext["effectiveMailAccess"];
   } = {},
 ): MailActorContext {
   return {
@@ -43,6 +48,7 @@ function actor(
     crmRole:
       options.crmRole ?? (userId === SEED_IDS.admin ? "admin" : "staff"),
     mailAccessEnabled: options.mailAccessEnabled ?? true,
+    effectiveMailAccess: options.effectiveMailAccess,
     adminGrants: options.adminGrants ?? [],
     audit: { ipAddress: "127.0.0.1", userAgent: "personal-mailbox-owner-test" },
   };
@@ -361,7 +367,7 @@ describe("personal mailbox owner provisioning", () => {
     );
   });
 
-  it("allows active staff without Mail User Access and does not provision Mail", async () => {
+  it("provisions Mail User Access for an active personal mailbox owner", async () => {
     const unprovisionedUserId = randomUUID();
     const now = new Date().toISOString();
     await db.insert(schema.users).values({
@@ -390,7 +396,18 @@ describe("personal mailbox owner provisioning", () => {
         .select()
         .from(schema.mailUserAccess)
         .where(eq(schema.mailUserAccess.userId, unprovisionedUserId));
-      assert.equal(mailAccess, undefined);
+      assert.equal(mailAccess?.isEnabled, 1);
+      const [owner] = await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, unprovisionedUserId))
+        .limit(1);
+      assert.ok(owner);
+      const resolvedActor = await resolveMailActorContext(owner, { db });
+      assert.equal(
+        resolvedActor.effectiveMailAccess?.effectiveState,
+        "MAILBOX_ASSIGNED_NOTIFICATION_MISSING",
+      );
 
       const senderIdentities = await db
         .select()
@@ -416,7 +433,15 @@ describe("personal mailbox owner provisioning", () => {
         () =>
           listComposeContextOptions(
             db,
-            actor(unprovisionedUserId, { mailAccessEnabled: false }),
+            actor(unprovisionedUserId, {
+              mailAccessEnabled: true,
+              effectiveMailAccess: resolveEffectiveStateFromSnapshot({
+                userRole: "staff",
+                mailboxState: "active",
+                mailAccessEnabled: true,
+                notificationIdentityState: "missing",
+              }),
+            }),
           ),
         (error: unknown) =>
           error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
@@ -426,7 +451,15 @@ describe("personal mailbox owner provisioning", () => {
         () =>
           listAccessibleMailboxes(
             db,
-            actor(unprovisionedUserId, { mailAccessEnabled: false }),
+            actor(unprovisionedUserId, {
+              mailAccessEnabled: true,
+              effectiveMailAccess: resolveEffectiveStateFromSnapshot({
+                userRole: "staff",
+                mailboxState: "active",
+                mailAccessEnabled: true,
+                notificationIdentityState: "missing",
+              }),
+            }),
           ),
         (error: unknown) =>
           error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
@@ -457,6 +490,9 @@ describe("personal mailbox owner provisioning", () => {
       await db
         .delete(schema.mailMailboxes)
         .where(eq(schema.mailMailboxes.createdBy, unprovisionedUserId));
+      await db
+        .delete(schema.mailUserAccess)
+        .where(eq(schema.mailUserAccess.userId, unprovisionedUserId));
       await db.delete(schema.users).where(eq(schema.users.id, unprovisionedUserId));
     }
   });

@@ -1113,6 +1113,25 @@ const zhHans: Messages = {
         "您的 Mail 访问权限已由管理员停用。\n您目前无法继续使用 CRM Mail，请联系管理员。\n\n工作邮箱及历史邮件仍会保留。",
       backToDashboard: "返回仪表盘",
     },
+    onboarding: {
+      title: "完成 Mail 安全设置",
+      description:
+        "管理员已为您开通 CRM Mail。\n使用 Mail 前，请先设置并验证通知邮箱。",
+      configure: "设置通知邮箱",
+      explanation:
+        "通知邮箱仅用于安全验证及相关通知，\n不会取代您的公司工作邮箱。",
+      pendingTitle: "完成通知邮箱验证",
+      pendingDescription: "验证通知邮箱后即可使用 CRM Mail。",
+      continueVerification: "继续验证",
+    },
+    accessState: {
+      identityRevokedTitle: "通知身份已撤销",
+      identityRevokedDescription:
+        "您的通知身份已被撤销。请重新设置并验证通知邮箱后再使用 CRM Mail。",
+      mailboxArchivedTitle: "工作邮箱已归档",
+      mailboxArchivedDescription:
+        "您的工作邮箱已被归档，因此目前无法使用 CRM Mail。请联系管理员。",
+    },
     adminOnlyShell: {
       title: "Mail 管理",
       description:

@@ -22,6 +22,7 @@ import type { MockComposeDraft } from "@/lib/mail/prototype/state";
 import { MailNoAccessState } from "./mail-no-access-state";
 import { MailAdminOnlyShell } from "./mail-admin-only-shell";
 import { MailProductionNoMailboxesState } from "./mail-production-no-mailboxes-state";
+import { MailStaffAccessState } from "./mail-staff-access-state";
 import { MailDebugControls } from "./mail-debug-controls";
 import { MailDesktopWorkspace } from "./mail-desktop-workspace";
 import { prefetchComposeContext } from "@/lib/mail/client/compose-context-cache";
@@ -388,7 +389,7 @@ export function MailPrototypeShell({
     );
   }
 
-  if (sessionError) {
+  if (sessionError && !session) {
     return (
       <div className="flex min-h-[calc(100dvh-4.5rem)] flex-col items-center justify-center px-6 py-16 text-center">
         <p className="max-w-sm text-sm crm-text-secondary">{sessionError}</p>
@@ -400,6 +401,31 @@ export function MailPrototypeShell({
         >
           {t("mail.adminCenter.retry")}
         </Button>
+      </div>
+    );
+  }
+
+  if (
+    session &&
+    !session.isCrmRootAdmin &&
+    session.effectiveState !== "READY"
+  ) {
+    if (session.effectiveState === "NO_MAILBOX") {
+      return (
+        <div className="min-w-0 px-4 py-3 sm:px-6">
+          <MailProductionNoMailboxesState />
+          <MailDebugControls />
+        </div>
+      );
+    }
+    return (
+      <div className="min-w-0 px-4 py-3 sm:px-6">
+        <MailStaffAccessState
+          state={session.effectiveState}
+          dashboardHref={dashboardHref}
+          onConfigureNotification={() => setNotificationMailboxOpen(true)}
+        />
+        <MailDebugControls />
       </div>
     );
   }
@@ -565,6 +591,7 @@ export function MailPrototypeShell({
       <NotificationMailboxSelfServiceModal
         open={notificationMailboxOpen}
         onClose={() => setNotificationMailboxOpen(false)}
+        onUpdated={() => void refreshMailSession({ background: true })}
       />
     </div>
   );

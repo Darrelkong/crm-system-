@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
 import type { MailRevisionKind } from "../../../drizzle/schema/mail-outbound-revisions";
 import { schema, type Database } from "@/lib/db";
@@ -31,7 +31,6 @@ import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/l
 import { materializeSignatureSnapshotForRevision } from "@/lib/mail/signature-snapshot-service";
 import {
   assertEffectiveMailAccess,
-  assertMailAccessEnabled,
   hasMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
 import { MAIL_SECURE_EXPIRY_DAYS } from "../../../drizzle/schema/mail-draft-attachments";
@@ -236,7 +235,7 @@ export async function recomputeOutboundRevisionContentHash(
 }
 
 function assertCrmAdminForAdminDirectRevision(actor: MailActorContext): void {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   if (actor.crmRole !== "admin") {
     throw MailServiceError.forbidden(
       "CRM admin role required for admin-direct revision",
@@ -541,7 +540,7 @@ export async function createOutboundRevisionFromDraft(
   actor: MailActorContext,
   input: { draftId: string; expectedAutosaveVersion: number },
 ) {
-  assertMailAccessEnabled(actor);
+  assertEffectiveMailAccess(actor);
   return createImmutableRevisionFromDraftGraph(
     db,
     actor,

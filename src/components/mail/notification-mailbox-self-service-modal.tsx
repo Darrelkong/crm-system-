@@ -8,9 +8,11 @@ import { NotificationIdentityControlView } from "./admin/notification-identity-c
 export function NotificationMailboxSelfServiceModal({
   open,
   onClose,
+  onUpdated,
 }: {
   open: boolean;
   onClose: () => void;
+  onUpdated?: () => void;
 }) {
   const { t } = useTranslation();
   const { session } = useMailSession();
@@ -37,6 +39,7 @@ export function NotificationMailboxSelfServiceModal({
               targetUserId={user.id}
               targetUserName={user.name}
               targetUserEmail={user.email}
+              onUpdated={onUpdated}
             />
             <div className="flex justify-end">
               <button

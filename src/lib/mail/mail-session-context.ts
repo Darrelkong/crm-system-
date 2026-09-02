@@ -9,6 +9,11 @@ import {
   hasMailDeliveryHealth,
   isCrmRootAdmin,
 } from "@/lib/permissions/mail";
+import type {
+  MailEffectiveAccessState,
+  MailboxAssignmentState,
+  NotificationIdentityState,
+} from "@/lib/mail/effective-mail-access-state";
 
 /** UI section gates for Mail Admin Center (Phase 2D-1). */
 export type MailAdminCenterCapabilities = {
@@ -37,6 +42,11 @@ export type MailSessionContext = {
   mailAccessEnabled: boolean;
   /** Runtime workspace/data-plane access (root admin OR provisioned). */
   effectiveMailAccessEnabled: boolean;
+  mailboxState: MailboxAssignmentState;
+  notificationIdentityState: NotificationIdentityState;
+  effectiveState: MailEffectiveAccessState;
+  canUseMailbox: boolean;
+  canUseMailAdmin: boolean;
   /** Runtime global supervision read (root admin OR explicit global_mail_read). */
   effectiveGlobalMailRead: boolean;
   isCrmRootAdmin: boolean;
@@ -152,7 +162,23 @@ export function buildMailSessionContext(
       name: user.displayName,
     },
     mailAccessEnabled: actor.mailAccessEnabled,
-    effectiveMailAccessEnabled: hasEffectiveMailAccess(actor),
+    effectiveMailAccessEnabled:
+      actor.effectiveMailAccess?.canUseMailbox ??
+      hasEffectiveMailAccess(actor),
+    mailboxState: actor.effectiveMailAccess?.mailboxState ?? "none",
+    notificationIdentityState:
+      actor.effectiveMailAccess?.notificationIdentityState ?? "missing",
+    effectiveState:
+      actor.effectiveMailAccess?.effectiveState ??
+      (actor.mailAccessEnabled
+        ? "READY"
+        : "ADMIN_DISABLED"),
+    canUseMailbox:
+      actor.effectiveMailAccess?.canUseMailbox ??
+      hasEffectiveMailAccess(actor),
+    canUseMailAdmin:
+      actor.effectiveMailAccess?.canUseMailAdmin === true ||
+      capabilities.canAccessMailAdminCenter,
     effectiveGlobalMailRead: hasEffectiveGlobalMailRead(actor),
     isCrmRootAdmin: isCrmRootAdmin(actor),
     capabilities,
