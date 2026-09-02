@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { getPlatformProxy } from "wrangler";
 import { bindTestDatabase, schema } from "@/lib/db";
@@ -256,6 +256,7 @@ async function setupStaffMailbox(db: TestDb) {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address,
@@ -267,20 +268,15 @@ async function setupStaffMailbox(db: TestDb) {
     canSend: true,
   });
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
   return { mailbox, identity };
 }
 

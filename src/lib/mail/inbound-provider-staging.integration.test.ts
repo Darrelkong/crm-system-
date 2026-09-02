@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { computeInboundPayloadContentHash } from "@/lib/mail/inbound-payload-hash";
@@ -56,11 +56,23 @@ async function cleanupFixtures(db: TestDb) {
   await db.delete(schema.mailInboundMessageMaterializations);
   await db.delete(schema.mailInboundIngestionEvents);
   await db.delete(schema.mailProviderIngestionEvents);
+  await db.delete(schema.mailOutboundMessageMaterializations);
   await db.delete(schema.mailDeliveryEventMaterializations);
   await db.delete(schema.mailDeliveryIngestionEvents);
   await db.delete(schema.mailDeliveryEvents);
+  await db.delete(schema.mailMessageReadStates);
   await db.delete(schema.mailMessageAttachments);
+  await db.delete(schema.mailMessageRecipients);
   await db.delete(schema.mailMessageBodies);
+  await db
+    .update(schema.mailDrafts)
+    .set({ replyToMessageId: null });
+  await db
+    .update(schema.mailOutboundRevisions)
+    .set({ replyToMessageId: null });
+  await db
+    .update(schema.mailMessages)
+    .set({ replyToMessageId: null });
   await db.delete(schema.mailMessages);
   await db.delete(schema.mailCompanyConfig);
   await db
@@ -144,6 +156,32 @@ async function assertNoCanonicalArtifacts(db: TestDb) {
   assert.equal(deliveryMat.length, 0);
 }
 
+function logActiveResourceTypes(label: string): void {
+  const diagnosticProcess = process as typeof process & {
+    _getActiveHandles?: () => unknown[];
+    _getActiveRequests?: () => unknown[];
+  };
+  const handles = diagnosticProcess._getActiveHandles?.() ?? [];
+  const requests = diagnosticProcess._getActiveRequests?.() ?? [];
+  const typeCounts = new Map<string, number>();
+  for (const resource of handles) {
+    const type =
+      resource && typeof resource === "object" && "constructor" in resource
+        ? String(
+            (resource as { constructor?: { name?: string } }).constructor?.name ??
+              "unknown",
+          )
+        : typeof resource;
+    typeCounts.set(type, (typeCounts.get(type) ?? 0) + 1);
+  }
+  console.error(
+    `[mail-d1-diagnostics] ${label} handles=${JSON.stringify(
+      Object.fromEntries(typeCounts),
+    )} requests=${requests.length}`,
+  );
+}
+
+describe("inbound provider staging", { concurrency: false }, () => {
 describe("inbound provider staging Local D1", () => {
   let db: TestDb;
   let payloadStore: MemoryInboundRawPayloadStore;
@@ -151,7 +189,7 @@ describe("inbound provider staging Local D1", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -162,8 +200,12 @@ describe("inbound provider staging Local D1", () => {
   });
 
   after(async () => {
-    await cleanupFixtures(db);
-    dispose?.();
+    try {
+      await cleanupFixtures(db);
+    } finally {
+      await dispose?.();
+      logActiveResourceTypes("after-local-d1-dispose");
+    }
   });
 
   it("direct: active address + active owner → pending with provenance", async () => {
@@ -677,58 +719,64 @@ describe("inbound provider staging Local D1", () => {
     assert.equal(JSON.stringify(meta).includes("From:"), false);
   });
 });
-
 describe("inbound provider staging Local R2", () => {
   it("byte-for-byte replay from ATTACHMENTS binding", async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{
-      DB: unknown;
-      ATTACHMENTS: import("@/lib/mail/inbound-raw-payload-store").InboundRawPayloadBucket;
-    }>({
-      configPath: "wrangler.jsonc",
-    });
-    const db = drizzle(proxy.env.DB, { schema });
-    bindTestDatabase(db);
-    const r2Store = createInboundRawPayloadStore(proxy.env.ATTACHMENTS);
-    await cleanupFixtures(db);
+    let dispose: (() => void | Promise<void>) | undefined;
+    try {
+      const proxy = await getTestD1PlatformProxy<{
+        DB: unknown;
+        ATTACHMENTS: import("@/lib/mail/inbound-raw-payload-store").InboundRawPayloadBucket;
+      }>({
+        configPath: "wrangler.jsonc",
+      });
+      dispose = proxy.dispose;
+      const db = drizzle(proxy.env.DB, { schema });
+      bindTestDatabase(db);
+      const r2Store = createInboundRawPayloadStore(proxy.env.ATTACHMENTS);
+      await cleanupFixtures(db);
 
-    const mailbox = await createMailbox(db, superAdminActor(), {
-      address: fixtureAddress("r2-mbox"),
-      mailboxType: "shared",
-    });
-    const [ra] = await db
-      .select()
-      .from(schema.mailReceivingAddresses)
-      .where(eq(schema.mailReceivingAddresses.mailboxId, mailbox.id));
+      const mailbox = await createMailbox(db, superAdminActor(), {
+        address: fixtureAddress("r2-mbox"),
+        mailboxType: "shared",
+      });
+      const [ra] = await db
+        .select()
+        .from(schema.mailReceivingAddresses)
+        .where(eq(schema.mailReceivingAddresses.mailboxId, mailbox.id));
 
-    const mime = sampleMime();
-    const staged = await stageInboundProviderEvent(db, r2Store, {
-      provider: PROVIDER,
-      providerEventId: `${FIXTURE}-r2-evt`,
-      receivedAt: RECEIVED_AT,
-      rawPayloadBytes: mime,
-      envelopeRecipients: [ra!.address],
-    });
-    assert.equal(staged.safeToAcknowledgeProvider, true);
+      const mime = sampleMime();
+      const staged = await stageInboundProviderEvent(db, r2Store, {
+        provider: PROVIDER,
+        providerEventId: `${FIXTURE}-r2-evt`,
+        receivedAt: RECEIVED_AT,
+        rawPayloadBytes: mime,
+        envelopeRecipients: [ra!.address],
+      });
+      assert.equal(staged.safeToAcknowledgeProvider, true);
 
-    const [providerRow] = await db
-      .select()
-      .from(schema.mailProviderIngestionEvents)
-      .where(
-        eq(
-          schema.mailProviderIngestionEvents.id,
-          staged.envelopeResults[0]!.ingestionEventId,
-        ),
+      const [providerRow] = await db
+        .select()
+        .from(schema.mailProviderIngestionEvents)
+        .where(
+          eq(
+            schema.mailProviderIngestionEvents.id,
+            staged.envelopeResults[0]!.ingestionEventId,
+          ),
+        );
+      const read = await r2Store.get(providerRow!.payloadStorageKey!);
+      assert.ok(read);
+      assert.equal(Buffer.from(read).compare(Buffer.from(mime)), 0);
+      assert.equal(
+        computeInboundPayloadContentHash(read),
+        providerRow!.payloadContentHash,
       );
-    const read = await r2Store.get(providerRow!.payloadStorageKey!);
-    assert.ok(read);
-    assert.equal(Buffer.from(read).compare(Buffer.from(mime)), 0);
-    assert.equal(
-      computeInboundPayloadContentHash(read),
-      providerRow!.payloadContentHash,
-    );
 
-    await cleanupFixtures(db);
-    proxy.dispose?.();
+      await cleanupFixtures(db);
+    } finally {
+      await dispose?.();
+      logActiveResourceTypes("after-local-r2-dispose");
+    }
   });
+});
 });

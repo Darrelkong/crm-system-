@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { assertCanComposeFromIdentityInMailbox } from "@/lib/mail/compose-authorization";
 import { MailServiceError } from "@/lib/mail/errors";
@@ -211,12 +211,33 @@ async function cleanupFixtures(db: TestDb) {
     .where(like(schema.auditLogs.entityId, `${FIXTURE}%`));
 }
 
-async function setupComposeFixture(db: TestDb) {
+async function setupComposeFixture(
+  db: TestDb,
+  mailboxType: "personal" | "shared" = "personal",
+) {
   const address = fixtureAddress("compose");
-  const mailbox = await createMailbox(db, adminActor, {
-    address,
-    mailboxType: "personal",
-  });
+  const mailbox =
+    mailboxType === "personal"
+      ? await createMailbox(db, adminActor, {
+          address,
+          mailboxType,
+          ownerUserId: SEED_IDS.staffA,
+        })
+      : await createMailbox(db, adminActor, { address, mailboxType });
+  if (mailboxType === "shared") {
+    const now = new Date().toISOString();
+    await db.insert(schema.mailMailboxMembers).values({
+      id: `${FIXTURE}-compose-member`,
+      mailboxId: mailbox.id,
+      userId: SEED_IDS.staffA,
+      canRead: 1,
+      canReply: 1,
+      canSend: 1,
+      grantedBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
+    });
+  }
   const identity = await createSenderIdentity(db, adminActor, {
     address,
     defaultMailboxId: mailbox.id,
@@ -228,20 +249,15 @@ async function setupComposeFixture(db: TestDb) {
   });
 
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
 
   return { mailbox, identity };
 }
@@ -277,7 +293,7 @@ describe("draft + outbound revision integration", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -289,8 +305,11 @@ describe("draft + outbound revision integration", () => {
   });
 
   after(async () => {
-    await cleanupFixtures(db);
-    dispose?.();
+    try {
+      await cleanupFixtures(db);
+    } finally {
+      await dispose?.();
+    }
   });
 
   it("does not create blank compose draft", async () => {
@@ -328,7 +347,7 @@ describe("draft + outbound revision integration", () => {
 
   it("requires both sender grant and mailbox can_send for revision", async () => {
     await cleanupFixtures(db);
-    const { mailbox, identity } = await setupComposeFixture(db);
+    const { mailbox, identity } = await setupComposeFixture(db, "shared");
 
     const created = await createDraft(db, staffActor, {
       senderIdentityId: identity.id,
@@ -353,7 +372,12 @@ describe("draft + outbound revision integration", () => {
     await db
       .update(schema.mailMailboxMembers)
       .set({ canSend: 0, updatedAt: new Date().toISOString() })
-      .where(eq(schema.mailMailboxMembers.id, `${FIXTURE}-member`));
+      .where(
+        and(
+          eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+          eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+        ),
+      );
 
     await assert.rejects(
       () =>
@@ -759,10 +783,12 @@ describe("draft + outbound revision integration", () => {
     const defaultMailbox = await createMailbox(db, adminActor, {
       address: fixtureAddress("compose-default"),
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.staffA,
     });
     const sentMailbox = await createMailbox(db, adminActor, {
       address: fixtureAddress("compose-sent"),
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.staffA,
     });
     const identity = await createSenderIdentity(db, adminActor, {
       address: fixtureAddress("sent-folder-only"),
@@ -777,20 +803,15 @@ describe("draft + outbound revision integration", () => {
 
     const now = new Date().toISOString();
     for (const mailboxId of [defaultMailbox.id, sentMailbox.id]) {
-      await db.insert(schema.mailMailboxMembers).values({
-        id: `${FIXTURE}-member-${mailboxId}`,
-        mailboxId,
-        userId: SEED_IDS.staffA,
-        canRead: 1,
-        canReply: 1,
-        canSend: 1,
-        canAssign: 0,
-        canManageProcessing: 0,
-        canAddInternalNote: 0,
-        grantedBy: SEED_IDS.admin,
-        createdAt: now,
-        updatedAt: now,
-      });
+      await db
+        .update(schema.mailMailboxMembers)
+        .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+        .where(
+          and(
+            eq(schema.mailMailboxMembers.mailboxId, mailboxId),
+            eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+          ),
+        );
     }
 
     await assertCanComposeFromIdentityInMailbox(db, staffActor, {
@@ -816,6 +837,7 @@ describe("draft + outbound revision integration", () => {
     const sentMailbox = await createMailbox(db, adminActor, {
       address: fixtureAddress("send-only-sent"),
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.staffA,
     });
     const identity = await createSenderIdentity(db, adminActor, {
       address: fixtureAddress("send-only"),
@@ -828,20 +850,15 @@ describe("draft + outbound revision integration", () => {
       canSend: true,
     });
     const now = new Date().toISOString();
-    await db.insert(schema.mailMailboxMembers).values({
-      id: `${FIXTURE}-member-send-only`,
-      mailboxId: sentMailbox.id,
-      userId: SEED_IDS.staffA,
-      canRead: 1,
-      canReply: 1,
-      canSend: 1,
-      canAssign: 0,
-      canManageProcessing: 0,
-      canAddInternalNote: 0,
-      grantedBy: SEED_IDS.admin,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .update(schema.mailMailboxMembers)
+      .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+      .where(
+        and(
+          eq(schema.mailMailboxMembers.mailboxId, sentMailbox.id),
+          eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+        ),
+      );
 
     await assertCanComposeFromIdentityInMailbox(db, staffActor, {
       senderIdentityId: identity.id,
@@ -863,22 +880,38 @@ describe("draft + outbound revision integration", () => {
     await cleanupFixtures(db);
   });
 
-  it("rejects fallback compose without sent-folder can_send membership", async () => {
+  it("rejects fallback compose for shared mailbox without can_send membership", async () => {
     await cleanupFixtures(db);
     const sentMailbox = await createMailbox(db, adminActor, {
       address: fixtureAddress("fallback-no-member"),
-      mailboxType: "personal",
+      mailboxType: "shared",
     });
     const identity = await createSenderIdentity(db, adminActor, {
       address: fixtureAddress("fallback-no-member-id"),
       defaultMailboxId: null,
       sentFolderMailboxId: sentMailbox.id,
     });
+    const now = new Date().toISOString();
+    await db.insert(schema.mailMailboxMembers).values({
+      id: `${FIXTURE}-fallback-member`,
+      mailboxId: sentMailbox.id,
+      userId: SEED_IDS.staffA,
+      canRead: 1,
+      canReply: 1,
+      canSend: 1,
+      grantedBy: SEED_IDS.admin,
+      createdAt: now,
+      updatedAt: now,
+    });
     await grantSenderIdentityAccess(db, adminActor, {
       senderIdentityId: identity.id,
       targetUserId: SEED_IDS.staffA,
       canSend: true,
     });
+    await db
+      .update(schema.mailMailboxMembers)
+      .set({ canSend: 0, updatedAt: new Date().toISOString() })
+      .where(eq(schema.mailMailboxMembers.id, `${FIXTURE}-fallback-member`));
 
     await assert.rejects(
       () =>
@@ -898,6 +931,7 @@ describe("draft + outbound revision integration", () => {
     const mailbox = await createMailbox(db, adminActor, {
       address: fixtureAddress("same-mailbox"),
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.staffA,
     });
     const identity = await createSenderIdentity(db, adminActor, {
       address: fixtureAddress("same-mailbox-id"),
@@ -910,20 +944,15 @@ describe("draft + outbound revision integration", () => {
       canSend: true,
     });
     const now = new Date().toISOString();
-    await db.insert(schema.mailMailboxMembers).values({
-      id: `${FIXTURE}-member-same`,
-      mailboxId: mailbox.id,
-      userId: SEED_IDS.staffA,
-      canRead: 1,
-      canReply: 1,
-      canSend: 1,
-      canAssign: 0,
-      canManageProcessing: 0,
-      canAddInternalNote: 0,
-      grantedBy: SEED_IDS.admin,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .update(schema.mailMailboxMembers)
+      .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+      .where(
+        and(
+          eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+          eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+        ),
+      );
 
     await assertCanComposeFromIdentityInMailbox(db, staffActor, {
       senderIdentityId: identity.id,

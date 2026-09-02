@@ -164,7 +164,7 @@ describe("personal mailbox compose authorization", () => {
     dispose?.();
   });
 
-  it("authorizes personal owner with sender identity grant without membership row", async () => {
+  it("authorizes personal owner with sender identity grant and canonical membership", async () => {
     const address = fixtureAddress("owner-no-member");
     const mailbox = await createMailbox(db, adminActor, {
       address,
@@ -181,7 +181,9 @@ describe("personal mailbox compose authorization", () => {
       .select()
       .from(schema.mailMailboxMembers)
       .where(eq(schema.mailMailboxMembers.mailboxId, mailbox.id));
-    assert.equal(members.length, 0);
+    assert.equal(members.length, 1);
+    assert.equal(members[0]?.userId, SEED_IDS.staffA);
+    assert.equal(members[0]?.canRead, 1);
 
     const context = await assertCanComposeFromIdentityInMailbox(
       db,
@@ -425,10 +427,10 @@ describe("personal mailbox compose authorization", () => {
       defaultMailboxId: mailbox.id,
     });
 
-    const options = await listComposeContextOptions(db, rootAdminActor());
-    assert.ok(
-      !options.some((option) => option.senderIdentityId === identity.id),
-      "root admin must not appear in compose options without explicit grant",
+    await assert.rejects(
+      () => listComposeContextOptions(db, rootAdminActor()),
+      (error: unknown) =>
+        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
     );
   });
 

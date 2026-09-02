@@ -37,6 +37,7 @@
     "crm-ai:deploy": "wrangler deploy --config workers/crm-ai/wrangler.jsonc",
     "auto:backup": "node scripts/auto-backup-github.mjs",
     "test": "npm run test:unit && npm run test:db",
+    "test:mail:d1:serial": "node scripts/test-mail-d1-serial.mjs",
     "test:regression": "npm run test && npx tsc --noEmit",
     "test:regression:full": "npm run test:regression && npm run build",
     "test:help": "node --import tsx --test src/lib/help/sections.test.ts",

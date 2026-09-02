@@ -159,7 +159,11 @@ describe("personal mailbox owner provisioning", () => {
       .select()
       .from(schema.mailMailboxMembers)
       .where(eq(schema.mailMailboxMembers.mailboxId, created.id));
-    assert.equal(members.length, 0);
+    assert.equal(members.length, 1);
+    assert.equal(members[0]?.userId, SEED_IDS.staffA);
+    assert.equal(members[0]?.canRead, 1);
+    assert.equal(members[0]?.canReply, 0);
+    assert.equal(members[0]?.canSend, 0);
 
     const senderIdentities = await db
       .select()
@@ -214,13 +218,10 @@ describe("personal mailbox owner provisioning", () => {
         );
       assert.equal(identityGrants.length, 0);
 
-      const composeOptions = await listComposeContextOptions(
-        db,
-        rootAdminActor(),
-      );
-      assert.ok(
-        !composeOptions.some((option) => option.mailboxId === created.id),
-        "mailbox ownership must not auto-authorize admin SEND AS",
+      await assert.rejects(
+        () => listComposeContextOptions(db, rootAdminActor()),
+        (error: unknown) =>
+          error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
       );
 
       const supervised = await listAccessibleMailboxes(db, rootAdminActor());
@@ -233,7 +234,7 @@ describe("personal mailbox owner provisioning", () => {
     }
   });
 
-  it("target Staff sees personal mailbox via ownership without membership", async () => {
+  it("target Staff sees personal mailbox via canonical membership", async () => {
     const address = fixtureAddress("staff-access");
     const created = await createMailbox(db, adminActor, {
       address,
@@ -262,7 +263,7 @@ describe("personal mailbox owner provisioning", () => {
     assert.ok(!items.some((item) => item.id === created.id));
   });
 
-  it("Root Admin sees personal mailbox via global_read without membership", async () => {
+  it("Root Admin sees personal mailbox via global_read without relying on membership", async () => {
     const address = fixtureAddress("root-supervision");
     const created = await createMailbox(db, adminActor, {
       address,
@@ -411,29 +412,42 @@ describe("personal mailbox owner provisioning", () => {
         );
       assert.equal(identityGrants.length, 0);
 
-      const composeOptions = await listComposeContextOptions(
-        db,
-        actor(unprovisionedUserId, { mailAccessEnabled: false }),
-      );
-      assert.ok(
-        !composeOptions.some((option) => option.mailboxId === created.id),
-        "unprovisioned mailbox owner must not gain compose/send authorization",
+      await assert.rejects(
+        () =>
+          listComposeContextOptions(
+            db,
+            actor(unprovisionedUserId, { mailAccessEnabled: false }),
+          ),
+        (error: unknown) =>
+          error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
       );
 
-      const accessible = await listAccessibleMailboxes(
-        db,
-        actor(unprovisionedUserId, { mailAccessEnabled: false }),
+      await assert.rejects(
+        () =>
+          listAccessibleMailboxes(
+            db,
+            actor(unprovisionedUserId, { mailAccessEnabled: false }),
+          ),
+        (error: unknown) =>
+          error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
       );
-      const row = accessible.find((item) => item.id === created.id);
-      assert.ok(row);
-      assert.equal(row.permissions.canSend, false);
-      assert.equal(row.permissions.canReply, false);
     } finally {
       await db
         .delete(schema.mailReceivingAddresses)
         .where(
           inArray(
             schema.mailReceivingAddresses.mailboxId,
+            db
+              .select({ id: schema.mailMailboxes.id })
+              .from(schema.mailMailboxes)
+              .where(eq(schema.mailMailboxes.createdBy, unprovisionedUserId)),
+          ),
+        );
+      await db
+        .delete(schema.mailMailboxMembers)
+        .where(
+          inArray(
+            schema.mailMailboxMembers.mailboxId,
             db
               .select({ id: schema.mailMailboxes.id })
               .from(schema.mailMailboxes)

@@ -320,25 +320,20 @@ async function setupStaffComposeFixture(db: TestDb) {
     address,
     defaultMailboxId: mailbox.id,
   });
+  const now = new Date().toISOString();
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
   await grantSenderIdentityAccess(db, setupAdminActor, {
     senderIdentityId: identity.id,
     targetUserId: SEED_IDS.staffA,
     canSend: true,
-  });
-  const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-staff-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
   });
   return { mailbox, identity };
 }
@@ -360,20 +355,15 @@ async function setupAdminComposeFixture(db: TestDb) {
     canSend: true,
   });
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-admin-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.admin,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.admin),
+      ),
+    );
   return { mailbox, identity };
 }
 
@@ -406,20 +396,15 @@ async function setupSentFolderFixture(db: TestDb) {
     ["compose", composeMailbox.id],
     ["sent", sentMailbox.id],
   ] as const) {
-    await db.insert(schema.mailMailboxMembers).values({
-      id: `${FIXTURE}-dual-${suffix}`,
-      mailboxId,
-      userId: SEED_IDS.admin,
-      canRead: 1,
-      canReply: 1,
-      canSend: 1,
-      canAssign: 0,
-      canManageProcessing: 0,
-      canAddInternalNote: 0,
-      grantedBy: SEED_IDS.admin,
-      createdAt: now,
-      updatedAt: now,
-    });
+    await db
+      .update(schema.mailMailboxMembers)
+      .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+      .where(
+        and(
+          eq(schema.mailMailboxMembers.mailboxId, mailboxId),
+          eq(schema.mailMailboxMembers.userId, SEED_IDS.admin),
+        ),
+      );
   }
   return { composeMailbox, sentMailbox, identity };
 }
@@ -722,7 +707,7 @@ describe("sent message materialization integration", () => {
 
   it("idempotent materialization returns same canonical message", async () => {
     await cleanupFixtures(db);
-    const { revision } = await createProductionAdminDirectRevision(db);
+    const { revision, identity } = await createProductionAdminDirectRevision(db);
     const { initiated, dispatched, providerMessageId } = await acceptAdminDirectSend(db, revision.id);
 
     const first = await materializeAcceptedOutboundSend(db, initiated.id);
@@ -732,7 +717,8 @@ describe("sent message materialization integration", () => {
 
     const allMessages = await db.select().from(schema.mailMessages);
     const fixtureMessages = allMessages.filter((row) =>
-      row.subject.includes("Send subject"),
+      row.subject.includes("Send subject") &&
+      row.senderIdentityId === identity.id,
     );
     assert.equal(fixtureMessages.length, 1);
     assert.equal(first.message.internetMessageId, providerMessageId);
@@ -951,7 +937,7 @@ describe("sent message materialization integration", () => {
 
   it("late failure rolls back partial materialization graph", async () => {
     await cleanupFixtures(db);
-    const { revision } = await createProductionAdminDirectRevision(db);
+    const { revision, identity } = await createProductionAdminDirectRevision(db);
     const { initiated } = await acceptAdminDirectSend(db, revision.id);
 
     await assert.rejects(() => attemptInvalidMaterializationBatch(db, initiated.id));
@@ -963,7 +949,10 @@ describe("sent message materialization integration", () => {
     assert.equal(materializations.length, 0);
 
     const messages = await db.select().from(schema.mailMessages);
-    const fixtureMessages = messages.filter((row) => row.subject === "Send subject");
+    const fixtureMessages = messages.filter(
+      (row) =>
+        row.subject === "Send subject" && row.senderIdentityId === identity.id,
+    );
     assert.equal(fixtureMessages.length, 0);
   });
 });

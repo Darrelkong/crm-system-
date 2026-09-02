@@ -521,6 +521,7 @@ async function setupAdminComposeFixture(db: TestDb, fixtureSuffix = "") {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address: fixtureAddress(`sender${fixtureSuffix}`),
@@ -532,20 +533,15 @@ async function setupAdminComposeFixture(db: TestDb, fixtureSuffix = "") {
     canSend: true,
   });
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-member${fixtureSuffix}`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.admin,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.admin),
+      ),
+    );
   return { mailbox, identity };
 }
 

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import {
   addDraftAttachment,
@@ -91,12 +91,20 @@ async function cleanupFixtures(db: TestDb) {
       : [];
   const draftIds = drafts.map((row) => row.id);
 
+  const revisionConditions = [
+    ...(draftIds.length
+      ? [inArray(schema.mailOutboundRevisions.sourceDraftId, draftIds)]
+      : []),
+    ...(identityIds.length
+      ? [inArray(schema.mailOutboundRevisions.senderIdentityId, identityIds)]
+      : []),
+  ];
   const revisions =
-    draftIds.length > 0
+    revisionConditions.length > 0
       ? await db
           .select({ id: schema.mailOutboundRevisions.id })
           .from(schema.mailOutboundRevisions)
-          .where(inArray(schema.mailOutboundRevisions.sourceDraftId, draftIds))
+          .where(or(...revisionConditions))
       : [];
   const revisionIds = revisions.map((row) => row.id);
 
@@ -129,6 +137,34 @@ async function cleanupFixtures(db: TestDb) {
   }
 
   if (identityIds.length) {
+    const snapshotRows = await db
+      .select({ id: schema.mailSignatureSnapshots.id })
+      .from(schema.mailSignatureSnapshots)
+      .where(inArray(schema.mailSignatureSnapshots.senderIdentityId, identityIds));
+    const snapshotIds = snapshotRows.map((row) => row.id);
+    if (snapshotIds.length) {
+      await db
+        .delete(schema.mailSignatureSnapshotAssets)
+        .where(inArray(schema.mailSignatureSnapshotAssets.signatureSnapshotId, snapshotIds));
+      await db
+        .delete(schema.mailSignatureSnapshots)
+        .where(inArray(schema.mailSignatureSnapshots.id, snapshotIds));
+    }
+
+    const versionRows = await db
+      .select({ id: schema.mailSignatureVersions.id })
+      .from(schema.mailSignatureVersions)
+      .where(inArray(schema.mailSignatureVersions.senderIdentityId, identityIds));
+    const versionIds = versionRows.map((row) => row.id);
+    if (versionIds.length) {
+      await db
+        .delete(schema.mailSignatureVersionAssets)
+        .where(inArray(schema.mailSignatureVersionAssets.signatureVersionId, versionIds));
+      await db
+        .delete(schema.mailSignatureVersions)
+        .where(inArray(schema.mailSignatureVersions.id, versionIds));
+    }
+
     await db
       .delete(schema.mailSenderIdentityGrants)
       .where(
@@ -157,6 +193,7 @@ async function setupComposeFixture(db: TestDb) {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.staffA,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address,
@@ -169,20 +206,15 @@ async function setupComposeFixture(db: TestDb) {
   });
 
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
 
   return { mailbox, identity };
 }
@@ -214,7 +246,7 @@ describe("draft attachment pipeline integration", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -226,8 +258,11 @@ describe("draft attachment pipeline integration", () => {
   });
 
   after(async () => {
-    await cleanupFixtures(db);
-    dispose?.();
+    try {
+      await cleanupFixtures(db);
+    } finally {
+      await dispose?.();
+    }
   });
 
   it("binds uploaded attachments to drafts and bumps autosave version", async () => {

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, asc, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import {
@@ -276,6 +276,7 @@ async function setupAdminComposeFixture(db: TestDb, fixtureSuffix = "") {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: SEED_IDS.admin,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address: fixtureAddress(`sender${fixtureSuffix}`),
@@ -287,20 +288,15 @@ async function setupAdminComposeFixture(db: TestDb, fixtureSuffix = "") {
     canSend: true,
   });
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-admin-member${fixtureSuffix}`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.admin,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.admin),
+      ),
+    );
   return { mailbox, identity };
 }
 
@@ -420,7 +416,7 @@ describe("delivery event materialization integration", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -435,7 +431,7 @@ describe("delivery event materialization integration", () => {
     try {
       await cleanupFixtures(db);
     } finally {
-      dispose?.();
+      await dispose?.();
     }
   });
 

@@ -217,20 +217,15 @@ async function setupAdminComposeFixture(db: TestDb) {
     canSend: true,
   });
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-admin-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.admin,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.admin),
+      ),
+    );
   return { mailbox, identity };
 }
 
@@ -245,25 +240,20 @@ async function setupStaffComposeFixture(db: TestDb) {
     address,
     defaultMailboxId: mailbox.id,
   });
+  const now = new Date().toISOString();
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, SEED_IDS.staffA),
+      ),
+    );
   await grantSenderIdentityAccess(db, setupAdminActor, {
     senderIdentityId: identity.id,
     targetUserId: SEED_IDS.staffA,
     canSend: true,
-  });
-  const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-staff-member`,
-    mailboxId: mailbox.id,
-    userId: SEED_IDS.staffA,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
   });
   return { mailbox, identity };
 }

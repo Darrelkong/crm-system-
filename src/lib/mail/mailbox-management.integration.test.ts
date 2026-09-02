@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, inArray, like, or } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
@@ -47,15 +47,15 @@ function actor(
   return {
     userId,
     sessionId: null,
-    crmRole: "admin",
+    crmRole: userId === SEED_IDS.admin ? "admin" : "staff",
     mailAccessEnabled: true,
     adminGrants: grants,
     audit: { ipAddress: "127.0.0.1", userAgent: "phase2c2-test" },
   };
 }
 
-const accountMgmtActor = actor(SEED_IDS.admin, ["account_mgmt"]);
-const addressAssignActor = actor(SEED_IDS.admin, ["address_assignment"]);
+const accountMgmtActor = actor(SEED_IDS.staffB, ["account_mgmt"]);
+const addressAssignActor = actor(SEED_IDS.staffB, ["address_assignment"]);
 const fullActor = actor(SEED_IDS.admin, ["account_mgmt", "address_assignment"]);
 const superAdminActor = actor(SEED_IDS.admin, ["super_admin"]);
 
@@ -108,6 +108,9 @@ async function cleanupFixtures(db: TestDb) {
     await db
       .delete(schema.mailReceivingAddresses)
       .where(inArray(schema.mailReceivingAddresses.mailboxId, mailboxIds));
+    await db
+      .delete(schema.mailMailboxMembers)
+      .where(inArray(schema.mailMailboxMembers.mailboxId, mailboxIds));
   }
 
   await db
@@ -120,9 +123,26 @@ async function cleanupFixtures(db: TestDb) {
       ),
     );
 
-  await db
-    .delete(schema.mailSenderIdentities)
-    .where(like(schema.mailSenderIdentities.id, `${FIXTURE}%`));
+  const fixtureIdentityRows = await db
+    .select({ id: schema.mailSenderIdentities.id })
+    .from(schema.mailSenderIdentities)
+    .where(
+      or(
+        like(schema.mailSenderIdentities.id, `${FIXTURE}%`),
+        like(schema.mailSenderIdentities.address, `${FIXTURE}%@echfronthk.com`),
+        inArray(schema.mailSenderIdentities.defaultMailboxId, mailboxIds),
+        inArray(schema.mailSenderIdentities.sentFolderMailboxId, mailboxIds),
+      ),
+    );
+  const identityIds = fixtureIdentityRows.map((row) => row.id);
+  if (identityIds.length > 0) {
+    await db
+      .delete(schema.mailSenderIdentityGrants)
+      .where(inArray(schema.mailSenderIdentityGrants.senderIdentityId, identityIds));
+    await db
+      .delete(schema.mailSenderIdentities)
+      .where(inArray(schema.mailSenderIdentities.id, identityIds));
+  }
 
   await db
     .delete(schema.mailMailboxes)
@@ -172,7 +192,7 @@ describe("mail mailbox + receiving address management integration", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -183,9 +203,12 @@ describe("mail mailbox + receiving address management integration", () => {
   });
 
   after(async () => {
-    await cleanupFixtures(db);
-    bindTestDatabase(null);
-    dispose?.();
+    try {
+      await cleanupFixtures(db);
+    } finally {
+      bindTestDatabase(null);
+      await dispose?.();
+    }
   });
 
   it("createMailbox creates mailbox and current primary atomically", async () => {
@@ -244,6 +267,7 @@ describe("mail mailbox + receiving address management integration", () => {
         createMailbox(db, fullActor, {
           address: fixtureAddress("blocked"),
           mailboxType: "personal",
+          ownerUserId: SEED_IDS.admin,
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.errorCode === "CONFLICT",
@@ -297,6 +321,7 @@ describe("mail mailbox + receiving address management integration", () => {
     const created = await createMailbox(db, fullActor, {
       address: sharedAddress,
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.admin,
     });
 
     const now = new Date().toISOString();
@@ -513,6 +538,7 @@ describe("mail mailbox + receiving address management integration", () => {
         createMailbox(db, addressAssignActor, {
           address: fixtureAddress("wrong-grant"),
           mailboxType: "personal",
+          ownerUserId: SEED_IDS.staffA,
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
@@ -561,6 +587,7 @@ describe("mail mailbox + receiving address management integration", () => {
     const created = await createMailbox(db, superAdminActor, {
       address: fixtureAddress("super-admin"),
       mailboxType: "personal",
+      ownerUserId: SEED_IDS.admin,
     });
     const alias = await addReceivingAlias(db, superAdminActor, {
       mailboxId: created.id,

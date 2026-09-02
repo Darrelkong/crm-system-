@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import {
   addDraftRecipient,
@@ -187,6 +187,7 @@ async function setupComposeFixture(db: TestDb, staffUserId: string) {
   const mailbox = await createMailbox(db, adminActor, {
     address,
     mailboxType: "personal",
+    ownerUserId: staffUserId,
   });
   const identity = await createSenderIdentity(db, adminActor, {
     address,
@@ -199,20 +200,15 @@ async function setupComposeFixture(db: TestDb, staffUserId: string) {
   });
 
   const now = new Date().toISOString();
-  await db.insert(schema.mailMailboxMembers).values({
-    id: `${FIXTURE}-member-${staffUserId}`,
-    mailboxId: mailbox.id,
-    userId: staffUserId,
-    canRead: 1,
-    canReply: 1,
-    canSend: 1,
-    canAssign: 0,
-    canManageProcessing: 0,
-    canAddInternalNote: 0,
-    grantedBy: SEED_IDS.admin,
-    createdAt: now,
-    updatedAt: now,
-  });
+  await db
+    .update(schema.mailMailboxMembers)
+    .set({ canRead: 1, canReply: 1, canSend: 1, updatedAt: now })
+    .where(
+      and(
+        eq(schema.mailMailboxMembers.mailboxId, mailbox.id),
+        eq(schema.mailMailboxMembers.userId, staffUserId),
+      ),
+    );
 
   return { mailbox, identity };
 }
@@ -235,7 +231,7 @@ describe("mail draft customer association", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -248,10 +244,13 @@ describe("mail draft customer association", () => {
   });
 
   after(async () => {
-    await cleanupFixtures(db);
-    bindTestDatabase(null);
-    delete process.env.CRM_ALLOW_TEST_DB_BIND;
-    await dispose?.();
+    try {
+      await cleanupFixtures(db);
+    } finally {
+      bindTestDatabase(null);
+      delete process.env.CRM_ALLOW_TEST_DB_BIND;
+      await dispose?.();
+    }
   });
 
   it("allows staff owner to attach owned customer", async () => {
