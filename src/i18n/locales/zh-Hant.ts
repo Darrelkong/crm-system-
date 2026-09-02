@@ -339,6 +339,8 @@ const zhHant: Messages = {
       deliveryComplaint: "收件方投訴",
       sendFailedQueued: "發送失敗 — 等待重試或處理",
       dispatchUncertainQueued: "發送狀態待確認",
+      dispatchUncertainHint:
+        "系統無法確認郵件是否已成功交付，請勿重複發送。請由管理員檢查發送記錄。",
       validation: {
         fromRequired: "請選擇已授權的寄件地址",
         fromUnauthorized: "所選寄件地址未授權",
@@ -913,8 +915,10 @@ const zhHant: Messages = {
         statusFilterLabel: "狀態",
         statusAll: "全部狀態",
         approveAction: "核准",
+        approvePending: "批准中…",
         rejectAction: "駁回",
-        approveSuccess: "已核准提交。",
+        rejectPending: "駁回中…",
+        approveSuccess: "已批准，郵件已進入發送流程",
         rejectSuccess: "已駁回並退回給提交人。",
         rejectReasonLabel: "駁回原因",
         rejectReasonPlaceholder: "說明需要修改的內容後再重新提交",

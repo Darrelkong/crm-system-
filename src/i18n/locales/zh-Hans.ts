@@ -339,6 +339,8 @@ const zhHans: Messages = {
       deliveryComplaint: "收件方投诉",
       sendFailedQueued: "发送失败 — 等待重试或处理",
       dispatchUncertainQueued: "发送状态待确认",
+      dispatchUncertainHint:
+        "系统无法确认邮件是否已成功投递，请勿重复发送。请由管理员检查发送记录。",
       validation: {
         fromRequired: "请选择已授权的发件地址",
         fromUnauthorized: "所选发件地址未授权",
@@ -913,8 +915,10 @@ const zhHans: Messages = {
         statusFilterLabel: "状态",
         statusAll: "全部状态",
         approveAction: "批准",
+        approvePending: "批准中…",
         rejectAction: "驳回",
-        approveSuccess: "已批准提交。",
+        rejectPending: "驳回中…",
+        approveSuccess: "已批准，邮件已进入发送流程",
         rejectSuccess: "已驳回并退回给提交人。",
         rejectReasonLabel: "驳回原因",
         rejectReasonPlaceholder: "说明需要修改的内容后再重新提交",

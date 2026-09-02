@@ -356,6 +356,8 @@ const en = {
       deliveryComplaint: "Recipient reported complaint",
       sendFailedQueued: "Send failed — awaiting retry or review",
       dispatchUncertainQueued: "Send status pending confirmation",
+      dispatchUncertainHint:
+        "The system cannot confirm whether the message was delivered. Do not send it again. Ask an administrator to inspect the send record.",
       validation: {
         fromRequired: "Select an authorized From address",
         fromUnauthorized: "Selected From address is not authorized",
@@ -957,8 +959,10 @@ const en = {
         statusFilterLabel: "Status",
         statusAll: "All statuses",
         approveAction: "Approve",
+        approvePending: "Approving…",
         rejectAction: "Reject",
-        approveSuccess: "Submission approved.",
+        rejectPending: "Rejecting…",
+        approveSuccess: "Approved; the message has entered the sending workflow.",
         rejectSuccess: "Submission rejected and returned to the author.",
         rejectReasonLabel: "Rejection reason",
         rejectReasonPlaceholder: "Explain what needs to be changed before resubmission",

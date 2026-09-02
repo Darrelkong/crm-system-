@@ -63,9 +63,16 @@ export function MailComposeSubmissionStatus({
       outboundDisplayPhase
     ) {
       return (
-        <p className="text-sm crm-text-secondary" aria-live="polite">
-          {t(resolveSendDeliveryLifecycleLabelKey(outboundDisplayPhase))}
-        </p>
+        <div className="space-y-1" aria-live="polite">
+          <p className="text-sm crm-text-secondary">
+            {t(resolveSendDeliveryLifecycleLabelKey(outboundDisplayPhase))}
+          </p>
+          {outboundDisplayPhase === "dispatch_uncertain" ? (
+            <p className="text-sm text-amber-700 dark:text-amber-300">
+              {t("mail.compose.dispatchUncertainHint")}
+            </p>
+          ) : null}
+        </div>
       );
     }
     return null;
@@ -83,9 +90,16 @@ export function MailComposeSubmissionStatus({
           </span>
         ) : null}
         {phase === "approved" ? (
-          <span className="text-sm crm-text-secondary">
-            {t(resolveSendDeliveryLifecycleLabelKey(outboundDisplayPhase ?? "approved_only"))}
-          </span>
+          <div className="min-w-0">
+            <span className="text-sm crm-text-secondary">
+              {t(resolveSendDeliveryLifecycleLabelKey(outboundDisplayPhase ?? "approved_only"))}
+            </span>
+            {outboundDisplayPhase === "dispatch_uncertain" ? (
+              <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">
+                {t("mail.compose.dispatchUncertainHint")}
+              </p>
+            ) : null}
+          </div>
         ) : null}
       </div>
       {phase === "returned" && returnReason ? (
