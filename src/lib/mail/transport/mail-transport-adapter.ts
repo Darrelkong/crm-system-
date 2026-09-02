@@ -4,6 +4,7 @@
  * Operates on structured normalized semantics — NOT final MIME bytes.
  * Real provider adapters are injected at service/test boundaries only.
  */
+import type { OutboundDispatchDiagnostic } from "@/lib/mail/outbound-dispatch-diagnostics";
 
 export type NormalizedOutboundAttachment = {
   revisionAttachmentId: string;
@@ -36,6 +37,8 @@ export type NormalizedOutboundSubmission = {
   sendOperationId: string;
   transportAttemptId: string;
   outboundRevisionId: string;
+  /** Optional for compatibility with existing injected test submissions. */
+  authorizationMode?: "staff_approved" | "admin_direct";
   rfcMessageId: string;
   fromAddress: string;
   fromDisplayName: string | null;
@@ -55,6 +58,7 @@ export type MailTransportSubmitAccepted = {
   outcome: "accepted";
   providerRequestId: string;
   providerMessageId: string;
+  diagnostic?: OutboundDispatchDiagnostic;
 };
 
 export type MailTransportSubmitTemporaryFailure = {
@@ -62,18 +66,21 @@ export type MailTransportSubmitTemporaryFailure = {
   errorCode?: string;
   errorMessage?: string;
   retryAfterAt?: string;
+  diagnostic?: OutboundDispatchDiagnostic;
 };
 
 export type MailTransportSubmitPermanentFailure = {
   outcome: "permanent_failure";
   errorCode?: string;
   errorMessage?: string;
+  diagnostic?: OutboundDispatchDiagnostic;
 };
 
 export type MailTransportSubmitAmbiguous = {
   outcome: "ambiguous";
   errorCode?: string;
   errorMessage?: string;
+  diagnostic?: OutboundDispatchDiagnostic;
 };
 
 export type MailTransportSubmitResult =

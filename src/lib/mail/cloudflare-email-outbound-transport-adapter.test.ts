@@ -11,6 +11,7 @@ import {
   CloudflareEmailProviderError,
   type CloudflareEmailSendBinding,
 } from "@/lib/mail/cloudflare-email-notification-transport-adapter";
+import { decodeOutboundDispatchDiagnostic } from "@/lib/mail/outbound-dispatch-diagnostics";
 import {
   CLOUDFLARE_EMAIL_OUTBOUND_PROVIDER_ID,
   isMailOutboundTransportEnabled,
@@ -207,6 +208,111 @@ describe("cloudflare email outbound transport adapter", () => {
         CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.rateLimitExceeded,
       );
     }
+  });
+
+  it("captures an HTTP 4xx as a definitive provider rejection", async () => {
+    const binding: CloudflareEmailSendBinding = {
+      async send() {
+        throw new CloudflareEmailProviderError(
+          "E_REQUEST_REJECTED",
+          "recipient rejected",
+          {
+            status: 422,
+            requestId: "req-4xx",
+            responseContentType: "application/json",
+          },
+        );
+      },
+    };
+    const adapter = createCloudflareEmailOutboundTransport({
+      transportMode: "production",
+      emailBinding: binding,
+      attachmentReader: { async read() { return new Uint8Array([1]); } },
+    });
+
+    const result = await adapter.submitOutbound(sampleSubmission());
+    assert.equal(result.outcome, "permanent_failure");
+    assert.equal(result.diagnostic?.failureClass, "http_rejection");
+    assert.equal(result.diagnostic?.providerHttpStatus, 422);
+    assert.equal(result.diagnostic?.providerCorrelationId, "req-4xx");
+    assert.equal(result.diagnostic?.providerResponseReceived, true);
+  });
+
+  it("keeps an HTTP 5xx ambiguous because acceptance is unproven", async () => {
+    const binding: CloudflareEmailSendBinding = {
+      async send() {
+        throw new CloudflareEmailProviderError(
+          "E_INTERNAL_SERVER_ERROR",
+          "provider internal failure",
+          { status: 503, rayId: "ray-5xx" },
+        );
+      },
+    };
+    const adapter = createCloudflareEmailOutboundTransport({
+      transportMode: "production",
+      emailBinding: binding,
+      attachmentReader: { async read() { return new Uint8Array([1]); } },
+    });
+
+    const result = await adapter.submitOutbound(sampleSubmission());
+    assert.equal(result.outcome, "ambiguous");
+    assert.equal(result.diagnostic?.failureClass, "provider_5xx");
+    assert.equal(result.diagnostic?.providerHttpStatus, 503);
+    assert.equal(result.diagnostic?.providerCorrelationId, "ray-5xx");
+    assert.equal(result.diagnostic?.providerAcceptance, "unknown");
+  });
+
+  it("classifies timeout, abort, reset, and unknown internal failures safely", async () => {
+    const cases = [
+      { name: "TimeoutError", code: "ETIMEDOUT", expected: "timeout" },
+      { name: "AbortError", code: "ABORT_ERR", expected: "abort" },
+      { name: "Error", code: "ECONNRESET", expected: "network_reset" },
+      { name: "Error", code: "E_UNKNOWN_PROVIDER", expected: "unknown_provider_error" },
+    ] as const;
+
+    for (const testCase of cases) {
+      const binding: CloudflareEmailSendBinding = {
+        async send() {
+          const error = new Error("safe provider failure");
+          error.name = testCase.name;
+          Object.assign(error, { code: testCase.code });
+          throw error;
+        },
+      };
+      const adapter = createCloudflareEmailOutboundTransport({
+        transportMode: "production",
+        emailBinding: binding,
+        attachmentReader: { async read() { return new Uint8Array([1]); } },
+      });
+      const result = await adapter.submitOutbound(sampleSubmission());
+      assert.equal(result.outcome, "ambiguous");
+      assert.equal(result.diagnostic?.failureClass, testCase.expected);
+      assert.equal(result.diagnostic?.providerAcceptance, "unknown");
+    }
+  });
+
+  it("turns a malformed provider response into an ambiguous result", async () => {
+    const binding: CloudflareEmailSendBinding = {
+      async send() {
+        return { messageId: "" };
+      },
+    };
+    const adapter = createCloudflareEmailOutboundTransport({
+      transportMode: "production",
+      emailBinding: binding,
+      attachmentReader: { async read() { return new Uint8Array([1]); } },
+    });
+
+    const result = await adapter.submitOutbound(sampleSubmission());
+    assert.equal(result.outcome, "ambiguous");
+    assert.equal(result.diagnostic?.failureClass, "response_parse");
+    assert.equal(result.diagnostic?.providerResponseReceived, true);
+    assert.equal(
+      decodeOutboundDispatchDiagnostic(
+        `outbound-dispatch-diagnostic:v1:${JSON.stringify(result.diagnostic)}`,
+      )?.failureClass,
+      "response_parse",
+    );
   });
 
   it("returns accepted provider ids when transport is enabled", async () => {

@@ -44,6 +44,13 @@ export type CloudflareEmailSendRequest = {
 
 export type CloudflareEmailSendResponse = {
   messageId: string;
+  /** Optional provider metadata exposed by test doubles or future bindings. */
+  status?: number;
+  statusCode?: number;
+  requestId?: string;
+  rayId?: string;
+  correlationId?: string;
+  responseContentType?: string;
 };
 
 /** Minimal SendEmail binding surface — injected at Worker wiring boundary only. */
@@ -301,6 +308,16 @@ export class CloudflareEmailProviderError extends Error {
   constructor(
     readonly code: string,
     message?: string,
+    readonly metadata?: {
+      status?: number;
+      statusCode?: number;
+      category?: string;
+      type?: string;
+      requestId?: string;
+      rayId?: string;
+      correlationId?: string;
+      responseContentType?: string;
+    },
   ) {
     super(message ?? code);
     this.name = "CloudflareEmailProviderError";

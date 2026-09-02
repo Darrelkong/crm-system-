@@ -27,6 +27,11 @@ import {
 import { recomputeOutboundRevisionContentHash } from "@/lib/mail/outbound-revision-service";
 import { generateRfcMessageId } from "@/lib/mail/rfc-message-id";
 import { classifyThrownOutboundProviderDispatchError } from "@/lib/mail/outbound-provider-dispatch-classifier";
+import {
+  buildOutboundDispatchDiagnosticFromError,
+  buildOutboundDispatchDiagnosticFromResult,
+  encodeOutboundDispatchDiagnostic,
+} from "@/lib/mail/outbound-dispatch-diagnostics";
 import { isRfcReplyComposeMode } from "@/lib/mail/compose-mode-threading-semantics";
 import { resolveOutboundMessageThreadingFields } from "@/lib/mail/outbound-materialization-threading";
 import {
@@ -740,6 +745,7 @@ async function buildNormalizedSubmission(
     sendOperationId: send.id,
     transportAttemptId,
     outboundRevisionId: revision.id,
+    authorizationMode: send.authorizationMode,
     rfcMessageId: rfcIdentity.rfcMessageId,
     fromAddress: revision.fromAddress,
     fromDisplayName: revision.fromDisplayName,
@@ -883,6 +889,7 @@ async function finalizeAttemptAccepted(
   result: {
     providerRequestId: string;
     providerMessageId: string;
+    diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
   },
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -937,6 +944,7 @@ async function finalizeAttemptAccepted(
         transportAttemptId: attempt.id,
         providerRequestId: result.providerRequestId,
         providerMessageId: result.providerMessageId,
+        diagnostic: result.diagnostic ?? null,
       },
     }),
   ]);
@@ -954,6 +962,7 @@ async function finalizeAttemptTemporaryFailure(
     errorCode?: string;
     errorMessage?: string;
     retryAfterAt?: string;
+    diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
   },
 ): Promise<void> {
   const now = new Date().toISOString();
@@ -976,7 +985,9 @@ async function finalizeAttemptTemporaryFailure(
         completedAt: now,
         retryAfterAt: result.retryAfterAt ?? null,
         errorCode: result.errorCode ?? null,
-        errorMessage: result.errorMessage ?? null,
+        errorMessage: result.diagnostic
+          ? encodeOutboundDispatchDiagnostic(result.diagnostic)
+          : result.errorMessage ?? null,
       })
       .where(
         and(
@@ -1008,6 +1019,7 @@ async function finalizeAttemptTemporaryFailure(
       metadata: {
         transportAttemptId: attempt.id,
         errorCode: result.errorCode ?? null,
+        diagnostic: result.diagnostic ?? null,
       },
     }),
   ]);
@@ -1021,7 +1033,11 @@ async function finalizeAttemptPermanentFailure(
   actor: MailOperationalActor,
   send: MailSendOperation,
   attempt: MailTransportAttempt,
-  result: { errorCode?: string; errorMessage?: string },
+  result: {
+    errorCode?: string;
+    errorMessage?: string;
+    diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
+  },
 ): Promise<void> {
   const now = new Date().toISOString();
   const expectedVersion = send.orchestrationVersion;
@@ -1050,7 +1066,9 @@ async function finalizeAttemptPermanentFailure(
         state: "permanent_failure",
         completedAt: now,
         errorCode: result.errorCode ?? null,
-        errorMessage: result.errorMessage ?? null,
+        errorMessage: result.diagnostic
+          ? encodeOutboundDispatchDiagnostic(result.diagnostic)
+          : result.errorMessage ?? null,
       })
       .where(
         and(
@@ -1097,6 +1115,7 @@ async function finalizeAttemptPermanentFailure(
       metadata: {
         transportAttemptId: attempt.id,
         errorCode: result.errorCode ?? null,
+        diagnostic: result.diagnostic ?? null,
       },
     }),
   );
@@ -1112,7 +1131,11 @@ async function finalizeAttemptAmbiguous(
   actor: MailOperationalActor,
   send: MailSendOperation,
   attempt: MailTransportAttempt,
-  result: { errorCode?: string; errorMessage?: string },
+  result: {
+    errorCode?: string;
+    errorMessage?: string;
+    diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
+  },
 ): Promise<void> {
   const now = new Date().toISOString();
   const expectedVersion = send.orchestrationVersion;
@@ -1135,7 +1158,9 @@ async function finalizeAttemptAmbiguous(
         providerRequestId: null,
         providerMessageId: null,
         errorCode: result.errorCode ?? null,
-        errorMessage: result.errorMessage ?? null,
+        errorMessage: result.diagnostic
+          ? encodeOutboundDispatchDiagnostic(result.diagnostic)
+          : result.errorMessage ?? null,
       })
       .where(
         and(
@@ -1168,6 +1193,7 @@ async function finalizeAttemptAmbiguous(
         transportAttemptId: attempt.id,
         provider: attempt.provider,
         errorCode: result.errorCode ?? null,
+        diagnostic: result.diagnostic ?? null,
       },
     }),
   ]);
@@ -1235,8 +1261,15 @@ export async function dispatchSendOperation(
 
   const submission = await buildNormalizedSubmission(db, refreshedSend, attempt.id);
 
+  const dispatchStartedAt = performance.now();
   try {
     const result = await input.adapter.submitOutbound(submission);
+    const diagnostic = buildOutboundDispatchDiagnosticFromResult({
+      submission,
+      provider: input.adapter.providerId,
+      result,
+      elapsedDispatchMs: performance.now() - dispatchStartedAt,
+    });
     const latestSend = await findSendById(db, send.id);
     if (!latestSend) {
       throw MailServiceError.notFound("Send operation not found");
@@ -1246,22 +1279,26 @@ export async function dispatchSendOperation(
       await finalizeAttemptAccepted(db, actor, latestSend, attempt, {
         providerRequestId: result.providerRequestId,
         providerMessageId: result.providerMessageId,
+        diagnostic,
       });
     } else if (result.outcome === "temporary_failure") {
       await finalizeAttemptTemporaryFailure(db, actor, latestSend, attempt, {
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
         retryAfterAt: result.retryAfterAt,
+        diagnostic,
       });
     } else if (result.outcome === "ambiguous") {
       await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, {
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
+        diagnostic,
       });
     } else {
       await finalizeAttemptPermanentFailure(db, actor, latestSend, attempt, {
         errorCode: result.errorCode,
         errorMessage: result.errorMessage,
+        diagnostic,
       });
     }
   } catch (error) {
@@ -1273,7 +1310,16 @@ export async function dispatchSendOperation(
       throw MailServiceError.notFound("Send operation not found");
     }
     const classification = classifyThrownOutboundProviderDispatchError(error);
-    await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, classification);
+    const diagnostic = buildOutboundDispatchDiagnosticFromError({
+      submission,
+      provider: input.adapter.providerId,
+      error,
+      elapsedDispatchMs: performance.now() - dispatchStartedAt,
+    });
+    await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, {
+      ...classification,
+      diagnostic,
+    });
   }
 
   if (isSystemMailActor(actor)) {

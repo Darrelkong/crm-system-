@@ -35,6 +35,7 @@ import {
 } from "@/lib/mail/send-operation-service";
 import { FakeMailTransportAdapter } from "@/lib/mail/transport/fake-mail-transport-adapter";
 import { isMailPostStateGuardError } from "@/lib/mail/guarded-batch";
+import { decodeOutboundDispatchDiagnostic } from "@/lib/mail/outbound-dispatch-diagnostics";
 
 const FIXTURE = "mail-phase2c7";
 
@@ -731,6 +732,17 @@ describe("send operation orchestration integration", () => {
     assert.equal(result.status, "dispatch_uncertain");
     assert.equal(result.transportAttempts?.[0]?.state, "ambiguous");
     assert.equal(result.transportAttempts?.[0]?.providerMessageId, null);
+    const persistedDiagnostic = decodeOutboundDispatchDiagnostic(
+      result.transportAttempts?.[0]?.errorMessage,
+    );
+    assert.equal(persistedDiagnostic?.sendOperationId, initiated.id);
+    assert.equal(persistedDiagnostic?.authorizationMode, "staff_approved");
+    assert.equal(
+      persistedDiagnostic?.attemptId,
+      result.transportAttempts?.[0]?.id,
+    );
+    assert.equal(persistedDiagnostic?.providerAcceptance, "unknown");
+    assert.equal(persistedDiagnostic?.providerResponseReceived, false);
     assert.ok(result.completedAt);
 
     await assert.rejects(
@@ -745,16 +757,18 @@ describe("send operation orchestration integration", () => {
         error.errorCode === "AMBIGUOUS_PROVIDER_STATE_REQUIRES_REVIEW",
     );
 
+    const duplicateAdapter = new FakeMailTransportAdapter();
     await assert.rejects(
       () =>
         dispatchSendOperation(db, approvalReviewActor, {
           sendOperationId: initiated.id,
           expectedOrchestrationVersion: result.orchestrationVersion,
-          adapter: new FakeMailTransportAdapter(),
+          adapter: duplicateAdapter,
         }),
       (error: unknown) =>
         error instanceof MailServiceError && error.status === 409,
     );
+    assert.equal(duplicateAdapter.capture.callCount, 0);
   });
 
   it("temporary failure retry reuses RFC Message-ID", async () => {

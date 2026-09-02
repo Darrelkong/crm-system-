@@ -27,6 +27,10 @@ import type {
   NormalizedOutboundRecipient,
   NormalizedOutboundSubmission,
 } from "@/lib/mail/transport/mail-transport-adapter";
+import {
+  buildOutboundDispatchDiagnostic,
+  classifyOutboundProviderError,
+} from "@/lib/mail/outbound-dispatch-diagnostics";
 
 export const CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES =
   CLOUDFLARE_EMAIL_NOTIFICATION_ERROR_CODES;
@@ -288,7 +292,7 @@ export function buildCloudflareEmailOutboundProviderSendRequest(input: {
 function runAdapterOutboundSizePreflight(input: {
   submission: NormalizedOutboundSubmission;
   request: CloudflareEmailOutboundSendRequest;
-}): MailTransportSubmitResult | null {
+}): Extract<MailTransportSubmitResult, { outcome: "permanent_failure" }> | null {
   const headerEntries = Object.entries(input.request.headers ?? {}).map(
     ([name, value]) => ({ name, value }),
   );
@@ -337,6 +341,37 @@ function parseAcceptedResponse(
     outcome: "accepted",
     providerRequestId: messageId,
     providerMessageId: messageId,
+  };
+}
+
+function providerResponseMetadata(response: CloudflareEmailSendResponse) {
+  return {
+    providerResponseReceived: true,
+    providerAcceptance: "confirmed" as const,
+    providerHttpStatus: response.status ?? response.statusCode ?? null,
+    providerCorrelationId:
+      response.requestId ?? response.rayId ?? response.correlationId ?? null,
+    responseContentType: response.responseContentType ?? null,
+  };
+}
+
+function providerErrorMetadata(error: unknown): {
+  source: unknown;
+  message: string | null;
+} {
+  if (error instanceof CloudflareEmailProviderError) {
+    return {
+      source: {
+        ...error.metadata,
+        code: error.code,
+        message: error.message,
+      },
+      message: error.message,
+    };
+  }
+  return {
+    source: error,
+    message: error instanceof Error ? error.message : null,
   };
 }
 
@@ -410,24 +445,6 @@ function mapProviderErrorCode(code: string): MailTransportSubmitResult | null {
     default:
       return null;
   }
-}
-
-function mapThrownError(error: unknown): MailTransportSubmitResult {
-  if (typeof error !== "object" || error === null) {
-    throw error;
-  }
-  const code =
-    "code" in error && typeof error.code === "string" ? error.code : undefined;
-  if (!code) {
-    throw error;
-  }
-  return (
-    mapProviderErrorCode(code) ?? {
-      outcome: "ambiguous",
-      errorCode: CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
-      errorMessage: code,
-    }
-  );
 }
 
 function buildDryRunAcceptedResult(
@@ -526,7 +543,19 @@ export function createCloudflareEmailOutboundTransport(
 
       const sizeFailure = runAdapterOutboundSizePreflight({ submission, request });
       if (sizeFailure) {
-        return sizeFailure;
+        return {
+          ...sizeFailure,
+          diagnostic: buildOutboundDispatchDiagnostic({
+            submission,
+            provider: CLOUDFLARE_EMAIL_OUTBOUND_PROVIDER_ID,
+            elapsedDispatchMs: 0,
+            providerResponseReceived: false,
+            providerAcceptance: "not_confirmed",
+            providerErrorCode: sizeFailure.errorCode,
+            safeProviderMessage: sizeFailure.errorMessage,
+            failureClass: "local_preflight",
+          }),
+        };
       }
 
       capture.calls.push({
@@ -539,6 +568,7 @@ export function createCloudflareEmailOutboundTransport(
         return buildDryRunAcceptedResult(submission);
       }
 
+      const dispatchStartedAt = performance.now();
       try {
         const providerRequest = buildCloudflareEmailOutboundProviderSendRequest({
           request,
@@ -547,12 +577,76 @@ export function createCloudflareEmailOutboundTransport(
         const response = await config.emailBinding!.send(
           providerRequest as CloudflareEmailSendRequest,
         );
-        return parseAcceptedResponse(response);
-      } catch (error) {
-        if (error instanceof CloudflareEmailProviderError) {
-          return mapProviderErrorCode(error.code) ?? mapThrownError(error);
+        try {
+          const result = parseAcceptedResponse(response);
+          return result;
+        } catch {
+          return {
+            outcome: "ambiguous",
+            errorCode: CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
+            errorMessage: "Cloudflare provider response could not be parsed",
+            diagnostic: buildOutboundDispatchDiagnostic({
+              submission,
+              provider: CLOUDFLARE_EMAIL_OUTBOUND_PROVIDER_ID,
+              elapsedDispatchMs: performance.now() - dispatchStartedAt,
+              ...providerResponseMetadata(response),
+              providerAcceptance: "unknown",
+              safeProviderMessage: "Provider response could not be parsed",
+              failureClass: "response_parse",
+            }),
+          };
         }
-        return mapThrownError(error);
+      } catch (error) {
+        const errorMetadata = providerErrorMetadata(error);
+        const classified = classifyOutboundProviderError(errorMetadata.source);
+        const mapped =
+          classified.providerHttpStatus !== null &&
+          classified.providerHttpStatus >= 400 &&
+          classified.providerHttpStatus < 500
+            ? {
+                outcome: "permanent_failure" as const,
+                errorCode: `cloudflare_http_${classified.providerHttpStatus}_rejection`,
+                errorMessage: "Cloudflare provider rejected the request",
+              }
+            : classified.providerHttpStatus !== null &&
+                classified.providerHttpStatus >= 500
+              ? {
+                  outcome: "ambiguous" as const,
+                  errorCode:
+                    CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
+                  errorMessage:
+                    "Cloudflare provider response did not confirm acceptance",
+                }
+              : error instanceof CloudflareEmailProviderError
+                ? mapProviderErrorCode(error.code) ?? {
+                    outcome: "ambiguous" as const,
+                    errorCode:
+                      CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
+                    errorMessage: "Cloudflare provider error",
+                  }
+                : {
+                    outcome: "ambiguous" as const,
+                    errorCode:
+                      CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
+                    errorMessage: "Cloudflare provider error",
+                  };
+        return {
+          ...mapped,
+          diagnostic: buildOutboundDispatchDiagnostic({
+            submission,
+            provider: CLOUDFLARE_EMAIL_OUTBOUND_PROVIDER_ID,
+            elapsedDispatchMs: performance.now() - dispatchStartedAt,
+            ...classified,
+            providerResponseReceived:
+              error instanceof CloudflareEmailProviderError ||
+              classified.providerHttpStatus !== null,
+            providerAcceptance:
+              mapped.outcome === "permanent_failure"
+                ? "not_confirmed"
+                : "unknown",
+            safeProviderMessage: errorMetadata.message,
+          }),
+        };
       }
     },
   };
