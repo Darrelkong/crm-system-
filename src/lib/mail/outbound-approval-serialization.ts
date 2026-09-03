@@ -19,6 +19,7 @@ export type SafeApprovalRevisionSummaryView = {
   id: string;
   revisionChainId: string;
   revisionNumber: number;
+  sourceDraftId: string | null;
   fromAddress: string;
   fromDisplayName: string | null;
   subject: string;

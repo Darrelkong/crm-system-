@@ -11,7 +11,6 @@ import {
   fetchApprovals,
   fetchComposeContext,
   fetchDraft,
-  fetchOutboundRevision,
   fetchSendOperationDelivery,
   fetchSendOperationForApproval,
   initiateAdminDirectSend,
@@ -125,22 +124,17 @@ async function loadDraftApproval(
     return null;
   }
 
-  const revisionsById = new Map<
-    string,
-    { sourceDraftId: string | null }
-  >();
-  const revisionIds = [
-    ...new Set(approvalsResult.items.map((item) => item.currentRevisionId)),
-  ];
-  await Promise.all(
-    revisionIds.map(async (revisionId) => {
-      const revisionResult = await fetchOutboundRevision(revisionId);
-      if (revisionResult.ok) {
-        revisionsById.set(revisionId, {
-          sourceDraftId: revisionResult.item.sourceDraftId,
-        });
-      }
-    }),
+  const revisionsById = new Map(
+    approvalsResult.items.flatMap((item) =>
+      item.currentRevisionSummary
+        ? [[
+            item.currentRevisionSummary.id,
+            {
+              sourceDraftId: item.currentRevisionSummary.sourceDraftId,
+            },
+          ] as const]
+        : [],
+    ),
   );
 
   const match = findAuthorApprovalForDraft(
@@ -228,6 +222,7 @@ export function useMailComposeDraft(input: {
   const hydratedRef = useRef(false);
   const bootstrapGenerationRef = useRef(0);
   const bodyEditGenerationRef = useRef(0);
+  const persistedBodyEditGenerationRef = useRef(0);
   const saveTimerRef = useRef<number | null>(null);
   const savingRef = useRef(false);
   const persistInFlightRef = useRef<Promise<ComposeEditorState | null> | null>(
@@ -238,8 +233,10 @@ export function useMailComposeDraft(input: {
     new Map(),
   );
   const stateRef = useRef(state);
+  // eslint-disable-next-line react-hooks/refs -- existing mutable snapshot bridge for async draft persistence
   stateRef.current = composeStateWithAttachments(state, uploadAttachments);
   const uploadAttachmentsRef = useRef(uploadAttachments);
+  // eslint-disable-next-line react-hooks/refs -- existing mutable upload snapshot bridge
   uploadAttachmentsRef.current = uploadAttachments;
 
   const bootstrap = useCallback(async () => {
@@ -346,6 +343,9 @@ export function useMailComposeDraft(input: {
           : restored,
         restoredUploads,
       );
+      if (!hasLiveBodyEdits) {
+        persistedBodyEditGenerationRef.current = bodyEditGenerationRef.current;
+      }
       hydratedRef.current = true;
       setDraftHydrating(false);
 
@@ -399,6 +399,7 @@ export function useMailComposeDraft(input: {
 
   useEffect(() => {
     if (!actorUserId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing actor reset behavior
       setComposeOptions([]);
       setContextLoading(false);
       return;
@@ -409,6 +410,7 @@ export function useMailComposeDraft(input: {
   }, [actorUserId]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing compose bootstrap lifecycle
     void bootstrap();
   }, [bootstrap]);
 
@@ -444,6 +446,7 @@ export function useMailComposeDraft(input: {
   }, [input.bodyHtmlReaderRef]);
 
   const persistDraftInternal = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing persistence callback intentionally captures its recursive helper
     async (
       snapshot: ComposeEditorState,
       options?: { allowEmptyShell?: boolean },
@@ -511,6 +514,7 @@ export function useMailComposeDraft(input: {
             lastSavedAt: created.item.lastSavedAt,
           };
           stateRef.current = nextState;
+          persistedBodyEditGenerationRef.current = bodyEditGenerationRef.current;
           setState(nextState);
           return nextState;
         }
@@ -554,6 +558,7 @@ export function useMailComposeDraft(input: {
           lastSavedAt: updated.item.lastSavedAt,
         };
         stateRef.current = nextState;
+        persistedBodyEditGenerationRef.current = bodyEditGenerationRef.current;
         setState(nextState);
         return nextState;
       } finally {
@@ -564,6 +569,7 @@ export function useMailComposeDraft(input: {
   );
 
   const persistDraft = useCallback(
+    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- existing persistence callback wrapper
     async (
       snapshot: ComposeEditorState,
       options?: { allowEmptyShell?: boolean },
@@ -1169,8 +1175,18 @@ export function useMailComposeDraft(input: {
       window.clearTimeout(saveTimerRef.current);
       saveTimerRef.current = null;
     }
-    syncBodyFromEditor();
-    return persistDraft(stateRef.current);
+    const snapshot = syncBodyFromEditor();
+    if (
+      snapshot.draftId &&
+      snapshot.saveStatus === "saved" &&
+      bodyEditGenerationRef.current <=
+        persistedBodyEditGenerationRef.current &&
+      !savingRef.current &&
+      !persistInFlightRef.current
+    ) {
+      return snapshot;
+    }
+    return persistDraft(snapshot);
   }, [persistDraft, syncBodyFromEditor]);
 
   const handleClose = useCallback(async () => {
@@ -1346,6 +1362,7 @@ export function useMailComposeDraft(input: {
     delivery: sendDelivery,
   });
   const canSubmit = canSubmitComposeForApproval(
+    // eslint-disable-next-line react-hooks/refs -- existing current compose snapshot for validation
     stateRef.current,
     composeOptions,
     approval,

@@ -77,6 +77,7 @@ export type MailApprovalWorkspaceValue = {
   canReview: boolean;
   pendingLoaded: boolean;
   historyLoaded: boolean;
+  applyApprovalResolution: (approval: ApprovalApiItem) => void;
   loadApprovals: (input?: {
     dataset?: "pending" | "history";
     force?: boolean;
@@ -165,6 +166,8 @@ export function MailApprovalWorkspaceProvider({
   }>({ generation: 0, inFlight: null });
   const pendingLoadedRef = useRef(false);
   const historyLoadedRef = useRef(false);
+  const pendingApprovalsRef = useRef(new Map<string, ApprovalApiItem>());
+  const historyApprovalsRef = useRef(new Map<string, ApprovalApiItem>());
   const sessionUser = session?.user ?? null;
 
   const loadRequesterUsers = useCallback(async () => {
@@ -250,11 +253,17 @@ export function MailApprovalWorkspaceProvider({
             requesterUsers,
           );
           if (dataset === "pending") {
+            pendingApprovalsRef.current = new Map(
+              approvalsResult.items.map((item) => [item.id, item]),
+            );
             setPendingRows(nextRows);
             setPendingCount(approvalsResult.items.length);
             setPendingLoaded(true);
             pendingLoadedRef.current = true;
           } else {
+            historyApprovalsRef.current = new Map(
+              approvalsResult.items.map((item) => [item.id, item]),
+            );
             setHistoryRows(nextRows);
             setHistoryLoaded(true);
             historyLoadedRef.current = true;
@@ -303,7 +312,12 @@ export function MailApprovalWorkspaceProvider({
     setAttachmentsLoadState("loading");
     setAttachmentsLoadError(null);
     try {
-      const approvalResult = await fetchApproval(approvalId);
+      const cachedApproval =
+        pendingApprovalsRef.current.get(approvalId) ??
+        historyApprovalsRef.current.get(approvalId);
+      const approvalResult = cachedApproval
+        ? { ok: true as const, item: cachedApproval }
+        : await fetchApproval(approvalId);
       if (!approvalResult.ok) {
         if (requestId === detailRequestRef.current) {
           setDetailError(approvalResult.error);
@@ -331,24 +345,31 @@ export function MailApprovalWorkspaceProvider({
       setAttachmentsLoadState(attachmentState.state);
       setAttachmentsLoadError(attachmentState.errorKey);
       const sendOperation = sendResult.ok ? sendResult.item : null;
-      const delivery =
-        sendOperation?.status === "accepted"
-          ? await (async () => {
-              const deliveryResult = await fetchSendOperationDelivery(
-                sendOperation.id,
-              );
-              return deliveryResult.ok ? deliveryResult.item : null;
-            })()
-          : null;
-      setDetail(
-        buildDetailView(
-          approvalResult.item,
-          revisionResult.item,
-          buildApprovalRequesterUsersById(usersListRef.current, sessionUser),
-          sendOperation,
-          delivery,
-        ),
+      const detailView = buildDetailView(
+        approvalResult.item,
+        revisionResult.item,
+        buildApprovalRequesterUsersById(usersListRef.current, sessionUser),
+        sendOperation,
+        null,
       );
+      setDetail(
+        detailView,
+      );
+      if (sendOperation?.status === "accepted") {
+        void fetchSendOperationDelivery(sendOperation.id).then((deliveryResult) => {
+          if (
+            requestId !== detailRequestRef.current ||
+            !deliveryResult.ok
+          ) {
+            return;
+          }
+          setDetail((previous) =>
+            previous && previous.approval.id === approvalId
+              ? { ...previous, delivery: deliveryResult.item }
+              : previous,
+          );
+        });
+      }
     } catch {
       if (requestId === detailRequestRef.current) {
         setDetailError("Failed to load approval detail");
@@ -377,6 +398,41 @@ export function MailApprovalWorkspaceProvider({
     if (!selectedApprovalId) return;
     await selectApproval(selectedApprovalId);
   }, [selectApproval, selectedApprovalId]);
+
+  const applyApprovalResolution = useCallback((approval: ApprovalApiItem) => {
+    const currentDetail = detail;
+    if (currentDetail?.approval.id === approval.id) {
+      setDetail({
+        ...currentDetail,
+        approval,
+        delivery: null,
+      });
+    }
+    const wasPending = pendingApprovalsRef.current.delete(approval.id);
+    setPendingRows((current) => current.filter((row) => row.id !== approval.id));
+    if (wasPending) {
+      setPendingCount((current) => Math.max(0, current - 1));
+    }
+    if (historyLoadedRef.current) {
+      historyApprovalsRef.current.set(approval.id, approval);
+      const revision =
+        currentDetail?.approval.id === approval.id &&
+        currentDetail.revision.id === approval.currentRevisionId
+          ? currentDetail.revision
+          : null;
+      const [historyRow] = buildApprovalWorkflowRows(
+        [approval],
+        revision ? new Map([[revision.id, revision]]) : new Map(),
+        usersListRef.current,
+      );
+      if (historyRow) {
+        setHistoryRows((current) => [
+          historyRow,
+          ...current.filter((row) => row.id !== approval.id),
+        ]);
+      }
+    }
+  }, [detail]);
 
   const refreshDeliveryStatus = useCallback(async () => {
     const approvalId = selectedApprovalId;
@@ -450,6 +506,7 @@ export function MailApprovalWorkspaceProvider({
       canReview,
       pendingLoaded,
       historyLoaded,
+      applyApprovalResolution,
       loadApprovals,
       selectApproval,
       clearSelection,
@@ -473,6 +530,7 @@ export function MailApprovalWorkspaceProvider({
       canReview,
       pendingLoaded,
       historyLoaded,
+      applyApprovalResolution,
       loadApprovals,
       selectApproval,
       clearSelection,

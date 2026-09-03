@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { MailOutboundApproval } from "../../../drizzle/schema/mail-outbound-approvals";
+import type { MailOutboundApprovalEvent } from "../../../drizzle/schema/mail-outbound-approval-events";
 import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
 import {
   MAIL_OUTBOUND_APPROVAL_PRIORITIES,
@@ -112,6 +113,28 @@ async function loadApprovalEvents(db: Database, approvalId: string) {
     .orderBy(asc(schema.mailOutboundApprovalEvents.createdAt));
 }
 
+async function loadApprovalEventsForList(
+  db: Database,
+  approvals: MailOutboundApproval[],
+): Promise<Map<string, MailOutboundApprovalEvent[]>> {
+  const approvalIds = [...new Set(approvals.map((approval) => approval.id))];
+  if (approvalIds.length === 0) {
+    return new Map();
+  }
+  const events = await db
+    .select()
+    .from(schema.mailOutboundApprovalEvents)
+    .where(inArray(schema.mailOutboundApprovalEvents.approvalId, approvalIds))
+    .orderBy(asc(schema.mailOutboundApprovalEvents.createdAt));
+  const eventsByApprovalId = new Map<string, MailOutboundApprovalEvent[]>();
+  for (const event of events) {
+    const current = eventsByApprovalId.get(event.approvalId) ?? [];
+    current.push(event);
+    eventsByApprovalId.set(event.approvalId, current);
+  }
+  return eventsByApprovalId;
+}
+
 async function loadApprovalRevisionSummaries(
   db: Database,
   approvals: MailOutboundApproval[],
@@ -146,6 +169,7 @@ async function loadApprovalRevisionSummaries(
         id: revision.id,
         revisionChainId: revision.revisionChainId,
         revisionNumber: revision.revisionNumber,
+        sourceDraftId: revision.sourceDraftId,
         fromAddress: revision.fromAddress,
         fromDisplayName: revision.fromDisplayName,
         subject: revision.subject,
@@ -989,9 +1013,16 @@ export async function listApprovalsForAuthor(
     .where(and(...conditions))
     .orderBy(desc(schema.mailOutboundApprovals.requestedAt));
 
-  const revisionSummaries = await loadApprovalRevisionSummaries(db, rows);
+  const [revisionSummaries, eventsByApprovalId] = await Promise.all([
+    loadApprovalRevisionSummaries(db, rows),
+    loadApprovalEventsForList(db, rows),
+  ]);
   return rows.map((row) =>
-    toSafeApprovalView(row, undefined, revisionSummaries.get(row.currentRevisionId)),
+    toSafeApprovalView(
+      row,
+      eventsByApprovalId.get(row.id),
+      revisionSummaries.get(row.currentRevisionId),
+    ),
   );
 }
 
@@ -1026,8 +1057,15 @@ export async function listApprovalsForReviewer(
       asc(schema.mailOutboundApprovals.requestedAt),
     );
 
-  const revisionSummaries = await loadApprovalRevisionSummaries(db, rows);
+  const [revisionSummaries, eventsByApprovalId] = await Promise.all([
+    loadApprovalRevisionSummaries(db, rows),
+    loadApprovalEventsForList(db, rows),
+  ]);
   return rows.map((row) =>
-    toSafeApprovalView(row, undefined, revisionSummaries.get(row.currentRevisionId)),
+    toSafeApprovalView(
+      row,
+      eventsByApprovalId.get(row.id),
+      revisionSummaries.get(row.currentRevisionId),
+    ),
   );
 }

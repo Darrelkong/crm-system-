@@ -60,6 +60,11 @@ describe("Approval Center navigation performance wiring", () => {
       readFileSync("src/lib/mail/outbound-approval-service.ts", "utf8"),
       /loadApprovalRevisionSummaries/,
     );
+    assert.match(
+      readFileSync("src/lib/mail/outbound-approval-serialization.ts", "utf8"),
+      /SafeApprovalRevisionSummaryView/,
+    );
+    assert.doesNotMatch(loadBlock!, /bodyText|bodyHtmlSanitized|attachments/);
   });
 
   it("caches users and deduplicates each dataset in flight", () => {

@@ -363,6 +363,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
     attachmentsLoadState,
     attachmentsLoadError,
     canReview,
+    applyApprovalResolution,
     loadApprovals,
     refreshDetail,
   } = approvalWorkspace;
@@ -440,8 +441,9 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
         setActionError(result.error);
         return;
       }
-      await loadApprovals();
-      await refreshDetail();
+      applyApprovalResolution(result.item);
+      setActionMessage(t("mail.adminCenter.approval.approveSuccess"));
+      void loadApprovals({ dataset: "pending", force: true });
     } catch {
       setActionError(t("common.networkError"));
     } finally {
@@ -468,8 +470,8 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
       setRejecting(false);
       setRejectReason("");
       setActionMessage(t("mail.adminCenter.approval.rejectSuccess"));
-      await loadApprovals();
-      await refreshDetail();
+      applyApprovalResolution(result.item);
+      void loadApprovals({ dataset: "pending", force: true });
     } catch {
       setActionError(t("common.networkError"));
     } finally {
