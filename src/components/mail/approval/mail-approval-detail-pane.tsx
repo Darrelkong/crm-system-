@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { Check, ChevronDown, ChevronRight, CircleAlert, Clock3, Send } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { MailMessageBodyRenderer } from "@/components/mail/mail-message-body-ren
 import {
   isApprovalDetailReadyForReview,
   useOptionalMailApprovalWorkspace,
+  type ApprovalDetailView,
 } from "@/lib/mail/client/mail-approval-workspace-context";
 import {
   buildOutboundRevisionAttachmentDownloadHref,
@@ -27,6 +28,7 @@ import {
 import { formatAttachmentSize } from "@/lib/mail/client/draft-management";
 import { postApprovalApprove, postApprovalReturn } from "@/lib/mail/client/api";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { resolveApprovedOutboundDisplayPhase } from "@/lib/mail/client/approved-outbound-queue";
 
 function RecipientChipGroup({
   label,
@@ -130,6 +132,78 @@ function resolveComposeModeLabelKey(composeMode: string): string {
   }
 }
 
+function ApprovalDeliveryStatusSummary({
+  detail,
+}: {
+  detail: ApprovalDetailView;
+}) {
+  const { t } = useTranslation();
+  const phase = resolveApprovedOutboundDisplayPhase({
+    approval: detail.approval,
+    send: detail.sendOperation ?? null,
+    delivery: detail.delivery ?? null,
+  });
+  const isAttention =
+    phase === "send_failed" || phase === "dispatch_uncertain";
+  const isSent = phase === "sent" || phase.startsWith("delivery_");
+  const Icon = isAttention
+    ? CircleAlert
+    : isSent
+      ? Send
+      : phase === "sending"
+        ? Clock3
+        : Check;
+
+  const titleKey =
+    phase === "send_failed"
+      ? "mail.adminCenter.approval.statusSummary.failed"
+      : phase === "dispatch_uncertain"
+        ? "mail.adminCenter.approval.statusSummary.uncertain"
+        : isSent
+          ? "mail.adminCenter.approval.statusSummary.sent"
+          : "mail.adminCenter.approval.statusSummary.approved";
+  const subtitle =
+    phase === "approved_only" || phase === "waiting_to_send"
+      ? t("mail.adminCenter.approval.statusSummary.waiting")
+      : phase === "sending"
+        ? t("mail.adminCenter.approval.statusSummary.sending")
+        : phase === "sent"
+          ? t("mail.compose.sentQueued")
+          : phase === "delivered"
+            ? t("mail.compose.deliveredQueued")
+            : phase === "send_failed"
+              ? t("mail.compose.sendFailedQueued")
+              : t("mail.compose.dispatchUncertainHint");
+  const completedAt =
+    isSent && detail.sendOperation?.completedAt
+      ? ` · ${formatHongKongDateTime(detail.sendOperation.completedAt)}`
+      : "";
+
+  return (
+    <div
+      className={cn(
+        "mail-approval-status-summary mb-4",
+        isAttention && "mail-approval-status-summary--attention",
+        isSent && "mail-approval-status-summary--sent",
+      )}
+      data-delivery-phase={phase}
+      role="status"
+      aria-live="polite"
+    >
+      <div className="mail-approval-status-summary__title">
+        <Icon className="h-4 w-4 shrink-0" aria-hidden />
+        <span>{t(titleKey)}</span>
+        {completedAt ? (
+          <span className="mail-approval-status-summary__time">
+            {completedAt}
+          </span>
+        ) : null}
+      </div>
+      <p className="mail-approval-status-summary__subtitle">{subtitle}</p>
+    </div>
+  );
+}
+
 export function MailApprovalDetailPane({ className }: { className?: string }) {
   const { t } = useTranslation();
   const approvalWorkspace = useOptionalMailApprovalWorkspace();
@@ -231,7 +305,6 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
         setActionError(result.error);
         return;
       }
-      setActionMessage(t("mail.adminCenter.approval.approveSuccess"));
       await loadApprovals();
       await refreshDetail();
     } catch {
@@ -275,13 +348,18 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mail-approval-detail-inner mx-auto w-full max-w-[52rem] px-4 py-5 sm:px-6">
           {actionMessage ? (
-            <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-300" role="status">
+            <p className="mb-4 text-sm crm-text" role="status">
               {actionMessage}
             </p>
           ) : null}
+          {approval.status === "approved" ? (
+            <ApprovalDeliveryStatusSummary detail={detail} />
+          ) : null}
           <div className="space-y-4 border-b crm-border pb-5">
             <div className="flex flex-wrap items-center gap-2">
-              <MailApprovalStatusBadge status={approval.status} />
+              {approval.status !== "approved" ? (
+                <MailApprovalStatusBadge status={approval.status} />
+              ) : null}
               <span className="text-sm crm-text-secondary">
                 {t("mail.approval.requester")}:{" "}
                 {formatApprovalRequesterLabel(detail.requesterLabel, t)}

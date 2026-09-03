@@ -13,6 +13,8 @@ import {
   fetchAdminUsersForMailAccess,
   fetchApproval,
   fetchApprovals,
+  fetchSendOperationDelivery,
+  fetchSendOperationForApproval,
   fetchOutboundRevision,
 } from "@/lib/mail/client/api";
 import {
@@ -34,6 +36,10 @@ import {
   type ApprovalAttachmentsLoadState,
 } from "@/lib/mail/client/mail-approval-review-readiness";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
+import type {
+  SendDeliveryLifecycleApiItem,
+  SendOperationApiItem,
+} from "@/lib/mail/client/approved-outbound-queue";
 
 export type { ApprovalAttachmentsLoadState };
 export { isApprovalDetailReadyForReview };
@@ -44,6 +50,8 @@ export type ApprovalDetailView = {
   requesterLabel: string;
   editableBodyHtml: string;
   quotedBodyHtml: string | null;
+  sendOperation?: SendOperationApiItem | null;
+  delivery?: SendDeliveryLifecycleApiItem | null;
 };
 
 export type MailApprovalWorkspaceValue = {
@@ -70,6 +78,8 @@ function buildDetailView(
   approval: ApprovalApiItem,
   revision: OutboundRevisionApiItem,
   usersById: Map<string, MailAccessAdminUser>,
+  sendOperation: SendOperationApiItem | null,
+  delivery: SendDeliveryLifecycleApiItem | null,
 ): ApprovalDetailView {
   const bodyHtml = revision.bodyHtmlSanitized ?? revision.bodyText;
   const split = splitComposeBodyForEditor({
@@ -91,6 +101,8 @@ function buildDetailView(
     ),
     editableBodyHtml: split.editableHtml,
     quotedBodyHtml: split.quotedHtml,
+    sendOperation,
+    delivery,
   };
 }
 
@@ -183,9 +195,10 @@ export function MailApprovalWorkspaceProvider({
         }
         return;
       }
-      const revisionResult = await fetchOutboundRevision(
-        approvalResult.item.currentRevisionId,
-      );
+      const [revisionResult, sendResult] = await Promise.all([
+        fetchOutboundRevision(approvalResult.item.currentRevisionId),
+        fetchSendOperationForApproval(approvalId),
+      ]);
       if (!revisionResult.ok) {
         if (requestId === detailRequestRef.current) {
           setDetailError(revisionResult.error);
@@ -200,11 +213,23 @@ export function MailApprovalWorkspaceProvider({
       const attachmentState = resolveApprovalAttachmentsState(revisionResult.item);
       setAttachmentsLoadState(attachmentState.state);
       setAttachmentsLoadError(attachmentState.errorKey);
+      const sendOperation = sendResult.ok ? sendResult.item : null;
+      const delivery =
+        sendOperation?.status === "accepted"
+          ? await (async () => {
+              const deliveryResult = await fetchSendOperationDelivery(
+                sendOperation.id,
+              );
+              return deliveryResult.ok ? deliveryResult.item : null;
+            })()
+          : null;
       setDetail(
         buildDetailView(
           approvalResult.item,
           revisionResult.item,
           buildApprovalRequesterUsersById(usersListRef.current, sessionUser),
+          sendOperation,
+          delivery,
         ),
       );
     } catch {

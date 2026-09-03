@@ -109,6 +109,49 @@ describe("approved outbound queue", () => {
     );
   });
 
+  it("keeps approval separate from each send delivery state", () => {
+    const cases: Array<{
+      status: SendOperationApiItem["status"];
+      phase: ReturnType<typeof resolveApprovedOutboundDisplayPhase>;
+      label: string;
+    }> = [
+      {
+        status: "pending",
+        phase: "waiting_to_send",
+        label: "mail.compose.waitingToSend",
+      },
+      {
+        status: "processing",
+        phase: "sending",
+        label: "mail.compose.sendingQueued",
+      },
+      {
+        status: "accepted",
+        phase: "sent",
+        label: "mail.compose.sentQueued",
+      },
+      {
+        status: "failed",
+        phase: "send_failed",
+        label: "mail.compose.sendFailedQueued",
+      },
+      {
+        status: "dispatch_uncertain",
+        phase: "dispatch_uncertain",
+        label: "mail.compose.dispatchUncertainQueued",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const phase = resolveApprovedOutboundDisplayPhase({
+        approval: approval(),
+        send: sendOperation({ status: testCase.status }),
+      });
+      assert.equal(phase, testCase.phase);
+      assert.equal(resolveSendDeliveryLifecycleLabelKey(phase), testCase.label);
+    }
+  });
+
   it("verifies send operation snapshot integrity against approved provenance", () => {
     assert.equal(
       assertSendOperationSnapshotIntegrity({
@@ -176,10 +219,20 @@ describe("approved outbound queue wiring", () => {
       "src/components/mail/compose/mail-compose-submission-status.tsx",
       "utf8",
     );
+    const approvalDetail = readFileSync(
+      "src/components/mail/approval/mail-approval-detail-pane.tsx",
+      "utf8",
+    );
 
     assert.match(approvalService, /buildSendOperationCreation/);
     assert.match(sendService, /buildSendOperationCreation/);
     assert.match(sendService, /status: "pending"/);
     assert.match(composeStatus, /resolveSendDeliveryLifecycleLabelKey/);
+    assert.match(approvalDetail, /ApprovalDeliveryStatusSummary/);
+    assert.match(approvalDetail, /resolveApprovedOutboundDisplayPhase/);
+    assert.doesNotMatch(
+      approvalDetail,
+      /setActionMessage\(t\("mail\.adminCenter\.approval\.approveSuccess"\)\)/,
+    );
   });
 });

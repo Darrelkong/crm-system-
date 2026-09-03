@@ -1056,6 +1056,70 @@ html[data-theme="dark"] {
   line-height: 1.65;
 }
 
+.mail-approval-status-summary {
+  min-width: 0;
+  border: 1px solid color-mix(in srgb, var(--color-crm-primary) 22%, var(--color-crm-border));
+  border-radius: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  background: color-mix(in srgb, var(--color-crm-primary-soft) 42%, var(--color-crm-card));
+}
+
+.mail-approval-status-summary__title {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-crm-text);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.mail-approval-status-summary__title > svg {
+  color: var(--color-crm-primary);
+}
+
+.mail-approval-status-summary__time {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-crm-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.mail-approval-status-summary__subtitle {
+  margin: 0.25rem 0 0 1.5rem;
+  color: var(--color-crm-text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.mail-approval-status-summary--sent {
+  border-color: color-mix(in srgb, #16a34a 24%, var(--color-crm-border));
+  background: color-mix(in srgb, #16a34a 6%, var(--color-crm-card));
+}
+
+.mail-approval-status-summary--sent .mail-approval-status-summary__title > svg {
+  color: #15803d;
+}
+
+.mail-approval-status-summary--attention {
+  border-color: color-mix(in srgb, #d97706 30%, var(--color-crm-border));
+  background: color-mix(in srgb, #d97706 7%, var(--color-crm-card));
+}
+
+.mail-approval-status-summary--attention .mail-approval-status-summary__title > svg {
+  color: #b45309;
+}
+
+[data-theme="dark"] .mail-approval-status-summary--sent .mail-approval-status-summary__title > svg {
+  color: #86efac;
+}
+
+[data-theme="dark"] .mail-approval-status-summary--attention .mail-approval-status-summary__title > svg {
+  color: #fbbf24;
+}
+
 .mail-message-body {
   min-width: 0;
   max-width: 100%;

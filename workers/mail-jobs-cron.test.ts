@@ -83,6 +83,10 @@ describe("mail jobs cron static config", () => {
     );
     assert.match(
       config,
+      /"name":\s*"BUSINESS_EMAIL"[\s\S]*?"allowed_sender_addresses":\s*\[\s*"daniel\.hayes@echfronthk\.com"\s*,\s*"rowan\.lei@echfronthk\.com"\s*\]/,
+    );
+    assert.match(
+      config,
       /"MAIL_NOTIFICATION_TRANSPORT_ENABLED":\s*"false"/,
     );
     assert.match(config, /"workers_dev":\s*false/);
