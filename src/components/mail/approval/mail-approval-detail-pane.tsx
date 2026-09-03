@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, ChevronDown, ChevronRight, CircleAlert, Clock3, Send } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
@@ -28,7 +28,11 @@ import {
 import { formatAttachmentSize } from "@/lib/mail/client/draft-management";
 import { postApprovalApprove, postApprovalReturn } from "@/lib/mail/client/api";
 import { formatHongKongDateTime } from "@/lib/timezone";
-import { resolveApprovedOutboundDisplayPhase } from "@/lib/mail/client/approved-outbound-queue";
+import {
+  APPROVAL_DETAIL_LIVE_REFRESH_INTERVAL_MS,
+  resolveApprovedOutboundDisplayPhase,
+  shouldLiveRefreshApprovedDetail,
+} from "@/lib/mail/client/approved-outbound-queue";
 
 function RecipientChipGroup({
   label,
@@ -215,6 +219,85 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [quotedExpanded, setQuotedExpanded] = useState(false);
   const [metadataExpanded, setMetadataExpanded] = useState(false);
+  const liveRefreshInFlightRef = useRef<Promise<void> | null>(null);
+
+  const liveSelectedApprovalId = approvalWorkspace?.selectedApprovalId ?? null;
+  const liveDetail = approvalWorkspace?.detail ?? null;
+  const liveRefreshDetail = approvalWorkspace?.refreshDetail;
+  useEffect(() => {
+    const approval = liveDetail?.approval ?? null;
+    const sendOperation = liveDetail?.sendOperation ?? null;
+    const delivery = liveDetail?.delivery ?? null;
+    const phase =
+      approval?.status === "approved"
+        ? resolveApprovedOutboundDisplayPhase({
+            approval,
+            send: sendOperation,
+            delivery,
+          })
+        : null;
+    if (
+      !liveSelectedApprovalId ||
+      !liveRefreshDetail ||
+      !shouldLiveRefreshApprovedDetail({
+        approvalStatus: approval?.status ?? null,
+        phase,
+      })
+    ) {
+      return;
+    }
+
+    const refreshVisibleDetail = () => {
+      if (
+        document.visibilityState !== "visible" ||
+        liveRefreshInFlightRef.current
+      ) {
+        return;
+      }
+      const refreshPromise = liveRefreshDetail();
+      liveRefreshInFlightRef.current = refreshPromise;
+      void refreshPromise.then(
+        () => {
+          if (liveRefreshInFlightRef.current === refreshPromise) {
+            liveRefreshInFlightRef.current = null;
+          }
+        },
+        () => {
+          if (liveRefreshInFlightRef.current === refreshPromise) {
+            liveRefreshInFlightRef.current = null;
+          }
+        },
+      );
+    };
+
+    const refreshOnFocus = () => refreshVisibleDetail();
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshVisibleDetail();
+      }
+    };
+    const interval = window.setInterval(
+      refreshVisibleDetail,
+      APPROVAL_DETAIL_LIVE_REFRESH_INTERVAL_MS,
+    );
+
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnVisibilityChange,
+      );
+    };
+  }, [
+    liveDetail?.approval,
+    liveDetail?.delivery,
+    liveDetail?.sendOperation,
+    liveRefreshDetail,
+    liveSelectedApprovalId,
+  ]);
 
   if (!approvalWorkspace) {
     return null;

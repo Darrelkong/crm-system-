@@ -9,6 +9,7 @@ import {
   resolveApprovedOutboundDisplayPhase,
   resolveOutboundQueuePhase,
   resolveSendDeliveryLifecycleLabelKey,
+  shouldLiveRefreshApprovedDetail,
   type SendOperationApiItem,
 } from "@/lib/mail/client/approved-outbound-queue";
 
@@ -152,6 +153,40 @@ describe("approved outbound queue", () => {
     }
   });
 
+  it("polls only non-terminal approved delivery phases", () => {
+    for (const phase of ["approved_only", "waiting_to_send", "sending"] as const) {
+      assert.equal(
+        shouldLiveRefreshApprovedDetail({
+          approvalStatus: "approved",
+          phase,
+        }),
+        true,
+      );
+    }
+
+    for (const phase of [
+      "sent",
+      "delivered",
+      "send_failed",
+      "dispatch_uncertain",
+    ] as const) {
+      assert.equal(
+        shouldLiveRefreshApprovedDetail({
+          approvalStatus: "approved",
+          phase,
+        }),
+        false,
+      );
+    }
+    assert.equal(
+      shouldLiveRefreshApprovedDetail({
+        approvalStatus: "pending",
+        phase: "waiting_to_send",
+      }),
+      false,
+    );
+  });
+
   it("verifies send operation snapshot integrity against approved provenance", () => {
     assert.equal(
       assertSendOperationSnapshotIntegrity({
@@ -230,6 +265,11 @@ describe("approved outbound queue wiring", () => {
     assert.match(composeStatus, /resolveSendDeliveryLifecycleLabelKey/);
     assert.match(approvalDetail, /ApprovalDeliveryStatusSummary/);
     assert.match(approvalDetail, /resolveApprovedOutboundDisplayPhase/);
+    assert.match(approvalDetail, /APPROVAL_DETAIL_LIVE_REFRESH_INTERVAL_MS/);
+    assert.match(approvalDetail, /window\.setInterval\(/);
+    assert.match(approvalDetail, /liveRefreshInFlightRef/);
+    assert.match(approvalDetail, /document\.addEventListener\("visibilitychange"/);
+    assert.match(approvalDetail, /window\.addEventListener\("focus"/);
     assert.doesNotMatch(
       approvalDetail,
       /setActionMessage\(t\("mail\.adminCenter\.approval\.approveSuccess"\)\)/,

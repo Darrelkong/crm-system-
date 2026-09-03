@@ -1,5 +1,7 @@
 import type { ApprovalApiItem } from "@/lib/mail/client/approval-workflow-management";
 
+export const APPROVAL_DETAIL_LIVE_REFRESH_INTERVAL_MS = 5_000;
+
 export type SendOperationApiItem = {
   id: string;
   outboundRevisionId: string;
@@ -158,6 +160,20 @@ export function resolveOutboundDisplayPhase(input: {
   delivery?: Pick<SendDeliveryLifecycleApiItem, "lifecyclePhase"> | null;
 }): SendDeliveryDisplayPhase {
   return resolveApprovedOutboundDisplayPhase(input);
+}
+
+export function shouldLiveRefreshApprovedDetail(input: {
+  approvalStatus: ApprovalApiItem["status"] | null;
+  phase: SendDeliveryDisplayPhase | null;
+}): boolean {
+  if (input.approvalStatus !== "approved") {
+    return false;
+  }
+  return (
+    input.phase === "approved_only" ||
+    input.phase === "waiting_to_send" ||
+    input.phase === "sending"
+  );
 }
 
 function resolveAdminDirectOutboundDisplayPhase(input: {
