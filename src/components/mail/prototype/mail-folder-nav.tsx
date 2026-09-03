@@ -5,7 +5,6 @@ import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
-import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import {
   useMailWorkspace,
@@ -45,9 +44,12 @@ function usePaginatedMailboxRows(
   const pagination = paginateSidebarMailboxes(rows, mailboxPage);
 
   useEffect(() => {
-    setMailboxPage(
-      mailboxSidebarPageForSelection(rows, selectedId, (row) => row.id),
-    );
+    const timer = window.setTimeout(() => {
+      setMailboxPage(
+        mailboxSidebarPageForSelection(rows, selectedId, (row) => row.id),
+      );
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [rows, selectedId]);
 
   return {
@@ -114,7 +116,6 @@ function ProductionMailFolderNav({
   const { t } = useTranslation();
   const { capabilities } = useMailSession();
   const canReview = canReviewApprovals(capabilities);
-  const approvalWorkspace = useOptionalMailApprovalWorkspace();
   const workspace = useMailWorkspace();
   const mailboxSections = resolveMailboxSidebarSections(
     workspace.mailboxes.map(adaptAccessibleMailbox),
@@ -150,16 +151,6 @@ function ProductionMailFolderNav({
       <button
         type="button"
         onClick={() => {
-          if (folder.id === "pending_approval") {
-            if (onFolderSelect) {
-              onFolderSelect("pending_approval");
-            } else {
-              void workspace.selectFolder("pending_approval");
-            }
-            void approvalWorkspace?.loadApprovals();
-            approvalWorkspace?.clearSelection();
-            return;
-          }
           if (onFolderSelect) {
             onFolderSelect(folder.id);
             return;

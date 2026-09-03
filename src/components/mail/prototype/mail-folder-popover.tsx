@@ -6,7 +6,6 @@ import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
-import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
@@ -81,7 +80,6 @@ export function MailFolderPopover({
   const workspace = useOptionalMailWorkspace();
   const { capabilities } = useMailSession();
   const canReview = canReviewApprovals(capabilities);
-  const approvalWorkspace = useOptionalMailApprovalWorkspace();
   const {
     activeFolder,
     setActiveFolder,
@@ -237,13 +235,7 @@ export function MailFolderPopover({
                     count={0}
                     active={workspace.selectedFolder === folder.id}
                     onSelect={() => {
-                      if (folder.id === "pending_approval") {
-                        void workspace.selectFolder("pending_approval");
-                        void approvalWorkspace?.loadApprovals();
-                        approvalWorkspace?.clearSelection();
-                      } else {
-                        void workspace.selectFolder(folder.id);
-                      }
+                      void workspace.selectFolder(folder.id);
                       onClose();
                     }}
                   />

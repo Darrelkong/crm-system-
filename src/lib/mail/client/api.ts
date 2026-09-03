@@ -26,7 +26,7 @@ import {
   approvalReturnPath,
   buildApprovalsListPath,
   outboundRevisionPath,
-  type ApprovalStatus,
+  type ApprovalListStatus,
   type ApprovalWorkflowScope,
 } from "@/lib/mail/client/approval-workflow-management";
 import type {
@@ -883,7 +883,7 @@ export async function activateSignatureVersion(signatureVersionId: string): Prom
 
 export async function fetchApprovals(input: {
   scope: ApprovalWorkflowScope;
-  status?: ApprovalStatus;
+  status?: ApprovalListStatus;
 }): Promise<{
   ok: true;
   items: ApprovalApiItem[];

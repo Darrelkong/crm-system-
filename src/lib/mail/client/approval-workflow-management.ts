@@ -2,6 +2,7 @@ import type { MailAdminCenterCapabilities } from "@/lib/mail/mail-session-contex
 import type { MailAccessAdminUser } from "@/lib/mail/client/mail-access-management";
 
 export type ApprovalStatus = "pending" | "returned" | "withdrawn" | "approved";
+export type ApprovalListStatus = ApprovalStatus | "all-reviewed";
 
 export type ApprovalEventApiItem = {
   id: string;
@@ -22,6 +23,18 @@ export type ApprovalEventApiItem = {
   createdAt: string;
 };
 
+export type ApprovalRevisionSummaryApiItem = {
+  id: string;
+  revisionChainId: string;
+  revisionNumber: number;
+  fromAddress: string;
+  fromDisplayName: string | null;
+  subject: string;
+  composeMode: string;
+  createdAt: string;
+  recipients: OutboundRevisionRecipientApiItem[];
+};
+
 export type ApprovalApiItem = {
   id: string;
   revisionChainId: string;
@@ -38,6 +51,7 @@ export type ApprovalApiItem = {
   requestedAt: string;
   resolvedByUserId: string | null;
   resolvedAt: string | null;
+  currentRevisionSummary?: ApprovalRevisionSummaryApiItem;
   events?: ApprovalEventApiItem[];
 };
 
@@ -110,12 +124,6 @@ export type ApprovalWorkflowRowActions = {
 export type ApprovalHistoryFilter = "all" | "approved" | "rejected";
 
 export type ApprovalHistoryResult = "approved" | "rejected" | "withdrawn";
-
-export const APPROVAL_HISTORY_STATUSES = [
-  "returned",
-  "approved",
-  "withdrawn",
-] as const satisfies readonly ApprovalStatus[];
 
 export function isApprovalHistoryStatus(status: ApprovalStatus): boolean {
   return status !== "pending";
@@ -293,7 +301,10 @@ export function buildApprovalWorkflowRows(
   const usersById = new Map(users.map((user) => [user.id, user] as const));
 
   return approvals.map((approval) => {
-    const revision = revisionsById.get(approval.currentRevisionId) ?? null;
+    const revision =
+      revisionsById.get(approval.currentRevisionId) ??
+      approval.currentRevisionSummary ??
+      null;
     const events = sortApprovalEvents(approval.events ?? []);
     return {
       id: approval.id,
@@ -358,7 +369,7 @@ export function outboundRevisionPath(revisionId: string): string {
 
 export function buildApprovalsListPath(input: {
   scope: ApprovalWorkflowScope;
-  status?: ApprovalStatus;
+  status?: ApprovalListStatus;
 }): string {
   const params = new URLSearchParams({ scope: input.scope });
   if (input.status) {

@@ -5,6 +5,7 @@ import type {
   MailMessageDetailView,
   MailMessageListView,
   MailReadFolder,
+  MailWorkspaceFolder,
 } from "@/lib/mail/client/mail-read-types";
 import {
   pickMailCrmContextSafeFields,
@@ -131,10 +132,6 @@ export type ProductionWorkflowFolder = {
 
 export const PRODUCTION_WORKFLOW_FOLDERS: readonly ProductionWorkflowFolder[] = [
   { id: "drafts", labelKey: "mail.folders.drafts" },
-  {
-    id: "pending_approval",
-    labelKey: "mail.folders.waitingApproval",
-  },
 ];
 
 export function resolveApprovalWorkspaceListScope(
@@ -149,6 +146,13 @@ export function filterVisibleWorkflowFolders(
   return PRODUCTION_WORKFLOW_FOLDERS.filter(
     (folder) => !folder.reviewerOnly || canReview,
   );
+}
+
+/** Legacy approval-folder state now falls back to the Inbox entry point. */
+export function normalizeMailWorkspaceFolder(
+  folder: MailWorkspaceFolder,
+): Exclude<MailWorkspaceFolder, "pending_approval"> {
+  return folder === "pending_approval" ? "inbox" : folder;
 }
 
 export function resolveWorkflowFolderLabelKey(
@@ -176,6 +180,9 @@ export function resolveProductionFolderLabelKey(
   folder: string,
   canReview = false,
 ): string {
+  if (folder === "pending_approval") {
+    return "mail.folders.inbox";
+  }
   const readFolder = PRODUCTION_MAIL_READ_FOLDERS.find((item) => item.id === folder);
   if (readFolder) {
     return readFolder.labelKey;

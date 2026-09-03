@@ -30,14 +30,14 @@ describe("approval staff / reviewer boundary helpers", () => {
     );
   });
 
-  it("resolves production folder label for pending_approval by role", () => {
+  it("resolves legacy pending_approval label to Inbox", () => {
     assert.equal(
       resolveProductionFolderLabelKey("pending_approval", false),
-      "mail.folders.waitingApproval",
+      "mail.folders.inbox",
     );
     assert.equal(
       resolveProductionFolderLabelKey("pending_approval", true),
-      "mail.folders.pendingMyApproval",
+      "mail.folders.inbox",
     );
   });
 
@@ -63,13 +63,13 @@ describe("approval staff / reviewer boundary helpers", () => {
     ]);
   });
 
-  it("shows staff waiting-approval and drafts folders in production nav", () => {
+  it("removes the legacy approval folder from production nav", () => {
     const staffFolders = filterVisibleWorkflowFolders(false).map((folder) => folder.id);
-    assert.deepEqual(staffFolders, ["drafts", "pending_approval"]);
+    assert.deepEqual(staffFolders, ["drafts"]);
     const reviewerFolders = filterVisibleWorkflowFolders(true).map(
       (folder) => folder.id,
     );
-    assert.deepEqual(reviewerFolders, ["drafts", "pending_approval"]);
+    assert.deepEqual(reviewerFolders, ["drafts"]);
   });
 
   it("gates approve and reject actions on canReview", () => {

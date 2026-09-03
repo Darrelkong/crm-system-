@@ -10,11 +10,12 @@ import {
   hasMailOutboundApprovalReview,
 } from "@/lib/permissions/mail";
 
-const APPROVAL_STATUSES = new Set([
+const APPROVAL_LIST_STATUSES = new Set([
   "pending",
   "returned",
   "withdrawn",
   "approved",
+  "all-reviewed",
 ]);
 
 export async function GET(request: Request) {
@@ -24,8 +25,13 @@ export async function GET(request: Request) {
     const scope = url.searchParams.get("scope");
     const statusParam = url.searchParams.get("status");
     const status =
-      statusParam && APPROVAL_STATUSES.has(statusParam)
-        ? (statusParam as "pending" | "returned" | "withdrawn" | "approved")
+      statusParam && APPROVAL_LIST_STATUSES.has(statusParam)
+        ? (statusParam as
+            | "pending"
+            | "returned"
+            | "withdrawn"
+            | "approved"
+            | "all-reviewed")
         : undefined;
 
     if (scope === "reviewer") {

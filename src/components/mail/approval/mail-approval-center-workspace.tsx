@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, X } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
-import {
-  APPROVAL_HISTORY_STATUSES,
-  type ApprovalHistoryFilter,
-} from "@/lib/mail/client/approval-workflow-management";
+import type { ApprovalHistoryFilter } from "@/lib/mail/client/approval-workflow-management";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { useMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { MailApprovalDetailPane } from "./mail-approval-detail-pane";
@@ -61,22 +58,31 @@ export function MailApprovalCenterWorkspace({
   const { t } = useTranslation();
   const { capabilities } = useMailSession();
   const approvalWorkspace = useMailApprovalWorkspace();
-  const { loadApprovals } = approvalWorkspace;
+  const { historyLoaded, loadApprovals, pendingLoaded } = approvalWorkspace;
   const [activeTab, setActiveTab] = useState<ApprovalCenterTab>("pending");
   const [historyFilter, setHistoryFilter] =
     useState<ApprovalHistoryFilter>("all");
   const [mobileDetailOpen, setMobileDetailOpen] = useState(false);
 
   useEffect(() => {
-    void loadApprovals({ statuses: ["pending"] });
-  }, [loadApprovals]);
+    if (!pendingLoaded) {
+      void loadApprovals({ dataset: "pending", force: false });
+    }
+    if (!historyLoaded) {
+      const timer = window.setTimeout(() => {
+        void loadApprovals({ dataset: "history", force: false });
+      }, 0);
+      return () => window.clearTimeout(timer);
+    }
+  }, [historyLoaded, loadApprovals, pendingLoaded]);
 
   function changeTab(tab: ApprovalCenterTab) {
     setActiveTab(tab);
     approvalWorkspace.clearSelection();
     setMobileDetailOpen(false);
     void loadApprovals({
-      statuses: tab === "pending" ? ["pending"] : APPROVAL_HISTORY_STATUSES,
+      dataset: tab,
+      force: false,
     });
   }
 

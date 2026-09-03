@@ -23,6 +23,7 @@ import {
   PRODUCTION_WORKFLOW_FOLDERS,
   resolveMailboxSidebarSections,
   resolveMailReadErrorMessageKey,
+  normalizeMailWorkspaceFolder,
   shouldApplyProductionDetailResponse,
   shouldRenderProductionCrmContextPanel,
   shouldRenderPrototypeMessageDetail,
@@ -196,8 +197,13 @@ describe("mail workspace ui adapters", () => {
     );
     assert.deepEqual(
       PRODUCTION_WORKFLOW_FOLDERS.map((folder) => folder.id),
-      ["drafts", "pending_approval"],
+      ["drafts"],
     );
+  });
+
+  it("falls back legacy approval-folder state to Inbox", () => {
+    assert.equal(normalizeMailWorkspaceFolder("pending_approval"), "inbox");
+    assert.equal(normalizeMailWorkspaceFolder("sent"), "sent");
   });
 
   it("maps production draft list rows for drafts folder", () => {

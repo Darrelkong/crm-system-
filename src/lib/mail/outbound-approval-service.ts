@@ -1,4 +1,4 @@
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import type { MailOutboundApproval } from "../../../drizzle/schema/mail-outbound-approvals";
 import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
 import {
@@ -27,8 +27,10 @@ import {
 } from "@/lib/mail/guarded-batch";
 import {
   toSafeApprovalView,
+  type SafeApprovalRevisionSummaryView,
   type SafeApprovalView,
 } from "@/lib/mail/outbound-approval-serialization";
+import { toSafeOutboundRevisionRecipientView } from "@/lib/mail/outbound-revision-serialization";
 import { recomputeOutboundRevisionContentHash } from "@/lib/mail/outbound-revision-service";
 import {
   assertEffectiveMailAccess,
@@ -63,6 +65,8 @@ const STAFF_APPROVAL_REVISION_KINDS = new Set([
   "staff_submit",
   "staff_resubmit",
 ]);
+
+type ApprovalListStatus = MailOutboundApproval["status"] | "all-reviewed";
 
 async function findApprovalById(
   db: Database,
@@ -106,6 +110,53 @@ async function loadApprovalEvents(db: Database, approvalId: string) {
     .from(schema.mailOutboundApprovalEvents)
     .where(eq(schema.mailOutboundApprovalEvents.approvalId, approvalId))
     .orderBy(asc(schema.mailOutboundApprovalEvents.createdAt));
+}
+
+async function loadApprovalRevisionSummaries(
+  db: Database,
+  approvals: MailOutboundApproval[],
+): Promise<Map<string, SafeApprovalRevisionSummaryView>> {
+  const revisionIds = [...new Set(approvals.map((approval) => approval.currentRevisionId))];
+  if (revisionIds.length === 0) {
+    return new Map();
+  }
+
+  const [revisions, recipients] = await Promise.all([
+    db
+      .select()
+      .from(schema.mailOutboundRevisions)
+      .where(inArray(schema.mailOutboundRevisions.id, revisionIds)),
+    db
+      .select()
+      .from(schema.mailOutboundRevisionRecipients)
+      .where(inArray(schema.mailOutboundRevisionRecipients.revisionId, revisionIds))
+      .orderBy(asc(schema.mailOutboundRevisionRecipients.sortOrder)),
+  ]);
+  const recipientsByRevisionId = new Map<string, typeof recipients>();
+  for (const recipient of recipients) {
+    const current = recipientsByRevisionId.get(recipient.revisionId) ?? [];
+    current.push(recipient);
+    recipientsByRevisionId.set(recipient.revisionId, current);
+  }
+
+  return new Map(
+    revisions.map((revision) => [
+      revision.id,
+      {
+        id: revision.id,
+        revisionChainId: revision.revisionChainId,
+        revisionNumber: revision.revisionNumber,
+        fromAddress: revision.fromAddress,
+        fromDisplayName: revision.fromDisplayName,
+        subject: revision.subject,
+        composeMode: revision.composeMode,
+        createdAt: revision.createdAt,
+        recipients: (recipientsByRevisionId.get(revision.id) ?? []).map(
+          toSafeOutboundRevisionRecipientView,
+        ),
+      },
+    ]),
+  );
 }
 
 function assertStaffRevisionKind(revision: MailOutboundRevision): void {
@@ -913,14 +964,22 @@ export async function getApproval(
 export async function listApprovalsForAuthor(
   db: Database,
   actor: MailActorContext,
-  input?: { status?: MailOutboundApproval["status"] },
+  input?: { status?: ApprovalListStatus },
 ): Promise<SafeApprovalView[]> {
   assertEffectiveMailAccess(actor);
 
   const conditions = [
     eq(schema.mailOutboundApprovals.requestedByUserId, actor.userId),
   ];
-  if (input?.status) {
+  if (input?.status === "all-reviewed") {
+    conditions.push(
+      inArray(schema.mailOutboundApprovals.status, [
+        "returned",
+        "withdrawn",
+        "approved",
+      ]),
+    );
+  } else if (input?.status) {
     conditions.push(eq(schema.mailOutboundApprovals.status, input.status));
   }
 
@@ -930,18 +989,29 @@ export async function listApprovalsForAuthor(
     .where(and(...conditions))
     .orderBy(desc(schema.mailOutboundApprovals.requestedAt));
 
-  return rows.map((row) => toSafeApprovalView(row));
+  const revisionSummaries = await loadApprovalRevisionSummaries(db, rows);
+  return rows.map((row) =>
+    toSafeApprovalView(row, undefined, revisionSummaries.get(row.currentRevisionId)),
+  );
 }
 
 export async function listApprovalsForReviewer(
   db: Database,
   actor: MailActorContext,
-  input?: { status?: MailOutboundApproval["status"] },
+  input?: { status?: ApprovalListStatus },
 ): Promise<SafeApprovalView[]> {
   assertMailOutboundApprovalReview(actor);
 
   const conditions = [];
-  if (input?.status) {
+  if (input?.status === "all-reviewed") {
+    conditions.push(
+      inArray(schema.mailOutboundApprovals.status, [
+        "returned",
+        "withdrawn",
+        "approved",
+      ]),
+    );
+  } else if (input?.status) {
     conditions.push(eq(schema.mailOutboundApprovals.status, input.status));
   } else {
     conditions.push(eq(schema.mailOutboundApprovals.status, "pending"));
@@ -956,5 +1026,8 @@ export async function listApprovalsForReviewer(
       asc(schema.mailOutboundApprovals.requestedAt),
     );
 
-  return rows.map((row) => toSafeApprovalView(row));
+  const revisionSummaries = await loadApprovalRevisionSummaries(db, rows);
+  return rows.map((row) =>
+    toSafeApprovalView(row, undefined, revisionSummaries.get(row.currentRevisionId)),
+  );
 }

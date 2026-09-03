@@ -20,7 +20,6 @@ import {
   fetchAdminUsersForMailAccess,
   fetchApproval,
   fetchApprovals,
-  fetchOutboundRevision,
   postApprovalApprove,
   postApprovalReturn,
 } from "@/lib/mail/client/api";
@@ -36,7 +35,6 @@ import {
   type ApprovalStatus,
   type ApprovalWorkflowRow,
   type ApprovalWorkflowScope,
-  type OutboundRevisionApiItem,
 } from "@/lib/mail/client/approval-workflow-management";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import {
@@ -289,21 +287,6 @@ async function enrichApprovalsWithEvents(
   });
 }
 
-async function loadRevisionsById(
-  revisionIds: string[],
-): Promise<Map<string, OutboundRevisionApiItem>> {
-  const revisionsById = new Map<string, OutboundRevisionApiItem>();
-  const results = await Promise.all(
-    revisionIds.map((revisionId) => fetchOutboundRevision(revisionId)),
-  );
-  for (const result of results) {
-    if (result.ok) {
-      revisionsById.set(result.item.id, result.item);
-    }
-  }
-  return revisionsById;
-}
-
 export function ApprovalWorkflowManagement() {
   const { t } = useTranslation();
   const { capabilities } = useMailSession();
@@ -391,15 +374,9 @@ export function ApprovalWorkflowManagement() {
         approvals,
         includeEvents,
       );
-      const revisionIds = [
-        ...new Set(enrichedApprovals.map((approval) => approval.currentRevisionId)),
-      ];
-      const [revisionsById, usersResult] = await Promise.all([
-        loadRevisionsById(revisionIds),
-        fetchAdminUsersForMailAccess(),
-      ]);
+      const usersResult = await fetchAdminUsersForMailAccess();
       const users = usersResult.ok ? usersResult.items : [];
-      setRows(buildApprovalWorkflowRows(enrichedApprovals, revisionsById, users));
+      setRows(buildApprovalWorkflowRows(enrichedApprovals, new Map(), users));
     } catch {
       setRows([]);
       setError(t("common.networkError"));
@@ -409,7 +386,10 @@ export function ApprovalWorkflowManagement() {
   }, [canView, effectiveScope, statusFilter, t]);
 
   useEffect(() => {
-    void load();
+    const timer = window.setTimeout(() => {
+      void load();
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, [load]);
 
   async function handleApprove(approvalId: string) {

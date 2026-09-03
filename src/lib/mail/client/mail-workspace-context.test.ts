@@ -629,7 +629,7 @@ describe("mail workspace runtime", () => {
     assert.equal(calls.messages.length, messageCallsBefore);
   });
 
-  it("selectFolder pending_approval clears message state without message API calls", async () => {
+  it("falls back legacy pending_approval selection to Inbox", async () => {
     const { api, calls } = createApiMock();
     const runtime = createMailWorkspaceRuntime(api);
     await runtime.getSnapshot().loadMessages({
@@ -641,16 +641,16 @@ describe("mail workspace runtime", () => {
     const messageCallsBefore = calls.messages.length;
     await runtime.getSnapshot().selectFolder("pending_approval");
     const snapshot = runtime.getSnapshot();
-    assert.equal(snapshot.selectedFolder, "pending_approval");
-    assert.equal(snapshot.messages.length, 0);
+    assert.equal(snapshot.selectedFolder, "inbox");
+    assert.equal(snapshot.messages.length, 1);
     assert.equal(snapshot.drafts.length, 0);
     assert.equal(snapshot.selectedMessageId, null);
     assert.equal(snapshot.selectedMessage, null);
     assert.equal(snapshot.isLoadingMessages, false);
-    assert.equal(calls.messages.length, messageCallsBefore);
+    assert.equal(calls.messages.length, messageCallsBefore + 1);
   });
 
-  it("selectMailbox while on pending_approval updates mailbox without message API calls", async () => {
+  it("selectMailbox after legacy pending state keeps the Inbox fallback", async () => {
     const { api, calls } = createApiMock();
     const runtime = createMailWorkspaceRuntime(api);
     await runtime.getSnapshot().loadMessages({
@@ -663,9 +663,9 @@ describe("mail workspace runtime", () => {
     await runtime.getSnapshot().selectMailbox("mailbox-2");
     const snapshot = runtime.getSnapshot();
     assert.equal(snapshot.selectedMailboxId, "mailbox-2");
-    assert.equal(snapshot.selectedFolder, "pending_approval");
-    assert.equal(snapshot.messages.length, 0);
-    assert.equal(calls.messages.length, messageCallsBefore);
+    assert.equal(snapshot.selectedFolder, "inbox");
+    assert.equal(snapshot.messages.length, 1);
+    assert.equal(calls.messages.length, messageCallsBefore + 1);
   });
 
   it("clears detail loading when list reset invalidates the in-flight selection", async () => {

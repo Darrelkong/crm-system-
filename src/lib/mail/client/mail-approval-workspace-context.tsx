@@ -26,7 +26,6 @@ import {
   resolveApprovalRequesterLabel,
   resolveUserLabel,
   type ApprovalApiItem,
-  type ApprovalStatus,
   type ApprovalWorkflowRow,
   type OutboundRevisionApiItem,
 } from "@/lib/mail/client/approval-workflow-management";
@@ -60,17 +59,28 @@ export type ApprovalDetailView = {
 
 export type MailApprovalWorkspaceValue = {
   rows: ApprovalWorkflowRow[];
+  pendingRows: ApprovalWorkflowRow[];
+  historyRows: ApprovalWorkflowRow[];
   pendingCount: number;
   selectedApprovalId: string | null;
   detail: ApprovalDetailView | null;
   isLoadingList: boolean;
+  pendingLoading: boolean;
+  historyLoading: boolean;
   isLoadingDetail: boolean;
   attachmentsLoadState: ApprovalAttachmentsLoadState;
   listError: string | null;
+  pendingError: string | null;
+  historyError: string | null;
   detailError: string | null;
   attachmentsLoadError: string | null;
   canReview: boolean;
-  loadApprovals: (input?: { statuses?: readonly ApprovalStatus[] }) => Promise<void>;
+  pendingLoaded: boolean;
+  historyLoaded: boolean;
+  loadApprovals: (input?: {
+    dataset?: "pending" | "history";
+    force?: boolean;
+  }) => Promise<void>;
   selectApproval: (approvalId: string) => Promise<void>;
   clearSelection: () => void;
   refreshDetail: () => Promise<void>;
@@ -120,15 +130,20 @@ export function MailApprovalWorkspaceProvider({
 }) {
   const { capabilities, session } = useMailSession();
   const canReview = canReviewApprovals(capabilities);
-  const [rows, setRows] = useState<ApprovalWorkflowRow[]>([]);
+  const [pendingRows, setPendingRows] = useState<ApprovalWorkflowRow[]>([]);
+  const [historyRows, setHistoryRows] = useState<ApprovalWorkflowRow[]>([]);
   const [pendingCount, setPendingCount] = useState(0);
+  const [pendingLoaded, setPendingLoaded] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(
     null,
   );
   const [detail, setDetail] = useState<ApprovalDetailView | null>(null);
-  const [isLoadingList, setIsLoadingList] = useState(false);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isLoadingDetail, setIsLoadingDetail] = useState(false);
-  const [listError, setListError] = useState<string | null>(null);
+  const [pendingError, setPendingError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [attachmentsLoadState, setAttachmentsLoadState] =
     useState<ApprovalAttachmentsLoadState>("idle");
@@ -136,87 +151,144 @@ export function MailApprovalWorkspaceProvider({
     null,
   );
   const usersListRef = useRef<MailAccessAdminUser[]>([]);
+  const usersLoadedRef = useRef(false);
+  const usersRequestRef = useRef<Promise<MailAccessAdminUser[]> | null>(null);
   const detailRequestRef = useRef(0);
   const deliveryRequestRef = useRef(0);
+  const pendingRequestRef = useRef<{
+    generation: number;
+    inFlight: Promise<void> | null;
+  }>({ generation: 0, inFlight: null });
+  const historyRequestRef = useRef<{
+    generation: number;
+    inFlight: Promise<void> | null;
+  }>({ generation: 0, inFlight: null });
+  const pendingLoadedRef = useRef(false);
+  const historyLoadedRef = useRef(false);
   const sessionUser = session?.user ?? null;
 
-  const loadApprovals = useCallback(
-    async (input: { statuses?: readonly ApprovalStatus[] } = {}) => {
-      const statuses =
-        input.statuses && input.statuses.length > 0
-          ? input.statuses
-          : (["pending"] as ApprovalStatus[]);
-      setIsLoadingList(true);
-      setListError(null);
-      try {
-        const [approvalResults, usersResult] = await Promise.all([
-          Promise.all(
-            statuses.map((status) =>
-              fetchApprovals({
-                scope: resolveApprovalWorkspaceListScope(canReview),
-                status,
-              }),
-            ),
-          ),
-          fetchAdminUsersForMailAccess(),
-        ]);
-        const failed = approvalResults.find((result) => !result.ok);
-        if (failed && !failed.ok) {
-          setListError(failed.error);
-          setRows([]);
-          if (statuses.includes("pending")) {
-            setPendingCount(0);
-          }
-          return;
-        }
-        const users = usersResult.ok ? usersResult.items : [];
+  const loadRequesterUsers = useCallback(async () => {
+    if (usersLoadedRef.current) {
+      return usersListRef.current;
+    }
+    if (usersRequestRef.current) {
+      return usersRequestRef.current;
+    }
+    const request = fetchAdminUsersForMailAccess()
+      .then((result) => {
+        const users = result.ok ? result.items : [];
         const requesterUsers = enrichApprovalRequesterUsers(users, sessionUser);
         usersListRef.current = requesterUsers;
-        const revisionIds = [
-          ...new Set(
-            approvalResults.flatMap((result) =>
-              result.ok ? result.items.map((item) => item.currentRevisionId) : [],
-            ),
-          ),
-        ];
-        const revisionsById = new Map<string, OutboundRevisionApiItem>();
-        await Promise.all(
-          revisionIds.map(async (revisionId) => {
-            const revisionResult = await fetchOutboundRevision(revisionId);
-            if (revisionResult.ok) {
-              revisionsById.set(revisionId, revisionResult.item);
+        usersLoadedRef.current = true;
+        return requesterUsers;
+      })
+      .catch(() => {
+        usersLoadedRef.current = true;
+        usersListRef.current = enrichApprovalRequesterUsers([], sessionUser);
+        return usersListRef.current;
+      })
+      .finally(() => {
+        usersRequestRef.current = null;
+      });
+    usersRequestRef.current = request;
+    return request;
+  }, [sessionUser]);
+
+  const loadApprovals = useCallback(
+    async (
+      input: {
+        dataset?: "pending" | "history";
+        force?: boolean;
+      } = {},
+    ) => {
+      const dataset = input.dataset ?? "pending";
+      const force = input.force ?? true;
+      const loadedRef =
+        dataset === "pending" ? pendingLoadedRef : historyLoadedRef;
+      const requestRef =
+        dataset === "pending" ? pendingRequestRef : historyRequestRef;
+      if (!force && loadedRef.current) {
+        return;
+      }
+      if (requestRef.current.inFlight) {
+        await requestRef.current.inFlight;
+        return;
+      }
+
+      const requestGeneration = ++requestRef.current.generation;
+      if (dataset === "pending") {
+        setPendingLoading(true);
+        setPendingError(null);
+      } else {
+        setHistoryLoading(true);
+        setHistoryError(null);
+      }
+
+      const request = (async () => {
+        try {
+          const [approvalsResult, requesterUsers] = await Promise.all([
+            fetchApprovals({
+              scope: resolveApprovalWorkspaceListScope(canReview),
+              status: dataset === "history" ? "all-reviewed" : "pending",
+            }),
+            loadRequesterUsers(),
+          ]);
+          if (!approvalsResult.ok) {
+            if (dataset === "pending") {
+              setPendingError(approvalsResult.error);
+            } else {
+              setHistoryError(approvalsResult.error);
             }
-          }),
-        );
-        const approvals = approvalResults.flatMap((result) =>
-          result.ok ? result.items : [],
-        );
-        setRows(buildApprovalWorkflowRows(approvals, revisionsById, requesterUsers));
-        if (statuses.includes("pending")) {
-          setPendingCount(
-            approvalResults.reduce(
-              (count, result) => count + (result.ok ? result.items.length : 0),
-              0,
-            ),
+            return;
+          }
+          if (requestGeneration !== requestRef.current.generation) {
+            return;
+          }
+          const nextRows = buildApprovalWorkflowRows(
+            approvalsResult.items,
+            new Map(),
+            requesterUsers,
           );
+          if (dataset === "pending") {
+            setPendingRows(nextRows);
+            setPendingCount(approvalsResult.items.length);
+            setPendingLoaded(true);
+            pendingLoadedRef.current = true;
+          } else {
+            setHistoryRows(nextRows);
+            setHistoryLoaded(true);
+            historyLoadedRef.current = true;
+          }
+        } catch {
+          if (dataset === "pending") {
+            setPendingError("Failed to load approvals");
+          } else {
+            setHistoryError("Failed to load approvals");
+          }
+        } finally {
+          if (dataset === "pending") {
+            setPendingLoading(false);
+          } else {
+            setHistoryLoading(false);
+          }
         }
-      } catch {
-        setListError("Failed to load approvals");
-        setRows([]);
-        if (statuses.includes("pending")) {
-          setPendingCount(0);
-        }
+      })();
+      requestRef.current.inFlight = request;
+      try {
+        await request;
       } finally {
-        setIsLoadingList(false);
+        if (requestRef.current.inFlight === request) {
+          requestRef.current.inFlight = null;
+        }
       }
     },
-    [canReview, sessionUser],
+    [canReview, loadRequesterUsers],
   );
 
   useEffect(() => {
     if (!canReview) return;
     const timer = window.setTimeout(() => {
-      void loadApprovals();
+      void loadApprovals({ dataset: "pending", force: false });
     }, 0);
     return () => window.clearTimeout(timer);
   }, [canReview, loadApprovals]);
@@ -359,17 +431,25 @@ export function MailApprovalWorkspaceProvider({
 
   const value = useMemo(
     (): MailApprovalWorkspaceValue => ({
-      rows,
+      rows: pendingRows,
+      pendingRows,
+      historyRows,
       pendingCount,
       selectedApprovalId,
       detail,
-      isLoadingList,
+      isLoadingList: pendingLoading,
+      pendingLoading,
+      historyLoading,
       isLoadingDetail,
       attachmentsLoadState: isLoadingDetail ? "loading" : attachmentsLoadState,
-      listError,
+      listError: pendingError,
+      pendingError,
+      historyError,
       detailError,
       attachmentsLoadError,
       canReview,
+      pendingLoaded,
+      historyLoaded,
       loadApprovals,
       selectApproval,
       clearSelection,
@@ -377,17 +457,22 @@ export function MailApprovalWorkspaceProvider({
       refreshDeliveryStatus,
     }),
     [
-      rows,
+      pendingRows,
+      historyRows,
       pendingCount,
       selectedApprovalId,
       detail,
-      isLoadingList,
+      pendingLoading,
+      historyLoading,
       isLoadingDetail,
-      listError,
+      pendingError,
+      historyError,
       detailError,
       attachmentsLoadState,
       attachmentsLoadError,
       canReview,
+      pendingLoaded,
+      historyLoaded,
       loadApprovals,
       selectApproval,
       clearSelection,

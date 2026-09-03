@@ -32,6 +32,7 @@ import type {
   UpdateMessageReadStateInput,
 } from "@/lib/mail/client/mail-read-types";
 import { resolveEffectiveMailboxId } from "@/lib/mail/client/mail-workspace-mailbox-selection";
+import { normalizeMailWorkspaceFolder } from "@/lib/mail/client/mail-workspace-ui-adapters";
 
 export { resolveEffectiveMailboxId } from "@/lib/mail/client/mail-workspace-mailbox-selection";
 export type { ResolveEffectiveMailboxIdInput } from "@/lib/mail/client/mail-workspace-mailbox-selection";
@@ -660,26 +661,13 @@ export function createMailWorkspaceRuntime(
   }
 
   async function selectFolder(folder: MailWorkspaceFolder) {
+    const nextFolder = normalizeMailWorkspaceFolder(folder);
     const previousFolder = state.selectedFolder;
-    if (folder !== previousFolder) {
-      setState({ selectedFolder: folder });
+    if (nextFolder !== previousFolder) {
+      setState({ selectedFolder: nextFolder });
     }
-    if (folder === "drafts") {
+    if (nextFolder === "drafts") {
       await loadDrafts(previousFolder);
-      return;
-    }
-    if (folder === "pending_approval") {
-      setState({
-        selectedFolder: "pending_approval",
-        messages: [],
-        drafts: [],
-        nextCursor: null,
-        selectedMessageId: null,
-        selectedMessage: null,
-        isLoadingDetail: false,
-        isLoadingMessages: false,
-        error: null,
-      });
       return;
     }
     const mailboxId = resolveActiveMailboxId();
@@ -688,7 +676,7 @@ export function createMailWorkspaceRuntime(
     }
     await loadMessages({
       mailboxId,
-      folder,
+      folder: nextFolder,
       reset: true,
       previousFolder,
     });

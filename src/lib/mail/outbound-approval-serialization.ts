@@ -1,5 +1,7 @@
 import type { MailOutboundApproval } from "../../../drizzle/schema/mail-outbound-approvals";
 import type { MailOutboundApprovalEvent } from "../../../drizzle/schema/mail-outbound-approval-events";
+import type { MailOutboundRevision } from "../../../drizzle/schema/mail-outbound-revisions";
+import type { SafeOutboundRevisionRecipientView } from "@/lib/mail/outbound-revision-serialization";
 
 export type SafeApprovalEventView = {
   id: string;
@@ -11,6 +13,18 @@ export type SafeApprovalEventView = {
   hashVersion: number | null;
   note: string | null;
   createdAt: string;
+};
+
+export type SafeApprovalRevisionSummaryView = {
+  id: string;
+  revisionChainId: string;
+  revisionNumber: number;
+  fromAddress: string;
+  fromDisplayName: string | null;
+  subject: string;
+  composeMode: MailOutboundRevision["composeMode"];
+  createdAt: string;
+  recipients: SafeOutboundRevisionRecipientView[];
 };
 
 export type SafeApprovalView = {
@@ -29,6 +43,7 @@ export type SafeApprovalView = {
   requestedAt: string;
   resolvedByUserId: string | null;
   resolvedAt: string | null;
+  currentRevisionSummary?: SafeApprovalRevisionSummaryView;
   events?: SafeApprovalEventView[];
 };
 
@@ -51,6 +66,7 @@ export function toSafeApprovalEventView(
 export function toSafeApprovalView(
   approval: MailOutboundApproval,
   events?: MailOutboundApprovalEvent[],
+  currentRevisionSummary?: SafeApprovalRevisionSummaryView,
 ): SafeApprovalView {
   return {
     id: approval.id,
@@ -68,6 +84,7 @@ export function toSafeApprovalView(
     requestedAt: approval.requestedAt,
     resolvedByUserId: approval.resolvedByUserId,
     resolvedAt: approval.resolvedAt,
+    ...(currentRevisionSummary ? { currentRevisionSummary } : {}),
     ...(events ? { events: events.map(toSafeApprovalEventView) } : {}),
   };
 }

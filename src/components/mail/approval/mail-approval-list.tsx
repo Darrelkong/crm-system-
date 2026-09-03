@@ -7,7 +7,6 @@ import { MailApprovalStatusBadge } from "@/components/mail/shared/mail-approval-
 import { MailApprovalResultBadge } from "@/components/mail/shared/mail-approval-result-badge";
 import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import {
-  APPROVAL_HISTORY_STATUSES,
   filterApprovalHistoryRows,
   formatApprovalRequesterLabel,
   type ApprovalHistoryFilter,
@@ -127,14 +126,20 @@ export function MailApprovalList({
   }
 
   const {
-    rows,
+    pendingRows,
+    historyRows,
     selectedApprovalId,
-    isLoadingList,
-    listError,
+    pendingLoading,
+    historyLoading,
+    pendingError,
+    historyError,
     loadApprovals,
     selectApproval,
     canReview,
   } = approvalWorkspace;
+  const rows = mode === "history" ? historyRows : pendingRows;
+  const isLoadingList = mode === "history" ? historyLoading : pendingLoading;
+  const listError = mode === "history" ? historyError : pendingError;
   const visibleRows =
     mode === "history"
       ? filterApprovalHistoryRows(rows, historyFilter)
@@ -159,10 +164,8 @@ export function MailApprovalList({
             type="button"
             onClick={() =>
               void loadApprovals({
-                statuses:
-                  mode === "history"
-                    ? APPROVAL_HISTORY_STATUSES
-                    : ["pending"],
+                dataset: mode,
+                force: true,
               })
             }
             className="mail-list-toolbar-btn flex h-7 w-7 items-center justify-center rounded-md crm-text-secondary"
