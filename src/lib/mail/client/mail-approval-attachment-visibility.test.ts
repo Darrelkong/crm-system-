@@ -64,6 +64,7 @@ function detail(
       attachments: [],
     },
     requesterLabel: "Daniel.Hayes",
+    reviewerLabel: "—",
     editableBodyHtml: "<p>Reply body</p>",
     quotedBodyHtml: "<p>On date wrote:</p>",
     ...overrides,

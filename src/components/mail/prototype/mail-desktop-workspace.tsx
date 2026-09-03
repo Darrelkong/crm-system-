@@ -43,6 +43,9 @@ export function MailDesktopWorkspace({
   composeSeedPending = false,
   showAdminEntry = false,
   onOpenAdminCenter,
+  showApprovalEntry = false,
+  approvalPendingCount = 0,
+  onOpenApprovalCenter,
   showNotificationMailboxEntry = false,
   onOpenNotificationMailbox,
   adminCenterReturnFocusRef,
@@ -72,6 +75,9 @@ export function MailDesktopWorkspace({
   composeSeedPending?: boolean;
   showAdminEntry?: boolean;
   onOpenAdminCenter?: () => void;
+  showApprovalEntry?: boolean;
+  approvalPendingCount?: number;
+  onOpenApprovalCenter?: () => void;
   showNotificationMailboxEntry?: boolean;
   onOpenNotificationMailbox?: () => void;
   adminCenterReturnFocusRef?: React.RefObject<HTMLButtonElement | null>;
@@ -118,6 +124,7 @@ export function MailDesktopWorkspace({
 
   useEffect(() => {
     if (layoutMode === "medium") {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve the existing responsive layout transition
       setMailboxSidebarCollapsed(true);
     } else if (layoutMode === "wide") {
       setMailboxSidebarCollapsed(false);
@@ -125,6 +132,7 @@ export function MailDesktopWorkspace({
   }, [layoutMode]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset reading focus when the selected folder changes
     setStackPane("list");
     setDesktopMailView("list");
   }, [workspace?.selectedFolder]);
@@ -378,6 +386,9 @@ export function MailDesktopWorkspace({
                 onRefresh={() => {}}
                 showAdminEntry={showAdminEntry}
                 onOpenAdminCenter={onOpenAdminCenter}
+                showApprovalEntry={showApprovalEntry}
+                approvalPendingCount={approvalPendingCount}
+                onOpenApprovalCenter={onOpenApprovalCenter}
                 showNotificationMailboxEntry={showNotificationMailboxEntry}
                 onOpenNotificationMailbox={onOpenNotificationMailbox}
                 settingsReturnFocusRef={adminCenterReturnFocusRef}

@@ -6,7 +6,7 @@ import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/form";
-import { MailApprovalStatusBadge } from "@/components/mail/shared/mail-approval-status-badge";
+import { MailApprovalResultBadge } from "@/components/mail/shared/mail-approval-result-badge";
 import { MailAttachmentViewer } from "@/components/mail/mail-attachment-viewer";
 import { MailMessageBodyRenderer } from "@/components/mail/mail-message-body-renderer";
 import {
@@ -25,6 +25,7 @@ import {
   formatRevisionRecipientsLabel,
   formatRevisionSenderLabel,
   isRejectReasonValid,
+  resolveLatestReturnReason,
   type OutboundRevisionApiItem,
 } from "@/lib/mail/client/approval-workflow-management";
 import { formatAttachmentSize } from "@/lib/mail/client/draft-management";
@@ -491,9 +492,10 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
           ) : null}
           <div className="space-y-4 border-b crm-border pb-5">
             <div className="flex flex-wrap items-center gap-2">
-              {approval.status !== "approved" ? (
-                <MailApprovalStatusBadge status={approval.status} />
-              ) : null}
+              <span className="text-sm crm-text-secondary">
+                {t("mail.approvalCenter.approvalResult")}:
+              </span>
+              <MailApprovalResultBadge status={approval.status} />
               <span className="text-sm crm-text-secondary">
                 {t("mail.approval.requester")}:{" "}
                 {formatApprovalRequesterLabel(detail.requesterLabel, t)}
@@ -529,6 +531,45 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
                 {revision.subject}
               </span>
             </div>
+            <div className="grid gap-2 text-sm crm-text-secondary sm:grid-cols-2">
+              <p>
+                {t("mail.approvalCenter.applicant")}:{" "}
+                <span className="crm-text">
+                  {formatApprovalRequesterLabel(detail.requesterLabel, t)}
+                </span>
+              </p>
+              <p>
+                {t("mail.approval.submittedAt")}:{" "}
+                <span className="crm-text">
+                  {formatHongKongDateTime(approval.requestedAt)}
+                </span>
+              </p>
+              {approval.resolvedAt ? (
+                <>
+                  <p>
+                    {t("mail.approvalCenter.reviewer")}:{" "}
+                    <span className="crm-text">{detail.reviewerLabel}</span>
+                  </p>
+                  <p>
+                    {t("mail.approvalCenter.reviewedAt")}:{" "}
+                    <span className="crm-text">
+                      {formatHongKongDateTime(approval.resolvedAt)}
+                    </span>
+                  </p>
+                </>
+              ) : null}
+            </div>
+            {approval.status === "returned" ? (
+              <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-300">
+                <p className="font-medium">
+                  {t("mail.approvalCenter.rejectionReason")}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap">
+                  {resolveLatestReturnReason(approval.events ?? []) ??
+                    t("mail.approvalCenter.rejectionReasonUnavailable")}
+                </p>
+              </div>
+            ) : null}
           </div>
 
           <MailApprovalFrozenAttachmentSection revision={revision} />

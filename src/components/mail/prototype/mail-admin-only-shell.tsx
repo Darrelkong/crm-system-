@@ -6,17 +6,24 @@ import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { MailAdminCenterDrawer } from "@/components/mail/admin/mail-admin-center-drawer";
 import { MailDebugControls } from "./mail-debug-controls";
+import { MailApprovalEntryButton } from "@/components/mail/approval/mail-approval-entry-button";
 
 type MailAdminOnlyShellProps = {
   onOpenAdminCenter?: () => void;
   adminCenterOpen?: boolean;
   onAdminCenterOpenChange?: (open: boolean) => void;
+  showApprovalEntry?: boolean;
+  approvalPendingCount?: number;
+  onOpenApprovalCenter?: () => void;
 };
 
 export function MailAdminOnlyShell({
   onOpenAdminCenter,
   adminCenterOpen: controlledOpen,
   onAdminCenterOpenChange,
+  showApprovalEntry = false,
+  approvalPendingCount = 0,
+  onOpenApprovalCenter,
 }: MailAdminOnlyShellProps) {
   const { t } = useTranslation();
   const [internalOpen, setInternalOpen] = useState(false);
@@ -36,7 +43,13 @@ export function MailAdminOnlyShell({
 
   return (
     <div className="mail-prototype-root flex min-h-[calc(100dvh-4.5rem)] min-w-0 flex-col">
-      <div className="flex items-center justify-end border-b border-border/60 px-4 py-2 sm:px-6">
+      <div className="flex items-center justify-end gap-1 border-b border-border/60 px-4 py-2 sm:px-6">
+        {showApprovalEntry && onOpenApprovalCenter ? (
+          <MailApprovalEntryButton
+            pendingCount={approvalPendingCount}
+            onClick={onOpenApprovalCenter}
+          />
+        ) : null}
         <Button
           type="button"
           variant="ghost"

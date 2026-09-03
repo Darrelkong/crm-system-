@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { Check } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
@@ -21,9 +21,9 @@ import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { MAIL_FOLDER_DEFS } from "@/lib/mail/prototype/mail-folder-config";
 import type { MailFolderId } from "@/lib/mail/prototype/types";
 
-const POPOVER_MAX_HEIGHT_PX = 260;
 const POPOVER_TARGET_WIDTH_PX = 240;
 const POPOVER_VIEWPORT_GUTTER_PX = 16;
+const POPOVER_BOTTOM_NAV_RESERVE = "6rem";
 
 function FolderMenuRow({
   label,
@@ -76,6 +76,7 @@ export function MailFolderPopover({
 }) {
   const { t } = useTranslation();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
   const isProduction = useIsProductionMailReadSource();
   const workspace = useOptionalMailWorkspace();
   const { capabilities } = useMailSession();
@@ -91,6 +92,23 @@ export function MailFolderPopover({
     activeMailbox,
     setActiveMailbox,
   } = useMailPrototype();
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateAnchorRect = () => {
+      setAnchorRect(anchorRef.current?.getBoundingClientRect() ?? null);
+    };
+    const frame = window.requestAnimationFrame(updateAnchorRect);
+    window.addEventListener("resize", updateAnchorRect);
+    window.addEventListener("scroll", updateAnchorRect, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateAnchorRect);
+      window.removeEventListener("scroll", updateAnchorRect, true);
+    };
+  }, [open, anchorRef]);
 
   useEffect(() => {
     if (!open) return;
@@ -117,7 +135,6 @@ export function MailFolderPopover({
 
   if (!open) return null;
 
-  const anchorRect = anchorRef.current?.getBoundingClientRect();
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 390;
   const panelWidth = Math.min(
     POPOVER_TARGET_WIDTH_PX,
@@ -133,7 +150,10 @@ export function MailFolderPopover({
       )
     : POPOVER_VIEWPORT_GUTTER_PX;
   const top = anchorRect ? anchorRect.bottom + 4 : 0;
-  const maxHeight = `min(${POPOVER_MAX_HEIGHT_PX}px, calc(100dvh - 6rem))`;
+  const maxHeight = `min(75dvh, calc(100dvh - ${Math.max(
+    top,
+    0,
+  )}px - ${POPOVER_BOTTOM_NAV_RESERVE}))`;
 
   if (isProduction && workspace) {
     const mailboxSections = resolveMailboxSidebarSections(

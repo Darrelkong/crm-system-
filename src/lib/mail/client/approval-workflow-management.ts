@@ -94,6 +94,7 @@ export type ApprovalWorkflowRow = {
   recipientsLabel: string;
   subject: string;
   submittedAt: string;
+  reviewedAt: string | null;
   submitterLabel: string;
   approverLabel: string;
   returnReason: string | null;
@@ -105,6 +106,54 @@ export type ApprovalWorkflowRowActions = {
   showReject: boolean;
   showHistory: boolean;
 };
+
+export type ApprovalHistoryFilter = "all" | "approved" | "rejected";
+
+export type ApprovalHistoryResult = "approved" | "rejected" | "withdrawn";
+
+export const APPROVAL_HISTORY_STATUSES = [
+  "returned",
+  "approved",
+  "withdrawn",
+] as const satisfies readonly ApprovalStatus[];
+
+export function isApprovalHistoryStatus(status: ApprovalStatus): boolean {
+  return status !== "pending";
+}
+
+export function resolveApprovalHistoryResult(
+  status: ApprovalStatus,
+): ApprovalHistoryResult | null {
+  if (status === "approved") {
+    return "approved";
+  }
+  if (status === "returned") {
+    return "rejected";
+  }
+  if (status === "withdrawn") {
+    return "withdrawn";
+  }
+  return null;
+}
+
+export function filterApprovalHistoryRows(
+  rows: ApprovalWorkflowRow[],
+  filter: ApprovalHistoryFilter,
+): ApprovalWorkflowRow[] {
+  return rows.filter((row) => {
+    const result = resolveApprovalHistoryResult(row.status);
+    if (!result) {
+      return false;
+    }
+    if (filter === "approved") {
+      return result === "approved";
+    }
+    if (filter === "rejected") {
+      return result === "rejected";
+    }
+    return true;
+  });
+}
 
 export function canViewApprovalWorkflow(
   capabilities: Pick<MailAdminCenterCapabilities, "approvalWorkflowView">,
@@ -255,6 +304,7 @@ export function buildApprovalWorkflowRows(
       recipientsLabel: formatRevisionRecipientsLabel(revision),
       subject: revision?.subject?.trim() || "—",
       submittedAt: approval.requestedAt,
+      reviewedAt: approval.resolvedAt,
       submitterLabel: resolveApprovalRequesterLabel(
         approval.requestedByUserId,
         usersById,

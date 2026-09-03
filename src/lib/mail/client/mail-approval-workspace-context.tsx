@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -23,7 +24,9 @@ import {
   canReviewApprovals,
   enrichApprovalRequesterUsers,
   resolveApprovalRequesterLabel,
+  resolveUserLabel,
   type ApprovalApiItem,
+  type ApprovalStatus,
   type ApprovalWorkflowRow,
   type OutboundRevisionApiItem,
 } from "@/lib/mail/client/approval-workflow-management";
@@ -48,6 +51,7 @@ export type ApprovalDetailView = {
   approval: ApprovalApiItem;
   revision: OutboundRevisionApiItem;
   requesterLabel: string;
+  reviewerLabel: string;
   editableBodyHtml: string;
   quotedBodyHtml: string | null;
   sendOperation?: SendOperationApiItem | null;
@@ -56,6 +60,7 @@ export type ApprovalDetailView = {
 
 export type MailApprovalWorkspaceValue = {
   rows: ApprovalWorkflowRow[];
+  pendingCount: number;
   selectedApprovalId: string | null;
   detail: ApprovalDetailView | null;
   isLoadingList: boolean;
@@ -65,7 +70,7 @@ export type MailApprovalWorkspaceValue = {
   detailError: string | null;
   attachmentsLoadError: string | null;
   canReview: boolean;
-  loadApprovals: () => Promise<void>;
+  loadApprovals: (input?: { statuses?: readonly ApprovalStatus[] }) => Promise<void>;
   selectApproval: (approvalId: string) => Promise<void>;
   clearSelection: () => void;
   refreshDetail: () => Promise<void>;
@@ -100,6 +105,7 @@ function buildDetailView(
       approval.requestedByUserId,
       usersById,
     ),
+    reviewerLabel: resolveUserLabel(approval.resolvedByUserId, usersById),
     editableBodyHtml: split.editableHtml,
     quotedBodyHtml: split.quotedHtml,
     sendOperation,
@@ -115,6 +121,7 @@ export function MailApprovalWorkspaceProvider({
   const { capabilities, session } = useMailSession();
   const canReview = canReviewApprovals(capabilities);
   const [rows, setRows] = useState<ApprovalWorkflowRow[]>([]);
+  const [pendingCount, setPendingCount] = useState(0);
   const [selectedApprovalId, setSelectedApprovalId] = useState<string | null>(
     null,
   );
@@ -133,51 +140,86 @@ export function MailApprovalWorkspaceProvider({
   const deliveryRequestRef = useRef(0);
   const sessionUser = session?.user ?? null;
 
-  const loadApprovals = useCallback(async () => {
-    setIsLoadingList(true);
-    setListError(null);
-    try {
-      const [approvalsResult, usersResult] = await Promise.all([
-        fetchApprovals({
-          scope: resolveApprovalWorkspaceListScope(canReview),
-          status: "pending",
-        }),
-        fetchAdminUsersForMailAccess(),
-      ]);
-      if (!approvalsResult.ok) {
-        setListError(approvalsResult.error);
-        setRows([]);
-        return;
-      }
-      const users = usersResult.ok ? usersResult.items : [];
-      const requesterUsers = enrichApprovalRequesterUsers(users, sessionUser);
-      usersListRef.current = requesterUsers;
-      const revisionIds = [
-        ...new Set(approvalsResult.items.map((item) => item.currentRevisionId)),
-      ];
-      const revisionsById = new Map<string, OutboundRevisionApiItem>();
-      await Promise.all(
-        revisionIds.map(async (revisionId) => {
-          const revisionResult = await fetchOutboundRevision(revisionId);
-          if (revisionResult.ok) {
-            revisionsById.set(revisionId, revisionResult.item);
+  const loadApprovals = useCallback(
+    async (input: { statuses?: readonly ApprovalStatus[] } = {}) => {
+      const statuses =
+        input.statuses && input.statuses.length > 0
+          ? input.statuses
+          : (["pending"] as ApprovalStatus[]);
+      setIsLoadingList(true);
+      setListError(null);
+      try {
+        const [approvalResults, usersResult] = await Promise.all([
+          Promise.all(
+            statuses.map((status) =>
+              fetchApprovals({
+                scope: resolveApprovalWorkspaceListScope(canReview),
+                status,
+              }),
+            ),
+          ),
+          fetchAdminUsersForMailAccess(),
+        ]);
+        const failed = approvalResults.find((result) => !result.ok);
+        if (failed && !failed.ok) {
+          setListError(failed.error);
+          setRows([]);
+          if (statuses.includes("pending")) {
+            setPendingCount(0);
           }
-        }),
-      );
-      setRows(
-        buildApprovalWorkflowRows(
-          approvalsResult.items,
-          revisionsById,
-          requesterUsers,
-        ),
-      );
-    } catch {
-      setListError("Failed to load approvals");
-      setRows([]);
-    } finally {
-      setIsLoadingList(false);
-    }
-  }, [canReview, sessionUser]);
+          return;
+        }
+        const users = usersResult.ok ? usersResult.items : [];
+        const requesterUsers = enrichApprovalRequesterUsers(users, sessionUser);
+        usersListRef.current = requesterUsers;
+        const revisionIds = [
+          ...new Set(
+            approvalResults.flatMap((result) =>
+              result.ok ? result.items.map((item) => item.currentRevisionId) : [],
+            ),
+          ),
+        ];
+        const revisionsById = new Map<string, OutboundRevisionApiItem>();
+        await Promise.all(
+          revisionIds.map(async (revisionId) => {
+            const revisionResult = await fetchOutboundRevision(revisionId);
+            if (revisionResult.ok) {
+              revisionsById.set(revisionId, revisionResult.item);
+            }
+          }),
+        );
+        const approvals = approvalResults.flatMap((result) =>
+          result.ok ? result.items : [],
+        );
+        setRows(buildApprovalWorkflowRows(approvals, revisionsById, requesterUsers));
+        if (statuses.includes("pending")) {
+          setPendingCount(
+            approvalResults.reduce(
+              (count, result) => count + (result.ok ? result.items.length : 0),
+              0,
+            ),
+          );
+        }
+      } catch {
+        setListError("Failed to load approvals");
+        setRows([]);
+        if (statuses.includes("pending")) {
+          setPendingCount(0);
+        }
+      } finally {
+        setIsLoadingList(false);
+      }
+    },
+    [canReview, sessionUser],
+  );
+
+  useEffect(() => {
+    if (!canReview) return;
+    const timer = window.setTimeout(() => {
+      void loadApprovals();
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [canReview, loadApprovals]);
 
   const selectApproval = useCallback(async (approvalId: string) => {
     const requestId = ++detailRequestRef.current;
@@ -318,6 +360,7 @@ export function MailApprovalWorkspaceProvider({
   const value = useMemo(
     (): MailApprovalWorkspaceValue => ({
       rows,
+      pendingCount,
       selectedApprovalId,
       detail,
       isLoadingList,
@@ -335,6 +378,7 @@ export function MailApprovalWorkspaceProvider({
     }),
     [
       rows,
+      pendingCount,
       selectedApprovalId,
       detail,
       isLoadingList,

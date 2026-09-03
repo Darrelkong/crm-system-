@@ -7,7 +7,6 @@ import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
-import { MailServiceError } from "@/lib/mail/errors";
 import {
   grantMailAdminPermission,
   revokeMailAdminGrant,
@@ -121,7 +120,6 @@ describe("0062 approval_review permission Local D1 runtime", () => {
   });
 
   it("preserves active/revoked grant lifecycle for approval_review", async () => {
-    const activeId = `${FIXTURE}-approval-review`;
     const revokedId = `${FIXTURE}-revoked`;
 
     await db.insert(schema.mailAdminGrants).values({
@@ -167,17 +165,14 @@ describe("0062 approval_review permission Local D1 runtime", () => {
     await revokeMailAdminGrant(db, permissionMgmtActor, { grantId: second.id });
   });
 
-  it("account_mgmt actor cannot grant approval_review", async () => {
+  it("CRM root admin can grant approval_review regardless of grant label", async () => {
     const accountMgmtActor = actor(SEED_IDS.admin, ["account_mgmt"]);
-    await assert.rejects(
-      () =>
-        grantMailAdminPermission(db, accountMgmtActor, {
-          targetUserId: SEED_IDS.staffA,
-          permission: "approval_review",
-        }),
-      (error: unknown) =>
-        error instanceof MailServiceError && error.errorCode === "FORBIDDEN",
-    );
+    const grant = await grantMailAdminPermission(db, accountMgmtActor, {
+      targetUserId: SEED_IDS.staffA,
+      permission: "approval_review",
+    });
+    assert.equal(grant.permission, "approval_review");
+    await revokeMailAdminGrant(db, accountMgmtActor, { grantId: grant.id });
   });
 
   it("existing permissions still accepted after 0062", async () => {

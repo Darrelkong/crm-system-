@@ -8,6 +8,7 @@ import { useMailPrototype } from "@/lib/mail/prototype/state";
 import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
 import { MailFolderNav } from "./mail-folder-nav";
 import { MailSettingsPopover } from "./mail-settings-popover";
+import { MailApprovalEntryButton } from "@/components/mail/approval/mail-approval-entry-button";
 
 export function MailMailboxesPane({
   onCompose,
@@ -18,6 +19,9 @@ export function MailMailboxesPane({
   onRefresh,
   showAdminEntry = false,
   onOpenAdminCenter,
+  showApprovalEntry = false,
+  approvalPendingCount = 0,
+  onOpenApprovalCenter,
   showNotificationMailboxEntry = false,
   onOpenNotificationMailbox,
   settingsReturnFocusRef,
@@ -32,6 +36,9 @@ export function MailMailboxesPane({
   onRefresh: () => void;
   showAdminEntry?: boolean;
   onOpenAdminCenter?: () => void;
+  showApprovalEntry?: boolean;
+  approvalPendingCount?: number;
+  onOpenApprovalCenter?: () => void;
   showNotificationMailboxEntry?: boolean;
   onOpenNotificationMailbox?: () => void;
   settingsReturnFocusRef?: React.RefObject<HTMLButtonElement | null>;
@@ -72,6 +79,13 @@ export function MailMailboxesPane({
           >
             <RefreshCw className="h-3.5 w-3.5" />
           </button>
+          {showApprovalEntry && onOpenApprovalCenter ? (
+            <MailApprovalEntryButton
+              compact
+              pendingCount={approvalPendingCount}
+              onClick={onOpenApprovalCenter}
+            />
+          ) : null}
           <button
             ref={gearRef}
             type="button"

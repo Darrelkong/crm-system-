@@ -12,6 +12,7 @@ import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { folderLabelKey } from "@/lib/mail/prototype/mail-folder-config";
 import { MailSendErrorBadge } from "./mail-send-error-badge";
 import { MailSettingsPopover } from "./mail-settings-popover";
+import { MailApprovalEntryButton } from "@/components/mail/approval/mail-approval-entry-button";
 
 export const MailFolderActionRow = forwardRef<
   HTMLButtonElement,
@@ -24,6 +25,9 @@ export const MailFolderActionRow = forwardRef<
     onCloseSettings?: () => void;
     showAdminEntry?: boolean;
     onOpenAdminCenter?: () => void;
+    showApprovalEntry?: boolean;
+    approvalPendingCount?: number;
+    onOpenApprovalCenter?: () => void;
     showNotificationMailboxEntry?: boolean;
     onOpenNotificationMailbox?: () => void;
     settingsButtonRef?: React.RefObject<HTMLButtonElement | null>;
@@ -38,6 +42,9 @@ export const MailFolderActionRow = forwardRef<
     onCloseSettings,
     showAdminEntry = false,
     onOpenAdminCenter,
+    showApprovalEntry = false,
+    approvalPendingCount = 0,
+    onOpenApprovalCenter,
     showNotificationMailboxEntry = false,
     onOpenNotificationMailbox,
     settingsButtonRef,
@@ -75,6 +82,12 @@ export const MailFolderActionRow = forwardRef<
           <MailSendErrorBadge className="hidden min-[400px]:inline-flex" />
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {showApprovalEntry && onOpenApprovalCenter ? (
+            <MailApprovalEntryButton
+              pendingCount={approvalPendingCount}
+              onClick={onOpenApprovalCenter}
+            />
+          ) : null}
           {showSettings ? (
             <button
               ref={gearRef}

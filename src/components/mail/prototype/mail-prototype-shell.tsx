@@ -8,6 +8,9 @@ import { useTranslation } from "@/i18n/provider";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { useMailPrototype } from "@/lib/mail/prototype/state";
 import { MailAdminCenterDrawer } from "@/components/mail/admin/mail-admin-center-drawer";
+import { MailApprovalCenterWorkspace } from "@/components/mail/approval/mail-approval-center-workspace";
+import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-management";
+import { useOptionalMailApprovalWorkspace } from "@/lib/mail/client/mail-approval-workspace-context";
 import { NotificationMailboxSelfServiceModal } from "@/components/mail/notification-mailbox-self-service-modal";
 import { MailFolderActionRow } from "./mail-folder-action-row";
 import { MailFolderPopover } from "./mail-folder-popover";
@@ -118,14 +121,17 @@ export function MailPrototypeShell({
     effectiveMailAccessEnabled,
     workspaceShellMode,
     canOpenAdminCenter,
+    capabilities,
   } = useMailSession();
 
   const isProduction = useIsProductionMailReadSource();
   const workspace = useOptionalMailWorkspace();
+  const approvalWorkspace = useOptionalMailApprovalWorkspace();
 
   const [adminCenterOpen, setAdminCenterOpen] = useState(false);
   const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
   const [notificationMailboxOpen, setNotificationMailboxOpen] = useState(false);
+  const [approvalCenterOpen, setApprovalCenterOpen] = useState(false);
 
   const {
     messages,
@@ -328,6 +334,14 @@ export function MailPrototypeShell({
     setAdminCenterOpen(true);
   }
 
+  function openApprovalCenter() {
+    if (!canReviewApprovals(capabilities)) return;
+    setFolderPopoverOpen(false);
+    setMobileSettingsOpen(false);
+    approvalWorkspace?.clearSelection();
+    setApprovalCenterOpen(true);
+  }
+
   function openNotificationMailbox() {
     setNotificationMailboxOpen(true);
   }
@@ -346,6 +360,7 @@ export function MailPrototypeShell({
     const email = searchParams.get("email");
     if (!customerId || !customerName) return;
     customerHandledRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve deep-link compose behavior
     openCompose({
       to: email ? [email] : [],
       subject: "",
@@ -355,6 +370,7 @@ export function MailPrototypeShell({
 
   useEffect(() => {
     if (!workspace) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- return to the list when the folder changes
     setMobileView((current) => (current === "compose" ? current : "list"));
   }, [workspace?.selectedFolder]);
 
@@ -364,6 +380,7 @@ export function MailPrototypeShell({
     if (isProduction && workspace) {
       void workspace.selectMessage(messageId);
       if (isMobileViewport) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve deep-link mobile navigation
         setMobileView("detail");
       }
       return;
@@ -442,11 +459,23 @@ export function MailPrototypeShell({
   if (workspaceShellMode === "admin_only") {
     return (
       <div className="min-w-0 px-4 py-3 sm:px-6">
-        <MailAdminOnlyShell
-          adminCenterOpen={adminCenterOpen}
-          onAdminCenterOpenChange={setAdminCenterOpen}
-          onOpenAdminCenter={() => setAdminCenterOpen(true)}
-        />
+        {approvalCenterOpen ? (
+          <div className="mail-prototype-root flex min-h-[calc(100dvh-4.5rem)] min-w-0 flex-col">
+            <MailApprovalCenterWorkspace
+              mobile={isMobileViewport}
+              onClose={() => setApprovalCenterOpen(false)}
+            />
+          </div>
+        ) : (
+          <MailAdminOnlyShell
+            adminCenterOpen={adminCenterOpen}
+            onAdminCenterOpenChange={setAdminCenterOpen}
+            onOpenAdminCenter={() => setAdminCenterOpen(true)}
+            showApprovalEntry={canReviewApprovals(capabilities)}
+            approvalPendingCount={approvalWorkspace?.pendingCount ?? 0}
+            onOpenApprovalCenter={openApprovalCenter}
+          />
+        )}
       </div>
     );
   }
@@ -471,105 +500,120 @@ export function MailPrototypeShell({
       ref={workspaceRef}
       className="mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden"
     >
-      <MailDesktopWorkspace
-        workspaceRef={workspaceRef}
-        composeOpen={composeOpen}
-        composeExpanded={composeExpanded}
-        composeKey={composeKey}
-        composeSeed={composeSeed}
-        mailFolder={mailFolder}
-        onOpenCompose={openCompose}
-        onCloseCompose={closeCompose}
-        onToggleComposeExpand={() => setComposeExpanded((v) => !v)}
-        onComposeDraftPersisted={handleComposeDraftPersisted}
-        onReply={handleReply}
-        onReplyAll={handleReplyAll}
-        onForward={handleForward}
-        onAdminEdit={handleAdminEdit}
-        onSelectMessage={selectMessage}
-        replyGuard={replyGuard}
-        onDismissReplyGuard={() => setReplyGuard(null)}
-        onProceedReplyGuard={() => proceedReplyAction(replyGuard)}
-        onProductionSeedAction={handleProductionSeedAction}
-        composeSeedPending={composeSeedPending}
-        showAdminEntry={canOpenAdminCenter}
-        onOpenAdminCenter={openAdminCenter}
-        showNotificationMailboxEntry={showNotificationMailboxEntry}
-        onOpenNotificationMailbox={openNotificationMailbox}
-        adminCenterReturnFocusRef={desktopSettingsRef}
-      />
+      {approvalCenterOpen ? (
+        <MailApprovalCenterWorkspace
+          mobile={isMobileViewport}
+          onClose={() => setApprovalCenterOpen(false)}
+        />
+      ) : (
+        <>
+          <MailDesktopWorkspace
+            workspaceRef={workspaceRef}
+            composeOpen={composeOpen}
+            composeExpanded={composeExpanded}
+            composeKey={composeKey}
+            composeSeed={composeSeed}
+            mailFolder={mailFolder}
+            onOpenCompose={openCompose}
+            onCloseCompose={closeCompose}
+            onToggleComposeExpand={() => setComposeExpanded((v) => !v)}
+            onComposeDraftPersisted={handleComposeDraftPersisted}
+            onReply={handleReply}
+            onReplyAll={handleReplyAll}
+            onForward={handleForward}
+            onAdminEdit={handleAdminEdit}
+            onSelectMessage={selectMessage}
+            replyGuard={replyGuard}
+            onDismissReplyGuard={() => setReplyGuard(null)}
+            onProceedReplyGuard={() => proceedReplyAction(replyGuard)}
+            onProductionSeedAction={handleProductionSeedAction}
+            composeSeedPending={composeSeedPending}
+            showAdminEntry={canOpenAdminCenter}
+            onOpenAdminCenter={openAdminCenter}
+            showApprovalEntry={canReviewApprovals(capabilities)}
+            approvalPendingCount={approvalWorkspace?.pendingCount ?? 0}
+            onOpenApprovalCenter={openApprovalCenter}
+            showNotificationMailboxEntry={showNotificationMailboxEntry}
+            onOpenNotificationMailbox={openNotificationMailbox}
+            adminCenterReturnFocusRef={desktopSettingsRef}
+          />
 
-      <div className="mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden">
-        {mobileView === "list" && (
-          <>
-            <MailFolderActionRow
-              ref={folderTriggerRef}
-              folderPopoverOpen={folderPopoverOpen}
-              onOpenFolders={() => setFolderPopoverOpen((v) => !v)}
-              onCompose={() => openCompose()}
-              settingsOpen={mobileSettingsOpen}
-              onToggleSettings={() => setMobileSettingsOpen((v) => !v)}
-              onCloseSettings={() => setMobileSettingsOpen(false)}
-              showAdminEntry={canOpenAdminCenter}
-              onOpenAdminCenter={openAdminCenter}
-              showNotificationMailboxEntry={showNotificationMailboxEntry}
-              onOpenNotificationMailbox={openNotificationMailbox}
-              settingsButtonRef={mobileSettingsRef}
-            />
-            <MailMessageList
-              className="flex min-h-0 min-w-0 flex-1 flex-col"
-              onMessageSelect={selectMessage}
-              onApprovalItemSelect={selectApprovalItem}
-            />
-          </>
-        )}
+          <div className="mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden">
+            {mobileView === "list" && (
+              <>
+                <MailFolderActionRow
+                  ref={folderTriggerRef}
+                  folderPopoverOpen={folderPopoverOpen}
+                  onOpenFolders={() => setFolderPopoverOpen((v) => !v)}
+                  onCompose={() => openCompose()}
+                  settingsOpen={mobileSettingsOpen}
+                  onToggleSettings={() => setMobileSettingsOpen((v) => !v)}
+                  onCloseSettings={() => setMobileSettingsOpen(false)}
+                  showAdminEntry={canOpenAdminCenter}
+                  onOpenAdminCenter={openAdminCenter}
+                  showApprovalEntry={canReviewApprovals(capabilities)}
+                  approvalPendingCount={approvalWorkspace?.pendingCount ?? 0}
+                  onOpenApprovalCenter={openApprovalCenter}
+                  showNotificationMailboxEntry={showNotificationMailboxEntry}
+                  onOpenNotificationMailbox={openNotificationMailbox}
+                  settingsButtonRef={mobileSettingsRef}
+                />
+                <MailMessageList
+                  className="flex min-h-0 min-w-0 flex-1 flex-col"
+                  onMessageSelect={selectMessage}
+                  onApprovalItemSelect={selectApprovalItem}
+                />
+              </>
+            )}
 
-        {mobileView === "detail" && (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
-              <button
-                type="button"
-                onClick={() => setMobileView("list")}
-                className="flex min-h-9 items-center gap-1 text-sm crm-text"
-              >
-                <ArrowLeft className="h-4 w-4 shrink-0" />
-                {t("mail.compose.backToMail")}
-              </button>
-            </div>
-            <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-              <MailReadingPane
-                onReply={handleReply}
-                onReplyAll={handleReplyAll}
-                onForward={handleForward}
-                onAdminEdit={handleAdminEdit}
-                replyGuard={replyGuard}
-                onDismissReplyGuard={() => setReplyGuard(null)}
-                onProceedReplyGuard={() => proceedReplyAction(replyGuard)}
-                onProductionSeedAction={handleProductionSeedAction}
-                composeSeedPending={composeSeedPending}
-              />
-            </div>
+            {mobileView === "detail" && (
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="flex shrink-0 items-center gap-2 border-b crm-border px-3 py-1.5">
+                  <button
+                    type="button"
+                    onClick={() => setMobileView("list")}
+                    className="flex min-h-9 items-center gap-1 text-sm crm-text"
+                  >
+                    <ArrowLeft className="h-4 w-4 shrink-0" />
+                    {t("mail.compose.backToMail")}
+                  </button>
+                </div>
+                <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+                  <MailReadingPane
+                    onReply={handleReply}
+                    onReplyAll={handleReplyAll}
+                    onForward={handleForward}
+                    onAdminEdit={handleAdminEdit}
+                    replyGuard={replyGuard}
+                    onDismissReplyGuard={() => setReplyGuard(null)}
+                    onProceedReplyGuard={() => proceedReplyAction(replyGuard)}
+                    onProductionSeedAction={handleProductionSeedAction}
+                    composeSeedPending={composeSeedPending}
+                  />
+                </div>
+              </div>
+            )}
+
+            {mobileView === "compose" && (
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <MailComposeEditor
+                  key={composeSeed?.draftId ?? `new-${composeKey}`}
+                  seed={composeSeed}
+                  variant="embedded-mobile"
+                  onBack={closeCompose}
+                  onSubmitted={closeCompose}
+                />
+              </div>
+            )}
           </div>
-        )}
 
-        {mobileView === "compose" && (
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-            <MailComposeEditor
-              key={composeSeed?.draftId ?? `new-${composeKey}`}
-              seed={composeSeed}
-              variant="embedded-mobile"
-              onBack={closeCompose}
-              onSubmitted={closeCompose}
-            />
-          </div>
-        )}
-      </div>
-
-      <MailFolderPopover
-        open={folderPopoverOpen && isMobileViewport}
-        onClose={() => setFolderPopoverOpen(false)}
-        anchorRef={folderTriggerRef}
-      />
+          <MailFolderPopover
+            open={folderPopoverOpen && isMobileViewport}
+            onClose={() => setFolderPopoverOpen(false)}
+            anchorRef={folderTriggerRef}
+          />
+        </>
+      )}
 
       <MailDebugControls />
 
