@@ -58,6 +58,8 @@ export type CloudflareEmailOutboundProviderSendRequest = {
     filename: string;
     type: string;
     content: string;
+    disposition: "attachment" | "inline";
+    contentId?: string;
   }>;
 };
 
@@ -282,6 +284,7 @@ export function buildCloudflareEmailOutboundProviderSendRequest(input: {
         filename: attachment.filename,
         type: attachment.mimeType,
         content: bytesToBase64(bytes),
+        disposition: "attachment",
       };
     });
   }
@@ -358,6 +361,7 @@ function providerResponseMetadata(response: CloudflareEmailSendResponse) {
 function providerErrorMetadata(error: unknown): {
   source: unknown;
   message: string | null;
+  code: string | null;
 } {
   if (error instanceof CloudflareEmailProviderError) {
     return {
@@ -367,11 +371,17 @@ function providerErrorMetadata(error: unknown): {
         message: error.message,
       },
       message: error.message,
+      code: error.code,
     };
   }
+  const record =
+    typeof error === "object" && error !== null
+      ? (error as Record<string, unknown>)
+      : null;
   return {
     source: error,
     message: error instanceof Error ? error.message : null,
+    code: typeof record?.code === "string" ? record.code : null,
   };
 }
 
@@ -599,6 +609,9 @@ export function createCloudflareEmailOutboundTransport(
       } catch (error) {
         const errorMetadata = providerErrorMetadata(error);
         const classified = classifyOutboundProviderError(errorMetadata.source);
+        const mappedProviderCode = mapProviderErrorCode(
+          errorMetadata.code ?? classified.providerErrorCode ?? "",
+        );
         const mapped =
           classified.providerHttpStatus !== null &&
           classified.providerHttpStatus >= 400 &&
@@ -617,14 +630,7 @@ export function createCloudflareEmailOutboundTransport(
                   errorMessage:
                     "Cloudflare provider response did not confirm acceptance",
                 }
-              : error instanceof CloudflareEmailProviderError
-                ? mapProviderErrorCode(error.code) ?? {
-                    outcome: "ambiguous" as const,
-                    errorCode:
-                      CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,
-                    errorMessage: "Cloudflare provider error",
-                  }
-                : {
+              : mappedProviderCode ?? {
                     outcome: "ambiguous" as const,
                     errorCode:
                       CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.dispatchUncertain,

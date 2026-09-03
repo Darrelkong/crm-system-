@@ -6,6 +6,7 @@ import {
   CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES,
   createCloudflareEmailOutboundTransport,
   type CloudflareEmailOutboundSendRequest,
+  type CloudflareEmailOutboundProviderSendRequest,
 } from "@/lib/mail/cloudflare-email-outbound-transport-adapter";
 import {
   CloudflareEmailProviderError,
@@ -71,6 +72,12 @@ function sampleSubmission(
   };
 }
 
+function bytesWithPrefix(size: number, prefix: number[]): Uint8Array {
+  const bytes = new Uint8Array(size);
+  bytes.set(prefix);
+  return bytes;
+}
+
 describe("cloudflare email outbound transport adapter", () => {
   it("freezes providerId as cloudflare-email-sending-outbound", () => {
     const adapter = createCloudflareEmailOutboundTransport({
@@ -119,6 +126,94 @@ describe("cloudflare email outbound transport adapter", () => {
       "mail/outbound-attachments/file-1",
     );
     assert.equal(captured.request.attachments?.[0]?.content, undefined);
+  });
+
+  it("emits attachment disposition and preserves Base64 content for common MIME types", async () => {
+    const cases = [
+      {
+        filename: "photo.jpg",
+        mimeType: "image/jpeg",
+        bytes: bytesWithPrefix(226_773, [0xff, 0xd8, 0xff, 0x01]),
+      },
+      {
+        filename: "photo.png",
+        mimeType: "image/png",
+        bytes: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+      },
+      {
+        filename: "document.pdf",
+        mimeType: "application/pdf",
+        bytes: new TextEncoder().encode("%PDF-1.7"),
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      let providerRequest: unknown = null;
+      const adapter = createCloudflareEmailOutboundTransport({
+        transportMode: "production",
+        emailBinding: {
+          async send(request) {
+            providerRequest = request;
+            return { messageId: `${testCase.filename}-accepted` };
+          },
+        },
+        attachmentReader: {
+          async read() {
+            return testCase.bytes;
+          },
+        },
+      });
+
+      const result = await adapter.submitOutbound(
+        sampleSubmission({
+          attachments: [
+            {
+              revisionAttachmentId: `revision-${testCase.filename}`,
+              storedFileId: `file-${testCase.filename}`,
+              contentHash: "a".repeat(64),
+              displayFilename: testCase.filename,
+              mimeType: testCase.mimeType,
+              sizeBytes: testCase.bytes.byteLength,
+              sortOrder: 0,
+              deliveryMode: "direct_attachment",
+              secureExpiryDays: null,
+            },
+          ],
+        }),
+      );
+
+      assert.equal(result.outcome, "accepted");
+      const capturedProviderRequest =
+        providerRequest as CloudflareEmailOutboundProviderSendRequest;
+      assert.deepEqual(capturedProviderRequest.attachments?.[0], {
+        filename: testCase.filename,
+        type: testCase.mimeType,
+        content: Buffer.from(testCase.bytes).toString("base64"),
+        disposition: "attachment",
+      });
+    }
+  });
+
+  it("omits attachments for no-attachment messages", async () => {
+    let providerRequest: unknown = null;
+    const adapter = createCloudflareEmailOutboundTransport({
+      transportMode: "production",
+      emailBinding: {
+        async send(request) {
+          providerRequest = request;
+          return { messageId: "no-attachment-accepted" };
+        },
+      },
+      attachmentReader: { async read() { return new Uint8Array([1]); } },
+    });
+
+    const result = await adapter.submitOutbound(
+      sampleSubmission({ attachments: [] }),
+    );
+    assert.equal(result.outcome, "accepted");
+    const capturedProviderRequest =
+      providerRequest as CloudflareEmailOutboundProviderSendRequest;
+    assert.equal(capturedProviderRequest.attachments, undefined);
   });
 
   it("test helper matches production request builder", () => {
@@ -289,6 +384,34 @@ describe("cloudflare email outbound transport adapter", () => {
       assert.equal(result.diagnostic?.failureClass, testCase.expected);
       assert.equal(result.diagnostic?.providerAcceptance, "unknown");
     }
+  });
+
+  it("maps a standard Error with E_VALIDATION_ERROR to permanent failure", async () => {
+    const binding: CloudflareEmailSendBinding = {
+      async send() {
+        const error = new Error(
+          "disposition should be 'inline' or 'attachment'",
+        );
+        Object.assign(error, { code: "E_VALIDATION_ERROR" });
+        throw error;
+      },
+    };
+    const adapter = createCloudflareEmailOutboundTransport({
+      transportMode: "production",
+      emailBinding: binding,
+      attachmentReader: { async read() { return new Uint8Array([1]); } },
+    });
+
+    const result = await adapter.submitOutbound(sampleSubmission());
+    assert.equal(result.outcome, "permanent_failure");
+    if (result.outcome === "permanent_failure") {
+      assert.equal(
+        result.errorCode,
+        CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES.validation,
+      );
+    }
+    assert.equal(result.diagnostic?.providerErrorCode, "E_VALIDATION_ERROR");
+    assert.equal(result.diagnostic?.providerAcceptance, "not_confirmed");
   });
 
   it("turns a malformed provider response into an ambiguous result", async () => {
