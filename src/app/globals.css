@@ -2619,6 +2619,59 @@ html[data-theme="dark"] {
     color 200ms ease-out;
 }
 
+.global-privacy-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: rgb(12 20 34 / 18%);
+  color: rgb(244 247 251 / 88%);
+  pointer-events: auto;
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.global-privacy-screen__branding {
+  display: flex;
+  width: min(9rem, 42vw);
+  flex-direction: column;
+  align-items: center;
+  gap: 0.55rem;
+  text-align: center;
+}
+
+.global-privacy-screen__logo {
+  display: block;
+  width: clamp(4.5rem, 18vw, 5.5rem);
+  aspect-ratio: 1;
+  background: currentColor;
+  -webkit-mask-image: url("/brand/echfront-crm-logo-mask.png");
+  mask-image: url("/brand/echfront-crm-logo-mask.png");
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  filter: drop-shadow(0 0 0.75rem rgb(220 230 245 / 12%));
+}
+
+.global-privacy-screen__wordmark {
+  font-family: var(--font-geist-sans), sans-serif;
+  font-size: clamp(0.95rem, 4vw, 1.1rem);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  opacity: 0.76;
+  text-indent: 0.16em;
+}
+
+[data-theme="dark"] .global-privacy-screen {
+  background: rgb(3 7 18 / 24%);
+}
+
 @media (hover: hover) {
   .mobile-nav-inactive:hover,
   .mobile-nav-inactive:active {

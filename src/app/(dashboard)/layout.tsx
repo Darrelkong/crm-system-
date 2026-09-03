@@ -1,6 +1,7 @@
 import { IdleTimeoutProvider } from "@/components/auth/idle-timeout-provider";
 import { IdleExemptProvider } from "@/components/auth/idle-exempt-context";
 import { IdleExemptModal } from "@/components/auth/idle-exempt-modal";
+import { GlobalPrivacyScreen } from "@/components/privacy/global-privacy-screen";
 import { NavigationPendingProvider } from "@/components/layout/navigation-pending";
 import { GlobalWatermark } from "@/components/security/global-watermark";
 import { readServerNowMs } from "@/components/security/server-now";
@@ -20,6 +21,7 @@ export default async function DashboardGroupLayout({
 
   return (
     <IdleExemptProvider>
+      <GlobalPrivacyScreen />
       <IdleTimeoutProvider idleMinutes={INACTIVITY_LOGOUT_MINUTES}>
         <NavigationPendingProvider>{children}</NavigationPendingProvider>
       </IdleTimeoutProvider>
