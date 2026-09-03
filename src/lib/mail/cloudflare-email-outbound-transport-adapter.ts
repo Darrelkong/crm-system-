@@ -57,7 +57,7 @@ export type CloudflareEmailOutboundProviderSendRequest = {
   attachments?: Array<{
     filename: string;
     type: string;
-    content: string;
+    content: string | ArrayBuffer | ArrayBufferView;
     disposition: "attachment" | "inline";
     contentId?: string;
   }>;
@@ -182,7 +182,7 @@ function sanitizeApplicationHeaders(
   return Object.keys(sanitized).length > 0 ? sanitized : undefined;
 }
 
-function bytesToBase64(bytes: Uint8Array): string {
+export function bytesToBase64(bytes: Uint8Array): string {
   let binary = "";
   for (const byte of bytes) {
     binary += String.fromCharCode(byte);
@@ -283,7 +283,7 @@ export function buildCloudflareEmailOutboundProviderSendRequest(input: {
       return {
         filename: attachment.filename,
         type: attachment.mimeType,
-        content: bytesToBase64(bytes),
+        content: bytes,
         disposition: "attachment",
       };
     });

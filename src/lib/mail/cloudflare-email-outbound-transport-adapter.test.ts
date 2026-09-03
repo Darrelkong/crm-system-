@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  bytesToBase64,
   buildCloudflareEmailOutboundSendRequestForTest,
   buildCloudflareEmailOutboundProviderSendRequest,
   CLOUDFLARE_EMAIL_OUTBOUND_ERROR_CODES,
@@ -128,7 +129,7 @@ describe("cloudflare email outbound transport adapter", () => {
     assert.equal(captured.request.attachments?.[0]?.content, undefined);
   });
 
-  it("emits attachment disposition and preserves Base64 content for common MIME types", async () => {
+  it("emits attachment disposition and exact binary content for common MIME types", async () => {
     const cases = [
       {
         filename: "photo.jpg",
@@ -185,13 +186,37 @@ describe("cloudflare email outbound transport adapter", () => {
       assert.equal(result.outcome, "accepted");
       const capturedProviderRequest =
         providerRequest as CloudflareEmailOutboundProviderSendRequest;
-      assert.deepEqual(capturedProviderRequest.attachments?.[0], {
+      const providerAttachment = capturedProviderRequest.attachments?.[0];
+      assert.deepEqual(providerAttachment, {
         filename: testCase.filename,
         type: testCase.mimeType,
-        content: Buffer.from(testCase.bytes).toString("base64"),
+        content: testCase.bytes,
         disposition: "attachment",
       });
+      const binaryContent = providerAttachment?.content;
+      assert.ok(binaryContent instanceof Uint8Array);
+      if (binaryContent instanceof Uint8Array) {
+        assert.equal(binaryContent.byteLength, testCase.bytes.byteLength);
+        assert.equal(
+          Buffer.compare(
+            Buffer.from(binaryContent.slice(0, 3)),
+            Buffer.from(testCase.bytes.slice(0, 3)),
+          ),
+          0,
+        );
+      }
     }
+  });
+
+  it("keeps the Base64 helper byte-for-byte compatible", () => {
+    const source = bytesWithPrefix(226_773, [0xff, 0xd8, 0xff, 0x01]);
+    const encoded = bytesToBase64(source);
+    const decoded = new Uint8Array(Buffer.from(encoded, "base64"));
+    assert.equal(decoded.byteLength, source.byteLength);
+    assert.equal(
+      Buffer.compare(Buffer.from(decoded), Buffer.from(source)),
+      0,
+    );
   });
 
   it("omits attachments for no-attachment messages", async () => {
