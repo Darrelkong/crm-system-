@@ -87,7 +87,7 @@ describe("mail jobs cron static config", () => {
     );
     assert.match(
       config,
-      /"MAIL_NOTIFICATION_TRANSPORT_ENABLED":\s*"false"/,
+      /"MAIL_NOTIFICATION_TRANSPORT_ENABLED":\s*"true"/,
     );
     assert.match(config, /"workers_dev":\s*false/);
     assert.match(config, /"preview_urls":\s*false/);
