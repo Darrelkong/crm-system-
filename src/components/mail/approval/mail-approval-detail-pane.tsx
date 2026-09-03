@@ -7,6 +7,7 @@ import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Label, Textarea } from "@/components/ui/form";
 import { MailApprovalStatusBadge } from "@/components/mail/shared/mail-approval-status-badge";
+import { MailAttachmentViewer } from "@/components/mail/mail-attachment-viewer";
 import { MailMessageBodyRenderer } from "@/components/mail/mail-message-body-renderer";
 import {
   isApprovalDetailReadyForReview,
@@ -15,6 +16,7 @@ import {
 } from "@/lib/mail/client/mail-approval-workspace-context";
 import {
   buildOutboundRevisionAttachmentDownloadHref,
+  buildOutboundRevisionAttachmentPreviewHref,
   formatAttachmentMimeLabel,
   isAttachmentBlockingApprovalReview,
 } from "@/lib/mail/client/mail-approval-review-readiness";
@@ -28,6 +30,7 @@ import {
 import { formatAttachmentSize } from "@/lib/mail/client/draft-management";
 import { postApprovalApprove, postApprovalReturn } from "@/lib/mail/client/api";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { resolveMailAttachmentPreviewType } from "@/lib/mail/mail-attachment-preview";
 import {
   APPROVAL_DETAIL_LIVE_REFRESH_INTERVAL_MS,
   resolveApprovedOutboundDisplayPhase,
@@ -66,6 +69,10 @@ function MailApprovalFrozenAttachmentSection({
 }) {
   const { t } = useTranslation();
   const attachments = revision.attachments;
+  const [previewAttachment, setPreviewAttachment] = useState<{
+    attachment: OutboundRevisionApiItem["attachments"][number];
+    previewType: "image" | "pdf";
+  } | null>(null);
 
   if (attachments.length === 0) {
     return null;
@@ -83,9 +90,37 @@ function MailApprovalFrozenAttachmentSection({
             className="mail-attachment-row flex items-center justify-between gap-3 px-3 py-2.5 text-sm"
           >
             <div className="min-w-0 flex-1">
-              <p className="truncate font-medium crm-text">
-                {attachment.displayFilename}
-              </p>
+              {attachment.downloadAvailable &&
+              resolveMailAttachmentPreviewType({
+                mimeType: attachment.mimeType,
+                filename: attachment.displayFilename,
+              }) ? (
+                <button
+                  type="button"
+                  className="min-w-0 max-w-full text-left hover:underline"
+                  onClick={() => {
+                    const previewType = resolveMailAttachmentPreviewType({
+                      mimeType: attachment.mimeType,
+                      filename: attachment.displayFilename,
+                    });
+                    if (previewType) {
+                      setPreviewAttachment({ attachment, previewType });
+                    }
+                  }}
+                  aria-label={`${t("mail.attachment.preview")} ${attachment.displayFilename}`}
+                >
+                  <p className="truncate font-medium crm-text">
+                    {attachment.displayFilename}
+                  </p>
+                  <span className="text-xs crm-text-secondary">
+                    {t("mail.attachment.preview")}
+                  </span>
+                </button>
+              ) : (
+                <p className="truncate font-medium crm-text">
+                  {attachment.displayFilename}
+                </p>
+              )}
               <p className="mt-0.5 text-xs crm-text-secondary">
                 <span>{formatAttachmentSize(attachment.sizeBytes)}</span>
                 <span className="mx-1.5">·</span>
@@ -120,6 +155,22 @@ function MailApprovalFrozenAttachmentSection({
           </li>
         ))}
       </ul>
+      {previewAttachment ? (
+        <MailAttachmentViewer
+          filename={previewAttachment.attachment.displayFilename}
+          sizeBytes={previewAttachment.attachment.sizeBytes}
+          previewType={previewAttachment.previewType}
+          previewHref={buildOutboundRevisionAttachmentPreviewHref(
+            revision.id,
+            previewAttachment.attachment.id,
+          )}
+          downloadHref={buildOutboundRevisionAttachmentDownloadHref(
+            revision.id,
+            previewAttachment.attachment.id,
+          )}
+          onClose={() => setPreviewAttachment(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -223,7 +274,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
 
   const liveSelectedApprovalId = approvalWorkspace?.selectedApprovalId ?? null;
   const liveDetail = approvalWorkspace?.detail ?? null;
-  const liveRefreshDetail = approvalWorkspace?.refreshDetail;
+  const liveRefreshDeliveryStatus = approvalWorkspace?.refreshDeliveryStatus;
   useEffect(() => {
     const approval = liveDetail?.approval ?? null;
     const sendOperation = liveDetail?.sendOperation ?? null;
@@ -238,7 +289,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
         : null;
     if (
       !liveSelectedApprovalId ||
-      !liveRefreshDetail ||
+      !liveRefreshDeliveryStatus ||
       !shouldLiveRefreshApprovedDetail({
         approvalStatus: approval?.status ?? null,
         phase,
@@ -254,7 +305,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
       ) {
         return;
       }
-      const refreshPromise = liveRefreshDetail();
+      const refreshPromise = liveRefreshDeliveryStatus();
       liveRefreshInFlightRef.current = refreshPromise;
       void refreshPromise.then(
         () => {
@@ -295,7 +346,7 @@ export function MailApprovalDetailPane({ className }: { className?: string }) {
     liveDetail?.approval,
     liveDetail?.delivery,
     liveDetail?.sendOperation,
-    liveRefreshDetail,
+    liveRefreshDeliveryStatus,
     liveSelectedApprovalId,
   ]);
 

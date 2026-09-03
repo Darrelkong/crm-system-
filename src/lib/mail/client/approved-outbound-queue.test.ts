@@ -258,6 +258,10 @@ describe("approved outbound queue wiring", () => {
       "src/components/mail/approval/mail-approval-detail-pane.tsx",
       "utf8",
     );
+    const approvalWorkspace = readFileSync(
+      "src/lib/mail/client/mail-approval-workspace-context.tsx",
+      "utf8",
+    );
 
     assert.match(approvalService, /buildSendOperationCreation/);
     assert.match(sendService, /buildSendOperationCreation/);
@@ -270,6 +274,11 @@ describe("approved outbound queue wiring", () => {
     assert.match(approvalDetail, /liveRefreshInFlightRef/);
     assert.match(approvalDetail, /document\.addEventListener\("visibilitychange"/);
     assert.match(approvalDetail, /window\.addEventListener\("focus"/);
+    assert.match(approvalDetail, /refreshDeliveryStatus/);
+    assert.doesNotMatch(approvalDetail, /selectApproval\(/);
+    assert.doesNotMatch(approvalDetail, /setDetail\(null\)|setIsLoadingDetail\(true\)/);
+    assert.match(approvalWorkspace, /refreshDeliveryStatus/);
+    assert.match(approvalWorkspace, /setDetail\(\(previous\) =>/);
     assert.doesNotMatch(
       approvalDetail,
       /setActionMessage\(t\("mail\.adminCenter\.approval\.approveSuccess"\)\)/,

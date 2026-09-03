@@ -130,6 +130,13 @@ export function buildOutboundRevisionAttachmentDownloadHref(
   return `/api/mail/outbound-revisions/${encodeURIComponent(revisionId)}/attachments/${encodeURIComponent(attachmentId)}/download`;
 }
 
+export function buildOutboundRevisionAttachmentPreviewHref(
+  revisionId: string,
+  attachmentId: string,
+): string {
+  return `${buildOutboundRevisionAttachmentDownloadHref(revisionId, attachmentId)}?disposition=inline`;
+}
+
 export function formatAttachmentMimeLabel(mimeType: string): string {
   const normalized = mimeType.trim().toLowerCase();
   if (normalized === "application/pdf") return "PDF";

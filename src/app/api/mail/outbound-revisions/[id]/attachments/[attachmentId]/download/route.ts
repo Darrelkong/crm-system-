@@ -14,6 +14,7 @@ import { recordOutboundRevisionAttachmentDownloaded } from "@/lib/mail/mail-atta
 import { getAttachmentsBucket } from "@/lib/mail/attachments-env";
 import { getLargeAttachmentsR2Bucket } from "@/lib/mail/large-attachment/large-attachment-r2-env";
 import { MailServiceError, mailErrorResponse } from "@/lib/mail/errors";
+import { resolveMailAttachmentPreviewContentType } from "@/lib/mail/mail-attachment-preview";
 import { resolveDownloadableOutboundRevisionAttachment } from "@/lib/mail/outbound-revision-attachment-download-service";
 
 export type OutboundRevisionAttachmentDownloadRouteDeps = {
@@ -64,9 +65,44 @@ export async function handleGetOutboundRevisionAttachmentDownload(
       downloadable.sizeBytes,
     );
 
+    const requestedDisposition = new URL(request.url).searchParams
+      .get("disposition")
+      ?.trim();
+    const disposition =
+      requestedDisposition == null || requestedDisposition === ""
+        ? "attachment"
+        : requestedDisposition === "inline" ||
+            requestedDisposition === "attachment"
+          ? requestedDisposition
+          : (() => {
+              throw MailServiceError.validation(
+                "disposition must be inline or attachment",
+              );
+            })();
+    const preview =
+      disposition === "inline"
+        ? resolveMailAttachmentPreviewContentType({
+            bytes,
+            mimeType: downloadable.mimeType,
+            filename: downloadable.filename,
+          })
+        : null;
+    if (disposition === "inline" && !preview) {
+      return Response.json(
+        {
+          error: "無法在此裝置預覽此附件",
+          errorCode: "ATTACHMENT_PREVIEW_NOT_SUPPORTED",
+        },
+        { status: 415 },
+      );
+    }
+
     await recordOutboundRevisionAttachmentDownloaded(db, actor, downloadable);
 
-    return buildMailAttachmentDownloadResponse(bytes, downloadable);
+    return buildMailAttachmentDownloadResponse(bytes, downloadable, {
+      disposition,
+      contentType: preview?.contentType,
+    });
   } catch (error) {
     if (error instanceof AuthError) {
       return authErrorResponse(error);

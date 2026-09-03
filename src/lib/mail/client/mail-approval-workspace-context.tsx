@@ -69,6 +69,7 @@ export type MailApprovalWorkspaceValue = {
   selectApproval: (approvalId: string) => Promise<void>;
   clearSelection: () => void;
   refreshDetail: () => Promise<void>;
+  refreshDeliveryStatus: () => Promise<void>;
 };
 
 const MailApprovalWorkspaceContext =
@@ -129,6 +130,7 @@ export function MailApprovalWorkspaceProvider({
   );
   const usersListRef = useRef<MailAccessAdminUser[]>([]);
   const detailRequestRef = useRef(0);
+  const deliveryRequestRef = useRef(0);
   const sessionUser = session?.user ?? null;
 
   const loadApprovals = useCallback(async () => {
@@ -179,6 +181,7 @@ export function MailApprovalWorkspaceProvider({
 
   const selectApproval = useCallback(async (approvalId: string) => {
     const requestId = ++detailRequestRef.current;
+    deliveryRequestRef.current += 1;
     setSelectedApprovalId(approvalId);
     setDetail(null);
     setIsLoadingDetail(true);
@@ -247,6 +250,7 @@ export function MailApprovalWorkspaceProvider({
 
   const clearSelection = useCallback(() => {
     detailRequestRef.current += 1;
+    deliveryRequestRef.current += 1;
     setSelectedApprovalId(null);
     setDetail(null);
     setDetailError(null);
@@ -259,6 +263,57 @@ export function MailApprovalWorkspaceProvider({
     if (!selectedApprovalId) return;
     await selectApproval(selectedApprovalId);
   }, [selectApproval, selectedApprovalId]);
+
+  const refreshDeliveryStatus = useCallback(async () => {
+    const approvalId = selectedApprovalId;
+    const currentDetail = detail;
+    if (
+      !approvalId ||
+      !currentDetail ||
+      currentDetail.approval.id !== approvalId ||
+      currentDetail.approval.status !== "approved"
+    ) {
+      return;
+    }
+
+    const requestId = ++deliveryRequestRef.current;
+    const sendResult = await fetchSendOperationForApproval(approvalId);
+    if (
+      requestId !== deliveryRequestRef.current ||
+      selectedApprovalId !== approvalId ||
+      !sendResult.ok
+    ) {
+      return;
+    }
+
+    const sendOperation = sendResult.item;
+    const delivery =
+      sendOperation?.status === "accepted"
+        ? await (async () => {
+            const deliveryResult = await fetchSendOperationDelivery(
+              sendOperation.id,
+            );
+            return deliveryResult.ok ? deliveryResult.item : null;
+          })()
+        : null;
+    if (
+      requestId !== deliveryRequestRef.current ||
+      selectedApprovalId !== approvalId
+    ) {
+      return;
+    }
+
+    setDetail((previous) => {
+      if (!previous || previous.approval.id !== approvalId) {
+        return previous;
+      }
+      return {
+        ...previous,
+        sendOperation,
+        delivery,
+      };
+    });
+  }, [detail, selectedApprovalId]);
 
   const value = useMemo(
     (): MailApprovalWorkspaceValue => ({
@@ -276,6 +331,7 @@ export function MailApprovalWorkspaceProvider({
       selectApproval,
       clearSelection,
       refreshDetail,
+      refreshDeliveryStatus,
     }),
     [
       rows,
@@ -292,6 +348,7 @@ export function MailApprovalWorkspaceProvider({
       selectApproval,
       clearSelection,
       refreshDetail,
+      refreshDeliveryStatus,
     ],
   );
 

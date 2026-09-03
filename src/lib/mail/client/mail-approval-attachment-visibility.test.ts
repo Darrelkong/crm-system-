@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
 import {
   APPROVAL_ATTACHMENTS_METADATA_ERROR_KEY,
-  areRevisionAttachmentsBlockingApproval,
+  buildOutboundRevisionAttachmentPreviewHref,
   isApprovalDetailReadyForReview,
   isAttachmentBlockingApprovalReview,
   isValidRevisionAttachmentsArray,
@@ -180,13 +180,29 @@ describe("approval detail attachment UI wiring", () => {
       "src/components/mail/approval/mail-approval-detail-pane.tsx",
       "utf8",
     );
+    const route = readFileSync(
+      "src/app/api/mail/outbound-revisions/[id]/attachments/[attachmentId]/download/route.ts",
+      "utf8",
+    );
     assert.match(source, /MailApprovalFrozenAttachmentSection/);
     assert.match(source, /displayFilename/);
     assert.match(source, /formatAttachmentSize/);
     assert.match(source, /formatAttachmentMimeLabel/);
     assert.match(source, /buildOutboundRevisionAttachmentDownloadHref/);
+    assert.match(source, /MailAttachmentViewer/);
+    assert.match(source, /resolveMailAttachmentPreviewType/);
+    assert.match(source, /buildOutboundRevisionAttachmentPreviewHref/);
+    assert.match(route, /resolveMailAttachmentPreviewContentType/);
+    assert.match(route, /disposition must be inline or attachment/);
     assert.match(source, /mail\.attachment\.downloadUnavailable/);
     assert.match(source, /mail\.approval\.attachmentReviewBlocked/);
+  });
+
+  it("builds an authenticated inline preview URL without changing download URLs", () => {
+    assert.equal(
+      buildOutboundRevisionAttachmentPreviewHref("revision/1", "attachment/1"),
+      "/api/mail/outbound-revisions/revision%2F1/attachments/attachment%2F1/download?disposition=inline",
+    );
   });
 
   it("keeps reject available when attachment review is blocked", () => {
