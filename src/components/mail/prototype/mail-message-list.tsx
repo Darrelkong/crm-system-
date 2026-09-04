@@ -20,6 +20,7 @@ import { MailMessageRow } from "./mail-message-row";
 import { MailSendErrorBadge } from "./mail-send-error-badge";
 import { MailSharedFilterBar } from "./mail-shared-filter-bar";
 import { MailApprovalList } from "@/components/mail/approval/mail-approval-list";
+import { MailOutboxList } from "./mail-outbox-list";
 
 export function MailMessageList({
   className,
@@ -47,6 +48,9 @@ export function MailMessageList({
 
   if (isProduction && workspace) {
     const productionWorkspace = workspace;
+    if (productionWorkspace.selectedFolder === "outbox") {
+      return <MailOutboxList className={className} />;
+    }
     if (productionWorkspace.selectedFolder === "pending_approval") {
       return (
         <MailApprovalList
@@ -149,7 +153,11 @@ export function MailMessageList({
                   row={row}
                   selected={selectedRowId === row.id}
                   onSelect={() => handleProductionSelect(row.id)}
-                  activeFolder={productionWorkspace.selectedFolder}
+                  activeFolder={
+                    isDraftsFolder
+                      ? "drafts"
+                      : (productionWorkspace.selectedFolder as "inbox" | "sent" | "trash")
+                  }
                   useProductionUnread
                 />
               ))}

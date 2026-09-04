@@ -34,6 +34,7 @@ import {
 import { resolveComposeTitleKey } from "@/lib/mail/client/compose-reply-body";
 import { resolveComposeSubmitButtonLabelKey } from "@/lib/mail/client/compose-submission";
 import { normalizeInvisiblePastedForeground } from "@/lib/mail/client/compose-paste-normalization";
+import type { SendOperationApiItem } from "@/lib/mail/client/approved-outbound-queue";
 
 export function MailComposeEditor({
   variant,
@@ -43,6 +44,7 @@ export function MailComposeEditor({
   onToggleExpand,
   expanded = false,
   onSubmitted,
+  onAdminDirectQueued,
   onDraftPersisted,
 }: {
   variant: "embedded-mobile" | "floating-desktop";
@@ -52,6 +54,7 @@ export function MailComposeEditor({
   onToggleExpand?: () => void;
   expanded?: boolean;
   onSubmitted?: () => void;
+  onAdminDirectQueued?: (send: SendOperationApiItem) => void;
   onDraftPersisted?: () => void;
 }) {
   const dismiss = onClose ?? onBack ?? (() => {});
@@ -93,6 +96,7 @@ export function MailComposeEditor({
     onClose: dismiss,
     onDraftPersisted,
     onSubmitted: onSubmitted,
+    onAdminDirectQueued,
   });
 
   return (
@@ -231,10 +235,12 @@ function MailComposeEditorBody({
   const allLists = buildRecipientLists(state);
   const titleKey = resolveComposeTitleKey(state.composeMode);
 
+  // eslint-disable-next-line react-hooks/refs -- existing editor bridge exposes current HTML to draft persistence
   bodyHtmlReaderRef.current = () => editorRef.current?.innerHTML ?? "";
 
   useEffect(() => {
     if (!draftHydrating) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing draft hydration label lifecycle
       setShowDraftLoadingLabel(false);
       return;
     }
@@ -256,6 +262,7 @@ function MailComposeEditorBody({
 
   useEffect(() => {
     if (isFloating) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve existing recipient row visibility lifecycle
       setShowCcRow(state.cc.length > 0);
       setShowBccRow(state.bcc.length > 0);
     } else {

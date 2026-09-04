@@ -39,6 +39,20 @@ describe("Admin Direct send polling policy", () => {
     assert.doesNotMatch(source, /initiateAdminDirectSend\([\s\S]*refreshSendOperation/);
   });
 
+  it("exposes a queue callback without changing Staff submit callbacks", () => {
+    const hook = readFileSync(
+      "src/components/mail/compose/use-mail-compose-draft.tsx",
+      "utf8",
+    );
+    const editor = readFileSync(
+      "src/components/mail/compose/mail-compose-editor.tsx",
+      "utf8",
+    );
+    assert.match(hook, /onAdminDirectQueued\?:/);
+    assert.match(hook, /input\.onAdminDirectQueued\?\.\(sendResult\.item\)/);
+    assert.match(editor, /onAdminDirectQueued\?:/);
+  });
+
   it("preserves the business sender allowlist and notification binding", () => {
     const config = readFileSync("wrangler.mail-jobs-cron.jsonc", "utf8");
     assert.match(config, /daniel\.hayes@echfronthk\.com/);

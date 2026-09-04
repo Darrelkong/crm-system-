@@ -197,7 +197,7 @@ describe("mail workspace ui adapters", () => {
     );
     assert.deepEqual(
       PRODUCTION_WORKFLOW_FOLDERS.map((folder) => folder.id),
-      ["drafts"],
+      ["drafts", "outbox"],
     );
   });
 

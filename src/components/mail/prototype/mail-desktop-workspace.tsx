@@ -16,6 +16,7 @@ import { MailComposeDesktopHost } from "@/components/mail/compose/mail-compose-d
 import type { ComposeInitialSeed } from "@/lib/mail/client/draft-management";
 import type { MockComposeDraft } from "@/lib/mail/prototype/state";
 import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
+import type { SendOperationApiItem } from "@/lib/mail/client/approved-outbound-queue";
 
 type StackPane = "list" | "detail";
 type DesktopMailView = "list" | "message";
@@ -29,6 +30,7 @@ export function MailDesktopWorkspace({
   mailFolder = "inbox",
   onOpenCompose,
   onCloseCompose,
+  onAdminDirectQueued,
   onToggleComposeExpand,
   onComposeDraftPersisted,
   onReply,
@@ -58,6 +60,7 @@ export function MailDesktopWorkspace({
   mailFolder?: MailWorkspaceFolder;
   onOpenCompose: (initial?: Partial<MockComposeDraft> | ComposeInitialSeed) => void;
   onCloseCompose: () => void;
+  onAdminDirectQueued?: (send: SendOperationApiItem) => void;
   onToggleComposeExpand: () => void;
   onComposeDraftPersisted?: () => void;
   onReply: (messageId: string) => void;
@@ -260,6 +263,7 @@ export function MailDesktopWorkspace({
       variant="floating-desktop"
       expanded={composeExpanded}
       onClose={handleCloseCompose}
+      onAdminDirectQueued={onAdminDirectQueued}
       onToggleExpand={handleToggleComposeExpand}
       onSubmitted={handleCloseCompose}
       onDraftPersisted={onComposeDraftPersisted}

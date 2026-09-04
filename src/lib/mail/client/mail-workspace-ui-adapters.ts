@@ -125,13 +125,14 @@ export const PRODUCTION_MAIL_READ_FOLDERS: readonly {
 ];
 
 export type ProductionWorkflowFolder = {
-  id: "drafts" | "pending_approval";
+  id: "drafts" | "pending_approval" | "outbox";
   labelKey: string;
   reviewerOnly?: boolean;
 };
 
 export const PRODUCTION_WORKFLOW_FOLDERS: readonly ProductionWorkflowFolder[] = [
   { id: "drafts", labelKey: "mail.folders.drafts" },
+  { id: "outbox", labelKey: "mail.folders.outbox" },
 ];
 
 export function resolveApprovalWorkspaceListScope(
@@ -164,6 +165,9 @@ export function resolveWorkflowFolderLabelKey(
       ? "mail.folders.pendingMyApproval"
       : "mail.folders.waitingApproval";
   }
+  if (folderId === "outbox") {
+    return "mail.folders.outbox";
+  }
   const folder = PRODUCTION_WORKFLOW_FOLDERS.find((item) => item.id === folderId);
   return folder?.labelKey ?? "mail.folders.inbox";
 }
@@ -172,8 +176,12 @@ const PRODUCTION_FOLDER_IDS = new Set<MailReadFolder>(["inbox", "sent", "trash"]
 
 export function isProductionWorkflowFolder(
   folder: string,
-): folder is "drafts" | "pending_approval" {
-  return folder === "drafts" || folder === "pending_approval";
+): folder is "drafts" | "pending_approval" | "outbox" {
+  return (
+    folder === "drafts" ||
+    folder === "pending_approval" ||
+    folder === "outbox"
+  );
 }
 
 export function resolveProductionFolderLabelKey(

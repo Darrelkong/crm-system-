@@ -112,6 +112,7 @@ function MailProductionWorkspaceRevalidation() {
         workspace.isLoadingMessages ||
         workspace.selectedFolder === "pending_approval" ||
         workspace.selectedFolder === "drafts" ||
+        workspace.selectedFolder === "outbox" ||
         refreshInFlightRef.current
       ) {
         return;
@@ -165,6 +166,68 @@ function MailProductionWorkspaceRevalidation() {
   return null;
 }
 
+function MailProductionOutboxRevalidation() {
+  const { effectiveMailAccessEnabled } = useMailSession();
+  const workspace = useMailWorkspace();
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+
+  useEffect(() => {
+    if (
+      !effectiveMailAccessEnabled ||
+      workspace.selectedFolder !== "outbox"
+    ) {
+      return;
+    }
+
+    const refreshOutbox = () => {
+      if (
+        document.visibilityState !== "visible" ||
+        refreshInFlightRef.current
+      ) {
+        return;
+      }
+      const refreshPromise = workspace.refreshOutbox();
+      refreshInFlightRef.current = refreshPromise;
+      void refreshPromise.then(
+        () => {
+          if (refreshInFlightRef.current === refreshPromise) {
+            refreshInFlightRef.current = null;
+          }
+        },
+        () => {
+          if (refreshInFlightRef.current === refreshPromise) {
+            refreshInFlightRef.current = null;
+          }
+        },
+      );
+    };
+
+    const refreshOnFocus = () => refreshOutbox();
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshOutbox();
+      }
+    };
+    const interval = window.setInterval(refreshOutbox, 5_000);
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener(
+        "visibilitychange",
+        refreshOnVisibilityChange,
+      );
+    };
+  }, [
+    effectiveMailAccessEnabled,
+    workspace.refreshOutbox,
+    workspace.selectedFolder,
+  ]);
+
+  return null;
+}
+
 export type MailWorkspaceDataSourceBoundaryProps = {
   children: ReactNode;
   source?: MailReadSource;
@@ -178,6 +241,7 @@ export function MailWorkspaceDataSourceBoundary({
     <MailWorkspaceProvider>
       <MailProductionWorkspaceBootstrap />
       <MailProductionWorkspaceRevalidation />
+      <MailProductionOutboxRevalidation />
       {children}
     </MailWorkspaceProvider>
   ) : (

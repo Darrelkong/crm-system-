@@ -65,11 +65,11 @@ describe("approval staff / reviewer boundary helpers", () => {
 
   it("removes the legacy approval folder from production nav", () => {
     const staffFolders = filterVisibleWorkflowFolders(false).map((folder) => folder.id);
-    assert.deepEqual(staffFolders, ["drafts"]);
+    assert.deepEqual(staffFolders, ["drafts", "outbox"]);
     const reviewerFolders = filterVisibleWorkflowFolders(true).map(
       (folder) => folder.id,
     );
-    assert.deepEqual(reviewerFolders, ["drafts"]);
+    assert.deepEqual(reviewerFolders, ["drafts", "outbox"]);
   });
 
   it("gates approve and reject actions on canReview", () => {

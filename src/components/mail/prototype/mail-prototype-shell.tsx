@@ -42,6 +42,7 @@ import {
 import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
 import type { MailFolderId } from "@/lib/mail/prototype/types";
 import type { ProductionComposeSeedAction } from "@/components/mail/prototype/mail-production-message-actions";
+import type { SendOperationApiItem } from "@/lib/mail/client/approved-outbound-queue";
 import {
   shouldWarnSharedReply,
 } from "@/lib/mail/prototype/shared-mailbox";
@@ -182,6 +183,11 @@ export function MailPrototypeShell({
       setComposeExpanded(false);
     }
     setComposeSeed(undefined);
+  }
+
+  function handleAdminDirectQueued(_send: SendOperationApiItem) {
+    closeCompose();
+    showToast(t("mail.compose.queuedToOutbox"));
   }
 
   function handleComposeDraftPersisted() {
@@ -516,6 +522,7 @@ export function MailPrototypeShell({
             mailFolder={mailFolder}
             onOpenCompose={openCompose}
             onCloseCompose={closeCompose}
+            onAdminDirectQueued={handleAdminDirectQueued}
             onToggleComposeExpand={() => setComposeExpanded((v) => !v)}
             onComposeDraftPersisted={handleComposeDraftPersisted}
             onReply={handleReply}
@@ -601,6 +608,7 @@ export function MailPrototypeShell({
                   seed={composeSeed}
                   variant="embedded-mobile"
                   onBack={closeCompose}
+                  onAdminDirectQueued={handleAdminDirectQueued}
                   onSubmitted={closeCompose}
                 />
               </div>

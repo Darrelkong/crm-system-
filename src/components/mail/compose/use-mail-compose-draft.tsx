@@ -186,6 +186,7 @@ export function useMailComposeDraft(input: {
   onClose?: () => void;
   onDraftPersisted?: () => void;
   onSubmitted?: (approval: ApprovalApiItem) => void;
+  onAdminDirectQueued?: (send: SendOperationApiItem) => void;
 }) {
   const actorUserId = input.actorUserId;
   const isCrmRootAdmin = input.isCrmRootAdmin ?? false;
@@ -1378,6 +1379,7 @@ export function useMailComposeDraft(input: {
         setApproval(null);
         setSendOperation(sendResult.item);
         setSendDelivery(null);
+        input.onAdminDirectQueued?.(sendResult.item);
         return;
       }
 

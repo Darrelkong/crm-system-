@@ -15,6 +15,10 @@ import {
   updateMessageReadState,
 } from "@/lib/mail/client/mail-read-api-client";
 import { fetchDrafts as fetchDraftsFromApi } from "@/lib/mail/client/api";
+import {
+  fetchOutboxItems,
+  type MailOutboxListItem,
+} from "@/lib/mail/client/mail-outbox";
 import type { DraftApiItem } from "@/lib/mail/client/draft-management";
 import { sortDraftsByRecency } from "@/lib/mail/client/draft-management";
 import { MailReadApiError } from "@/lib/mail/client/mail-read-api-errors";
@@ -47,6 +51,7 @@ export type MailWorkspaceApi = {
     input: UpdateMessageReadStateInput,
   ) => Promise<MailReadStateView>;
   fetchDrafts: (input?: { mailboxId?: string }) => Promise<DraftApiItem[]>;
+  fetchOutbox?: (mailboxId?: string | null) => Promise<MailOutboxListItem[]>;
 };
 
 export type LoadMessagesInput = {
@@ -67,14 +72,17 @@ type MailWorkspaceState = {
   selectedFolder: MailWorkspaceFolder;
   messages: MailMessageListView[];
   drafts: DraftApiItem[];
+  outboxItems: MailOutboxListItem[];
   selectedMessageId: string | null;
   selectedMessage: MailMessageDetailView | null;
   nextCursor: string | null;
   isLoadingMailboxes: boolean;
   isLoadingMessages: boolean;
   isLoadingDetail: boolean;
+  isLoadingOutbox: boolean;
   isUpdatingReadState: boolean;
   error: MailReadApiError | null;
+  outboxError: MailReadApiError | null;
 };
 
 export type MailWorkspaceContextValue = MailWorkspaceState & {
@@ -90,6 +98,7 @@ export type MailWorkspaceContextValue = MailWorkspaceState & {
   clearSensitiveState: () => void;
   refreshMessages: () => Promise<void>;
   markMessageRead: (input: MarkMessageReadInput) => Promise<void>;
+  refreshOutbox: () => Promise<void>;
 };
 
 export const INITIAL_MAIL_WORKSPACE_STATE: MailWorkspaceState = {
@@ -98,14 +107,17 @@ export const INITIAL_MAIL_WORKSPACE_STATE: MailWorkspaceState = {
   selectedFolder: "inbox",
   messages: [],
   drafts: [],
+  outboxItems: [],
   selectedMessageId: null,
   selectedMessage: null,
   nextCursor: null,
   isLoadingMailboxes: false,
   isLoadingMessages: false,
   isLoadingDetail: false,
+  isLoadingOutbox: false,
   isUpdatingReadState: false,
   error: null,
+  outboxError: null,
 };
 
 export function createDefaultMailWorkspaceApi(): MailWorkspaceApi {
@@ -125,6 +137,7 @@ export function createDefaultMailWorkspaceApi(): MailWorkspaceApi {
       }
       return result.items;
     },
+    fetchOutbox: fetchOutboxItems,
   };
 }
 
@@ -234,7 +247,7 @@ export function buildDraftFolderCacheKey(mailboxId: string | null): DraftFolderC
 export function resolveMailboxMessageLoadFolder(
   folder: MailWorkspaceFolder,
 ): MailReadFolder | null {
-  if (folder === "pending_approval") {
+  if (folder === "pending_approval" || folder === "outbox") {
     return null;
   }
   if (folder === "drafts") {
@@ -256,6 +269,8 @@ export function createMailWorkspaceRuntime(
   let detailRequestSequence = 0;
   let messagesRequestSequence = 0;
   let draftsRequestSequence = 0;
+  let outboxRequestSequence = 0;
+  let outboxLoadInFlight: Promise<void> | null = null;
   const messageFolderCache = new Map<MessageFolderCacheKey, MessageFolderCacheEntry>();
   const draftFolderCache = new Map<DraftFolderCacheKey, DraftApiItem[]>();
 
@@ -288,6 +303,7 @@ export function createMailWorkspaceRuntime(
       clearSensitiveState,
       refreshMessages,
       markMessageRead,
+      refreshOutbox,
     };
     return snapshot;
   };
@@ -325,6 +341,52 @@ export function createMailWorkspaceRuntime(
       folder: messageFolder,
       reset: true,
     });
+  }
+
+  async function loadOutbox() {
+    if (outboxLoadInFlight) {
+      return outboxLoadInFlight;
+    }
+    const requestSequence = ++outboxRequestSequence;
+    const mailboxId = resolveActiveMailboxId();
+    setState({ isLoadingOutbox: true, outboxError: null });
+    if (!api.fetchOutbox) {
+      setState({ outboxItems: [], isLoadingOutbox: false });
+      return;
+    }
+    const request = (async () => {
+      try {
+        const items = await api.fetchOutbox!(mailboxId);
+        if (requestSequence !== outboxRequestSequence) {
+          return;
+        }
+        setState({
+          outboxItems: items,
+          isLoadingOutbox: false,
+          outboxError: null,
+        });
+      } catch (error) {
+        if (requestSequence !== outboxRequestSequence) {
+          return;
+        }
+        setState({
+          isLoadingOutbox: false,
+          outboxError: toWorkspaceError(error),
+        });
+      }
+    })();
+    outboxLoadInFlight = request;
+    try {
+      await request;
+    } finally {
+      if (outboxLoadInFlight === request) {
+        outboxLoadInFlight = null;
+      }
+    }
+  }
+
+  async function refreshOutbox() {
+    await loadOutbox();
   }
 
   async function loadMailboxes() {
@@ -467,6 +529,7 @@ export function createMailWorkspaceRuntime(
     if (
       state.selectedFolder === "drafts" ||
       state.selectedFolder === "pending_approval" ||
+      state.selectedFolder === "outbox" ||
       !mailboxId ||
       !state.nextCursor ||
       state.isLoadingMessages
@@ -475,9 +538,10 @@ export function createMailWorkspaceRuntime(
     }
 
     const requestSequence = ++messagesRequestSequence;
+    const folder = state.selectedFolder;
     const request: MessagesRequestContext = {
       mailboxId,
-      folder: state.selectedFolder,
+      folder,
     };
     const cursor = state.nextCursor;
     const previousMessages = state.messages;
@@ -639,6 +703,20 @@ export function createMailWorkspaceRuntime(
   }
 
   async function selectMailbox(mailboxId: string) {
+    if (state.selectedFolder === "outbox") {
+      setState({
+        selectedMailboxId: mailboxId,
+        messages: [],
+        drafts: [],
+        nextCursor: null,
+        selectedMessageId: null,
+        selectedMessage: null,
+        isLoadingMessages: false,
+        error: null,
+      });
+      await loadOutbox();
+      return;
+    }
     const folder = resolveMailboxMessageLoadFolder(state.selectedFolder);
     if (folder === null) {
       setState({
@@ -668,6 +746,20 @@ export function createMailWorkspaceRuntime(
     }
     if (nextFolder === "drafts") {
       await loadDrafts(previousFolder);
+      return;
+    }
+    if (nextFolder === "outbox") {
+      setState({
+        selectedFolder: "outbox",
+        messages: [],
+        drafts: [],
+        nextCursor: null,
+        selectedMessageId: null,
+        selectedMessage: null,
+        isLoadingMessages: false,
+        error: null,
+      });
+      await loadOutbox();
       return;
     }
     const mailboxId = resolveActiveMailboxId();
@@ -705,9 +797,11 @@ export function createMailWorkspaceRuntime(
       state.mailboxes.length === 0 &&
       state.messages.length === 0 &&
       state.drafts.length === 0 &&
+      state.outboxItems.length === 0 &&
       state.selectedMessageId === null &&
       state.selectedMessage === null &&
       state.error === null &&
+      state.outboxError === null &&
       messageFolderCache.size === 0 &&
       draftFolderCache.size === 0
     ) {
@@ -716,6 +810,7 @@ export function createMailWorkspaceRuntime(
     detailRequestSequence += 1;
     messagesRequestSequence += 1;
     draftsRequestSequence += 1;
+    outboxRequestSequence += 1;
     messageFolderCache.clear();
     draftFolderCache.clear();
     state = { ...INITIAL_MAIL_WORKSPACE_STATE };
@@ -726,7 +821,8 @@ export function createMailWorkspaceRuntime(
   async function selectMessage(messageId: string) {
     if (
       state.selectedFolder === "drafts" ||
-      state.selectedFolder === "pending_approval"
+      state.selectedFolder === "pending_approval" ||
+      state.selectedFolder === "outbox"
     ) {
       return;
     }
@@ -769,6 +865,10 @@ export function createMailWorkspaceRuntime(
   }
 
   async function refreshMessages() {
+    if (state.selectedFolder === "outbox") {
+      await loadOutbox();
+      return;
+    }
     if (state.selectedFolder === "pending_approval") {
       return;
     }
@@ -780,9 +880,10 @@ export function createMailWorkspaceRuntime(
     if (!mailboxId) {
       return;
     }
+    const folder = state.selectedFolder;
     await loadMessages({
       mailboxId,
-      folder: state.selectedFolder,
+      folder,
       reset: true,
     });
   }
@@ -790,7 +891,8 @@ export function createMailWorkspaceRuntime(
   async function markMessageRead(input: MarkMessageReadInput) {
     if (
       state.selectedFolder === "drafts" ||
-      state.selectedFolder === "pending_approval"
+      state.selectedFolder === "pending_approval" ||
+      state.selectedFolder === "outbox"
     ) {
       return;
     }
