@@ -11,6 +11,7 @@ import {
   fetchApprovals,
   fetchComposeContext,
   fetchDraft,
+  fetchSendOperation,
   fetchSendOperationDelivery,
   fetchSendOperationForApproval,
   initiateAdminDirectSend,
@@ -31,6 +32,7 @@ import {
   findAuthorApprovalForDraft,
   resolveComposeOutboundWorkflow,
   resolveComposeSubmissionPhase,
+  shouldPollAdminDirectSend,
   validateComposeForSubmission,
   type ComposeSubmissionIssueCode,
 } from "@/lib/mail/client/compose-submission";
@@ -228,6 +230,7 @@ export function useMailComposeDraft(input: {
   const persistInFlightRef = useRef<Promise<ComposeEditorState | null> | null>(
     null,
   );
+  const directSendRefreshInFlightRef = useRef<Promise<void> | null>(null);
   const uploadQueueRunningRef = useRef(false);
   const uploadSidecarsRef = useRef<Map<string, AttachmentUploadSidecar>>(
     new Map(),
@@ -238,6 +241,78 @@ export function useMailComposeDraft(input: {
   const uploadAttachmentsRef = useRef(uploadAttachments);
   // eslint-disable-next-line react-hooks/refs -- existing mutable upload snapshot bridge
   uploadAttachmentsRef.current = uploadAttachments;
+
+  useEffect(() => {
+    const operation = sendOperation;
+    if (!operation) {
+      return;
+    }
+
+    let cancelled = false;
+    if (operation.status === "accepted") {
+      void loadSendDeliveryLifecycle(operation).then((delivery) => {
+        if (!cancelled) {
+          setSendDelivery(delivery);
+        }
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (!shouldPollAdminDirectSend(operation)) {
+      return;
+    }
+
+    const refreshSendOperation = () => {
+      if (
+        cancelled ||
+        document.visibilityState !== "visible" ||
+        directSendRefreshInFlightRef.current
+      ) {
+        return;
+      }
+
+      const refreshPromise = (async () => {
+        const result = await fetchSendOperation(operation.id);
+        if (cancelled || !result.ok) {
+          return;
+        }
+        setSendOperation(result.item);
+        if (result.item.status === "accepted") {
+          const delivery = await loadSendDeliveryLifecycle(result.item);
+          if (!cancelled) {
+            setSendDelivery(delivery);
+          }
+        } else {
+          setSendDelivery(null);
+        }
+      })();
+      directSendRefreshInFlightRef.current = refreshPromise;
+      const clearInFlight = () => {
+        if (directSendRefreshInFlightRef.current === refreshPromise) {
+          directSendRefreshInFlightRef.current = null;
+        }
+      };
+      void refreshPromise.then(clearInFlight, clearInFlight);
+    };
+
+    const refreshOnFocus = () => refreshSendOperation();
+    const refreshOnVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshSendOperation();
+      }
+    };
+    const interval = window.setInterval(refreshSendOperation, 5_000);
+    window.addEventListener("focus", refreshOnFocus);
+    document.addEventListener("visibilitychange", refreshOnVisibilityChange);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshOnFocus);
+      document.removeEventListener("visibilitychange", refreshOnVisibilityChange);
+    };
+  }, [sendOperation]);
 
   const bootstrap = useCallback(async () => {
     const generation = ++bootstrapGenerationRef.current;
@@ -1302,7 +1377,7 @@ export function useMailComposeDraft(input: {
 
         setApproval(null);
         setSendOperation(sendResult.item);
-        setSendDelivery(await loadSendDeliveryLifecycle(sendResult.item));
+        setSendDelivery(null);
         return;
       }
 

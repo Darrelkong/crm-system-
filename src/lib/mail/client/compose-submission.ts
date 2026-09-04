@@ -101,6 +101,15 @@ export function isAdminDirectSendBlockingResubmit(
   return send.status !== "failed";
 }
 
+export function shouldPollAdminDirectSend(
+  send: Pick<SendOperationApiItem, "authorizationMode" | "status"> | null,
+): boolean {
+  return (
+    send?.authorizationMode === "admin_direct" &&
+    (send.status === "pending" || send.status === "processing")
+  );
+}
+
 export function validateComposeForSubmission(
   state: ComposeEditorState,
   composeOptions: ComposeContextOption[],

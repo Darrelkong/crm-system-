@@ -32,7 +32,8 @@
       "name": "BUSINESS_EMAIL",
       "allowed_sender_addresses": [
         "daniel.hayes@echfronthk.com",
-        "rowan.lei@echfronthk.com"
+        "rowan.lei@echfronthk.com",
+        "darrellkoo@echfronthk.com"
       ]
     }
   ],

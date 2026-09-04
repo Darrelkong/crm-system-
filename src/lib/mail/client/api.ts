@@ -81,6 +81,7 @@ import {
 } from "@/lib/mail/client/compose-submission";
 import {
   approvalSendOperationPath,
+  sendOperationPath,
   sendOperationDeliveryPath,
   type SendDeliveryLifecycleApiItem,
   type SendOperationApiItem,
@@ -1439,6 +1440,29 @@ export async function fetchSendOperationForApproval(approvalId: string): Promise
   }
   const data = (await res.json()) as { item?: SendOperationApiItem | null };
   return { ok: true, item: data.item ?? null };
+}
+
+export async function fetchSendOperation(sendOperationId: string): Promise<{
+  ok: true;
+  item: SendOperationApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(sendOperationPath(sendOperationId), {
+    cache: "no-store",
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to load send operation",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: SendOperationApiItem };
+  return { ok: true, item: data.item };
 }
 
 export async function fetchSendOperationDelivery(sendOperationId: string): Promise<{

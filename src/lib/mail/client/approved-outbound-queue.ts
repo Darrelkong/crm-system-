@@ -108,6 +108,10 @@ export function sendOperationDeliveryPath(sendOperationId: string): string {
   return `/api/mail/send-operations/${encodeURIComponent(sendOperationId)}/delivery`;
 }
 
+export function sendOperationPath(sendOperationId: string): string {
+  return `/api/mail/send-operations/${encodeURIComponent(sendOperationId)}`;
+}
+
 export function resolveApprovedOutboundDisplayPhase(input: {
   approval: ApprovalApiItem | null;
   send: SendOperationApiItem | null;
