@@ -15,6 +15,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     email: "user@example.com",
     displayName: "Test User",
     passwordHash: "hash",
+    cloudflareAccessEmail: null,
     role: "staff",
     isActive: 1,
     failedLoginAttempts: 0,
@@ -79,6 +80,8 @@ describe("buildAuthMeSuccessPayload", () => {
     assert.ok(!json.includes("idleExemptUntil"));
     assert.ok(!json.includes("initialDeviceAutoApprovalEligible"));
     assert.ok(!json.includes("initial_device_auto_approval_eligible"));
+    assert.ok(!json.includes("cloudflareAccessEmail"));
+    assert.ok(!json.includes("cloudflare_access_email"));
     assert.ok(!Object.prototype.hasOwnProperty.call(payload, "session"));
     assert.deepEqual(Object.keys(payload).sort(), [
       "globalIdleTimeoutExempt",

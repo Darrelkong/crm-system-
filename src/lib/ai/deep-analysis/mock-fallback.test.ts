@@ -43,6 +43,7 @@ function adminUser(): User {
     id: "admin-1",
     email: "admin@example.com",
     passwordHash: "x",
+    cloudflareAccessEmail: null,
     displayName: "Admin",
     role: "admin",
     isActive: 1,

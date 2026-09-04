@@ -1,10 +1,13 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const users = sqliteTable(
   "users",
   {
     id: text("id").primaryKey(),
     email: text("email").notNull().unique(),
+    /** Staff-only permanent Cloudflare Access identity binding. */
+    cloudflareAccessEmail: text("cloudflare_access_email"),
     displayName: text("display_name").notNull(),
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["admin", "staff"] }).notNull(),
@@ -28,6 +31,9 @@ export const users = sqliteTable(
     index("idx_users_email").on(table.email),
     index("idx_users_role").on(table.role),
     index("idx_users_deleted_at").on(table.deletedAt),
+    uniqueIndex("uq_users_cloudflare_access_email").on(
+      sql`lower(${table.cloudflareAccessEmail})`,
+    ),
   ],
 );
 

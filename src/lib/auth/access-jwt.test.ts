@@ -435,6 +435,13 @@ describe("access-jwt cryptographic verification", () => {
     assert.equal(getAccessJwtFromHeaders(headers), "header-token");
   });
 
+  it("does not treat the unverified authenticated-user-email header as identity", () => {
+    const headers = new Headers({
+      "cf-access-authenticated-user-email": "attacker@example.com",
+    });
+    assert.equal(getAccessJwtFromHeaders(headers), null);
+  });
+
   it("validateAccessLoginWindow skips without verifying in test env", async () => {
     await withEnv({ NODE_ENV: "test" }, async () => {
       const result = await validateAccessLoginWindow(new Headers());

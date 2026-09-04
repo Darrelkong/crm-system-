@@ -27,6 +27,10 @@ import {
   validateAccessLoginWindowFromRequest,
 } from "@/lib/auth/access-jwt";
 import {
+  enforceStaffAccessEmailBinding,
+  STAFF_ACCESS_EMAIL_BINDING_OUTCOMES,
+} from "@/lib/auth/staff-access-email-binding";
+import {
   isAccountLocked,
   recordFailedLogin,
   resetLoginFailures,
@@ -57,6 +61,8 @@ type LoginBody = {
   password?: string;
 };
 
+type LoginCookieStore = Awaited<ReturnType<typeof cookies>>;
+
 const LOGIN_INVALID_CREDENTIALS = "邮箱或密码错误";
 const LOGIN_ACCOUNT_LOCKED = "此账户已被锁定，请联系管理员处理。";
 
@@ -79,8 +85,11 @@ function ipRestrictionResponse(
   );
 }
 
-export async function POST(request: Request) {
-  const cookieStore = await cookies();
+export async function handlePostLogin(
+  request: Request,
+  providedCookieStore?: LoginCookieStore,
+) {
+  const cookieStore = providedCookieStore ?? (await cookies());
 
   let accessCheckSkipped = true;
   let verifiedAccessEmail: string | null = null;
@@ -132,34 +141,8 @@ export async function POST(request: Request) {
     return Response.json({ error: "请输入邮箱和密码" }, { status: 400 });
   }
 
-  let isCrossAccountSuperAdminLogin = false;
-  if (!accessCheckSkipped) {
-    const binding = evaluateAccessLoginEmailBinding({
-      verifiedAccessEmail,
-      loginEmail: email,
-    });
-    if (!binding.ok) {
-      await writeLoginLog({
-        userId: null,
-        emailAttempted: email,
-        success: false,
-        failureReason: binding.reason,
-        ipAddress,
-        userAgent,
-      });
-      return Response.json(
-        {
-          error: "Unable to verify login permission",
-          errorCode: AUTH_ERROR_CODES.UNAUTHORIZED_EMAIL,
-        },
-        { status: 401 },
-      );
-    }
-    isCrossAccountSuperAdminLogin = binding.crossAccountSuperAdmin;
-  }
-
   const emailAttempted = email;
-
+  let isCrossAccountSuperAdminLogin = false;
   const ipRestriction = await checkIpEmailRestriction(ipAddress);
   if (ipRestriction.restricted) {
     return ipRestrictionResponse(
@@ -209,7 +192,37 @@ export async function POST(request: Request) {
     return handleUnauthorizedEmail("user_not_found");
   }
 
+  // Preserve the existing Admin Access-email behavior. Staff use the
+  // separate binding flow only after successful CRM credential validation.
+  if (user.role === "admin" && !accessCheckSkipped) {
+    const binding = evaluateAccessLoginEmailBinding({
+      verifiedAccessEmail,
+      loginEmail: emailAttempted,
+    });
+    if (!binding.ok) {
+      await writeLoginLog({
+        userId: null,
+        emailAttempted,
+        success: false,
+        failureReason: binding.reason,
+        ipAddress,
+        userAgent,
+      });
+      return Response.json(
+        {
+          error: "Unable to verify login permission",
+          errorCode: AUTH_ERROR_CODES.UNAUTHORIZED_EMAIL,
+        },
+        { status: 401 },
+      );
+    }
+    isCrossAccountSuperAdminLogin = binding.crossAccountSuperAdmin;
+  }
+
   if (user.isActive !== 1) {
+    return handleUnauthorizedEmail("user_disabled");
+  }
+  if (user.role === "staff" && user.deletedAt !== null) {
     return handleUnauthorizedEmail("user_disabled");
   }
 
@@ -266,6 +279,42 @@ export async function POST(request: Request) {
     }
 
     return Response.json({ error: LOGIN_INVALID_CREDENTIALS }, { status: 401 });
+  }
+
+  if (user.role === "staff" && !accessCheckSkipped) {
+    const bindingOutcome = await enforceStaffAccessEmailBinding(db, {
+      userId: user.id,
+      role: user.role,
+      isActive: user.isActive,
+      deletedAt: user.deletedAt,
+      lockedUntil: user.lockedUntil,
+      storedAccessEmail: user.cloudflareAccessEmail,
+      loginEmail: emailAttempted,
+      verifiedAccessEmail,
+    });
+    if (
+      bindingOutcome !== STAFF_ACCESS_EMAIL_BINDING_OUTCOMES.BOUND_NOW &&
+      bindingOutcome !==
+        STAFF_ACCESS_EMAIL_BINDING_OUTCOMES.ALREADY_BOUND_MATCH &&
+      bindingOutcome !==
+        STAFF_ACCESS_EMAIL_BINDING_OUTCOMES.LEGACY_MATCH_UNBOUND
+    ) {
+      await writeLoginLog({
+        userId: user.id,
+        emailAttempted,
+        success: false,
+        failureReason: "access_email_binding_failed",
+        ipAddress,
+        userAgent,
+      });
+      return Response.json(
+        {
+          error: "目前的 Access 身份與此 CRM 帳戶不匹配，請聯絡管理員。",
+          errorCode: AUTH_ERROR_CODES.UNAUTHORIZED_EMAIL,
+        },
+        { status: 401 },
+      );
+    }
   }
 
   await resetLoginFailures(user.id);
@@ -472,4 +521,8 @@ export async function POST(request: Request) {
       role: user.role,
     },
   });
+}
+
+export async function POST(request: Request) {
+  return handlePostLogin(request);
 }

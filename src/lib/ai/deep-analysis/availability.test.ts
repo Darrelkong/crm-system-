@@ -40,6 +40,7 @@ function staffUser(overrides: Partial<User> = {}): User {
     id: "staff-1",
     email: "staff@example.com",
     passwordHash: "x",
+    cloudflareAccessEmail: null,
     displayName: "Staff One",
     role: "staff",
     isActive: 1,

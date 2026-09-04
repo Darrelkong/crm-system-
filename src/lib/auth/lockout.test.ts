@@ -16,6 +16,7 @@ function makeUser(overrides: Partial<User> = {}): User {
     email: "staff@example.com",
     displayName: "Staff User",
     passwordHash: "hash",
+    cloudflareAccessEmail: null,
     role: "staff",
     isActive: 1,
     failedLoginAttempts: 0,
