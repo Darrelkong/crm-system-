@@ -8,6 +8,10 @@ import {
 } from "@/lib/customers/assignees";
 import { getCustomerIdsWithHouseholdIcon } from "@/lib/customers/households/list-indicator";
 import { resolveUserDisplayNames } from "@/lib/customers/user-labels";
+import type { User } from "../../../drizzle/schema/users";
+
+export type ViewerRelationship =
+  "owner" | "collaborator" | "public_pool" | "admin";
 
 export type CustomerListRowData = {
   id: string;
@@ -16,6 +20,7 @@ export type CustomerListRowData = {
   nameStatus: string;
   ownerId: string | null;
   ownerName: string | null;
+  viewerRelationship: ViewerRelationship;
   assigneeNames: string[];
   requestedProjectCode?: string | null;
   requestedProjectName?: string | null;
@@ -40,7 +45,11 @@ export function toCustomerListRow(
   customer: CustomerWithScores,
   ownerName: string | null,
   assigneeNames: string[] = [],
-  options?: { isCollaborative?: boolean; hasHouseholdIcon?: boolean },
+  options?: {
+    isCollaborative?: boolean;
+    hasHouseholdIcon?: boolean;
+    viewerRelationship?: ViewerRelationship;
+  },
 ): CustomerListRowData {
   return {
     id: customer.id,
@@ -49,6 +58,7 @@ export function toCustomerListRow(
     nameStatus: customer.nameStatus ?? "confirmed",
     ownerId: customer.ownerId ?? null,
     ownerName,
+    viewerRelationship: options?.viewerRelationship ?? "owner",
     assigneeNames,
     requestedProjectCode: customer.requestedProjectCode,
     requestedProjectName: customer.requestedProjectName,
@@ -74,6 +84,7 @@ export function toCustomerListRow(
 export type BuildCustomerListRowsOptions = {
   assigneesByCustomerId?: Map<string, CustomerAssigneeRecord[]>;
   householdIconCustomerIds?: ReadonlySet<string>;
+  viewer?: Pick<User, "id" | "role">;
 };
 
 export async function buildCustomerListRows(
@@ -111,6 +122,20 @@ export async function buildCustomerListRows(
     const isCollaborative = assignees.some(
       (assignee) => assignee.role === "collaborator",
     );
+    const viewerRelationship: ViewerRelationship =
+      options?.viewer?.role === "admin"
+        ? "admin"
+        : item.status === "public_pool" || !item.ownerId
+          ? "public_pool"
+          : item.ownerId === options?.viewer?.id
+            ? "owner"
+            : assignees.some(
+                  (assignee) =>
+                    assignee.role === "collaborator" &&
+                    assignee.userId === options?.viewer?.id,
+                )
+              ? "collaborator"
+              : "owner";
 
     return toCustomerListRow(
       item,
@@ -118,6 +143,7 @@ export async function buildCustomerListRows(
       assigneeNames,
       {
         isCollaborative,
+        viewerRelationship,
         hasHouseholdIcon: householdIconCustomerIds.has(item.id),
       },
     );

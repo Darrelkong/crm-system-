@@ -104,24 +104,20 @@ const zhHans: Messages = {
     ipEmailRestrictedCountdownSuffix: "秒后可重新尝试",
     deviceNewPending: "此设备尚未授权，请联系管理员。",
     devicePendingReview: "此设备正在等待管理员审核，请稍后再试。",
-    deviceLimitReached:
-      "此账号已达到设备数量上限，请联系管理员移除旧设备。",
+    deviceLimitReached: "此账号已达到设备数量上限，请联系管理员移除旧设备。",
     deviceRevoked: "此设备授权已被撤销，请联系管理员。",
     deviceRejected: "此设备授权申请已被拒绝，请联系管理员。",
     deviceReapprovalPending: "此设备已重新提交授权申请，请等待管理员审核。",
     initialActivationStateChanged: "启用状态已更新，请重新登录后再试。",
   },
   security: {
-    accessExpired:
-      "Access 验证已超时，请重新验证后再登录 CRM。",
-    sessionExpired:
-      "CRM 会话因长时间未操作已超时，请重新完成 Access 验证。",
+    accessExpired: "Access 验证已超时，请重新验证后再登录 CRM。",
+    sessionExpired: "CRM 会话因长时间未操作已超时，请重新完成 Access 验证。",
     sessionRevokedByOtherDevice:
       "您的账号已在其他设备登录，当前会话已失效，请重新登录。",
     sessionTimedOutReLogin: "登录已超时，请重新登录。",
     sessionInvalidReLogin: "登录已失效，请重新登录。",
-    deviceAuthorizationRevoked:
-      "此设备授权已被撤销，请联系管理员。",
+    deviceAuthorizationRevoked: "此设备授权已被撤销，请联系管理员。",
     sessionRevokedTitle: "会话已失效",
     accessDenied: "访问被拒绝",
     singleSessionTitle: "访问被拒绝",
@@ -130,10 +126,8 @@ const zhHans: Messages = {
     reloginRequired: "请先重新完成 Cloudflare Access 验证，再登录 CRM。",
     verifyAccessAgain: "重新验证 Access",
     sessionTimeoutTitle: "会话已超时",
-    timeoutReverifyHint:
-      "如果多次未重新登录，系统将重新进行安全验证。",
-    accessReverifyRequired:
-      "安全设置已更新，请重新完成验证后登录。",
+    timeoutReverifyHint: "如果多次未重新登录，系统将重新进行安全验证。",
+    accessReverifyRequired: "安全设置已更新，请重新完成验证后登录。",
     watermarkConfidential: "最高保密 · 严禁泄露",
   },
   nav: {
@@ -403,8 +397,7 @@ const zhHans: Messages = {
       refreshed: "已刷新邮箱",
       noAccessible: {
         title: "尚未分配邮箱",
-        description:
-          "Mail 访问已启用，但您的账户尚未分配邮箱。请联系管理员。",
+        description: "Mail 访问已启用，但您的账户尚未分配邮箱。请联系管理员。",
       },
     },
     sidebar: {
@@ -539,7 +532,8 @@ const zhHans: Messages = {
         notificationIdentityVerifiedAt: "验证时间",
         retry: "重试",
         sendingDomainTitle: "通知发送域名",
-        sendingDomainHint: "用于 CRM 通知传输的 Cloudflare Email Sending 域名。",
+        sendingDomainHint:
+          "用于 CRM 通知传输的 Cloudflare Email Sending 域名。",
         sendingDomain: "域名",
         sendingDomainStatus: "状态",
         sendingDomainConfigured: "已配置",
@@ -769,8 +763,7 @@ const zhHans: Messages = {
           mailboxOptionNotSendCapable: "不可寄件",
           noEligibleSendMailbox: "目前没有可供您寄件的邮箱。",
           goToMailboxAccess: "前往邮箱存取",
-          createPersonalMailboxHint:
-            "请先在「邮箱存取」建立属于您的个人邮箱。",
+          createPersonalMailboxHint: "请先在「邮箱存取」建立属于您的个人邮箱。",
           columns: {
             user: "用户",
             role: "角色",
@@ -895,7 +888,8 @@ const zhHans: Messages = {
         htmlHint: "HTML 内不支持内联图片。Logo 资源需使用已上传的存储文件。",
         previewTitle: "预览",
         previewEmpty: "输入纯文本或 HTML 以预览签名。",
-        previewDisclaimer: "预览显示未清理的草稿内容。保存后的签名由服务器清理。",
+        previewDisclaimer:
+          "预览显示未清理的草稿内容。保存后的签名由服务器清理。",
         showPreview: "显示预览",
         hidePreview: "隐藏预览",
         saveAsNewVersion: "保存为新版本",
@@ -971,7 +965,8 @@ const zhHans: Messages = {
         refresh: "刷新",
         empty: "尚无通知证明运行记录。",
         noPermission: "您没有查看证明诊断的权限。",
-        pendingIdentityRequired: "请先设定待验证的通知身份，再签发证明验证令牌。",
+        pendingIdentityRequired:
+          "请先设定待验证的通知身份，再签发证明验证令牌。",
         notApplicable: "—",
         columns: {
           sourceEntityId: "来源实体 ID",
@@ -1047,7 +1042,8 @@ const zhHans: Messages = {
       replyGuard: "此邮件目前由 {{name}} 处理",
       replyAnyway: "仍要回复",
       mentionNotifications: "提及通知",
-      mentionNotification: "{{author}} 在 {{mailbox}} 的邮件中提到了你：{{subject}}",
+      mentionNotification:
+        "{{author}} 在 {{mailbox}} 的邮件中提到了你：{{subject}}",
       debugPermission: "共享邮箱权限（QA）",
       filter: {
         all: "全部",
@@ -1094,8 +1090,7 @@ const zhHans: Messages = {
       recipientsSummary: "收件人",
       reviewNotReady: "完整邮件内容加载后才可核准或驳回。",
       attachmentsMetadataError: "此冻结版本修订的附件元数据无法加载。",
-      attachmentReviewBlocked:
-        "附件目前无法完整加载或检查，暂时无法核准。",
+      attachmentReviewBlocked: "附件目前无法完整加载或检查，暂时无法核准。",
       composeMode: {
         new: "新邮件",
         reply: "回复",
@@ -1355,7 +1350,8 @@ const zhHans: Messages = {
     familyWizardStep: "第 {{step}} / {{total}} 步",
     familyRelationshipLabel: "他/她与当前客户的关系",
     familyRelationshipPlaceholder: "选择关系",
-    familyRelationshipHelper: "仅用于家庭成员；朋友、同事等请作为独立客户管理。",
+    familyRelationshipHelper:
+      "仅用于家庭成员；朋友、同事等请作为独立客户管理。",
     familySearchLabel: "搜索已有客户",
     familySearchPlaceholder: "搜索姓名、客户编号或联系方式",
     familySearchModeLabel: "查找方式",
@@ -1381,7 +1377,8 @@ const zhHans: Messages = {
     familyUnlinkNoDelete:
       "此操作不会删除任何客户资料，也不会影响客户的负责人、销售阶段、跟进记录或任务。",
     familyUnlinkRelationshipNote: "该成员与此家庭中的家庭关系将解除。",
-    familyUnlinkDissolveNote: "若家庭移除后仅剩一名有效成员，系统将自动解散此家庭。",
+    familyUnlinkDissolveNote:
+      "若家庭移除后仅剩一名有效成员，系统将自动解散此家庭。",
     familySubmittedForApproval: "已提交管理员审批",
     familyCurrentRelationship: "目前关系",
     familyRequestedRelationship: "申请修改为",
@@ -1392,12 +1389,14 @@ const zhHans: Messages = {
     familyReviewRequest: "申请",
     familyDirectReviewCopy:
       "确认关联后，两位客户仍将作为独立客户管理，不会共享负责人、业务阶段、跟进记录或其他业务数据。",
-    familyApprovalReviewCopy: "该客户由其他负责人管理。提交后将由管理员确认家庭关联。",
+    familyApprovalReviewCopy:
+      "该客户由其他负责人管理。提交后将由管理员确认家庭关联。",
     familyProtectedReviewCopy:
       "已找到受权限保护的现有客户。为保护客户资料，详细信息不会显示。提交后由管理员确认。",
     familyConfirmLink: "确认关联",
     familySubmitApproval: "提交审核",
-    familyProtectedLookupRequired: "请使用准确的客户编号、电话、微信或邮箱选择该受保护客户。",
+    familyProtectedLookupRequired:
+      "请使用准确的客户编号、电话、微信或邮箱选择该受保护客户。",
     confirmRealName: "确认真实姓名",
     confirmRealNameConfirm: "确认",
     confirmNamePlaceholder: "请输入客户真实姓名",
@@ -1442,18 +1441,20 @@ const zhHans: Messages = {
     newFollowUpDescription: "记录本次客户跟进情况",
     timeline: "时间线",
     releaseToPool: "释放到公共池",
-    manageCollaborators: "管理共同负责团队成员",
+    manageCollaborators: "管理协作成员",
     primaryOwner: "主负责人",
-    collaborators: "共同负责团队成员",
-    selectCollaborators: "选择共同负责团队成员",
-    noCollaboratorsYet: "暂无共同负责团队成员",
-    collaboratorsUpdated: "共同负责团队成员已更新",
-    unableToUpdateCollaborators: "无法更新共同负责团队成员",
+    collaborators: "协作成员",
+    selectCollaborators: "选择协作成员",
+    noCollaboratorsYet: "暂无协作成员",
+    collaboratorsUpdated: "协作成员已更新",
+    unableToUpdateCollaborators: "无法更新协作成员",
     requestAssigneeUpdate: "申请调整共同负责团队成员",
     assigneeApprovalSubmitted: "共同负责团队成员调整申请已送出，请等待审核。",
     assigneeUpdateReason: "调整理由",
     assigneeUpdateReasonPlaceholder: "请填写调整理由",
-    currentCollaborators: "目前共同负责团队成员",
+    currentCollaborators: "当前协作成员",
+    removeCollaboratorConfirmTitle: "移除协作成员？",
+    removeCollaboratorConfirmBody: "移除后，该成员将无法继续查看和跟进该客户。",
     requestedCollaborators: "申请调整后共同负责团队成员",
     addedCollaborators: "新增团队成员",
     removedCollaborators: "移除团队成员",
@@ -1477,6 +1478,12 @@ const zhHans: Messages = {
     countStaff: "共 {{count}} 位客户（含公共池脱敏客户，不含已归档）",
     completenessBelow: "完整度低于",
     clearFilters: "清除筛选",
+    relationshipFilterLabel: "客户关系",
+    relationshipAll: "全部",
+    relationshipOwner: "我负责",
+    relationshipCollaborator: "我协作",
+    collaboratorBadge: "协作",
+    noCollaborativeCustomers: "暂无协作客户",
     followUpStatus: "跟进状态",
     dataAccess: "数据",
     type: "类型",
@@ -1601,8 +1608,7 @@ const zhHans: Messages = {
     targetCountryOrRegion: "目标国家／地区",
     targetCountryOrRegionPlaceholder: "请输入目标国家或地区",
     primaryConcern: "主要关注点／障碍",
-    primaryConcernPlaceholder:
-      "例如：目前最关注的问题、顾虑或办理障碍",
+    primaryConcernPlaceholder: "例如：目前最关注的问题、顾虑或办理障碍",
     profilePleaseSelect: "请选择",
     phoneWechatRequired: "手机号 / 微信号",
     atLeastOne: "（至少填写一项）",
@@ -1631,8 +1637,7 @@ const zhHans: Messages = {
     draftSavedAt: "草稿已保存在此设备 · {{time}}",
     draftStorageUnavailable: "此浏览器目前无法自动保存草稿",
     draftRestoreTitle: "发现未完成的客户草稿",
-    draftRestoreDescription:
-      "你之前填写的客户资料尚未正式保存，是否继续填写？",
+    draftRestoreDescription: "你之前填写的客户资料尚未正式保存，是否继续填写？",
     draftRestoreContinue: "继续填写",
     draftRestoreDiscard: "放弃草稿",
     saveClient: "保存客户",
@@ -1695,16 +1700,17 @@ const zhHans: Messages = {
     createdCreateAnother: "继续新增客户",
     createdBackToList: "返回客户列表",
     createdActionsLabel: "建立成功后操作",
-    heatDescription: "基于有效跟进、销售阶段、下次跟进与自动回收预警规则动态计算。",
+    heatDescription:
+      "基于有效跟进、销售阶段、下次跟进与自动回收预警规则动态计算。",
     completenessPoints: "{{score}} 分",
     missingFields: "待完善项：",
-    completenessRestricted: "完整度分数可见；缺失项详情仅负责人或管理员可查看。",
+    completenessRestricted:
+      "完整度分数可见；缺失项详情仅负责人或管理员可查看。",
     completenessGood: "资料已较完整",
     releaseConfirmTitle: "释放到公共池",
     useReleaseFlowForPublicPool:
       "若要释放至公共池，请使用客户详情页的「释放到公共池」功能，不可在此直接修改状态。",
-    sensitiveFieldsLockedHint:
-      "敏感资料已锁定，如需修改请联系管理员。",
+    sensitiveFieldsLockedHint: "敏感资料已锁定，如需修改请联系管理员。",
     publicPoolStatusReadOnly: "此客户已在公共池，状态不可在此修改。",
     releaseConfirmBody: "确认将该客户释放至公共池吗？此操作不可撤销。",
     releaseReason: "释放原因",
@@ -1828,7 +1834,8 @@ const zhHans: Messages = {
         },
         followUpOverdue: {
           title: "下一次跟进已逾期",
-          description: "预定的下一次跟进已逾期 {{days}} 天（约 {{hours}} 小时）。",
+          description:
+            "预定的下一次跟进已逾期 {{days}} 天（约 {{hours}} 小时）。",
         },
         nextFollowUpMissing: {
           title: "缺少下一次跟进时间",
@@ -1871,14 +1878,10 @@ const zhHans: Messages = {
         available: "AI 深度分析可用。",
         staffDisabled:
           "管理员目前未开放客户 AI 深度分析。你仍可使用基础系统分析。",
-        limitReached:
-          "今日 AI 使用次数已用完。你仍可使用基础系统分析。",
-        globalDisabled:
-          "AI 深度分析目前未启用，当前显示的是基础系统分析。",
-        providerUnavailable:
-          "AI 深度分析暂时不可用，你仍可查看基础系统分析。",
-        mockOnly:
-          "AI 深度分析暂时不可用，你仍可查看基础系统分析。",
+        limitReached: "今日 AI 使用次数已用完。你仍可使用基础系统分析。",
+        globalDisabled: "AI 深度分析目前未启用，当前显示的是基础系统分析。",
+        providerUnavailable: "AI 深度分析暂时不可用，你仍可查看基础系统分析。",
+        mockOnly: "AI 深度分析暂时不可用，你仍可查看基础系统分析。",
         manualRefreshDisabled: "管理员已关闭团队成员手动刷新。",
         adminOnly: "仅管理员可重新生成 AI 深度分析。",
         cooldown: "此客户刚完成分析，请稍后再试。",
@@ -1907,8 +1910,7 @@ const zhHans: Messages = {
       refreshStaffDisabled: "管理员已关闭团队成员手动刷新",
       staffDeepAnalysisDisabled:
         "管理员目前未开放客户 AI 深度分析。你仍可使用基础系统分析。",
-      dailyLimitReached:
-        "今日 AI 使用次数已用完。你仍可使用基础系统分析。",
+      dailyLimitReached: "今日 AI 使用次数已用完。你仍可使用基础系统分析。",
       reservationConflict: "本次请求未能开始，请刷新页面后再试。",
       remainingToday: "今日剩余 {{count}} 次 AI 使用（共用）",
       refresh: "重新生成深度分析",
@@ -1949,7 +1951,8 @@ const zhHans: Messages = {
     phase2: {
       opportunityTitle: "成交机会评分",
       opportunityInsufficient: "目前资料不足，暂时无法形成可靠的成交机会评分。",
-      opportunityDisclaimer: "此评分仅供团队成员判断下一步，不代表客户一定成交。",
+      opportunityDisclaimer:
+        "此评分仅供团队成员判断下一步，不代表客户一定成交。",
       confidenceHint: "信心程度反映目前可用资料和有效依据的完整程度。",
       confidence: {
         high: "高",
@@ -2027,13 +2030,16 @@ const zhHans: Messages = {
         customer_intent: "客户意向",
       },
       suggestedMessageTitle: "建议沟通内容",
-      suggestedMessageHint: "内容仅供参考，请确认并按实际情况修改后再使用。系统不会自动发送。",
+      suggestedMessageHint:
+        "内容仅供参考，请确认并按实际情况修改后再使用。系统不会自动发送。",
       copyMessage: "复制内容",
       restoreSuggestion: "恢复建议内容",
       copiedConfirmation: "已复制，请确认内容后再发送。",
       clipboardFailure: "复制失败，请手动选择文字复制。",
-      safeMessageUnavailable: "本次未生成可安全使用的沟通建议，请根据客户实际情况自行整理。",
-      advancedUnavailable: "本次已完成客户深度分析，但进阶分析资料不足或未能通过安全验证。",
+      safeMessageUnavailable:
+        "本次未生成可安全使用的沟通建议，请根据客户实际情况自行整理。",
+      advancedUnavailable:
+        "本次已完成客户深度分析，但进阶分析资料不足或未能通过安全验证。",
       legacyIntentScore: "原有意向分数",
       noCrmAutoChanges: "系统不会自动修改客户资料或发送消息。",
     },
@@ -2231,7 +2237,8 @@ const zhHans: Messages = {
     disableStaff: "停用团队成员",
     disableStaffHint: "团队成员将无法登录，但其名下客户不会转交。",
     deleteStaff: "删除团队成员",
-    deleteStaffHint: "团队成员将无法登录，其名下客户会自动转交给管理员，历史记录会保留。",
+    deleteStaffHint:
+      "团队成员将无法登录，其名下客户会自动转交给管理员，历史记录会保留。",
     deleteStaffConfirm:
       "删除后，该团队成员将无法登录，其名下客户会自动转交给管理员，所有历史记录将保留。是否确认删除？",
     deleteStaffModalTitle: "删除团队成员确认",
@@ -2363,7 +2370,8 @@ const zhHans: Messages = {
     scope: "导出范围",
     includeSensitive:
       "包含敏感字段（phone、wechat_id、email、notes、source_remark）",
-    sensitiveHint: "取消勾选后，敏感字段将从 CSV 中排除，且无法通过 fields 参数绕过。",
+    sensitiveHint:
+      "取消勾选后，敏感字段将从 CSV 中排除，且无法通过 fields 参数绕过。",
     exportCsv: "导出 CSV",
     riskTitle: "导出风险确认",
     riskMessage:
@@ -2378,8 +2386,7 @@ const zhHans: Messages = {
     fieldsLabel: "导出字段",
     defaultFieldsHint: "使用默认字段集（{{count}} 列，受白名单限制）",
     includeNameStatus: "包含姓名状态",
-    includeNameStatusHint:
-      "额外输出 confirmed／pending，不影响原有字段。",
+    includeNameStatusHint: "额外输出 confirmed／pending，不影响原有字段。",
     confirmExport: "确认导出",
   },
   import: {
@@ -2477,7 +2484,8 @@ const zhHans: Messages = {
     pendingCount: "待处理：{{count}}",
     pendingAction: "待处理",
     priorityTomorrow: "明日释放",
-    markAllPartial: "已将 {{marked}} 条普通通知标记为已读。另有 {{retained}} 条待处理事项将继续保留。",
+    markAllPartial:
+      "已将 {{marked}} 条普通通知标记为已读。另有 {{retained}} 条待处理事项将继续保留。",
     markAllNoneEligible: "当前没有可批量标记为已读的普通通知。",
     unreadBadgeLabel: "未读通知 {{count}} 条",
     unreadOnly: "只看未读",
@@ -2564,9 +2572,11 @@ const zhHans: Messages = {
   notificationMessages: {
     approvalPendingAdmin: "{{customerName}} 有新的{{approvalType}}待审批。",
     approvalApproved: "你的{{approvalType}}申请已通过。",
-    approvalApprovedWithComment: "你的{{approvalType}}申请已通过。审批意见：{{adminComment}}",
+    approvalApprovedWithComment:
+      "你的{{approvalType}}申请已通过。审批意见：{{adminComment}}",
     approvalRejected: "你的{{approvalType}}申请已拒绝。",
-    approvalRejectedWithComment: "你的{{approvalType}}申请已拒绝。审批意见：{{adminComment}}",
+    approvalRejectedWithComment:
+      "你的{{approvalType}}申请已拒绝。审批意见：{{adminComment}}",
     customerTransferredAway: "客户「{{customerName}}」已转移给其他同事。",
     customerTransferredToYou: "客户「{{customerName}}」已转移给你。",
     collaboratorAdded:
@@ -2880,7 +2890,8 @@ const zhHans: Messages = {
   },
   help: {
     title: "帮助中心",
-    description: "教您如何使用 CRM 管理客户、记录跟进、公共池与 AI 分析等功能。",
+    description:
+      "教您如何使用 CRM 管理客户、记录跟进、公共池与 AI 分析等功能。",
     descriptionAdmin:
       "教您如何使用 CRM 管理客户、记录跟进、公共池与 AI 分析等功能。",
     descriptionStaff:
@@ -2895,8 +2906,7 @@ const zhHans: Messages = {
         description:
           "在 iPhone 上将 CRM 安装为主屏幕 Web App，以独立窗口打开。",
         items: {
-          why:
-            "添加到主屏幕后，ECHFRONT CRM 会以独立窗口打开，而不是 Safari 标签页。",
+          why: "添加到主屏幕后，ECHFRONT CRM 会以独立窗口打开，而不是 Safari 标签页。",
           iosSteps:
             "在 iPhone Safari 中，点选「分享」，再选择「添加到主屏幕」。",
           standaloneBenefit:
@@ -2914,12 +2924,10 @@ const zhHans: Messages = {
             "AI 可以帮助您理解客户目前意向，以及对产品或服务的兴趣程度。",
           dataSources:
             "AI 会参考客户基本资料、首次沟通备注，以及您记录的跟进内容。",
-          nextSteps:
-            "AI 可提供下一步建议与建议话术，方便您规划下一次联络。",
+          nextSteps: "AI 可提供下一步建议与建议话术，方便您规划下一次联络。",
           assistantOnly:
             "AI 只是辅助工具，不会代替您做承诺或最终决定，请以实际沟通为准。",
-          keepFollowUpsUpdated:
-            "跟进记录越完整、越真实，AI 分析通常会更准确。",
+          keepFollowUpsUpdated: "跟进记录越完整、越真实，AI 分析通常会更准确。",
         },
       },
       addCustomer: {
@@ -2940,8 +2948,7 @@ const zhHans: Messages = {
         title: "如何查看我的客户",
         description: "在客户管理页面查看您负责或共同负责的客户。",
         items: {
-          list:
-            "在「客户管理」可看到您负责的客户列表，也可依状态或关键字搜索。",
+          list: "在「客户管理」可看到您负责的客户列表，也可依状态或关键字搜索。",
           detail:
             "点选客户名称进入详情页，可查看基本资料、跟进记录与 AI 分析。",
           status:
@@ -2968,8 +2975,7 @@ const zhHans: Messages = {
         title: "如何使用 AI 客户分析",
         description: "在客户详情页查看 AI 分析，协助您规划下一步。",
         items: {
-          whereToFind:
-            "进入客户详情页后，在 AI 分析区块查看目前分析结果。",
+          whereToFind: "进入客户详情页后，在 AI 分析区块查看目前分析结果。",
           readOutput:
             "可重点看客户意向（intent）、建议下一步（next best action）等内容。",
           suggestedMessage:
@@ -2982,10 +2988,8 @@ const zhHans: Messages = {
         title: "如何避免客户被释放到公共池",
         description: "持续跟进是保留客户负责权的关键。",
         items: {
-          followOnTime:
-            "请按计划联络客户，并在每次沟通后记录跟进。",
-          validRecords:
-            "确保跟进内容完整有效，不要只用敷衍文字应付。",
+          followOnTime: "请按计划联络客户，并在每次沟通后记录跟进。",
+          validRecords: "确保跟进内容完整有效，不要只用敷衍文字应付。",
           watchReminders:
             "留意通知中心的提醒；系统通常会在回收前 {{warningDays}} 天左右先提醒您（预设约 {{reclaimDays}} 天无有效跟进可能回收）。",
           collaborativeCustomers:
@@ -3026,8 +3030,7 @@ const zhHans: Messages = {
         items: {
           whatToSubmit:
             "例如调整共同负责团队成员、部分客户状态变更等，可在客户详情页提交申请。",
-          checkStatus:
-            "提交后可在「批准」页面查看申请状态，也会收到通知提醒。",
+          checkStatus: "提交后可在「批准」页面查看申请状态，也会收到通知提醒。",
           navBadge:
             "左侧选单「批准」旁若显示数字，代表有待处理或待查看的申请。",
           collaboratorRequest:
@@ -3084,8 +3087,7 @@ const zhHans: Messages = {
     title: "公共池",
     pageTitle: "公共客户池",
     subtitleAdmin: "管理员可查看完整资料并领取客户（无领取限制）",
-    subtitleStaff:
-      "团队成员仅可查看脱敏资料；使用随机领取由系统分配一位客户",
+    subtitleStaff: "团队成员仅可查看脱敏资料；使用随机领取由系统分配一位客户",
     availableClients: "可领取客户",
     releaseToPool: "释放到公共池",
     claimClient: "领取客户",
@@ -3304,7 +3306,8 @@ const zhHans: Messages = {
         name_placeholder_forbidden:
           "X先生／X女士仅可在勾选「暂时不知道姓名」时使用。",
         project_required: "请选择需求业务。",
-        project_invalid: "请选择有效的需求业务；选「其他」时请填写至少 4 个字的说明。",
+        project_invalid:
+          "请选择有效的需求业务；选「其他」时请填写至少 4 个字的说明。",
         source_required: "请选择客户来源。",
         contact_required: "电话或微信至少填写一项",
         phone_invalid: "电话必须为1开头的11位数字",
@@ -3325,7 +3328,8 @@ const zhHans: Messages = {
         countryCodeInvalid: "国家区号仅支持 +86",
         wechatInvalid: "微信无效。",
         projectRequired: "请选择需求业务。",
-        projectInvalid: "请选择有效的需求业务；选「其他」时请填写至少 4 个字的说明。",
+        projectInvalid:
+          "请选择有效的需求业务；选「其他」时请填写至少 4 个字的说明。",
         sourceRequired: "请选择客户来源。",
         sourceInvalid: "请从固定字典选择客户来源。",
         sourceRemarkRequired: "来源为「其他」时，备注必填。",
@@ -3357,8 +3361,7 @@ const zhHans: Messages = {
       statusOn: "已开启",
       statusOff: "已关闭",
       loading: "加载中…",
-      enableSuccess:
-        "已开启全局免超时。用户仍会受到其他安全规则保护。",
+      enableSuccess: "已开启全局免超时。用户仍会受到其他安全规则保护。",
       disableSuccess:
         "已恢复 30 分钟无操作退出。所有非 Admin 用户需要重新完成 Access 验证。",
       saveFailed: "安全设置更新失败，请稍后重试。",
@@ -3434,7 +3437,8 @@ const zhHans: Messages = {
       },
       ai: {
         title: "AI 客户分析",
-        description: "AI 设置在独立页面管理，API Key 通过 Cloudflare Secret 配置。",
+        description:
+          "AI 设置在独立页面管理，API Key 通过 Cloudflare Secret 配置。",
       },
       announcements: {
         title: "公告与欢迎页",
@@ -3498,7 +3502,8 @@ const zhHans: Messages = {
       },
       loginAdminUnlock: {
         title: "需由 Admin 解锁",
-        description: "只有 Admin 可以在团队成员管理页解锁被锁定的团队成员账户。",
+        description:
+          "只有 Admin 可以在团队成员管理页解锁被锁定的团队成员账户。",
       },
       loginPasswordReset: {
         title: "重置密码可恢复登录",
@@ -3507,7 +3512,8 @@ const zhHans: Messages = {
       },
       sessionInactivity: {
         title: "闲置自动退出",
-        description: "连续 {{minutes}} 分钟无操作，Session 会自动失效并要求重新登录。",
+        description:
+          "连续 {{minutes}} 分钟无操作，Session 会自动失效并要求重新登录。",
       },
       sessionSingleLogin: {
         title: "新登录踢出旧 Session",
@@ -3544,7 +3550,8 @@ const zhHans: Messages = {
       },
       customerRetention: {
         title: "回收站保留 {{days}} 天",
-        description: "已删除客户会在回收站保留 {{days}} 天，之后才符合系统清理条件。",
+        description:
+          "已删除客户会在回收站保留 {{days}} 天，之后才符合系统清理条件。",
       },
       customerRestore: {
         title: "保留期内可恢复",
@@ -3559,7 +3566,8 @@ const zhHans: Messages = {
   },
   aiFeedbackStats: {
     title: "AI 评分统计",
-    description: "查看管理员对 AI 分析的评分效果，用于后续优化 prompt 与模型选择。",
+    description:
+      "查看管理员对 AI 分析的评分效果，用于后续优化 prompt 与模型选择。",
     loading: "加载统计中…",
     loadFailed: "无法加载 AI 评分统计",
     empty: "尚无 AI 评分资料，提交评分后会在这里显示统计。",
@@ -3723,8 +3731,7 @@ const zhHans: Messages = {
     },
     dataQuality: {
       title: "资料品质",
-      notice:
-        "部分旧资料缺少完整统计维度，系统已将其归入未知分类，未作推测。",
+      notice: "部分旧资料缺少完整统计维度，系统已将其归入未知分类，未作推测。",
       ok: "资料品质正常",
       fields: {
         legacyRefreshEvents: "旧版刷新事件",
@@ -3812,7 +3819,8 @@ const zhHans: Messages = {
     saveSuccess: "AI 设置已保存",
     saveFailed: "保存 AI 设置失败",
     apiKeyHintTitle: "API Key 配置",
-    apiKeyHintBody: "API Key 不在后台或数据库保存，请使用 Cloudflare Secret 配置：",
+    apiKeyHintBody:
+      "API Key 不在后台或数据库保存，请使用 Cloudflare Secret 配置：",
     apiKeyStatus: "API Key 状态",
     apiKeyConfigured: "已配置",
     apiKeyMissing: "未配置",
@@ -3944,16 +3952,11 @@ const zhHans: Messages = {
     organizing: "整理中…",
     availability: {
       available: "AI 智能整理可用",
-      staffDisabled:
-        "管理员目前未开放跟进 AI 智能整理。你仍可使用基础整理。",
-      limitReached:
-        "今日 AI 使用次数已用完。你仍可使用基础整理。",
-      globalDisabled:
-        "AI 智能整理目前未启用。你仍可使用基础整理。",
-      providerUnavailable:
-        "AI 智能整理暂时不可用。你仍可使用基础整理。",
-      mockOnly:
-        "AI 智能整理暂时不可用。你仍可使用基础整理。",
+      staffDisabled: "管理员目前未开放跟进 AI 智能整理。你仍可使用基础整理。",
+      limitReached: "今日 AI 使用次数已用完。你仍可使用基础整理。",
+      globalDisabled: "AI 智能整理目前未启用。你仍可使用基础整理。",
+      providerUnavailable: "AI 智能整理暂时不可用。你仍可使用基础整理。",
+      mockOnly: "AI 智能整理暂时不可用。你仍可使用基础整理。",
     },
     warnings: {
       textTooShort: "文字过短",
@@ -3967,10 +3970,8 @@ const zhHans: Messages = {
     errors: {
       organizationFailed: "整理失败",
       network: "网络错误",
-      idempotencyConflict:
-        "此整理请求无法重放。原文已保留，请重新整理。",
-      previewStale:
-        "预览产生后原文已变更。请重新整理后再使用结果。",
+      idempotencyConflict: "此整理请求无法重放。原文已保留，请重新整理。",
+      previewStale: "预览产生后原文已变更。请重新整理后再使用结果。",
     },
   },
   followUpsPage: {
@@ -4024,7 +4025,8 @@ const zhHans: Messages = {
     statusLegacy: "旧版",
     statusCustom: "自定义数据",
     notApplicable: "不适用",
-    stagesHint: "对应 customers.sales_stage；Reports 的客户阶段分布使用相同值。",
+    stagesHint:
+      "对应 customers.sales_stage；Reports 的客户阶段分布使用相同值。",
     tagsHint:
       "标签存储于 customer_tags，客户字段为 customers.source。管理员可新增、修改名称或删除标签。",
     addTag: "新增标签",
@@ -4035,8 +4037,7 @@ const zhHans: Messages = {
     systemTag: "系统标签",
     otherTag: "其他",
     deleteTagConfirm: "确定删除此标签？此操作无法撤销。",
-    deleteTagReassignWarning:
-      "此标签下的客户将自动转为「其他」，确定继续？",
+    deleteTagReassignWarning: "此标签下的客户将自动转为「其他」，确定继续？",
     closedWonPoolExemption: "已成交客户不会自动释放到公共池。",
   },
   heatReasons: {
@@ -4044,7 +4045,8 @@ const zhHans: Messages = {
     recentFollowUp: "近期已有跟进记录。",
     recentFollowUpDays: "近 {{days}} 天内有有效跟进。",
     longNoFollowUp: "已 {{days}} 天未跟进。",
-    longNoValidFollowUp: "已 {{days}} 天无有效跟进（达预警阈值 {{threshold}} 天）。",
+    longNoValidFollowUp:
+      "已 {{days}} 天无有效跟进（达预警阈值 {{threshold}} 天）。",
     incompleteProfile: "客户资料尚未完整。",
     newClient: "新客户资料。",
     default: "暂无特殊风险或优先级信号。",
@@ -4086,7 +4088,8 @@ const zhHans: Messages = {
     customerCollaboratorRemoved: "已移除协作成员",
     collaboratorAddedDescription: "{{collaboratorName}} 已加入协作成员",
     collaboratorRemovedDescription: "{{collaboratorName}} 已被移除协作成员",
-    customerTransferredStaffDeleted: "原负责团队成员已被删除，客户已自动转交给管理员",
+    customerTransferredStaffDeleted:
+      "原负责团队成员已被删除，客户已自动转交给管理员",
     staffDeletedTransfer:
       "原负责人：{{previousOwnerName}} → 新负责人：{{newOwnerName}}",
     customerClosedWonApproved: "成交申请已通过",
@@ -4185,7 +4188,8 @@ const zhHans: Messages = {
     familyManagementUseDedicatedEndpoint: "请使用家庭关系管理专用入口提交。",
     familyTargetNotInHousehold: "该客户不是当前家庭的成员。",
     familyApprovalStale: "审批期间家庭状态已变更。",
-    familyCompanyMemberEditForbidden: "公司客户不能设定家庭关系，请改为解除家庭关联。",
+    familyCompanyMemberEditForbidden:
+      "公司客户不能设定家庭关系，请改为解除家庭关联。",
     saveFailed: "保存失败。",
     deleteFailed: "删除失败。",
     clientNameRequired: "请输入客户姓名。",
@@ -4308,7 +4312,8 @@ const zhHans: Messages = {
     approvalNotFound: "申请不存在。",
     approvalAlreadyProcessed: "该申请已处理，不能重复审批。",
     publicPoolClientNotFound: "客户不在公共池。",
-    publicPoolClientAlreadyClaimed: "此客户已被其他团队成员领取，请刷新公共池列表。",
+    publicPoolClientAlreadyClaimed:
+      "此客户已被其他团队成员领取，请刷新公共池列表。",
     clientAlreadyClaimed: "此客户已被其他团队成员领取。",
     importFileRequired: "请先上传 CSV 文件。",
     importInvalidFileFormat: "文件格式不正确。",
@@ -4318,14 +4323,12 @@ const zhHans: Messages = {
     claimQuotaExceeded: "7 天领取名额已达上限。",
     claimStatusUnavailable: "无法获取领取状态。",
     cannotClaimClient: "无法领取该客户。",
-    randomClaimBodyNotAllowed:
-      "随机领取不接受指定客户或其他自定义参数。",
+    randomClaimBodyNotAllowed: "随机领取不接受指定客户或其他自定义参数。",
     invalidRequestBody: "请求格式不正确，请刷新页面后重试。",
     randomClaimStaffOnly: "此功能仅供团队成员使用。",
     claimMethodNotAllowed:
       "团队成员不能指定领取某一位公共池客户，请使用随机领取。",
-    publicPoolNoEligibleCustomer:
-      "目前没有符合条件的公共池客户可供领取。",
+    publicPoolNoEligibleCustomer: "目前没有符合条件的公共池客户可供领取。",
     publicPoolCandidateScanLimit:
       "本次未能安全完成客户分配，请稍后重试。如持续出现，请联系管理员。",
     publicPoolRandomClaimConflict:

@@ -75,7 +75,8 @@ const en = {
     enterEmail: "Please enter your email",
     enterPassword: "Please enter your password",
     enterVerificationCode: "Please enter the verification code",
-    signedOutDueToInactivity: "Your session has timed out. Please sign in again.",
+    signedOutDueToInactivity:
+      "Your session has timed out. Please sign in again.",
     redirectingToLogin: "Redirecting to sign in…",
     changePasswordTitle: "Change password",
     changePasswordSubtitle:
@@ -127,7 +128,8 @@ const en = {
     sessionRevokedByOtherDevice:
       "Your account was signed in on another device. This session is no longer valid. Please sign in again.",
     sessionTimedOutReLogin: "Your session has timed out. Please sign in again.",
-    sessionInvalidReLogin: "Your session is no longer valid. Please sign in again.",
+    sessionInvalidReLogin:
+      "Your session is no longer valid. Please sign in again.",
     deviceAuthorizationRevoked:
       "This device is no longer authorized. Please contact an administrator.",
     sessionRevokedTitle: "Session ended",
@@ -316,7 +318,8 @@ const en = {
         missingFrom: "Select a From address before attaching files.",
         uploadFileMissing: "Upload file is missing.",
         fileTooLarge: "Each attachment must be {{size}} or smaller.",
-        totalSizeExceeded: "Total attachment size must be {{totalSize}} or smaller.",
+        totalSizeExceeded:
+          "Total attachment size must be {{totalSize}} or smaller.",
         tooMany: "You can attach up to {{maxCount}} files",
         unsupportedType: "This file type is not supported",
         emptyFile: "Cannot attach an empty file",
@@ -367,10 +370,12 @@ const en = {
         fromUnauthorized: "Selected From address is not authorized",
         recipientsRequired: "Add at least one recipient",
         bodyRequired: "Message body is required",
-        attachmentsPending: "Remove or upload pending attachments before submitting",
+        attachmentsPending:
+          "Remove or upload pending attachments before submitting",
         alreadyPending: "This draft is already pending approval",
         alreadyApproved: "This draft has already been approved",
-        submitBlocked: "Submission is blocked until validation issues are resolved",
+        submitBlocked:
+          "Submission is blocked until validation issues are resolved",
       },
       showQuoted: "Show quoted content",
       forwardAttachments: "Original attachments",
@@ -457,7 +462,8 @@ const en = {
       sectionComingSoonBody:
         "This preference is planned for a future release. Your current mail workflow is unaffected.",
       sectionPlaceholder: "This section will be available in a future phase.",
-      adminPlaceholder: "Mail administration will be implemented in a later phase.",
+      adminPlaceholder:
+        "Mail administration will be implemented in a later phase.",
     },
     notificationMailbox: {
       title: "Notification mailbox",
@@ -485,7 +491,8 @@ const en = {
       revokeConfirmTitle: "Revoke notification identity",
       revokeConfirmBody:
         "This exceptional security action will revoke the verified notification identity and suspend Mail access if required. Work mailboxes and mail history will remain intact. This is separate from routine Mail access suspension.",
-      revokeSuccess: "Notification identity revoked and Mail access suspended if required.",
+      revokeSuccess:
+        "Notification identity revoked and Mail access suspended if required.",
       revokeSectionTitle: "Security: revoke notification identity",
       revokeSectionDescription:
         "Use only for an incorrect, compromised, or no-longer-trusted notification email. This is not the routine Mail access disable action.",
@@ -509,9 +516,11 @@ const en = {
     },
     adminCenter: {
       title: "Mail Admin Center",
-      description: "Manage mail access, notification identities, and operational settings.",
+      description:
+        "Manage mail access, notification identities, and operational settings.",
       navLabel: "Admin sections",
-      sectionComingSoon: "Management tools for this section will be available in the next release.",
+      sectionComingSoon:
+        "Management tools for this section will be available in the next release.",
       retry: "Retry",
       sections: {
         overview: "Overview",
@@ -530,17 +539,21 @@ const en = {
       descriptions: {
         overview: "Your mail account summary and available admin sections.",
         access: "Enable or disable mail access for CRM users.",
-        notificationIdentity: "Create and verify notification sender identities.",
+        notificationIdentity:
+          "Create and verify notification sender identities.",
         notificationIdentityTeam:
           "Manage notification mailboxes for CRM team members.",
-        proofDiagnostics: "Run controlled notification transport proof workflows.",
+        proofDiagnostics:
+          "Run controlled notification transport proof workflows.",
         senderIdentity: "Configure outbound sender identities and grants.",
         signature: "Create and manage HTML signatures for sender identities.",
-        approval: "Review staff outbound mail submissions and track approval status.",
+        approval:
+          "Review staff outbound mail submissions and track approval status.",
         approvalAuthor:
           "Track your outbound mail submission status and reviewer outcomes.",
         mailbox: "Manage mailbox accounts and assignments.",
-        sharedMailbox: "Manage shared mailbox membership and workspace permissions.",
+        sharedMailbox:
+          "Manage shared mailbox membership and workspace permissions.",
         permission: "Assign mail admin grants to users.",
         deliveryHealth: "Review delivery health and operational replay tools.",
       },
@@ -558,7 +571,8 @@ const en = {
         capabilitiesTitle: "Available capabilities",
         capabilitiesHint:
           "Capabilities reflect your current mail admin grants. Section tools appear as each area is released.",
-        noCapabilities: "No mail admin capabilities are enabled for this account.",
+        noCapabilities:
+          "No mail admin capabilities are enabled for this account.",
         notificationIdentityTitle: "Notification identity",
         notificationIdentityHint:
           "Verification status for your notification sender identity.",
@@ -592,8 +606,7 @@ const en = {
         configureNotificationEmail: "Set notification email",
         notificationEmailLabel: "Notification email",
         permissionDenied: "You do not have permission to manage Mail Access.",
-        enableGenericError:
-          "Could not update mail access. Please try again.",
+        enableGenericError: "Could not update mail access. Please try again.",
         statusEnabled: "Enabled",
         statusDisabled: "Disabled",
         enabledAt: "Enabled {{date}}",
@@ -625,8 +638,7 @@ const en = {
           sendHint:
             "Send a verification code to the external notification email. The team member can share the code with you to complete verification.",
           sendSuccess: "Verification code sent to {{email}}.",
-          sendQueued:
-            "Verification code queued for delivery to {{email}}.",
+          sendQueued: "Verification code queued for delivery to {{email}}.",
           transportDisabled:
             "Verification email delivery is not enabled yet. Ask the team member for their code only after a code has been sent.",
           deliveryFailed:
@@ -648,9 +660,11 @@ const en = {
       notificationIdentity: {
         refresh: "Refresh",
         empty: "No notification identity configured yet.",
-        noPermission: "You do not have permission to manage notification identities.",
+        noPermission:
+          "You do not have permission to manage notification identities.",
         selfOnlyHint: "You can manage your own notification identity only.",
-        selfOnlyError: "This action is limited to your own notification identity.",
+        selfOnlyError:
+          "This action is limited to your own notification identity.",
         createSuccess: "Notification email added.",
         verifySuccess: "Notification identity verified.",
         addTitle: "Add notification email",
@@ -668,7 +682,8 @@ const en = {
         verifyWrongTwoRemaining: "Incorrect code. 2 attempts remaining.",
         verifyWrongOneRemaining: "Incorrect code. 1 attempt remaining.",
         verifyWrongGeneric: "Incorrect verification code.",
-        verifyLocked: "This verification code is no longer valid. Send a new code.",
+        verifyLocked:
+          "This verification code is no longer valid. Send a new code.",
         verifyExpired: "This verification code has expired. Send a new code.",
         verifyResendCooldown: "You can resend in {{seconds}} seconds.",
         verifyResendCountdown: "Resend ({{seconds}}s)",
@@ -700,7 +715,8 @@ const en = {
         },
         teamOverview: {
           searchLabel: "Search team members",
-          searchPlaceholder: "Search name, CRM account, or notification mailbox",
+          searchPlaceholder:
+            "Search name, CRM account, or notification mailbox",
           statusFilterLabel: "Status",
           statusAll: "All",
           noMatches: "No team members match the current search or filter.",
@@ -757,7 +773,8 @@ const en = {
           "You do not have send authorization on the selected mailbox, so this identity cannot be authorized for you.",
         grantSelfOnCreateSetupHint:
           "To use your own From address, create a personal mailbox for yourself in Mailbox access first.",
-        createWithSelfGrantSuccess: "Sender identity created and authorized for you.",
+        createWithSelfGrantSuccess:
+          "Sender identity created and authorized for you.",
         columns: {
           displayName: "Display name",
           email: "Email address",
@@ -796,8 +813,10 @@ const en = {
           staffRole: "Staff",
           composeMailboxTitle: "Default mailbox",
           personalMailboxOwner: "Personal mailbox · Owner: {{owner}}",
-          sharedMailboxHint: "Shared mailbox · Send requires membership with send permission",
-          missingComposeMailbox: "This sender identity has no compose mailbox configured.",
+          sharedMailboxHint:
+            "Shared mailbox · Send requires membership with send permission",
+          missingComposeMailbox:
+            "This sender identity has no compose mailbox configured.",
           missingMailboxSendAuthorization:
             "This user does not have send authorization on this mailbox.",
           missingMailboxReplyAuthorization:
@@ -809,7 +828,8 @@ const en = {
           mailboxOptionActorCanSend: "Personal mailbox · You can send",
           mailboxOptionActorCannotSend: "Personal mailbox · You cannot send",
           mailboxOptionNotSendCapable: "Cannot send",
-          noEligibleSendMailbox: "You do not have any mailbox you can send from yet.",
+          noEligibleSendMailbox:
+            "You do not have any mailbox you can send from yet.",
           goToMailboxAccess: "Go to Mailbox access",
           createPersonalMailboxHint:
             "Create a personal mailbox for yourself in Mailbox access first.",
@@ -913,7 +933,8 @@ const en = {
         refresh: "Refresh",
         empty: "No signature versions yet.",
         noPermission: "You do not have permission to manage signatures.",
-        noSenderIdentities: "No active sender identities are available for signatures.",
+        noSenderIdentities:
+          "No active sender identities are available for signatures.",
         systemSenderHint:
           "System notification transport (notifications@send.echfronthk.com) is managed separately and cannot be edited here.",
         listTitle: "Signature versions",
@@ -966,7 +987,8 @@ const en = {
         approvePending: "Approving…",
         rejectAction: "Reject",
         rejectPending: "Rejecting…",
-        approveSuccess: "Approved; the message has entered the sending workflow.",
+        approveSuccess:
+          "Approved; the message has entered the sending workflow.",
         statusSummary: {
           approved: "Approval approved",
           waiting: "Waiting for the system to send",
@@ -977,7 +999,8 @@ const en = {
         },
         rejectSuccess: "Submission rejected and returned to the author.",
         rejectReasonLabel: "Rejection reason",
-        rejectReasonPlaceholder: "Explain what needs to be changed before resubmission",
+        rejectReasonPlaceholder:
+          "Explain what needs to be changed before resubmission",
         returnReasonTitle: "Rejection reason",
         historyTitle: "Approval history",
         showHistory: "View history",
@@ -1271,9 +1294,12 @@ const en = {
     passwordChangedSuccess: "Password updated. Redirecting to sign in…",
   },
   placeholders: {
-    accountDescription: "View your account details. More profile settings will be available here.",
-    followUpsDescription: "Follow-up records are managed from each client detail page.",
-    followUpsEmpty: "No global follow-up list yet. Open a client to view or add follow-ups.",
+    accountDescription:
+      "View your account details. More profile settings will be available here.",
+    followUpsDescription:
+      "Follow-up records are managed from each client detail page.",
+    followUpsEmpty:
+      "No global follow-up list yet. Open a client to view or add follow-ups.",
     reportsDescription: "View operational metrics for clients and follow-ups.",
     reportsEmpty: "No report data available yet.",
     recycleBinDescription: "Restore or permanently remove deleted items.",
@@ -1375,8 +1401,7 @@ const en = {
   customers: {
     management: "Client Management",
     title: "Client List",
-    searchPlaceholder:
-      "Search by name, phone, WeChat, email, or client code",
+    searchPlaceholder: "Search by name, phone, WeChat, email, or client code",
     listLoadFailed: "Failed to load customer list",
     listLoadRetry: "Reload",
     noSearchResults: "No matching clients found",
@@ -1401,7 +1426,8 @@ const en = {
     addFamilyMember: "Add Family Member",
     familyMemberChooserSubtitle: "Choose how to add a family member",
     familyLinkExistingAction: "Link existing customer",
-    familyLinkExistingDescription: "Add an existing CRM customer to this household",
+    familyLinkExistingDescription:
+      "Add an existing CRM customer to this household",
     familyCreateNewAction: "Create new customer",
     familyCreateNewDescription:
       "Create a new independent customer, then add them to this household automatically",
@@ -1437,7 +1463,7 @@ const en = {
     familySetRelationship: "Set family relationship",
     familyUnlinkAction: "Unlink from family",
     familyUnlinkTitle: "Unlink from family?",
-    familyUnlinkBody: "Remove \"{{name}}\" from the current household.",
+    familyUnlinkBody: 'Remove "{{name}}" from the current household.',
     familyUnlinkNoDelete:
       "This does not delete any customer data and does not affect owner, sales stage, follow-ups, or tasks.",
     familyUnlinkRelationshipNote:
@@ -1460,7 +1486,8 @@ const en = {
       "A protected existing customer was found. Details are hidden for privacy. An admin will confirm after submission.",
     familyConfirmLink: "Confirm link",
     familySubmitApproval: "Submit for review",
-    familyProtectedLookupRequired: "Use an exact customer code, phone, WeChat, or email to select this protected customer.",
+    familyProtectedLookupRequired:
+      "Use an exact customer code, phone, WeChat, or email to select this protected customer.",
     confirmRealName: "Confirm real name",
     confirmRealNameConfirm: "Confirm",
     confirmNamePlaceholder: "Enter the customer’s real name",
@@ -1506,7 +1533,7 @@ const en = {
     newFollowUpDescription: "Record this client interaction",
     timeline: "Timeline",
     releaseToPool: "Release to Public Pool",
-    manageCollaborators: "Manage Responsible Team Members",
+    manageCollaborators: "Manage Collaborators",
     primaryOwner: "Primary Owner",
     collaborators: "Collaborators",
     selectCollaborators: "Select collaborators",
@@ -1519,11 +1546,15 @@ const en = {
     assigneeUpdateReason: "Reason for change",
     assigneeUpdateReasonPlaceholder: "Explain why collaborators should change",
     currentCollaborators: "Current collaborators",
+    removeCollaboratorConfirmTitle: "Remove collaborator?",
+    removeCollaboratorConfirmBody:
+      "After removal, this member will no longer be able to view or follow up this customer.",
     requestedCollaborators: "Requested collaborators",
     addedCollaborators: "Added team member",
     removedCollaborators: "Removed team member",
     submitAssigneeApproval: "Submit for approval",
-    unableToSubmitAssigneeApproval: "Unable to submit collaborator update request",
+    unableToSubmitAssigneeApproval:
+      "Unable to submit collaborator update request",
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data",
     individual: "Individual",
     company: "Company",
@@ -1543,6 +1574,12 @@ const en = {
       "{{count}} clients (including masked public pool clients, excluding archived)",
     completenessBelow: "Completeness below",
     clearFilters: "Clear filters",
+    relationshipFilterLabel: "Customer relationship",
+    relationshipAll: "All",
+    relationshipOwner: "My customers",
+    relationshipCollaborator: "My collaborations",
+    collaboratorBadge: "Collaborator",
+    noCollaborativeCustomers: "No collaborative customers",
     followUpStatus: "Follow-up Status",
     dataAccess: "Data",
     type: "Type",
@@ -1567,8 +1604,10 @@ const en = {
     prioritySetRequest: "Request Set as Priority Customer",
     priorityUnsetRequest: "Request Remove Priority",
     priorityCurrentStateLabel: "Current status",
-    priorityCurrentNotPriority: "This customer is not currently a Priority Customer.",
-    priorityCurrentIsPriority: "This customer is currently a Priority Customer.",
+    priorityCurrentNotPriority:
+      "This customer is not currently a Priority Customer.",
+    priorityCurrentIsPriority:
+      "This customer is currently a Priority Customer.",
     prioritySetReasonPlaceholder:
       "Explain why this customer should be set as a Priority Customer",
     priorityUnsetReasonPlaceholder:
@@ -1579,8 +1618,10 @@ const en = {
       "This action takes effect immediately. The customer will appear ahead of others in the customer list.",
     priorityAdminUnsetNote:
       "This action takes effect immediately and does not delete customer data or change sales stage, assignees, follow-ups, or tasks.",
-    priorityStaffSubmitNote: "After submission, an admin will review this request.",
-    priorityApprovalPending: "A Priority Customer request is already pending review.",
+    priorityStaffSubmitNote:
+      "After submission, an admin will review this request.",
+    priorityApprovalPending:
+      "A Priority Customer request is already pending review.",
     priorityOnHoldExplanation:
       "Because this customer is On Hold, they automatically remain a Priority Customer. Move the customer out of On Hold before removing Priority status.",
     approvalReasonRequired: "Request reason is required.",
@@ -1594,7 +1635,8 @@ const en = {
     onHoldReasonLabel: "On-hold request reason",
     onHoldReasonPlaceholder:
       "Explain why this customer should be placed on hold, e.g. long post-payment process or waiting for follow-up arrangements.",
-    onHoldReasonTooShort: "On-hold request reason must be at least 8 characters.",
+    onHoldReasonTooShort:
+      "On-hold request reason must be at least 8 characters.",
     onHoldReasonCancel: "Cancel",
     onHoldReasonSubmit: "Submit for review",
     onHoldApprovalSubmittedTitle: "On-Hold Request Submitted",
@@ -1625,7 +1667,8 @@ const en = {
     noAccess: "You do not have permission to view this client.",
     noAccessDetail: "You do not have permission to view this client's profile.",
     noEditAccess: "You do not have permission to edit this client.",
-    noEditAccessDetail: "You do not have permission to edit this client's profile.",
+    noEditAccessDetail:
+      "You do not have permission to edit this client's profile.",
     backToDetails: "Back to client details",
     archivedNoticeTitle: "Archived client",
     archivedNoticeBody:
@@ -1690,7 +1733,8 @@ const en = {
     requestedProjectName: "Requested Service",
     requestedProjectNamePlaceholder: "Select a service",
     requestedProjectOtherName: "Other project name",
-    requestedProjectOtherNamePlaceholder: "Enter the project or service the client needs",
+    requestedProjectOtherNamePlaceholder:
+      "Enter the project or service the client needs",
     requestedProjectSelectService: "Select a Service",
     requestedProjectSelectCountry: "Select a Country or Region",
     requestedProjectSearchPlaceholder: "Search countries / regions or projects",
@@ -1702,8 +1746,7 @@ const en = {
     stageNotesRequired:
       "Please enter initial communication notes, at least 10 characters.",
     draftSavedAt: "Draft saved on this device · {{time}}",
-    draftStorageUnavailable:
-      "This browser cannot auto-save drafts right now",
+    draftStorageUnavailable: "This browser cannot auto-save drafts right now",
     draftRestoreTitle: "Unfinished Customer Draft Found",
     draftRestoreDescription:
       "Customer information entered previously has not been formally saved. Would you like to continue?",
@@ -1735,8 +1778,7 @@ const en = {
     saveSuccess: "Saved successfully",
     saveFailed: "Failed to save. Please try again later.",
     duplicateFound: "Duplicate client detected. Please review the following:",
-    duplicateAlertTitle:
-      "Duplicate customer found — no new record was created",
+    duplicateAlertTitle: "Duplicate customer found — no new record was created",
     duplicateAlertDescription:
       "Matching contact details were found. To avoid duplicates, this create was stopped. Your form entries are still kept.",
     duplicateMaskedDescription:
@@ -1851,7 +1893,8 @@ const en = {
       loadFailed: "Failed to load analysis",
       reload: "Reload",
       restricted: "Insufficient permissions to view customer analysis.",
-      basicFailed: "Basic system analysis could not be generated. Deep analysis below may still be available.",
+      basicFailed:
+        "Basic system analysis could not be generated. Deep analysis below may still be available.",
     },
     basicAnalysis: {
       title: "Basic system analysis",
@@ -1883,7 +1926,8 @@ const en = {
       findings: {
         customerNameMissing: {
           title: "Customer name missing",
-          description: "The customer name field is empty. Complete the profile before continuing outreach.",
+          description:
+            "The customer name field is empty. Complete the profile before continuing outreach.",
         },
         customerNamePending: {
           title: "Name pending",
@@ -1892,7 +1936,8 @@ const en = {
         },
         contactMissing: {
           title: "No valid contact method",
-          description: "Neither phone nor WeChat is recorded. Add at least one contact method.",
+          description:
+            "Neither phone nor WeChat is recorded. Add at least one contact method.",
         },
         businessNeedMissing: {
           title: "Business need missing",
@@ -1900,7 +1945,8 @@ const en = {
         },
         salesStageMissing: {
           title: "Review customer stage",
-          description: "Sales stage is not set. Confirm the current stage in CRM.",
+          description:
+            "Sales stage is not set. Confirm the current stage in CRM.",
         },
         followUpNever: {
           title: "No follow-up recorded",
@@ -1965,11 +2011,14 @@ const en = {
           "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
         mockOnly:
           "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
-        manualRefreshDisabled: "Team Member manual refresh is disabled by admin settings.",
+        manualRefreshDisabled:
+          "Team Member manual refresh is disabled by admin settings.",
         adminOnly: "Only administrators can refresh AI deep analysis.",
-        cooldown: "This customer was analyzed just now. Please try again later.",
+        cooldown:
+          "This customer was analyzed just now. Please try again later.",
         permissionDenied: "Insufficient permissions for AI deep analysis.",
-        cachedReadOnly: "Showing cached deep analysis. Regeneration is not available right now.",
+        cachedReadOnly:
+          "Showing cached deep analysis. Regeneration is not available right now.",
         empty: "No deep analysis result yet.",
       },
     },
@@ -1980,26 +2029,30 @@ const en = {
       loading: "Loading AI analysis…",
       empty: "No AI analysis yet",
       restricted: "Insufficient permissions to view AI insights.",
-      notConfigured: "AI is not fully configured. Please contact an administrator.",
+      notConfigured:
+        "AI is not fully configured. Please contact an administrator.",
       providerTemporarilyUnavailable:
         "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
-      rateLimited: "The AI service is receiving too many requests. Please try again later.",
+      rateLimited:
+        "The AI service is receiving too many requests. Please try again later.",
       providerTimeout: "AI analysis timed out. Please try again later.",
       providerResponseInvalid:
         "The AI response format was invalid. Please try again later or contact an administrator.",
       analysisFailed:
         "AI deep analysis is temporarily unavailable. Basic system analysis remains available.",
       refreshDenied: "Manual AI refresh is not allowed for your role.",
-      refreshCooldown: "This customer was analyzed just now. Please try again later.",
+      refreshCooldown:
+        "This customer was analyzed just now. Please try again later.",
       refreshAdminOnly: "Only administrators can refresh AI insights.",
-      refreshStaffDisabled: "Team Member manual refresh is disabled by admin settings.",
+      refreshStaffDisabled:
+        "Team Member manual refresh is disabled by admin settings.",
       staffDeepAnalysisDisabled:
         "Customer AI deep analysis is not currently enabled for team members. Basic system analysis remains available.",
       dailyLimitReached:
         "You have reached today’s AI usage limit. Basic system analysis is still available.",
-      reservationConflict: "This request could not start. Refresh the page and try again.",
-      remainingToday:
-        "{{count}} AI request(s) remaining today (shared)",
+      reservationConflict:
+        "This request could not start. Refresh the page and try again.",
+      remainingToday: "{{count}} AI request(s) remaining today (shared)",
       refresh: "Regenerate deep analysis",
       refreshing: "Analyzing…",
       loadFailed: "Failed to load AI analysis",
@@ -2038,9 +2091,12 @@ const en = {
     },
     phase2: {
       opportunityTitle: "Opportunity score",
-      opportunityInsufficient: "There is not enough reliable information to calculate an opportunity score.",
-      opportunityDisclaimer: "This score helps team members decide next steps. It does not mean the customer will close.",
-      confidenceHint: "Confidence reflects how complete the available evidence is.",
+      opportunityInsufficient:
+        "There is not enough reliable information to calculate an opportunity score.",
+      opportunityDisclaimer:
+        "This score helps team members decide next steps. It does not mean the customer will close.",
+      confidenceHint:
+        "Confidence reflects how complete the available evidence is.",
       confidence: {
         high: "High",
         medium: "Medium",
@@ -2085,7 +2141,8 @@ const en = {
         OTHER_EVIDENCE_BACKED_CONCERN: "Other evidence-backed concern",
       },
       churnTitle: "Customer progress risks",
-      churnInsufficient: "There is not enough information to assess customer progress risks.",
+      churnInsufficient:
+        "There is not enough information to assess customer progress risks.",
       churnLevel: {
         low: "Low",
         medium: "Medium",
@@ -2117,15 +2174,20 @@ const en = {
         customer_intent: "Customer intent",
       },
       suggestedMessageTitle: "Suggested message",
-      suggestedMessageHint: "Review and edit this suggestion before use. It will not be sent automatically.",
+      suggestedMessageHint:
+        "Review and edit this suggestion before use. It will not be sent automatically.",
       copyMessage: "Copy message",
       restoreSuggestion: "Restore suggestion",
       copiedConfirmation: "Copied. Review the message before sending it.",
-      clipboardFailure: "Copy failed. Please select and copy the text manually.",
-      safeMessageUnavailable: "No safe message suggestion was generated. Please prepare the message based on the customer’s actual situation.",
-      advancedUnavailable: "Customer deep analysis was completed, but advanced insights were unavailable or did not pass safety validation.",
+      clipboardFailure:
+        "Copy failed. Please select and copy the text manually.",
+      safeMessageUnavailable:
+        "No safe message suggestion was generated. Please prepare the message based on the customer’s actual situation.",
+      advancedUnavailable:
+        "Customer deep analysis was completed, but advanced insights were unavailable or did not pass safety validation.",
       legacyIntentScore: "Legacy intent score",
-      noCrmAutoChanges: "The system will not automatically change CRM records or send messages.",
+      noCrmAutoChanges:
+        "The system will not automatically change CRM records or send messages.",
     },
     aiInsightFeedback: {
       title: "AI analysis rating",
@@ -2147,7 +2209,8 @@ const en = {
       ratingLabel: "Rating",
       ratingRequired: "Please select a 1–5 star rating",
       reasonTagsLabel: "Low-score reasons (multi-select)",
-      reasonTagsHint: "Consider selecting reason tags to help improve analysis quality (optional).",
+      reasonTagsHint:
+        "Consider selecting reason tags to help improve analysis quality (optional).",
       commentLabel: "Additional notes",
       commentPlaceholder: "Optional, up to 500 characters",
       reasonTags: {
@@ -2330,9 +2393,11 @@ const en = {
     deleteStaffModalTitle: "Confirm team member deletion",
     deleteStaffModalIntro: "You are about to delete this team member",
     deleteStaffModalAfterDeleteTitle: "After deletion",
-    deleteStaffModalCannotLogin: "This team member will no longer be able to sign in",
+    deleteStaffModalCannotLogin:
+      "This team member will no longer be able to sign in",
     deleteStaffModalTransferTo: "Owned clients will be transferred to",
-    deleteStaffModalRemoveCollaborators: "Collaborator relationships will be removed",
+    deleteStaffModalRemoveCollaborators:
+      "Collaborator relationships will be removed",
     deleteStaffModalHistoryPreserved:
       "Historical creator, audit, and timeline records will be preserved",
     deleteStaffModalImpactTitle: "Impact summary",
@@ -2345,7 +2410,8 @@ const en = {
     deleteStaffModalIrreversible: "This action cannot be directly undone.",
     deleteStaffModalConfirm: "Confirm deletion",
     deleteStaffModalPreviewFailed: "Unable to load deletion impact preview",
-    staffDeleted: "Team Member deleted. {{count}} client(s) transferred to you.",
+    staffDeleted:
+      "Team Member deleted. {{count}} client(s) transferred to you.",
     staffDeletedNoCount:
       "Team Member deleted. Their clients have been transferred to the Admin account.",
     staffDeletedWithCount:
@@ -2455,7 +2521,8 @@ const en = {
   export: {
     title: "Export clients",
     scope: "Export scope",
-    includeSensitive: "Include sensitive fields (phone, WeChat, email, notes, source note)",
+    includeSensitive:
+      "Include sensitive fields (phone, WeChat, email, notes, source note)",
     sensitiveHint:
       "When unchecked, sensitive columns are excluded and cannot be bypassed via URL.",
     exportCsv: "Export CSV",
@@ -2671,27 +2738,27 @@ const en = {
     approvalRejectedWithComment:
       "Your {{approvalType}} request has been rejected. Admin note: {{adminComment}}",
     customerTransferredAway:
-      "Client \"{{customerName}}\" has been transferred to another team member.",
+      'Client "{{customerName}}" has been transferred to another team member.',
     customerTransferredToYou:
-      "Client \"{{customerName}}\" has been transferred to you.",
+      'Client "{{customerName}}" has been transferred to you.',
     collaboratorAdded:
-      "{{actorName}} added you as a collaborator on \"{{customerName}}\".",
+      '{{actorName}} added you as a collaborator on "{{customerName}}".',
     collaboratorRemoved:
-      "You are no longer a collaborator on \"{{customerName}}\".",
+      'You are no longer a collaborator on "{{customerName}}".',
     closedWonApproved:
-      "Close-won request for \"{{customerName}}\" has been approved.",
+      'Close-won request for "{{customerName}}" has been approved.',
     pendingSecondConversion:
-      "Customer \"{{customerName}}\" has completed the current flow. Consider scheduling a follow-up for second conversion.",
+      'Customer "{{customerName}}" has completed the current flow. Consider scheduling a follow-up for second conversion.',
     autoReclaimWarning:
-      "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
+      'Client "{{customerName}}" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.',
     autoReclaimWarningDay6:
-      "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
+      'Client "{{customerName}}" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.',
     autoReclaimWarningDay7:
-      "Client \"{{customerName}}\" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.",
+      'Client "{{customerName}}" has not had a valid follow-up for several days. Please arrange a follow-up soon, or the client will be automatically reclaimed to the public pool.',
     autoReclaimWarningMilestone:
-      "Client \"{{customerName}}\" has had no valid follow-up for {{days}} days. {{daysRemaining}} days remain before auto-release (rule: {{reclaimDays}} days).",
+      'Client "{{customerName}}" has had no valid follow-up for {{days}} days. {{daysRemaining}} days remain before auto-release (rule: {{reclaimDays}} days).',
     autoReclaimWarningFinal:
-      "Client \"{{customerName}}\" will be auto-released to the public pool in 1 day. Please complete a valid follow-up soon (rule: {{reclaimDays}} days).",
+      'Client "{{customerName}}" will be auto-released to the public pool in 1 day. Please complete a valid follow-up soon (rule: {{reclaimDays}} days).',
     reclamationSummaryStaff:
       "You have {{count}} clients in reclamation alert, including {{urgentCount}} releasing within 7 days. Please complete valid follow-ups.",
     reclamationSummaryStaffUrgent:
@@ -2701,7 +2768,7 @@ const en = {
     reclamationSummaryAdminUrgent:
       "The team has {{count}} clients releasing tomorrow across {{memberCount}} members. Please review team risk clients.",
     customerAutoReclaimed:
-      "Client \"{{customerName}}\" exceeded {{days}} days without valid follow-up and was auto-reclaimed to the public pool.",
+      'Client "{{customerName}}" exceeded {{days}} days without valid follow-up and was auto-reclaimed to the public pool.',
     backupFailed:
       "System backup failed. Please check soon. Error: {{errorMessage}}",
     approvalSubmitted: "A new approval request has been submitted.",
@@ -2787,7 +2854,8 @@ const en = {
     recentFollowUpRecords: "Recent Follow-up Records",
     addFollowUp: "Add Follow-up",
     viewMyClients: "View My Clients",
-    myClientsHint: "Active clients assigned to you; excludes public pool/archived",
+    myClientsHint:
+      "Active clients assigned to you; excludes public pool/archived",
     viewMyApprovals: "View my requests",
     neverContacted: "Never Valid Follow-up",
     reclaimRisk: "Auto-Reclaim Risk",
@@ -2846,8 +2914,10 @@ const en = {
     trendMetricClaimedFromPool: "Claimed from public pool",
     trendCurrentPeriod: "Current period",
     trendPreviousPeriod: "Previous period",
-    trendIncreased: "Increased by {{count}} ({{percent}}%) from previous period",
-    trendDecreased: "Decreased by {{count}} ({{percent}}%) from previous period",
+    trendIncreased:
+      "Increased by {{count}} ({{percent}}%) from previous period",
+    trendDecreased:
+      "Decreased by {{count}} ({{percent}}%) from previous period",
     trendFlat: "No change from previous period",
     trendNewThisPeriod: "New this period",
     trendEmptyPeriod: "No related data in this period",
@@ -2862,11 +2932,13 @@ const en = {
     teamStageDistribution: "Team customer stage distribution",
     myStageDistribution: "My customer stage distribution",
     stageDistributionEmpty: "No customer stage data is currently available",
-    stageDistributionUnavailable: "Stage distribution is temporarily unavailable",
+    stageDistributionUnavailable:
+      "Stage distribution is temporarily unavailable",
     stageNotSet: "Not set",
     stageOther: "Other",
     stageDistributionCustomers: "{{count}} customers",
-    stageDistributionPrivateActiveCustomers: "Active private customers: {{count}}",
+    stageDistributionPrivateActiveCustomers:
+      "Active private customers: {{count}}",
     stageDistributionMyPrivateActiveCustomers:
       "My active private customers: {{count}}",
     stageDistributionScopeHint:
@@ -2985,7 +3057,8 @@ const en = {
       "Please review system status and pending approvals in a timely manner. Prompt action keeps the team operating smoothly.",
     pendingApprovals: "Pending approvals: {{count}}",
     pendingApprovalsNone: "No pending approvals.",
-    countdownPrompt: "Please read the announcement carefully. You may confirm in {{seconds}} second(s).",
+    countdownPrompt:
+      "Please read the announcement carefully. You may confirm in {{seconds}} second(s).",
     countdownPromptReady: "You may now confirm.",
     confirmRead: "I Have Read This — Continue",
     backToWelcome: "Back",
@@ -3010,8 +3083,7 @@ const en = {
         description:
           "Install the CRM as a Home Screen web app for a standalone, app-like window on iPhone.",
         items: {
-          why:
-            "Adding to Home Screen opens ECHFRONT CRM in its own window instead of Safari tabs.",
+          why: "Adding to Home Screen opens ECHFRONT CRM in its own window instead of Safari tabs.",
           iosSteps:
             "On iPhone Safari, tap Share, then choose Add to Home Screen.",
           standaloneBenefit:
@@ -3041,7 +3113,8 @@ const en = {
       },
       addCustomer: {
         title: "How to add a client",
-        description: "Capture first-contact details clearly when creating a new client.",
+        description:
+          "Capture first-contact details clearly when creating a new client.",
         items: {
           basicInfo:
             "On Add Client, fill in name, contact details, client type, and source.",
@@ -3057,8 +3130,7 @@ const en = {
         title: "How to view my clients",
         description: "Find clients you own or co-own from Client Management.",
         items: {
-          list:
-            "Open Client Management to see your client list and search by status or keywords.",
+          list: "Open Client Management to see your client list and search by status or keywords.",
           detail:
             "Click a client name to open the detail page with profile, follow-ups, and AI analysis.",
           status:
@@ -3083,9 +3155,11 @@ const en = {
       },
       useAiAnalysis: {
         title: "How to use AI client analysis",
-        description: "Open AI analysis on the client detail page to plan your next move.",
+        description:
+          "Open AI analysis on the client detail page to plan your next move.",
         items: {
-          whereToFind: "On the client detail page, check the AI analysis section.",
+          whereToFind:
+            "On the client detail page, check the AI analysis section.",
           readOutput:
             "Focus on customer intent and the suggested next best action.",
           suggestedMessage:
@@ -3096,10 +3170,13 @@ const en = {
       },
       avoidPublicPool: {
         title: "How to avoid losing clients to the public pool",
-        description: "Consistent follow-up is the key to keeping client ownership.",
+        description:
+          "Consistent follow-up is the key to keeping client ownership.",
         items: {
-          followOnTime: "Contact clients on schedule and log follow-ups after each conversation.",
-          validRecords: "Make follow-up entries complete and meaningful, not filler text.",
+          followOnTime:
+            "Contact clients on schedule and log follow-ups after each conversation.",
+          validRecords:
+            "Make follow-up entries complete and meaningful, not filler text.",
           watchReminders:
             "Watch Notification Center reminders. The system usually warns about {{warningDays}} days before reclaim (default reclaim around {{reclaimDays}} days without valid follow-up).",
           collaborativeCustomers:
@@ -3108,7 +3185,8 @@ const en = {
       },
       claimFromPool: {
         title: "How to claim clients from the public pool",
-        description: "The public pool lists clients temporarily without a fixed owner.",
+        description:
+          "The public pool lists clients temporarily without a fixed owner.",
         items: {
           whatIsPool:
             "The public pool holds clients available for other team members to claim.",
@@ -3269,7 +3347,8 @@ const en = {
       "The assignment status could not be confirmed. Check “My Customers” first and only try again if no new customer appears.",
     claimBlockReasons: {
       notInPool: "Client is not in the public pool.",
-      selfReleased: "You cannot claim a client you released to the public pool.",
+      selfReleased:
+        "You cannot claim a client you released to the public pool.",
       selfReleasedWithinBlockWindow:
         "Clients you released cannot be reclaimed for {{blockDays}} days.",
       statusUnavailable: "Unable to determine claim eligibility.",
@@ -3371,7 +3450,8 @@ const en = {
       verifying: "Verifying…",
       lockedMessage:
         "Too many incorrect attempts. Please wait {{seconds}} seconds before trying again.",
-      grantExpired: "Your quick-entry authorization expired. Please verify again.",
+      grantExpired:
+        "Your quick-entry authorization expired. Please verify again.",
       fields: {
         customerName: "Customer name",
         customerSource: "Customer source",
@@ -3434,12 +3514,12 @@ const en = {
           "Select a valid requested project; if Other, enter at least 4 characters.",
         source_required: "Select a customer source.",
         contact_required: "Enter at least a phone number or WeChat ID.",
-        phone_invalid:
-          "The phone number must be 11 digits and start with 1.",
+        phone_invalid: "The phone number must be 11 digits and start with 1.",
       },
       errors: {
         generic: "Something went wrong. Please try again.",
-        network: "Network error. Your form and submission ID were kept for retry.",
+        network:
+          "Network error. Your form and submission ID were kept for retry.",
         codeInvalid: "Incorrect quick-entry code.",
         codeFormat: "The quick-entry code format is invalid.",
         locked: "Quick entry is temporarily locked.",
@@ -3449,8 +3529,7 @@ const en = {
         namePlaceholderForbidden:
           "X先生 / X女士 can only be used when “Name unknown for now” is checked.",
         contactRequired: "Enter at least a phone number or WeChat ID.",
-        phoneInvalid:
-          "The phone number must be 11 digits and start with 1.",
+        phoneInvalid: "The phone number must be 11 digits and start with 1.",
         countryCodeInvalid: "Only the +86 country code is supported.",
         wechatInvalid: "WeChat ID is invalid.",
         projectRequired: "Please select a requested project.",
@@ -3593,7 +3672,8 @@ const en = {
       },
       announcements: {
         title: "Announcement management",
-        description: "Create and publish announcements for team members and admins.",
+        description:
+          "Create and publish announcements for team members and admins.",
         button: "Manage announcements",
       },
       devices: {
@@ -3715,7 +3795,8 @@ const en = {
       "Review admin ratings of AI analyses to improve prompts and model selection.",
     loading: "Loading statistics…",
     loadFailed: "Failed to load AI feedback statistics",
-    empty: "No AI feedback yet. Statistics will appear here after ratings are submitted.",
+    empty:
+      "No AI feedback yet. Statistics will appear here after ratings are submitted.",
     totalCount: "Total ratings",
     averageRating: "Average rating",
     helpful: "Helpful",
@@ -3936,7 +4017,8 @@ const en = {
     staffUsageControlsTitle: "Team Member AI feature controls",
     staffUsageControlsHint:
       "Independently control which external AI features team members may use, and the shared daily usage limit. Basic system analysis and basic cleanup remain available.",
-    staffDeepAnalysisEnabled: "Allow team members to use customer AI deep analysis",
+    staffDeepAnalysisEnabled:
+      "Allow team members to use customer AI deep analysis",
     staffDeepAnalysisEnabledHint:
       "Controls AI deep analysis and regeneration in customer details. Basic system analysis remains available.",
     staffFollowUpOrganizationEnabled:
@@ -4175,7 +4257,8 @@ const en = {
   },
   tagsStagesPage: {
     title: "Tags & Stages",
-    description: "Manage client tags and review configured sales stages used across the CRM.",
+    description:
+      "Manage client tags and review configured sales stages used across the CRM.",
     stagesReadOnlyNotice:
       "Customer stages are read-only. They map to customers.sales_stage and are used in Reports.",
     customerStages: "Customer stages",
@@ -4212,7 +4295,8 @@ const en = {
     recentFollowUp: "Recent follow-up activity.",
     recentFollowUpDays: "Follow-up within the last {{days}} days.",
     longNoFollowUp: "No follow-up for {{days}} days.",
-    longNoValidFollowUp: "No valid follow-up for {{days}} days (warning threshold: {{threshold}} days).",
+    longNoValidFollowUp:
+      "No valid follow-up for {{days}} days (warning threshold: {{threshold}} days).",
     incompleteProfile: "Client profile is incomplete.",
     newClient: "New client record.",
     default: "No special risk or priority signals.",
@@ -4243,7 +4327,7 @@ const en = {
     approvalWithReason: "Status: {{status}} · Reason: {{reason}}",
     approvalWithAdminComment: "Status: {{status}} · Admin note: {{comment}}",
     customerCreated: "Client created",
-    customerCreatedDescription: "Client \"{{name}}\" was created",
+    customerCreatedDescription: 'Client "{{name}}" was created',
     customerUpdated: "Client profile updated",
     customerImported: "Client imported",
     customerReleasedToPool: "Released to public pool",
@@ -4252,7 +4336,8 @@ const en = {
     customerTransferred: "Client transferred",
     customerCollaboratorAdded: "Collaborator added",
     customerCollaboratorRemoved: "Collaborator removed",
-    collaboratorAddedDescription: "{{collaboratorName}} was added as a collaborator",
+    collaboratorAddedDescription:
+      "{{collaboratorName}} was added as a collaborator",
     collaboratorRemovedDescription:
       "{{collaboratorName}} was removed as a collaborator",
     customerTransferredStaffDeleted:
@@ -4334,28 +4419,39 @@ const en = {
     jobInvalidStatus: "Invalid import job status",
     jobHasErrors: "Import job contains error rows and cannot be submitted",
     precheckHasErrors: "CSV still contains error rows and cannot be submitted",
-    precheckMismatch: "CSV content does not match precheck; please run precheck again",
+    precheckMismatch:
+      "CSV content does not match precheck; please run precheck again",
   },
   errors: {
     customerNotFound: "Client not found.",
     insufficientPermissions: "Insufficient permissions.",
-    familyLinkUseDedicatedEndpoint: "Please use the dedicated family link workflow.",
+    familyLinkUseDedicatedEndpoint:
+      "Please use the dedicated family link workflow.",
     familySourceNotEligible: "This customer cannot manage family members.",
     familyTargetNotFound: "Target customer not found.",
-    familyTargetNotEligible: "Target customer cannot be linked as a family member.",
+    familyTargetNotEligible:
+      "Target customer cannot be linked as a family member.",
     familySelfLinkNotAllowed: "A customer cannot be linked to itself.",
-    familyHouseholdConflict: "This customer already belongs to another household.",
-    familyRelationshipConflict: "These customers already have a different family relationship.",
-    familyInvalidHouseholdState: "Household state is invalid. Please contact an administrator.",
-    familyProtectedMatchAmbiguous: "Multiple protected matches found. Please contact an administrator.",
+    familyHouseholdConflict:
+      "This customer already belongs to another household.",
+    familyRelationshipConflict:
+      "These customers already have a different family relationship.",
+    familyInvalidHouseholdState:
+      "Household state is invalid. Please contact an administrator.",
+    familyProtectedMatchAmbiguous:
+      "Multiple protected matches found. Please contact an administrator.",
     familyLinkAlreadyExists: "This customer is already a family member.",
-    familyLinkApprovalRequired: "Admin approval is required to link this customer.",
-    familyDuplicatePending: "A family link request for this pair is already pending.",
+    familyLinkApprovalRequired:
+      "Admin approval is required to link this customer.",
+    familyDuplicatePending:
+      "A family link request for this pair is already pending.",
     familyInvalidRelationship: "Invalid family relationship.",
     familyManagementUseDedicatedEndpoint:
       "Please use the dedicated family management entry for this request.",
-    familyTargetNotInHousehold: "This customer is not a member of the current household.",
-    familyApprovalStale: "The household state changed while approval was pending.",
+    familyTargetNotInHousehold:
+      "This customer is not a member of the current household.",
+    familyApprovalStale:
+      "The household state changed while approval was pending.",
     familyCompanyMemberEditForbidden:
       "Company customers cannot have family relationships set. Please unlink instead.",
     saveFailed: "Failed to save.",
@@ -4369,12 +4465,14 @@ const en = {
       "Pending names must be exactly X先生 or X女士.",
     confirmedPlaceholderForbidden:
       "Use “Customer’s real name is not yet known” to create a pending name.",
-    requestedProjectNameRequired: "Requested project / service name is required.",
+    requestedProjectNameRequired:
+      "Requested project / service name is required.",
     invalidRequestedProjectName:
       "Project name must be at least 4 characters and cannot be symbols only.",
     requestedProjectCodeRequired: "Please select the requested project.",
     invalidRequestedProjectCode: "Invalid project option.",
-    invalidRequestedProjectOtherName: "Please enter a specific other project name.",
+    invalidRequestedProjectOtherName:
+      "Please enter a specific other project name.",
     stageNotesRequired:
       "Please enter initial communication notes, at least 10 characters.",
     currentPasswordRequired: "Please enter your current password.",
@@ -4386,13 +4484,16 @@ const en = {
     passwordTooShort: "Password must be at least 8 characters.",
     passwordBlank: "Password cannot be blank or whitespace only.",
     passwordMissingLetter: "Password must include at least one letter.",
-    passwordMissingUppercase: "Password must include at least one uppercase letter.",
-    passwordMissingLowercase: "Password must include at least one lowercase letter.",
+    passwordMissingUppercase:
+      "Password must include at least one uppercase letter.",
+    passwordMissingLowercase:
+      "Password must include at least one lowercase letter.",
     passwordMissingDigit: "Password must include at least one digit.",
     passwordPolicyFailed: "New password does not meet security requirements.",
     invalidEmail: "Invalid email format.",
     phoneOrWechatRequired: "Please provide a phone number or WeChat ID.",
-    invalidPhoneCn: "Mainland China phone numbers must be 11 digits starting with 1.",
+    invalidPhoneCn:
+      "Mainland China phone numbers must be 11 digits starting with 1.",
     sourceRequired: "Please select a client source.",
     salesStageRequired: "Please select a sales stage.",
     sourceRemarkRequired: "Source note is required when source is Other.",
@@ -4412,7 +4513,8 @@ const en = {
     salesStageDirectTerminalBlocked:
       "Closed won and closed lost cannot be set directly. Use the approval flow.",
     onHoldReasonRequired: "Please provide an on-hold request reason.",
-    onHoldReasonTooShort: "On-hold request reason must be at least 8 characters.",
+    onHoldReasonTooShort:
+      "On-hold request reason must be at least 8 characters.",
     invalidStatus: "Invalid client status.",
     validationFailed: "Validation failed.",
     duplicateCustomer: "Duplicate client detected.",
@@ -4444,7 +4546,8 @@ const en = {
     customerAlreadyInPool: "Client is already in the public pool.",
     cannotReleaseCustomer: "You cannot release this client.",
     assigneeInvalidPayload: "Invalid collaborator selection.",
-    assigneeOwnerNotAllowed: "The primary owner cannot be added as a collaborator.",
+    assigneeOwnerNotAllowed:
+      "The primary owner cannot be added as a collaborator.",
     assigneeAdminNotAllowed: "Administrators cannot be added as collaborators.",
     assigneeInactiveUser: "Inactive or deleted team members cannot be added.",
     assigneeUserNotFound: "The selected team member was not found.",
@@ -4455,7 +4558,8 @@ const en = {
     assigneeReasonTooShort: "Reason must be at least 8 characters.",
     assigneeApprovalAlreadyPending:
       "A collaborator update request is already pending approval.",
-    assigneeApprovalForbidden: "You cannot submit a collaborator update request.",
+    assigneeApprovalForbidden:
+      "You cannot submit a collaborator update request.",
     assigneeApprovalInvalidPayload: "Invalid collaborator update request data.",
     customerAlreadyPriority: "This client is already a Priority Customer.",
     customerNotPriority: "This client is not currently a Priority Customer.",
@@ -4505,7 +4609,8 @@ const en = {
     importFailed: "Import failed.",
     claimSelfReleased:
       "Clients you released cannot be reclaimed within 7 days.",
-    claimCooldown: "You are in a claim cooldown period. Please try again later.",
+    claimCooldown:
+      "You are in a claim cooldown period. Please try again later.",
     claimQuotaExceeded: "Your 7-day claim quota has been reached.",
     claimStatusUnavailable: "Unable to determine claim eligibility.",
     cannotClaimClient: "Unable to claim this client.",

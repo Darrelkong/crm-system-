@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, eq, inArray, ne, or, sql, type SQL } from "drizzle-orm";
 import type { AnyColumn } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import {
@@ -42,7 +42,10 @@ export {
 
 export { staffAssigneeExistsWhere } from "@/lib/customers/customer-list-filters";
 
-export { buildCustomerListOrderBy, buildFollowUpSort } from "@/lib/customers/list-sort";
+export {
+  buildCustomerListOrderBy,
+  buildFollowUpSort,
+} from "@/lib/customers/list-sort";
 export type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 export {
   buildCustomerListOrderByForMode,
@@ -60,7 +63,11 @@ export function resolveCustomerListOrderBy(options: ListQueryOptions = {}) {
   const sortMode = options.sortMode ?? "default";
   if (sortMode === "reclaim_soonest") {
     const reclaimDays = options.automaticReclaimDays;
-    if (reclaimDays != null && Number.isFinite(reclaimDays) && reclaimDays >= 1) {
+    if (
+      reclaimDays != null &&
+      Number.isFinite(reclaimDays) &&
+      reclaimDays >= 1
+    ) {
       return buildCustomerListOrderByForMode(sortMode, reclaimDays, now);
     }
   }
@@ -80,6 +87,8 @@ export type CustomerListFilter = {
   reclamationCustomerIds?: string[];
   /** Temporary follow-up drilldown from dashboard cards. */
   workView?: WorkView;
+  /** Staff-only relationship view over the normal visible customer scope. */
+  relationship?: "owner" | "collaborator";
 };
 
 export type PaginatedCustomerListResult = {
@@ -246,9 +255,30 @@ function buildWorkViewFilterWhere(
   );
 }
 
-function buildSalesStageWhere(
+function buildRelationshipWhere(
+  user: User,
   filter: CustomerListFilter,
 ): SQL | undefined {
+  if (user.role !== "staff" || !filter.relationship) {
+    return undefined;
+  }
+
+  if (filter.relationship === "owner") {
+    return eq(schema.customers.ownerId, user.id);
+  }
+
+  return and(
+    ne(schema.customers.ownerId, user.id),
+    sql`EXISTS (
+      SELECT 1 FROM customer_assignees ca
+      WHERE ca.customer_id = ${schema.customers.id}
+        AND ca.user_id = ${user.id}
+        AND ca.role = 'collaborator'
+    )`,
+  );
+}
+
+function buildSalesStageWhere(filter: CustomerListFilter): SQL | undefined {
   if (!filter.salesStage) {
     return undefined;
   }
@@ -287,6 +317,7 @@ export function buildCustomerListWhere(
     buildOwnerWhere(user, filter),
     buildReclamationRiskWhere(filter, options.compactReclamationBindings),
     buildWorkViewFilterWhere(user, filter, options.now),
+    buildRelationshipWhere(user, filter),
     excludePendingOnHoldCreateApprovalWhere(),
   );
 }
@@ -315,7 +346,9 @@ export async function listCustomerCreatorsForAdmin(
   }));
 }
 
-async function countCustomersWhere(whereClause: SQL | undefined): Promise<number> {
+async function countCustomersWhere(
+  whereClause: SQL | undefined,
+): Promise<number> {
   const db = getDb();
   const rows = await db
     .select({ count: sql<number>`count(*)` })
@@ -450,6 +483,7 @@ export function parseCustomerListFilter(
     workView?: string;
     salesStage?: string;
     ownerId?: string;
+    relationship?: string;
   },
 ): CustomerListFilter {
   const filter: CustomerListFilter = {};
@@ -481,6 +515,13 @@ export function parseCustomerListFilter(
     filter.workView = workView;
   }
 
+  if (
+    user.role === "staff" &&
+    (params.relationship === "owner" || params.relationship === "collaborator")
+  ) {
+    filter.relationship = params.relationship;
+  }
+
   return filter;
 }
 
@@ -493,6 +534,7 @@ export function buildCustomersListQuery(params: {
   heat?: string;
   completenessBelow?: string;
   reclamationRisk?: string;
+  relationship?: "owner" | "collaborator";
   page?: number;
 }): string {
   const search = new URLSearchParams();
@@ -519,6 +561,9 @@ export function buildCustomersListQuery(params: {
   }
   if (params.reclamationRisk) {
     search.set("reclamationRisk", params.reclamationRisk);
+  }
+  if (params.relationship) {
+    search.set("relationship", params.relationship);
   }
   if (params.page && params.page > 1) {
     search.set("page", String(params.page));

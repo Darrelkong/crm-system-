@@ -5,14 +5,8 @@ import Link from "next/link";
 import { Eye, EyeOff, Mail } from "lucide-react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
-import type { Locale } from "@/i18n/config";
-import {
-  resolveAssigneeStaffForDetail,
-  type AssigneeDisplayLocale,
-} from "@/lib/customers/assignee-display";
 import { ReleaseToPoolButton } from "@/components/customers/release-to-pool-button";
 import { ManageAssigneesButton } from "@/components/customers/manage-assignees-modal";
-import { RequestAssigneesButton } from "@/components/customers/request-assignees-modal";
 import { CustomerApprovalRequests } from "@/components/customers/customer-approval-requests";
 import { CustomerLifecycleCompleteModal } from "@/components/customers/customer-lifecycle-complete-modal";
 import { ConfirmCustomerNameModal } from "@/components/customers/confirm-customer-name-modal";
@@ -113,7 +107,6 @@ type Props = {
   showLifecycleCompleteButton: boolean;
   showConfirmNameButton: boolean;
   showManageAssigneesButton: boolean;
-  showRequestAssigneesButton: boolean;
   /** Server-validated back href: /follow-ups?... or /customers. */
   returnHref: string;
   familySummary?: CustomerFamilyDetailSummary | null;
@@ -141,7 +134,9 @@ function DetailRow({
         ? cd.codeValue
         : cd.value;
   return (
-    <div className={`flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4 ${cd.row}`}>
+    <div
+      className={`flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4 ${cd.row}`}
+    >
       <dt className={`shrink-0 sm:w-36 ${cd.label}`}>{label}</dt>
       <dd className={`flex flex-wrap items-center gap-2 ${valueClass}`}>
         {value ? <span>{value}</span> : null}
@@ -169,7 +164,9 @@ function MaskedContactDetailRow({
   if (!trimmed) return null;
 
   return (
-    <div className={`flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4 ${cd.row}`}>
+    <div
+      className={`flex flex-col gap-0.5 py-2.5 text-sm sm:flex-row sm:gap-4 ${cd.row}`}
+    >
       <dt className={`shrink-0 sm:w-36 ${cd.label}`}>{label}</dt>
       <dd className={`flex flex-wrap items-center gap-2 ${cd.value}`}>
         <span>{visible ? trimmed : CONTACT_MASK}</span>
@@ -218,449 +215,482 @@ export function CustomerDetailClient({
   showLifecycleCompleteButton,
   showConfirmNameButton,
   showManageAssigneesButton,
-  showRequestAssigneesButton,
   returnHref,
   familySummary = null,
   showManageFamilyButton = false,
   showManageExistingFamilyButton = false,
   pendingPriorityApproval = false,
 }: Props) {
-  const { t, source, salesStage, status, customerType, followUpChannel, followUpOutcome } =
-    useCustomerLabels();
-  const sourceDisplay =
-    view.sourceDisplayLabel ?? source(view.source);
+  const {
+    t,
+    source,
+    salesStage,
+    status,
+    customerType,
+    followUpChannel,
+    followUpOutcome,
+  } = useCustomerLabels();
+  const sourceDisplay = view.sourceDisplayLabel ?? source(view.source);
   const { locale } = useTranslation();
   const id = view.id;
   const [familyModalOpen, setFamilyModalOpen] = useState(false);
   const [familyChooserOpen, setFamilyChooserOpen] = useState(false);
 
-  function assigneeDisplayLocale(currentLocale: Locale): AssigneeDisplayLocale {
-    return currentLocale === "en" ? "en" : "zh";
-  }
-
-  const assignedStaffLabel = resolveAssigneeStaffForDetail(
-    {
-      status: view.status,
-      ownerId: view.ownerId ?? null,
-      ownerName: view.ownerName ?? null,
-      assigneeNames: view.assigneeNames ?? [],
-    },
-    {
-      publicPool: t("customers.publicPoolOwner"),
-      unknownStaff: t("customers.unknownStaff"),
-    },
-    assigneeDisplayLocale(locale),
-  );
-
   const createdByLabel = view.createdByName?.trim()
     ? view.createdByName
     : t("customers.unknownStaff");
 
-  const showPendingSecondConversionBadge = shouldShowPendingSecondConversionBadge({
-    lifecycleStatus: view.lifecycleStatus,
-    status: view.status,
-    isArchived: view.isArchived,
-  });
+  const showPendingSecondConversionBadge =
+    shouldShowPendingSecondConversionBadge({
+      lifecycleStatus: view.lifecycleStatus,
+      status: view.status,
+      isArchived: view.isArchived,
+    });
 
   return (
     <>
       <CustomerNavigationPerfProbe enabled={isAdmin} />
       <div className="mx-auto max-w-6xl">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <CustomerNameLabel
-              customerName={view.customerName}
-              nameStatus={view.nameStatus}
-              locale={locale}
-              pendingLabel={t("customers.namePendingBadge")}
-              showPendingBadge={!view.isMasked}
-              renderName={(displayName) => (
-                <h2 className="page-title text-2xl sm:text-3xl">{displayName}</h2>
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <CustomerNameLabel
+                customerName={view.customerName}
+                nameStatus={view.nameStatus}
+                locale={locale}
+                pendingLabel={t("customers.namePendingBadge")}
+                showPendingBadge={!view.isMasked}
+                renderName={(displayName) => (
+                  <h2 className="page-title text-2xl sm:text-3xl">
+                    {displayName}
+                  </h2>
+                )}
+                badgeClassName="mt-1"
+              />
+              {view.isPinned && <PinnedBadge className="mt-1" />}
+              {showConfirmNameButton && (
+                <div className="mt-1">
+                  <ConfirmCustomerNameModal customerId={id} />
+                </div>
               )}
-              badgeClassName="mt-1"
-            />
-            {view.isPinned && <PinnedBadge className="mt-1" />}
-            {showConfirmNameButton && (
-              <div className="mt-1">
-                <ConfirmCustomerNameModal customerId={id} />
-              </div>
-            )}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge>{status(view.status)}</Badge>
+              {view.isMasked && !view.isArchived && (
+                <Badge variant="warning">
+                  {t("customers.publicPoolMasked")}
+                </Badge>
+              )}
+              {view.isArchived && <Badge>{t("customers.archivedBadge")}</Badge>}
+              {showPendingSecondConversionBadge && (
+                <Badge variant="success">
+                  {t("customers.pendingSecondConversion")}
+                </Badge>
+              )}
+            </div>
           </div>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <Badge>{status(view.status)}</Badge>
-            {view.isMasked && !view.isArchived && (
-              <Badge variant="warning">{t("customers.publicPoolMasked")}</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            {showLifecycleCompleteButton && (
+              <CustomerLifecycleCompleteModal customerId={id} />
             )}
-            {view.isArchived && (
-              <Badge>{t("customers.archivedBadge")}</Badge>
+            {showApprovalButton && (
+              <CustomerApprovalRequests
+                customerId={id}
+                isPinned={view.isPinned}
+                salesStage={view.salesStage}
+                isAdmin={isAdmin}
+                pendingPriorityApproval={pendingPriorityApproval}
+              />
             )}
-            {showPendingSecondConversionBadge && (
-              <Badge variant="success">{t("customers.pendingSecondConversion")}</Badge>
+            {showReleaseButton && <ReleaseToPoolButton customerId={id} />}
+            {showFollowUpButton && (
+              <Link href={`/customers/${id}/follow-ups/new`}>
+                <Button variant="secondary" size="md">
+                  {t("customers.newFollowUp")}
+                </Button>
+              </Link>
             )}
-          </div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {showLifecycleCompleteButton && (
-            <CustomerLifecycleCompleteModal customerId={id} />
-          )}
-          {showApprovalButton && (
-            <CustomerApprovalRequests
-              customerId={id}
-              isPinned={view.isPinned}
-              salesStage={view.salesStage}
-              isAdmin={isAdmin}
-              pendingPriorityApproval={pendingPriorityApproval}
-            />
-          )}
-          {showReleaseButton && <ReleaseToPoolButton customerId={id} />}
-          {showFollowUpButton && (
-            <Link href={`/customers/${id}/follow-ups/new`}>
+            <Link
+              href={
+                view.email
+                  ? `/mail?customerId=${encodeURIComponent(id)}&customerName=${encodeURIComponent(view.customerName)}&email=${encodeURIComponent(view.email)}`
+                  : `/mail?customerId=${encodeURIComponent(id)}&customerName=${encodeURIComponent(view.customerName)}`
+              }
+            >
               <Button variant="secondary" size="md">
-                {t("customers.newFollowUp")}
+                <Mail className="mr-1.5 h-4 w-4" aria-hidden />
+                {t("nav.mail")}
               </Button>
             </Link>
-          )}
-          <Link
-            href={
-              view.email
-                ? `/mail?customerId=${encodeURIComponent(id)}&customerName=${encodeURIComponent(view.customerName)}&email=${encodeURIComponent(view.email)}`
-                : `/mail?customerId=${encodeURIComponent(id)}&customerName=${encodeURIComponent(view.customerName)}`
-            }
-          >
-            <Button variant="secondary" size="md">
-              <Mail className="mr-1.5 h-4 w-4" aria-hidden />
-              {t("nav.mail")}
-            </Button>
-          </Link>
-          {showEditButton && (
-            <Link href={`/customers/${id}/edit`}>
-              <Button size="md">{t("customers.editClient")}</Button>
+            {showEditButton && (
+              <Link href={`/customers/${id}/edit`}>
+                <Button size="md">{t("customers.editClient")}</Button>
+              </Link>
+            )}
+            <Link
+              href={returnHref}
+              className={`px-3 py-2 text-sm ${cd.backLink}`}
+            >
+              ← {t("customers.backToList")}
             </Link>
-          )}
-          <Link
-            href={returnHref}
-            className={`px-3 py-2 text-sm ${cd.backLink}`}
-          >
-            ← {t("customers.backToList")}
-          </Link>
+          </div>
         </div>
-      </div>
 
-      {view.isArchived && (
-        <div className="surface-muted mb-4 p-4 text-sm crm-text">
-          <p className="font-medium">{t("customers.archivedNoticeTitle")}</p>
-          <p className="mt-1">{t("customers.archivedNoticeBody")}</p>
-        </div>
-      )}
+        {view.isArchived && (
+          <div className="surface-muted mb-4 p-4 text-sm crm-text">
+            <p className="font-medium">{t("customers.archivedNoticeTitle")}</p>
+            <p className="mt-1">{t("customers.archivedNoticeBody")}</p>
+          </div>
+        )}
 
-      {view.isMasked && !view.isArchived && (
-        <div className="alert-warning mb-4 px-4 py-3 text-sm">
-          {t("customers.maskedNotice")}
-        </div>
-      )}
+        {view.isMasked && !view.isArchived && (
+          <div className="alert-warning mb-4 px-4 py-3 text-sm">
+            {t("customers.maskedNotice")}
+          </div>
+        )}
 
-      <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
-        <div className="space-y-4 lg:col-span-2 lg:space-y-6">
-          <SectionCard title={t("customers.basicInfo")}>
-            <dl>
-              <DetailRow
-                label={t("customers.clientName")}
-                action={
-                  <CustomerNameLabel
-                    customerName={view.customerName}
-                    nameStatus={view.nameStatus}
-                    locale={locale}
-                    pendingLabel={t("customers.namePendingBadge")}
-                    showPendingBadge={false}
-                    nameClassName={cd.strongValue}
-                  />
-                }
-                emphasis="strong"
-              />
-              {isAdmin && view.customerCode && (
+        <div className="grid gap-4 lg:grid-cols-3 lg:gap-6">
+          <div className="space-y-4 lg:col-span-2 lg:space-y-6">
+            <SectionCard title={t("customers.basicInfo")}>
+              <dl>
                 <DetailRow
-                  label={t("customers.uniqueIdentifier")}
-                  value={view.customerCode}
-                  emphasis="code"
-                />
-              )}
-              <DetailRow
-                label={t("customers.clientType")}
-                value={customerType(view.customerType)}
-                emphasis="strong"
-              />
-              <DetailRow
-                label={t("customers.salesStage")}
-                value={salesStage(view.salesStage)}
-                emphasis="strong"
-              />
-              <DetailRow
-                label={t("customers.source")}
-                value={sourceDisplay}
-                emphasis="strong"
-              />
-              {!view.isMasked && (
-                <DetailRow
-                  label={t("customers.requestedProjectName")}
-                  value={resolveRequestedProjectDisplayName({
-                    requestedProjectCode: view.requestedProjectCode,
-                    requestedProjectName: view.requestedProjectName,
-                    locale,
-                  })}
+                  label={t("customers.clientName")}
+                  action={
+                    <CustomerNameLabel
+                      customerName={view.customerName}
+                      nameStatus={view.nameStatus}
+                      locale={locale}
+                      pendingLabel={t("customers.namePendingBadge")}
+                      showPendingBadge={false}
+                      nameClassName={cd.strongValue}
+                    />
+                  }
                   emphasis="strong"
                 />
-              )}
-            </dl>
-          </SectionCard>
-
-          {(showManageFamilyButton || familySummary) && (
-            <SectionCard title={t("customers.familyAndContacts")}>
-              <CustomerFamilySection
-                customerId={id}
-                currentCustomerName={view.customerName}
-                summary={familySummary}
-                canManage={showManageFamilyButton}
-                canManageExistingFamily={showManageExistingFamilyButton}
-                onAddFamilyMember={() => setFamilyChooserOpen(true)}
-              />
-            </SectionCard>
-          )}
-
-          {showManageFamilyButton && (
-            <>
-              <CustomerFamilyMemberChooserModal
-                customerId={id}
-                open={familyChooserOpen}
-                onClose={() => setFamilyChooserOpen(false)}
-                onLinkExisting={() => setFamilyModalOpen(true)}
-              />
-              <CustomerFamilyLinkExistingModal
-                customerId={id}
-                currentCustomerName={view.customerName}
-                open={familyModalOpen}
-                onClose={() => setFamilyModalOpen(false)}
-              />
-            </>
-          )}
-
-          {!view.isMasked && (
-            <SectionCard title={t("customers.contactInfo")}>
-              <dl>
-                <MaskedContactDetailRow
-                  label={t("customers.phone")}
-                  value={
-                    view.phone
-                      ? `${view.phoneCountryCode ?? ""} ${view.phone}`.trim()
-                      : undefined
-                  }
-                  showLabel={t("customers.showPhone")}
-                  hideLabel={t("customers.hidePhone")}
+                {isAdmin && view.customerCode && (
+                  <DetailRow
+                    label={t("customers.uniqueIdentifier")}
+                    value={view.customerCode}
+                    emphasis="code"
+                  />
+                )}
+                <DetailRow
+                  label={t("customers.clientType")}
+                  value={customerType(view.customerType)}
+                  emphasis="strong"
                 />
-                <MaskedContactDetailRow
-                  label={t("customers.wechatId")}
-                  value={view.wechatId}
-                  showLabel={t("customers.showWechat")}
-                  hideLabel={t("customers.hideWechat")}
+                <DetailRow
+                  label={t("customers.salesStage")}
+                  value={salesStage(view.salesStage)}
+                  emphasis="strong"
                 />
-                <MaskedContactDetailRow
-                  label={t("customers.email")}
-                  value={view.email}
-                  showLabel={t("customers.showEmail")}
-                  hideLabel={t("customers.hideEmail")}
+                <DetailRow
+                  label={t("customers.source")}
+                  value={sourceDisplay}
+                  emphasis="strong"
                 />
+                {!view.isMasked && (
+                  <DetailRow
+                    label={t("customers.requestedProjectName")}
+                    value={resolveRequestedProjectDisplayName({
+                      requestedProjectCode: view.requestedProjectCode,
+                      requestedProjectName: view.requestedProjectName,
+                      locale,
+                    })}
+                    emphasis="strong"
+                  />
+                )}
               </dl>
             </SectionCard>
-          )}
 
-          {!view.isMasked && (view.sourceRemark || view.notes) && (
-            <SectionCard title={t("customers.notes")}>
-              <dl>
-                <DetailRow label={t("customers.sourceRemark")} value={view.sourceRemark} />
-                <DetailRow label={t("customers.stageNotes")} value={view.notes} />
-              </dl>
-            </SectionCard>
-          )}
+            {(showManageFamilyButton || familySummary) && (
+              <SectionCard title={t("customers.familyAndContacts")}>
+                <CustomerFamilySection
+                  customerId={id}
+                  currentCustomerName={view.customerName}
+                  summary={familySummary}
+                  canManage={showManageFamilyButton}
+                  canManageExistingFamily={showManageExistingFamilyButton}
+                  onAddFamilyMember={() => setFamilyChooserOpen(true)}
+                />
+              </SectionCard>
+            )}
 
-          {!view.isMasked &&
-            (view.preferredName ||
-              view.gender ||
-              view.ageRange ||
-              view.preferredLanguage ||
-              view.preferredContactMethod ||
-              view.occupation ||
-              view.companyName ||
-              view.jobTitle ||
-              view.targetCountryOrRegion ||
-              view.primaryConcern) && (
-              <SectionCard title={t("customers.moreCustomerData")}>
+            {showManageFamilyButton && (
+              <>
+                <CustomerFamilyMemberChooserModal
+                  customerId={id}
+                  open={familyChooserOpen}
+                  onClose={() => setFamilyChooserOpen(false)}
+                  onLinkExisting={() => setFamilyModalOpen(true)}
+                />
+                <CustomerFamilyLinkExistingModal
+                  customerId={id}
+                  currentCustomerName={view.customerName}
+                  open={familyModalOpen}
+                  onClose={() => setFamilyModalOpen(false)}
+                />
+              </>
+            )}
+
+            {!view.isMasked && (
+              <SectionCard title={t("customers.contactInfo")}>
                 <dl>
-                  <DetailRow
-                    label={t("customers.preferredName")}
-                    value={view.preferredName}
-                  />
-                  <DetailRow
-                    label={t("customers.gender")}
+                  <MaskedContactDetailRow
+                    label={t("customers.phone")}
                     value={
-                      view.gender
-                        ? t(`customerProfileEnums.gender.${view.gender}`)
+                      view.phone
+                        ? `${view.phoneCountryCode ?? ""} ${view.phone}`.trim()
                         : undefined
                     }
+                    showLabel={t("customers.showPhone")}
+                    hideLabel={t("customers.hidePhone")}
                   />
-                  <DetailRow
-                    label={t("customers.ageRange")}
-                    value={
-                      view.ageRange
-                        ? t(`customerProfileEnums.ageRange.${view.ageRange}`)
-                        : undefined
-                    }
+                  <MaskedContactDetailRow
+                    label={t("customers.wechatId")}
+                    value={view.wechatId}
+                    showLabel={t("customers.showWechat")}
+                    hideLabel={t("customers.hideWechat")}
                   />
-                  <DetailRow
-                    label={t("customers.preferredLanguage")}
-                    value={
-                      view.preferredLanguage
-                        ? t(
-                            `customerProfileEnums.preferredLanguage.${view.preferredLanguage}`,
-                          )
-                        : undefined
-                    }
-                  />
-                  <DetailRow
-                    label={t("customers.preferredContactMethod")}
-                    value={
-                      view.preferredContactMethod
-                        ? t(
-                            `customerProfileEnums.preferredContactMethod.${view.preferredContactMethod}`,
-                          )
-                        : undefined
-                    }
-                  />
-                  <DetailRow
-                    label={t("customers.occupation")}
-                    value={view.occupation}
-                  />
-                  <DetailRow
-                    label={t("customers.companyName")}
-                    value={view.companyName}
-                  />
-                  <DetailRow
-                    label={t("customers.jobTitle")}
-                    value={view.jobTitle}
-                  />
-                  <DetailRow
-                    label={t("customers.targetCountryOrRegion")}
-                    value={view.targetCountryOrRegion}
-                  />
-                  <DetailRow
-                    label={t("customers.primaryConcern")}
-                    value={view.primaryConcern}
+                  <MaskedContactDetailRow
+                    label={t("customers.email")}
+                    value={view.email}
+                    showLabel={t("customers.showEmail")}
+                    hideLabel={t("customers.hideEmail")}
                   />
                 </dl>
               </SectionCard>
             )}
 
-          {followUps.length > 0 && (
-            <section>
-              <h3 className={`mb-3 ${cd.subsectionTitle}`}>
-                {t("customers.followUpRecords")}
-              </h3>
-              <div className="space-y-3">
-                {followUps.map((fu) => (
-                  <div key={fu.id} className="surface-card p-4">
-                    <div className="flex flex-wrap items-center gap-2 text-xs">
-                      <span className={`font-medium ${cd.strongValue}`}>
-                        {formatHongKongDateTime(fu.followUpTime)}
-                      </span>
-                      <Badge>{followUpChannel(fu.channel)}</Badge>
-                      <Badge variant="accent">{followUpOutcome(fu.outcome)}</Badge>
-                      {fu.isValidFollowUp === 1 ? (
-                        <Badge variant="success">{t("customers.validFollowUp")}</Badge>
-                      ) : (
-                        <Badge>{t("customers.invalidFollowUp")}</Badge>
+            {!view.isMasked && (view.sourceRemark || view.notes) && (
+              <SectionCard title={t("customers.notes")}>
+                <dl>
+                  <DetailRow
+                    label={t("customers.sourceRemark")}
+                    value={view.sourceRemark}
+                  />
+                  <DetailRow
+                    label={t("customers.stageNotes")}
+                    value={view.notes}
+                  />
+                </dl>
+              </SectionCard>
+            )}
+
+            {!view.isMasked &&
+              (view.preferredName ||
+                view.gender ||
+                view.ageRange ||
+                view.preferredLanguage ||
+                view.preferredContactMethod ||
+                view.occupation ||
+                view.companyName ||
+                view.jobTitle ||
+                view.targetCountryOrRegion ||
+                view.primaryConcern) && (
+                <SectionCard title={t("customers.moreCustomerData")}>
+                  <dl>
+                    <DetailRow
+                      label={t("customers.preferredName")}
+                      value={view.preferredName}
+                    />
+                    <DetailRow
+                      label={t("customers.gender")}
+                      value={
+                        view.gender
+                          ? t(`customerProfileEnums.gender.${view.gender}`)
+                          : undefined
+                      }
+                    />
+                    <DetailRow
+                      label={t("customers.ageRange")}
+                      value={
+                        view.ageRange
+                          ? t(`customerProfileEnums.ageRange.${view.ageRange}`)
+                          : undefined
+                      }
+                    />
+                    <DetailRow
+                      label={t("customers.preferredLanguage")}
+                      value={
+                        view.preferredLanguage
+                          ? t(
+                              `customerProfileEnums.preferredLanguage.${view.preferredLanguage}`,
+                            )
+                          : undefined
+                      }
+                    />
+                    <DetailRow
+                      label={t("customers.preferredContactMethod")}
+                      value={
+                        view.preferredContactMethod
+                          ? t(
+                              `customerProfileEnums.preferredContactMethod.${view.preferredContactMethod}`,
+                            )
+                          : undefined
+                      }
+                    />
+                    <DetailRow
+                      label={t("customers.occupation")}
+                      value={view.occupation}
+                    />
+                    <DetailRow
+                      label={t("customers.companyName")}
+                      value={view.companyName}
+                    />
+                    <DetailRow
+                      label={t("customers.jobTitle")}
+                      value={view.jobTitle}
+                    />
+                    <DetailRow
+                      label={t("customers.targetCountryOrRegion")}
+                      value={view.targetCountryOrRegion}
+                    />
+                    <DetailRow
+                      label={t("customers.primaryConcern")}
+                      value={view.primaryConcern}
+                    />
+                  </dl>
+                </SectionCard>
+              )}
+
+            {followUps.length > 0 && (
+              <section>
+                <h3 className={`mb-3 ${cd.subsectionTitle}`}>
+                  {t("customers.followUpRecords")}
+                </h3>
+                <div className="space-y-3">
+                  {followUps.map((fu) => (
+                    <div key={fu.id} className="surface-card p-4">
+                      <div className="flex flex-wrap items-center gap-2 text-xs">
+                        <span className={`font-medium ${cd.strongValue}`}>
+                          {formatHongKongDateTime(fu.followUpTime)}
+                        </span>
+                        <Badge>{followUpChannel(fu.channel)}</Badge>
+                        <Badge variant="accent">
+                          {followUpOutcome(fu.outcome)}
+                        </Badge>
+                        {fu.isValidFollowUp === 1 ? (
+                          <Badge variant="success">
+                            {t("customers.validFollowUp")}
+                          </Badge>
+                        ) : (
+                          <Badge>{t("customers.invalidFollowUp")}</Badge>
+                        )}
+                      </div>
+                      <p className={`mt-2 text-sm leading-relaxed ${cd.value}`}>
+                        {fu.summary}
+                      </p>
+                      {fu.nextFollowUpAt && (
+                        <p className={`mt-1 text-xs ${cd.muted}`}>
+                          {t("customers.nextFollowUpLabel")}
+                          {formatHongKongDateTime(fu.nextFollowUpAt)}
+                        </p>
                       )}
                     </div>
-                    <p className={`mt-2 text-sm leading-relaxed ${cd.value}`}>{fu.summary}</p>
-                    {fu.nextFollowUpAt && (
-                      <p className={`mt-1 text-xs ${cd.muted}`}>
-                        {t("customers.nextFollowUpLabel")}
-                        {formatHongKongDateTime(fu.nextFollowUpAt)}
-                      </p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
+                  ))}
+                </div>
+              </section>
+            )}
 
-          <CustomerTimelineView items={timelineItems} accessLevel={timelineAccessLevel} />
-        </div>
+            <CustomerTimelineView
+              items={timelineItems}
+              accessLevel={timelineAccessLevel}
+            />
+          </div>
 
-        <div className="space-y-4 lg:space-y-6">
-          <SectionCard title={t("customers.systemInfo")}>
-            <dl>
-              <DetailRow
-                label={t("customers.assignedStaff")}
-                value={assignedStaffLabel}
-                action={
-                  showManageAssigneesButton ? (
-                    <ManageAssigneesButton customerId={id} />
-                  ) : showRequestAssigneesButton ? (
-                    <RequestAssigneesButton customerId={id} />
-                  ) : undefined
-                }
-              />
-              <DetailRow label={t("customers.createdBy")} value={createdByLabel} />
-              <DetailRow
-                label={t("customers.lastFollowUp")}
-                value={
-                  view.lastFollowUpAt
-                    ? formatHongKongDateTime(view.lastFollowUpAt)
-                    : undefined
-                }
-              />
-              <DetailRow
-                label={t("customers.lastValidFollowUp")}
-                value={
-                  view.lastValidFollowUpAt
-                    ? formatHongKongDateTime(view.lastValidFollowUpAt)
-                    : view.neverContacted
-                      ? t("customers.neverValidFollowUp")
+          <div className="space-y-4 lg:space-y-6">
+            <SectionCard title={t("customers.systemInfo")}>
+              <dl>
+                <DetailRow
+                  label={t("customers.primaryOwner")}
+                  value={
+                    view.primaryOwner?.displayName ??
+                    view.ownerName ??
+                    t("customers.unknownStaff")
+                  }
+                  emphasis="strong"
+                />
+                <DetailRow
+                  label={t("customers.collaborators")}
+                  value={
+                    view.collaborators && view.collaborators.length > 0
+                      ? view.collaborators
+                          .filter(
+                            (collaborator) =>
+                              collaborator.id !==
+                              (view.primaryOwner?.id ?? view.ownerId),
+                          )
+                          .map((collaborator) => collaborator.displayName)
+                          .join("、")
+                      : t("customers.noCollaboratorsYet")
+                  }
+                  action={
+                    showManageAssigneesButton ? (
+                      <ManageAssigneesButton customerId={id} />
+                    ) : undefined
+                  }
+                />
+                <DetailRow
+                  label={t("customers.createdBy")}
+                  value={createdByLabel}
+                />
+                <DetailRow
+                  label={t("customers.lastFollowUp")}
+                  value={
+                    view.lastFollowUpAt
+                      ? formatHongKongDateTime(view.lastFollowUpAt)
                       : undefined
-                }
-              />
-              <DetailRow
-                label={t("customers.nextFollowUp")}
-                value={
-                  view.nextFollowUpAt
-                    ? `${formatHongKongDateTime(view.nextFollowUpAt)}${view.overdueFollowUp ? t("customers.overdueSuffix") : ""}`
-                    : undefined
-                }
-              />
-              <DetailRow
-                label={t("customers.createdAt")}
-                value={formatHongKongDateTime(view.createdAt)}
-              />
-              <DetailRow
-                label={t("customers.updatedAt")}
-                value={formatHongKongDateTime(view.updatedAt)}
-              />
-            </dl>
-          </SectionCard>
+                  }
+                />
+                <DetailRow
+                  label={t("customers.lastValidFollowUp")}
+                  value={
+                    view.lastValidFollowUpAt
+                      ? formatHongKongDateTime(view.lastValidFollowUpAt)
+                      : view.neverContacted
+                        ? t("customers.neverValidFollowUp")
+                        : undefined
+                  }
+                />
+                <DetailRow
+                  label={t("customers.nextFollowUp")}
+                  value={
+                    view.nextFollowUpAt
+                      ? `${formatHongKongDateTime(view.nextFollowUpAt)}${view.overdueFollowUp ? t("customers.overdueSuffix") : ""}`
+                      : undefined
+                  }
+                />
+                <DetailRow
+                  label={t("customers.createdAt")}
+                  value={formatHongKongDateTime(view.createdAt)}
+                />
+                <DetailRow
+                  label={t("customers.updatedAt")}
+                  value={formatHongKongDateTime(view.updatedAt)}
+                />
+              </dl>
+            </SectionCard>
 
-          <CustomerScoresCards
-            scores={{
-              heatLevel: view.heatLevel,
-              completenessScore: view.completenessScore,
-              heatReasonKeys: view.heatReasonKeys,
-              completenessMissingFields: view.completenessMissingFields,
-              accessLevel: view.accessLevel as "full" | "masked" | "archived_basic",
-            }}
-            showMissingFields={view.accessLevel === "full"}
-          />
+            <CustomerScoresCards
+              scores={{
+                heatLevel: view.heatLevel,
+                completenessScore: view.completenessScore,
+                heatReasonKeys: view.heatReasonKeys,
+                completenessMissingFields: view.completenessMissingFields,
+                accessLevel: view.accessLevel as
+                  "full" | "masked" | "archived_basic",
+              }}
+              showMissingFields={view.accessLevel === "full"}
+            />
 
-          <CustomerAiInsightPanel key={id} customerId={id} isAdmin={isAdmin} />
+            <CustomerAiInsightPanel
+              key={id}
+              customerId={id}
+              isAdmin={isAdmin}
+            />
+          </div>
         </div>
-      </div>
       </div>
     </>
   );

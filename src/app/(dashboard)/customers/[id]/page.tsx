@@ -9,18 +9,23 @@ import {
   canReleaseToPool,
   assertCanViewFollowUps,
   resolveCustomerAccessOptionsFromAssignees,
-  canManageCustomerAssignees,
-  canRequestCustomerAssigneeUpdate,
+  canManageCustomerCollaborators,
   isStaffUnclaimedPublicPoolCustomer,
 } from "@/lib/permissions/customers";
 import { canConfirmPendingCustomerName } from "@/lib/customers/confirm-name";
 import { canSubmitApprovalRequest } from "@/lib/permissions/approvals";
 import { enrichCustomerResponse } from "@/lib/customers/scoring/service";
-import { resolveAdminCustomerDetailDisplayNames, resolveCustomerDetailDisplayNames } from "@/lib/customers/user-labels";
+import {
+  resolveAdminCustomerDetailDisplayNames,
+  resolveCustomerDetailDisplayNames,
+} from "@/lib/customers/user-labels";
 import { listCustomerAssignees } from "@/lib/customers/assignees";
 import { getDb } from "@/lib/db";
 import { listFollowUpsByCustomerId } from "@/lib/follow-ups/queries";
-import { getCustomerTimeline, assertCanViewCustomerTimeline } from "@/lib/customers/timeline/service";
+import {
+  getCustomerTimeline,
+  assertCanViewCustomerTimeline,
+} from "@/lib/customers/timeline/service";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getAuthValidationPerf } from "@/lib/auth/validation-perf";
 import {
@@ -36,9 +41,15 @@ import { getCustomerPendingApprovalFlags } from "@/lib/customers/customer-pendin
 import { parseSafeFollowUpsReturnTo } from "@/lib/follow-ups/safe-return-to";
 import { parseSafeWorkItemsReturnTo } from "@/lib/work-items/safe-return-to";
 import { getCustomerHouseholdDetailSummary } from "@/lib/customers/households/detail-summary";
-import { canManageCustomerFamily, canManageExistingFamilySource } from "@/lib/customers/households/family-permissions";
+import {
+  canManageCustomerFamily,
+  canManageExistingFamilySource,
+} from "@/lib/customers/households/family-permissions";
 
-type Props = { params: Promise<{ id: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> };
+type Props = {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
 
 function firstSearchParam(
   value: string | string[] | undefined,
@@ -48,7 +59,10 @@ function firstSearchParam(
   return undefined;
 }
 
-export default async function CustomerDetailPage({ params, searchParams }: Props) {
+export default async function CustomerDetailPage({
+  params,
+  searchParams,
+}: Props) {
   const pageStart = perfNow();
   const { id } = await params;
   const query = await searchParams;
@@ -98,10 +112,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
 
   if (!customer) {
     return (
-      <CustomerStatePanel
-        titleKey="customers.notFound"
-        backHref="/customers"
-      />
+      <CustomerStatePanel titleKey="customers.notFound" backHref="/customers" />
     );
   }
 
@@ -149,8 +160,7 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
     } catch {
       return {
         followUps: undefined as
-          | Awaited<ReturnType<typeof listFollowUpsByCustomerId>>
-          | undefined,
+          Awaited<ReturnType<typeof listFollowUpsByCustomerId>> | undefined,
         hasFollowUp: undefined as boolean | undefined,
         durationMs: 0,
         canViewFollowUps: false,
@@ -229,14 +239,16 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
   const view = scoresView;
   const showEditButton = canEditCustomer(user, customer);
   const showManageFamilyButton = canManageCustomerFamily(user, customer);
-  const showManageExistingFamilyButton = canManageExistingFamilySource(user, customer);
+  const showManageExistingFamilyButton = canManageExistingFamilySource(
+    user,
+    customer,
+  );
   const showReleaseButton = canReleaseToPool(user, customer);
   const showFollowUpButton = canAddFollowUp(user, customer, accessOptions);
   const showApprovalButton = canSubmitApprovalRequest(user, customer);
   const pendingPriorityApproval =
     showApprovalButton && pendingFlags.pendingPriority;
-  const showManageAssigneesButton = canManageCustomerAssignees(user, customer);
-  const showRequestAssigneesButton = canRequestCustomerAssigneeUpdate(
+  const showManageAssigneesButton = canManageCustomerCollaborators(
     user,
     customer,
   );
@@ -361,7 +373,6 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
         showLifecycleCompleteButton={showLifecycleCompleteButton}
         showConfirmNameButton={confirmTimed.result}
         showManageAssigneesButton={showManageAssigneesButton}
-        showRequestAssigneesButton={showRequestAssigneesButton}
         returnHref={safeReturnHref}
         familySummary={familySummary}
         showManageFamilyButton={showManageFamilyButton}

@@ -107,7 +107,10 @@ describe("customer creation collaboration phase 2", () => {
   it("verifies pre-create email with the shared exact-match core", async () => {
     const target = (
       await db
-        .select({ email: schema.users.email, displayName: schema.users.displayName })
+        .select({
+          email: schema.users.email,
+          displayName: schema.users.displayName,
+        })
         .from(schema.users)
         .where(eq(schema.users.id, SEED_IDS.staffB))
         .limit(1)
@@ -133,6 +136,52 @@ describe("customer creation collaboration phase 2", () => {
       }),
       null,
     );
+  });
+
+  it("forces staff-created customers to the acting staff owner", async () => {
+    const prepared = await prepareCustomerCreation({
+      actor: owner,
+      body: createBody({ ownerId: SEED_IDS.staffB }),
+      allowedSourceKeys,
+      db,
+    });
+
+    assert.equal(prepared.kind, "ready");
+    if (prepared.kind === "ready") {
+      assert.equal(prepared.meta.ownerId, owner.id);
+    }
+  });
+
+  it("rejects an admin-selected owner from also being a collaborator", async () => {
+    const prepared = await prepareCustomerCreation({
+      actor: admin,
+      body: createBody({
+        ownerId: SEED_IDS.staffB,
+        collaboratorIds: [SEED_IDS.staffB],
+      }),
+      allowedSourceKeys,
+      db,
+    });
+
+    assert.equal(prepared.kind, "validation");
+  });
+
+  it("shows owner selection only for admin creation", () => {
+    const form = readFileSync(
+      new URL(
+        "../../app/(dashboard)/customers/new/new-customer-form.tsx",
+        import.meta.url,
+      ),
+      "utf8",
+    );
+    const page = readFileSync(
+      new URL("../../app/(dashboard)/customers/new/page.tsx", import.meta.url),
+      "utf8",
+    );
+
+    assert.match(form, /ownerOptions\.length > 0/);
+    assert.match(form, /ownerId: primaryOwnerId/);
+    assert.match(page, /user\.role === "admin"/);
   });
 
   it("writes owner, primary, collaborators, and audit events in one creation batch", async () => {
@@ -223,7 +272,10 @@ describe("customer creation collaboration phase 2", () => {
 
   it("keeps the new form exact-email-only and supports local multi-selection", () => {
     const form = readFileSync(
-      new URL("../../app/(dashboard)/customers/new/new-customer-form.tsx", import.meta.url),
+      new URL(
+        "../../app/(dashboard)/customers/new/new-customer-form.tsx",
+        import.meta.url,
+      ),
       "utf8",
     );
     const picker = readFileSync(

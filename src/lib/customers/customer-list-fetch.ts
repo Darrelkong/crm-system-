@@ -1,6 +1,4 @@
-import {
-  CUSTOMER_LIST_PAGE_SIZE,
-} from "@/lib/customers/customer-list-shared";
+import { CUSTOMER_LIST_PAGE_SIZE } from "@/lib/customers/customer-list-shared";
 import { buildCustomerListHref } from "@/components/ui/pagination";
 
 export type CustomerListFetchParams = {
@@ -13,6 +11,7 @@ export type CustomerListFetchParams = {
   filterSalesStage?: string;
   filterOwnerId?: string;
   filterReclamationRisk?: string;
+  filterRelationship?: "owner" | "collaborator";
 };
 
 export function buildCustomerListApiSearchParams(
@@ -46,6 +45,9 @@ export function buildCustomerListApiSearchParams(
   if (params.filterReclamationRisk) {
     search.set("reclamationRisk", params.filterReclamationRisk);
   }
+  if (params.filterRelationship) {
+    search.set("relationship", params.filterRelationship);
+  }
 
   return search;
 }
@@ -63,6 +65,7 @@ export function buildCustomerListBrowserPath(
     salesStage: params.filterSalesStage,
     ownerId: params.filterOwnerId,
     reclamationRisk: params.filterReclamationRisk,
+    relationship: params.filterRelationship,
   });
 }
 

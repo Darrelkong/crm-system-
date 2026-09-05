@@ -201,6 +201,7 @@ export function buildCustomerListHref(params: {
   salesStage?: string;
   ownerId?: string;
   reclamationRisk?: string;
+  relationship?: "owner" | "collaborator";
 }): string {
   const search = new URLSearchParams();
 
@@ -227,6 +228,9 @@ export function buildCustomerListHref(params: {
   }
   if (params.reclamationRisk) {
     search.set("reclamationRisk", params.reclamationRisk);
+  }
+  if (params.relationship) {
+    search.set("relationship", params.relationship);
   }
   if (params.page && params.page > 1) {
     search.set("page", String(params.page));

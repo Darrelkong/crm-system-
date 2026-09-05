@@ -5,9 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
-import {
-  HeatBadge,
-} from "@/components/customers/customer-scores-cards";
+import { HeatBadge } from "@/components/customers/customer-scores-cards";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
 import { CustomerDetailNavLink } from "@/components/customers/customer-detail-nav-link";
 import { CustomerFamilyIcon } from "@/components/customers/customer-family-icon";
@@ -75,6 +73,7 @@ type Props = {
   filterSalesStage?: string;
   filterOwnerId?: string;
   filterReclamationRisk?: string;
+  filterRelationship?: "owner" | "collaborator";
   enableNavigationPerf?: boolean;
 };
 
@@ -98,6 +97,7 @@ function mapApiItem(item: ApiCustomerItem): CustomerListRow {
     nameStatus: item.nameStatus ?? "confirmed",
     ownerId: item.ownerId ?? null,
     ownerName: item.ownerName ?? null,
+    viewerRelationship: item.viewerRelationship ?? "owner",
     assigneeNames: item.assigneeNames ?? [],
     requestedProjectCode: item.requestedProjectCode,
     requestedProjectName: item.requestedProjectName,
@@ -131,6 +131,7 @@ export function CustomersListClient({
   filterSalesStage,
   filterOwnerId,
   filterReclamationRisk,
+  filterRelationship,
   enableNavigationPerf = false,
 }: Props) {
   const { t, salesStage, status } = useCustomerLabels();
@@ -144,9 +145,8 @@ export function CustomersListClient({
   const [searchResults, setSearchResults] = useState<CustomerListRow[] | null>(
     null,
   );
-  const [searchPagination, setSearchPagination] = useState<PaginationMeta | null>(
-    null,
-  );
+  const [searchPagination, setSearchPagination] =
+    useState<PaginationMeta | null>(null);
   const [searchPages, setSearchPages] = useState<Record<string, number>>({});
   const [searching, setSearching] = useState(false);
 
@@ -161,6 +161,7 @@ export function CustomersListClient({
     filterSalesStage ?? "",
     filterOwnerId ?? "",
     filterReclamationRisk ?? "",
+    filterRelationship ?? "",
   ].join("\0");
   const searchPage = searchPages[searchScopeKey] ?? 1;
 
@@ -185,6 +186,7 @@ export function CustomersListClient({
       filterSalesStage,
       filterOwnerId,
       filterReclamationRisk,
+      filterRelationship,
     };
   }
 
@@ -261,6 +263,7 @@ export function CustomersListClient({
       salesStage: filterSalesStage,
       ownerId: filterOwnerId,
       reclamationRisk: filterReclamationRisk,
+      relationship: filterRelationship,
     };
   }
 
@@ -289,6 +292,7 @@ export function CustomersListClient({
         if (filterReclamationRisk) {
           params.set("reclamationRisk", filterReclamationRisk);
         }
+        if (filterRelationship) params.set("relationship", filterRelationship);
 
         const res = await fetch(`/api/customers?${params.toString()}`);
         const data = (await res.json()) as ApiCustomersResponse;
@@ -319,6 +323,7 @@ export function CustomersListClient({
     filterSalesStage,
     filterOwnerId,
     filterReclamationRisk,
+    filterRelationship,
     pagination.pageSize,
   ]);
 
@@ -392,6 +397,9 @@ export function CustomersListClient({
               )}
             />
           </span>
+          {c.viewerRelationship === "collaborator" && (
+            <Badge variant="accent">{t("customers.collaboratorBadge")}</Badge>
+          )}
           {c.isPinned && <PinnedBadge />}
         </span>
         {isAdmin && c.customerCode && (
@@ -478,16 +486,29 @@ export function CustomersListClient({
                   nameClassName={`truncate font-semibold ${ui.customerName}`}
                 />
               </span>
+              {c.viewerRelationship === "collaborator" && (
+                <Badge variant="accent">
+                  {t("customers.collaboratorBadge")}
+                </Badge>
+              )}
               {c.isPinned && <PinnedBadge />}
             </div>
             {isAdmin && c.customerCode && (
               <p className={`mt-0.5 ${ui.customerCode}`}>{c.customerCode}</p>
             )}
+            {c.viewerRelationship === "collaborator" && c.ownerName && (
+              <p className="mt-0.5 text-xs crm-text-secondary">
+                {t("customers.primaryOwner")}: {c.ownerName}
+              </p>
+            )}
             <p className="mt-1 text-xs crm-text-secondary">
               <span title={staff.title}>{staff.display}</span> ·{" "}
               <SalesStageCell c={c} />
             </p>
-            <p className="mt-0.5 text-xs crm-text-secondary" title={project.title}>
+            <p
+              className="mt-0.5 text-xs crm-text-secondary"
+              title={project.title}
+            >
               {project.display}
             </p>
           </div>
@@ -496,10 +517,16 @@ export function CustomersListClient({
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge>{status(c.status)}</Badge>
           <span className="text-xs font-medium crm-text">
-            {t("customers.completenessPoints", { score: String(c.completenessScore) })}
+            {t("customers.completenessPoints", {
+              score: String(c.completenessScore),
+            })}
           </span>
-          {c.neverContacted && <Badge variant="warning">{t("customers.neverContacted")}</Badge>}
-          {c.overdueFollowUp && <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>}
+          {c.neverContacted && (
+            <Badge variant="warning">{t("customers.neverContacted")}</Badge>
+          )}
+          {c.overdueFollowUp && (
+            <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>
+          )}
           <ReclamationCountdownBadge countdown={c.reclamationCountdown} />
         </div>
       </CustomerDetailNavLink>
@@ -509,7 +536,9 @@ export function CustomersListClient({
   return (
     <div>
       <PageIntro
-        title={showArchived ? t("customers.archivedList") : t("customers.title")}
+        title={
+          showArchived ? t("customers.archivedList") : t("customers.title")
+        }
         description={
           searching || showInitialListLoading
             ? t("common.loading")
@@ -538,6 +567,43 @@ export function CustomersListClient({
           )}
         </div>
       )}
+      {!isAdmin && (
+        <nav
+          aria-label={t("customers.relationshipFilterLabel")}
+          className="mb-4 flex w-full gap-1 rounded-xl border crm-border bg-white p-1 sm:w-fit"
+        >
+          {[
+            { value: undefined, label: t("customers.relationshipAll") },
+            {
+              value: "owner" as const,
+              label: t("customers.relationshipOwner"),
+            },
+            {
+              value: "collaborator" as const,
+              label: t("customers.relationshipCollaborator"),
+            },
+          ].map((option) => {
+            const selected = (filterRelationship ?? undefined) === option.value;
+            return (
+              <Link
+                key={option.label}
+                href={buildCustomerListHref({
+                  ...listHrefParams(1),
+                  relationship: option.value,
+                })}
+                className={`flex-1 rounded-lg px-3 py-2 text-center text-sm transition sm:flex-none ${
+                  selected
+                    ? "bg-slate-100 font-semibold crm-text"
+                    : "crm-text-secondary hover:bg-slate-50"
+                }`}
+                aria-current={selected ? "page" : undefined}
+              >
+                {option.label}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
       {(searching || listLoading) && (
         <p className="mb-4 flex items-center gap-2 text-sm crm-text-secondary">
           <LoadingSpinner size="sm" />
@@ -564,7 +630,11 @@ export function CustomersListClient({
           )}
           {heatFilter && <input type="hidden" name="heat" value={heatFilter} />}
           {completenessBelowFilter && (
-            <input type="hidden" name="completenessBelow" value={completenessBelowFilter} />
+            <input
+              type="hidden"
+              name="completenessBelow"
+              value={completenessBelowFilter}
+            />
           )}
           {filterWorkView && (
             <input type="hidden" name="workView" value={filterWorkView} />
@@ -630,22 +700,26 @@ export function CustomersListClient({
             <p className="text-sm crm-text-secondary">{t("common.loading")}</p>
           </div>
         ) : (
-        <EmptyState
-          message={
-            isSearchActive
-              ? t("customers.noSearchResults")
-              : showArchived
-                ? t("customers.noArchivedClients")
-                : t("customers.noCustomers")
-          }
-          action={
-            !showArchived && !isSearchActive ? (
-              <Link href="/customers/new">
-                <Button variant="secondary">{t("customers.addFirstClient")}</Button>
-              </Link>
-            ) : undefined
-          }
-        />
+          <EmptyState
+            message={
+              isSearchActive
+                ? t("customers.noSearchResults")
+                : showArchived
+                  ? t("customers.noArchivedClients")
+                  : filterRelationship === "collaborator"
+                    ? t("customers.noCollaborativeCustomers")
+                    : t("customers.noCustomers")
+            }
+            action={
+              !showArchived && !isSearchActive ? (
+                <Link href="/customers/new">
+                  <Button variant="secondary">
+                    {t("customers.addFirstClient")}
+                  </Button>
+                </Link>
+              ) : undefined
+            }
+          />
         )
       ) : (
         <>
@@ -702,17 +776,25 @@ export function CustomersListClient({
                     <Td>
                       <div className="flex flex-wrap gap-1">
                         {c.neverContacted && (
-                          <Badge variant="warning">{t("customers.neverContacted")}</Badge>
+                          <Badge variant="warning">
+                            {t("customers.neverContacted")}
+                          </Badge>
                         )}
                         {c.overdueFollowUp && (
-                          <Badge variant="danger">{t("customers.overdueFollowUp")}</Badge>
+                          <Badge variant="danger">
+                            {t("customers.overdueFollowUp")}
+                          </Badge>
                         )}
-                        <ReclamationCountdownBadge countdown={c.reclamationCountdown} />
+                        <ReclamationCountdownBadge
+                          countdown={c.reclamationCountdown}
+                        />
                         {!c.neverContacted &&
                           !c.overdueFollowUp &&
                           !c.reclamationCountdown && (
-                          <span className="text-xs crm-text-secondary">—</span>
-                        )}
+                            <span className="text-xs crm-text-secondary">
+                              —
+                            </span>
+                          )}
                       </div>
                     </Td>
                     <Td>
@@ -726,7 +808,9 @@ export function CustomersListClient({
                         </span>
                       )}
                     </Td>
-                    <Td className="crm-text-secondary">{formatHongKongDate(c.createdAt)}</Td>
+                    <Td className="crm-text-secondary">
+                      {formatHongKongDate(c.createdAt)}
+                    </Td>
                   </Tr>
                 ))}
               </TableBody>

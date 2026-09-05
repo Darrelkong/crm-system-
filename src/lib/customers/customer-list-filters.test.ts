@@ -11,8 +11,13 @@ import {
 import {
   CUSTOMER_LIST_PAGE_SIZE,
   buildCustomerListPagination,
+  parseCustomerListFilter,
   parseCustomerListPageParams,
 } from "@/lib/customers/queries";
+import type { User } from "../../../drizzle/schema/users";
+
+const staffUser = { id: "staff-1", role: "staff" } as User;
+const adminUser = { id: "admin-1", role: "admin" } as User;
 
 describe("customer list filter helpers", () => {
   it("exports status exclusion helpers", () => {
@@ -40,6 +45,21 @@ describe("customer list filter helpers", () => {
   it("owned normal list where composes owner with normal status", () => {
     const where = ownedNormalCustomerListWhere("user-1");
     assert.ok(where);
+  });
+
+  it("parses staff relationship filters and ignores them for admins", () => {
+    assert.deepEqual(
+      parseCustomerListFilter(staffUser, { relationship: "owner" }),
+      { relationship: "owner" },
+    );
+    assert.deepEqual(
+      parseCustomerListFilter(staffUser, { relationship: "collaborator" }),
+      { relationship: "collaborator" },
+    );
+    assert.deepEqual(
+      parseCustomerListFilter(adminUser, { relationship: "collaborator" }),
+      {},
+    );
   });
 });
 

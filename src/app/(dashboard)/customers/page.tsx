@@ -46,6 +46,7 @@ type Props = {
     ownerId?: string;
     sort?: string;
     perf?: string;
+    relationship?: string;
   }>;
 };
 
@@ -64,6 +65,7 @@ export default async function CustomersPage({ searchParams }: Props) {
         workView: params.workView,
         salesStage: params.salesStage,
         ownerId: params.ownerId,
+        relationship: params.relationship,
         page: params.page,
       }),
     );
@@ -88,9 +90,7 @@ export default async function CustomersPage({ searchParams }: Props) {
       salesStage: params.salesStage,
       ownerId: params.ownerId,
     }),
-    ...(reclamationCustomerIds !== undefined
-      ? { reclamationCustomerIds }
-      : {}),
+    ...(reclamationCustomerIds !== undefined ? { reclamationCustomerIds } : {}),
   };
   const showArchived = listFilter.status === "archived";
   const listQueryOptions = {
@@ -116,9 +116,7 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   const creatorOptionsPromise =
     user.role === "admin"
-      ? listCustomerCreatorsForAdmin(
-          showArchived ? { status: "archived" } : {},
-        )
+      ? listCustomerCreatorsForAdmin(showArchived ? { status: "archived" } : {})
       : Promise.resolve([]);
 
   let initialRows: Awaited<ReturnType<typeof buildCustomerListRows>> = [];
@@ -128,18 +126,11 @@ export default async function CustomersPage({ searchParams }: Props) {
   if (hasScoringFilter) {
     const scoringNow = new Date();
     const [result, resolvedCreatorOptions] = await Promise.all([
-      loadScoredCustomerListPage(
-        db,
-        user,
-        listFilter,
-        scoringFilter,
-        page,
-        {
-          settings,
-          now: scoringNow,
-          ...listQueryOptions,
-        },
-      ),
+      loadScoredCustomerListPage(db, user, listFilter, scoringFilter, page, {
+        settings,
+        now: scoringNow,
+        ...listQueryOptions,
+      }),
       creatorOptionsPromise,
     ]);
     creatorOptions = resolvedCreatorOptions;
@@ -147,16 +138,12 @@ export default async function CustomersPage({ searchParams }: Props) {
     initialRows = await buildCustomerListRows(db, result.items, {
       assigneesByCustomerId: result.assigneesByCustomerId,
       householdIconCustomerIds: result.householdIconCustomerIds,
+      viewer: user,
     });
     pagination = result.pagination;
   } else {
     const [result, resolvedCreatorOptions] = await Promise.all([
-      listCustomersForUserPaginated(
-        user,
-        listFilter,
-        page,
-        listQueryOptions,
-      ),
+      listCustomersForUserPaginated(user, listFilter, page, listQueryOptions),
       creatorOptionsPromise,
     ]);
     creatorOptions = resolvedCreatorOptions;
@@ -184,6 +171,7 @@ export default async function CustomersPage({ searchParams }: Props) {
     initialRows = await buildCustomerListRows(db, views, {
       assigneesByCustomerId,
       householdIconCustomerIds,
+      viewer: user,
     });
     pagination = result.pagination;
   }
@@ -211,6 +199,12 @@ export default async function CustomersPage({ searchParams }: Props) {
       filterWorkView={params.workView}
       filterSalesStage={params.salesStage}
       filterOwnerId={params.ownerId}
+      filterRelationship={
+        params.relationship === "owner" ||
+        params.relationship === "collaborator"
+          ? params.relationship
+          : undefined
+      }
       filterReclamationRisk={params.reclamationRisk}
     />
   );

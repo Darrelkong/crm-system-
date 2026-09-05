@@ -58,6 +58,7 @@ export type CustomerListUrlParams = {
   workView?: string;
   salesStage?: string;
   ownerId?: string;
+  relationship?: string;
 };
 
 /** Build `/customers` path; never emits legacy `sort` query params. */
@@ -87,6 +88,9 @@ export function buildCustomersPagePath(params: CustomerListUrlParams): string {
   }
   if (params.ownerId) {
     search.set("ownerId", params.ownerId);
+  }
+  if (params.relationship) {
+    search.set("relationship", params.relationship);
   }
   if (params.page && params.page !== "1") {
     search.set("page", params.page);

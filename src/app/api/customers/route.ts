@@ -17,9 +17,7 @@ import {
 import { loadScoredCustomerListPage } from "@/lib/customers/scoring/scoring-list-runtime";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import { getRequestMeta } from "@/lib/auth/cookies";
-import {
-  parseCustomerListSortParam,
-} from "@/lib/customers/customer-list-sort";
+import { parseCustomerListSortParam } from "@/lib/customers/customer-list-sort";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { buildCustomerListRows } from "@/lib/customers/list-rows";
 import { getAssigneeCustomerIdsForUser } from "@/lib/customers/assignees";
@@ -42,12 +40,12 @@ export async function GET(request: Request) {
       workView: url.searchParams.get("workView") ?? undefined,
       salesStage: url.searchParams.get("salesStage") ?? undefined,
       ownerId: url.searchParams.get("ownerId") ?? undefined,
+      relationship: url.searchParams.get("relationship") ?? undefined,
     });
     const archived = listFilter.status === "archived";
-    const sortMode = parseCustomerListSortParam(
-      url.searchParams.get("sort"),
-      { archived },
-    );
+    const sortMode = parseCustomerListSortParam(url.searchParams.get("sort"), {
+      archived,
+    });
     const scoringFilter = parseScoringListFilter(url.searchParams);
     const { page } = parseCustomerListPageParams({
       page: url.searchParams.get("page"),
@@ -80,6 +78,7 @@ export async function GET(request: Request) {
       const rows = await buildCustomerListRows(db, result.items, {
         assigneesByCustomerId: result.assigneesByCustomerId,
         householdIconCustomerIds: result.householdIconCustomerIds,
+        viewer: user,
       });
 
       return Response.json({
@@ -122,7 +121,7 @@ export async function GET(request: Request) {
       new Date(),
       assigneeIds,
     );
-    const rows = await buildCustomerListRows(db, items);
+    const rows = await buildCustomerListRows(db, items, { viewer: user });
 
     return Response.json({
       items: rows,
@@ -167,10 +166,16 @@ export async function POST(request: Request) {
         action: "customer.create_failed.validation",
         ipAddress,
         userAgent,
-        metadata: prepared.auditMetadata ?? { fieldErrors: prepared.fieldErrors },
+        metadata: prepared.auditMetadata ?? {
+          fieldErrors: prepared.fieldErrors,
+        },
       });
       return Response.json(
-        { error: "输入校验失败", errorCode: "VALIDATION_FAILED", fieldErrors: prepared.fieldErrors },
+        {
+          error: "输入校验失败",
+          errorCode: "VALIDATION_FAILED",
+          fieldErrors: prepared.fieldErrors,
+        },
         { status: 400 },
       );
     }
