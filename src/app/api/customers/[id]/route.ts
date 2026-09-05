@@ -40,6 +40,8 @@ import { getRequestMeta } from "@/lib/auth/cookies";
 import { getActiveCustomerTagKeys } from "@/lib/customer-tags/queries";
 import { mergePriorityFieldsForStageTransition, priorityAuditSnapshot } from "@/lib/customers/priority-customer";
 import { writeAutomaticPriorityAudit } from "@/lib/customers/priority-customer-approval";
+import { listCustomerAssignees } from "@/lib/customers/assignees";
+import { resolveCustomerDetailDisplayNames } from "@/lib/customers/user-labels";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -72,7 +74,22 @@ export async function GET(request: Request, context: RouteContext) {
     try {
       assertStaffCanViewCustomerDetailPage(user, customer);
       const customerView = await enrichCustomerResponse(db, user, customer);
-      return Response.json({ customer: customerView });
+      if (customerView.accessLevel !== "full") {
+        return Response.json({ customer: customerView });
+      }
+
+      const displayNames = await resolveCustomerDetailDisplayNames(
+        db,
+        customer,
+        await listCustomerAssignees(db, id),
+      );
+      return Response.json({
+        customer: {
+          ...customerView,
+          primaryOwner: displayNames.primaryOwner,
+          collaborators: displayNames.collaborators,
+        },
+      });
     } catch (err) {
       if (err instanceof PermissionError) {
         await logPermissionDenied(request, {

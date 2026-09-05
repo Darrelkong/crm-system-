@@ -77,6 +77,8 @@ export type CustomerView = {
   status: string;
   ownerId: string | null;
   ownerName?: string | null;
+  primaryOwner?: { id: string; displayName: string } | null;
+  collaborators?: Array<{ id: string; displayName: string }>;
   accessLevel: CustomerAccessLevel;
   isMasked: boolean;
   isArchived?: boolean;
@@ -626,7 +628,61 @@ function withCustomerCodeVisibility(user: User, view: CustomerView): CustomerVie
   return rest;
 }
 
-/** Admin may directly manage collaborator assignees; owner staff uses approval (D-2d). */
+/**
+ * The primary owner or a CRM admin may directly manage collaborators.
+ *
+ * This guard is intentionally separate from customer transfer permissions:
+ * collaborator membership never changes customers.owner_id.
+ */
+export function assertCanManageCustomerCollaborators(
+  user: User,
+  customer: Customer,
+): void {
+  assertCustomerNotArchived(
+    customer,
+    "customer.collaborators.manage_failed.archived",
+  );
+
+  if (isPublicPoolCustomer(customer) || customer.deletedAt) {
+    throw new PermissionError(
+      403,
+      "无权管理该客户的协作成员",
+      "permission.denied.customer_collaborators_manage",
+    );
+  }
+
+  if (customer.status !== "active") {
+    throw new PermissionError(
+      403,
+      "当前客户状态不允许管理协作成员",
+      "permission.denied.customer_collaborators_manage",
+    );
+  }
+
+  if (user.role === "admin" || customer.ownerId === user.id) {
+    return;
+  }
+
+  throw new PermissionError(
+    403,
+    "只有主负责人或管理员可以管理协作成员",
+    "permission.denied.customer_collaborators_manage",
+  );
+}
+
+export function canManageCustomerCollaborators(
+  user: User,
+  customer: Customer,
+): boolean {
+  try {
+    assertCanManageCustomerCollaborators(user, customer);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** Compatibility guard for the legacy admin Staff picker. */
 export function assertCanManageCustomerAssignees(
   user: User,
   customer: Customer,

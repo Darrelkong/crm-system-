@@ -327,6 +327,8 @@ export default async function CustomerDetailPage({ params, searchParams }: Props
           primaryConcern: view.primaryConcern,
           ownerId: view.ownerId,
           ownerName: displayNames.ownerName,
+          primaryOwner: displayNames.primaryOwner,
+          collaborators: displayNames.collaborators,
           assigneeNames: displayNames.assigneeNames,
           createdByName: displayNames.createdByName,
           lastFollowUpAt: view.lastFollowUpAt,

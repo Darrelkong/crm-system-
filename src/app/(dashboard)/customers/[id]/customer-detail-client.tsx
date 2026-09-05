@@ -83,6 +83,8 @@ export type CustomerDetailView = {
   primaryConcern?: string | null;
   ownerId?: string | null;
   ownerName?: string | null;
+  primaryOwner?: { id: string; displayName: string } | null;
+  collaborators?: Array<{ id: string; displayName: string }>;
   assigneeNames?: string[];
   createdByName?: string | null;
   lastFollowUpAt?: string | null;

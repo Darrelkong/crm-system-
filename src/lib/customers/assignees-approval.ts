@@ -122,7 +122,10 @@ export async function getCustomerAssigneesPreviewPayload(
 
   assertCanRequestCustomerAssigneeUpdate(user, customer);
   await assertCustomerCollaboratorsMutable(db, customer.id);
-  return buildCustomerAssigneesAdminPayload(db, customer, user);
+  const payload = await buildCustomerAssigneesAdminPayload(db, customer, user);
+  // The legacy Staff picker is compatibility-only. Do not expose a generic
+  // active-Staff directory while direct exact-email management is introduced.
+  return { ...payload, availableStaff: [] };
 }
 
 async function notifyAdminsAssigneePending(

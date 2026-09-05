@@ -9,13 +9,14 @@ import {
   type CustomerAssigneeRecord,
 } from "@/lib/customers/assignees";
 import {
-  applyCollaboratorAssignees,
   assertCustomerCollaboratorsMutable,
   AssigneeMutationError,
   type AssigneeMutationErrorCode,
 } from "@/lib/customers/assignees-mutations";
+import { setCustomerCollaborators } from "@/lib/customers/collaborators";
 import {
   assertCanManageCustomerAssignees,
+  assertCanManageCustomerCollaborators,
   PermissionError,
   resolveCustomerAccessOptions,
   getCustomerAccessLevel,
@@ -48,6 +49,12 @@ export function mapAssigneeMutationErrorToApiCode(
     case "INVALID_COLLABORATOR_IDS":
     case "COLLABORATOR_USER_NOT_STAFF":
       return "ASSIGNEE_INVALID_PAYLOAD";
+    case "COLLABORATOR_SELF":
+      return "ASSIGNEE_SELF_NOT_ALLOWED";
+    case "COLLABORATOR_ALREADY_EXISTS":
+      return "ASSIGNEE_ALREADY_EXISTS";
+    case "COLLABORATOR_NOT_FOUND":
+      return "ASSIGNEE_NOT_FOUND";
     case "COLLABORATOR_INCLUDES_OWNER":
       return "ASSIGNEE_OWNER_NOT_ALLOWED";
     case "COLLABORATOR_INCLUDES_ADMIN":
@@ -59,6 +66,8 @@ export function mapAssigneeMutationErrorToApiCode(
       return "ASSIGNEE_USER_NOT_FOUND";
     case "CUSTOMER_NOT_FOUND":
       return "CUSTOMER_NOT_FOUND";
+    case "CUSTOMER_NOT_ACTIVE":
+      return "CUSTOMER_ASSIGNEES_FORBIDDEN";
     default:
       return "SERVER_ERROR";
   }
@@ -143,8 +152,7 @@ export async function updateCustomerCollaborators(
   customer: Customer,
   body: unknown,
 ): Promise<CustomerAssigneesAdminPayload> {
-  assertCanAdminManageAssignees(user, customer);
-  await assertCustomerCollaboratorsMutable(db, customer.id);
+  assertCanManageCustomerCollaborators(user, customer);
 
   const input =
     body && typeof body === "object" && "collaboratorUserIds" in body
@@ -152,10 +160,10 @@ export async function updateCustomerCollaborators(
       : body;
 
   try {
-    await applyCollaboratorAssignees(db, {
-      customerId: customer.id,
+    await setCustomerCollaborators(db, {
+      actor: user,
+      customer,
       collaboratorUserIds: input,
-      assignedBy: user.id,
     });
   } catch (error) {
     if (error instanceof AssigneeMutationError) {
@@ -184,7 +192,10 @@ export function toAssigneesPermissionError(error: unknown): AssigneesApiError | 
     };
   }
 
-  if (error.auditAction === "permission.denied.customer_assignees_manage") {
+  if (
+    error.auditAction === "permission.denied.customer_assignees_manage" ||
+    error.auditAction === "permission.denied.customer_collaborators_manage"
+  ) {
     return {
       status: 403,
       message: error.message,
@@ -203,7 +214,10 @@ export function toAssigneesPermissionError(error: unknown): AssigneesApiError | 
     };
   }
 
-  if (error.auditAction === "customer.assignees.manage_failed.archived") {
+  if (
+    error.auditAction === "customer.assignees.manage_failed.archived" ||
+    error.auditAction === "customer.collaborators.manage_failed.archived"
+  ) {
     return {
       status: error.status,
       message: error.message,

@@ -2636,6 +2636,8 @@ const en = {
     approval_approved: "Request Approved",
     approval_rejected: "Request Rejected",
     customer_transferred: "Client Transferred",
+    customer_collaborator_added: "Added as collaborator",
+    customer_collaborator_removed: "Removed as collaborator",
     customer_closed_won_approved: "Close-Won Approved",
     customer_pending_second_conversion: "Pending second conversion",
     backup_failed: "Backup Failed",
@@ -2657,6 +2659,10 @@ const en = {
       "Client \"{{customerName}}\" has been transferred to another team member.",
     customerTransferredToYou:
       "Client \"{{customerName}}\" has been transferred to you.",
+    collaboratorAdded:
+      "{{actorName}} added you as a collaborator on \"{{customerName}}\".",
+    collaboratorRemoved:
+      "You are no longer a collaborator on \"{{customerName}}\".",
     closedWonApproved:
       "Close-won request for \"{{customerName}}\" has been approved.",
     pendingSecondConversion:
@@ -4229,6 +4235,11 @@ const en = {
     customerClaimedFromPool: "Claimed from public pool",
     customerAutoReclaimed: "Auto-reclaimed to public pool",
     customerTransferred: "Client transferred",
+    customerCollaboratorAdded: "Collaborator added",
+    customerCollaboratorRemoved: "Collaborator removed",
+    collaboratorAddedDescription: "{{collaboratorName}} was added as a collaborator",
+    collaboratorRemovedDescription:
+      "{{collaboratorName}} was removed as a collaborator",
     customerTransferredStaffDeleted:
       "The previous owner was deleted; the client was transferred to an administrator",
     staffDeletedTransfer:

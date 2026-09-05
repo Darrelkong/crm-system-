@@ -2537,6 +2537,8 @@ const zhHans: Messages = {
     approval_approved: "申请已通过",
     approval_rejected: "申请已拒绝",
     customer_transferred: "客户已转移",
+    customer_collaborator_added: "已添加为协作成员",
+    customer_collaborator_removed: "已移除协作成员",
     customer_closed_won_approved: "成交申请已通过",
     customer_pending_second_conversion: "待二次转化",
     backup_failed: "系统备份失败",
@@ -2553,6 +2555,9 @@ const zhHans: Messages = {
     approvalRejectedWithComment: "你的{{approvalType}}申请已拒绝。审批意见：{{adminComment}}",
     customerTransferredAway: "客户「{{customerName}}」已转移给其他同事。",
     customerTransferredToYou: "客户「{{customerName}}」已转移给你。",
+    collaboratorAdded:
+      "{{actorName}} 已将你添加为「{{customerName}}」的协作成员。",
+    collaboratorRemoved: "你已不再参与「{{customerName}}」的协作。",
     closedWonApproved: "客户「{{customerName}}」成交申请已通过。",
     pendingSecondConversion:
       "客户「{{customerName}}」已完成当前流程，建议安排后续二次转化跟进。",
@@ -4063,6 +4068,10 @@ const zhHans: Messages = {
     customerClaimedFromPool: "客户已从公共池领取",
     customerAutoReclaimed: "客户已自动回收到公共池",
     customerTransferred: "客户已转移",
+    customerCollaboratorAdded: "已添加协作成员",
+    customerCollaboratorRemoved: "已移除协作成员",
+    collaboratorAddedDescription: "{{collaboratorName}} 已加入协作成员",
+    collaboratorRemovedDescription: "{{collaboratorName}} 已被移除协作成员",
     customerTransferredStaffDeleted: "原负责团队成员已被删除，客户已自动转交给管理员",
     staffDeletedTransfer:
       "原负责人：{{previousOwnerName}} → 新负责人：{{newOwnerName}}",

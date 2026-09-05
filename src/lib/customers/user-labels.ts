@@ -11,6 +11,8 @@ export type CustomerDetailDisplayNames = {
   ownerName: string | null;
   createdByName: string | null;
   assigneeNames: string[];
+  primaryOwner: { id: string; displayName: string } | null;
+  collaborators: Array<{ id: string; displayName: string }>;
 };
 
 export async function resolveUserDisplayNames(
@@ -84,6 +86,13 @@ export async function resolveCustomerDetailDisplayNames(
     ...assignees.map((assignee) => assignee.userId),
   ]);
 
+  const collaborators = assignees
+    .filter((assignee) => assignee.role === "collaborator")
+    .map((assignee) => ({
+      id: assignee.userId,
+      displayName: nameMap.get(assignee.userId) ?? assignee.userId,
+    }));
+
   return {
     ownerName: customer.ownerId
       ? (nameMap.get(customer.ownerId) ?? null)
@@ -92,6 +101,14 @@ export async function resolveCustomerDetailDisplayNames(
       ? (nameMap.get(customer.createdBy) ?? null)
       : null,
     assigneeNames: formatAssigneeDisplayNames(assignees, nameMap),
+    primaryOwner:
+      customer.ownerId && nameMap.has(customer.ownerId)
+        ? {
+            id: customer.ownerId,
+            displayName: nameMap.get(customer.ownerId)!,
+          }
+        : null,
+    collaborators,
   };
 }
 
@@ -156,6 +173,13 @@ export async function resolveAdminCustomerDetailDisplayNames(
     nameMap.set(row.id, row.displayName);
   }
 
+  const collaborators = assignees
+    .filter((assignee) => assignee.role === "collaborator")
+    .map((assignee) => ({
+      id: assignee.userId,
+      displayName: nameMap.get(assignee.userId) ?? assignee.userId,
+    }));
+
   return {
     ownerName: customer.ownerId
       ? (nameMap.get(customer.ownerId) ?? null)
@@ -164,6 +188,14 @@ export async function resolveAdminCustomerDetailDisplayNames(
       ? (nameMap.get(customer.createdBy) ?? null)
       : null,
     assigneeNames: formatAssigneeDisplayNames(assignees, nameMap),
+    primaryOwner:
+      customer.ownerId && nameMap.has(customer.ownerId)
+        ? {
+            id: customer.ownerId,
+            displayName: nameMap.get(customer.ownerId)!,
+          }
+        : null,
+    collaborators,
   };
 }
 

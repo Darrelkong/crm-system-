@@ -201,13 +201,18 @@ describe("assignees admin API helpers", () => {
     );
   });
 
-  it("owner staff PUT is forbidden", async () => {
-    await expectPermissionError(
-      () =>
-        updateCustomerCollaborators(db, staffA, activeCustomer, {
-          collaboratorUserIds: [SEED_IDS.staffB],
-        }),
-      "CUSTOMER_ASSIGNEES_FORBIDDEN",
+  it("owner staff PUT applies collaborators directly", async () => {
+    const payload = await updateCustomerCollaborators(
+      db,
+      staffA,
+      activeCustomer,
+      {
+        collaboratorUserIds: [SEED_IDS.staffB],
+      },
+    );
+    assert.deepEqual(
+      payload.collaborators.map((row) => row.id),
+      [SEED_IDS.staffB],
     );
   });
 

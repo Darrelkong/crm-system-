@@ -28,6 +28,8 @@ const AUDIT_ACTION_MESSAGE_KEYS: Record<string, string> = {
   "customer.auto_reclaimed_to_pool": "customerAutoReclaimed",
   "customer.transferred": "customerTransferred",
   "customer.transferred.staff_deleted": "customerTransferredStaffDeleted",
+  "customer.collaborator_added": "customerCollaboratorAdded",
+  "customer.collaborator_removed": "customerCollaboratorRemoved",
   "customer.closed_won.approved": "customerClosedWonApproved",
   "customer.paid.approved": "customerPaidApproved",
   "customer.lifecycle.completed": "customerLifecycleCompleted",
@@ -239,6 +241,16 @@ function buildAuditItem(
     descriptionKey = "timelineMessages.onHoldCreateRejected";
     descriptionParams = {
       adminComment: String(metadata.adminComment ?? ""),
+    };
+  } else if (row.action === "customer.collaborator_added") {
+    descriptionKey = "timelineMessages.collaboratorAddedDescription";
+    descriptionParams = {
+      collaboratorName: String(metadata.collaboratorName ?? ""),
+    };
+  } else if (row.action === "customer.collaborator_removed") {
+    descriptionKey = "timelineMessages.collaboratorRemovedDescription";
+    descriptionParams = {
+      collaboratorName: String(metadata.collaboratorName ?? ""),
     };
   } else if (typeof metadata.timelineMessage === "string") {
     descriptionKey = undefined;

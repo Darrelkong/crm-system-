@@ -12,6 +12,8 @@ export const NOTIFICATION_TYPES = [
   "approval.approved",
   "approval.rejected",
   "customer.transferred",
+  "customer.collaborator_added",
+  "customer.collaborator_removed",
   "customer.closed_won.approved",
   "customer.pending_second_conversion",
   "backup_failed",
