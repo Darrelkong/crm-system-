@@ -186,6 +186,7 @@ export async function createFamilyMemberCustomer(input: {
     db: input.db,
     preallocatedId: targetId,
     forceCustomerType: "individual",
+    includeCollaborators: false,
   });
 
   if (prepared.kind === "validation") {

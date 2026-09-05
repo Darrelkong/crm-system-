@@ -52,33 +52,26 @@ export async function assertCustomerCollaboratorsMutable(
   await assertCustomerNotPendingOnHoldCreate(db, customerId);
 }
 
-export async function assertValidCollaboratorAssignees(
+export async function assertValidCollaboratorUsers(
   db: Database,
-  customerId: string,
   collaboratorUserIds: string[],
+  options: { primaryOwnerId?: string | null; actorId?: string } = {},
 ): Promise<void> {
-  const customerRows = await db
-    .select({
-      id: schema.customers.id,
-      ownerId: schema.customers.ownerId,
-    })
-    .from(schema.customers)
-    .where(eq(schema.customers.id, customerId))
-    .limit(1);
-
-  const customer = customerRows[0];
-  if (!customer) {
-    throw new AssigneeMutationError("CUSTOMER_NOT_FOUND", "客户不存在");
-  }
-
-  if (customer.ownerId) {
-    for (const userId of collaboratorUserIds) {
-      if (userId === customer.ownerId) {
-        throw new AssigneeMutationError(
-          "COLLABORATOR_INCLUDES_OWNER",
-          "不能将主负责员工加入共同负责",
-        );
-      }
+  for (const userId of collaboratorUserIds) {
+    if (
+      options.primaryOwnerId &&
+      userId === options.primaryOwnerId
+    ) {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_INCLUDES_OWNER",
+        "不能将主负责员工加入共同负责",
+      );
+    }
+    if (options.actorId && userId === options.actorId) {
+      throw new AssigneeMutationError(
+        "COLLABORATOR_SELF",
+        "不能将自己加入为协作成员",
+      );
     }
   }
 
@@ -135,6 +128,30 @@ export async function assertValidCollaboratorAssignees(
       );
     }
   }
+}
+
+export async function assertValidCollaboratorAssignees(
+  db: Database,
+  customerId: string,
+  collaboratorUserIds: string[],
+): Promise<void> {
+  const customerRows = await db
+    .select({
+      id: schema.customers.id,
+      ownerId: schema.customers.ownerId,
+    })
+    .from(schema.customers)
+    .where(eq(schema.customers.id, customerId))
+    .limit(1);
+
+  const customer = customerRows[0];
+  if (!customer) {
+    throw new AssigneeMutationError("CUSTOMER_NOT_FOUND", "客户不存在");
+  }
+
+  await assertValidCollaboratorUsers(db, collaboratorUserIds, {
+    primaryOwnerId: customer.ownerId,
+  });
 }
 
 export async function applyCollaboratorAssignees(

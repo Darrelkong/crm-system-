@@ -144,8 +144,8 @@ async function notifyCollaboratorEvent(
         actorName: actor?.displayName ?? actorId,
         customerName: customer.customerName,
       },
-      relatedEntityType: "customer_collaborator",
-      relatedEntityId: event.auditId,
+      relatedEntityType: "customer",
+      relatedEntityId: customer.id,
     });
   } catch (error) {
     // Membership and audit are already durable. Notification delivery is best effort.
@@ -169,6 +169,22 @@ async function notifyCollaboratorEvents(
       notifyCollaboratorEvent(db, customer, actorId, event),
     ),
   );
+}
+
+export async function notifyCustomerCollaboratorAdded(
+  db: Database,
+  customer: Customer,
+  actorId: string,
+  event: {
+    auditId: string;
+    collaboratorUserId: string;
+    collaboratorName: string;
+  },
+): Promise<void> {
+  await notifyCollaboratorEvent(db, customer, actorId, {
+    ...event,
+    action: "added",
+  });
 }
 
 export async function listCustomerCollaborators(

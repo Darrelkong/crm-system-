@@ -58,7 +58,12 @@ async function resetCustomer(db: Db): Promise<void> {
     );
   await db
     .delete(schema.notifications)
-    .where(eq(schema.notifications.relatedEntityType, "customer_collaborator"));
+    .where(
+      and(
+        eq(schema.notifications.relatedEntityType, "customer"),
+        eq(schema.notifications.relatedEntityId, CUSTOMER_ID),
+      ),
+    );
 }
 
 describe("direct customer collaborator management", () => {
@@ -227,7 +232,8 @@ describe("direct customer collaborator management", () => {
       .where(
         and(
           eq(schema.notifications.userId, COLLABORATOR_ID),
-          eq(schema.notifications.relatedEntityType, "customer_collaborator"),
+          eq(schema.notifications.relatedEntityType, "customer"),
+          eq(schema.notifications.relatedEntityId, CUSTOMER_ID),
         ),
       );
     assert.equal(notifications.length, 2);

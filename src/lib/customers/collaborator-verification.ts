@@ -37,16 +37,20 @@ export function normalizeCollaboratorEmail(input: unknown): string | null {
  * malformed, missing, inactive, deleted, admin, owner, self, and already
  * assigned users into the same non-enumerating response.
  */
-export async function verifyCustomerCollaboratorEmail(
+export async function verifyCollaboratorEmail(
   db: Database,
   input: {
     actor: User;
-    customer: Customer;
+    customer?: Customer;
+    primaryOwnerId?: string | null;
+    selectedCollaboratorIds?: readonly string[];
     email: unknown;
   },
 ): Promise<VerifiedCollaborator | null> {
-  assertCanManageCustomerCollaborators(input.actor, input.customer);
-  await assertCustomerCollaboratorsMutable(db, input.customer.id);
+  if (input.customer) {
+    assertCanManageCustomerCollaborators(input.actor, input.customer);
+    await assertCustomerCollaboratorsMutable(db, input.customer.id);
+  }
 
   const normalized = normalizeCollaboratorEmail(input.email);
   if (!normalized) {
@@ -77,14 +81,17 @@ export async function verifyCustomerCollaboratorEmail(
     !target ||
     target.deletedAt ||
     target.id === input.actor.id ||
-    target.id === input.customer.ownerId
+    target.id === (input.primaryOwnerId ?? input.customer?.ownerId) ||
+    input.selectedCollaboratorIds?.includes(target.id)
   ) {
     return null;
   }
 
-  const collaborators = await listCustomerCollaborators(db, input.customer.id);
-  if (collaborators.some((row) => row.userId === target.id)) {
-    return null;
+  if (input.customer) {
+    const collaborators = await listCustomerCollaborators(db, input.customer.id);
+    if (collaborators.some((row) => row.userId === target.id)) {
+      return null;
+    }
   }
 
   return {
@@ -92,4 +99,15 @@ export async function verifyCustomerCollaboratorEmail(
     displayName: target.displayName,
     email: normalized,
   };
+}
+
+export async function verifyCustomerCollaboratorEmail(
+  db: Database,
+  input: {
+    actor: User;
+    customer: Customer;
+    email: unknown;
+  },
+): Promise<VerifiedCollaborator | null> {
+  return verifyCollaboratorEmail(db, input);
 }

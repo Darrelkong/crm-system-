@@ -61,6 +61,10 @@ import {
   shouldExpandCustomerProfileSection,
 } from "@/components/customers/customer-profile-section";
 import { type CustomerProfileFormFields } from "@/lib/customers/customer-profile";
+import {
+  CustomerCreateCollaborators,
+  type SelectedCustomerCollaborator,
+} from "./customer-create-collaborators";
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
@@ -108,11 +112,13 @@ export function NewCustomerForm({
   sourceMenuOptions,
   selectableSourceKeys,
   userId,
+  ownerOptions = [],
   familyContext,
 }: {
   sourceMenuOptions: CustomerSourceMenuOption[];
   selectableSourceKeys: string[];
   userId: string;
+  ownerOptions?: Array<{ id: string; displayName: string }>;
   familyContext?: NewCustomerFormFamilyContext;
 }) {
   const router = useRouter();
@@ -150,6 +156,10 @@ export function NewCustomerForm({
   const [form, setForm] = useState<FormState>(() =>
     toFormState(createEmptyCustomerCreateFormData()),
   );
+  const [primaryOwnerId, setPrimaryOwnerId] = useState(userId);
+  const [selectedCollaborators, setSelectedCollaborators] = useState<
+    SelectedCustomerCollaborator[]
+  >([]);
   const [draftSavedAt, setDraftSavedAt] = useState<number | null>(null);
   const [draftStorageUnavailable, setDraftStorageUnavailable] = useState(false);
   const [showDraftRestoreModal, setShowDraftRestoreModal] = useState(false);
@@ -270,6 +280,23 @@ export function NewCustomerForm({
     }
   }
 
+  function changePrimaryOwner(nextOwnerId: string) {
+    setPrimaryOwnerId(nextOwnerId);
+    const conflictingCollaborator = selectedCollaborators.find(
+      (collaborator) => collaborator.id === nextOwnerId,
+    );
+    if (conflictingCollaborator) {
+      setSelectedCollaborators((current) =>
+        current.filter((collaborator) => collaborator.id !== nextOwnerId),
+      );
+      setServerError(
+        t("customers.collaboratorRemovedOwnerConflict", {
+          name: conflictingCollaborator.displayName,
+        }),
+      );
+    }
+  }
+
   function continueDraft() {
     if (pendingDraft) {
       setForm(toFormState(pendingDraft));
@@ -315,6 +342,16 @@ export function NewCustomerForm({
   ) {
     const body = {
       ...(onHoldReason ? { ...form, onHoldReason } : { ...form }),
+      ...(!familyContext && ownerOptions.length > 0
+        ? { ownerId: primaryOwnerId }
+        : {}),
+      ...(!familyContext && selectedCollaborators.length > 0
+        ? {
+            collaboratorIds: selectedCollaborators.map(
+              (collaborator) => collaborator.id,
+            ),
+          }
+        : {}),
       ...(familyContext
         ? {
             customerType: "individual" as const,
@@ -639,10 +676,37 @@ export function NewCustomerForm({
         </p>
       )}
 
+      {!familyContext ? (
+        <CustomerCreateCollaborators
+          selected={selectedCollaborators}
+          primaryOwnerId={primaryOwnerId}
+          onChange={(next) => setSelectedCollaborators(next)}
+        />
+      ) : null}
+
       <div className="surface-card p-6">
         <h3 className="mb-4 text-base font-semibold text-[#172033]">
           {t("customers.basicSection")}
         </h3>
+
+        {ownerOptions.length > 0 ? (
+          <Field>
+            <Label htmlFor="primaryOwnerId">
+              {t("customers.primaryOwner")}
+            </Label>
+            <Select
+              id="primaryOwnerId"
+              value={primaryOwnerId}
+              onChange={(event) => changePrimaryOwner(event.target.value)}
+            >
+              {ownerOptions.map((owner) => (
+                <option key={owner.id} value={owner.id}>
+                  {owner.displayName}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        ) : null}
 
         <Field>
           <Label htmlFor="customerType">{t("customers.clientType")}</Label>

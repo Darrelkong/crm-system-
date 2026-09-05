@@ -1635,6 +1635,21 @@ const en = {
     newDescription: "Enter client details. Fields marked * are required.",
     editingDescription: "Editing: {{name}}",
     basicSection: "Basic Information",
+    collaboratorsOptional: "Collaborators (optional)",
+    collaboratorsOptionalDescription:
+      "Invite teammates to help follow up without changing the primary owner.",
+    addCollaborator: "Add collaborator",
+    removeCollaborator: "Remove collaborator",
+    collaboratorEmail: "Full CRM email",
+    collaboratorEmailGuidance:
+      "Enter the teammate’s complete CRM login email to verify.",
+    verifyCollaborator: "Verify",
+    verifyingCollaborator: "Verifying…",
+    collaboratorVerifyFailed:
+      "No collaborator is available to add. Check that the full CRM email is correct.",
+    collaboratorAlreadyAdded: "This member has already been added.",
+    collaboratorRemovedOwnerConflict:
+      "{{name}} was removed from collaborators because they are now the primary owner.",
     identityAndNeedsSection: "Identity and needs",
     contactSection: "Contact details",
     sourceAndStage: "Source and Communication",

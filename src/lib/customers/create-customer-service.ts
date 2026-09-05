@@ -1,5 +1,5 @@
 import type { User } from "../../../drizzle/schema/users";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { writeAuditLog } from "@/lib/audit/audit-log";
 import { getDb, schema, type Database } from "@/lib/db";
 import { parseCustomerBody } from "@/lib/customers/parse-input";
@@ -21,6 +21,15 @@ import {
 import { buildCustomerUpdatePayload } from "@/lib/customers/field-change-log";
 import { allocateCustomerCode } from "@/lib/customers/customer-code";
 import { buildInsertPrimaryAssigneeStatement } from "@/lib/customers/primary-assignee";
+import {
+  assertValidCollaboratorUsers,
+  AssigneeMutationError,
+} from "@/lib/customers/assignees-mutations";
+import { validateCollaboratorUserIds } from "@/lib/customers/assignees-validation";
+import {
+  COLLABORATOR_ADDED_AUDIT_ACTION,
+  notifyCustomerCollaboratorAdded,
+} from "@/lib/customers/collaborators";
 import {
   buildOnHoldCreateApprovalPayload,
   isStaffOnHoldCreatePending,
@@ -52,6 +61,11 @@ export type CustomerCreatePreparedMeta = {
   duplicateNameWarningConfirmed: boolean;
   payload: ReturnType<typeof buildCustomerUpdatePayload>;
   now: string;
+  collaboratorEvents: Array<{
+    auditId: string;
+    collaboratorUserId: string;
+    collaboratorName: string;
+  }>;
 };
 
 export type PrepareCustomerCreationResult =
@@ -120,6 +134,7 @@ export async function prepareCustomerCreation(input: {
   db?: Database;
   preallocatedId?: string;
   forceCustomerType?: CustomerType;
+  includeCollaborators?: boolean;
 }): Promise<PrepareCustomerCreationResult> {
   const db = input.db ?? getDb();
   const parsed = parseCustomerBody(input.body, { forCreate: true });
@@ -162,6 +177,48 @@ export async function prepareCustomerCreation(input: {
   }
 
   const ownerId = resolveOwnerId(input.actor, input.body);
+
+  let collaboratorIds: string[] = [];
+  if (input.includeCollaborators !== false) {
+    const collaboratorInput = input.body.collaboratorIds;
+    if (collaboratorInput !== undefined) {
+      const collaboratorValidation =
+        validateCollaboratorUserIds(collaboratorInput);
+      if (!collaboratorValidation.ok) {
+        return {
+          kind: "validation",
+          fieldErrors: [
+            {
+              field: "collaboratorIds",
+              code: "INVALID_COLLABORATOR_IDS",
+              message: "协作成员列表无效，请重新验证后再提交",
+            },
+          ],
+        };
+      }
+      collaboratorIds = collaboratorValidation.value;
+      try {
+        await assertValidCollaboratorUsers(db, collaboratorIds, {
+          actorId: input.actor.id,
+          primaryOwnerId: ownerId,
+        });
+      } catch (error) {
+        if (error instanceof AssigneeMutationError) {
+          return {
+            kind: "validation",
+            fieldErrors: [
+              {
+                field: "collaboratorIds",
+                code: error.code,
+                message: "协作成员状态已发生变化，请重新验证后再提交",
+              },
+            ],
+          };
+        }
+        throw error;
+      }
+    }
+  }
 
   const duplicates = await checkCustomerDuplicates(
     {
@@ -342,12 +399,60 @@ export async function prepareCustomerCreation(input: {
     now,
   });
 
+  const collaboratorRows =
+    collaboratorIds.length > 0
+      ? await db
+          .select({
+            id: schema.users.id,
+            displayName: schema.users.displayName,
+          })
+          .from(schema.users)
+          .where(inArray(schema.users.id, collaboratorIds))
+      : [];
+  const collaboratorNames = new Map(
+    collaboratorRows.map((row) => [row.id, row.displayName]),
+  );
+  const collaboratorEvents = collaboratorIds.map((collaboratorUserId) => ({
+    auditId: crypto.randomUUID(),
+    collaboratorUserId,
+    collaboratorName:
+      collaboratorNames.get(collaboratorUserId) ?? collaboratorUserId,
+  }));
+  const collaboratorStatements = collaboratorEvents.flatMap((event) => [
+    db.insert(schema.customerAssignees).values({
+      id: crypto.randomUUID(),
+      customerId: id,
+      userId: event.collaboratorUserId,
+      role: "collaborator",
+      assignedBy: input.actor.id,
+      assignedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    }),
+    db.insert(schema.auditLogs).values({
+      id: event.auditId,
+      userId: input.actor.id,
+      action: COLLABORATOR_ADDED_AUDIT_ACTION,
+      entityType: "customer",
+      entityId: id,
+      metadata: JSON.stringify({
+        actorUserId: input.actor.id,
+        customerId: id,
+        collaboratorUserId: event.collaboratorUserId,
+        collaboratorName: event.collaboratorName,
+        action: "add",
+      }),
+      createdAt: now,
+    }),
+  ]);
+
   return {
     kind: "ready",
     statements: [
       insertCustomerStmt,
       insertPrimaryAssigneeStmt,
       ...identifierSync.statements,
+      ...collaboratorStatements,
     ],
     meta: {
       id,
@@ -362,6 +467,7 @@ export async function prepareCustomerCreation(input: {
       duplicateNameWarningConfirmed,
       payload,
       now,
+      collaboratorEvents,
     },
   };
 }
@@ -518,12 +624,25 @@ export async function executePreparedCustomerCreation(input: {
     throw batchError;
   }
 
-  return finalizePreparedCustomerCreation({
+  const result = await finalizePreparedCustomerCreation({
     db,
     actor,
     meta,
     audit,
   });
+
+  if (meta.collaboratorEvents.length > 0) {
+    const customer = await loadCreatedCustomer(db, meta.id);
+    if (customer) {
+      await Promise.all(
+        meta.collaboratorEvents.map((event) =>
+          notifyCustomerCollaboratorAdded(db, customer, actor.id, event),
+        ),
+      );
+    }
+  }
+
+  return result;
 }
 
 export { ApprovalError, duplicateCustomerConflictResponse };
