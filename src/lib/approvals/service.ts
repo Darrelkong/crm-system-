@@ -8,17 +8,15 @@ import {
   createNotificationOnce,
 } from "@/lib/notifications/service";
 import { customerNameNotificationParams } from "@/lib/notifications/customer-name";
-import { logApprovalNotificationFailure, markApprovalPendingNotificationsReadSafely } from "./notification-safe";
+import {
+  logApprovalNotificationFailure,
+  markApprovalPendingNotificationsReadSafely,
+} from "./notification-safe";
 import type { Approval } from "../../../drizzle/schema/approvals";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
-import {
-  getUserById,
-  listActiveAdminUsers,
-} from "@/lib/users/queries";
-import {
-  APPROVAL_AUDIT_ACTIONS,
-} from "./constants";
+import { getUserById, listActiveAdminUsers } from "@/lib/users/queries";
+import { APPROVAL_AUDIT_ACTIONS } from "./constants";
 import {
   MERGE_CUSTOMERS_DISABLED_CODE,
   MERGE_CUSTOMERS_DISABLED_MESSAGE,
@@ -43,9 +41,7 @@ import {
   buildOnHoldCreateRejectedAuditMetadata,
   resolveOnHoldReasonFromApproval,
 } from "@/lib/customers/pending-on-hold-access";
-import {
-  executeApprovedAssigneeUpdate,
-} from "@/lib/customers/assignees-approval";
+import { executeApprovedAssigneeUpdate } from "@/lib/customers/assignees-approval";
 import { approveFamilyLinkApprovalRequest } from "@/lib/customers/households/family-link-approval";
 import { approveFamilyManagementRequest } from "@/lib/customers/households/family-management-approval";
 import {
@@ -56,9 +52,7 @@ import {
 } from "@/lib/customers/priority-customer-approval";
 import { buildSalesStageUpdateWithPriority } from "@/lib/customers/priority-stage-update";
 import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
-import {
-  AssigneeMutationError,
-} from "@/lib/customers/assignees-mutations";
+import { AssigneeMutationError } from "@/lib/customers/assignees-mutations";
 import { mapAssigneeMutationErrorToApiCode } from "@/lib/customers/assignees-api";
 
 type AuditMeta = {
@@ -282,11 +276,10 @@ async function executeApprovedAction(
         now,
       });
 
-      await db.batch(
-        [updateCustomerStmt, ...primaryAssigneeStmts] as unknown as Parameters<
-          Database["batch"]
-        >[0],
-      );
+      await db.batch([
+        updateCustomerStmt,
+        ...primaryAssigneeStmts,
+      ] as unknown as Parameters<Database["batch"]>[0]);
 
       await writeFieldChangeLogEntry(
         customer.id,
@@ -708,17 +701,22 @@ export async function createApprovalRequest(
       userAgent: audit?.userAgent,
       metadata: { fieldErrors: validation.fieldErrors },
     });
-    throw Object.assign(
-      new ApprovalError(400, "输入校验失败", "validation"),
-      { fieldErrors: validation.fieldErrors },
-    );
+    throw Object.assign(new ApprovalError(400, "输入校验失败", "validation"), {
+      fieldErrors: validation.fieldErrors,
+    });
   }
 
   const value = validation.value;
 
   if (value.requestType === "transfer_customer" && value.targetUserId) {
     const targetUser = await getUserById(value.targetUserId);
-    if (!targetUser || targetUser.role !== "staff" || targetUser.isActive !== 1) {
+    if (
+      !targetUser ||
+      targetUser.role !== "staff" ||
+      targetUser.isActive !== 1 ||
+      targetUser.deletedAt ||
+      targetUser.id === user.id
+    ) {
       await writeAuditLog({
         userId: user.id,
         action: APPROVAL_AUDIT_ACTIONS.requestFailedValidation,
@@ -873,12 +871,7 @@ export async function approveApprovalRequest(
     approval.requestType === "update_family_relationship" ||
     approval.requestType === "unlink_family_customer"
   ) {
-    await approveFamilyManagementRequest(
-      db,
-      approval,
-      reviewer,
-      adminComment,
-    );
+    await approveFamilyManagementRequest(db, approval, reviewer, adminComment);
 
     await writeAuditLog({
       userId: reviewer.id,
@@ -1012,11 +1005,7 @@ export async function approveApprovalRequest(
     },
   });
 
-  await markApprovalPendingNotificationsReadSafely(
-    db,
-    approvalId,
-    "approved",
-  );
+  await markApprovalPendingNotificationsReadSafely(db, approvalId, "approved");
 
   const comment = adminComment?.trim();
   await notifyApplicant(
@@ -1103,11 +1092,7 @@ export async function rejectApprovalRequest(
     },
   });
 
-  await markApprovalPendingNotificationsReadSafely(
-    db,
-    approvalId,
-    "rejected",
-  );
+  await markApprovalPendingNotificationsReadSafely(db, approvalId, "rejected");
 
   const comment = adminComment?.trim();
   await notifyApplicant(

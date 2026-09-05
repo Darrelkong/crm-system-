@@ -1727,6 +1727,12 @@ const zhHans: Messages = {
     approvalReasonPlaceholder: "请填写申请原因",
     transferTarget: "转移目标团队成员",
     selectStaff: "请选择团队成员",
+    transferTargetEmail: "完整 CRM 邮箱",
+    transferTargetEmailGuidance: "请输入目标成员完整的 CRM 登录邮箱进行验证。",
+    verifyTransferTarget: "验证",
+    verifyingTransferTarget: "验证中…",
+    transferTargetVerifyFailed:
+      "无法验证转移目标，请确认 CRM 邮箱是否完整且正确。",
     relatedCustomerIds: "相关客户 ID（逗号分隔）",
     dealAmount: "成交金额",
     signingDate: "签约日期",

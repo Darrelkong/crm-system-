@@ -16,6 +16,7 @@ import { resolveApiError, resolveFieldError } from "@/i18n/resolve-api-error";
 import { ui } from "@/lib/ui/classes";
 
 type StaffUser = { id: string; displayName: string; email: string };
+type VerifiedTransferTarget = StaffUser;
 
 type PriorityMode = "set" | "unset" | null;
 
@@ -31,9 +32,7 @@ type Props = {
 function isPriorityRequestType(
   type: ApprovalRequestType,
 ): type is "set_priority_customer" | "unset_priority_customer" {
-  return (
-    type === "set_priority_customer" || type === "unset_priority_customer"
-  );
+  return type === "set_priority_customer" || type === "unset_priority_customer";
 }
 
 export function CustomerApprovalRequestsModal({
@@ -46,7 +45,8 @@ export function CustomerApprovalRequestsModal({
 }: Props) {
   const router = useRouter();
   const { t, approvalType } = useCustomerLabels();
-  const [requestType, setRequestType] = useState<ApprovalRequestType>("delete_customer");
+  const [requestType, setRequestType] =
+    useState<ApprovalRequestType>("delete_customer");
   const [reason, setReason] = useState("");
   const [targetUserId, setTargetUserId] = useState("");
   const [serviceItems, setServiceItems] = useState("");
@@ -54,6 +54,10 @@ export function CustomerApprovalRequestsModal({
   const [paidAt, setPaidAt] = useState("");
   const [remarks, setRemarks] = useState("");
   const [staffUsers, setStaffUsers] = useState<StaffUser[]>([]);
+  const [transferEmail, setTransferEmail] = useState("");
+  const [verifiedTransferTarget, setVerifiedTransferTarget] =
+    useState<VerifiedTransferTarget | null>(null);
+  const [verifyingTransferTarget, setVerifyingTransferTarget] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,7 +69,9 @@ export function CustomerApprovalRequestsModal({
   }, [pendingPriorityApproval, isPinned, salesStage]);
 
   const requestTypes = useMemo(() => {
-    const types: ApprovalRequestType[] = [...CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES];
+    const types: ApprovalRequestType[] = [
+      ...CUSTOMER_DETAIL_APPROVAL_REQUEST_TYPES,
+    ];
     if (priorityMode === "set") {
       types.push("set_priority_customer");
     } else if (priorityMode === "unset") {
@@ -77,11 +83,45 @@ export function CustomerApprovalRequestsModal({
   const isPriorityRequest = isPriorityRequestType(requestType);
 
   useEffect(() => {
+    if (!isAdmin) return;
     void fetch("/api/users/staff")
       .then((res) => res.json())
       .then((data: { items?: StaffUser[] }) => setStaffUsers(data.items ?? []))
       .catch(() => setStaffUsers([]));
-  }, []);
+  }, [isAdmin]);
+
+  async function verifyTransferTarget() {
+    if (isAdmin || verifyingTransferTarget || !transferEmail.trim()) return;
+
+    setVerifyingTransferTarget(true);
+    setVerifiedTransferTarget(null);
+    setTargetUserId("");
+    setError(null);
+    try {
+      const res = await fetch(
+        `/api/customers/${customerId}/transfer/verify-target`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: transferEmail }),
+        },
+      );
+      const data = (await res.json()) as {
+        ok?: boolean;
+        user?: VerifiedTransferTarget;
+      };
+      if (!res.ok || !data.ok || !data.user) {
+        setError(t("customers.transferTargetVerifyFailed"));
+        return;
+      }
+      setVerifiedTransferTarget(data.user);
+      setTargetUserId(data.user.id);
+    } catch {
+      setError(t("customers.transferTargetVerifyFailed"));
+    } finally {
+      setVerifyingTransferTarget(false);
+    }
+  }
 
   function priorityActionLabel(type: "set" | "unset"): string {
     if (isAdmin) {
@@ -104,7 +144,9 @@ export function CustomerApprovalRequestsModal({
 
   function submitButtonLabel(): string {
     if (!isPriorityRequest) {
-      return submitting ? t("customers.submitting") : t("customers.submitRequest");
+      return submitting
+        ? t("customers.submitting")
+        : t("customers.submitRequest");
     }
     if (isAdmin) {
       if (submitting) return t("customers.submitting");
@@ -112,7 +154,9 @@ export function CustomerApprovalRequestsModal({
         ? t("customers.priorityConfirmSet")
         : t("customers.priorityConfirmUnset");
     }
-    return submitting ? t("customers.submitting") : t("customers.submitRequest");
+    return submitting
+      ? t("customers.submitting")
+      : t("customers.submitRequest");
   }
 
   async function handleSubmit() {
@@ -149,7 +193,9 @@ export function CustomerApprovalRequestsModal({
         }
 
         if (data.fieldErrors?.length) {
-          setError(data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "));
+          setError(
+            data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "),
+          );
           return;
         }
 
@@ -168,6 +214,11 @@ export function CustomerApprovalRequestsModal({
     };
 
     if (requestType === "transfer_customer") {
+      if (!isAdmin && !verifiedTransferTarget) {
+        setError(t("customers.transferTargetVerifyFailed"));
+        setSubmitting(false);
+        return;
+      }
       body.targetUserId = targetUserId;
     }
 
@@ -192,11 +243,14 @@ export function CustomerApprovalRequestsModal({
     }
 
     try {
-      const res = await fetch(`/api/customers/${customerId}/approval-requests`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(
+        `/api/customers/${customerId}/approval-requests`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
       const data = (await res.json()) as {
         error?: string;
         errorCode?: string;
@@ -210,7 +264,9 @@ export function CustomerApprovalRequestsModal({
       }
 
       if (data.fieldErrors?.length) {
-        setError(data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "));
+        setError(
+          data.fieldErrors.map((e) => resolveFieldError(t, e)).join(" · "),
+        );
         return;
       }
 
@@ -248,7 +304,9 @@ export function CustomerApprovalRequestsModal({
         )}
 
         {error && (
-          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
+            {error}
+          </p>
         )}
 
         <div className="mt-4 space-y-4">
@@ -257,7 +315,9 @@ export function CustomerApprovalRequestsModal({
             <Select
               id="request-type"
               value={requestType}
-              onChange={(e) => setRequestType(e.target.value as ApprovalRequestType)}
+              onChange={(e) =>
+                setRequestType(e.target.value as ApprovalRequestType)
+              }
             >
               {requestTypes.map((typeKey) => (
                 <option key={typeKey} value={typeKey}>
@@ -313,29 +373,81 @@ export function CustomerApprovalRequestsModal({
             </p>
           )}
 
-          {requestType === "transfer_customer" && (
-            <Field>
-              <Label htmlFor="target-user">{t("customers.transferTarget")}</Label>
-              <Select
-                id="target-user"
-                value={targetUserId}
-                onChange={(e) => setTargetUserId(e.target.value)}
-              >
-                <option value="">{t("customers.selectStaff")}</option>
-                {staffUsers.map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.displayName} ({u.email})
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
+          {requestType === "transfer_customer" &&
+            (isAdmin ? (
+              <Field>
+                <Label htmlFor="target-user">
+                  {t("customers.transferTarget")}
+                </Label>
+                <Select
+                  id="target-user"
+                  value={targetUserId}
+                  onChange={(e) => setTargetUserId(e.target.value)}
+                >
+                  <option value="">{t("customers.selectStaff")}</option>
+                  {staffUsers.map((u) => (
+                    <option key={u.id} value={u.id}>
+                      {u.displayName} ({u.email})
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            ) : (
+              <Field>
+                <Label htmlFor="transfer-target-email">
+                  {t("customers.transferTargetEmail")}
+                </Label>
+                <Input
+                  id="transfer-target-email"
+                  type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  value={transferEmail}
+                  disabled={verifyingTransferTarget || submitting}
+                  onChange={(e) => {
+                    setTransferEmail(e.target.value);
+                    setVerifiedTransferTarget(null);
+                    setTargetUserId("");
+                    setError(null);
+                  }}
+                />
+                <p className="mt-1 text-xs text-[#6B7890]">
+                  {t("customers.transferTargetEmailGuidance")}
+                </p>
+                {verifiedTransferTarget ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-sm font-medium text-emerald-900">
+                      ✓ {verifiedTransferTarget.displayName}
+                    </p>
+                    <p className="mt-1 break-all text-xs text-emerald-800">
+                      {verifiedTransferTarget.email}
+                    </p>
+                  </div>
+                ) : (
+                  <Button
+                    type="button"
+                    className="mt-3"
+                    disabled={
+                      verifyingTransferTarget ||
+                      submitting ||
+                      transferEmail.trim().length === 0
+                    }
+                    onClick={() => void verifyTransferTarget()}
+                  >
+                    {verifyingTransferTarget
+                      ? t("customers.verifyingTransferTarget")
+                      : t("customers.verifyTransferTarget")}
+                  </Button>
+                )}
+              </Field>
+            ))}
 
           {requestType === "paid_customer" && (
             <>
               <Field>
                 <Label htmlFor="paid-service-items">
-                  {t("customers.paidServiceItems")} <span className="text-red-500">*</span>
+                  {t("customers.paidServiceItems")}{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="paid-service-items"
@@ -346,7 +458,8 @@ export function CustomerApprovalRequestsModal({
               </Field>
               <Field>
                 <Label htmlFor="paid-amount">
-                  {t("customers.paidAmount")} <span className="text-red-500">*</span>
+                  {t("customers.paidAmount")}{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="paid-amount"
@@ -356,7 +469,8 @@ export function CustomerApprovalRequestsModal({
               </Field>
               <Field>
                 <Label htmlFor="paid-at">
-                  {t("customers.paidAt")} <span className="text-red-500">*</span>
+                  {t("customers.paidAt")}{" "}
+                  <span className="text-red-500">*</span>
                 </Label>
                 <Input
                   id="paid-at"
@@ -366,7 +480,9 @@ export function CustomerApprovalRequestsModal({
                 />
               </Field>
               <Field>
-                <Label htmlFor="paid-remarks">{t("customers.paidRemarks")}</Label>
+                <Label htmlFor="paid-remarks">
+                  {t("customers.paidRemarks")}
+                </Label>
                 <Textarea
                   id="paid-remarks"
                   value={remarks}

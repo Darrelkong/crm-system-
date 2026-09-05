@@ -1728,6 +1728,12 @@ const zhHant: Messages = {
     approvalReasonPlaceholder: "請填寫申請原因",
     transferTarget: "轉移目標團隊成員",
     selectStaff: "請選擇團隊成員",
+    transferTargetEmail: "完整 CRM 電郵",
+    transferTargetEmailGuidance: "請輸入目標成員完整的 CRM 登入電郵進行驗證。",
+    verifyTransferTarget: "驗證",
+    verifyingTransferTarget: "驗證中…",
+    transferTargetVerifyFailed:
+      "無法驗證轉移目標，請確認 CRM 電郵是否完整及正確。",
     relatedCustomerIds: "相關客戶 ID（逗號分隔）",
     dealAmount: "成交金額",
     signingDate: "簽約日期",

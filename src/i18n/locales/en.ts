@@ -1845,6 +1845,13 @@ const en = {
     approvalReasonPlaceholder: "Enter the reason for this request",
     transferTarget: "Transfer To",
     selectStaff: "Select team member",
+    transferTargetEmail: "Full CRM email",
+    transferTargetEmailGuidance:
+      "Enter the target teammate’s complete CRM login email to verify.",
+    verifyTransferTarget: "Verify",
+    verifyingTransferTarget: "Verifying…",
+    transferTargetVerifyFailed:
+      "The transfer target could not be verified. Check that the full CRM email is correct.",
     relatedCustomerIds: "Related client IDs (comma-separated)",
     dealAmount: "Deal Amount",
     signingDate: "Signing Date",
