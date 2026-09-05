@@ -205,38 +205,39 @@ describe("approval navigation security boundaries remain unchanged", () => {
 });
 
 describe("mailbox sidebar classification wiring", () => {
-  it("uses resolveMailboxSidebarSections in desktop folder nav", () => {
+  it("places the production mailbox context above desktop folders", () => {
     const navSource = readFileSync(
       "src/components/mail/prototype/mail-folder-nav.tsx",
       "utf8",
     );
 
-    assert.match(navSource, /resolveMailboxSidebarSections/);
-    assert.match(navSource, /mailboxSections\.showSection/);
-    assert.match(navSource, /mailboxSections\.sectionLabelKey/);
+    assert.match(navSource, /<MailMailboxContext variant="desktop" \/>/);
+    assert.match(navSource, /import \{ MailMailboxContext \}/);
     assert.doesNotMatch(
-      navSource,
-      /t\("mail\.sidebar\.sharedMailboxes"\)[\s\S]*personalMailboxes\.map/,
+      navSource.match(
+        /function ProductionMailFolderNav[\s\S]*?function PrototypeMailFolderNav/,
+      )?.[0] ?? "",
+      /mailboxSections\.showSection/,
     );
   });
 
   it("hides Daniel single-personal mailbox subsection in production nav", () => {
-    const navSource = readFileSync(
-      "src/components/mail/prototype/mail-folder-nav.tsx",
+    const contextSource = readFileSync(
+      "src/components/mail/prototype/mail-mailbox-context.tsx",
       "utf8",
     );
 
-    assert.match(navSource, /mailboxSections\.showSection && mailboxSections\.sectionLabelKey/);
+    assert.match(contextSource, /mailboxes\.length === 1/);
+    assert.match(contextSource, /mailboxType === "shared"/);
   });
 
-  it("uses resolveMailboxSidebarSections for mobile folder popover switcher", () => {
+  it("keeps the production mobile folder popover folder-only", () => {
     const popoverSource = readFileSync(
       "src/components/mail/prototype/mail-folder-popover.tsx",
       "utf8",
     );
 
-    assert.match(popoverSource, /resolveMailboxSidebarSections/);
-    assert.match(popoverSource, /mailboxSections\.showSection/);
-    assert.doesNotMatch(popoverSource, /productionMailboxes\.length > 1/);
+    assert.doesNotMatch(popoverSource, /workspace\.selectMailbox/);
+    assert.match(popoverSource, /workspace\.selectFolder\(folder\.id\)/);
   });
 });

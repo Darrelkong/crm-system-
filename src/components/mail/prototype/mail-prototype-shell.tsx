@@ -28,6 +28,7 @@ import { MailProductionNoMailboxesState } from "./mail-production-no-mailboxes-s
 import { MailStaffAccessState } from "./mail-staff-access-state";
 import { MailDebugControls } from "./mail-debug-controls";
 import { MailDesktopWorkspace } from "./mail-desktop-workspace";
+import { MailMailboxContext } from "./mail-mailbox-context";
 import { prefetchComposeContext } from "@/lib/mail/client/compose-context-cache";
 import {
   buildForwardDraft,
@@ -548,6 +549,7 @@ export function MailPrototypeShell({
           <div className="mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden">
             {mobileView === "list" && (
               <>
+                <MailMailboxContext variant="mobile" />
                 <MailFolderActionRow
                   ref={folderTriggerRef}
                   folderPopoverOpen={folderPopoverOpen}

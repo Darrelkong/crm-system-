@@ -12,7 +12,6 @@ import {
 } from "@/lib/mail/client/mail-workspace-context";
 import type { MailWorkspaceFolder } from "@/lib/mail/client/mail-read-types";
 import {
-  adaptAccessibleMailbox,
   adaptPrototypeSidebarMailbox,
   filterVisibleWorkflowFolders,
   isProductionMailReadFolder,
@@ -29,6 +28,7 @@ import { visibleMailFolders } from "@/lib/mail/prototype/mail-folder-config";
 import { Button } from "@/components/ui/button";
 import { Inbox, Plus, Users } from "lucide-react";
 import { MailSidebarMailboxPager } from "./mail-sidebar-mailbox-pager";
+import { MailMailboxContext } from "./mail-mailbox-context";
 
 type PaginatedMailboxRow = {
   id: string;
@@ -117,24 +117,6 @@ function ProductionMailFolderNav({
   const { capabilities } = useMailSession();
   const canReview = canReviewApprovals(capabilities);
   const workspace = useMailWorkspace();
-  const mailboxSections = resolveMailboxSidebarSections(
-    workspace.mailboxes.map(adaptAccessibleMailbox),
-  );
-  const mailboxRows = useMemo<PaginatedMailboxRow[]>(
-    () => [
-      ...mailboxSections.personalMailboxes.map((box) => ({
-        id: box.id,
-        label: box.displayName ?? t("mail.mailbox.personal"),
-        icon: Inbox,
-      })),
-      ...mailboxSections.sharedMailboxes.map((box) => ({
-        id: box.id,
-        label: box.displayName ?? t("mail.mailbox.shared"),
-        icon: Users,
-      })),
-    ],
-    [mailboxSections.personalMailboxes, mailboxSections.sharedMailboxes, t],
-  );
 
   function ProductionFolderButton({
     folder,
@@ -181,6 +163,8 @@ function ProductionMailFolderNav({
         </Button>
       ) : null}
 
+      <MailMailboxContext variant="desktop" />
+
       <div className="mail-sidebar-section">
         <p className="mail-sidebar-section-label mb-1.5 px-2.5">
           {t("mail.sidebar.folders")}
@@ -194,22 +178,6 @@ function ProductionMailFolderNav({
           ))}
         </nav>
       </div>
-
-      {mailboxSections.showSection && mailboxSections.sectionLabelKey ? (
-        <div className="mail-sidebar-section">
-          <p className="mail-sidebar-section-label mb-1.5 px-2.5">
-            {t(mailboxSections.sectionLabelKey)}
-          </p>
-          <PaginatedMailboxNav
-            rows={mailboxRows}
-            selectedId={workspace.selectedMailboxId}
-            onSelect={(mailboxId) => {
-              void workspace.selectMailbox(mailboxId);
-            }}
-            ariaLabel={t(mailboxSections.sectionLabelKey)}
-          />
-        </div>
-      ) : null}
     </aside>
   );
 }

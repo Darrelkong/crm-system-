@@ -166,7 +166,7 @@ describe("mail workspace helpers", () => {
     assert.equal(resolveMailboxMessageLoadFolder("inbox"), "inbox");
     assert.equal(resolveMailboxMessageLoadFolder("sent"), "sent");
     assert.equal(resolveMailboxMessageLoadFolder("trash"), "trash");
-    assert.equal(resolveMailboxMessageLoadFolder("drafts"), "inbox");
+    assert.equal(resolveMailboxMessageLoadFolder("drafts"), null);
     assert.equal(resolveMailboxMessageLoadFolder("pending_approval"), null);
   });
 

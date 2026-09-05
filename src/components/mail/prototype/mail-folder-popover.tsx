@@ -9,7 +9,6 @@ import { canReviewApprovals } from "@/lib/mail/client/approval-workflow-manageme
 import { useIsProductionMailReadSource } from "@/lib/mail/client/mail-read-source-context";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
-  adaptAccessibleMailbox,
   adaptPrototypeSidebarMailbox,
   filterVisibleWorkflowFolders,
   PRODUCTION_MAIL_READ_FOLDERS,
@@ -154,14 +153,6 @@ export function MailFolderPopover({
   )}px - ${POPOVER_BOTTOM_NAV_RESERVE}))`;
 
   if (isProduction && workspace) {
-    const mailboxSections = resolveMailboxSidebarSections(
-      workspace.mailboxes.map(adaptAccessibleMailbox),
-    );
-    const switcherMailboxes = [
-      ...mailboxSections.personalMailboxes,
-      ...mailboxSections.sharedMailboxes,
-    ];
-
     return (
       <div className="fixed inset-0 z-50 pointer-events-none" role="presentation">
         <div
@@ -179,40 +170,6 @@ export function MailFolderPopover({
             className="mail-folder-popover-scroll overflow-y-auto overscroll-contain py-0.5"
             style={{ maxHeight }}
           >
-            {mailboxSections.showSection && (
-              <ul className="border-b border-black/[0.06] dark:border-white/[0.08]">
-                {switcherMailboxes.map((box) => {
-                  const active = box.id === workspace.selectedMailboxId;
-                  return (
-                    <li key={box.id}>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          void workspace.selectMailbox(box.id);
-                          onClose();
-                        }}
-                        className={cn(
-                          "mail-folder-popover-row flex w-full min-h-10 items-center gap-1.5 px-2.5 text-left text-sm",
-                          active
-                            ? "mail-folder-popover-row-active"
-                            : "mail-folder-popover-row-idle",
-                        )}
-                      >
-                        {active ? (
-                          <Check className="h-3 w-3 shrink-0" aria-hidden />
-                        ) : (
-                          <span className="w-3 shrink-0" aria-hidden />
-                        )}
-                        <span className="min-w-0 truncate">
-                          {box.displayName ?? box.address}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-
             <ul>
               {PRODUCTION_MAIL_READ_FOLDERS.map((folder) => (
                 <FolderMenuRow

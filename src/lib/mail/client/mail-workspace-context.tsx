@@ -247,11 +247,12 @@ export function buildDraftFolderCacheKey(mailboxId: string | null): DraftFolderC
 export function resolveMailboxMessageLoadFolder(
   folder: MailWorkspaceFolder,
 ): MailReadFolder | null {
-  if (folder === "pending_approval" || folder === "outbox") {
+  if (
+    folder === "drafts" ||
+    folder === "pending_approval" ||
+    folder === "outbox"
+  ) {
     return null;
-  }
-  if (folder === "drafts") {
-    return "inbox";
   }
   return folder;
 }
@@ -628,8 +629,10 @@ export function createMailWorkspaceRuntime(
     }
   }
 
-  async function loadDrafts(previousFolder: MailWorkspaceFolder = state.selectedFolder) {
-    const mailboxId = resolveActiveMailboxId();
+  async function loadDraftsForMailbox(
+    mailboxId: string | null,
+    previousFolder: MailWorkspaceFolder = state.selectedFolder,
+  ) {
     const requestSequence = ++draftsRequestSequence;
     const draftCacheKey = buildDraftFolderCacheKey(mailboxId);
 
@@ -702,6 +705,12 @@ export function createMailWorkspaceRuntime(
     }
   }
 
+  async function loadDrafts(
+    previousFolder: MailWorkspaceFolder = state.selectedFolder,
+  ) {
+    await loadDraftsForMailbox(resolveActiveMailboxId(), previousFolder);
+  }
+
   async function selectMailbox(mailboxId: string) {
     if (state.selectedFolder === "outbox") {
       setState({
@@ -717,6 +726,12 @@ export function createMailWorkspaceRuntime(
       await loadOutbox();
       return;
     }
+
+    if (state.selectedFolder === "drafts") {
+      await loadDraftsForMailbox(mailboxId, "drafts");
+      return;
+    }
+
     const folder = resolveMailboxMessageLoadFolder(state.selectedFolder);
     if (folder === null) {
       setState({

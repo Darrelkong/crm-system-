@@ -15,7 +15,7 @@ describe("mail read folder switch wiring", () => {
   it("updates selected folder before async folder loads", () => {
     assert.match(
       context,
-      /const previousFolder = state\.selectedFolder;\s*if \(folder !== previousFolder\) \{\s*setState\(\{ selectedFolder: folder \}\);/,
+      /const nextFolder = normalizeMailWorkspaceFolder\(folder\);\s*const previousFolder = state\.selectedFolder;\s*if \(nextFolder !== previousFolder\) \{\s*setState\(\{ selectedFolder: nextFolder \}\);/,
     );
     assert.match(folderNav, /void workspace\.selectFolder\(/);
   });

@@ -273,6 +273,30 @@ describe("single mailbox workspace regression", () => {
     assert.equal(calls.messages.at(-1)?.folder, "sent");
   });
 
+  it("preserves Drafts when switching mailboxes through the Draft service", async () => {
+    const { api, calls } = createApiMock({
+      fetchAccessibleMailboxes: async () => [
+        mailbox("mailbox-a"),
+        mailbox("mailbox-b"),
+      ],
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+
+    await runtime.getSnapshot().loadMessages({
+      mailboxId: "mailbox-a",
+      folder: "inbox",
+      reset: true,
+    });
+    await runtime.getSnapshot().selectFolder("drafts");
+    await runtime.getSnapshot().selectMailbox("mailbox-b");
+
+    const snapshot = runtime.getSnapshot();
+    assert.equal(snapshot.selectedMailboxId, "mailbox-b");
+    assert.equal(snapshot.selectedFolder, "drafts");
+    assert.equal(calls.drafts.at(-1)?.mailboxId, "mailbox-b");
+    assert.equal(calls.messages.at(-1)?.folder, "inbox");
+  });
+
   it("maps approval virtual folders without requiring mailbox message loads", () => {
     assert.equal(resolveMailboxMessageLoadFolder("pending_approval"), null);
   });
