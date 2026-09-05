@@ -4,11 +4,13 @@ import {
   count,
   desc,
   eq,
+  exists,
   inArray,
   lt,
   or,
   type SQL,
 } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
@@ -36,6 +38,11 @@ import {
   filterRecipientsForViewer,
   type MailMessageReadContext,
 } from "@/lib/mail/message-read-permissions";
+import {
+  assertCanUseAllMailboxScope,
+  type MailboxScope,
+} from "@/lib/mail/mailbox-scope";
+import { listAccessibleMailboxes } from "@/lib/mail/mail-read-mailbox-service";
 
 export type {
   MailMessageAttachmentMetadataView,
@@ -51,10 +58,12 @@ export type MailMessageListPage = {
 };
 
 export type ListAccessibleMessagesInput = {
-  mailboxId: string;
+  scope?: MailboxScope;
+  mailboxId?: string | null;
   folder: MailWorkspaceFolder;
   cursor?: string | null;
   limit?: number;
+  search?: string | null;
 };
 
 export const MAIL_READ_DEFAULT_LIMIT = 50;
@@ -64,6 +73,9 @@ type MailReadCursor = {
   timestamp: string;
   id: string;
   orderColumn: MessageFolderOrderColumn;
+  scope?: MailboxScope;
+  mailboxId?: string | null;
+  search?: string;
 };
 
 function resolveMailReadLimit(limit?: number): number {
@@ -95,6 +107,10 @@ export function decodeMailReadCursor(cursor: string): MailReadCursor | null {
       timestamp: parsed.timestamp,
       id: parsed.id,
       orderColumn: parsed.orderColumn,
+      scope: parsed.scope === "all" ? "all" : "single",
+      mailboxId:
+        typeof parsed.mailboxId === "string" ? parsed.mailboxId : null,
+      search: typeof parsed.search === "string" ? parsed.search : "",
     };
   } catch {
     return null;
@@ -175,17 +191,61 @@ export async function listAccessibleMessages(
   actor: MailActorContext,
   input: ListAccessibleMessagesInput,
 ): Promise<MailMessageListPage> {
-  await assertCanReadMailbox(db, actor, input.mailboxId);
+  const scope = input.scope ?? "single";
+  const search = input.search?.trim() ?? "";
+  let mailboxIds: string[];
+
+  if (scope === "all") {
+    assertCanUseAllMailboxScope(actor);
+    const accessibleMailboxes = await listAccessibleMailboxes(db, actor);
+    mailboxIds = accessibleMailboxes.map((mailbox) => mailbox.id);
+    if (mailboxIds.length === 0) {
+      return { items: [], nextCursor: null };
+    }
+  } else {
+    if (!input.mailboxId) {
+      throw MailServiceError.validation("mailboxId is required");
+    }
+    await assertCanReadMailbox(db, actor, input.mailboxId);
+    mailboxIds = [input.mailboxId];
+  }
 
   const folderSpec = resolveMessageFolderQuery(input.folder);
   const limit = resolveMailReadLimit(input.limit);
-  const conditions = buildMessageFolderConditions(input.mailboxId, folderSpec);
+  const conditions = buildMessageFolderConditions(mailboxIds, folderSpec);
+  if (search) {
+    conditions.push(
+      or(
+        exists(
+          db
+            .select({ id: schema.mailMessageRecipients.id })
+            .from(schema.mailMessageRecipients)
+            .where(
+              and(
+                eq(
+                  schema.mailMessageRecipients.messageId,
+                  schema.mailMessages.id,
+                ),
+                sql`instr(lower(${schema.mailMessageRecipients.address}), ${search.toLowerCase()}) > 0`,
+              ),
+            ),
+        ),
+        sql`instr(lower(${schema.mailMessages.subject}), ${search.toLowerCase()}) > 0`,
+        sql`instr(lower(${schema.mailMessages.fromAddress}), ${search.toLowerCase()}) > 0`,
+        sql`instr(lower(coalesce(${schema.mailMessages.fromDisplayName}, '')), ${search.toLowerCase()}) > 0`,
+        sql`instr(lower(${schema.mailMessages.previewText}), ${search.toLowerCase()}) > 0`,
+      )!,
+    );
+  }
 
   if (input.cursor) {
     const decoded = decodeMailReadCursor(input.cursor);
     if (
       !decoded ||
-      decoded.orderColumn !== folderSpec.orderColumn
+      decoded.orderColumn !== folderSpec.orderColumn ||
+      decoded.scope !== scope ||
+      (scope === "single" && decoded.mailboxId !== input.mailboxId) ||
+      decoded.search !== search
     ) {
       throw MailServiceError.validation("Invalid message list cursor");
     }
@@ -194,14 +254,25 @@ export async function listAccessibleMessages(
 
   const orderColumn = orderColumnExpression(folderSpec.orderColumn);
   const rows = await db
-    .select()
+    .select({
+      message: schema.mailMessages,
+      sourceMailbox: {
+        address: schema.mailMailboxes.address,
+        displayName: schema.mailMailboxes.displayName,
+        mailboxType: schema.mailMailboxes.mailboxType,
+      },
+    })
     .from(schema.mailMessages)
+    .innerJoin(
+      schema.mailMailboxes,
+      eq(schema.mailMessages.mailboxId, schema.mailMailboxes.id),
+    )
     .where(and(...conditions))
     .orderBy(desc(orderColumn), desc(schema.mailMessages.id))
     .limit(limit + 1);
 
   const pageRows = rows.slice(0, limit);
-  const messageIds = pageRows.map((row) => row.id);
+  const messageIds = pageRows.map((row) => row.message.id);
   const [readStates, attachmentCounts] = await Promise.all([
     loadReadStatesForMessages(db, actor, messageIds),
     loadAttachmentCounts(db, messageIds),
@@ -209,10 +280,11 @@ export async function listAccessibleMessages(
 
   const items = pageRows.map((message) =>
     toMailMessageListView({
-      message,
-      timestamp: messageSortTimestamp(message, folderSpec.orderColumn),
-      readState: readStates.get(message.id) ?? null,
-      attachmentCount: attachmentCounts.get(message.id) ?? 0,
+      message: message.message,
+      timestamp: messageSortTimestamp(message.message, folderSpec.orderColumn),
+      readState: readStates.get(message.message.id) ?? null,
+      attachmentCount: attachmentCounts.get(message.message.id) ?? 0,
+      sourceMailbox: message.sourceMailbox,
     }),
   );
 
@@ -220,9 +292,12 @@ export async function listAccessibleMessages(
   if (rows.length > limit) {
     const last = pageRows[pageRows.length - 1]!;
     nextCursor = encodeMailReadCursor({
-      timestamp: messageSortTimestamp(last, folderSpec.orderColumn),
-      id: last.id,
+      timestamp: messageSortTimestamp(last.message, folderSpec.orderColumn),
+      id: last.message.id,
       orderColumn: folderSpec.orderColumn,
+      scope,
+      mailboxId: scope === "single" ? input.mailboxId : null,
+      search,
     });
   }
 

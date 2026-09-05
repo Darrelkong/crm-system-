@@ -6,6 +6,7 @@ import type {
 import type { MailDraftRecipient } from "../../../drizzle/schema/mail-draft-recipients";
 import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
 import type { SafeDraftCustomerAssociationView } from "@/lib/mail/mail-customer-association-service";
+import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 
 export type SafeDraftView = {
   id: string;
@@ -25,6 +26,7 @@ export type SafeDraftView = {
   discardedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  sourceMailbox?: MailSourceMailboxView;
   customerAssociation?: SafeDraftCustomerAssociationView | null;
   /** Lightweight list-only recipient summary for draft rows. */
   toRecipients?: SafeDraftRecipientView[];
@@ -65,7 +67,10 @@ export function toClientDeliveryMode(
   return "secure_file";
 }
 
-export function toSafeDraftView(draft: MailDraft): SafeDraftView {
+export function toSafeDraftView(
+  draft: MailDraft,
+  sourceMailbox?: MailSourceMailboxView,
+): SafeDraftView {
   const bodyHtml = sanitizeOptionalOutboundBodyHtml(draft.bodyHtml);
   return {
     id: draft.id,
@@ -84,6 +89,7 @@ export function toSafeDraftView(draft: MailDraft): SafeDraftView {
     discardedAt: draft.discardedAt,
     createdAt: draft.createdAt,
     updatedAt: draft.updatedAt,
+    ...(sourceMailbox ? { sourceMailbox } : {}),
   };
 }
 

@@ -176,6 +176,18 @@ describe("mail read api client", () => {
     assert.equal(page.nextCursor, "cursor-2");
   });
 
+  it("builds an explicit All Mailboxes message path without a mailbox sentinel", () => {
+    assert.equal(
+      buildMessagesListPath({
+        scope: "all",
+        mailboxId: "",
+        folder: "inbox",
+        search: "client",
+      }),
+      "/api/mail/messages?folder=inbox&scope=all&q=client",
+    );
+  });
+
   it("buildMessagesListPath rejects invalid folder before request", () => {
     assert.throws(
       () =>

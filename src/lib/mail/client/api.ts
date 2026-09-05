@@ -70,7 +70,9 @@ import {
   type ComposeContextOption,
   type DraftApiItem,
   type DraftDetailApiItem,
+  type DraftListPage,
 } from "@/lib/mail/client/draft-management";
+import type { MailboxScope } from "@/lib/mail/client/mail-read-types";
 import {
   approvalResubmitPath,
   buildAdminDirectSendIdempotencyKey,
@@ -1147,6 +1149,57 @@ export async function fetchDrafts(input?: {
   }
   const data = (await res.json()) as { items?: DraftApiItem[] };
   return { ok: true, items: data.items ?? [] };
+}
+
+export async function fetchDraftPage(input?: {
+  scope?: MailboxScope;
+  mailboxId?: string | null;
+  cursor?: string | null;
+  limit?: number;
+  search?: string | null;
+}): Promise<{
+  ok: true;
+  page: DraftListPage;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const params = new URLSearchParams();
+  if (input?.scope) {
+    params.set("scope", input.scope);
+  }
+  if (input?.mailboxId) {
+    params.set("mailboxId", input.mailboxId);
+  }
+  if (input?.cursor) {
+    params.set("cursor", input.cursor);
+  }
+  if (input?.limit != null) {
+    params.set("limit", String(input.limit));
+  }
+  if (input?.search?.trim()) {
+    params.set("q", input.search.trim());
+  }
+  const query = params.toString();
+  const url = query ? `${DRAFTS_PATH}?${query}` : DRAFTS_PATH;
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to load draft page",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as Partial<DraftListPage>;
+  return {
+    ok: true,
+    page: {
+      items: Array.isArray(data.items) ? data.items : [],
+      nextCursor: data.nextCursor ?? null,
+    },
+  };
 }
 
 export async function fetchDraft(draftId: string): Promise<{

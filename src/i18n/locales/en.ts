@@ -232,6 +232,7 @@ const en = {
     mailbox: {
       personal: "Personal",
       shared: "Shared",
+      all: "All Mailboxes",
     },
     backToMessageList: "Back to message list",
     status: {

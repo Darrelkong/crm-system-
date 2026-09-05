@@ -226,8 +226,10 @@ describe("mail workspace runtime", () => {
     assert.deepEqual(
       {
         mailboxes: snapshot.mailboxes,
+        mailboxScope: snapshot.mailboxScope,
         selectedMailboxId: snapshot.selectedMailboxId,
         selectedFolder: snapshot.selectedFolder,
+        messageSearchQuery: snapshot.messageSearchQuery,
         messages: snapshot.messages,
         drafts: snapshot.drafts,
         outboxItems: snapshot.outboxItems,
@@ -238,6 +240,7 @@ describe("mail workspace runtime", () => {
         isLoadingMessages: snapshot.isLoadingMessages,
         isLoadingDetail: snapshot.isLoadingDetail,
         isLoadingOutbox: snapshot.isLoadingOutbox,
+        outboxNextCursor: snapshot.outboxNextCursor,
         isUpdatingReadState: snapshot.isUpdatingReadState,
         error: snapshot.error,
         outboxError: snapshot.outboxError,
@@ -260,6 +263,32 @@ describe("mail workspace runtime", () => {
     assert.equal(calls.mailboxes, 1);
     assert.equal(runtime.getSnapshot().mailboxes.length, 1);
     assert.equal(runtime.getSnapshot().error, null);
+  });
+
+  it("preserves All scope across folder changes and returns to single mailbox", async () => {
+    const { api } = createApiMock({
+      fetchAccessibleMailboxes: async () => [
+        mailboxFixture(),
+        {
+          ...mailboxFixture(),
+          id: "mailbox-2",
+          displayName: "Shared",
+          mailboxType: "shared",
+        },
+      ],
+    });
+    const runtime = createMailWorkspaceRuntime(api);
+
+    await runtime.getSnapshot().loadMailboxes();
+    await runtime.getSnapshot().selectAllMailboxes();
+    assert.equal(runtime.getSnapshot().mailboxScope, "all");
+    await runtime.getSnapshot().selectFolder("sent");
+    assert.equal(runtime.getSnapshot().mailboxScope, "all");
+    assert.equal(runtime.getSnapshot().selectedFolder, "sent");
+    await runtime.getSnapshot().selectMailbox("mailbox-1");
+    assert.equal(runtime.getSnapshot().mailboxScope, "single");
+    assert.equal(runtime.getSnapshot().selectedMailboxId, "mailbox-1");
+    assert.equal(runtime.getSnapshot().selectedFolder, "sent");
   });
 
   it("loadMessages stores message list and cursor", async () => {

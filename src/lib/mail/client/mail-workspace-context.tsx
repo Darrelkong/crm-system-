@@ -14,12 +14,20 @@ import {
   fetchMessages,
   updateMessageReadState,
 } from "@/lib/mail/client/mail-read-api-client";
-import { fetchDrafts as fetchDraftsFromApi } from "@/lib/mail/client/api";
 import {
+  fetchDraftPage as fetchDraftPageFromApi,
+  fetchDrafts as fetchDraftsFromApi,
+} from "@/lib/mail/client/api";
+import {
+  fetchOutboxPage,
   fetchOutboxItems,
   type MailOutboxListItem,
+  type MailOutboxListPage,
 } from "@/lib/mail/client/mail-outbox";
-import type { DraftApiItem } from "@/lib/mail/client/draft-management";
+import type {
+  DraftApiItem,
+  DraftListPage,
+} from "@/lib/mail/client/draft-management";
 import { sortDraftsByRecency } from "@/lib/mail/client/draft-management";
 import { MailReadApiError } from "@/lib/mail/client/mail-read-api-errors";
 import { MAIL_ACCESS_DISABLED_EVENT } from "@/lib/mail/client/mail-access-revalidation";
@@ -30,6 +38,7 @@ import type {
   MailMessageDetailView,
   MailMessageListPage,
   MailMessageListView,
+  MailboxScope,
   MailReadFolder,
   MailReadStateView,
   MailWorkspaceFolder,
@@ -51,14 +60,30 @@ export type MailWorkspaceApi = {
     input: UpdateMessageReadStateInput,
   ) => Promise<MailReadStateView>;
   fetchDrafts: (input?: { mailboxId?: string }) => Promise<DraftApiItem[]>;
+  fetchDraftPage?: (input: {
+    scope: MailboxScope;
+    mailboxId?: string | null;
+    cursor?: string | null;
+    limit?: number;
+    search?: string | null;
+  }) => Promise<DraftListPage>;
   fetchOutbox?: (mailboxId?: string | null) => Promise<MailOutboxListItem[]>;
+  fetchOutboxPage?: (input: {
+    scope: MailboxScope;
+    mailboxId?: string | null;
+    cursor?: string | null;
+    limit?: number;
+    search?: string | null;
+  }) => Promise<MailOutboxListPage>;
 };
 
 export type LoadMessagesInput = {
-  mailboxId: string;
+  scope?: MailboxScope;
+  mailboxId?: string | null;
   folder: MailReadFolder;
   reset?: boolean;
   previousFolder?: MailWorkspaceFolder;
+  search?: string | null;
 };
 
 export type MarkMessageReadInput = {
@@ -68,8 +93,10 @@ export type MarkMessageReadInput = {
 
 type MailWorkspaceState = {
   mailboxes: AccessibleMailboxView[];
+  mailboxScope: MailboxScope;
   selectedMailboxId: string | null;
   selectedFolder: MailWorkspaceFolder;
+  messageSearchQuery: string;
   messages: MailMessageListView[];
   drafts: DraftApiItem[];
   outboxItems: MailOutboxListItem[];
@@ -80,6 +107,7 @@ type MailWorkspaceState = {
   isLoadingMessages: boolean;
   isLoadingDetail: boolean;
   isLoadingOutbox: boolean;
+  outboxNextCursor: string | null;
   isUpdatingReadState: boolean;
   error: MailReadApiError | null;
   outboxError: MailReadApiError | null;
@@ -89,9 +117,12 @@ export type MailWorkspaceContextValue = MailWorkspaceState & {
   loadMailboxes: () => Promise<void>;
   loadMessages: (input: LoadMessagesInput) => Promise<void>;
   loadDrafts: () => Promise<void>;
+  loadMoreDrafts: () => Promise<void>;
+  setMessageSearchQuery: (query: string) => Promise<void>;
   refreshDrafts: () => Promise<void>;
   loadMoreMessages: () => Promise<void>;
   selectMailbox: (mailboxId: string) => Promise<void>;
+  selectAllMailboxes: () => Promise<void>;
   selectFolder: (folder: MailWorkspaceFolder) => Promise<void>;
   selectMessage: (messageId: string) => Promise<void>;
   clearReadingSelection: () => void;
@@ -99,12 +130,15 @@ export type MailWorkspaceContextValue = MailWorkspaceState & {
   refreshMessages: () => Promise<void>;
   markMessageRead: (input: MarkMessageReadInput) => Promise<void>;
   refreshOutbox: () => Promise<void>;
+  loadMoreOutbox: () => Promise<void>;
 };
 
 export const INITIAL_MAIL_WORKSPACE_STATE: MailWorkspaceState = {
   mailboxes: [],
+  mailboxScope: "single",
   selectedMailboxId: null,
   selectedFolder: "inbox",
+  messageSearchQuery: "",
   messages: [],
   drafts: [],
   outboxItems: [],
@@ -115,6 +149,7 @@ export const INITIAL_MAIL_WORKSPACE_STATE: MailWorkspaceState = {
   isLoadingMessages: false,
   isLoadingDetail: false,
   isLoadingOutbox: false,
+  outboxNextCursor: null,
   isUpdatingReadState: false,
   error: null,
   outboxError: null,
@@ -137,7 +172,19 @@ export function createDefaultMailWorkspaceApi(): MailWorkspaceApi {
       }
       return result.items;
     },
+    fetchDraftPage: async (input) => {
+      const result = await fetchDraftPageFromApi(input);
+      if (!result.ok) {
+        throw new MailReadApiError(
+          result.status,
+          result.error,
+          result.errorCode ?? "SERVER_ERROR",
+        );
+      }
+      return result.page;
+    },
     fetchOutbox: fetchOutboxItems,
+    fetchOutboxPage,
   };
 }
 
@@ -191,44 +238,58 @@ function toWorkspaceError(error: unknown): MailReadApiError {
 }
 
 export type MessagesRequestContext = {
-  mailboxId: string;
+  scope?: MailboxScope;
+  mailboxId: string | null;
   folder: MailReadFolder;
+  search?: string;
 };
 
 export function shouldApplyMessagesResponse(input: {
   requestSequence: number;
   activeSequence: number;
   request: MessagesRequestContext;
+  currentScope?: MailboxScope;
   currentMailboxId: string | null;
   currentFolder: MailWorkspaceFolder;
+  currentSearch?: string;
 }): boolean {
   return (
     input.requestSequence === input.activeSequence &&
+    (input.currentScope ?? "single") === (input.request.scope ?? "single") &&
     input.currentMailboxId === input.request.mailboxId &&
-    input.currentFolder === input.request.folder
+    input.currentFolder === input.request.folder &&
+    (input.currentSearch ?? "") === (input.request.search ?? "")
   );
 }
 
-export type MessageFolderCacheKey = `${string}:${MailReadFolder}`;
+export type MessageFolderCacheKey = `${MailboxScope}:${string}:${MailReadFolder}:${string}`;
 
 export function buildMessageFolderCacheKey(
-  mailboxId: string,
+  scope: MailboxScope,
+  mailboxId: string | null,
   folder: MailReadFolder,
+  search = "",
 ): MessageFolderCacheKey {
-  return `${mailboxId}:${folder}`;
+  return `${scope}:${mailboxId ?? "__all__"}:${folder}:${search}`;
 }
 
 export function isSameFolderMessageRefresh(input: {
   reset: boolean;
+  currentScope?: MailboxScope;
   currentMailboxId: string | null;
   currentFolder: MailWorkspaceFolder;
-  targetMailboxId: string;
+  targetScope?: MailboxScope;
+  targetMailboxId: string | null;
   targetFolder: MailReadFolder;
+  currentSearch?: string;
+  targetSearch?: string;
 }): boolean {
   return (
     input.reset &&
+    (input.currentScope ?? "single") === (input.targetScope ?? "single") &&
     input.currentMailboxId === input.targetMailboxId &&
-    input.currentFolder === input.targetFolder
+    input.currentFolder === input.targetFolder &&
+    (input.currentSearch ?? "") === (input.targetSearch ?? "")
   );
 }
 
@@ -237,10 +298,14 @@ export type MessageFolderCacheEntry = {
   nextCursor: string | null;
 };
 
-export type DraftFolderCacheKey = string;
+export type DraftFolderCacheKey = `${MailboxScope}:${string}:${string}`;
 
-export function buildDraftFolderCacheKey(mailboxId: string | null): DraftFolderCacheKey {
-  return mailboxId ?? "__all__";
+export function buildDraftFolderCacheKey(
+  scope: MailboxScope,
+  mailboxId: string | null,
+  search = "",
+): DraftFolderCacheKey {
+  return `${scope}:${mailboxId ?? "__all__"}:${search}`;
 }
 
 /** Maps workspace folder to a production message folder for mailbox switch loads. */
@@ -273,7 +338,10 @@ export function createMailWorkspaceRuntime(
   let outboxRequestSequence = 0;
   let outboxLoadInFlight: Promise<void> | null = null;
   const messageFolderCache = new Map<MessageFolderCacheKey, MessageFolderCacheEntry>();
-  const draftFolderCache = new Map<DraftFolderCacheKey, DraftApiItem[]>();
+  const draftFolderCache = new Map<
+    DraftFolderCacheKey,
+    { items: DraftApiItem[]; nextCursor: string | null }
+  >();
 
   const notify = () => {
     for (const listener of listeners) {
@@ -295,9 +363,12 @@ export function createMailWorkspaceRuntime(
       loadMailboxes,
       loadMessages,
       loadDrafts,
+      loadMoreDrafts,
       refreshDrafts,
       loadMoreMessages,
+      setMessageSearchQuery,
       selectMailbox,
+      selectAllMailboxes,
       selectFolder,
       selectMessage,
       clearReadingSelection,
@@ -305,6 +376,7 @@ export function createMailWorkspaceRuntime(
       refreshMessages,
       markMessageRead,
       refreshOutbox,
+      loadMoreOutbox,
     };
     return snapshot;
   };
@@ -312,10 +384,17 @@ export function createMailWorkspaceRuntime(
   const getSnapshot = (): MailWorkspaceContextValue => snapshot;
 
   function resolveActiveMailboxId(): string | null {
+    if (state.mailboxScope === "all") {
+      return null;
+    }
     return resolveEffectiveMailboxId({
       selectedMailboxId: state.selectedMailboxId,
       mailboxes: state.mailboxes,
     });
+  }
+
+  function resolveActiveScope(): MailboxScope {
+    return state.mailboxScope;
   }
 
   async function ensureSoleMailboxInitialLoad(mailboxes: AccessibleMailboxView[]) {
@@ -349,20 +428,31 @@ export function createMailWorkspaceRuntime(
       return outboxLoadInFlight;
     }
     const requestSequence = ++outboxRequestSequence;
+    const scope = resolveActiveScope();
     const mailboxId = resolveActiveMailboxId();
     setState({ isLoadingOutbox: true, outboxError: null });
-    if (!api.fetchOutbox) {
-      setState({ outboxItems: [], isLoadingOutbox: false });
+    if (!api.fetchOutbox && !api.fetchOutboxPage) {
+      setState({ outboxItems: [], outboxNextCursor: null, isLoadingOutbox: false });
       return;
     }
     const request = (async () => {
       try {
-        const items = await api.fetchOutbox!(mailboxId);
+        const page = api.fetchOutboxPage
+          ? await api.fetchOutboxPage({
+              scope,
+              mailboxId,
+              search: state.messageSearchQuery,
+            })
+          : {
+              items: await api.fetchOutbox!(mailboxId),
+              nextCursor: null,
+            };
         if (requestSequence !== outboxRequestSequence) {
           return;
         }
         setState({
-          outboxItems: items,
+          outboxItems: page.items,
+          outboxNextCursor: page.nextCursor,
           isLoadingOutbox: false,
           outboxError: null,
         });
@@ -390,6 +480,52 @@ export function createMailWorkspaceRuntime(
     await loadOutbox();
   }
 
+  async function loadMoreOutbox() {
+    if (
+      state.isLoadingOutbox ||
+      !state.outboxNextCursor ||
+      !api.fetchOutboxPage
+    ) {
+      return;
+    }
+    const requestSequence = ++outboxRequestSequence;
+    const scope = resolveActiveScope();
+    const mailboxId = resolveActiveMailboxId();
+    setState({ isLoadingOutbox: true, outboxError: null });
+    try {
+      const page = await api.fetchOutboxPage({
+        scope,
+        mailboxId,
+        cursor: state.outboxNextCursor,
+        search: state.messageSearchQuery,
+      });
+      if (
+        requestSequence !== outboxRequestSequence ||
+        state.selectedFolder !== "outbox"
+      ) {
+        return;
+      }
+      const existingIds = new Set(
+        state.outboxItems.map((item) => item.sendOperationId),
+      );
+      setState({
+        outboxItems: [
+          ...state.outboxItems,
+          ...page.items.filter((item) => !existingIds.has(item.sendOperationId)),
+        ],
+        outboxNextCursor: page.nextCursor,
+        isLoadingOutbox: false,
+      });
+    } catch (error) {
+      if (requestSequence === outboxRequestSequence) {
+        setState({
+          isLoadingOutbox: false,
+          outboxError: toWorkspaceError(error),
+        });
+      }
+    }
+  }
+
   async function loadMailboxes() {
     setState({ isLoadingMailboxes: true, error: null });
     try {
@@ -406,18 +542,37 @@ export function createMailWorkspaceRuntime(
 
   async function loadMessages(input: LoadMessagesInput) {
     const reset = input.reset !== false;
+    const scope = input.scope ?? "single";
+    const mailboxId =
+      scope === "single"
+        ? input.mailboxId ?? resolveEffectiveMailboxId({
+            selectedMailboxId: state.selectedMailboxId,
+            mailboxes: state.mailboxes,
+          })
+        : null;
+    if (scope === "single" && !mailboxId) {
+      return;
+    }
+    const search = input.search?.trim() ?? state.messageSearchQuery;
     const requestSequence = ++messagesRequestSequence;
     const request: MessagesRequestContext = {
-      mailboxId: input.mailboxId,
+      scope,
+      mailboxId,
       folder: input.folder,
+      search,
     };
     const comparisonFolder = input.previousFolder ?? state.selectedFolder;
     const sameFolderRefresh = isSameFolderMessageRefresh({
       reset,
-      currentMailboxId: state.selectedMailboxId,
+      currentScope: state.mailboxScope,
+      currentMailboxId:
+        state.mailboxScope === "all" ? null : state.selectedMailboxId,
       currentFolder: comparisonFolder,
-      targetMailboxId: input.mailboxId,
+      targetScope: scope,
+      targetMailboxId: mailboxId,
       targetFolder: input.folder,
+      currentSearch: state.messageSearchQuery,
+      targetSearch: search,
     });
 
     if (
@@ -429,8 +584,10 @@ export function createMailWorkspaceRuntime(
     ) {
       messageFolderCache.set(
         buildMessageFolderCacheKey(
-          state.selectedMailboxId,
+          state.mailboxScope,
+          state.mailboxScope === "all" ? null : state.selectedMailboxId,
           comparisonFolder as MailReadFolder,
+          state.messageSearchQuery,
         ),
         {
           messages: state.messages,
@@ -441,15 +598,18 @@ export function createMailWorkspaceRuntime(
 
     const cachedTarget = reset && !sameFolderRefresh
       ? messageFolderCache.get(
-          buildMessageFolderCacheKey(input.mailboxId, input.folder),
+          buildMessageFolderCacheKey(scope, mailboxId, input.folder, search),
         )
       : undefined;
 
     setState({
       isLoadingMessages: true,
       error: null,
-      selectedMailboxId: input.mailboxId,
+      mailboxScope: scope,
+      selectedMailboxId:
+        scope === "single" ? mailboxId : state.selectedMailboxId,
       selectedFolder: input.folder,
+      messageSearchQuery: search,
       drafts: [],
       ...(reset
         ? {
@@ -468,16 +628,21 @@ export function createMailWorkspaceRuntime(
 
     try {
       const page = await api.fetchMessages({
-        mailboxId: input.mailboxId,
+        scope,
+        mailboxId: mailboxId ?? "",
         folder: input.folder,
+        search,
       });
       if (
         !shouldApplyMessagesResponse({
           requestSequence,
           activeSequence: messagesRequestSequence,
           request,
-          currentMailboxId: state.selectedMailboxId,
+          currentScope: state.mailboxScope,
+          currentMailboxId:
+            state.mailboxScope === "all" ? null : state.selectedMailboxId,
           currentFolder: state.selectedFolder,
+          currentSearch: state.messageSearchQuery,
         })
       ) {
         if (requestSequence === messagesRequestSequence) {
@@ -491,7 +656,7 @@ export function createMailWorkspaceRuntime(
         reset,
       );
       messageFolderCache.set(
-        buildMessageFolderCacheKey(input.mailboxId, input.folder),
+        buildMessageFolderCacheKey(scope, mailboxId, input.folder, search),
         {
           messages,
           nextCursor: page.nextCursor,
@@ -509,8 +674,11 @@ export function createMailWorkspaceRuntime(
           requestSequence,
           activeSequence: messagesRequestSequence,
           request,
-          currentMailboxId: state.selectedMailboxId,
+          currentScope: state.mailboxScope,
+          currentMailboxId:
+            state.mailboxScope === "all" ? null : state.selectedMailboxId,
           currentFolder: state.selectedFolder,
+          currentSearch: state.messageSearchQuery,
         })
       ) {
         if (requestSequence === messagesRequestSequence) {
@@ -526,12 +694,19 @@ export function createMailWorkspaceRuntime(
   }
 
   async function loadMoreMessages() {
+    if (state.selectedFolder === "drafts") {
+      await loadMoreDrafts();
+      return;
+    }
+    if (state.selectedFolder === "outbox") {
+      await loadMoreOutbox();
+      return;
+    }
+    const scope = resolveActiveScope();
     const mailboxId = resolveActiveMailboxId();
     if (
-      state.selectedFolder === "drafts" ||
       state.selectedFolder === "pending_approval" ||
-      state.selectedFolder === "outbox" ||
-      !mailboxId ||
+      (scope === "single" && !mailboxId) ||
       !state.nextCursor ||
       state.isLoadingMessages
     ) {
@@ -541,8 +716,10 @@ export function createMailWorkspaceRuntime(
     const requestSequence = ++messagesRequestSequence;
     const folder = state.selectedFolder;
     const request: MessagesRequestContext = {
+      scope,
       mailboxId,
       folder,
+      search: state.messageSearchQuery,
     };
     const cursor = state.nextCursor;
     const previousMessages = state.messages;
@@ -550,17 +727,22 @@ export function createMailWorkspaceRuntime(
     setState({ isLoadingMessages: true, error: null });
     try {
       const page = await api.fetchMessages({
-        mailboxId: request.mailboxId,
+        scope,
+        mailboxId: request.mailboxId ?? "",
         folder: request.folder,
         cursor,
+        search: request.search,
       });
       if (
         !shouldApplyMessagesResponse({
           requestSequence,
           activeSequence: messagesRequestSequence,
           request,
-          currentMailboxId: state.selectedMailboxId,
+          currentScope: state.mailboxScope,
+          currentMailboxId:
+            state.mailboxScope === "all" ? null : state.selectedMailboxId,
           currentFolder: state.selectedFolder,
+          currentSearch: state.messageSearchQuery,
         })
       ) {
         if (requestSequence === messagesRequestSequence) {
@@ -580,8 +762,11 @@ export function createMailWorkspaceRuntime(
           requestSequence,
           activeSequence: messagesRequestSequence,
           request,
-          currentMailboxId: state.selectedMailboxId,
+          currentScope: state.mailboxScope,
+          currentMailboxId:
+            state.mailboxScope === "all" ? null : state.selectedMailboxId,
           currentFolder: state.selectedFolder,
+          currentSearch: state.messageSearchQuery,
         })
       ) {
         if (requestSequence === messagesRequestSequence) {
@@ -601,11 +786,21 @@ export function createMailWorkspaceRuntime(
       return;
     }
     const mailboxId = resolveActiveMailboxId();
+    const scope = resolveActiveScope();
     const requestSequence = ++draftsRequestSequence;
     try {
-      const items = await api.fetchDrafts(
-        mailboxId ? { mailboxId } : undefined,
-      );
+      const page = api.fetchDraftPage
+        ? await api.fetchDraftPage({
+            scope,
+            mailboxId,
+            search: state.messageSearchQuery,
+          })
+        : {
+            items: await api.fetchDrafts(
+              mailboxId ? { mailboxId } : undefined,
+            ),
+            nextCursor: null,
+          };
       if (requestSequence !== draftsRequestSequence) {
         return;
       }
@@ -613,7 +808,8 @@ export function createMailWorkspaceRuntime(
         return;
       }
       setState({
-        drafts: sortDraftsByRecency(items),
+        drafts: sortDraftsByRecency(page.items),
+        nextCursor: page.nextCursor,
         error: null,
       });
     } catch (error) {
@@ -632,9 +828,15 @@ export function createMailWorkspaceRuntime(
   async function loadDraftsForMailbox(
     mailboxId: string | null,
     previousFolder: MailWorkspaceFolder = state.selectedFolder,
+    scope: MailboxScope = state.mailboxScope,
+    search = state.messageSearchQuery,
   ) {
     const requestSequence = ++draftsRequestSequence;
-    const draftCacheKey = buildDraftFolderCacheKey(mailboxId);
+    const draftCacheKey = buildDraftFolderCacheKey(
+      scope,
+      mailboxId,
+      search,
+    );
 
     if (
       state.selectedMailboxId &&
@@ -643,8 +845,10 @@ export function createMailWorkspaceRuntime(
     ) {
       messageFolderCache.set(
         buildMessageFolderCacheKey(
-          state.selectedMailboxId,
+          state.mailboxScope,
+          state.mailboxScope === "all" ? null : state.selectedMailboxId,
           previousFolder as MailReadFolder,
+          state.messageSearchQuery,
         ),
         {
           messages: state.messages,
@@ -658,20 +862,31 @@ export function createMailWorkspaceRuntime(
     setState({
       isLoadingMessages: true,
       error: null,
+      mailboxScope: scope,
+      selectedMailboxId:
+        scope === "single" ? mailboxId : state.selectedMailboxId,
       selectedFolder: "drafts",
       messages: [],
-      nextCursor: null,
+      nextCursor: cachedDrafts?.nextCursor ?? null,
       selectedMessageId: null,
       selectedMessage: null,
       isLoadingDetail: false,
-      drafts: cachedDrafts ?? [],
-      ...(mailboxId ? { selectedMailboxId: mailboxId } : {}),
+      drafts: cachedDrafts?.items ?? [],
     });
 
     try {
-      const items = await api.fetchDrafts(
-        mailboxId ? { mailboxId } : undefined,
-      );
+      const page = api.fetchDraftPage
+        ? await api.fetchDraftPage({
+            scope,
+            mailboxId,
+            search,
+          })
+        : {
+            items: await api.fetchDrafts(
+              mailboxId ? { mailboxId } : undefined,
+            ),
+            nextCursor: null,
+          };
       if (requestSequence !== draftsRequestSequence) {
         return;
       }
@@ -681,10 +896,14 @@ export function createMailWorkspaceRuntime(
         }
         return;
       }
-      const drafts = sortDraftsByRecency(items);
-      draftFolderCache.set(draftCacheKey, drafts);
+      const drafts = sortDraftsByRecency(page.items);
+      draftFolderCache.set(draftCacheKey, {
+        items: drafts,
+        nextCursor: page.nextCursor,
+      });
       setState({
         drafts,
+        nextCursor: page.nextCursor,
         isLoadingMessages: false,
         error: null,
       });
@@ -711,9 +930,87 @@ export function createMailWorkspaceRuntime(
     await loadDraftsForMailbox(resolveActiveMailboxId(), previousFolder);
   }
 
+  async function loadMoreDrafts() {
+    if (
+      !state.nextCursor ||
+      state.isLoadingMessages ||
+      !api.fetchDraftPage ||
+      state.selectedFolder !== "drafts"
+    ) {
+      return;
+    }
+    const requestSequence = ++draftsRequestSequence;
+    const scope = resolveActiveScope();
+    const mailboxId = resolveActiveMailboxId();
+    setState({ isLoadingMessages: true, error: null });
+    try {
+      const page = await api.fetchDraftPage({
+        scope,
+        mailboxId,
+        cursor: state.nextCursor,
+        search: state.messageSearchQuery,
+      });
+      if (
+        requestSequence !== draftsRequestSequence ||
+        state.selectedFolder !== "drafts"
+      ) {
+        return;
+      }
+      const existingIds = new Set(state.drafts.map((draft) => draft.id));
+      const drafts = sortDraftsByRecency([
+        ...state.drafts,
+        ...page.items.filter((draft) => !existingIds.has(draft.id)),
+      ]);
+      setState({
+        drafts,
+        nextCursor: page.nextCursor,
+        isLoadingMessages: false,
+        error: null,
+      });
+    } catch (error) {
+      if (requestSequence === draftsRequestSequence) {
+        setState({
+          isLoadingMessages: false,
+          error: toWorkspaceError(error),
+        });
+      }
+    }
+  }
+
+  async function setMessageSearchQuery(query: string) {
+    const normalized = query.trim();
+    setState({ messageSearchQuery: normalized });
+    if (state.selectedFolder === "drafts") {
+      await loadDraftsForMailbox(
+        resolveActiveMailboxId(),
+        "drafts",
+        resolveActiveScope(),
+        normalized,
+      );
+      return;
+    }
+    if (state.selectedFolder === "outbox") {
+      await loadOutbox();
+      return;
+    }
+    const folder = resolveMailboxMessageLoadFolder(state.selectedFolder);
+    if (!folder) {
+      return;
+    }
+    await loadMessages({
+      scope: resolveActiveScope(),
+      mailboxId: resolveActiveMailboxId(),
+      folder,
+      reset: true,
+      search: normalized,
+    });
+  }
+
   async function selectMailbox(mailboxId: string) {
+    setState({ mailboxScope: "single", selectedMailboxId: mailboxId });
     if (state.selectedFolder === "outbox") {
       setState({
+        mailboxScope: "single",
         selectedMailboxId: mailboxId,
         messages: [],
         drafts: [],
@@ -728,13 +1025,14 @@ export function createMailWorkspaceRuntime(
     }
 
     if (state.selectedFolder === "drafts") {
-      await loadDraftsForMailbox(mailboxId, "drafts");
+      await loadDraftsForMailbox(mailboxId, "drafts", "single");
       return;
     }
 
     const folder = resolveMailboxMessageLoadFolder(state.selectedFolder);
     if (folder === null) {
       setState({
+        mailboxScope: "single",
         selectedMailboxId: mailboxId,
         messages: [],
         drafts: [],
@@ -747,7 +1045,46 @@ export function createMailWorkspaceRuntime(
       return;
     }
     await loadMessages({
+      scope: "single",
       mailboxId,
+      folder,
+      reset: true,
+    });
+  }
+
+  async function selectAllMailboxes() {
+    if (
+      state.mailboxes.length < 2 ||
+      state.selectedFolder === "pending_approval"
+    ) {
+      return;
+    }
+    if (state.selectedFolder === "drafts") {
+      await loadDraftsForMailbox(null, "drafts", "all");
+      return;
+    }
+    if (state.selectedFolder === "outbox") {
+      setState({
+        mailboxScope: "all",
+        messages: [],
+        drafts: [],
+        nextCursor: null,
+        selectedMessageId: null,
+        selectedMessage: null,
+        isLoadingMessages: false,
+        error: null,
+      });
+      await loadOutbox();
+      return;
+    }
+    const folder = resolveMailboxMessageLoadFolder(state.selectedFolder);
+    if (folder === null) {
+      setState({ mailboxScope: "all" });
+      return;
+    }
+    await loadMessages({
+      scope: "all",
+      mailboxId: null,
       folder,
       reset: true,
     });
@@ -778,10 +1115,11 @@ export function createMailWorkspaceRuntime(
       return;
     }
     const mailboxId = resolveActiveMailboxId();
-    if (!mailboxId) {
+    if (state.mailboxScope === "single" && !mailboxId) {
       return;
     }
     await loadMessages({
+      scope: state.mailboxScope,
       mailboxId,
       folder: nextFolder,
       reset: true,
@@ -892,11 +1230,12 @@ export function createMailWorkspaceRuntime(
       return;
     }
     const mailboxId = resolveActiveMailboxId();
-    if (!mailboxId) {
+    if (state.mailboxScope === "single" && !mailboxId) {
       return;
     }
     const folder = state.selectedFolder;
     await loadMessages({
+      scope: state.mailboxScope,
       mailboxId,
       folder,
       reset: true,

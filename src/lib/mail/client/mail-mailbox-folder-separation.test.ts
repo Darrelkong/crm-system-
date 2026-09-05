@@ -37,6 +37,15 @@ describe("production mailbox and folder navigation separation", () => {
     assert.match(source, /key=\{mailbox\.id\}/);
   });
 
+  it("renders All Mailboxes only behind the CRM Admin capability", () => {
+    const source = read("../../../components/mail/prototype/mail-mailbox-context.tsx");
+
+    assert.match(source, /useMailSession/);
+    assert.match(source, /isCrmRootAdmin && mailboxes\.length > 1/);
+    assert.match(source, /workspace\.mailboxScope === "all"/);
+    assert.match(source, /workspace\.selectAllMailboxes/);
+  });
+
   it("keeps a single personal mailbox visible as a static context", () => {
     const source = read("../../../components/mail/prototype/mail-mailbox-context.tsx");
 

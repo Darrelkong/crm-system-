@@ -2,9 +2,11 @@ export const dynamic = "force-dynamic";
 
 import { authErrorResponse, AuthError } from "@/lib/permissions/auth";
 import { requireMailActor, type MailRouteActorResolver } from "@/lib/mail/api-helpers";
-import { mailErrorResponse } from "@/lib/mail/errors";
+import { MailServiceError, mailErrorResponse } from "@/lib/mail/errors";
 import {
   parseOptionalCursor,
+  parseOptionalMailSearch,
+  parseOptionalMailboxScope,
   parseOptionalMessageListLimit,
   parseRequiredMailboxId,
   parseRequiredMessageListFolder,
@@ -26,16 +28,26 @@ export async function handleGetMailMessages(
   try {
     const { actor, db } = await deps.requireMailActor(request);
     const searchParams = new URL(request.url).searchParams;
-    const mailboxId = parseRequiredMailboxId(searchParams);
+    const scope = parseOptionalMailboxScope(searchParams);
+    if (scope === "all" && searchParams.has("mailboxId")) {
+      throw MailServiceError.validation(
+        "mailboxId cannot be used with scope=all",
+      );
+    }
+    const mailboxId =
+      scope === "single" ? parseRequiredMailboxId(searchParams) : null;
     const folder = parseRequiredMessageListFolder(searchParams);
     const limit = parseOptionalMessageListLimit(searchParams);
     const cursor = parseOptionalCursor(searchParams);
+    const search = parseOptionalMailSearch(searchParams);
 
     const page = await listAccessibleMessages(db, actor, {
+      scope,
       mailboxId,
       folder,
       limit,
       cursor,
+      search,
     });
 
     return Response.json(page);

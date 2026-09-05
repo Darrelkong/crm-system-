@@ -55,4 +55,12 @@ describe("mail outbox architecture wiring", () => {
     assert.match(boundary, /workspace\.selectedFolder !== "outbox"/);
     assert.match(boundary, /setInterval\(refreshOutbox, 5_000\)/);
   });
+
+  it("requires mailbox-read enforcement for send-operation detail", () => {
+    const route = readFileSync(
+      "src/app/api/mail/send-operations/[id]/route.ts",
+      "utf8",
+    );
+    assert.match(route, /enforceMailboxRead:\s*true/);
+  });
 });

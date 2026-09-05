@@ -5,6 +5,7 @@ import {
 } from "@/lib/mail/mail-read-service";
 import type { MailMessageReadFolder } from "@/lib/mail/message-read-permissions";
 import type { MessageReadStatePatch } from "@/lib/mail/mail-read-state-service";
+import { parseMailboxScope, type MailboxScope } from "@/lib/mail/mailbox-scope";
 
 export const MAIL_READ_RESOURCE_ID_MAX_LENGTH = 191;
 
@@ -51,6 +52,25 @@ export function parseRequiredMailboxId(searchParams: URLSearchParams): string {
     throw MailServiceError.validation("mailboxId is required");
   }
   return mailboxId;
+}
+
+export function parseOptionalMailboxScope(
+  searchParams: URLSearchParams,
+): MailboxScope {
+  return parseMailboxScope(searchParams.get("scope"));
+}
+
+export function parseOptionalMailSearch(
+  searchParams: URLSearchParams,
+): string | undefined {
+  const query = readTrimmedParam(searchParams, "q");
+  if (query == null) {
+    return undefined;
+  }
+  if (query.length > 100) {
+    throw MailServiceError.validation("q must not exceed 100 characters");
+  }
+  return query;
 }
 
 function isMessageReadFolder(value: string): value is MailMessageReadFolder {

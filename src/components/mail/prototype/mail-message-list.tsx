@@ -75,7 +75,6 @@ export function MailMessageList({
       hasError: productionWorkspace.error !== null,
     });
     const showLoadMore =
-      !isDraftsFolder &&
       productionWorkspace.nextCursor !== null &&
       productionRows.length > 0;
     const isLoadingMore =
@@ -132,7 +131,11 @@ export function MailMessageList({
             <input
               type="search"
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                setSearchQuery(value);
+                void productionWorkspace.setMessageSearchQuery(value);
+              }}
               placeholder={t("mail.search.loadedListPlaceholder")}
               className="mail-list-search min-h-8 w-full max-w-full rounded-lg border crm-border bg-[var(--color-crm-bg-muted)] py-1.5 pl-8 pr-3 text-[13px] crm-text"
             />
@@ -159,6 +162,7 @@ export function MailMessageList({
                       : (productionWorkspace.selectedFolder as "inbox" | "sent" | "trash")
                   }
                   useProductionUnread
+                  showSourceMailbox={productionWorkspace.mailboxScope === "all"}
                 />
               ))}
               {showLoadMore ? (

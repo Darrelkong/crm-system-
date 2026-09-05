@@ -41,6 +41,7 @@ export function MailMessageRow({
   onSelect,
   activeFolder: activeFolderOverride,
   useProductionUnread = false,
+  showSourceMailbox = false,
 }: {
   row?: MailListRowPresentation;
   message?: MailMessage;
@@ -48,6 +49,7 @@ export function MailMessageRow({
   onSelect: () => void;
   activeFolder?: MailFolderId | "inbox" | "sent" | "trash" | "drafts";
   useProductionUnread?: boolean;
+  showSourceMailbox?: boolean;
 }) {
   const { t } = useTranslation();
   const { activeFolder: prototypeActiveFolder, currentTeamMemberId } =
@@ -72,6 +74,7 @@ export function MailMessageRow({
           draftRecipientCount: message.to.length,
           draftRecipientSummary:
             message.to.length > 0 ? message.to.join(", ") : null,
+          sourceMailbox: undefined,
         }
       : null);
 
@@ -156,6 +159,16 @@ export function MailMessageRow({
           {presentation.subject ||
             (isDraftRow ? t("mail.draft.noSubject") : "")}
         </p>
+
+        {showSourceMailbox && presentation.sourceMailbox ? (
+          <p className="mt-0.5 truncate text-[11px] leading-snug crm-text-secondary">
+            {presentation.sourceMailbox.displayName ??
+              presentation.sourceMailbox.address}
+            {presentation.sourceMailbox.mailboxType === "shared"
+              ? ` · ${t("mail.mailbox.shared")}`
+              : ""}
+          </p>
+        ) : null}
 
         {isDraftRow ? (
           <>

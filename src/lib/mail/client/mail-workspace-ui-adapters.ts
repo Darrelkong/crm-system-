@@ -7,6 +7,7 @@ import type {
   MailReadFolder,
   MailWorkspaceFolder,
 } from "@/lib/mail/client/mail-read-types";
+import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 import {
   pickMailCrmContextSafeFields,
   type MailCrmContextAssociation,
@@ -34,6 +35,7 @@ export type MailListRowPresentation = {
   assigneeId?: MailMessage["assigneeId"];
   draftRecipientCount?: number;
   draftRecipientSummary?: string | null;
+  sourceMailbox?: MailSourceMailboxView;
 };
 
 export type MailSidebarMailboxPresentation = {
@@ -234,6 +236,7 @@ export function adaptProductionListRow(
     isUnread: message.isUnread,
     isImportant: message.isImportantPersonal,
     hasAttachment: message.hasAttachments,
+    sourceMailbox: message.sourceMailbox,
   };
 }
 
@@ -257,6 +260,7 @@ export function adaptProductionDraftListRow(
     hasAttachment: false,
     draftRecipientCount: toRecipients?.length ?? 0,
     draftRecipientSummary: formatDraftRecipientSummary(toRecipients),
+    sourceMailbox: draft.sourceMailbox,
   };
 }
 

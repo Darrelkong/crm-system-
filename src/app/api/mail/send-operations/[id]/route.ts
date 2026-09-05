@@ -10,7 +10,9 @@ export async function GET(request: Request, context: RouteContext) {
   try {
     const { actor, db } = await requireMailActor(request);
     const { id } = await context.params;
-    const item = await getSendOperation(db, actor, id);
+    const item = await getSendOperation(db, actor, id, {
+      enforceMailboxRead: true,
+    });
     return Response.json({ item });
   } catch (error) {
     return mailErrorResponse(error);

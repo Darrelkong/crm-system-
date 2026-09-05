@@ -5,6 +5,7 @@ import { useRef, useState } from "react";
 import { QuickEntryDrawer } from "@/components/ui/quick-entry-drawer";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { useOptionalMailWorkspace } from "@/lib/mail/client/mail-workspace-context";
 import {
   adaptAccessibleMailbox,
@@ -77,6 +78,7 @@ export function MailMailboxContext({
   returnFocusRef,
 }: MailMailboxContextProps) {
   const { t } = useTranslation();
+  const { isCrmRootAdmin } = useMailSession();
   const workspace = useOptionalMailWorkspace();
   const [sheetOpen, setSheetOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -90,6 +92,8 @@ export function MailMailboxContext({
   const selected =
     mailboxes.find((mailbox) => mailbox.id === workspace.selectedMailboxId) ??
     mailboxes[0]!;
+  const showAllOption = isCrmRootAdmin && mailboxes.length > 1;
+  const isAllSelected = workspace.mailboxScope === "all";
   const hasMultipleMailboxes = mailboxes.length > 1;
   const isSinglePersonalMailbox =
     mailboxes.length === 1 && selected.mailboxType === "personal";
@@ -102,8 +106,10 @@ export function MailMailboxContext({
     return null;
   }
 
-  const primary = mailboxPrimaryLabel(selected);
-  const showAddress = variant === "desktop";
+  const primary = isAllSelected
+    ? t("mail.mailbox.all")
+    : mailboxPrimaryLabel(selected);
+  const showAddress = variant === "desktop" && !isAllSelected;
   const isMobileSharedMailbox =
     variant === "mobile" && selected.mailboxType === "shared";
 
@@ -215,7 +221,14 @@ export function MailMailboxContext({
         <MailMailboxContextSheet
           open={sheetOpen}
           sections={sections}
-          selectedMailboxId={workspace.selectedMailboxId}
+              selectedMailboxId={
+                isAllSelected ? null : workspace.selectedMailboxId
+              }
+              showAllOption={showAllOption}
+              allSelected={isAllSelected}
+              onSelectAll={() => {
+                void workspace.selectAllMailboxes();
+              }}
           onSelect={(mailboxId) => {
             void workspace.selectMailbox(mailboxId);
           }}
@@ -231,6 +244,9 @@ function MailMailboxContextSheet({
   open,
   sections,
   selectedMailboxId,
+  showAllOption,
+  allSelected,
+  onSelectAll,
   onSelect,
   onClose,
   returnFocusRef,
@@ -238,6 +254,9 @@ function MailMailboxContextSheet({
   open: boolean;
   sections: ReturnType<typeof resolveMailboxSidebarSections>;
   selectedMailboxId: string | null;
+  showAllOption: boolean;
+  allSelected: boolean;
+  onSelectAll: () => void;
   onSelect: (mailboxId: string) => void;
   onClose: () => void;
   returnFocusRef?: React.RefObject<HTMLElement | null>;
@@ -278,6 +297,38 @@ function MailMailboxContextSheet({
       returnFocusRef={returnFocusRef}
     >
       <div className="p-2">
+        {showAllOption ? (
+          <section className="border-b crm-border px-2 py-2">
+            <button
+              type="button"
+              onClick={() => {
+                onSelectAll();
+                onClose();
+              }}
+              className={cn(
+                "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+                allSelected
+                  ? "bg-[var(--color-crm-primary)]/[0.08] crm-text"
+                  : "crm-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+              )}
+            >
+              <span
+                className={cn(
+                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                  allSelected
+                    ? "border-[var(--color-crm-primary)] text-[var(--color-crm-primary)]"
+                    : "crm-border crm-text-secondary",
+                )}
+                aria-hidden
+              >
+                {allSelected ? <Check className="h-3.5 w-3.5" /> : null}
+              </span>
+              <span className="truncate text-sm font-medium">
+                {t("mail.mailbox.all")}
+              </span>
+            </button>
+          </section>
+        ) : null}
         {renderSection("mail.mailbox.personal", sections.personalMailboxes)}
         {renderSection("mail.mailbox.shared", sections.sharedMailboxes)}
       </div>

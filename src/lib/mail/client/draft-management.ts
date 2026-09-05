@@ -11,6 +11,7 @@ import {
   mergeComposeBodyForSave,
   splitComposeBodyForEditor,
 } from "@/lib/mail/client/compose-reply-body";
+import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 
 export const COMPOSE_CONTEXT_PATH = "/api/mail/compose/context";
 export const DRAFTS_PATH = "/api/mail/drafts";
@@ -48,6 +49,7 @@ export type DraftApiItem = {
   discardedAt: string | null;
   createdAt: string;
   updatedAt: string;
+  sourceMailbox?: MailSourceMailboxView;
   toRecipients?: Array<{
     id: string;
     recipientType: "to" | "cc" | "bcc";
@@ -55,6 +57,11 @@ export type DraftApiItem = {
     displayName: string | null;
     sortOrder: number;
   }>;
+};
+
+export type DraftListPage = {
+  items: DraftApiItem[];
+  nextCursor: string | null;
 };
 
 export type DraftDetailApiItem = DraftApiItem & {

@@ -1,4 +1,7 @@
+import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
+
 export type MailReadFolder = "inbox" | "sent" | "trash";
+export type MailboxScope = "single" | "all";
 
 /** Production workspace folders including workflow views backed by non-message APIs. */
 export type MailWorkspaceFolder =
@@ -51,6 +54,7 @@ export type MailMessageListView = {
   isImportantPersonal: boolean;
   hasAttachments: boolean;
   attachmentCount: number;
+  sourceMailbox?: MailSourceMailboxView;
 };
 
 export type MailMessageDetailRecipientView = {
@@ -126,10 +130,12 @@ export type MailReadStatePatch = {
 };
 
 export type FetchMessagesInput = {
+  scope?: MailboxScope;
   mailboxId: string;
   folder: MailReadFolder;
   cursor?: string | null;
   limit?: number;
+  search?: string | null;
 };
 
 export type FetchMessageDetailInput = {

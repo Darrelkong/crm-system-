@@ -1,5 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import type { MailDraft } from "../../../drizzle/schema/mail-drafts";
 import type { User } from "../../../drizzle/schema/users";
 import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
@@ -43,6 +42,12 @@ import {
 } from "@/lib/permissions/mail";
 import { assertCanReadMailbox } from "@/lib/mail/message-read-permissions";
 import { getUserById } from "@/lib/users/queries";
+import {
+  assertCanUseAllMailboxScope,
+  type MailboxScope,
+} from "@/lib/mail/mailbox-scope";
+import { listAccessibleMailboxes } from "@/lib/mail/mail-read-mailbox-service";
+import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 
 export type DraftDetailView = SafeDraftView & {
   recipients: SafeDraftRecipientView[];
@@ -270,6 +275,191 @@ async function attachDraftListRecipients(
   }));
 }
 
+type DraftListCursor = {
+  updatedAt: string;
+  createdAt: string;
+  id: string;
+  scope: MailboxScope;
+  mailboxId: string | null;
+  search: string;
+};
+
+export type DraftListPage = {
+  items: SafeDraftView[];
+  nextCursor: string | null;
+};
+
+export type ListDraftPageOptions = {
+  scope?: MailboxScope;
+  mailboxId?: string;
+  cursor?: string | null;
+  limit?: number;
+  search?: string | null;
+};
+
+const DRAFT_LIST_DEFAULT_LIMIT = 50;
+const DRAFT_LIST_MAX_LIMIT = 100;
+
+function encodeDraftCursor(cursor: DraftListCursor): string {
+  return Buffer.from(JSON.stringify(cursor), "utf8").toString("base64url");
+}
+
+function decodeDraftCursor(value: string): DraftListCursor | null {
+  try {
+    const parsed = JSON.parse(
+      Buffer.from(value, "base64url").toString("utf8"),
+    ) as Partial<DraftListCursor>;
+    if (
+      typeof parsed.updatedAt !== "string" ||
+      typeof parsed.createdAt !== "string" ||
+      typeof parsed.id !== "string" ||
+      (parsed.scope !== "single" && parsed.scope !== "all") ||
+      (parsed.mailboxId !== null && typeof parsed.mailboxId !== "string") ||
+      typeof parsed.search !== "string"
+    ) {
+      return null;
+    }
+    return parsed as DraftListCursor;
+  } catch {
+    return null;
+  }
+}
+
+function draftSearchCondition(search: string) {
+  const normalized = search.toLowerCase();
+  return or(
+    sql`instr(lower(${schema.mailDrafts.subject}), ${normalized}) > 0`,
+    sql`instr(lower(${schema.mailDrafts.bodyText}), ${normalized}) > 0`,
+  )!;
+}
+
+function draftCursorCondition(cursor: DraftListCursor) {
+  return or(
+    lt(schema.mailDrafts.updatedAt, cursor.updatedAt),
+    and(
+      eq(schema.mailDrafts.updatedAt, cursor.updatedAt),
+      lt(schema.mailDrafts.createdAt, cursor.createdAt),
+    ),
+    and(
+      eq(schema.mailDrafts.updatedAt, cursor.updatedAt),
+      eq(schema.mailDrafts.createdAt, cursor.createdAt),
+      lt(schema.mailDrafts.id, cursor.id),
+    ),
+  )!;
+}
+
+function draftListLimit(limit?: number): number {
+  if (limit == null || !Number.isFinite(limit) || limit <= 0) {
+    return DRAFT_LIST_DEFAULT_LIMIT;
+  }
+  return Math.min(Math.floor(limit), DRAFT_LIST_MAX_LIMIT);
+}
+
+function draftWithSourceMailbox(
+  draft: MailDraft,
+  sourceMailbox: MailSourceMailboxView | null,
+): SafeDraftView {
+  return toSafeDraftView(draft, sourceMailbox ?? undefined);
+}
+
+export async function listDraftPage(
+  db: Database,
+  actor: MailActorContext,
+  options: ListDraftPageOptions = {},
+): Promise<DraftListPage> {
+  const scope = options.scope ?? "single";
+  const search = options.search?.trim() ?? "";
+  const limit = draftListLimit(options.limit);
+  const conditions = [isNull(schema.mailDrafts.discardedAt)];
+
+  if (scope === "all") {
+    if (options.mailboxId) {
+      throw MailServiceError.validation(
+        "mailboxId cannot be used with scope=all",
+      );
+    }
+    assertEffectiveMailAccess(actor);
+    assertCanUseAllMailboxScope(actor);
+    const accessibleMailboxes = await listAccessibleMailboxes(db, actor);
+    const mailboxIds = accessibleMailboxes.map((mailbox) => mailbox.id);
+    if (mailboxIds.length === 0) {
+      return { items: [], nextCursor: null };
+    }
+    conditions.push(
+      inArray(schema.mailDrafts.mailboxId, mailboxIds),
+    );
+  } else if (options.mailboxId && hasEffectiveGlobalMailRead(actor)) {
+    assertEffectiveMailAccess(actor);
+    await assertCanReadMailbox(db, actor, options.mailboxId);
+    conditions.push(eq(schema.mailDrafts.mailboxId, options.mailboxId));
+  } else {
+    assertEffectiveMailAccess(actor);
+    conditions.push(eq(schema.mailDrafts.authorUserId, actor.userId));
+  }
+
+  if (search) {
+    conditions.push(draftSearchCondition(search));
+  }
+
+  if (options.cursor) {
+    const cursor = decodeDraftCursor(options.cursor);
+    if (
+      !cursor ||
+      cursor.scope !== scope ||
+      cursor.mailboxId !== (options.mailboxId ?? null) ||
+      cursor.search !== search
+    ) {
+      throw MailServiceError.validation("Invalid draft list cursor");
+    }
+    conditions.push(draftCursorCondition(cursor));
+  }
+
+  const rows = await db
+    .select({
+      draft: schema.mailDrafts,
+      sourceMailbox: {
+        address: schema.mailMailboxes.address,
+        displayName: schema.mailMailboxes.displayName,
+        mailboxType: schema.mailMailboxes.mailboxType,
+      },
+    })
+    .from(schema.mailDrafts)
+    .leftJoin(
+      schema.mailMailboxes,
+      eq(schema.mailDrafts.mailboxId, schema.mailMailboxes.id),
+    )
+    .where(and(...conditions))
+    .orderBy(
+      desc(schema.mailDrafts.updatedAt),
+      desc(schema.mailDrafts.createdAt),
+      desc(schema.mailDrafts.id),
+    )
+    .limit(limit + 1);
+
+  const pageRows = rows.slice(0, limit);
+  const drafts = await attachDraftListRecipients(
+    db,
+    pageRows.map((row) =>
+      draftWithSourceMailbox(row.draft, row.sourceMailbox),
+    ),
+  );
+
+  let nextCursor: string | null = null;
+  if (rows.length > limit) {
+    const last = pageRows[pageRows.length - 1]!.draft;
+    nextCursor = encodeDraftCursor({
+      updatedAt: last.updatedAt,
+      createdAt: last.createdAt,
+      id: last.id,
+      scope,
+      mailboxId: options.mailboxId ?? null,
+      search,
+    });
+  }
+
+  return { items: drafts, nextCursor };
+}
+
 export async function listDrafts(
   db: Database,
   actor: MailActorContext,
@@ -293,7 +483,7 @@ export async function listDrafts(
       );
     return attachDraftListRecipients(
       db,
-      rows.map(toSafeDraftView),
+      rows.map((row) => toSafeDraftView(row)),
     );
   }
 
@@ -312,7 +502,7 @@ export async function listDrafts(
       desc(schema.mailDrafts.updatedAt),
       desc(schema.mailDrafts.createdAt),
     );
-  return attachDraftListRecipients(db, rows.map(toSafeDraftView));
+  return attachDraftListRecipients(db, rows.map((row) => toSafeDraftView(row)));
 }
 
 export async function getDraft(

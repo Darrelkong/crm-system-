@@ -12,6 +12,7 @@ import {
 } from "@/lib/mail/mail-attachment-preview";
 import { projectMessageReadState } from "@/lib/mail/mail-read-state-projection";
 import type { MailThreadSummaryView } from "@/lib/mail/mail-thread-service";
+import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 
 export type MailMessageListSenderView = {
   address: string;
@@ -32,6 +33,7 @@ export type MailMessageListView = {
   isImportantPersonal: boolean;
   hasAttachments: boolean;
   attachmentCount: number;
+  sourceMailbox?: MailSourceMailboxView;
 };
 
 export type MailMessageDetailRecipientView = {
@@ -91,6 +93,7 @@ export function toMailMessageListView(input: {
   timestamp: string;
   readState: MailMessageReadState | null;
   attachmentCount: number;
+  sourceMailbox?: MailSourceMailboxView;
 }): MailMessageListView {
   const projected = projectMessageReadState(input.readState);
   return {
@@ -106,6 +109,7 @@ export function toMailMessageListView(input: {
     isImportantPersonal: projected.isImportantPersonal,
     hasAttachments: input.attachmentCount > 0,
     attachmentCount: input.attachmentCount,
+    ...(input.sourceMailbox ? { sourceMailbox: input.sourceMailbox } : {}),
   };
 }
 

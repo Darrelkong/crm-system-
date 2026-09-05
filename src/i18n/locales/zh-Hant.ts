@@ -220,7 +220,7 @@ const zhHant: Messages = {
       adminSection: "工作流",
       mailboxes: "郵箱帳戶",
     },
-    mailbox: { personal: "個人", shared: "共用" },
+    mailbox: { personal: "個人", shared: "共用", all: "全部郵箱" },
     backToMessageList: "返回郵件列表",
     status: {
       accessUnavailable: "Access unavailable",

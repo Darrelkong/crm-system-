@@ -61,6 +61,14 @@ function OutboxRow({ item }: { item: MailOutboxListItem }) {
       <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium crm-text">{item.subject}</p>
+          {item.sourceMailbox ? (
+            <p className="mt-0.5 truncate text-[11px] crm-text-secondary">
+              {item.sourceMailbox.displayName ?? item.sourceMailbox.address}
+              {item.sourceMailbox.mailboxType === "shared"
+                ? ` · ${t("mail.mailbox.shared")}`
+                : ""}
+            </p>
+          ) : null}
           <p className="mt-1 truncate text-xs crm-text-secondary">
             {recipientLabel}
             {extraRecipientCount > 0 ? ` +${extraRecipientCount}` : ""}
@@ -135,6 +143,20 @@ export function MailOutboxList({ className }: { className?: string }) {
         {workspace.outboxItems.map((item) => (
           <OutboxRow key={item.sendOperationId} item={item} />
         ))}
+        {workspace.outboxNextCursor ? (
+          <div className="flex justify-center px-4 py-4">
+            <button
+              type="button"
+              onClick={() => void workspace.loadMoreOutbox()}
+              disabled={workspace.isLoadingOutbox}
+              className="rounded-md border crm-border px-3 py-1.5 text-xs crm-text-secondary"
+            >
+              {workspace.isLoadingOutbox
+                ? t("common.loading")
+                : t("mail.list.loadMore")}
+            </button>
+          </div>
+        ) : null}
       </div>
     </div>
   );

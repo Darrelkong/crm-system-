@@ -1,5 +1,5 @@
 import type { SQL } from "drizzle-orm";
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import { schema } from "@/lib/db";
 import { MailServiceError } from "@/lib/mail/errors";
 import type { MailMessageReadFolder } from "@/lib/mail/message-read-permissions";
@@ -80,10 +80,14 @@ export function resolveMessageFolderQuery(
 }
 
 export function buildMessageFolderConditions(
-  mailboxId: string,
+  mailboxIds: string | readonly string[],
   spec: MessageFolderQuerySpec,
 ): SQL[] {
-  const conditions: SQL[] = [eq(schema.mailMessages.mailboxId, mailboxId)];
+  const conditions: SQL[] = [
+    typeof mailboxIds === "string"
+      ? eq(schema.mailMessages.mailboxId, mailboxIds)
+      : inArray(schema.mailMessages.mailboxId, mailboxIds),
+  ];
 
   if (spec.trashedOnly) {
     conditions.push(isNotNull(schema.mailMessages.trashedAt));

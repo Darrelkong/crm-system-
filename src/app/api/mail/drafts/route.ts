@@ -7,14 +7,45 @@ import {
   readStringField,
   requireMailActor,
 } from "@/lib/mail/api-helpers";
-import { createDraft, listDrafts } from "@/lib/mail/draft-service";
+import {
+  createDraft,
+  listDraftPage,
+  listDrafts,
+} from "@/lib/mail/draft-service";
 import { parseDraftRecipientsField } from "@/lib/mail/draft-api-parsing";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
+import {
+  parseOptionalCursor,
+  parseOptionalMailSearch,
+  parseOptionalMailboxScope,
+  parseOptionalMessageListLimit,
+} from "@/lib/mail/mail-read-api-parsing";
 
 export async function GET(request: Request) {
   try {
     const { actor, db } = await requireMailActor(request);
-    const mailboxId = new URL(request.url).searchParams.get("mailboxId")?.trim();
+    const searchParams = new URL(request.url).searchParams;
+    const scope = parseOptionalMailboxScope(searchParams);
+    const mailboxId = searchParams.get("mailboxId")?.trim() || undefined;
+    const cursor = parseOptionalCursor(searchParams);
+    const limit = parseOptionalMessageListLimit(searchParams);
+    const search = parseOptionalMailSearch(searchParams);
+    const usePagedContract =
+      scope === "all" ||
+      searchParams.has("scope") ||
+      cursor != null ||
+      limit != null ||
+      search != null;
+    if (usePagedContract) {
+      const page = await listDraftPage(db, actor, {
+        scope,
+        mailboxId,
+        cursor,
+        limit,
+        search,
+      });
+      return Response.json(page);
+    }
     const items = await listDrafts(
       db,
       actor,

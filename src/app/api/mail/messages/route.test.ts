@@ -4,6 +4,7 @@ import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { handleGetMailMessages } from "@/app/api/mail/messages/route";
 import {
   actor,
+  adminActor,
   fixtureAddress,
   insertMessage,
   makeRequireMailActor,
@@ -160,6 +161,43 @@ describe("GET /api/mail/messages", () => {
     const secondJson = (await second.json()) as { items: Array<{ id: string }> };
     const ids = [...firstJson.items, ...secondJson.items].map((item) => item.id);
     assert.equal(new Set(ids).size, ids.length);
+  });
+
+  it("allows CRM Admin All scope and returns source mailbox metadata", async () => {
+    const messageId = `${fixtureAddress("admin-all")}-msg`;
+    await insertMessage(db, {
+      id: messageId,
+      mailboxId,
+      direction: "inbound",
+      subject: "Admin aggregate",
+    });
+
+    const res = await handleGetMailMessages(
+      new Request(listUrl({ scope: "all", folder: "inbox" })),
+      { requireMailActor: makeRequireMailActor(db, adminActor) },
+    );
+    assert.equal(res.status, 200);
+    const json = (await res.json()) as {
+      items: Array<{
+        id: string;
+        sourceMailbox?: { displayName: string | null; mailboxType: string };
+      }>;
+    };
+    const row = json.items.find((item) => item.id === messageId);
+    assert.equal(row?.sourceMailbox?.mailboxType, "shared");
+  });
+
+  it("denies All scope to Staff even with global_mail_read", async () => {
+    const res = await handleGetMailMessages(
+      new Request(listUrl({ scope: "all", folder: "inbox" })),
+      {
+        requireMailActor: makeRequireMailActor(
+          db,
+          actor(SEED_IDS.staffA, { adminGrants: ["global_mail_read"] }),
+        ),
+      },
+    );
+    assert.equal(res.status, 403);
   });
 
   it("returns 400 for invalid folder", async () => {

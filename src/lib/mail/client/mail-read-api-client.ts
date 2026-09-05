@@ -23,6 +23,7 @@ import type {
   MailReadStateView,
   MailThreadView,
   UpdateMessageReadStateInput,
+  MailboxScope,
 } from "@/lib/mail/client/mail-read-types";
 
 export const ACCESSIBLE_MAILBOXES_PATH = "/api/mail/mailboxes/accessible";
@@ -265,18 +266,26 @@ export function mapReadStateResponse(body: {
 }
 
 export function buildMessagesListPath(input: FetchMessagesInput): string {
-  const mailboxId = validateRequiredId(input.mailboxId, "mailboxId");
+  const scope: MailboxScope = input.scope ?? "single";
   const folder = validateFolder(input.folder);
   const limit = validatePagination(input.limit);
-  const searchParams = new URLSearchParams({
-    mailboxId,
-    folder,
-  });
+  const searchParams = new URLSearchParams({ folder });
+  if (scope === "all") {
+    searchParams.set("scope", "all");
+  } else {
+    searchParams.set(
+      "mailboxId",
+      validateRequiredId(input.mailboxId ?? "", "mailboxId"),
+    );
+  }
   if (limit != null) {
     searchParams.set("limit", String(limit));
   }
   if (input.cursor) {
     searchParams.set("cursor", input.cursor);
+  }
+  if (input.search?.trim()) {
+    searchParams.set("q", input.search.trim());
   }
   return `${MESSAGES_PATH}?${searchParams.toString()}`;
 }

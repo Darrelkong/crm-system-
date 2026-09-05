@@ -14,6 +14,7 @@ import {
   MAIL_AUDIT_ACTIONS,
 } from "@/lib/mail/constants";
 import { MailServiceError } from "@/lib/mail/errors";
+import { assertCanReadMailbox } from "@/lib/mail/message-read-permissions";
 import {
   assertBatchUpdateChanged,
   buildInvalidSendPostStateGuardedAuditInsert,
@@ -601,8 +602,31 @@ export async function getSendOperation(
   db: Database,
   actor: MailActorContext,
   sendOperationId: string,
+  options?: { enforceMailboxRead?: boolean },
 ): Promise<SafeSendOperationView> {
   assertEffectiveMailAccess(actor);
+  if (!options?.enforceMailboxRead) {
+    return loadSafeSendOperationView(db, sendOperationId);
+  }
+  const send = await findSendById(db, sendOperationId);
+  if (!send) {
+    throw MailServiceError.notFound("Send operation not found");
+  }
+  const revision = await findRevisionById(db, send.outboundRevisionId);
+  if (!revision) {
+    throw MailServiceError.notFound("Outbound revision not found");
+  }
+  try {
+    await assertCanReadMailbox(db, actor, revision.mailboxId);
+  } catch (error) {
+    if (
+      error instanceof MailServiceError &&
+      (error.errorCode === "FORBIDDEN" || error.status === 403)
+    ) {
+      throw MailServiceError.notFound("Send operation not found");
+    }
+    throw error;
+  }
   return loadSafeSendOperationView(db, sendOperationId);
 }
 
