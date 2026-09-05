@@ -1,5 +1,5 @@
 /** Default max approved devices per staff user. */
-export const DEFAULT_DEVICE_AUTHORIZATION_LIMIT = 2;
+export const DEFAULT_DEVICE_AUTHORIZATION_LIMIT = 3;
 
 /** Device cookie lifetime (~400 days, Chromium max). */
 export const DEVICE_COOKIE_TTL_MS = 400 * 24 * 60 * 60 * 1000;

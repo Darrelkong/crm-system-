@@ -1,4 +1,5 @@
 import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
+import { DEFAULT_DEVICE_AUTHORIZATION_LIMIT } from "@/lib/devices/constants";
 
 export const LOCKED_SETTING_KEYS = ["inactivity_logout_minutes"] as const;
 
@@ -61,7 +62,9 @@ export const SETTING_DEFAULTS: Record<SettingKey, string> = {
   inactivity_logout_minutes: String(INACTIVITY_LOGOUT_MINUTES),
   business_timezone: "Asia/Hong_Kong",
   device_authorization_enabled: "false",
-  device_authorization_limit_per_user: "2",
+  device_authorization_limit_per_user: String(
+    DEFAULT_DEVICE_AUTHORIZATION_LIMIT,
+  ),
   collaborative_dissolution_enabled: "false",
   global_idle_timeout_exempt_enabled: "false",
 };
