@@ -11,9 +11,13 @@ const linkClass =
 
 type Props = {
   summary: AdminDashboardSummary;
+  pendingDeviceApprovals: number;
 };
 
-export function AdminDashboardSummaryClient({ summary }: Props) {
+export function AdminDashboardSummaryClient({
+  summary,
+  pendingDeviceApprovals,
+}: Props) {
   const { t } = useTranslation();
   const { metrics } = summary;
   const validFollowUpsTodayHref = buildValidFollowUpsTodayHref();
@@ -58,6 +62,17 @@ export function AdminDashboardSummaryClient({ summary }: Props) {
                 </span>
               }
               icon={kpiIcons.clipboard}
+            />
+          </Link>
+          <Link
+            href="/admin/users?view=devices&status=pending"
+            className="block"
+          >
+            <KpiCard
+              label="设备待审核"
+              value={pendingDeviceApprovals}
+              variant="warning"
+              icon={kpiIcons.devices}
             />
           </Link>
           <KpiCard

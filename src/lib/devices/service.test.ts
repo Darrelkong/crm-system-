@@ -10,6 +10,7 @@ import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { hashDeviceId } from "@/lib/auth/device";
 import {
   approveAuthorizedDevice,
+  approvePendingDeviceWithReplacement,
   DeviceAdminError,
   evaluateStaffDeviceLogin,
   isDeviceApprovedForSession,
@@ -48,6 +49,67 @@ async function setDeviceAuthEnabled(enabled: boolean) {
       updatedAt: now,
     });
   }
+}
+
+async function setDeviceLimit(limit: number) {
+  const now = new Date().toISOString();
+  const existing = await db
+    .select()
+    .from(schema.systemSettings)
+    .where(
+      eq(schema.systemSettings.key, "device_authorization_limit_per_user"),
+    )
+    .limit(1);
+  if (existing.length > 0) {
+    await db
+      .update(schema.systemSettings)
+      .set({ value: String(limit), updatedAt: now })
+      .where(
+        eq(schema.systemSettings.key, "device_authorization_limit_per_user"),
+      );
+  } else {
+    await db.insert(schema.systemSettings).values({
+      key: "device_authorization_limit_per_user",
+      value: String(limit),
+      updatedAt: now,
+    });
+  }
+}
+
+async function insertDevice(input: {
+  userId: string;
+  deviceIdHash: string;
+  status: "pending" | "approved" | "rejected" | "revoked";
+  createdAt?: string;
+  approvedAt?: string | null;
+  lastSeenAt?: string | null;
+}) {
+  const now = new Date().toISOString();
+  const row = {
+    id: crypto.randomUUID(),
+    userId: input.userId,
+    deviceIdHash: input.deviceIdHash,
+    deviceName: input.deviceIdHash,
+    userAgent: `Test/${input.deviceIdHash}`,
+    ipAddress: "127.0.0.1",
+    status: input.status,
+    approvedBy: input.status === "approved" ? SEED_IDS.admin : null,
+    approvedAt: input.approvedAt ?? null,
+    revokedAt: input.status === "revoked" ? now : null,
+    lastSeenAt: input.lastSeenAt ?? null,
+    lastSeenIp: "127.0.0.1",
+    lastSeenUserAgent: `Test/${input.deviceIdHash}`,
+    createdAt: input.createdAt ?? now,
+    updatedAt: now,
+  } as const;
+  await db.insert(schema.authorizedDevices).values(row);
+  return (
+    await db
+      .select()
+      .from(schema.authorizedDevices)
+      .where(eq(schema.authorizedDevices.id, row.id))
+      .limit(1)
+  )[0]!;
 }
 
 async function cleanupDevices() {
@@ -429,5 +491,435 @@ describe("device authorization service", () => {
       .where(eq(schema.authorizedDevices.id, recordId))
       .limit(1);
     assert.equal(row[0]?.status, "approved");
+  });
+
+  it("approves normally when capacity becomes available before confirmation", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const oldA = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-capacity-a"),
+        status: "approved",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-capacity-b"),
+        status: "approved",
+      });
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-capacity-new"),
+        status: "pending",
+      });
+
+      await approvePendingDeviceWithReplacement(
+        adminUser,
+        pending.id,
+        oldA.id,
+        { ipAddress: "127.0.0.1", userAgent: "admin-agent" },
+      );
+
+      const rows = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.userId, staffUser.id));
+      assert.equal(
+        rows.filter((row) => row.status === "approved").length,
+        3,
+      );
+      assert.equal(
+        rows.find((row) => row.id === oldA.id)?.status,
+        "approved",
+      );
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("atomically replaces one full-limit device and revokes only its sessions", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const oldA = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-full-a"),
+        status: "approved",
+        lastSeenAt: "2026-08-01T00:00:00.000Z",
+      });
+      const oldB = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-full-b"),
+        status: "approved",
+        lastSeenAt: "2026-08-08T00:00:00.000Z",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-full-c"),
+        status: "approved",
+        lastSeenAt: "2026-08-12T00:00:00.000Z",
+      });
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-full-new"),
+        status: "pending",
+      });
+
+      const request = new Request("https://crm.example/login", {
+        headers: { "user-agent": "test" },
+      });
+      const oldToken = await createSession(
+        staffUser.id,
+        request,
+        oldA.deviceIdHash,
+      );
+      const otherToken = await createSession(
+        staffUser.id,
+        request,
+        oldB.deviceIdHash,
+      );
+
+      await approvePendingDeviceWithReplacement(
+        adminUser,
+        pending.id,
+        oldA.id,
+        { ipAddress: "127.0.0.1", userAgent: "admin-agent" },
+      );
+
+      const rows = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.userId, staffUser.id));
+      assert.equal(
+        rows.filter((row) => row.status === "approved").length,
+        3,
+      );
+      assert.equal(rows.find((row) => row.id === oldA.id)?.status, "revoked");
+      assert.equal(rows.find((row) => row.id === pending.id)?.status, "approved");
+
+      const replacedSession = await validateSessionToken(oldToken.token, {
+        touch: false,
+      });
+      assert.equal(replacedSession.ok, false);
+      const unaffectedSession = await validateSessionToken(otherToken.token, {
+        touch: false,
+      });
+      assert.equal(unaffectedSession.ok, true);
+
+      const replacementAudit = await db
+        .select()
+        .from(schema.auditLogs)
+        .where(eq(schema.auditLogs.action, "device.authorization.replaced"));
+      assert.ok(
+        replacementAudit.some((row) =>
+          row.metadata?.includes(`"replacementDeviceRecordId":"${oldA.id}"`),
+        ),
+      );
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("allows the Admin to choose a different replacement device", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const oldA = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-choice-a"),
+        status: "approved",
+      });
+      const oldB = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-choice-b"),
+        status: "approved",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-choice-c"),
+        status: "approved",
+      });
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("replace-choice-new"),
+        status: "pending",
+      });
+
+      await approvePendingDeviceWithReplacement(
+        adminUser,
+        pending.id,
+        oldB.id,
+        { ipAddress: "127.0.0.1", userAgent: "admin-agent" },
+      );
+      const rows = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.userId, staffUser.id));
+      assert.equal(rows.find((row) => row.id === oldA.id)?.status, "approved");
+      assert.equal(rows.find((row) => row.id === oldB.id)?.status, "revoked");
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("rejects a replacement from another Staff without mutation", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const oldDevices = await Promise.all(
+        ["cross-a", "cross-b", "cross-c"].map(async (id) =>
+          insertDevice({
+            userId: staffUser.id,
+            deviceIdHash: await hashDeviceId(id),
+            status: "approved",
+          }),
+        ),
+      );
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("cross-new"),
+        status: "pending",
+      });
+      const otherStaff = (
+        await db
+          .select()
+          .from(schema.users)
+          .where(eq(schema.users.id, SEED_IDS.staffB))
+          .limit(1)
+      )[0];
+      assert.ok(otherStaff);
+      const otherDevice = await insertDevice({
+        userId: otherStaff.id,
+        deviceIdHash: await hashDeviceId("cross-other"),
+        status: "approved",
+      });
+
+      await assert.rejects(
+        () =>
+          approvePendingDeviceWithReplacement(
+            adminUser,
+            pending.id,
+            otherDevice.id,
+            { ipAddress: null, userAgent: null },
+          ),
+        (error: unknown) => {
+          assert.ok(error instanceof DeviceAdminError);
+          assert.equal(error.code, "replacement_conflict");
+          return true;
+        },
+      );
+      const rows = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.userId, staffUser.id));
+      assert.equal(rows.filter((row) => row.status === "approved").length, 3);
+      assert.equal(rows.find((row) => row.id === pending.id)?.status, "pending");
+      assert.equal(oldDevices.length, 3);
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("returns conflict when the selected replacement is no longer approved", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const old = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("stale-replacement"),
+        status: "revoked",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("stale-b"),
+        status: "approved",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("stale-c"),
+        status: "approved",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("stale-d"),
+        status: "approved",
+      });
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("stale-new"),
+        status: "pending",
+      });
+
+      await assert.rejects(
+        () =>
+          approvePendingDeviceWithReplacement(
+            adminUser,
+            pending.id,
+            old.id,
+            { ipAddress: null, userAgent: null },
+          ),
+        (error: unknown) => {
+          assert.ok(error instanceof DeviceAdminError);
+          assert.equal(error.code, "replacement_conflict");
+          return true;
+        },
+      );
+      const pendingRow = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.id, pending.id))
+        .limit(1);
+      assert.equal(pendingRow[0]?.status, "pending");
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("approves safely when another Admin frees a slot after the sheet opens", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const oldA = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-capacity-a"),
+        status: "approved",
+      });
+      const oldB = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-capacity-b"),
+        status: "approved",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-capacity-c"),
+        status: "approved",
+      });
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-capacity-new"),
+        status: "pending",
+      });
+      await revokeAuthorizedDevice(adminUser, oldA.id, {
+        ipAddress: null,
+        userAgent: null,
+      });
+
+      await approvePendingDeviceWithReplacement(
+        adminUser,
+        pending.id,
+        oldA.id,
+        { ipAddress: null, userAgent: null },
+      );
+      const rows = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.userId, staffUser.id));
+      assert.equal(rows.filter((row) => row.status === "approved").length, 3);
+      assert.equal(rows.find((row) => row.id === oldB.id)?.status, "approved");
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("keeps the authorized count at the limit for competing approvals", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const replacementA = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-compete-a"),
+        status: "approved",
+      });
+      const replacementB = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-compete-b"),
+        status: "approved",
+      });
+      await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-compete-c"),
+        status: "approved",
+      });
+      const pendingA = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-compete-new-a"),
+        status: "pending",
+      });
+      const pendingB = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("race-compete-new-b"),
+        status: "pending",
+      });
+
+      const results = await Promise.allSettled([
+        approvePendingDeviceWithReplacement(
+          adminUser,
+          pendingA.id,
+          replacementA.id,
+          { ipAddress: null, userAgent: null },
+        ),
+        approvePendingDeviceWithReplacement(
+          adminUser,
+          pendingB.id,
+          replacementB.id,
+          { ipAddress: null, userAgent: null },
+        ),
+      ]);
+      assert.ok(results.some((result) => result.status === "fulfilled"));
+
+      const rows = await db
+        .select()
+        .from(schema.authorizedDevices)
+        .where(eq(schema.authorizedDevices.userId, staffUser.id));
+      assert.ok(rows.filter((row) => row.status === "approved").length <= 3);
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
+  });
+
+  it("rejects a pending request that was already processed", async () => {
+    await cleanupDevices();
+    await setDeviceLimit(3);
+    try {
+      const old = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("processed-old"),
+        status: "approved",
+      });
+      const pending = await insertDevice({
+        userId: staffUser.id,
+        deviceIdHash: await hashDeviceId("processed-new"),
+        status: "pending",
+      });
+      await approveAuthorizedDevice(adminUser, pending.id, {
+        ipAddress: null,
+        userAgent: null,
+      });
+
+      await assert.rejects(
+        () =>
+          approvePendingDeviceWithReplacement(
+            adminUser,
+            pending.id,
+            old.id,
+            { ipAddress: null, userAgent: null },
+          ),
+        (error: unknown) => {
+          assert.ok(error instanceof DeviceAdminError);
+          assert.equal(error.code, "invalid_status");
+          return true;
+        },
+      );
+    } finally {
+      await cleanupDevices();
+      await setDeviceLimit(2);
+    }
   });
 });

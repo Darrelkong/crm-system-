@@ -8,6 +8,7 @@ export const DEVICE_AUDIT_ACTIONS = {
   CREATED_PENDING: "device.created.pending",
   APPROVED: "device.approved",
   APPROVED_INITIAL_ACTIVATION: "device.approved.initial_activation",
+  AUTHORIZATION_REPLACED: "device.authorization.replaced",
   REJECTED: "device.rejected",
   REVOKED: "device.revoked",
   LOGIN_BLOCKED: "device.login.blocked",

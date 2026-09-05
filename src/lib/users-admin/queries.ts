@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import type { AdminUserView, LoginLogView } from "@/lib/users-admin/types";
 import { parseUserDeletionMetadata } from "@/lib/users-admin/deletion-metadata";
@@ -19,6 +19,10 @@ function formatUserRow(
   failedLoginMeta: {
     lastFailedLoginAt: string | null;
     lockedAtFromLog: string | null;
+  },
+  deviceSummary: {
+    approved: number;
+    pending: number;
   },
   deletionMeta?: ReturnType<typeof parseUserDeletionMetadata>,
 ): AdminUserView {
@@ -64,6 +68,9 @@ function formatUserRow(
       deletionMeta?.collaborator_assignees_removed_count ?? null,
     last_login_at: lastLoginAt,
     recent_login_count: recentLoginCount,
+    cloudflare_access_email: user.cloudflareAccessEmail,
+    device_approved_count: deviceSummary.approved,
+    device_pending_count: deviceSummary.pending,
   };
 }
 
@@ -73,6 +80,31 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
     .select()
     .from(schema.users)
     .orderBy(asc(schema.users.email));
+
+  const deviceRows = await db
+    .select({
+      userId: schema.authorizedDevices.userId,
+      status: schema.authorizedDevices.status,
+      count: sql<number>`count(*)`,
+    })
+    .from(schema.authorizedDevices)
+    .groupBy(
+      schema.authorizedDevices.userId,
+      schema.authorizedDevices.status,
+    );
+  const deviceSummaryByUser = new Map<
+    string,
+    { approved: number; pending: number }
+  >();
+  for (const row of deviceRows) {
+    const summary = deviceSummaryByUser.get(row.userId) ?? {
+      approved: 0,
+      pending: 0,
+    };
+    if (row.status === "approved") summary.approved = Number(row.count);
+    if (row.status === "pending") summary.pending = Number(row.count);
+    deviceSummaryByUser.set(row.userId, summary);
+  }
 
   const sevenDaysAgo = new Date(
     Date.now() - 7 * 24 * 60 * 60 * 1000,
@@ -143,6 +175,7 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
         lastFailedLoginAt: lastFailedLoginByUser.get(user.id) ?? null,
         lockedAtFromLog: lockedAtFromLogByUser.get(user.id) ?? null,
       },
+      deviceSummaryByUser.get(user.id) ?? { approved: 0, pending: 0 },
       user.deletedAt ? deletionMetadataByUser.get(user.id) : undefined,
     ),
   );

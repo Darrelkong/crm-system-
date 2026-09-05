@@ -8,6 +8,7 @@ import {
   ClipboardList,
   Clock,
   Inbox,
+  MonitorSmartphone,
   TrendingUp,
   Users,
   Waves,
@@ -383,5 +384,6 @@ export const kpiIcons = {
   clipboard: ClipboardList,
   clock: Clock,
   alert: AlertTriangle,
+  devices: MonitorSmartphone,
   trend: TrendingUp,
 };

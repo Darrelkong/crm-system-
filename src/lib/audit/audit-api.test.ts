@@ -53,6 +53,7 @@ async function seedTestAudits() {
     displayName: "Deleted Audit User",
     role: "staff",
     passwordHash: "test",
+    cloudflareAccessEmail: null,
     isActive: 0,
     mustChangePassword: 0,
     failedLoginAttempts: 0,

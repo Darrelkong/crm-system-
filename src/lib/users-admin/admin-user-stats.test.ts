@@ -30,6 +30,9 @@ function makeUser(overrides: Partial<AdminUserView>): AdminUserView {
     collaborator_assignees_removed_count: null,
     last_login_at: null,
     recent_login_count: 0,
+    cloudflare_access_email: null,
+    device_approved_count: 0,
+    device_pending_count: 0,
   };
 
   return { ...defaults, ...overrides };

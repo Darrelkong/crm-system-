@@ -34,9 +34,10 @@ describe("admin audit logs navigation", () => {
     assert.ok(!hrefs.includes("/admin/audit-logs"));
   });
 
-  it("includes /admin/devices in admin nav", () => {
+  it("keeps device authorization inside admin user management", () => {
     const hrefs = allNavHrefs("admin");
-    assert.ok(hrefs.includes("/admin/devices"));
+    assert.ok(hrefs.includes("/admin/users"));
+    assert.ok(!hrefs.includes("/admin/devices"));
   });
 
   it("does not include /admin/devices in staff nav", () => {

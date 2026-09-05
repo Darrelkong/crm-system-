@@ -21,6 +21,9 @@ export type AdminUserView = {
   collaborator_assignees_removed_count: number | null;
   last_login_at: string | null;
   recent_login_count: number;
+  cloudflare_access_email: string | null;
+  device_approved_count: number;
+  device_pending_count: number;
 };
 
 export type LoginLogView = {

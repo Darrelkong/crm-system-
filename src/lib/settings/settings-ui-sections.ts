@@ -112,7 +112,7 @@ export const SETTINGS_LINK_CARDS: Record<SettingsLinkCardId, SettingsLinkCard> =
     },
     devices: {
       id: "devices",
-      href: "/admin/devices",
+      href: "/admin/users?view=devices&status=pending",
       titleKey: "settings.cards.devices.title",
       descriptionKey: "settings.cards.devices.description",
       buttonKey: "settings.cards.devices.button",

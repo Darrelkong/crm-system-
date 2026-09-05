@@ -8,18 +8,26 @@ import { DashboardTrendsCard } from "@/components/dashboard/dashboard-trends-car
 import { RecentAnnouncementsCard } from "@/components/dashboard/recent-announcements-card";
 import { RecentNotificationsCard } from "@/components/dashboard/recent-notifications-card";
 import { loadAdminDashboardReports } from "@/lib/reports/admin-dashboard-orchestration";
-import { getDb } from "@/lib/db";
+import { getDb, schema } from "@/lib/db";
 import type { User } from "../../../drizzle/schema/users";
+import { eq, sql } from "drizzle-orm";
 
 export async function AdminDashboardView({ user }: { user: User }) {
   const db = getDb();
   const now = new Date();
   const { summary, legacyStats, trendsResult, stageResult, teamResult } =
     await loadAdminDashboardReports(db, user, now);
+  const [pendingDevices] = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(schema.authorizedDevices)
+    .where(eq(schema.authorizedDevices.status, "pending"));
 
   return (
     <div className="space-y-6">
-      <AdminDashboardSummaryClient summary={summary} />
+      <AdminDashboardSummaryClient
+        summary={summary}
+        pendingDeviceApprovals={Number(pendingDevices?.count ?? 0)}
+      />
 
       <DashboardAiInsightCard variant="admin" />
 

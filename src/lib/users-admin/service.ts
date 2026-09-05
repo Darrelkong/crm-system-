@@ -1,4 +1,4 @@
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { hashPassword } from "@/lib/auth/password";
 import { validatePasswordPolicy } from "@/lib/auth/password-policy";
@@ -11,6 +11,7 @@ import { buildReassignOpenTasksForAssigneeStatement } from "@/lib/tasks/lifecycl
 import { initialDeviceAutoApprovalEligibleForNewRole } from "@/lib/devices/initial-device-auto-approval";
 import type { User } from "../../../drizzle/schema/users";
 import type { Database } from "@/lib/db";
+import { buildInsertAuditLogSelectStatement } from "@/lib/audit/audit-log";
 
 const STAFF_DELETED_TRANSFER_ACTION = "customer.transferred.staff_deleted";
 
@@ -404,6 +405,104 @@ export async function resetUserPassword(
     userAgent: meta.userAgent,
     metadata: { email: target.email },
   });
+}
+
+export async function resetStaffCloudflareAccessBinding(
+  actor: User,
+  targetUserId: string,
+  meta: { ipAddress?: string | null; userAgent?: string | null },
+): Promise<void> {
+  if (actor.role !== "admin") {
+    throw new UserAdminError(
+      "admin_required",
+      "需要管理员权限才能解除 Access 绑定",
+      403,
+    );
+  }
+
+  const target = await getUserById(targetUserId);
+  if (!target) {
+    throw new UserAdminError("not_found", "用户不存在", 404);
+  }
+  assertUserNotDeleted(target);
+  if (target.role !== "staff") {
+    throw new UserAdminError(
+      "invalid_target",
+      "只能解除团队成员的 Access 绑定",
+      400,
+    );
+  }
+  if (target.cloudflareAccessEmail === null) {
+    throw new UserAdminError(
+      "already_unbound",
+      "该团队成员目前没有 Access 绑定",
+      409,
+    );
+  }
+
+  const db = getDb();
+  const now = new Date().toISOString();
+  const auditId = crypto.randomUUID();
+  const metadata = JSON.stringify({
+    source: "admin_reset",
+    previousAccessEmail: target.cloudflareAccessEmail,
+  });
+  const guardedAuditInsert = buildInsertAuditLogSelectStatement(
+    db,
+    sql`
+      SELECT
+        CASE WHEN EXISTS (
+          SELECT 1
+          FROM users
+          WHERE id = ${target.id}
+            AND role = 'staff'
+            AND cloudflare_access_email IS NULL
+            AND updated_at = ${now}
+        ) THEN ${auditId} ELSE NULL END AS id,
+        ${actor.id} AS user_id,
+        ${"STAFF_ACCESS_BINDING_RESET"} AS action,
+        ${"user"} AS entity_type,
+        ${target.id} AS entity_id,
+        ${meta.ipAddress ?? null} AS ip_address,
+        ${meta.userAgent ?? null} AS user_agent,
+        ${metadata} AS metadata,
+        ${now} AS created_at
+    `,
+  );
+
+  const results = await db.batch([
+    db
+      .update(schema.users)
+      .set({
+        cloudflareAccessEmail: null,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.users.id, target.id),
+          eq(schema.users.role, "staff"),
+          eq(schema.users.cloudflareAccessEmail, target.cloudflareAccessEmail),
+        ),
+      ),
+    db
+      .update(schema.sessions)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          eq(schema.sessions.userId, target.id),
+          isNull(schema.sessions.revokedAt),
+        ),
+      ),
+    guardedAuditInsert,
+  ] as unknown as Parameters<Database["batch"]>[0]);
+
+  if ((results[0]?.meta?.changes ?? 0) !== 1) {
+    throw new UserAdminError(
+      "conflict",
+      "Access 绑定状态已变化，请重新载入后再试",
+      409,
+    );
+  }
 }
 
 export async function unlockUserAccount(

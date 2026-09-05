@@ -1,7 +1,10 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
-import { writeAuditLog } from "@/lib/audit/audit-log";
+import {
+  buildInsertAuditLogSelectStatement,
+  writeAuditLog,
+} from "@/lib/audit/audit-log";
 import { AUTH_ERROR_CODES } from "@/lib/auth/constants";
 import {
   DEVICE_AUDIT_ACTIONS,
@@ -627,6 +630,236 @@ export async function approveAuthorizedDevice(
       createdAt: now,
     }),
   ] as unknown as Parameters<Database["batch"]>[0]);
+}
+
+/**
+ * Approves a pending Staff device while the configured device limit is full.
+ *
+ * The replacement path uses one D1 batch. The final audit INSERT is guarded
+ * by the intended post-transition state and deliberately violates audit_logs'
+ * NOT NULL action constraint when a concurrent change invalidates the batch,
+ * causing D1 to roll back the complete operation.
+ */
+export async function approvePendingDeviceWithReplacement(
+  actor: User,
+  pendingDeviceRecordId: string,
+  replacementDeviceRecordId: string,
+  meta: RequestMeta,
+  db?: Database,
+): Promise<void> {
+  const database = db ?? getDb();
+  if (actor.role !== "admin") {
+    throw new DeviceAdminError("forbidden", "只有管理員可以批准設備", 403);
+  }
+
+  const pendingDevice = await getAuthorizedDeviceById(
+    pendingDeviceRecordId,
+    database,
+  );
+  if (!pendingDevice) {
+    throw new DeviceAdminError("not_found", "設備記錄不存在", 404);
+  }
+  if (pendingDevice.status !== "pending") {
+    throw new DeviceAdminError(
+      "invalid_status",
+      "只能批准待審核的設備",
+      409,
+    );
+  }
+
+  const targetRows = await database
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, pendingDevice.userId))
+    .limit(1);
+  const targetUser = targetRows[0];
+  if (!targetUser || targetUser.role !== "staff") {
+    throw new DeviceAdminError("invalid_target", "無效的團隊成員設備");
+  }
+
+  const limit = await getDeviceAuthorizationLimit(database);
+  const approvedDevices = await database
+    .select()
+    .from(schema.authorizedDevices)
+    .where(
+      and(
+        eq(schema.authorizedDevices.userId, targetUser.id),
+        eq(schema.authorizedDevices.status, "approved"),
+      ),
+    );
+
+  // Another Admin may have freed a slot while the replacement sheet was open.
+  // In that case approve normally and do not revoke an unrelated device.
+  if (approvedDevices.length < limit) {
+    await approveAuthorizedDevice(actor, pendingDeviceRecordId, meta, database);
+    return;
+  }
+  if (approvedDevices.length > limit) {
+    throw new DeviceAdminError(
+      "limit_invariant",
+      "設備授權數量狀態異常，請重新載入後再試",
+      409,
+    );
+  }
+
+  const replacementDevice = await getAuthorizedDeviceById(
+    replacementDeviceRecordId,
+    database,
+  );
+  if (
+    !replacementDevice ||
+    replacementDevice.userId !== targetUser.id ||
+    replacementDevice.id === pendingDevice.id ||
+    replacementDevice.status !== "approved"
+  ) {
+    throw new DeviceAdminError(
+      "replacement_conflict",
+      "要替換的設備狀態已變化，請重新載入後選擇設備",
+      409,
+    );
+  }
+
+  const now = new Date().toISOString();
+  const replacementAuditId = crypto.randomUUID();
+  const activeSessions = await database
+    .select({ id: schema.sessions.id })
+    .from(schema.sessions)
+    .where(
+      and(
+        eq(schema.sessions.userId, targetUser.id),
+        eq(schema.sessions.deviceIdHash, replacementDevice.deviceIdHash),
+        isNull(schema.sessions.revokedAt),
+      ),
+    );
+  const replacementMetadata = JSON.stringify({
+    source: "approve_and_replace",
+    targetUserId: targetUser.id,
+    targetUserEmail: targetUser.email,
+    pendingDeviceRecordId: pendingDevice.id,
+    pendingDeviceName: pendingDevice.deviceName,
+    replacementDeviceRecordId: replacementDevice.id,
+    replacementDeviceName: replacementDevice.deviceName,
+    replacementDeviceLastSeenAt: replacementDevice.lastSeenAt,
+  });
+  const sessionAuditId = crypto.randomUUID();
+
+  const guardedReplacementAudit = buildInsertAuditLogSelectStatement(
+    database,
+    sql`
+      SELECT
+        ${replacementAuditId},
+        ${actor.id},
+        CASE
+          WHEN EXISTS (
+            SELECT 1
+            FROM authorized_devices
+            WHERE id = ${pendingDevice.id}
+              AND user_id = ${targetUser.id}
+              AND status = 'approved'
+              AND approved_by = ${actor.id}
+              AND approved_at = ${now}
+              AND updated_at = ${now}
+          )
+          AND EXISTS (
+            SELECT 1
+            FROM authorized_devices
+            WHERE id = ${replacementDevice.id}
+              AND user_id = ${targetUser.id}
+              AND status = 'revoked'
+              AND revoked_at = ${now}
+              AND updated_at = ${now}
+          )
+          AND (
+            SELECT count(*)
+            FROM authorized_devices
+            WHERE user_id = ${targetUser.id}
+              AND status = 'approved'
+          ) <= ${limit}
+          THEN ${DEVICE_AUDIT_ACTIONS.AUTHORIZATION_REPLACED}
+          ELSE NULL
+        END,
+        ${"authorized_device"},
+        ${pendingDevice.id},
+        ${meta.ipAddress ?? null},
+        ${meta.userAgent ?? null},
+        ${replacementMetadata},
+        ${now}
+    `,
+  );
+
+  const statements = [
+    database
+      .update(schema.authorizedDevices)
+      .set({
+        status: "revoked",
+        revokedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.authorizedDevices.id, replacementDevice.id),
+          eq(schema.authorizedDevices.userId, targetUser.id),
+          eq(schema.authorizedDevices.status, "approved"),
+        ),
+      ),
+    database
+      .update(schema.authorizedDevices)
+      .set({
+        status: "approved",
+        approvedBy: actor.id,
+        approvedAt: now,
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(schema.authorizedDevices.id, pendingDevice.id),
+          eq(schema.authorizedDevices.userId, targetUser.id),
+          eq(schema.authorizedDevices.status, "pending"),
+        ),
+      ),
+    buildConsumeInitialDeviceAutoApprovalEligibilityStatement(
+      database,
+      targetUser.id,
+      now,
+    ),
+    database
+      .update(schema.sessions)
+      .set({ revokedAt: now })
+      .where(
+        and(
+          eq(schema.sessions.userId, targetUser.id),
+          eq(schema.sessions.deviceIdHash, replacementDevice.deviceIdHash),
+          isNull(schema.sessions.revokedAt),
+        ),
+      ),
+  ] as unknown as Array<Parameters<Database["batch"]>[0][number]>;
+
+  if (activeSessions.length > 0) {
+    statements.push(
+      database.insert(schema.auditLogs).values({
+        id: sessionAuditId,
+        userId: actor.id,
+        action: DEVICE_AUDIT_ACTIONS.SESSION_REVOKED,
+        entityType: "authorized_device",
+        entityId: replacementDevice.id,
+        ipAddress: meta.ipAddress ?? null,
+        userAgent: meta.userAgent ?? null,
+        metadata: JSON.stringify({
+          source: "approve_and_replace",
+          targetUserId: targetUser.id,
+          targetUserEmail: targetUser.email,
+          deviceRecordId: replacementDevice.id,
+          revokedSessionCount: activeSessions.length,
+        }),
+        createdAt: now,
+      }),
+    );
+  }
+  statements.push(guardedReplacementAudit);
+
+  await database.batch(
+    statements as unknown as Parameters<Database["batch"]>[0],
+  );
 }
 
 export async function rejectAuthorizedDevice(
