@@ -152,6 +152,66 @@ describe("customer creation collaboration phase 2", () => {
     }
   });
 
+  it("defaults admin-created customers to the acting admin owner", async () => {
+    const customerId = crypto.randomUUID();
+    const prepared = await prepareCustomerCreation({
+      actor: admin,
+      body: createBody(),
+      allowedSourceKeys,
+      db,
+      preallocatedId: customerId,
+    });
+
+    assert.equal(prepared.kind, "ready");
+    if (prepared.kind !== "ready") {
+      return;
+    }
+
+    assert.equal(prepared.meta.ownerId, admin.id);
+    await executePreparedCustomerCreation({
+      db,
+      actor: admin,
+      statements: prepared.statements,
+      meta: prepared.meta,
+    });
+
+    const customer = (
+      await db
+        .select({ ownerId: schema.customers.ownerId })
+        .from(schema.customers)
+        .where(eq(schema.customers.id, customerId))
+    )[0]!;
+    const primaryAssignee = (
+      await db
+        .select({ userId: schema.customerAssignees.userId })
+        .from(schema.customerAssignees)
+        .where(
+          and(
+            eq(schema.customerAssignees.customerId, customerId),
+            eq(schema.customerAssignees.role, "primary"),
+          ),
+        )
+    )[0]!;
+
+    assert.equal(customer.ownerId, admin.id);
+    assert.equal(primaryAssignee.userId, admin.id);
+    await cleanupCustomer(db, customerId);
+  });
+
+  it("allows admins to select an active Staff owner", async () => {
+    const prepared = await prepareCustomerCreation({
+      actor: admin,
+      body: createBody({ ownerId: SEED_IDS.staffB }),
+      allowedSourceKeys,
+      db,
+    });
+
+    assert.equal(prepared.kind, "ready");
+    if (prepared.kind === "ready") {
+      assert.equal(prepared.meta.ownerId, SEED_IDS.staffB);
+    }
+  });
+
   it("rejects an admin-selected owner from also being a collaborator", async () => {
     const prepared = await prepareCustomerCreation({
       actor: admin,
@@ -181,7 +241,10 @@ describe("customer creation collaboration phase 2", () => {
 
     assert.match(form, /ownerOptions\.length > 0/);
     assert.match(form, /ownerId: primaryOwnerId/);
+    assert.match(form, /formatCustomerOwnerOptionLabel/);
+    assert.match(form, /customers\.adminOwnerRole/);
     assert.match(page, /user\.role === "admin"/);
+    assert.match(page, /buildCustomerOwnerOptions/);
   });
 
   it("writes owner, primary, collaborators, and audit events in one creation batch", async () => {

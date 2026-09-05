@@ -1172,7 +1172,8 @@ npx wrangler d1 execute crm-db --local --command \
 | `npm run db:seed:local` | 初始化测试账号与客户 |
 | `npm run db:seed:reclamation:local` | 注入自动回收测试客户 |
 | `npm run cron:deploy` | 部署自动回收 Cron Worker |
-| `npm run deploy` | 部署到 Cloudflare |
+| `npm run deploy:production` | 从 clean `main` 重建并验证 OpenNext 后部署 CRM Worker |
+| `npm run deploy` | `deploy:production` 的兼容别名 |
 
 ## 环境变量
 

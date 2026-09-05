@@ -1535,6 +1535,7 @@ const en = {
     releaseToPool: "Release to Public Pool",
     manageCollaborators: "Manage Collaborators",
     primaryOwner: "Primary Owner",
+    adminOwnerRole: "Admin",
     collaborators: "Collaborators",
     selectCollaborators: "Select collaborators",
     noCollaboratorsYet: "No collaborators yet",

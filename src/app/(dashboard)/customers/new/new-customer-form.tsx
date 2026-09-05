@@ -65,6 +65,10 @@ import {
   CustomerCreateCollaborators,
   type SelectedCustomerCollaborator,
 } from "./customer-create-collaborators";
+import {
+  formatCustomerOwnerOptionLabel,
+  type CustomerOwnerOption,
+} from "@/lib/customers/owner-options";
 
 const NEW_CUSTOMER_FORM_ID = "new-customer-form";
 
@@ -118,12 +122,12 @@ export function NewCustomerForm({
   sourceMenuOptions: CustomerSourceMenuOption[];
   selectableSourceKeys: string[];
   userId: string;
-  ownerOptions?: Array<{ id: string; displayName: string }>;
+  ownerOptions?: CustomerOwnerOption[];
   familyContext?: NewCustomerFormFamilyContext;
 }) {
   const router = useRouter();
   const { t, salesStage, customerType } = useCustomerLabels();
-  const { locale } = useTranslation();
+  const { locale, t: translate } = useTranslation();
   const draftScope = useMemo(
     () =>
       resolveCustomerCreateDraftScope({
@@ -701,7 +705,10 @@ export function NewCustomerForm({
             >
               {ownerOptions.map((owner) => (
                 <option key={owner.id} value={owner.id}>
-                  {owner.displayName}
+                  {formatCustomerOwnerOptionLabel(
+                    owner,
+                    translate("customers.adminOwnerRole"),
+                  )}
                 </option>
               ))}
             </Select>

@@ -1,6 +1,7 @@
 import { requireAuthCached } from "@/lib/auth/request-cache";
 import { getDb } from "@/lib/db";
 import { listActiveStaffUsers } from "@/lib/users/queries";
+import { buildCustomerOwnerOptions } from "@/lib/customers/owner-options";
 import {
   buildCustomerSourceMenuOptions,
   getSelectableCustomerSourceKeys,
@@ -11,15 +12,14 @@ import { NewCustomerForm } from "./new-customer-form";
 export default async function NewCustomerPage() {
   const user = await requireAuthCached();
   const db = getDb();
-  const [sourceMenuOptions, selectableSourceKeys, ownerOptions] = await Promise.all([
+  const [sourceMenuOptions, selectableSourceKeys, activeStaffUsers] = await Promise.all([
     buildCustomerSourceMenuOptions(db),
     getSelectableCustomerSourceKeys(db),
     user.role === "admin"
-      ? listActiveStaffUsers().then((users) =>
-          users.map(({ id, displayName }) => ({ id, displayName })),
-        )
+      ? listActiveStaffUsers()
       : Promise.resolve([]),
   ]);
+  const ownerOptions = buildCustomerOwnerOptions(user, activeStaffUsers);
 
   return (
     <div>

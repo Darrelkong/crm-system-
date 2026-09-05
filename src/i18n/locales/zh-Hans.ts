@@ -1443,6 +1443,7 @@ const zhHans: Messages = {
     releaseToPool: "释放到公共池",
     manageCollaborators: "管理协作成员",
     primaryOwner: "主负责人",
+    adminOwnerRole: "管理员",
     collaborators: "协作成员",
     selectCollaborators: "选择协作成员",
     noCollaboratorsYet: "暂无协作成员",

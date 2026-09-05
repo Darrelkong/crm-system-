@@ -1,5 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
+  // Production CRM releases must use `npm run deploy:production`, which
+  // rebuilds and validates `.open-next` before calling OpenNext deploy.
   "name": "crm-system",
   "main": ".open-next/worker.js",
   "compatibility_date": "2025-03-01",

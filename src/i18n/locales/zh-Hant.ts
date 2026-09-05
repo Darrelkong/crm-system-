@@ -1444,6 +1444,7 @@ const zhHant: Messages = {
     releaseToPool: "釋放到公共池",
     manageCollaborators: "管理協作成員",
     primaryOwner: "主負責人",
+    adminOwnerRole: "管理員",
     collaborators: "協作成員",
     selectCollaborators: "選擇協作成員",
     noCollaboratorsYet: "暫無協作成員",
