@@ -1,7 +1,7 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { QuickEntryDrawer } from "@/components/ui/quick-entry-drawer";
 import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
@@ -37,6 +37,8 @@ function MailboxOption({
   return (
     <button
       type="button"
+      role="menuitemradio"
+      aria-checked={selected}
       onClick={onSelect}
       className={cn(
         "flex min-h-14 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
@@ -82,6 +84,7 @@ export function MailMailboxContext({
   const workspace = useOptionalMailWorkspace();
   const [sheetOpen, setSheetOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const selectorId = useId();
 
   if (!workspace || workspace.mailboxes.length === 0) {
     return null;
@@ -127,7 +130,7 @@ export function MailMailboxContext({
           <button
             ref={triggerRef}
             type="button"
-            onClick={() => setSheetOpen(true)}
+            onClick={() => setSheetOpen((open) => !open)}
             className={cn(
               "min-w-0 items-center text-left crm-text",
               variant === "mobile"
@@ -135,6 +138,9 @@ export function MailMailboxContext({
                 : "mail-sidebar-mailbox-context-button flex min-h-12 w-full gap-2 rounded-lg px-2.5 py-1.5",
             )}
             aria-label={t("mail.folderSheet.mailboxes")}
+            aria-controls={variant === "mobile" ? selectorId : undefined}
+            aria-expanded={sheetOpen}
+            aria-haspopup={variant === "mobile" ? "menu" : "dialog"}
           >
             <span
               className={cn(
@@ -218,40 +224,51 @@ export function MailMailboxContext({
       </div>
 
       {hasMultipleMailboxes ? (
-        <MailMailboxContextSheet
-          open={sheetOpen}
-          sections={sections}
-              selectedMailboxId={
-                isAllSelected ? null : workspace.selectedMailboxId
-              }
-              showAllOption={showAllOption}
-              allSelected={isAllSelected}
-              onSelectAll={() => {
-                void workspace.selectAllMailboxes();
-              }}
-          onSelect={(mailboxId) => {
-            void workspace.selectMailbox(mailboxId);
-          }}
-          onClose={() => setSheetOpen(false)}
-          returnFocusRef={returnFocusRef ?? triggerRef}
-        />
+        variant === "mobile" ? (
+          <MailMailboxContextPopover
+            id={selectorId}
+            open={sheetOpen}
+            anchorRef={triggerRef}
+            sections={sections}
+            selectedMailboxId={
+              isAllSelected ? null : workspace.selectedMailboxId
+            }
+            showAllOption={showAllOption}
+            allSelected={isAllSelected}
+            onSelectAll={() => {
+              void workspace.selectAllMailboxes();
+            }}
+            onSelect={(mailboxId) => {
+              void workspace.selectMailbox(mailboxId);
+            }}
+            onClose={() => setSheetOpen(false)}
+            returnFocusRef={returnFocusRef ?? triggerRef}
+          />
+        ) : (
+          <MailMailboxContextSheet
+            open={sheetOpen}
+            sections={sections}
+            selectedMailboxId={
+              isAllSelected ? null : workspace.selectedMailboxId
+            }
+            showAllOption={showAllOption}
+            allSelected={isAllSelected}
+            onSelectAll={() => {
+              void workspace.selectAllMailboxes();
+            }}
+            onSelect={(mailboxId) => {
+              void workspace.selectMailbox(mailboxId);
+            }}
+            onClose={() => setSheetOpen(false)}
+            returnFocusRef={returnFocusRef ?? triggerRef}
+          />
+        )
       ) : null}
     </>
   );
 }
 
-function MailMailboxContextSheet({
-  open,
-  sections,
-  selectedMailboxId,
-  showAllOption,
-  allSelected,
-  onSelectAll,
-  onSelect,
-  onClose,
-  returnFocusRef,
-}: {
-  open: boolean;
+type MailboxContextOptionsProps = {
   sections: ReturnType<typeof resolveMailboxSidebarSections>;
   selectedMailboxId: string | null;
   showAllOption: boolean;
@@ -259,8 +276,17 @@ function MailMailboxContextSheet({
   onSelectAll: () => void;
   onSelect: (mailboxId: string) => void;
   onClose: () => void;
-  returnFocusRef?: React.RefObject<HTMLElement | null>;
-}) {
+};
+
+function MailMailboxContextOptions({
+  sections,
+  selectedMailboxId,
+  showAllOption,
+  allSelected,
+  onSelectAll,
+  onSelect,
+  onClose,
+}: MailboxContextOptionsProps) {
   const { t } = useTranslation();
 
   const renderSection = (
@@ -268,7 +294,10 @@ function MailMailboxContextSheet({
     mailboxes: MailSidebarMailboxPresentation[],
   ) =>
     mailboxes.length > 0 ? (
-      <section key={labelKey} className="border-b crm-border px-2 py-2 last:border-b-0">
+      <section
+        key={labelKey}
+        className="border-b crm-border px-2 py-2 last:border-b-0"
+      >
         <p className="px-3 pb-1 text-xs font-medium crm-text-secondary">
           {t(labelKey)}
         </p>
@@ -289,6 +318,187 @@ function MailMailboxContextSheet({
     ) : null;
 
   return (
+    <div className="p-2">
+      {showAllOption ? (
+        <section className="border-b crm-border px-2 py-2">
+          <button
+            type="button"
+            role="menuitemradio"
+            aria-checked={allSelected}
+            onClick={() => {
+              onSelectAll();
+              onClose();
+            }}
+            className={cn(
+              "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
+              allSelected
+                ? "bg-[var(--color-crm-primary)]/[0.08] crm-text"
+                : "crm-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
+            )}
+          >
+            <span
+              className={cn(
+                "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
+                allSelected
+                  ? "border-[var(--color-crm-primary)] text-[var(--color-crm-primary)]"
+                  : "crm-border crm-text-secondary",
+              )}
+              aria-hidden
+            >
+              {allSelected ? <Check className="h-3.5 w-3.5" /> : null}
+            </span>
+            <span className="truncate text-sm font-medium">
+              {t("mail.mailbox.all")}
+            </span>
+          </button>
+        </section>
+      ) : null}
+      {renderSection("mail.mailbox.personal", sections.personalMailboxes)}
+      {renderSection("mail.mailbox.shared", sections.sharedMailboxes)}
+    </div>
+  );
+}
+
+function MailMailboxContextPopover({
+  id,
+  open,
+  anchorRef,
+  sections,
+  selectedMailboxId,
+  showAllOption,
+  allSelected,
+  onSelectAll,
+  onSelect,
+  onClose,
+  returnFocusRef,
+}: MailboxContextOptionsProps & {
+  id: string;
+  open: boolean;
+  anchorRef: RefObject<HTMLElement | null>;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+}) {
+  const { t } = useTranslation();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [anchorRect, setAnchorRect] = useState<DOMRect | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const updateAnchorRect = () => {
+      setAnchorRect(anchorRef.current?.getBoundingClientRect() ?? null);
+    };
+    const frame = window.requestAnimationFrame(updateAnchorRect);
+    window.addEventListener("resize", updateAnchorRect);
+    window.addEventListener("scroll", updateAnchorRect, true);
+
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("resize", updateAnchorRect);
+      window.removeEventListener("scroll", updateAnchorRect, true);
+    };
+  }, [open, anchorRef]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const returnFocusTarget = returnFocusRef?.current;
+    const firstOption = panelRef.current?.querySelector<HTMLElement>(
+      'button:not([disabled])',
+    );
+    firstOption?.focus();
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      onClose();
+    }
+
+    function handlePointerDown(event: PointerEvent) {
+      const target = event.target as Node;
+      if (panelRef.current?.contains(target)) return;
+      if (anchorRef.current?.contains(target)) return;
+      onClose();
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("pointerdown", handlePointerDown);
+      returnFocusTarget?.focus();
+    };
+  }, [open, onClose, anchorRef, returnFocusRef]);
+
+  if (!open) return null;
+
+  const viewportWidth =
+    typeof window !== "undefined" ? window.innerWidth : 390;
+  const horizontalMargin = 12;
+  const panelWidth = Math.max(0, viewportWidth - horizontalMargin * 2);
+  const top = anchorRect ? anchorRect.bottom + 4 : horizontalMargin;
+  const maxHeight = `min(75dvh, calc(100dvh - ${Math.max(
+    top,
+    0,
+  )}px - 6rem))`;
+
+  return (
+    <div className="fixed inset-0 z-50 pointer-events-none" role="presentation">
+      <div
+        id={id}
+        ref={panelRef}
+        role="menu"
+        aria-label={t("mail.folderSheet.mailboxes")}
+        className="mail-folder-popover pointer-events-auto fixed overflow-hidden rounded-xl border crm-border bg-[var(--color-crm-card)]"
+        style={{
+          top,
+          left: horizontalMargin,
+          width: panelWidth,
+          maxHeight,
+        }}
+      >
+        <div
+          className="overflow-y-auto overscroll-contain"
+          style={{ maxHeight }}
+        >
+          <MailMailboxContextOptions
+            sections={sections}
+            selectedMailboxId={selectedMailboxId}
+            showAllOption={showAllOption}
+            allSelected={allSelected}
+            onSelectAll={onSelectAll}
+            onSelect={onSelect}
+            onClose={onClose}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MailMailboxContextSheet({
+  open,
+  sections,
+  selectedMailboxId,
+  showAllOption,
+  allSelected,
+  onSelectAll,
+  onSelect,
+  onClose,
+  returnFocusRef,
+}: {
+  open: boolean;
+  sections: MailboxContextOptionsProps["sections"];
+  selectedMailboxId: MailboxContextOptionsProps["selectedMailboxId"];
+  showAllOption: MailboxContextOptionsProps["showAllOption"];
+  allSelected: MailboxContextOptionsProps["allSelected"];
+  onSelectAll: MailboxContextOptionsProps["onSelectAll"];
+  onSelect: MailboxContextOptionsProps["onSelect"];
+  onClose: MailboxContextOptionsProps["onClose"];
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
+}) {
+  const { t } = useTranslation();
+
+  return (
     <QuickEntryDrawer
       open={open}
       title={t("mail.folderSheet.mailboxes")}
@@ -296,42 +506,15 @@ function MailMailboxContextSheet({
       closeLabel={t("common.close")}
       returnFocusRef={returnFocusRef}
     >
-      <div className="p-2">
-        {showAllOption ? (
-          <section className="border-b crm-border px-2 py-2">
-            <button
-              type="button"
-              onClick={() => {
-                onSelectAll();
-                onClose();
-              }}
-              className={cn(
-                "flex min-h-12 w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors",
-                allSelected
-                  ? "bg-[var(--color-crm-primary)]/[0.08] crm-text"
-                  : "crm-text hover:bg-black/[0.04] dark:hover:bg-white/[0.06]",
-              )}
-            >
-              <span
-                className={cn(
-                  "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                  allSelected
-                    ? "border-[var(--color-crm-primary)] text-[var(--color-crm-primary)]"
-                    : "crm-border crm-text-secondary",
-                )}
-                aria-hidden
-              >
-                {allSelected ? <Check className="h-3.5 w-3.5" /> : null}
-              </span>
-              <span className="truncate text-sm font-medium">
-                {t("mail.mailbox.all")}
-              </span>
-            </button>
-          </section>
-        ) : null}
-        {renderSection("mail.mailbox.personal", sections.personalMailboxes)}
-        {renderSection("mail.mailbox.shared", sections.sharedMailboxes)}
-      </div>
+      <MailMailboxContextOptions
+        sections={sections}
+        selectedMailboxId={selectedMailboxId}
+        showAllOption={showAllOption}
+        allSelected={allSelected}
+        onSelectAll={onSelectAll}
+        onSelect={onSelect}
+        onClose={onClose}
+      />
     </QuickEntryDrawer>
   );
 }
