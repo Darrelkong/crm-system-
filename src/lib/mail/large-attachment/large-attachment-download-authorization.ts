@@ -8,6 +8,10 @@
 export const ECHFRONT_MAIL_FILES_WORKER_NAME = "echfront-mail-files" as const;
 
 export const CRM_SYSTEM_SERVICE_BINDING_NAME = "CRM_SYSTEM" as const;
+export const CRM_SYSTEM_LARGE_ATTACHMENT_GATEWAY_RPC_PATH =
+  "/api/internal/mail/large-attachment/download-gateway" as const;
+export const CRM_SYSTEM_GATEWAY_SECRET_HEADER =
+  "X-Crm-Large-Attachment-Gateway-Secret" as const;
 
 /** Public file Worker request — bearer token only. */
 export type LargeAttachmentPublicDownloadRequest = {
@@ -17,12 +21,13 @@ export type LargeAttachmentPublicDownloadRequest = {
 /** Minimal authorized payload returned to public Worker — no CRM/customer records. */
 export type LargeAttachmentInternalDownloadAuthorizationGranted = {
   authorized: true;
+  lifecycleId: string;
   storageKey: string;
   filename: string;
   mimeType: string;
   sizeBytes: number;
-  storageVersion: string;
-  storageEtag: string;
+  storageVersion: string | null;
+  storageEtag: string | null;
   recipientExpiresAt: string;
 };
 
@@ -40,6 +45,11 @@ export type LargeAttachmentInternalDownloadAuthorizationService = {
     tokenHash: string;
     trustNowIso: string;
   }): Promise<LargeAttachmentInternalDownloadAuthorizationResult>;
+  recordPublicDownload(input: {
+    lifecycleId: string;
+    tokenHash: string;
+    downloadedAt: string;
+  }): Promise<{ recorded: boolean }>;
 };
 
 /** Public Worker must not expose raw bearer token through persistence or lookup DTOs. */

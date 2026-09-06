@@ -4,6 +4,7 @@ interface CloudflareEnv {
   LARGE_ATTACHMENTS?: R2Bucket;
   ASSETS: Fetcher;
   WORKER_SELF_REFERENCE: Fetcher;
+  CRM_SYSTEM_GATEWAY_SECRET?: string;
   AI_SERVICE: Fetcher;
   AI_API_KEY?: string;
 }
