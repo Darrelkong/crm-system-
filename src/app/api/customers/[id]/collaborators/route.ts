@@ -1,8 +1,9 @@
 export const dynamic = "force-dynamic";
 
+import { and, eq } from "drizzle-orm";
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
 import { getCustomerById } from "@/lib/customers/queries";
-import { getDb } from "@/lib/db";
+import { getDb, schema } from "@/lib/db";
 import {
   addCustomerCollaborator,
   listCustomerCollaborators,
@@ -84,6 +85,16 @@ export async function GET(request: Request, context: RouteContext) {
       const db = getDb();
       await assertCustomerCollaboratorsMutable(db, id);
       const collaborators = await listCustomerCollaborators(db, id);
+      const pendingRemovalRows = await db
+        .select({ targetUserId: schema.approvals.targetUserId })
+        .from(schema.approvals)
+        .where(
+          and(
+            eq(schema.approvals.customerId, id),
+            eq(schema.approvals.requestType, "remove_customer_collaborator"),
+            eq(schema.approvals.status, "pending"),
+          ),
+        );
       const names = await resolveUserDisplayNames(
         db,
         collaborators.map((row) => row.userId),
@@ -94,6 +105,9 @@ export async function GET(request: Request, context: RouteContext) {
           id: row.userId,
           displayName: names.get(row.userId) ?? row.userId,
         })),
+        pendingRemovalUserIds: pendingRemovalRows
+          .map((row) => row.targetUserId)
+          .filter((value): value is string => Boolean(value)),
       });
     } catch (error) {
       return (await handlePermissionError(error)) ?? authErrorResponse(error);

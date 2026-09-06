@@ -164,6 +164,7 @@ const en = {
     announcementsAdmin: "Announcements",
     announcementManagement: "Announcement Management",
     publicPool: "Public Pool",
+    publicPoolPermissions: "Public Pool permissions",
     approvals: "Approvals",
     notifications: "Notifications",
     workItems: "Action Center",
@@ -1684,6 +1685,9 @@ const en = {
       "Invite teammates to help follow up without changing the primary owner.",
     addCollaborator: "Add collaborator",
     removeCollaborator: "Remove collaborator",
+    requestRemoveCollaborator: "Request removal",
+    collaboratorRemovalPending: "Pending approval",
+    collaboratorRemovalReason: "Reason",
     collaboratorEmail: "Full CRM email",
     collaboratorEmailGuidance:
       "Enter the teammate’s complete CRM login email to verify.",
@@ -2296,6 +2300,7 @@ const en = {
       second_conversion: "Request second conversion",
       create_on_hold_customer: "Request On-Hold Customer",
       update_customer_assignees: "Update Responsible Team Members",
+      remove_customer_collaborator: "Remove Collaborator",
       paid_customer: "Mark as Paid Request",
       link_family_customer: "Link Family Customer",
       update_family_relationship: "Update Family Relationship",
@@ -2632,6 +2637,7 @@ const en = {
     noRequests: "No approval requests yet.",
     customer: "Client",
     transferTarget: "Transfer target",
+    collaborator: "Current collaborator",
     relatedCustomerIds: "Related client IDs",
     payloadDetails: "Request payload",
     submittedAt: "Submitted by {{name}} · {{date}}",
@@ -2728,6 +2734,7 @@ const en = {
     customer_transferred: "Client Transferred",
     customer_collaborator_added: "Added as collaborator",
     customer_collaborator_removed: "Removed as collaborator",
+    customer_collaboration_follow_up_reminder: "Customer follow-up reminder",
     customer_closed_won_approved: "Close-Won Approved",
     customer_pending_second_conversion: "Pending second conversion",
     backup_failed: "Backup Failed",
@@ -2753,6 +2760,8 @@ const en = {
       '{{actorName}} added you as a collaborator on "{{customerName}}".',
     collaboratorRemoved:
       'You are no longer a collaborator on "{{customerName}}".',
+    collaborationFollowUpReminder:
+      '"{{customerName}}" has had no new follow-up for 10 consecutive days. Please review the customer.',
     closedWonApproved:
       'Close-won request for "{{customerName}}" has been approved.',
     pendingSecondConversion:
@@ -3334,6 +3343,7 @@ const en = {
     claimedLast7Days: "Claimed in last 7 days",
     remainingQuota: "Remaining quota",
     claimStatus: "Claim status",
+    noAvailableResources: "No public-pool customers are currently available.",
     canClaim: "Ready to claim",
     cooldownUntil: "Cooldown until {{date}}",
     cooldownUntilLabel: "Cooldown until",
@@ -3565,6 +3575,15 @@ const en = {
     saveFailed: "Save failed",
     statusEnabled: "Enabled",
     statusDisabled: "Disabled",
+    collaborationReminder: {
+      title: "Collaborative customer follow-up reminders",
+      statusLabel: "Status",
+      statusEnabled: "Enabled",
+      intervalLabel: "Reminder interval",
+      interval: "10 days",
+      description:
+        "When the primary owner and all collaborators have no valid follow-up for 10 consecutive days, the system reminds the relevant members to follow up.\n\nIf no one follows up, another reminder is sent every 10 days; the timer restarts after any member records a valid follow-up.\n\nThe collaboration relationship remains active; the system does not automatically remove collaborators.",
+    },
     badgeReadOnly: "Read-only",
     deviceAuthEnabledOn:
       "Device authorization is enabled. New team member devices require admin approval.",
@@ -3646,9 +3665,9 @@ const en = {
           "First-contact SLA hours used for customer heat scoring and follow-up urgency.",
       },
       collaborative: {
-        title: "Collaborative ownership",
+        title: "Collaborator management",
         description:
-          "Future 90-day collaborative dissolution is not enabled yet. Use the dry-run report to preview candidates without changing any data.",
+          "Collaboration remains active by default. When the primary owner and all collaborators have no valid follow-up, the system reminds those members to follow up.",
       },
       security: {
         title: "Login & device security",
@@ -3668,10 +3687,10 @@ const en = {
     },
     cards: {
       dryRun: {
-        title: "Collaborative dry-run report",
+        title: "Collaborative follow-up reminder report",
         description:
-          "Preview customers that would be affected if 90-day collaborative auto-dissolution is enabled in the future. Read-only — no data is modified.",
-        button: "View dry-run report",
+          "Review collaborative customers that need follow-up. Read-only — no customer or collaboration state is modified.",
+        button: "View follow-up reminder report",
       },
       ai: {
         title: "AI settings",

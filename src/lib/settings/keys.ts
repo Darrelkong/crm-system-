@@ -81,7 +81,7 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
   business_timezone: "业务时区",
   device_authorization_enabled: "设备授权（启用后限制团队成员登录设备）",
   device_authorization_limit_per_user: "每位团队成员最多授权设备数",
-  collaborative_dissolution_enabled: "共同负责自动解散（90 天未跟进）",
+  collaborative_dissolution_enabled: "协作关系治理（已改为无跟进提醒）",
   global_idle_timeout_exempt_enabled: "免除 30 分钟无操作自动退出",
 };
 

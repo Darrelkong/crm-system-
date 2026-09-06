@@ -20,7 +20,8 @@ export type AssigneeMutationErrorCode =
   | "COLLABORATOR_USER_NOT_FOUND"
   | "COLLABORATOR_USER_NOT_STAFF"
   | "COLLABORATOR_USER_INACTIVE"
-  | "COLLABORATOR_USER_DELETED";
+  | "COLLABORATOR_USER_DELETED"
+  | "COLLABORATOR_REMOVAL_REQUIRES_APPROVAL";
 
 export class AssigneeMutationError extends Error {
   constructor(
@@ -64,7 +65,7 @@ export async function assertValidCollaboratorUsers(
     ) {
       throw new AssigneeMutationError(
         "COLLABORATOR_INCLUDES_OWNER",
-        "不能将主负责员工加入共同负责",
+        "不能将主负责人加入协作成员",
       );
     }
     if (options.actorId && userId === options.actorId) {
@@ -103,14 +104,14 @@ export async function assertValidCollaboratorUsers(
     if (user.role === "admin") {
       throw new AssigneeMutationError(
         "COLLABORATOR_INCLUDES_ADMIN",
-        "不能将管理员加入共同负责",
+        "不能将管理员加入协作成员",
       );
     }
 
     if (user.role !== "staff") {
       throw new AssigneeMutationError(
         "COLLABORATOR_USER_NOT_STAFF",
-        "只能添加员工为共同负责",
+        "只能添加员工为协作成员",
       );
     }
 
@@ -162,7 +163,7 @@ export async function applyCollaboratorAssignees(
   if (!idsValidation.ok) {
     throw new AssigneeMutationError(
       "INVALID_COLLABORATOR_IDS",
-      idsValidation.errors[0]?.message ?? "无效的共同负责员工列表",
+      idsValidation.errors[0]?.message ?? "无效的协作成员列表",
     );
   }
 

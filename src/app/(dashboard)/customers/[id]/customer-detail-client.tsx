@@ -627,7 +627,10 @@ export function CustomerDetailClient({
                   }
                   action={
                     showManageAssigneesButton ? (
-                      <ManageAssigneesButton customerId={id} />
+                      <ManageAssigneesButton
+                        customerId={id}
+                        isAdmin={isAdmin}
+                      />
                     ) : undefined
                   }
                 />

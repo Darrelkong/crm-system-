@@ -32,6 +32,43 @@ function isSettingEnabled(value: string | undefined): boolean {
   return value === "true";
 }
 
+function CollaborationReminderPolicyCard({
+  t,
+}: {
+  t: (key: string) => string;
+}) {
+  return (
+    <section className="mt-5 rounded-xl border border-[#DCE7F5] bg-[#F8FBFF] p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h4 className="text-sm font-semibold text-[#172033]">
+            {t("settings.collaborationReminder.title")}
+          </h4>
+          <p className="mt-1 text-xs text-[#6B7890]">
+            {t("settings.collaborationReminder.statusLabel")}
+          </p>
+        </div>
+        <Badge variant="success">
+          {t("settings.collaborationReminder.statusEnabled")}
+        </Badge>
+      </div>
+      <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div>
+          <dt className="text-xs text-[#6B7890]">
+            {t("settings.collaborationReminder.intervalLabel")}
+          </dt>
+          <dd className="mt-1 font-semibold text-[#172033]">
+            {t("settings.collaborationReminder.interval")}
+          </dd>
+        </div>
+      </dl>
+      <p className="mt-4 whitespace-pre-line text-sm leading-relaxed text-[#516078]">
+        {t("settings.collaborationReminder.description")}
+      </p>
+    </section>
+  );
+}
+
 function DeviceAuthorizationToggle({
   id,
   enabled,
@@ -199,6 +236,10 @@ function SettingsSectionCard({
         </div>
       ) : null}
 
+      {section.id === "collaborative" ? (
+        <CollaborationReminderPolicyCard t={t} />
+      ) : null}
+
       {section.linkCards && section.linkCards.length > 0 ? (
         <div
           className={`grid gap-4 ${fieldKeys.length > 0 ? "mt-5" : "mt-5"} md:grid-cols-2`}
@@ -232,6 +273,7 @@ export function SettingsClient() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial settings fetch on mount
     void load();
   }, [load]);
 
@@ -276,7 +318,20 @@ export function SettingsClient() {
         <Fragment key={section.id}>
           {section.id === "basic" ? <SecondaryIdleCodeCard /> : null}
           {section.id === "reclaimPublicPool" ? (
-            <PublicPoolQuickEntrySettingsCard />
+            <>
+              <PublicPoolQuickEntrySettingsCard />
+              <section className="surface-card mt-5 p-5 sm:p-6">
+                <h3 className="text-base font-semibold text-[#172033]">
+                  新人公共池保护期
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
+                  团队成员自首次成功登录 CRM 起进入 45 天保护期。保护期内不可主动领取公共池客户，期满后自动开放。
+                </p>
+                <p className="mt-3 text-sm font-medium text-[#172033]">
+                  45 天
+                </p>
+              </section>
+            </>
           ) : null}
           {section.id === "security" ? <GlobalIdleExemptionSetting /> : null}
           <SettingsSectionCard

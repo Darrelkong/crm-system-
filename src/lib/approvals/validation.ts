@@ -100,6 +100,15 @@ export function validateApprovalRequestInput(
     }
   }
 
+  if (requestType === "remove_customer_collaborator") {
+    if (!input.targetUserId?.trim()) {
+      fieldErrors.push({
+        field: "targetUserId",
+        message: "待移除协作成员必填",
+      });
+    }
+  }
+
   if (requestType === "closed_won") {
     const payload = input.payload ?? {};
     if (payload.dealAmount === undefined || payload.dealAmount === null || payload.dealAmount === "") {

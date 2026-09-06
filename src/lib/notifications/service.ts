@@ -21,6 +21,7 @@ type CreateNotificationInput = {
   messageParams?: Record<string, string>;
   relatedEntityType?: string | null;
   relatedEntityId?: string | null;
+  groupingKey?: string | null;
 };
 
 export type BuildCreateNotificationStatementInput = CreateNotificationInput & {
@@ -75,6 +76,7 @@ export function buildCreateNotificationStatement(
     message: resolveNotificationMessage(input),
     relatedEntityType: input.relatedEntityType ?? null,
     relatedEntityId: input.relatedEntityId ?? null,
+    groupingKey: input.groupingKey ?? null,
     isRead: 0,
     actionState: defaultActionStateForType(input.type),
     actionUpdatedAt: input.createdAt,

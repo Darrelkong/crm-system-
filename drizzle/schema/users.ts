@@ -12,6 +12,13 @@ export const users = sqliteTable(
     passwordHash: text("password_hash").notNull(),
     role: text("role", { enum: ["admin", "staff"] }).notNull(),
     isActive: integer("is_active").notNull().default(1),
+    /** Immutable timestamp of the first successful CRM application login. */
+    firstLoginAt: text("first_login_at"),
+    /** Admin pause for new public-pool claims only. */
+    poolClaimPaused: integer("pool_claim_paused").notNull().default(0),
+    /** Optional per-member public-pool policy overrides. */
+    poolClaimQuotaOverride: integer("pool_claim_quota_override"),
+    poolClaimCooldownHoursOverride: integer("pool_claim_cooldown_hours_override"),
     failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
     lockedUntil: text("locked_until"),
     mustChangePassword: integer("must_change_password").notNull().default(0),
@@ -37,5 +44,20 @@ export const users = sqliteTable(
   ],
 );
 
-export type User = typeof users.$inferSelect;
+type UserRow = typeof users.$inferSelect;
+type GovernanceUserFields = Pick<
+  UserRow,
+  | "firstLoginAt"
+  | "poolClaimPaused"
+  | "poolClaimQuotaOverride"
+  | "poolClaimCooldownHoursOverride"
+>;
+
+/**
+ * Governance fields were added after the existing User fixtures and callers.
+ * Keep them optional at the application boundary while migrations roll out;
+ * persisted rows still expose the concrete values at runtime.
+ */
+export type User = Omit<UserRow, keyof GovernanceUserFields> &
+  Partial<GovernanceUserFields>;
 export type NewUser = typeof users.$inferInsert;

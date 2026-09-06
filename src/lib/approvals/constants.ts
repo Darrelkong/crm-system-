@@ -8,6 +8,7 @@ export const APPROVAL_REQUEST_TYPE_LABELS: Record<ApprovalRequestType, string> =
   second_conversion: "二次转化",
   create_on_hold_customer: "申请新增搁置客户",
   update_customer_assignees: "调整负责团队成员",
+  remove_customer_collaborator: "移除协作成员",
   paid_customer: "申请已付款",
   link_family_customer: "关联家庭客户",
   update_family_relationship: "修改家庭关系",

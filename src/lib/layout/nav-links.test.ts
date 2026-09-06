@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   getAdminNavGroups,
   getMobileBottomNav,
+  getRoleNavGroups,
   getStaffNavGroups,
   type NavLink,
 } from "@/lib/layout/nav-links";
@@ -23,6 +24,14 @@ function allNavHrefs(role: "admin" | "staff"): string[] {
   return groups.flatMap((group) => collectHrefs(group.links));
 }
 
+function systemManagementHrefs(role: "admin" | "staff"): string[] {
+  const groups = getRoleNavGroups({ role });
+  return (
+    groups.find((group) => group.id === "systemManagement")?.links.map((link) => link.href) ??
+    []
+  );
+}
+
 describe("admin audit logs navigation", () => {
   it("includes /admin/audit-logs in admin nav", () => {
     const hrefs = allNavHrefs("admin");
@@ -38,6 +47,18 @@ describe("admin audit logs navigation", () => {
     const hrefs = allNavHrefs("admin");
     assert.ok(hrefs.includes("/admin/users"));
     assert.ok(!hrefs.includes("/admin/devices"));
+  });
+
+  it("resolves the final System Management model consumed by desktop and mobile navigation", () => {
+    assert.deepEqual(systemManagementHrefs("admin").slice(0, 6), [
+      "/admin/users",
+      "/admin/public-pool-members",
+      "/admin/tags-stages",
+      "/admin/recycle-bin",
+      "/admin/settings",
+      "/help",
+    ]);
+    assert.ok(!systemManagementHrefs("staff").includes("/admin/public-pool-members"));
   });
 
   it("does not include /admin/devices in staff nav", () => {

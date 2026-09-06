@@ -77,6 +77,7 @@ export function CollaborativeDryRunClient() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial report fetch on mount
     void load();
   }, [load]);
 
@@ -85,8 +86,8 @@ export function CollaborativeDryRunClient() {
   return (
     <div className="space-y-6">
       <PageIntro
-        title="共同負責自動解散 Dry-run"
-        description="此頁面只顯示如果未來啟用 90 天共同負責自動解散，可能受影響的客戶；目前不會修改任何資料。"
+        title="協作客戶跟進提醒報告"
+        description="此頁面只顯示目前需要協作成員跟進的客戶；不會修改任何資料。"
         action={
           <Button
             type="button"
@@ -132,7 +133,7 @@ export function CollaborativeDryRunClient() {
             <SummaryCard
               label="Total candidates"
               value={data.totalCandidates}
-              hint="符合條件的共同負責客戶數"
+              hint="符合條件的協作客戶數"
             />
             <SummaryCard
               label="Dry-run only"
@@ -143,7 +144,7 @@ export function CollaborativeDryRunClient() {
 
           <div className="surface-card p-6">
             {candidates.length === 0 ? (
-              <EmptyState message="目前沒有符合 90 天門檻的共同負責候選客戶。" />
+              <EmptyState message="目前沒有符合協作提醒條件的客戶。" />
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full text-left text-sm">

@@ -15,6 +15,7 @@ import {
 import { sortReplacementCandidates } from "@/lib/devices/replacement-selection";
 import { DeleteStaffModal } from "@/components/users/delete-staff-modal";
 import { formatHongKongDateTime } from "@/lib/timezone";
+import { MOBILE_BOTTOM_NAV_STACK_OFFSET } from "@/lib/customers/incomplete-contact";
 import {
   computeAdminUserStats,
   isDeletedAdminUser,
@@ -767,7 +768,7 @@ export function UsersClient() {
       </div>}
 
       {activeView === "members" && selectedUser && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-30 md:hidden">
           <div className="absolute inset-0 bg-[#172033]/40" />
           <section className="absolute inset-y-0 right-0 flex w-full max-w-lg flex-col overflow-hidden bg-white shadow-2xl">
             <header className="flex items-center justify-between border-b border-[#E3E8F0] px-4 py-3">
@@ -789,7 +790,12 @@ export function UsersClient() {
               </button>
             </header>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
+            <div
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4"
+              style={{
+                paddingBottom: `calc(${MOBILE_BOTTOM_NAV_STACK_OFFSET} + 1rem)`,
+              }}
+            >
               <section className="surface-muted rounded-xl p-4">
                 <h3 className="font-semibold text-[#172033]">基本资料</h3>
                 <dl className="mt-3 grid gap-3 text-sm">

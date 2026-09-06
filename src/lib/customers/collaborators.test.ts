@@ -18,6 +18,7 @@ import {
   verifyCustomerCollaboratorEmail,
 } from "./collaborator-verification";
 import { listCustomerAssignees } from "./assignees";
+import { approveApprovalRequest, createApprovalRequest } from "@/lib/approvals/service";
 import { PermissionError } from "@/lib/permissions/customers";
 import { getCustomerTimeline } from "@/lib/customers/timeline/service";
 
@@ -94,7 +95,8 @@ describe("direct customer collaborator management", () => {
     await dispose?.();
   });
 
-  it("lets the primary owner add/remove without changing ownership", async () => {
+  it("lets the primary owner add but requires approval to remove", async () => {
+    await resetCustomer(db);
     const before = await db
       .select({
         ownerId: schema.customers.ownerId,
@@ -205,17 +207,27 @@ describe("direct customer collaborator management", () => {
       ),
     );
 
-    const removed = await removeCustomerCollaborator(db, {
-      actor: owner,
-      customer,
-      collaboratorUserId: COLLABORATOR_ID,
-    });
-    assert.equal(removed.collaborators.length, 0);
+    await assert.rejects(
+      () =>
+        removeCustomerCollaborator(db, {
+          actor: owner,
+          customer,
+          collaboratorUserId: COLLABORATOR_ID,
+        }),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "COLLABORATOR_REMOVAL_REQUIRES_APPROVAL",
+    );
 
     const finalAssignees = await listCustomerAssignees(db, CUSTOMER_ID);
     assert.deepEqual(
       finalAssignees.filter((row) => row.role === "primary").map((row) => row.userId),
       [SEED_IDS.staffA],
+    );
+    assert.deepEqual(
+      finalAssignees.filter((row) => row.role === "collaborator").map((row) => row.userId),
+      [COLLABORATOR_ID],
     );
     assert.equal(
       (await db
@@ -236,16 +248,12 @@ describe("direct customer collaborator management", () => {
           eq(schema.notifications.relatedEntityId, CUSTOMER_ID),
         ),
       );
-    assert.equal(notifications.length, 2);
-    assert.ok(
-      notifications.some((row) => row.type === "customer.collaborator_added"),
-    );
-    assert.ok(
-      notifications.some((row) => row.type === "customer.collaborator_removed"),
-    );
+    assert.equal(notifications.length, 1);
+    assert.equal(notifications[0]?.type, "customer.collaborator_added");
   });
 
   it("lets an admin add/remove and rejects duplicate or self membership", async () => {
+    await resetCustomer(db);
     await addCustomerCollaborator(db, {
       actor: admin,
       customer,
@@ -283,6 +291,57 @@ describe("direct customer collaborator management", () => {
       customer,
       collaboratorUserId: COLLABORATOR_ID,
     });
+  });
+
+  it("requires owner removal approval and removes only the requested collaborator", async () => {
+    await resetCustomer(db);
+    await addCustomerCollaborator(db, {
+      actor: owner,
+      customer,
+      collaboratorUserId: COLLABORATOR_ID,
+    });
+
+    const approval = await createApprovalRequest(customer, owner, {
+      requestType: "remove_customer_collaborator",
+      targetUserId: COLLABORATOR_ID,
+      reason: "该协作成员已不再负责此客户",
+    });
+
+    await assert.rejects(
+      () =>
+        createApprovalRequest(customer, owner, {
+          requestType: "remove_customer_collaborator",
+          targetUserId: COLLABORATOR_ID,
+          reason: "重复提交移除申请",
+        }),
+      (error: unknown) =>
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "duplicate_pending",
+    );
+
+    await approveApprovalRequest(approval.id, admin);
+
+    const assignees = await listCustomerAssignees(db, CUSTOMER_ID);
+    assert.deepEqual(
+      assignees.filter((row) => row.role === "primary").map((row) => row.userId),
+      [SEED_IDS.staffA],
+    );
+    assert.deepEqual(
+      assignees.filter((row) => row.role === "collaborator").map((row) => row.userId),
+      [],
+    );
+
+    const auditRows = await db
+      .select()
+      .from(schema.auditLogs)
+      .where(
+        and(
+          eq(schema.auditLogs.entityId, CUSTOMER_ID),
+          eq(schema.auditLogs.action, "customer.collaborator_removed"),
+        ),
+      );
+    assert.equal(auditRows.length, 1);
   });
 
   it("does not let a collaborator manage other collaborators", async () => {

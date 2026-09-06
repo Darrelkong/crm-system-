@@ -63,6 +63,7 @@ function makePoolCustomer(
     id,
     customerCode: `RC-${id.slice(-4)}`,
     customerName: `[TEST] Random svc ${id.slice(-4)}`,
+    nameStatus: "confirmed",
     customerType: "individual",
     phoneCountryCode: "+86",
     phone: `138${phoneSuffix.padStart(8, "0")}`,

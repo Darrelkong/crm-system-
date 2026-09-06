@@ -54,6 +54,7 @@ import { buildSalesStageUpdateWithPriority } from "@/lib/customers/priority-stag
 import { buildTransferPrimaryAssigneeStatements } from "@/lib/customers/transfer-primary-assignee";
 import { AssigneeMutationError } from "@/lib/customers/assignees-mutations";
 import { mapAssigneeMutationErrorToApiCode } from "@/lib/customers/assignees-api";
+import { removeCustomerCollaborator } from "@/lib/customers/collaborators";
 
 type AuditMeta = {
   ipAddress?: string | null;
@@ -586,11 +587,65 @@ async function executeApprovedAction(
         ) {
           throw new ApprovalError(
             400,
-            "共同负责员工调整申请数据无效",
+            "协作成员调整申请数据无效",
             "ASSIGNEE_APPROVAL_INVALID_PAYLOAD",
           );
         }
         throw error;
+      }
+      break;
+    }
+
+    case "remove_customer_collaborator": {
+      if (!approval.targetUserId) {
+        throw new ApprovalError(400, "移除申请缺少协作成员");
+      }
+
+      const requester = await getUserById(approval.requestedBy);
+      if (
+        !requester ||
+        requester.role !== "staff" ||
+        requester.isActive !== 1 ||
+        requester.deletedAt ||
+        customer.ownerId !== requester.id
+      ) {
+        throw new ApprovalError(409, "申请人已不再是该客户主负责人");
+      }
+
+      const relationship = await db
+        .select({ id: schema.customerAssignees.id })
+        .from(schema.customerAssignees)
+        .where(
+          and(
+            eq(schema.customerAssignees.customerId, customer.id),
+            eq(schema.customerAssignees.userId, approval.targetUserId),
+            eq(schema.customerAssignees.role, "collaborator"),
+          ),
+        )
+        .limit(1);
+
+      if (relationship.length > 0) {
+        await removeCustomerCollaborator(db, {
+          actor: reviewer,
+          customer,
+          collaboratorUserId: approval.targetUserId,
+          now,
+        });
+      } else {
+        await writeAuditLog(
+          {
+            userId: reviewer.id,
+            action: "customer.collaborator_remove_approval.noop",
+            entityType: "customer",
+            entityId: customer.id,
+            metadata: {
+              approvalId: approval.id,
+              collaboratorUserId: approval.targetUserId,
+              reason: "relationship_already_removed",
+            },
+          },
+          db,
+        );
       }
       break;
     }
@@ -738,6 +793,9 @@ export async function createApprovalRequest(
     db,
     customer.id,
     value.requestType,
+    value.requestType === "remove_customer_collaborator"
+      ? value.targetUserId
+      : undefined,
   );
   if (existing) {
     throw new ApprovalError(

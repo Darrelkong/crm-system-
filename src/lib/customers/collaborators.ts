@@ -281,6 +281,13 @@ export async function removeCustomerCollaborator(
 ): Promise<CustomerCollaboratorMutationResult> {
   await assertDirectMutationAllowed(db, input.actor, input.customer);
 
+  if (input.actor.role !== "admin") {
+    throw mutationError(
+      "COLLABORATOR_REMOVAL_REQUIRES_APPROVAL",
+      "主负责人移除协作成员需要提交审批申请",
+    );
+  }
+
   const existing = await db
     .select({ id: schema.customerAssignees.id })
     .from(schema.customerAssignees)
@@ -372,6 +379,13 @@ export async function setCustomerCollaborators(
   const removedIds = current
     .map((row) => row.userId)
     .filter((id) => !requestedIds.has(id));
+
+  if (removedIds.length > 0 && input.actor.role !== "admin") {
+    throw mutationError(
+      "COLLABORATOR_REMOVAL_REQUIRES_APPROVAL",
+      "主负责人移除协作成员需要提交审批申请",
+    );
+  }
 
   if (addedIds.length === 0 && removedIds.length === 0) {
     const assignees = await listCustomerAssignees(db, input.customer.id);

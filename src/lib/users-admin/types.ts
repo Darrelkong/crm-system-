@@ -22,6 +22,15 @@ export type AdminUserView = {
   last_login_at: string | null;
   recent_login_count: number;
   cloudflare_access_email: string | null;
+  first_login_at?: string | null;
+  pool_claim_paused?: boolean;
+  pool_claim_quota_override?: number | null;
+  pool_claim_cooldown_hours_override?: number | null;
+  pool_claim_effective_quota?: number;
+  pool_claim_effective_cooldown_hours?: number;
+  pool_claim_eligibility_at?: string | null;
+  pool_claim_remaining_days?: number;
+  pool_claim_eligibility_status?: "paused" | "protected" | "eligible";
   device_approved_count: number;
   device_pending_count: number;
 };

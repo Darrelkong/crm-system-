@@ -10,6 +10,7 @@ export const APPROVAL_REQUEST_TYPES = [
   "second_conversion",
   "create_on_hold_customer",
   "update_customer_assignees",
+  "remove_customer_collaborator",
   "paid_customer",
   "link_family_customer",
   "update_family_relationship",

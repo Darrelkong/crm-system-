@@ -71,7 +71,7 @@ export const SETTINGS_UI_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.collaborative.title",
     descriptionKey: "settings.sections.collaborative.description",
     editableKeys: [],
-    readonlyKeys: [COLLABORATIVE_DISSOLUTION_FLAG_KEY],
+    readonlyKeys: [],
     linkCards: ["dryRun"],
   },
   {
@@ -91,7 +91,7 @@ export const SETTINGS_LINK_CARDS: Record<SettingsLinkCardId, SettingsLinkCard> =
   {
     dryRun: {
       id: "dryRun",
-      href: "/admin/reclamation/collaborative-dry-run",
+      href: "/admin/reclamation/collaborative-reminders",
       titleKey: "settings.cards.dryRun.title",
       descriptionKey: "settings.cards.dryRun.description",
       buttonKey: "settings.cards.dryRun.button",

@@ -9,6 +9,10 @@ const USERS_SOURCE = readFileSync(
   ),
   "utf8",
 );
+const NAVIGATION_SOURCE = readFileSync(
+  new URL("../../components/layout/app-navigation.tsx", import.meta.url),
+  "utf8",
+);
 const DASHBOARD_SOURCE = readFileSync(
   new URL(
     "../../components/dashboard/admin-dashboard-summary-client.tsx",
@@ -55,6 +59,25 @@ describe("Admin mobile security UX contracts", () => {
     assert.match(USERS_SOURCE, /将替换以下已授权设备/);
     assert.match(USERS_SOURCE, /当前授权：/);
     assert.match(USERS_SOURCE, /建议替换/);
+  });
+
+  it("keeps the member detail behind the mobile nav with one scroll reservation", () => {
+    assert.match(USERS_SOURCE, /fixed inset-0 z-30 md:hidden/);
+    assert.doesNotMatch(USERS_SOURCE, /fixed inset-0 z-50 md:hidden/);
+    assert.match(USERS_SOURCE, /inset-y-0 right-0 flex w-full max-w-lg/);
+    assert.match(USERS_SOURCE, /overflow-y-auto p-4/);
+    assert.match(
+      USERS_SOURCE,
+      /MOBILE_BOTTOM_NAV_STACK_OFFSET/,
+    );
+    assert.match(
+      USERS_SOURCE,
+      /paddingBottom: `calc\(\$\{MOBILE_BOTTOM_NAV_STACK_OFFSET\} \+ 1rem\)`/,
+    );
+    assert.match(
+      NAVIGATION_SOURCE,
+      /mobile-bottom-nav fixed inset-x-0 bottom-0 z-40/,
+    );
   });
 
   it("provides a compact global pending-device entry", () => {

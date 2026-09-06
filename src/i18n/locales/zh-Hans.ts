@@ -147,6 +147,7 @@ const zhHans: Messages = {
     announcementsAdmin: "公告管理",
     announcementManagement: "公告管理",
     publicPool: "公共池",
+    publicPoolPermissions: "公共池领取权限",
     approvals: "批准",
     notifications: "通知中心",
     workItems: "事项中心",
@@ -1277,7 +1278,7 @@ const zhHans: Messages = {
     restoreModalIntro: "你即将恢复此客户",
     restoreModalAfterTitle: "恢复后：",
     restoreModalReturnToList: "恢复后客户会回到普通客户列表",
-    restoreModalKeepAssignees: "原负责团队成员与共同负责团队成员会保留",
+    restoreModalKeepAssignees: "原负责团队成员与协作成员会保留",
     restoreModalKeepTimeline: "历史跟进与 timeline 会保留",
     restoreModalConfirm: "确认恢复",
     permanentDelete: "永久删除",
@@ -1378,7 +1379,7 @@ const zhHans: Messages = {
       "此操作不会删除任何客户资料，也不会影响客户的负责人、销售阶段、跟进记录或任务。",
     familyUnlinkRelationshipNote: "该成员与此家庭中的家庭关系将解除。",
     familyUnlinkDissolveNote:
-      "若家庭移除后仅剩一名有效成员，系统将自动解散此家庭。",
+      "若家庭移除后仅剩一名有效成员，该家庭关系将随之结束。",
     familySubmittedForApproval: "已提交管理员审批",
     familyCurrentRelationship: "目前关系",
     familyRequestedRelationship: "申请修改为",
@@ -1449,19 +1450,19 @@ const zhHans: Messages = {
     noCollaboratorsYet: "暂无协作成员",
     collaboratorsUpdated: "协作成员已更新",
     unableToUpdateCollaborators: "无法更新协作成员",
-    requestAssigneeUpdate: "申请调整共同负责团队成员",
-    assigneeApprovalSubmitted: "共同负责团队成员调整申请已送出，请等待审核。",
+    requestAssigneeUpdate: "申请调整协作成员",
+    assigneeApprovalSubmitted: "协作成员调整申请已送出，请等待审核。",
     assigneeUpdateReason: "调整理由",
     assigneeUpdateReasonPlaceholder: "请填写调整理由",
     currentCollaborators: "当前协作成员",
     removeCollaboratorConfirmTitle: "移除协作成员？",
     removeCollaboratorConfirmBody: "移除后，该成员将无法继续查看和跟进该客户。",
-    requestedCollaborators: "申请调整后共同负责团队成员",
+    requestedCollaborators: "申请调整后协作成员",
     addedCollaborators: "新增团队成员",
     removedCollaborators: "移除团队成员",
     submitAssigneeApproval: "提交审批",
-    unableToSubmitAssigneeApproval: "无法提交共同负责团队成员调整申请",
-    assigneeApprovalInvalidPayload: "共同负责团队成员调整申请数据无效",
+    unableToSubmitAssigneeApproval: "无法提交协作成员调整申请",
+    assigneeApprovalInvalidPayload: "协作成员调整申请数据无效",
     individual: "个人",
     company: "企业",
     statusActive: "活跃",
@@ -1578,6 +1579,9 @@ const zhHans: Messages = {
       "需要共同跟进时，可邀请其他成员协助，不会改变主负责人。",
     addCollaborator: "添加协作成员",
     removeCollaborator: "移除协作成员",
+    requestRemoveCollaborator: "申请移除",
+    collaboratorRemovalPending: "待审批",
+    collaboratorRemovalReason: "申请原因",
     collaboratorEmail: "完整 CRM 邮箱",
     collaboratorEmailGuidance: "请输入成员完整的 CRM 登录邮箱进行验证。",
     verifyCollaborator: "验证",
@@ -2147,6 +2151,7 @@ const zhHans: Messages = {
       second_conversion: "申请二次转化",
       create_on_hold_customer: "申请新增搁置客户",
       update_customer_assignees: "调整负责团队成员",
+      remove_customer_collaborator: "移除协作成员",
       paid_customer: "申请已付款",
       link_family_customer: "关联家庭客户",
       update_family_relationship: "修改家庭关系",
@@ -2253,11 +2258,11 @@ const zhHans: Messages = {
     deleteStaffModalAfterDeleteTitle: "删除后",
     deleteStaffModalCannotLogin: "该团队成员将无法登录",
     deleteStaffModalTransferTo: "名下客户将转移至",
-    deleteStaffModalRemoveCollaborators: "共同负责关系将被移除",
+    deleteStaffModalRemoveCollaborators: "协作关系将被移除",
     deleteStaffModalHistoryPreserved: "历史建立人、audit 与 timeline 将保留",
     deleteStaffModalImpactTitle: "影响范围",
     deleteStaffModalOwnedCustomers: "名下客户数",
-    deleteStaffModalCollaboratorCustomers: "共同负责客户数",
+    deleteStaffModalCollaboratorCustomers: "协作客户数",
     deleteStaffModalOpenTasks: "未完成任务数",
     deleteStaffModalOpenTasksReassign:
       "未完成任务：{{count}} 项。删除后，这些任务将转移给当前执行操作的管理员。",
@@ -2285,7 +2290,7 @@ const zhHans: Messages = {
     deletedBy: "删除人",
     colTransferredCustomers: "转移客户数",
     colPrimaryAssigneesSynced: "主负责同步数",
-    colCollaboratorsRemoved: "共同负责移除数",
+    colCollaboratorsRemoved: "协作成员移除数",
     transferredToAdmin: "转移至 Admin",
     customerTransferStatus: "客户转移状态",
     customerTransferredToAdmin: "已转移至 Admin 账户",
@@ -2476,6 +2481,7 @@ const zhHans: Messages = {
     noRequests: "暂无审批资料",
     customer: "客户",
     transferTarget: "转移目标",
+    collaborator: "当前协作成员",
     relatedCustomerIds: "相关客户 ID",
     payloadDetails: "申请详情",
     submittedAt: "申请人：{{name}} · 提交于 {{date}}",
@@ -2568,6 +2574,7 @@ const zhHans: Messages = {
     customer_transferred: "客户已转移",
     customer_collaborator_added: "已添加为协作成员",
     customer_collaborator_removed: "已移除协作成员",
+    customer_collaboration_follow_up_reminder: "客户跟进提醒",
     customer_closed_won_approved: "成交申请已通过",
     customer_pending_second_conversion: "待二次转化",
     backup_failed: "系统备份失败",
@@ -2589,6 +2596,8 @@ const zhHans: Messages = {
     collaboratorAdded:
       "{{actorName}} 已将你添加为「{{customerName}}」的协作成员。",
     collaboratorRemoved: "你已不再参与「{{customerName}}」的协作。",
+    collaborationFollowUpReminder:
+      "「{{customerName}}」已连续 10 天没有新的跟进记录，请及时查看客户情况。",
     closedWonApproved: "客户「{{customerName}}」成交申请已通过。",
     pendingSecondConversion:
       "客户「{{customerName}}」已完成当前流程，建议安排后续二次转化跟进。",
@@ -2953,7 +2962,7 @@ const zhHans: Messages = {
       },
       myCustomers: {
         title: "如何查看我的客户",
-        description: "在客户管理页面查看您负责或共同负责的客户。",
+        description: "在客户管理页面查看您负责或协作的客户。",
         items: {
           list: "在「客户管理」可看到您负责的客户列表，也可依状态或关键字搜索。",
           detail:
@@ -2961,7 +2970,7 @@ const zhHans: Messages = {
           status:
             "留意客户状态、销售阶段与下次跟进时间，优先处理需要跟进的客户。",
           collaborators:
-            "若您是共同负责人，同样可以在列表中找到该客户并新增跟进。",
+            "若您是协作成员，同样可以在列表中找到该客户并新增跟进。",
         },
       },
       recordFollowUp: {
@@ -3000,7 +3009,7 @@ const zhHans: Messages = {
           watchReminders:
             "留意通知中心的提醒；系统通常会在回收前 {{warningDays}} 天左右先提醒您（预设约 {{reclaimDays}} 天无有效跟进可能回收）。",
           collaborativeCustomers:
-            "有共同负责人的客户，也需要有人持续跟进；不要以为有其他人负责就可以不管。",
+            "有协作成员的客户，也需要有人持续跟进；不要以为有其他人负责就可以不管。",
         },
       },
       claimFromPool: {
@@ -3036,12 +3045,12 @@ const zhHans: Messages = {
         description: "部分客户操作需要提交申请并等待批准。",
         items: {
           whatToSubmit:
-            "例如调整共同负责团队成员、部分客户状态变更等，可在客户详情页提交申请。",
+            "例如调整协作成员、部分客户状态变更等，可在客户详情页提交申请。",
           checkStatus: "提交后可在「批准」页面查看申请状态，也会收到通知提醒。",
           navBadge:
             "左侧选单「批准」旁若显示数字，代表有待处理或待查看的申请。",
           collaboratorRequest:
-            "若您是客户主负责人，可申请调整共同负责团队成员并填写理由。",
+            "若您是客户主负责人，可申请调整协作成员并填写理由。",
         },
       },
     },
@@ -3051,7 +3060,7 @@ const zhHans: Messages = {
       cannotSeeCustomer: {
         question: "为什么我看不到某个客户？",
         answer:
-          "您通常只能查看自己负责或共同负责的客户。若客户已进入公共池、被删除或不在您的负责范围内，可能无法在「我的客户」中看到。",
+          "您通常只能查看自己负责或协作的客户。若客户已进入公共池、被删除或不在您的负责范围内，可能无法在「我的客户」中看到。",
       },
       customerInPublicPool: {
         question: "为什么客户进了公共池？",
@@ -3141,6 +3150,7 @@ const zhHans: Messages = {
     claimedLast7Days: "7 天内已领取",
     remainingQuota: "剩余名额",
     claimStatus: "领取状态",
+    noAvailableResources: "暂无可领取客户资源",
     canClaim: "可以领取",
     cooldownUntil: "冷却至：{{date}}",
     cooldownUntilLabel: "冷却至",
@@ -3358,6 +3368,15 @@ const zhHans: Messages = {
     saveFailed: "保存失败",
     statusEnabled: "已启用",
     statusDisabled: "未启用",
+    collaborationReminder: {
+      title: "协作客户无跟进提醒",
+      statusLabel: "状态",
+      statusEnabled: "已启用",
+      intervalLabel: "提醒周期",
+      interval: "10 天",
+      description:
+        "当主负责人及所有协作成员连续 10 天均无有效跟进时，\n系统会提醒相关成员及时跟进。\n\n如仍无人跟进，每隔 10 天再次提醒；\n任一成员产生有效跟进后重新计时。\n\n协作关系长期有效，系统不会自动解除协作成员。",
+    },
     badgeReadOnly: "只读",
     deviceAuthEnabledOn: "设备授权已启用，团队成员新设备需要管理员批准",
     deviceAuthEnabledOff: "设备授权未启用，团队成员登录不受设备限制",
@@ -3426,16 +3445,16 @@ const zhHans: Messages = {
       reclaimPublicPool: {
         title: "公共池与自动回收",
         description:
-          "普通单人负责客户若连续未有效跟进，会按设定天数进入公共池，并在回收前提醒负责团队成员。回收预警已改为系统每 7 天自动提醒，无需单独设置提醒天数。有共同负责人的客户目前不会被普通自动回收直接释放。",
+          "普通单人负责客户若连续未有效跟进，会按设定天数进入公共池，并在回收前提醒负责团队成员。回收预警已改为系统每 7 天自动提醒，无需单独设置提醒天数。有协作成员的客户目前不会被普通自动回收直接释放。",
       },
       customerRules: {
         title: "客户管理规则",
         description: "首次联系 SLA 小时数，用于客户热度与跟进优先级。",
       },
       collaborative: {
-        title: "共同负责管理",
+        title: "协作成员管理",
         description:
-          "90 天共同负责自动解散尚未启用。可通过 Dry-run 报告预览候选客户，不会修改任何数据。",
+          "协作关系长期有效，系统不会因成员未单独跟进而自动解除。当主负责人及所有协作成员连续一段时间均无有效跟进时，系统将提醒相关成员及时跟进。",
       },
       security: {
         title: "登录与设备安全",
@@ -3454,10 +3473,10 @@ const zhHans: Messages = {
     },
     cards: {
       dryRun: {
-        title: "共同负责 Dry-run 报告",
+        title: "协作客户跟进提醒报告",
         description:
-          "查看如果未来启用 90 天共同负责自动解散，可能受影响的客户。目前只读，不会修改数据。",
-        button: "查看 Dry-run 报告",
+          "查看当前需要协作成员跟进的客户。此报告只读，不会修改客户或协作关系。",
+        button: "查看跟进提醒报告",
       },
       ai: {
         title: "AI 设置",
@@ -4278,18 +4297,18 @@ const zhHans: Messages = {
     cannotViewTimeline: "无权查看该客户时间线。",
     customerAlreadyInPool: "客户已在公共池。",
     cannotReleaseCustomer: "无权释放该客户。",
-    assigneeInvalidPayload: "共同负责团队成员数据无效。",
-    assigneeOwnerNotAllowed: "不能将主负责团队成员加入共同负责。",
-    assigneeAdminNotAllowed: "不能将管理员加入共同负责。",
+    assigneeInvalidPayload: "协作成员数据无效。",
+    assigneeOwnerNotAllowed: "不能将主负责人加入协作成员。",
+    assigneeAdminNotAllowed: "不能将管理员加入协作成员。",
     assigneeInactiveUser: "不能添加已停用或已删除的团队成员。",
     assigneeUserNotFound: "所选团队成员不存在。",
     customerAssigneesForbidden: "无权管理该客户的负责团队成员。",
     pendingOnHoldCreate: "该客户正在等待搁置审核，暂不能调整负责团队成员。",
     assigneeReasonRequired: "请填写调整理由。",
     assigneeReasonTooShort: "调整理由至少需要 8 个字。",
-    assigneeApprovalAlreadyPending: "已有共同负责团队成员调整申请正在审核中。",
-    assigneeApprovalForbidden: "无法提交共同负责团队成员调整申请。",
-    assigneeApprovalInvalidPayload: "共同负责团队成员调整申请数据无效。",
+    assigneeApprovalAlreadyPending: "已有协作成员调整申请正在审核中。",
+    assigneeApprovalForbidden: "无法提交协作成员调整申请。",
+    assigneeApprovalInvalidPayload: "协作成员调整申请数据无效。",
     customerAlreadyPriority: "此客户目前已是优先客户，无需重复设定。",
     customerNotPriority: "此客户目前不是优先客户，无需取消。",
     customerOnHoldRequiresPriority:

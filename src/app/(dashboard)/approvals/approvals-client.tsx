@@ -69,7 +69,9 @@ export function ApprovalsClient({ isAdmin }: Props) {
   }
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- load items for the selected filter
     void loadItems(statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- load items for the selected filter
   }, [statusFilter]);
 
   async function handleReview(action: "approve" | "reject") {
@@ -231,7 +233,11 @@ export function ApprovalsClient({ isAdmin }: Props) {
               )}
               {selected.targetUserName && (
                 <div>
-                  <dt className="text-[#6B7890]">{t("approvals.transferTarget")}</dt>
+                  <dt className="text-[#6B7890]">
+                    {selected.requestType === "remove_customer_collaborator"
+                      ? t("approvals.collaborator")
+                      : t("approvals.transferTarget")}
+                  </dt>
                   <dd>{selected.targetUserName}</dd>
                 </div>
               )}

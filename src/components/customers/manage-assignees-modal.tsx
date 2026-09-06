@@ -23,12 +23,19 @@ type VerifiedCollaborator = CollaboratorSummary & {
 type CollaboratorsResponse = {
   ok?: boolean;
   collaborators?: CollaboratorSummary[];
+  pendingRemovalUserIds?: string[];
   user?: VerifiedCollaborator;
   error?: string;
   errorCode?: string;
 };
 
-export function ManageAssigneesButton({ customerId }: { customerId: string }) {
+export function ManageAssigneesButton({
+  customerId,
+  isAdmin,
+}: {
+  customerId: string;
+  isAdmin: boolean;
+}) {
   const router = useRouter();
   const { t } = useCustomerLabels();
   const [open, setOpen] = useState(false);
@@ -38,6 +45,10 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [confirmRemove, setConfirmRemove] =
     useState<CollaboratorSummary | null>(null);
+  const [pendingRemovalUserIds, setPendingRemovalUserIds] = useState<string[]>(
+    [],
+  );
+  const [removalReason, setRemovalReason] = useState("");
   const [collaborators, setCollaborators] = useState<CollaboratorSummary[]>([]);
   const [email, setEmail] = useState("");
   const [verified, setVerified] = useState<VerifiedCollaborator | null>(null);
@@ -56,6 +67,7 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
         return;
       }
       setCollaborators(data.collaborators ?? []);
+      setPendingRemovalUserIds(data.pendingRemovalUserIds ?? []);
     } catch {
       setError(t("common.networkError"));
     } finally {
@@ -69,6 +81,7 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
     setConfirmRemove(null);
     setEmail("");
     setVerified(null);
+    setRemovalReason("");
     setError(null);
   }
 
@@ -155,6 +168,37 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
     }
   }
 
+  async function requestRemoveCollaborator(collaborator: CollaboratorSummary) {
+    if (removingId || !removalReason.trim()) return;
+    setRemovingId(collaborator.id);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/customers/${customerId}/collaborators/removal-approval`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: collaborator.id,
+            reason: removalReason,
+          }),
+        },
+      );
+      const data = (await response.json()) as CollaboratorsResponse;
+      if (!response.ok) {
+        setError(resolveApiError(t, data));
+        return;
+      }
+      setConfirmRemove(null);
+      setRemovalReason("");
+      await loadCollaborators();
+    } catch {
+      setError(t("customers.unableToUpdateCollaborators"));
+    } finally {
+      setRemovingId(null);
+    }
+  }
+
   if (!open) {
     return (
       <button
@@ -220,12 +264,22 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
                     type="button"
                     size="sm"
                     variant="secondary"
-                    disabled={Boolean(removingId)}
-                    onClick={() => setConfirmRemove(collaborator)}
+                    disabled={
+                      Boolean(removingId) ||
+                      pendingRemovalUserIds.includes(collaborator.id)
+                    }
+                    onClick={() => {
+                      setRemovalReason("");
+                      setConfirmRemove(collaborator);
+                    }}
                   >
                     {removingId === collaborator.id
                       ? t("common.loading")
-                      : t("customers.removeCollaborator")}
+                      : pendingRemovalUserIds.includes(collaborator.id)
+                        ? t("customers.collaboratorRemovalPending")
+                        : isAdmin
+                          ? t("customers.removeCollaborator")
+                          : t("customers.requestRemoveCollaborator")}
                   </Button>
                 </li>
               ))}
@@ -308,6 +362,19 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
             <p className={`mt-3 text-sm ${cd.value}`}>
               {t("customers.removeCollaboratorConfirmBody")}
             </p>
+            {!isAdmin ? (
+              <div className="mt-4">
+                <Label htmlFor="collaborator-removal-reason">
+                  {t("customers.collaboratorRemovalReason")}
+                </Label>
+                <Input
+                  id="collaborator-removal-reason"
+                  value={removalReason}
+                  onChange={(event) => setRemovalReason(event.target.value)}
+                  disabled={Boolean(removingId)}
+                />
+              </div>
+            ) : null}
             <div className="mt-6 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <Button
                 type="button"
@@ -319,10 +386,18 @@ export function ManageAssigneesButton({ customerId }: { customerId: string }) {
               </Button>
               <Button
                 type="button"
-                disabled={Boolean(removingId)}
-                onClick={() => void removeCollaborator(confirmRemove)}
+                disabled={Boolean(removingId) || (!isAdmin && !removalReason.trim())}
+                onClick={() =>
+                  void (isAdmin
+                    ? removeCollaborator(confirmRemove)
+                    : requestRemoveCollaborator(confirmRemove))
+                }
               >
-                {removingId ? t("common.loading") : t("common.confirm")}
+                {removingId
+                  ? t("common.loading")
+                  : isAdmin
+                    ? t("common.confirm")
+                    : t("customers.requestRemoveCollaborator")}
               </Button>
             </div>
           </ModalPanel>

@@ -1,4 +1,4 @@
-import { and, count, eq, inArray } from "drizzle-orm";
+import { and, count, eq, inArray, isNull } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { Approval, ApprovalStatus } from "../../../drizzle/schema/approvals";
@@ -67,17 +67,24 @@ export async function findPendingApproval(
   db: Database,
   customerId: string,
   requestType: Approval["requestType"],
+  targetUserId?: string | null,
 ): Promise<Approval | null> {
+  const conditions = [
+    eq(schema.approvals.customerId, customerId),
+    eq(schema.approvals.requestType, requestType),
+    eq(schema.approvals.status, "pending"),
+  ];
+  if (targetUserId !== undefined) {
+    conditions.push(
+      targetUserId === null
+        ? isNull(schema.approvals.targetUserId)
+        : eq(schema.approvals.targetUserId, targetUserId),
+    );
+  }
   const rows = await db
     .select()
     .from(schema.approvals)
-    .where(
-      and(
-        eq(schema.approvals.customerId, customerId),
-        eq(schema.approvals.requestType, requestType),
-        eq(schema.approvals.status, "pending"),
-      ),
-    )
+    .where(and(...conditions))
     .limit(1);
   return rows[0] ?? null;
 }

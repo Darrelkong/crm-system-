@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
-import { CollaborativeDryRunClient } from "./collaborative-dry-run-client";
+import { redirect } from "next/navigation";
 
 export default function AdminCollaborativeDryRunPage() {
-  return <CollaborativeDryRunClient />;
+  redirect("/admin/reclamation/collaborative-reminders");
 }

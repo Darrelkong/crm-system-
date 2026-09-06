@@ -43,6 +43,7 @@ import {
 } from "@/lib/auth/ip-email-restriction";
 import { writeLoginLog } from "@/lib/audit/login-log";
 import { writeAuditLog } from "@/lib/audit/audit-log";
+import { recordFirstSuccessfulCrmLogin } from "@/lib/auth/first-login";
 import { getPostLoginRedirectPath } from "@/lib/permissions/auth";
 import {
   evaluateStaffDeviceLogin,
@@ -448,6 +449,8 @@ export async function handlePostLogin(
       { status: 403 },
     );
   }
+
+  await recordFirstSuccessfulCrmLogin(getDb(), user.id);
 
   const { token, expiresAt } = await createSession(
     user.id,

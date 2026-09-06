@@ -9,6 +9,10 @@ export function resolveClaimBlockReason(
   params?: Record<string, string>,
 ): string | null {
   if (!key) return null;
+  if (key === "newMemberProtection" || key === "adminPaused") {
+    const neutral = t("publicPool.noAvailableResources");
+    return neutral === "publicPool.noAvailableResources" ? null : neutral;
+  }
   const resolvedKey =
     key === "cooldown" && params?.hours
       ? "cooldownWithHours"

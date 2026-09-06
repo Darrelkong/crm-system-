@@ -682,6 +682,31 @@ export function canManageCustomerCollaborators(
   }
 }
 
+export function assertCanRequestCustomerCollaboratorRemoval(
+  user: User,
+  customer: Customer,
+): void {
+  assertCustomerNotArchived(
+    customer,
+    "customer.collaborators.removal_request_failed.archived",
+  );
+
+  if (
+    user.role !== "staff" ||
+    user.isActive !== 1 ||
+    customer.status !== "active" ||
+    customer.ownerId !== user.id ||
+    isPublicPoolCustomer(customer) ||
+    customer.deletedAt
+  ) {
+    throw new PermissionError(
+      403,
+      "只有当前主负责人可以申请移除协作成员",
+      "permission.denied.customer_collaborator_removal_request",
+    );
+  }
+}
+
 /** Compatibility guard for the legacy admin Staff picker. */
 export function assertCanManageCustomerAssignees(
   user: User,
@@ -736,7 +761,7 @@ export function assertCanRequestCustomerAssigneeUpdate(
   if (isPublicPoolCustomer(customer)) {
     throw new PermissionError(
       403,
-      "无权为该客户提交共同负责员工调整申请",
+      "无权为该客户提交协作成员调整申请",
       "permission.denied.customer_assignees_request",
     );
   }
@@ -752,7 +777,7 @@ export function assertCanRequestCustomerAssigneeUpdate(
   if (user.role !== "staff" || customer.ownerId !== user.id) {
     throw new PermissionError(
       403,
-      "只能为自己负责的客户提交共同负责员工调整申请",
+      "只能为自己负责的客户提交协作成员调整申请",
       "permission.denied.customer_assignees_request",
     );
   }

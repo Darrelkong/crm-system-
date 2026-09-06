@@ -36,7 +36,6 @@ const FIXED_NOW = new Date("2026-06-30T12:00:00.000Z");
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 const staffA = { id: SEED_IDS.staffA, role: "staff" } as User;
-const staffB = { id: SEED_IDS.staffB, role: "staff" } as User;
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let dispose: (() => Promise<void>) | undefined;
@@ -49,7 +48,7 @@ function makeReclaimableCustomer(
   id: string,
   overrides: Partial<Customer> = {},
 ): Customer {
-  const anchor = daysAgoIso(8, FIXED_NOW);
+  const anchor = daysAgoIso(60, FIXED_NOW);
   return {
     id,
     customerCode: null,
@@ -139,6 +138,12 @@ async function deleteTestCustomers() {
   await db
     .delete(schema.auditLogs)
     .where(inArray(schema.auditLogs.entityId, ids));
+  await db
+    .delete(schema.approvals)
+    .where(inArray(schema.approvals.customerId, ids));
+  await db
+    .delete(schema.reclamationActionItems)
+    .where(inArray(schema.reclamationActionItems.customerId, ids));
   await db
     .delete(schema.customers)
     .where(inArray(schema.customers.id, ids));

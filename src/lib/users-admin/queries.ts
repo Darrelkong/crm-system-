@@ -10,6 +10,11 @@ import {
   LOCKOUT_PERSISTENT_UNTIL,
   LOCKOUT_REASON_TOO_MANY_ATTEMPTS,
 } from "@/lib/auth/constants";
+import { getEffectiveSettings } from "@/lib/settings/effective";
+import {
+  PUBLIC_POOL_ELIGIBILITY_ROLLOUT_AT,
+  PUBLIC_POOL_FIRST_LOGIN_PROTECTION_MS,
+} from "@/lib/public-pool/member-policy";
 import type { User } from "../../../drizzle/schema/users";
 
 function formatUserRow(
@@ -23,6 +28,10 @@ function formatUserRow(
   deviceSummary: {
     approved: number;
     pending: number;
+  },
+  poolDefaults: {
+    quota: number;
+    cooldownHours: number;
   },
   deletionMeta?: ReturnType<typeof parseUserDeletionMetadata>,
 ): AdminUserView {
@@ -40,6 +49,18 @@ function formatUserRow(
         ? failedLoginMeta.lockedAtFromLog
         : user.lockedUntil
       : null;
+  const eligibilityAt = user.firstLoginAt
+    ? new Date(
+        new Date(user.firstLoginAt).getTime() +
+          PUBLIC_POOL_FIRST_LOGIN_PROTECTION_MS,
+      ).toISOString()
+    : null;
+  const legacyCompatible =
+    !user.firstLoginAt &&
+    user.createdAt < PUBLIC_POOL_ELIGIBILITY_ROLLOUT_AT;
+  const protectedByFirstLogin =
+    !legacyCompatible &&
+    (!eligibilityAt || new Date(eligibilityAt).getTime() > Date.now());
 
   return {
     id: user.id,
@@ -69,6 +90,32 @@ function formatUserRow(
     last_login_at: lastLoginAt,
     recent_login_count: recentLoginCount,
     cloudflare_access_email: user.cloudflareAccessEmail,
+    first_login_at: user.firstLoginAt,
+    pool_claim_paused: user.poolClaimPaused === 1,
+    pool_claim_quota_override: user.poolClaimQuotaOverride,
+    pool_claim_cooldown_hours_override: user.poolClaimCooldownHoursOverride,
+    pool_claim_effective_quota:
+      user.poolClaimQuotaOverride ?? poolDefaults.quota,
+    pool_claim_effective_cooldown_hours:
+      user.poolClaimCooldownHoursOverride ?? poolDefaults.cooldownHours,
+    pool_claim_eligibility_at: eligibilityAt,
+    pool_claim_remaining_days: protectedByFirstLogin
+      ? Math.max(
+          1,
+          Math.ceil(
+            ((eligibilityAt
+              ? new Date(eligibilityAt).getTime()
+              : Date.now() + PUBLIC_POOL_FIRST_LOGIN_PROTECTION_MS) -
+              Date.now()) /
+              (24 * 60 * 60 * 1000),
+          ),
+        )
+      : 0,
+    pool_claim_eligibility_status: user.poolClaimPaused
+      ? "paused"
+      : protectedByFirstLogin
+        ? "protected"
+        : "eligible",
     device_approved_count: deviceSummary.approved,
     device_pending_count: deviceSummary.pending,
   };
@@ -76,10 +123,13 @@ function formatUserRow(
 
 export async function listUsersForAdmin(): Promise<AdminUserView[]> {
   const db = getDb();
-  const users = await db
-    .select()
-    .from(schema.users)
-    .orderBy(asc(schema.users.email));
+  const [users, settings] = await Promise.all([
+    db
+      .select()
+      .from(schema.users)
+      .orderBy(asc(schema.users.email)),
+    getEffectiveSettings(db),
+  ]);
 
   const deviceRows = await db
     .select({
@@ -176,6 +226,10 @@ export async function listUsersForAdmin(): Promise<AdminUserView[]> {
         lockedAtFromLog: lockedAtFromLogByUser.get(user.id) ?? null,
       },
       deviceSummaryByUser.get(user.id) ?? { approved: 0, pending: 0 },
+      {
+        quota: settings.publicPoolClaimQuota7Days,
+        cooldownHours: settings.publicPoolClaimCooldownHours,
+      },
       user.deletedAt ? deletionMetadataByUser.get(user.id) : undefined,
     ),
   );

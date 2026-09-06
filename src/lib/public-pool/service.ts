@@ -2,6 +2,8 @@ import { and, eq, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { writeAuditLog } from "@/lib/audit/audit-log";
+import { getPublicPoolMemberPolicy } from "@/lib/public-pool/member-policy";
+import { getStaffClaimStatus } from "@/lib/public-pool/claim-limits";
 import { getEffectiveSettings } from "@/lib/settings/effective";
 import {
   clearCustomerAssignees,
@@ -134,14 +136,14 @@ export async function buildStaffClaimGuardParams(
   },
 ): Promise<StaffClaimGuardParams> {
   const database = db ?? getDb();
-  const settings = await getEffectiveSettings(database);
+  const memberPolicy = await getPublicPoolMemberPolicy(database, userId, now);
   const cooldownHours =
-    options?.cooldownHoursOverride ?? settings.publicPoolClaimCooldownHours;
+    options?.cooldownHoursOverride ?? memberPolicy.effectiveCooldownHours;
   const cooldownMs = cooldownHours * 60 * 60 * 1000;
 
   return {
     userId,
-    quotaLimit: settings.publicPoolClaimQuota7Days,
+    quotaLimit: memberPolicy.effectiveQuota,
     sevenDaysAgoIso: new Date(
       now.getTime() - CLAIM_QUOTA_DAYS * 24 * 60 * 60 * 1000,
     ).toISOString(),
@@ -245,6 +247,15 @@ export async function claimCustomerFromPool(
   const now = claimedAtDate.toISOString();
   const upsertTask =
     options.upsertFirstContactTask ?? upsertFirstContactTaskForClaim;
+
+  // Keep the service safe for every caller, including the ID-claim route and
+  // internal callers that do not provide the random-claim CAS guards.
+  if (user.role === "staff" && !options.staffGuards) {
+    const status = await getStaffClaimStatus(user.id, claimedAtDate, database);
+    if (!status.canClaimNow) {
+      return { ok: false, reason: "update_rejected" };
+    }
+  }
 
   const whereParts = [
     eq(schema.customers.id, customer.id),

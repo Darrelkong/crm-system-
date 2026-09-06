@@ -20,10 +20,10 @@ describe("settings UI sections", () => {
     );
   });
 
-  it("dry-run card href points to collaborative dry-run page", () => {
+  it("collaborative reminder card points to the reminder report", () => {
     assert.equal(
       SETTINGS_LINK_CARDS.dryRun.href,
-      "/admin/reclamation/collaborative-dry-run",
+      "/admin/reclamation/collaborative-reminders",
     );
   });
 

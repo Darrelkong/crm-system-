@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
-import { getEffectiveSettings } from "@/lib/settings/effective";
 import { CLAIM_QUOTA_DAYS, type StaffClaimStatus } from "./constants";
+import { getPublicPoolMemberPolicy } from "./member-policy";
 import {
   recordPublicPoolClaimHistoryPhysicalLoad,
   recordPublicPoolSettingsPhysicalLoad,
@@ -91,10 +91,9 @@ export async function getStaffClaimStatus(
 ): Promise<StaffClaimStatus> {
   const database = db ?? getDb();
   recordPublicPoolSettingsPhysicalLoad();
-  const settings = await getEffectiveSettings(database);
-
-  const quotaLimit = settings.publicPoolClaimQuota7Days;
-  const cooldownHours = settings.publicPoolClaimCooldownHours;
+  const memberPolicy = await getPublicPoolMemberPolicy(database, userId, now);
+  const quotaLimit = memberPolicy.effectiveQuota;
+  const cooldownHours = memberPolicy.effectiveCooldownHours;
 
   const sevenDaysAgo = new Date(
     now.getTime() - CLAIM_QUOTA_DAYS * 24 * 60 * 60 * 1000,
@@ -103,11 +102,22 @@ export async function getStaffClaimStatus(
   const { claimedInLast7Days, lastClaimedAt } =
     await loadStaffClaimHistoryAggregate(database, userId, sevenDaysAgo);
 
-  return buildStaffClaimStatusFromHistory({
+  const status = buildStaffClaimStatusFromHistory({
     claimedInLast7Days,
     lastClaimedAt,
     quotaLimit,
     cooldownHours,
     now,
   });
+
+  if (!memberPolicy.canClaimByMemberPolicy) {
+    return {
+      ...status,
+      canClaimNow: false,
+      blockedReasonKey: memberPolicy.blockedReasonKey,
+      blockedReasonParams: undefined,
+    };
+  }
+
+  return status;
 }

@@ -224,7 +224,7 @@ export async function createCustomerAssigneeUpdateApprovalRequest(
   if (existing) {
     throw {
       status: 409,
-      message: "已有共同负责员工调整申请正在审核中",
+      message: "已有协作成员调整申请正在审核中",
       errorCode: "ASSIGNEE_APPROVAL_ALREADY_PENDING",
     } satisfies AssigneeApprovalError;
   }
