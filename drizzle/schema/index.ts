@@ -55,6 +55,7 @@ export * from "./mail-outbound-revision-attachments";
 export * from "./mail-message-attachments";
 export * from "./mail-large-attachment-lifecycle";
 export * from "./mail-large-attachment-upload-sessions";
+export * from "./mail-large-attachment-scan-jobs";
 export * from "./mail-signature-version-assets";
 export * from "./mail-signature-snapshot-assets";
 export * from "./mail-outbound-approvals";

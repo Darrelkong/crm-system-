@@ -59,6 +59,7 @@ function emptySummary(): MailBackgroundTickSummary {
       skipped: 0,
       errors: 0,
     },
+    largeAttachmentScan: { ...counters },
     totalItemsStarted: 0,
   };
 }

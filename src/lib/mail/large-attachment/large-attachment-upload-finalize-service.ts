@@ -36,11 +36,14 @@ import {
   evaluateLargeAttachmentUploadFinalize,
   type LargeAttachmentUploadSession,
 } from "@/lib/mail/large-attachment/large-attachment-upload-session";
+import { OPSWAT_METADEFENDER_PROVIDER } from "@/lib/mail/large-attachment/opswat-metadefender-scanner";
+import { buildLargeAttachmentScanJobInsert } from "@/lib/mail/large-attachment/large-attachment-scan-job-service";
 
 export type LargeAttachmentFinalizePorts = {
   headObject?: typeof headLargeAttachmentObjectAuthoritative;
   trustNow?: () => Date;
   runtimeEnabled?: boolean;
+  scanProvider?: string;
 };
 
 function normalizeContentType(value: string | null | undefined): string | null {
@@ -155,6 +158,7 @@ export async function finalizeLargeAttachmentUpload(
   const storedFileId = session.storedFileId ?? crypto.randomUUID();
   const lifecycleId = crypto.randomUUID();
   const draftAttachmentId = crypto.randomUUID();
+  const scanJobId = crypto.randomUUID();
   const nextVersion = draft.autosaveVersion + 1;
   const auditId = crypto.randomUUID();
   const uploadedAt = now;
@@ -220,6 +224,20 @@ export async function finalizeLargeAttachmentUpload(
         createdAt: lifecycle.createdAt,
         updatedAt: lifecycle.updatedAt,
       }),
+      db.insert(schema.mailLargeAttachmentScanJobs).values(
+        buildLargeAttachmentScanJobInsert({
+          id: scanJobId,
+          lifecycleId: lifecycle.id,
+          storedFileId,
+          provider:
+            input.ports?.scanProvider ?? OPSWAT_METADEFENDER_PROVIDER,
+          storageKey: session.storageKey,
+          storageEtag: observed.etag,
+          storageVersion: observed.storageVersion,
+          declaredContentHash: session.declaredContentHash,
+          now,
+        }),
+      ),
       db.insert(schema.mailDraftAttachments).values({
         id: draftAttachmentId,
         draftId: draft.id,
@@ -266,7 +284,7 @@ export async function finalizeLargeAttachmentUpload(
         },
       ),
     ]);
-    assertBatchUpdateChanged(results, 3, "Large attachment finalize conflict");
+    assertBatchUpdateChanged(results, 4, "Large attachment finalize conflict");
     await markUploadSessionFinalized(db, {
       sessionId: session.id,
       storedFileId,

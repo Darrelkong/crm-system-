@@ -32,20 +32,27 @@ import {
   MAIL_OUTBOUND_TRANSPORT_MODE_VAR,
   resolveMailOutboundTransportMode,
 } from "../src/lib/mail/outbound-transport-constants";
+import { createLocalFakeLargeAttachmentScanner } from "../src/lib/mail/large-attachment/local-fake-malware-scanner";
+import type { LargeAttachmentScanJobProcessingDeps } from "../src/lib/mail/large-attachment/large-attachment-scan-job-service";
 
 /** Explicit opt-in — production deploy keeps this false until controlled enablement. */
 export const MAIL_NOTIFICATION_TRANSPORT_ENABLED_VAR =
   "MAIL_NOTIFICATION_TRANSPORT_ENABLED" as const;
+export const MAIL_LARGE_ATTACHMENT_SCAN_ENABLED_VAR =
+  "MAIL_LARGE_ATTACHMENT_SCAN_ENABLED" as const;
 
 /** Dedicated Mail Jobs Worker bindings — DB, ATTACHMENTS, optional EMAIL sending. */
 export interface MailJobsEnv extends OutboundBusinessEmailBindingEnv {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
+  LARGE_ATTACHMENTS?: R2Bucket;
   /** System notification transport — never used for business outbound. */
   EMAIL?: SendEmail;
   MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
   MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE?: string;
   MAIL_OUTBOUND_TRANSPORT_MODE?: string;
+  MAIL_LARGE_ATTACHMENT_SCAN_ENABLED?: string;
+  MAIL_LARGE_ATTACHMENT_SCAN_PROVIDER?: string;
   [MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR]?: string;
   [CLOUDFLARE_EMAIL_SENDING_API_TOKEN_ENV]?: string;
   [CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID_ENV]?: string;
@@ -66,6 +73,28 @@ function assertMailJobsBindings(env: MailJobsEnv): void {
   if (!env.ATTACHMENTS) {
     throw new Error("Mail Jobs Worker requires ATTACHMENTS R2 binding");
   }
+}
+
+function buildLargeAttachmentScanDeps(
+  env: MailJobsEnv,
+): LargeAttachmentScanJobProcessingDeps | undefined {
+  if (env.MAIL_LARGE_ATTACHMENT_SCAN_ENABLED !== "true") {
+    return undefined;
+  }
+  if (!env.LARGE_ATTACHMENTS) {
+    throw new Error(
+      "Large attachment scan processing requires the dedicated local R2 binding",
+    );
+  }
+  if (env.MAIL_LARGE_ATTACHMENT_SCAN_PROVIDER !== "local-fake") {
+    throw new Error(
+      "Only the local-fake large attachment scanner is permitted in this local pipeline",
+    );
+  }
+  return {
+    bucket: env.LARGE_ATTACHMENTS,
+    scanner: createLocalFakeLargeAttachmentScanner(),
+  };
 }
 
 function assertNotificationTransportBindings(env: MailJobsEnv): void {
@@ -117,6 +146,7 @@ export function buildMailBackgroundTickDeps(
       notificationEmailBinding: env.EMAIL,
       attachmentsBucket: env.ATTACHMENTS,
     },
+    largeAttachmentScan: buildLargeAttachmentScanDeps(env),
   };
 
   if (
@@ -170,6 +200,7 @@ export function formatMailJobsTickLogSummary(
     outboundDispatch: summary.outboundDispatch,
     outboundDispatchSkipped: summary.outboundDispatchSkipped,
     outboundSentMaterialization: summary.outboundSentMaterialization,
+    largeAttachmentScan: summary.largeAttachmentScan,
     rawPayloadRetention: summary.rawPayloadRetention,
   };
 }

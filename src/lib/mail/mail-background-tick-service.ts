@@ -51,6 +51,10 @@ import {
 } from "@/lib/mail/outbound-sent-materialization-background-service";
 import { resolveMailOutboundTransportMode } from "@/lib/mail/outbound-transport-constants";
 import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
+import {
+  processDueLargeAttachmentScanJobs,
+  type LargeAttachmentScanJobProcessingDeps,
+} from "@/lib/mail/large-attachment/large-attachment-scan-job-service";
 
 /**
  * FakeNotificationTransportAdapter is test/local only.
@@ -86,6 +90,7 @@ export type MailBackgroundTickSummary = {
   outboundDispatch: MailBackgroundTickCategoryCounters;
   outboundDispatchSkipped: boolean;
   outboundSentMaterialization: MailBackgroundTickCategoryCounters;
+  largeAttachmentScan: MailBackgroundTickCategoryCounters;
   rawPayloadRetention: InboundRawMimeRetentionTickCounters;
   totalItemsStarted: number;
   stoppedReason?: MailBackgroundTickStopReason;
@@ -102,6 +107,7 @@ export type MailBackgroundTickDeps = {
   verificationChallengeSecret?: string;
   /** Business outbound dispatch wiring — omit to skip outbound dispatch category. */
   outboundDispatch?: OutboundBackgroundDispatchDeps;
+  largeAttachmentScan?: LargeAttachmentScanJobProcessingDeps;
   trustNow?: () => string;
   /** Injectable elapsed milliseconds for soft wall-clock budget tests. */
   elapsedMs?: () => number;
@@ -182,6 +188,7 @@ export async function runMailBackgroundTick(
     outboundDispatch: emptyCounters(),
     outboundDispatchSkipped: deps.outboundDispatch === undefined,
     outboundSentMaterialization: createOutboundSentMaterializationCounters(),
+    largeAttachmentScan: emptyCounters(),
     rawPayloadRetention: emptyInboundRawMimeRetentionCounters(),
     totalItemsStarted: 0,
   };
@@ -565,6 +572,24 @@ export async function runMailBackgroundTick(
   }
 
   // 9. Purge expired inbound raw MIME objects (canonical Mail history preserved)
+  if (!summary.stoppedReason) {
+    if (deps.largeAttachmentScan) {
+      const scan = await processDueLargeAttachmentScanJobs(db, {
+        trustNow: providerTrustNow,
+        limit: remainingCategoryLimit(),
+        ...deps.largeAttachmentScan,
+      });
+      summary.largeAttachmentScan.selected = scan.selected;
+      summary.largeAttachmentScan.claimed = scan.claimed;
+      summary.largeAttachmentScan.completed = scan.completed;
+      summary.largeAttachmentScan.retryScheduled = scan.retryScheduled;
+      summary.largeAttachmentScan.permanentFailed = scan.failed;
+      summary.largeAttachmentScan.skipped = scan.skipped;
+      summary.totalItemsStarted += scan.claimed;
+    }
+  }
+
+  // 10. Purge expired inbound raw MIME objects (canonical Mail history preserved)
   if (!summary.stoppedReason) {
     summary.rawPayloadRetention = await runInboundRawMimeRetentionCleanup(
       db,

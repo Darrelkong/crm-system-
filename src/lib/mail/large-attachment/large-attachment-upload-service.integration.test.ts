@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import * as schema from "../../../../drizzle/schema";
 import {
   actor,
@@ -277,6 +277,7 @@ describe("large attachment upload service integration", () => {
       .select()
       .from(schema.mailLargeAttachmentLifecycle)
       .where(eq(schema.mailLargeAttachmentLifecycle.storageEtag, "abc123etag"))
+      .orderBy(desc(schema.mailLargeAttachmentLifecycle.createdAt))
       .limit(1);
     assert.ok(lifecycle);
     assert.equal(lifecycle.status, "temporary");
@@ -285,6 +286,18 @@ describe("large attachment upload service integration", () => {
       lifecycle.temporaryExpiresAt,
       addMillisecondsToIsoTimestamp(TRUST_NOW_ISO, LARGE_ATTACHMENT_TEMPORARY_RETENTION_MS),
     );
+    const [scanJob] = await db
+      .select()
+      .from(schema.mailLargeAttachmentScanJobs)
+      .where(eq(schema.mailLargeAttachmentScanJobs.storageKey, authorization.storageKey))
+      .limit(1);
+    assert.ok(scanJob);
+    assert.equal(scanJob.jobStatus, "queued");
+    assert.equal(scanJob.provider, "opswat-metadefender-cloud");
+    assert.equal(scanJob.storageKey, authorization.storageKey);
+    assert.equal(scanJob.storageEtag, lifecycle.storageEtag);
+    assert.equal(scanJob.storageVersion, lifecycle.storageVersion);
+    assert.equal(scanJob.declaredContentHash, DECLARED_SHA256);
 
     const replay = await finalizeLargeAttachmentUpload(db, staffActor, {
       draftId: draft.id,
