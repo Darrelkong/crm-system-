@@ -3,7 +3,12 @@ import { describe, it } from "node:test";
 import {
   MAIL_COMPOSE_ATTACHMENT_LIMITS,
   isBlockedAttachmentFilename,
+  isBlockedLargeAttachmentFilename,
   isBlockedAttachmentMimeType,
+  isHighRiskAttachmentType,
+  isZipAttachmentFilename,
+  normalizeAttachmentFilename,
+  normalizeLargeAttachmentFilename,
   validateComposeAttachmentCandidate,
 } from "@/lib/mail/compose-attachment-policy";
 
@@ -52,5 +57,37 @@ describe("compose-attachment-policy", () => {
       existingTotalBytes: 0,
     });
     assert.equal(issue?.code, "UNSUPPORTED_FILE_TYPE");
+  });
+
+  it("blocks uppercase and disguised executable filenames", () => {
+    for (const filename of ["setup.EXE", "invoice.pdf.exe", "photo.jpg.scr"]) {
+      assert.equal(isBlockedAttachmentFilename(filename), true);
+    }
+    assert.equal(isBlockedLargeAttachmentFilename("disk.iso"), true);
+    assert.equal(isBlockedLargeAttachmentFilename("shortcut.lnk"), true);
+  });
+
+  it("normalizes trailing dots and spaces before evaluating extensions", () => {
+    assert.equal(normalizeAttachmentFilename("invoice.pdf.exe. "), "invoice.pdf.exe.");
+    assert.equal(
+      normalizeLargeAttachmentFilename("invoice.pdf.exe. "),
+      "invoice.pdf.exe",
+    );
+    assert.equal(isBlockedLargeAttachmentFilename("invoice.pdf.exe. "), true);
+    assert.equal(
+      isHighRiskAttachmentType({
+        filename: "bad\nname.pdf",
+        mimeType: "application/pdf",
+      }),
+      true,
+    );
+  });
+
+  it("allows safe business documents and ZIP with explicit warning semantics", () => {
+    for (const filename of ["report.pdf", "brief.docx", "numbers.xlsx", "photo.png"]) {
+      assert.equal(isBlockedAttachmentFilename(filename), false);
+    }
+    assert.equal(isZipAttachmentFilename("documents.zip"), true);
+    assert.equal(isBlockedAttachmentFilename("documents.zip"), false);
   });
 });

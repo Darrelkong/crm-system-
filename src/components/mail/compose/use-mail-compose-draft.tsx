@@ -64,6 +64,7 @@ import {
   type ComposeAttachmentUploadState,
 } from "@/lib/mail/client/compose-attachment-upload";
 import { uploadLargeDraftAttachmentWithProgress } from "@/lib/mail/client/compose-large-attachment-upload";
+import { LARGE_ATTACHMENT_NOTICE_VERSION } from "@/lib/mail/large-attachment/large-attachment-risk-acknowledgement";
 import {
   ComposeDraftPersistenceError,
   resolvePersistedDraftId,
@@ -83,7 +84,13 @@ type AttachmentUploadSidecar = {
   abortController: AbortController;
   largeUploadSessionId?: string;
   largePutCompleted?: boolean;
+  acknowledgementNoticeVersion?: string;
 };
+
+type PendingLargeAttachmentBatch = Array<{
+  file: File;
+  uploadRoute: "direct" | "large";
+}>;
 
 function uploadStatesToComposeAttachments(
   attachments: ComposeAttachmentUploadState[],
@@ -205,6 +212,8 @@ export function useMailComposeDraft(input: {
   const [uploadAttachments, setUploadAttachments] = useState<
     ComposeAttachmentUploadState[]
   >([]);
+  const [pendingLargeAttachmentBatch, setPendingLargeAttachmentBatch] =
+    useState<PendingLargeAttachmentBatch | null>(null);
   const [approval, setApproval] = useState<ApprovalApiItem | null>(null);
   const [sendOperation, setSendOperation] = useState<SendOperationApiItem | null>(
     null,
@@ -235,6 +244,9 @@ export function useMailComposeDraft(input: {
   const uploadQueueRunningRef = useRef(false);
   const uploadSidecarsRef = useRef<Map<string, AttachmentUploadSidecar>>(
     new Map(),
+  );
+  const pendingLargeAttachmentBatchRef = useRef<PendingLargeAttachmentBatch | null>(
+    null,
   );
   const stateRef = useRef(state);
   // eslint-disable-next-line react-hooks/refs -- existing mutable snapshot bridge for async draft persistence
@@ -803,6 +815,8 @@ export function useMailComposeDraft(input: {
             finalizeOnly: finalizeOnlySessionId
               ? { uploadSessionId: finalizeOnlySessionId }
               : undefined,
+            acknowledgementNoticeVersion:
+              sidecar.acknowledgementNoticeVersion,
             onPhase: (phase) => {
               setUploadAttachments((current) =>
                 current.map((attachment) =>
@@ -895,6 +909,8 @@ export function useMailComposeDraft(input: {
                 abortController: new AbortController(),
                 largeUploadSessionId: preservedSidecar?.largeUploadSessionId,
                 largePutCompleted: preservedSidecar?.largePutCompleted,
+                acknowledgementNoticeVersion:
+                  preservedSidecar?.acknowledgementNoticeVersion,
               });
               continue;
             }
@@ -1001,15 +1017,28 @@ export function useMailComposeDraft(input: {
       const selected = Array.from(files);
       if (selected.length === 0) return;
 
-      const additions: ComposeAttachmentUploadState[] = [];
+      const candidates: PendingLargeAttachmentBatch = [];
+      const pendingBatch = pendingLargeAttachmentBatchRef.current ?? [];
       const validationBaseline = [...uploadAttachmentsRef.current];
       for (const file of selected) {
         const validation = validateLocalAttachmentFile(file, [
           ...validationBaseline,
-          ...additions.map((entry) => ({
-            sizeBytes: entry.sizeBytes,
-            uploadStatus: entry.uploadStatus,
-            kind: entry.kind,
+          ...pendingBatch.map((entry) => ({
+            sizeBytes: entry.file.size,
+            uploadStatus: "queued" as const,
+            kind:
+              entry.uploadRoute === "large"
+                ? ("large_attachment" as const)
+                : ("attachment" as const),
+            uploadRoute: entry.uploadRoute,
+          })),
+          ...candidates.map((entry) => ({
+            sizeBytes: entry.file.size,
+            uploadStatus: "queued" as const,
+            kind:
+              entry.uploadRoute === "large"
+                ? ("large_attachment" as const)
+                : ("attachment" as const),
             uploadRoute: entry.uploadRoute,
           })),
         ]);
@@ -1024,26 +1053,43 @@ export function useMailComposeDraft(input: {
           );
           continue;
         }
-        const entry = createQueuedAttachmentEntry(
+        candidates.push({
           file,
-          (bytes) => formatAttachmentSize(bytes),
-          validation.uploadRoute,
-        );
-        additions.push(entry);
-        uploadSidecarsRef.current.set(entry.localId, {
-          localId: entry.localId,
-          file,
-          abortController: new AbortController(),
+          uploadRoute: validation.uploadRoute,
         });
       }
 
-      if (additions.length === 0) {
+      if (candidates.length === 0) {
         return;
       }
 
       setSubmissionIssues([]);
       setSubmissionError(null);
       setSubmissionErrorParams(undefined);
+      if (
+        pendingBatch.length > 0 ||
+        candidates.some((entry) => entry.uploadRoute === "large")
+      ) {
+        const nextPendingBatch = [...pendingBatch, ...candidates];
+        pendingLargeAttachmentBatchRef.current = nextPendingBatch;
+        setPendingLargeAttachmentBatch(nextPendingBatch);
+        return;
+      }
+
+      const additions = candidates.map((candidate) =>
+        createQueuedAttachmentEntry(
+          candidate.file,
+          (bytes) => formatAttachmentSize(bytes),
+          candidate.uploadRoute,
+        ),
+      );
+      additions.forEach((entry, index) => {
+        uploadSidecarsRef.current.set(entry.localId, {
+          localId: entry.localId,
+          file: candidates[index]!.file,
+          abortController: new AbortController(),
+        });
+      });
       setUploadAttachments((current) => {
         const next = [...current, ...additions];
         uploadAttachmentsRef.current = next;
@@ -1055,6 +1101,46 @@ export function useMailComposeDraft(input: {
     },
     [processUploadQueue],
   );
+
+  const confirmPendingLargeAttachmentBatch = useCallback(() => {
+    const pendingBatch = pendingLargeAttachmentBatchRef.current;
+    if (!pendingBatch || pendingBatch.length === 0) return;
+
+    const additions = pendingBatch.map((candidate) =>
+      createQueuedAttachmentEntry(
+        candidate.file,
+        (bytes) => formatAttachmentSize(bytes),
+        candidate.uploadRoute,
+      ),
+    );
+    additions.forEach((entry, index) => {
+      const candidate = pendingBatch[index]!;
+      uploadSidecarsRef.current.set(entry.localId, {
+        localId: entry.localId,
+        file: candidate.file,
+        abortController: new AbortController(),
+        acknowledgementNoticeVersion:
+          candidate.uploadRoute === "large"
+            ? LARGE_ATTACHMENT_NOTICE_VERSION
+            : undefined,
+      });
+    });
+    pendingLargeAttachmentBatchRef.current = null;
+    setPendingLargeAttachmentBatch(null);
+    setUploadAttachments((current) => {
+      const next = [...current, ...additions];
+      uploadAttachmentsRef.current = next;
+      return next;
+    });
+    queueMicrotask(() => {
+      void processUploadQueue();
+    });
+  }, [processUploadQueue]);
+
+  const cancelPendingLargeAttachmentBatch = useCallback(() => {
+    pendingLargeAttachmentBatchRef.current = null;
+    setPendingLargeAttachmentBatch(null);
+  }, []);
 
   useEffect(() => {
     if (
@@ -1093,6 +1179,11 @@ export function useMailComposeDraft(input: {
         abortController: new AbortController(),
         largeUploadSessionId: existingSidecar?.largeUploadSessionId,
         largePutCompleted: existingSidecar?.largePutCompleted,
+        acknowledgementNoticeVersion:
+          existingSidecar?.acknowledgementNoticeVersion ??
+          (match.kind === "large_attachment"
+            ? LARGE_ATTACHMENT_NOTICE_VERSION
+            : undefined),
       });
       setUploadAttachments((current) =>
         current.map((attachment) =>
@@ -1462,6 +1553,7 @@ export function useMailComposeDraft(input: {
     canSubmit,
     closing,
     draftHydrating,
+    pendingLargeAttachmentBatch,
     buildSubmissionIssueMessageKey,
     updateField,
     selectFrom,
@@ -1471,6 +1563,8 @@ export function useMailComposeDraft(input: {
     handleDiscard,
     handleSubmitForApproval,
     handlePickFiles,
+    confirmPendingLargeAttachmentBatch,
+    cancelPendingLargeAttachmentBatch,
     handleRemoveAttachment,
     handleRetryAttachmentUpload,
     handleCancelAttachmentUpload,

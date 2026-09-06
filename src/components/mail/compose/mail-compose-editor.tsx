@@ -22,6 +22,7 @@ import {
   useMailComposeDraft,
 } from "@/components/mail/compose/use-mail-compose-draft";
 import { MailComposeAttachmentList } from "@/components/mail/compose/mail-compose-attachment-list";
+import { MailLargeAttachmentAcknowledgementModal } from "@/components/mail/compose/mail-large-attachment-acknowledgement-modal";
 import {
   insertTextAtCaret,
   MailComposeEmojiPicker,
@@ -75,6 +76,7 @@ export function MailComposeEditor({
     canSubmit,
     closing,
     draftHydrating,
+    pendingLargeAttachmentBatch,
     buildSubmissionIssueMessageKey,
     updateField,
     selectFrom,
@@ -83,6 +85,8 @@ export function MailComposeEditor({
     handleDiscard,
     handleSubmitForApproval,
     handlePickFiles,
+    confirmPendingLargeAttachmentBatch,
+    cancelPendingLargeAttachmentBatch,
     handleRemoveAttachment,
     handleRetryAttachmentUpload,
     handleCancelAttachmentUpload,
@@ -141,6 +145,16 @@ export function MailComposeEditor({
         buildSubmissionIssueMessageKey={buildSubmissionIssueMessageKey}
         onBack={onBack}
         onToggleExpand={onToggleExpand}
+      />
+      <MailLargeAttachmentAcknowledgementModal
+        files={
+          pendingLargeAttachmentBatch?.map(({ file }) => ({
+            name: file.name,
+            sizeBytes: file.size,
+          })) ?? null
+        }
+        onCancel={cancelPendingLargeAttachmentBatch}
+        onConfirm={confirmPendingLargeAttachmentBatch}
       />
     </MailComposeDraftGate>
   );

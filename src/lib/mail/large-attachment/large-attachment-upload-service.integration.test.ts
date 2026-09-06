@@ -34,6 +34,10 @@ const TRUST_NOW_ISO = TRUST_NOW.toISOString();
 const DECLARED_SHA256 = "c".repeat(64);
 const CONTENT_MD5 = "1B2M2Y8AsgTpgAmY7PhCfg==";
 const FILE_BYTES = 4 * 1024 * 1024;
+const ACKNOWLEDGEMENT = {
+  acknowledged: true,
+  noticeVersion: "large_attachment_notice_v1",
+} as const;
 
 describe("large attachment upload service integration", () => {
   let db: TestDb;
@@ -122,6 +126,7 @@ describe("large attachment upload service integration", () => {
             declaredSha256: DECLARED_SHA256,
             contentMd5: CONTENT_MD5,
           },
+          acknowledgement: ACKNOWLEDGEMENT,
           ports: { presignPut: mockPresign(), trustNow: () => TRUST_NOW },
         }),
       (error: unknown) =>
@@ -138,6 +143,7 @@ describe("large attachment upload service integration", () => {
         declaredSha256: DECLARED_SHA256,
         contentMd5: CONTENT_MD5,
       },
+      acknowledgement: ACKNOWLEDGEMENT,
       ports: { presignPut: mockPresign(), trustNow: () => TRUST_NOW },
     });
     assertAuthorizeResponseHasNoSecrets(authorization);
@@ -165,6 +171,7 @@ describe("large attachment upload service integration", () => {
             declaredSha256: DECLARED_SHA256,
             contentMd5: CONTENT_MD5,
           },
+          acknowledgement: ACKNOWLEDGEMENT,
           ports: { presignPut: mockPresign(), trustNow: () => TRUST_NOW },
         }),
       (error: unknown) => error instanceof MailServiceError && error.status === 400,
@@ -181,6 +188,7 @@ describe("large attachment upload service integration", () => {
             declaredSha256: DECLARED_SHA256,
             contentMd5: CONTENT_MD5,
           },
+          acknowledgement: ACKNOWLEDGEMENT,
           ports: { presignPut: mockPresign(), trustNow: () => TRUST_NOW },
         }),
       (error: unknown) => error instanceof MailServiceError && error.status === 400,
@@ -224,6 +232,7 @@ describe("large attachment upload service integration", () => {
             declaredSha256: DECLARED_SHA256,
             contentMd5: CONTENT_MD5,
           },
+          acknowledgement: ACKNOWLEDGEMENT,
           ports: { presignPut: mockPresign(), trustNow: () => TRUST_NOW },
         }),
       (error: unknown) => error instanceof MailServiceError && error.status === 400,
@@ -241,6 +250,7 @@ describe("large attachment upload service integration", () => {
         declaredSha256: DECLARED_SHA256,
         contentMd5: CONTENT_MD5,
       },
+      acknowledgement: ACKNOWLEDGEMENT,
       ports: { presignPut: mockPresign(), trustNow: () => TRUST_NOW },
     });
 

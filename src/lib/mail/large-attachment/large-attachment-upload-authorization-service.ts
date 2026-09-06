@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { assertCanComposeFromIdentityInMailbox } from "@/lib/mail/compose-authorization";
@@ -25,6 +25,13 @@ import {
 import { assertDeclaredContentHashFormat } from "@/lib/mail/large-attachment/large-attachment-storage-identity";
 import { insertUploadSession } from "@/lib/mail/large-attachment/large-attachment-upload-repository";
 import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
+import {
+  buildLocalLargeAttachmentUploadUrl,
+  isLocalLargeAttachmentRelayEnabled,
+} from "@/lib/mail/large-attachment/large-attachment-local-upload-relay";
+import {
+  isValidLargeAttachmentAcknowledgement,
+} from "@/lib/mail/large-attachment/large-attachment-risk-acknowledgement";
 import {
   evaluateLargeAttachmentUploadSessionValidity,
   type LargeAttachmentUploadSession,
@@ -54,6 +61,7 @@ export type LargeAttachmentAuthorizePorts = {
   presignPut?: typeof presignLargeAttachmentPut;
   trustNow?: () => Date;
   runtimeEnabled?: boolean;
+  localRelayEnabled?: boolean;
 };
 
 function mapClassifierReject(code: string): never {
@@ -72,6 +80,7 @@ function mapClassifierReject(code: string): never {
         issueCode: code,
       });
     case "UNSUPPORTED_FILE_TYPE":
+    case "UNSAFE_FILENAME":
       throw MailServiceError.validation("Unsupported attachment file type", {
         issueCode: code,
       });
@@ -134,6 +143,10 @@ export async function authorizeLargeAttachmentUpload(
   input: {
     draftId: string;
     authorize: LargeAttachmentAuthorizeInput;
+    acknowledgement: {
+      acknowledged: boolean;
+      noticeVersion: string;
+    };
     ports?: LargeAttachmentAuthorizePorts;
   },
 ): Promise<LargeAttachmentAuthorizeResult> {
@@ -151,6 +164,12 @@ export async function authorizeLargeAttachmentUpload(
     mailboxId: draft.mailboxId,
     senderIdentityId: draft.senderIdentityId,
   });
+  if (!isValidLargeAttachmentAcknowledgement(input.acknowledgement)) {
+    throw MailServiceError.validation(
+      "Large attachment risk acknowledgement is required",
+      { issueCode: "ACKNOWLEDGEMENT_REQUIRED" },
+    );
+  }
 
   const filename = normalizeAttachmentFilename(input.authorize.filename);
   const mimeType =
@@ -216,20 +235,40 @@ export async function authorizeLargeAttachmentUpload(
     declaredContentHash: input.authorize.declaredSha256,
     expiresAt,
     createdAt: nowIso,
+    acknowledgement: {
+      id: crypto.randomUUID(),
+      userId: actor.userId,
+      noticeVersion: input.acknowledgement.noticeVersion,
+      acknowledgedAt: nowIso,
+    },
   });
 
-  const presign = input.ports?.presignPut ?? presignLargeAttachmentPut;
-  const presigned = await presign({
-    storageKey,
-    contentType: mimeType,
-    contentMd5Base64,
-    expiresInSeconds: Math.floor(LARGE_ATTACHMENT_UPLOAD_AUTH_TTL_MS / 1000),
-  });
+  const localRelayEnabled =
+    input.ports?.localRelayEnabled ?? isLocalLargeAttachmentRelayEnabled();
+  const presigned = localRelayEnabled
+    ? null
+    : await (input.ports?.presignPut ?? presignLargeAttachmentPut)({
+          storageKey,
+          contentType: mimeType,
+          contentMd5Base64,
+          expiresInSeconds: Math.floor(
+            LARGE_ATTACHMENT_UPLOAD_AUTH_TTL_MS / 1000,
+          ),
+        });
 
   return {
     uploadSessionId: sessionId,
-    uploadUrl: presigned.uploadUrl,
-    requiredHeaders: presigned.requiredHeaders,
+    uploadUrl:
+      presigned?.uploadUrl ??
+      buildLocalLargeAttachmentUploadUrl({
+        draftId: draft.id,
+        sessionId,
+      }),
+    requiredHeaders: presigned?.requiredHeaders ?? {
+      "Content-Type": mimeType,
+      "Content-MD5": contentMd5Base64,
+      "If-None-Match": "*",
+    },
     expiresAt,
     storageKey,
   };

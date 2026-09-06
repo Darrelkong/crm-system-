@@ -264,6 +264,7 @@ describe("large attachment phase 2A.1 hardening", () => {
         trustNowIso: UPLOADED_AT,
         uploadFinalized: true,
         allowTemporary: true,
+        hasRiskAcknowledgement: true,
       });
       assert.equal(result.ok, false);
       if (!result.ok) assert.equal(result.code, "MISSING_STORAGE_IDENTITY");
@@ -281,6 +282,7 @@ describe("large attachment phase 2A.1 hardening", () => {
         trustNowIso: UPLOADED_AT,
         uploadFinalized: true,
         allowTemporary: true,
+        hasRiskAcknowledgement: true,
       });
       assert.equal(result.ok, true);
     });

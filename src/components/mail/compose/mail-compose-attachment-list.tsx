@@ -22,6 +22,7 @@ const POLICY_ATTACHMENT_ERROR_CODES = new Set<ComposeAttachmentPolicyIssueCode>(
   "TOTAL_SIZE_EXCEEDED",
   "TOO_MANY_ATTACHMENTS",
   "UNSUPPORTED_FILE_TYPE",
+  "UNSAFE_FILENAME",
   "EMPTY_FILE",
   "FILENAME_REQUIRED",
 ]);
@@ -176,6 +177,11 @@ export function MailComposeAttachmentList({
                     {attachment.sizeLabel}
                   </span>
                 </div>
+                {attachment.kind === "large_attachment" ? (
+                  <span className="mt-1 inline-flex rounded-full border crm-border px-1.5 py-0.5 text-[10px] font-medium crm-text-secondary">
+                    {t("mail.compose.largeAttachment.unscannedBadge")}
+                  </span>
+                ) : null}
                 <CompactAttachmentStatus attachment={attachment} />
                 {attachment.uploadStatus === "failed" ? (
                   <button

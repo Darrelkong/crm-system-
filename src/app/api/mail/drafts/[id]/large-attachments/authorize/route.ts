@@ -32,13 +32,18 @@ export async function handlePostLargeAttachmentAuthorize(
       readStringField(body, "declaredSha256") ??
       readStringField(body, "declaredContentHash");
     const contentMd5 = readStringField(body, "contentMd5");
+    const noticeVersion = readStringField(
+      body,
+      "acknowledgementNoticeVersion",
+    );
+    const acknowledged = body.acknowledged === true;
     const sizeRaw = body.sizeBytes;
 
-    if (!filename || !declaredSha256 || !contentMd5) {
+    if (!filename || !declaredSha256 || !contentMd5 || !noticeVersion || !acknowledged) {
       return Response.json(
         {
           error:
-            "filename, sizeBytes, declaredSha256, and contentMd5 are required",
+            "filename, sizeBytes, declaredSha256, contentMd5, and risk acknowledgement are required",
           errorCode: "VALIDATION",
         },
         { status: 400 },
@@ -66,6 +71,10 @@ export async function handlePostLargeAttachmentAuthorize(
         sizeBytes,
         declaredSha256,
         contentMd5,
+      },
+      acknowledgement: {
+        acknowledged,
+        noticeVersion,
       },
       ports: deps.authorizePorts,
     });

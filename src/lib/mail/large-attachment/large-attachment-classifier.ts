@@ -1,7 +1,7 @@
 import type { MailDeliveryMode } from "../../../../drizzle/schema/mail-draft-attachments";
 import {
-  isBlockedAttachmentFilename,
-  isBlockedAttachmentMimeType,
+  hasUnsafeAttachmentFilename,
+  isHighRiskAttachmentType,
   normalizeAttachmentFilename,
 } from "@/lib/mail/compose-attachment-policy";
 import {
@@ -21,6 +21,7 @@ export type ComposeAttachmentClassifierRejectCode =
   | "LARGE_AGGREGATE_EXCEEDED"
   | "TOO_MANY_ATTACHMENTS"
   | "UNSUPPORTED_FILE_TYPE"
+  | "UNSAFE_FILENAME"
   | "EMPTY_FILE"
   | "FILENAME_REQUIRED";
 
@@ -63,13 +64,15 @@ export function classifyComposeAttachmentDeliveryMode(input: {
   if (!filename) {
     return { ok: false, code: "FILENAME_REQUIRED" };
   }
+  if (
+    hasUnsafeAttachmentFilename(input.filename)
+  ) {
+    return { ok: false, code: "UNSAFE_FILENAME" };
+  }
   if (input.sizeBytes <= 0) {
     return { ok: false, code: "EMPTY_FILE" };
   }
-  if (
-    isBlockedAttachmentFilename(filename) ||
-    isBlockedAttachmentMimeType(input.mimeType)
-  ) {
+  if (isHighRiskAttachmentType({ filename, mimeType: input.mimeType })) {
     return { ok: false, code: "UNSUPPORTED_FILE_TYPE" };
   }
   if (input.existingAttachments.length >= TOTAL_COMPOSE_ATTACHMENT_MAX_COUNT) {

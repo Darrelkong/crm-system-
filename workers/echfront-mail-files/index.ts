@@ -42,7 +42,7 @@ function methodNotAllowedResponse(): Response {
   });
 }
 
-function extractOpaqueToken(url: URL): string | null {
+function extractOpaqueToken(url: URL): { token: string; download: boolean } | null {
   if (url.search) {
     return null;
   }
@@ -51,7 +51,11 @@ function extractOpaqueToken(url: URL): string | null {
   if (!url.pathname.startsWith(prefix)) {
     return null;
   }
-  const encodedToken = url.pathname.slice(prefix.length);
+  const pathValue = url.pathname.slice(prefix.length);
+  const download = pathValue.endsWith("/download");
+  const encodedToken = download
+    ? pathValue.slice(0, -"/download".length)
+    : pathValue;
   if (!encodedToken || encodedToken.includes("/")) {
     return null;
   }
@@ -65,7 +69,68 @@ function extractOpaqueToken(url: URL): string | null {
   if (token !== encodedToken || !TOKEN_PATTERN.test(token)) {
     return null;
   }
-  return token;
+  return { token, download };
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;",
+      })[character] ?? character,
+  );
+}
+
+function warningResponse(
+  request: Request,
+  metadata: LargeAttachmentInternalDownloadAuthorizationGranted,
+): Response {
+  const downloadUrl = `${new URL(request.url).pathname}/download`;
+  const filename = escapeHtml(metadata.filename);
+  return new Response(
+    `<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>文件安全提示</title>
+<style>
+  :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #f5f7fa; color: #172033; }
+  main { width: min(92vw, 34rem); box-sizing: border-box; padding: 1.5rem; border: 1px solid #d9dee8; border-radius: 1rem; background: white; box-shadow: 0 12px 32px #17203318; }
+  h1 { margin: 0 0 1rem; font-size: 1.25rem; }
+  p { line-height: 1.75; }
+  .filename { overflow-wrap: anywhere; color: #526071; }
+  a { display: inline-block; margin-top: .75rem; padding: .7rem 1rem; border-radius: .6rem; background: #2563eb; color: white; text-decoration: none; font-weight: 600; }
+  @media (prefers-color-scheme: dark) { body { background: #111827; color: #f3f4f6; } main { border-color: #374151; background: #1f2937; } .filename { color: #cbd5e1; } }
+</style>
+</head>
+<body>
+<main>
+<h1>文件安全提示</h1>
+<p>该文件由发送方提供，系统未进行自动安全扫描。请确认文件来源可信并自行甄别后下载或打开。</p>
+<p class="filename">${filename}</p>
+<a href="${escapeHtml(downloadUrl)}">继续下载</a>
+</main>
+</body>
+</html>`,
+    {
+      status: 200,
+      headers: {
+        "Content-Type": "text/html; charset=utf-8",
+        "Cache-Control": "private, no-store",
+        "Content-Security-Policy":
+          "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+        "Referrer-Policy": "no-referrer",
+        "X-Content-Type-Options": "nosniff",
+      },
+    },
+  );
 }
 
 function isGrantedAuthorization(
@@ -182,12 +247,12 @@ export async function handleEchfrontMailFilesRequest(
     return methodNotAllowedResponse();
   }
 
-  const token = extractOpaqueToken(new URL(request.url));
-  if (!token) {
+  const parsedToken = extractOpaqueToken(new URL(request.url));
+  if (!parsedToken) {
     return unavailableResponse();
   }
 
-  const tokenHash = await sha256Hex(token);
+  const tokenHash = await sha256Hex(parsedToken.token);
   let authorizationResponse: Response;
   try {
     authorizationResponse = await requestCrmAuthorization(env, {
@@ -210,6 +275,10 @@ export async function handleEchfrontMailFilesRequest(
   }
   if (!isGrantedAuthorization(authorization)) {
     return unavailableResponse();
+  }
+
+  if (!parsedToken.download) {
+    return warningResponse(request, authorization);
   }
 
   const object = await resolveAuthorizedR2Object(env, authorization);

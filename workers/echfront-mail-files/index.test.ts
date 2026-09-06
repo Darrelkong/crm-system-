@@ -103,7 +103,9 @@ describe("echfront-mail-files local gateway fixture", () => {
   it("streams the authorized object and records accounting", async () => {
     const fixture = fixtureEnv();
     const response = await handleEchfrontMailFilesRequest(
-      new Request(buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)),
+      new Request(
+        `${buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)}/download`,
+      ),
       fixture.env,
       () => new Date("2026-09-06T08:00:00.000Z"),
     );
@@ -122,11 +124,34 @@ describe("echfront-mail-files local gateway fixture", () => {
     assert.equal(fixture.stats.recordCount, 1);
   });
 
+  it("shows the recipient safety warning before streaming", async () => {
+    const fixture = fixtureEnv();
+    const response = await handleEchfrontMailFilesRequest(
+      new Request(buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)),
+      fixture.env,
+      () => new Date("2026-09-06T08:00:00.000Z"),
+    );
+
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, /文件安全提示/);
+    assert.match(html, /系统未进行自动安全扫描/);
+    assert.match(
+      response.headers.get("Content-Security-Policy") ?? "",
+      /default-src 'none'/,
+    );
+    assert.equal(fixture.stats.headCount, 0);
+    assert.equal(fixture.stats.getCount, 0);
+    assert.equal(fixture.stats.recordCount, 0);
+  });
+
   it("supports V1 replay until authorization state changes", async () => {
     const fixture = fixtureEnv();
     const request = () =>
       handleEchfrontMailFilesRequest(
-        new Request(buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)),
+        new Request(
+          `${buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)}/download`,
+        ),
         fixture.env,
       );
 
@@ -165,7 +190,9 @@ describe("echfront-mail-files local gateway fixture", () => {
     for (const object of ["missing", "mismatch"] as const) {
       const fixture = fixtureEnv({ object });
       const response = await handleEchfrontMailFilesRequest(
-        new Request(buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)),
+        new Request(
+          `${buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)}/download`,
+        ),
         fixture.env,
       );
       assert.equal(response.status, 404);

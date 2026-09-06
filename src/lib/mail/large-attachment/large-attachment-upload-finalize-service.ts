@@ -23,11 +23,13 @@ import {
 import { headLargeAttachmentObjectAuthoritative } from "@/lib/mail/large-attachment/large-attachment-r2-head-service";
 import { createTemporaryLargeAttachmentLifecycle } from "@/lib/mail/large-attachment/large-attachment-state-machine";
 import { largeAttachmentStoredFileScanStatusOnFinalize } from "@/lib/mail/large-attachment/large-attachment-security";
+import { isHighRiskAttachmentType } from "@/lib/mail/compose-attachment-policy";
 import {
   assertStorageIdentityDistinctFromContentHash,
   type LargeAttachmentStorageIdentity,
 } from "@/lib/mail/large-attachment/large-attachment-storage-identity";
 import {
+  findLargeAttachmentAcknowledgementForSession,
   findUploadSessionById,
   markUploadSessionFinalized,
 } from "@/lib/mail/large-attachment/large-attachment-upload-repository";
@@ -70,6 +72,26 @@ export async function finalizeLargeAttachmentUpload(
   }
   if (session.actorUserId !== actor.userId) {
     throw MailServiceError.forbidden("Upload session actor mismatch");
+  }
+  const acknowledgement = await findLargeAttachmentAcknowledgementForSession(db, {
+    sessionId: session.id,
+    userId: actor.userId,
+  });
+  if (!acknowledgement) {
+    throw MailServiceError.validation(
+      "Large attachment risk acknowledgement is required",
+      { issueCode: "ACKNOWLEDGEMENT_REQUIRED" },
+    );
+  }
+  if (
+    isHighRiskAttachmentType({
+      filename: session.expectedFilename,
+      mimeType: session.expectedMimeType,
+    })
+  ) {
+    throw MailServiceError.validation("Unsupported attachment file type", {
+      issueCode: "UNSUPPORTED_FILE_TYPE",
+    });
   }
   if (session.mailboxId !== draft.mailboxId) {
     throw MailServiceError.validation("Upload session mailbox mismatch");
@@ -265,8 +287,33 @@ export async function finalizeLargeAttachmentUpload(
           },
         },
       ),
+      db
+        .update(schema.mailLargeAttachmentAcknowledgements)
+        .set({
+          lifecycleId: lifecycle.id,
+          storedFileId,
+        })
+        .where(
+          and(
+            eq(
+              schema.mailLargeAttachmentAcknowledgements.id,
+              acknowledgement.id,
+            ),
+            eq(
+              schema.mailLargeAttachmentAcknowledgements.userId,
+              actor.userId,
+            ),
+            isNull(schema.mailLargeAttachmentAcknowledgements.lifecycleId),
+            isNull(schema.mailLargeAttachmentAcknowledgements.storedFileId),
+          ),
+        ),
     ]);
     assertBatchUpdateChanged(results, 3, "Large attachment finalize conflict");
+    assertBatchUpdateChanged(
+      results,
+      5,
+      "Large attachment acknowledgement binding conflict",
+    );
     await markUploadSessionFinalized(db, {
       sessionId: session.id,
       storedFileId,

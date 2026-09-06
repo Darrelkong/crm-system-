@@ -13,6 +13,7 @@ export type ComposeAttachmentPolicyIssueCode =
   | "TOTAL_SIZE_EXCEEDED"
   | "TOO_MANY_ATTACHMENTS"
   | "UNSUPPORTED_FILE_TYPE"
+  | "UNSAFE_FILENAME"
   | "EMPTY_FILE"
   | "FILENAME_REQUIRED";
 
@@ -20,6 +21,42 @@ export type ComposeAttachmentPolicyIssue = {
   code: ComposeAttachmentPolicyIssueCode;
   message: string;
 };
+
+const BLOCKED_EXTENSIONS = new Set([
+  ".exe",
+  ".com",
+  ".scr",
+  ".bat",
+  ".cmd",
+  ".ps1",
+  ".js",
+  ".vbs",
+  ".msi",
+  ".app",
+  ".jar",
+  ".dmg",
+  ".sh",
+]);
+
+const LARGE_ATTACHMENT_BLOCKED_EXTENSIONS = new Set([
+  ...BLOCKED_EXTENSIONS,
+  ".jse",
+  ".vbe",
+  ".wsf",
+  ".wsh",
+  ".msp",
+  ".pkg",
+  ".apk",
+  ".iso",
+  ".img",
+  ".reg",
+  ".lnk",
+  ".hta",
+  ".rar",
+  ".7z",
+  ".tar",
+  ".gz",
+]);
 
 const BLOCKED_MIME_TYPES = new Set([
   "application/x-msdownload",
@@ -33,21 +70,22 @@ const BLOCKED_MIME_TYPES = new Set([
   "application/vnd.microsoft.portable-executable",
 ]);
 
-const BLOCKED_EXTENSIONS = new Set([
-  ".exe",
-  ".bat",
-  ".cmd",
-  ".com",
-  ".msi",
-  ".scr",
-  ".ps1",
-  ".sh",
-  ".js",
-  ".vbs",
-  ".jar",
-  ".app",
-  ".dmg",
+const LARGE_ATTACHMENT_BLOCKED_MIME_TYPES = new Set([
+  ...BLOCKED_MIME_TYPES,
+  "application/x-msi",
+  "application/x-apple-diskimage",
+  "application/x-iso9660-image",
+  "application/x-rar-compressed",
+  "application/x-7z-compressed",
+  "application/x-tar",
+  "application/gzip",
 ]);
+
+const ZIP_EXTENSIONS = new Set([".zip"]);
+
+export function hasUnsafeAttachmentFilename(filename: string): boolean {
+  return /[\u0000-\u001f\u007f\r\n]/.test(filename);
+}
 
 export function formatComposeAttachmentLimitLabel(bytes: number): string {
   if (bytes >= 1024 * 1024) {
@@ -81,6 +119,10 @@ export function normalizeAttachmentFilename(filename: string): string {
   return base.slice(0, 255);
 }
 
+export function normalizeLargeAttachmentFilename(filename: string): string {
+  return normalizeAttachmentFilename(filename).replace(/[ .]+$/g, "");
+}
+
 export function isBlockedAttachmentFilename(filename: string): boolean {
   const normalized = normalizeAttachmentFilename(filename).toLowerCase();
   const dotIndex = normalized.lastIndexOf(".");
@@ -91,12 +133,46 @@ export function isBlockedAttachmentFilename(filename: string): boolean {
   return BLOCKED_EXTENSIONS.has(extension);
 }
 
+export function isZipAttachmentFilename(filename: string): boolean {
+  const normalized = normalizeLargeAttachmentFilename(filename).toLowerCase();
+  const dotIndex = normalized.lastIndexOf(".");
+  return dotIndex >= 0 && ZIP_EXTENSIONS.has(normalized.slice(dotIndex));
+}
+
+export function isBlockedLargeAttachmentFilename(filename: string): boolean {
+  const normalized = normalizeLargeAttachmentFilename(filename).toLowerCase();
+  const dotIndex = normalized.lastIndexOf(".");
+  if (dotIndex === -1) {
+    return false;
+  }
+  return LARGE_ATTACHMENT_BLOCKED_EXTENSIONS.has(normalized.slice(dotIndex));
+}
+
 export function isBlockedAttachmentMimeType(mimeType: string): boolean {
   const normalized = mimeType.trim().toLowerCase();
   if (!normalized) {
     return true;
   }
   return BLOCKED_MIME_TYPES.has(normalized);
+}
+
+export function isHighRiskAttachmentType(input: {
+  filename: string;
+  mimeType: string;
+}): boolean {
+  return (
+    hasUnsafeAttachmentFilename(input.filename) ||
+    isBlockedLargeAttachmentFilename(input.filename) ||
+    isBlockedLargeAttachmentMimeType(input.mimeType)
+  );
+}
+
+export function isBlockedLargeAttachmentMimeType(mimeType: string): boolean {
+  const normalized = mimeType.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  return LARGE_ATTACHMENT_BLOCKED_MIME_TYPES.has(normalized);
 }
 
 export function validateComposeAttachmentCandidate(input: {

@@ -323,6 +323,7 @@ const en = {
           "Total attachment size must be {{totalSize}} or smaller.",
         tooMany: "You can attach up to {{maxCount}} files",
         unsupportedType: "This file type is not supported",
+        unsafeFilename: "This filename is not supported",
         emptyFile: "Cannot attach an empty file",
         filenameRequired: "Attachment filename is required",
         traySummary: "{{count}} attachments · {{totalSize}}",
@@ -344,6 +345,8 @@ const en = {
         aggregateExceeded:
           "Total large attachments per message must be {{totalSize}} or smaller.",
         tooMany: "You can attach up to {{maxCount}} files",
+        unscannedBadge: "Not scanned",
+        noAutomaticScan: "The system does not automatically inspect large attachment contents. Confirm the file is safe before sending.",
       },
       sendDisabled: "Send unavailable in this phase",
       seedDraftUnavailable:

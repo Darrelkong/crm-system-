@@ -33,6 +33,7 @@ export async function authorizeLargeAttachmentUpload(input: {
   file: File;
   declaredSha256: string;
   contentMd5Base64: string;
+  acknowledgementNoticeVersion: string;
   signal?: AbortSignal;
 }): Promise<
   | { ok: true; authorization: LargeAttachmentAuthorizeResponse }
@@ -47,6 +48,8 @@ export async function authorizeLargeAttachmentUpload(input: {
       sizeBytes: input.file.size,
       declaredSha256: input.declaredSha256,
       contentMd5: input.contentMd5Base64,
+      acknowledged: true,
+      acknowledgementNoticeVersion: input.acknowledgementNoticeVersion,
     }),
     signal: input.signal,
   });
@@ -197,6 +200,7 @@ export async function uploadLargeDraftAttachmentWithProgress(input: {
   onPhase?: (phase: "hashing" | "authorizing" | "uploading" | "finalizing") => void;
   onProgress?: (percent: number) => void;
   finalizeOnly?: { uploadSessionId: string };
+  acknowledgementNoticeVersion?: string;
 }): Promise<LargeUploadResult> {
   if (input.finalizeOnly) {
     input.onPhase?.("finalizing");
@@ -216,6 +220,14 @@ export async function uploadLargeDraftAttachmentWithProgress(input: {
     return finalizeResult;
   }
 
+  if (!input.acknowledgementNoticeVersion) {
+    return {
+      ok: false,
+      status: 400,
+      error: "Large attachment risk acknowledgement is required",
+    };
+  }
+
   input.onPhase?.("hashing");
   const digests = await computeFileContentDigests(input.file);
   if (input.signal?.aborted) {
@@ -228,6 +240,7 @@ export async function uploadLargeDraftAttachmentWithProgress(input: {
     file: input.file,
     declaredSha256: digests.declaredSha256,
     contentMd5Base64: digests.contentMd5Base64,
+    acknowledgementNoticeVersion: input.acknowledgementNoticeVersion,
     signal: input.signal,
   });
   if (!authorized.ok) {

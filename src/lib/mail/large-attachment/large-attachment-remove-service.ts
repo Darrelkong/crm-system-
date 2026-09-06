@@ -25,6 +25,7 @@ import {
 } from "@/lib/mail/large-attachment/large-attachment-r2-s3-client";
 import { resolveLargeAttachmentR2Env } from "@/lib/mail/large-attachment/large-attachment-r2-env";
 import { assertLargeAttachmentRuntimeReady } from "@/lib/mail/large-attachment/large-attachment-readiness";
+import { resolveLocalLargeAttachmentRelayTarget } from "@/lib/mail/large-attachment/large-attachment-local-upload-relay";
 
 function mapLifecycleRow(
   row: typeof schema.mailLargeAttachmentLifecycle.$inferSelect,
@@ -56,6 +57,27 @@ function mapLifecycleRow(
 export async function deleteLargeAttachmentObjectIfPresent(
   storageKey: string,
 ): Promise<"deleted" | "already_missing" | "skipped"> {
+  const localRelayTarget = resolveLocalLargeAttachmentRelayTarget();
+  if (localRelayTarget) {
+    try {
+      const response = await fetch(
+        `${localRelayTarget.url.replace(/\/+$/, "")}/delete?key=${encodeURIComponent(storageKey)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "X-CRM-Local-Relay-Secret": localRelayTarget.secret,
+          },
+        },
+      );
+      if (response.status === 404) {
+        return "already_missing";
+      }
+      return response.ok ? "deleted" : "skipped";
+    } catch {
+      return "skipped";
+    }
+  }
+
   try {
     const env = resolveLargeAttachmentR2Env();
     const client = createLargeAttachmentS3Client(env);

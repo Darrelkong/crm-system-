@@ -92,6 +92,8 @@ export function composeAttachmentUploadErrorMessageKey(
       return "mail.compose.largeAttachment.tooMany";
     case "UNSUPPORTED_FILE_TYPE":
       return "mail.compose.attachment.unsupportedType";
+    case "UNSAFE_FILENAME":
+      return "mail.compose.attachment.unsafeFilename";
     case "EMPTY_FILE":
       return "mail.compose.attachment.emptyFile";
     case "FILENAME_REQUIRED":

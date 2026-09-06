@@ -1,0 +1,14 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "crm-local-large-attachment-relay",
+  "main": "index.ts",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "r2_buckets": [
+    {
+      "binding": "LARGE_ATTACHMENTS",
+      "bucket_name": "crm-mail-large-attachments",
+      "preview_bucket_name": "crm-mail-large-attachments"
+    }
+  ]
+}

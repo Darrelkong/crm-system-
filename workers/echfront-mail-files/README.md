@@ -8,7 +8,8 @@ in this repository.
 
 ```
 Customer browser
-  → files.echfronthk.com/f/<token>   (echfront-mail-files)
+  → files.echfronthk.com/f/<token>   (warning landing page)
+  → files.echfronthk.com/f/<token>/download (echfront-mail-files stream)
       → Service Binding → crm-system internal authorization RPC
           → D1 token hash lookup + lifecycle validation (CRM data plane)
       ← minimal authorized object reference only
@@ -33,6 +34,7 @@ Customer browser
 ## Public Worker owns
 
 - `/f/<token>` HTTP surface
+- `/f/<token>/download` authorized stream surface
 - Generic invalid-link responses
 - R2 HEAD/GET identity checks and streaming
 - Safe download headers

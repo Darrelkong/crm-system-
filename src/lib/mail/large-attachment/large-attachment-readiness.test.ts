@@ -60,6 +60,10 @@ describe("large attachment runtime readiness", () => {
             declaredSha256: "a".repeat(64),
             contentMd5: "1B2M2Y8AsgTpgAmY7PhCfg==",
           },
+          acknowledgement: {
+            acknowledged: true,
+            noticeVersion: "large_attachment_notice_v1",
+          },
           ports: {
             runtimeEnabled: false,
             presignPut: async () => {

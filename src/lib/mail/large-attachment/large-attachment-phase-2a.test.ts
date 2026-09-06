@@ -383,6 +383,7 @@ describe("large attachment phase 2A domain", () => {
         securityScanStatus: LARGE_ATTACHMENT_REQUIRED_SCAN_STATUS,
         trustNowIso: trustNow,
         uploadFinalized: true,
+        hasRiskAcknowledgement: true,
       });
       assert.equal(result.ok, false);
     });
@@ -405,6 +406,7 @@ describe("large attachment phase 2A domain", () => {
         trustNowIso: trustNow,
         uploadFinalized: true,
         allowApprovalHold: true,
+        hasRiskAcknowledgement: true,
       });
       assert.equal(result.ok, false);
       if (!result.ok) assert.equal(result.code, "APPROVAL_HOLD_EXPIRED");

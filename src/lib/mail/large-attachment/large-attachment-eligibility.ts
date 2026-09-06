@@ -26,6 +26,7 @@ export type LargeAttachmentEligibilityIssueCode =
   | "STORAGE_KEY_MISMATCH"
   | "POLICY_SIZE_EXCEEDED"
   | "SECURITY_SCAN_NOT_ELIGIBLE"
+  | "RISK_ACKNOWLEDGEMENT_REQUIRED"
   | "SESSION_INVALIDATED"
   | "SESSION_EXPIRED";
 
@@ -46,6 +47,7 @@ export function evaluateLargeAttachmentApprovalSubmitEligibility(input: {
   securityScanStatus: MailSecurityScanStatus;
   trustNowIso: string;
   uploadFinalized: boolean;
+  hasRiskAcknowledgement: boolean;
 }): LargeAttachmentEligibilityResult {
   if (!isLargeAttachmentDeliveryMode(input.deliveryMode)) {
     return { ok: true };
@@ -73,6 +75,7 @@ export function evaluateLargeAttachmentSendEligibility(input: {
   securityScanStatus: MailSecurityScanStatus;
   trustNowIso: string;
   uploadFinalized: boolean;
+  hasRiskAcknowledgement: boolean;
   allowApprovalHold?: boolean;
   allowTemporary?: boolean;
 }): LargeAttachmentEligibilityResult {
@@ -93,6 +96,14 @@ export function evaluateLargeAttachmentSendEligibility(input: {
       ok: false,
       code: "NOT_FINALIZED",
       message: "Large attachment upload is not finalized",
+    };
+  }
+
+  if (!input.hasRiskAcknowledgement) {
+    return {
+      ok: false,
+      code: "RISK_ACKNOWLEDGEMENT_REQUIRED",
+      message: "Large attachment risk acknowledgement is required",
     };
   }
 
