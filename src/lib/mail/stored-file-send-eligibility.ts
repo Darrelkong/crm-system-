@@ -2,7 +2,13 @@ import { eq, inArray } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import { MailServiceError } from "@/lib/mail/errors";
 
-const SEND_ELIGIBLE_SCAN_STATUS = "clean" as const;
+export const SEND_ELIGIBLE_SCAN_STATUS = "clean" as const;
+
+export function isStoredFileEligibleForSend(
+  status: string,
+): status is typeof SEND_ELIGIBLE_SCAN_STATUS {
+  return status === SEND_ELIGIBLE_SCAN_STATUS;
+}
 
 /**
  * Operational stored-file safety at Send/dispatch time.
@@ -67,7 +73,7 @@ export async function assertStoredFilesEligibleForSend(
         "Referenced stored file is missing — send blocked",
       );
     }
-    if (file.securityScanStatus !== SEND_ELIGIBLE_SCAN_STATUS) {
+    if (!isStoredFileEligibleForSend(file.securityScanStatus)) {
       throw MailServiceError.forbidden(
         `Stored file ${fileId} is not send-eligible (scan status: ${file.securityScanStatus})`,
       );
