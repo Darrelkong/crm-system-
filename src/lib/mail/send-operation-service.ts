@@ -48,6 +48,7 @@ import {
   activatePreparedLargeAttachmentTokens,
   appendPreparedLargeAttachmentRecipientContent,
   prepareLargeAttachmentRecipientCards,
+  revokePreparedLargeAttachmentTokens,
   type PreparedLargeAttachmentRecipientToken,
 } from "@/lib/mail/large-attachment/large-attachment-send-service";
 import {
@@ -784,6 +785,8 @@ async function buildNormalizedSubmission(
 
   const largeAttachmentResult = await prepareLargeAttachmentRecipientCards(db, {
     revisionId: revision.id,
+    sendOperationId: send.id,
+    transportAttemptId,
     authorizationMode: send.authorizationMode,
     sentAt: new Date().toISOString(),
     sendEnabled: options.largeAttachmentSendEnabled,
@@ -979,6 +982,8 @@ async function finalizeAttemptAccepted(
     preparedTokens,
     sentAt: now,
     authorizationMode: send.authorizationMode,
+    providerMessageId: result.providerMessageId,
+    providerAcceptedAt: now,
   });
 
   const results = await runMailBatch(db, [
@@ -1041,8 +1046,13 @@ async function finalizeAttemptTemporaryFailure(
     retryAfterAt?: string;
     diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
   },
+  preparedTokens: PreparedLargeAttachmentRecipientToken[] = [],
 ): Promise<void> {
   const now = new Date().toISOString();
+  await revokePreparedLargeAttachmentTokens(db, {
+    preparedTokens,
+    revokedAt: now,
+  });
   const expectedVersion = send.orchestrationVersion;
   const postVersion = expectedVersion + 1;
   const auditId = crypto.randomUUID();
@@ -1115,8 +1125,13 @@ async function finalizeAttemptPermanentFailure(
     errorMessage?: string;
     diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
   },
+  preparedTokens: PreparedLargeAttachmentRecipientToken[] = [],
 ): Promise<void> {
   const now = new Date().toISOString();
+  await revokePreparedLargeAttachmentTokens(db, {
+    preparedTokens,
+    revokedAt: now,
+  });
   const expectedVersion = send.orchestrationVersion;
   const postVersion = expectedVersion + 1;
   const auditId = crypto.randomUUID();
@@ -1385,12 +1400,19 @@ export async function dispatchSendOperation(
         preparedSubmission.preparedTokens,
       );
     } else if (result.outcome === "temporary_failure") {
-      await finalizeAttemptTemporaryFailure(db, actor, latestSend, attempt, {
-        errorCode: result.errorCode,
-        errorMessage: result.errorMessage,
-        retryAfterAt: result.retryAfterAt,
-        diagnostic,
-      });
+      await finalizeAttemptTemporaryFailure(
+        db,
+        actor,
+        latestSend,
+        attempt,
+        {
+          errorCode: result.errorCode,
+          errorMessage: result.errorMessage,
+          retryAfterAt: result.retryAfterAt,
+          diagnostic,
+        },
+        preparedSubmission.preparedTokens,
+      );
     } else if (result.outcome === "ambiguous") {
       await finalizeAttemptAmbiguous(db, actor, latestSend, attempt, {
         errorCode: result.errorCode,
@@ -1398,11 +1420,18 @@ export async function dispatchSendOperation(
         diagnostic,
       });
     } else {
-      await finalizeAttemptPermanentFailure(db, actor, latestSend, attempt, {
-        errorCode: result.errorCode,
-        errorMessage: result.errorMessage,
-        diagnostic,
-      });
+      await finalizeAttemptPermanentFailure(
+        db,
+        actor,
+        latestSend,
+        attempt,
+        {
+          errorCode: result.errorCode,
+          errorMessage: result.errorMessage,
+          diagnostic,
+        },
+        preparedSubmission.preparedTokens,
+      );
     }
   } catch (error) {
     if (error instanceof MailServiceError) {

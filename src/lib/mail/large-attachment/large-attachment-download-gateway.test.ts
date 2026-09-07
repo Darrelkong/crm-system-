@@ -12,6 +12,17 @@ const EXPIRY = "2026-09-13T08:00:00.000Z";
 
 function identity(): LargeAttachmentGatewayAuthorizationIdentity {
   return {
+    deliveryToken: {
+      id: "delivery-token-1",
+      lifecycleId: "lifecycle-1",
+      revisionId: "revision-1",
+      sendOperationId: "send-operation-1",
+      transportAttemptId: "transport-attempt-1",
+      tokenHash: TOKEN_HASH,
+      state: "confirmed",
+      expiresAt: EXPIRY,
+      providerMessageId: "provider-message-1",
+    },
     lifecycle: {
       id: "lifecycle-1",
       storedFileId: "stored-file-1",
@@ -72,6 +83,45 @@ describe("large attachment CRM gateway authorization", () => {
       assert.equal("mailboxId" in result, false);
       assert.equal("messageId" in result, false);
       assert.equal("userId" in result, false);
+    }
+  });
+
+  it("allows armed capabilities before lifecycle sent and denies inactive states", () => {
+    const armed = {
+      ...identity(),
+      deliveryToken: {
+        ...identity().deliveryToken,
+        state: "armed" as const,
+      },
+      lifecycle: {
+        ...identity().lifecycle,
+        status: "approval_hold" as const,
+        recipientExpiresAt: null,
+        downloadTokenHash: null,
+      },
+    };
+    assert.equal(
+      evaluateLargeAttachmentGatewayAuthorization({
+        identity: armed,
+        tokenHash: TOKEN_HASH,
+        trustNowIso: NOW,
+      }).authorized,
+      true,
+    );
+
+    for (const state of ["prepared", "revoked", "expired"] as const) {
+      assert.deepEqual(
+        evaluateLargeAttachmentGatewayAuthorization({
+          identity: {
+            ...armed,
+            deliveryToken: { ...armed.deliveryToken, state },
+          },
+          tokenHash: TOKEN_HASH,
+          trustNowIso: NOW,
+        }),
+        { authorized: false },
+        state,
+      );
     }
   });
 

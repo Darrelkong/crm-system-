@@ -56,6 +56,7 @@ export * from "./mail-message-attachments";
 export * from "./mail-large-attachment-lifecycle";
 export * from "./mail-large-attachment-upload-sessions";
 export * from "./mail-large-attachment-acknowledgements";
+export * from "./mail-large-attachment-delivery-tokens";
 export * from "./mail-signature-version-assets";
 export * from "./mail-signature-snapshot-assets";
 export * from "./mail-outbound-approvals";

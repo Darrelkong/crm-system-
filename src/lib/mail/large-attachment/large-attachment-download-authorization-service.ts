@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import {
@@ -27,6 +27,19 @@ type GatewayLifecycleIdentity = Pick<
   | "downloadCount"
 >;
 
+type GatewayDeliveryTokenIdentity = Pick<
+  typeof schema.mailLargeAttachmentDeliveryTokens.$inferSelect,
+  | "id"
+  | "lifecycleId"
+  | "revisionId"
+  | "sendOperationId"
+  | "transportAttemptId"
+  | "tokenHash"
+  | "state"
+  | "expiresAt"
+  | "providerMessageId"
+>;
+
 type GatewayStoredFileIdentity = Pick<
   typeof schema.mailStoredFiles.$inferSelect,
   | "id"
@@ -51,6 +64,7 @@ type GatewayUsageIdentity = {
 };
 
 export type LargeAttachmentGatewayAuthorizationIdentity = {
+  deliveryToken: GatewayDeliveryTokenIdentity;
   lifecycle: GatewayLifecycleIdentity;
   storedFile: GatewayStoredFileIdentity;
   usage: GatewayUsageIdentity;
@@ -98,15 +112,29 @@ export function evaluateLargeAttachmentGatewayAuthorization(input: {
   }
 
   const { lifecycle, storedFile, usage } = identity;
-  const recipientExpiryMs = Date.parse(lifecycle.recipientExpiresAt ?? "");
+  const capabilityExpiryMs = Date.parse(identity.deliveryToken.expiresAt);
   const trustNowMs = Date.parse(input.trustNowIso);
   if (
-    lifecycle.downloadTokenHash !== input.tokenHash ||
-    lifecycle.status !== "sent" ||
-    !lifecycle.recipientExpiresAt ||
-    !Number.isFinite(recipientExpiryMs) ||
+    identity.deliveryToken.tokenHash !== input.tokenHash ||
+    !["armed", "confirmed"].includes(identity.deliveryToken.state) ||
+    !Number.isFinite(capabilityExpiryMs) ||
     !Number.isFinite(trustNowMs) ||
-    recipientExpiryMs <= trustNowMs
+    capabilityExpiryMs <= trustNowMs ||
+    (identity.deliveryToken.state === "confirmed" &&
+      (lifecycle.status !== "sent" || !lifecycle.recipientExpiresAt)) ||
+    (identity.deliveryToken.state === "armed" &&
+      !["temporary", "approval_hold", "sent"].includes(lifecycle.status))
+  ) {
+    return denyLargeAttachmentPublicDownload();
+  }
+  const recipientExpiresAt =
+    identity.deliveryToken.state === "armed"
+      ? identity.deliveryToken.expiresAt
+      : lifecycle.recipientExpiresAt;
+  if (
+    !recipientExpiresAt ||
+    !Number.isFinite(Date.parse(recipientExpiresAt)) ||
+    Date.parse(recipientExpiresAt) <= trustNowMs
   ) {
     return denyLargeAttachmentPublicDownload();
   }
@@ -148,7 +176,7 @@ export function evaluateLargeAttachmentGatewayAuthorization(input: {
     sizeBytes: storedFile.sizeBytes,
     storageVersion: lifecycle.storageVersion,
     storageEtag: lifecycle.storageEtag,
-    recipientExpiresAt: lifecycle.recipientExpiresAt,
+    recipientExpiresAt,
   });
 }
 
@@ -187,10 +215,32 @@ export function createLargeAttachmentGatewayAuthorizationRepository(
 ): LargeAttachmentGatewayAuthorizationRepository {
   return {
     async findByTokenHash(tokenHash) {
+      const [deliveryToken] = await db
+        .select()
+        .from(schema.mailLargeAttachmentDeliveryTokens)
+        .where(
+          and(
+            eq(schema.mailLargeAttachmentDeliveryTokens.tokenHash, tokenHash),
+            inArray(schema.mailLargeAttachmentDeliveryTokens.state, [
+              "armed",
+              "confirmed",
+            ]),
+          ),
+        )
+        .limit(1);
+      if (!deliveryToken) {
+        return null;
+      }
+
       const [lifecycle] = await db
         .select()
         .from(schema.mailLargeAttachmentLifecycle)
-        .where(eq(schema.mailLargeAttachmentLifecycle.downloadTokenHash, tokenHash))
+        .where(
+          eq(
+            schema.mailLargeAttachmentLifecycle.id,
+            deliveryToken.lifecycleId,
+          ),
+        )
         .limit(1);
       if (!lifecycle) {
         return null;
@@ -218,6 +268,10 @@ export function createLargeAttachmentGatewayAuthorizationRepository(
         .from(schema.mailOutboundRevisionAttachments)
         .where(
           and(
+            eq(
+              schema.mailOutboundRevisionAttachments.revisionId,
+              deliveryToken.revisionId,
+            ),
             eq(
               schema.mailOutboundRevisionAttachments.storedFileId,
               storedFile.id,
@@ -260,6 +314,17 @@ export function createLargeAttachmentGatewayAuthorizationRepository(
       }
 
       return {
+        deliveryToken: {
+          id: deliveryToken.id,
+          lifecycleId: deliveryToken.lifecycleId,
+          revisionId: deliveryToken.revisionId,
+          sendOperationId: deliveryToken.sendOperationId,
+          transportAttemptId: deliveryToken.transportAttemptId,
+          tokenHash: deliveryToken.tokenHash,
+          state: deliveryToken.state,
+          expiresAt: deliveryToken.expiresAt,
+          providerMessageId: deliveryToken.providerMessageId,
+        },
         lifecycle: {
           id: lifecycle.id,
           storedFileId: lifecycle.storedFileId,
@@ -287,6 +352,26 @@ export function createLargeAttachmentGatewayAuthorizationRepository(
     },
 
     async recordDownload({ lifecycleId, tokenHash, downloadedAt }) {
+      const [deliveryToken] = await db
+        .select({
+          id: schema.mailLargeAttachmentDeliveryTokens.id,
+        })
+        .from(schema.mailLargeAttachmentDeliveryTokens)
+        .where(
+          and(
+            eq(schema.mailLargeAttachmentDeliveryTokens.lifecycleId, lifecycleId),
+            eq(schema.mailLargeAttachmentDeliveryTokens.tokenHash, tokenHash),
+            inArray(schema.mailLargeAttachmentDeliveryTokens.state, [
+              "armed",
+              "confirmed",
+            ]),
+            sql`${schema.mailLargeAttachmentDeliveryTokens.expiresAt} > ${downloadedAt}`,
+          ),
+        )
+        .limit(1);
+      if (!deliveryToken) {
+        return false;
+      }
       const updated = await db
         .update(schema.mailLargeAttachmentLifecycle)
         .set({
@@ -297,8 +382,11 @@ export function createLargeAttachmentGatewayAuthorizationRepository(
         .where(
           and(
             eq(schema.mailLargeAttachmentLifecycle.id, lifecycleId),
-            eq(schema.mailLargeAttachmentLifecycle.downloadTokenHash, tokenHash),
-            eq(schema.mailLargeAttachmentLifecycle.status, "sent"),
+            inArray(schema.mailLargeAttachmentLifecycle.status, [
+              "temporary",
+              "approval_hold",
+              "sent",
+            ]),
           ),
         )
         .returning({ id: schema.mailLargeAttachmentLifecycle.id });

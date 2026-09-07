@@ -1,4 +1,4 @@
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { schema, type Database } from "@/lib/db";
 import { MailServiceError } from "@/lib/mail/errors";
 import { assertBatchUpdateChanged, runMailBatch } from "@/lib/mail/guarded-batch";
@@ -129,9 +129,33 @@ type LargeAttachmentSendContext = {
 };
 
 export type PreparedLargeAttachmentRecipientToken = {
+  deliveryTokenId: string;
   lifecycleId: string;
+  revisionId: string;
+  sendOperationId: string;
+  transportAttemptId: string;
   tokenHash: string;
+  recipientExpiresAt: string;
 };
+
+function assertPreparedTokenLineage(
+  preparedToken: PreparedLargeAttachmentRecipientToken,
+  input: {
+    revisionId: string;
+    sendOperationId: string;
+    transportAttemptId: string;
+  },
+): void {
+  if (
+    preparedToken.revisionId !== input.revisionId ||
+    preparedToken.sendOperationId !== input.sendOperationId ||
+    preparedToken.transportAttemptId !== input.transportAttemptId
+  ) {
+    throw MailServiceError.integrityConflict(
+      "Large attachment delivery token lineage is invalid",
+    );
+  }
+}
 
 async function loadAndValidateLargeAttachmentContexts(
   db: Database,
@@ -320,6 +344,8 @@ export async function prepareLargeAttachmentRecipientCards(
   db: Database,
   input: {
     revisionId: string;
+    sendOperationId: string;
+    transportAttemptId: string;
     authorizationMode: "admin_direct" | "staff_approved";
     sentAt: string;
     sendEnabled?: boolean;
@@ -350,7 +376,14 @@ export async function prepareLargeAttachmentRecipientCards(
     trustNowIso: input.trustNowIso ?? input.sentAt,
   });
   const cards: LargeAttachmentRecipientCard[] = [];
+  const pendingCards: LargeAttachmentRecipientCard[] = [];
   const preparedTokens: PreparedLargeAttachmentRecipientToken[] = [];
+  const tokenRows: Array<{
+    id: string;
+    lifecycleId: string;
+    tokenHash: string;
+    recipientExpiresAt: string;
+  }> = [];
 
   for (const context of contexts) {
     const pair = generateLargeAttachmentDownloadTokenPair();
@@ -358,11 +391,23 @@ export async function prepareLargeAttachmentRecipientCards(
       input.sentAt,
       LARGE_ATTACHMENT_RECIPIENT_RETENTION_MS,
     );
-    preparedTokens.push({
+    const deliveryTokenId = crypto.randomUUID();
+    tokenRows.push({
+      id: deliveryTokenId,
       lifecycleId: context.lifecycle.id,
       tokenHash: pair.tokenHash,
+      recipientExpiresAt,
     });
-    cards.push({
+    preparedTokens.push({
+      deliveryTokenId,
+      lifecycleId: context.lifecycle.id,
+      revisionId: input.revisionId,
+      sendOperationId: input.sendOperationId,
+      transportAttemptId: input.transportAttemptId,
+      tokenHash: pair.tokenHash,
+      recipientExpiresAt,
+    });
+    pendingCards.push({
       attachmentId: context.attachment.id,
       filename: context.attachment.displayFilename,
       sizeBytes: context.attachment.sizeBytes,
@@ -370,6 +415,56 @@ export async function prepareLargeAttachmentRecipientCards(
       recipientExpiresAt,
     });
   }
+
+  const now = new Date().toISOString();
+  type BatchStatement = Parameters<Database["batch"]>[0][number];
+  const statements: BatchStatement[] = [];
+  for (const tokenRow of tokenRows) {
+    statements.push(
+      db.insert(schema.mailLargeAttachmentDeliveryTokens).values({
+        id: tokenRow.id,
+        lifecycleId: tokenRow.lifecycleId,
+        revisionId: input.revisionId,
+        sendOperationId: input.sendOperationId,
+        transportAttemptId: input.transportAttemptId,
+        tokenHash: tokenRow.tokenHash,
+        state: "prepared",
+        expiresAt: tokenRow.recipientExpiresAt,
+        createdAt: now,
+        armedAt: null,
+        confirmedAt: null,
+        revokedAt: null,
+        providerMessageId: null,
+        providerAcceptedAt: null,
+      }),
+    );
+    statements.push(
+      db
+        .update(schema.mailLargeAttachmentDeliveryTokens)
+        .set({
+          state: "armed",
+          armedAt: now,
+        })
+        .where(
+          and(
+            eq(schema.mailLargeAttachmentDeliveryTokens.id, tokenRow.id),
+            eq(schema.mailLargeAttachmentDeliveryTokens.state, "prepared"),
+            isNull(schema.mailLargeAttachmentDeliveryTokens.armedAt),
+          ),
+        ),
+    );
+  }
+  const results = await db.batch(
+    statements as [BatchStatement, ...BatchStatement[]],
+  );
+  for (let index = 1; index < results.length; index += 2) {
+    assertBatchUpdateChanged(
+      results,
+      index,
+      "Large attachment delivery token was not armed",
+    );
+  }
+  cards.push(...pendingCards);
 
   return {
     cards,
@@ -388,6 +483,8 @@ export async function activatePreparedLargeAttachmentTokens(
     preparedTokens: PreparedLargeAttachmentRecipientToken[];
     sentAt: string;
     authorizationMode: "admin_direct" | "staff_approved";
+    providerMessageId: string;
+    providerAcceptedAt: string;
   },
 ): Promise<void> {
   if (input.preparedTokens.length === 0) {
@@ -395,54 +492,174 @@ export async function activatePreparedLargeAttachmentTokens(
   }
   type BatchStatement = Parameters<Database["batch"]>[0][number];
   const statements: BatchStatement[] = [];
+  const preparedByDeliveryToken = new Set<string>();
   for (const preparedToken of input.preparedTokens) {
-    const [row] = await db
+    if (preparedByDeliveryToken.has(preparedToken.deliveryTokenId)) {
+      continue;
+    }
+    preparedByDeliveryToken.add(preparedToken.deliveryTokenId);
+
+    const [tokenRow] = await db
       .select()
-      .from(schema.mailLargeAttachmentLifecycle)
+      .from(schema.mailLargeAttachmentDeliveryTokens)
       .where(
-        eq(schema.mailLargeAttachmentLifecycle.id, preparedToken.lifecycleId),
+        and(
+          eq(
+            schema.mailLargeAttachmentDeliveryTokens.id,
+            preparedToken.deliveryTokenId,
+          ),
+          eq(
+            schema.mailLargeAttachmentDeliveryTokens.tokenHash,
+            preparedToken.tokenHash,
+          ),
+        ),
       )
       .limit(1);
-    if (!row || row.downloadTokenHash) {
+    if (!tokenRow) {
       throw MailServiceError.integrityConflict(
-        "Large attachment recipient token cannot be activated",
+        "Large attachment delivery token cannot be activated",
       );
     }
-    const transitioned = transitionAcceptedSendToSent(mapLifecycleRow(row), {
+    assertPreparedTokenLineage(preparedToken, {
+      revisionId: tokenRow.revisionId,
+      sendOperationId: tokenRow.sendOperationId,
+      transportAttemptId: tokenRow.transportAttemptId,
+    });
+
+    if (tokenRow.state === "confirmed") {
+      if (tokenRow.providerMessageId === input.providerMessageId) {
+        continue;
+      }
+      throw MailServiceError.integrityConflict(
+        "Large attachment delivery token confirmation conflicts",
+      );
+    }
+    if (tokenRow.state !== "armed") {
+      throw MailServiceError.integrityConflict(
+        "Large attachment delivery token is not armed",
+      );
+    }
+
+    const [lifecycleRow] = await db
+      .select()
+      .from(schema.mailLargeAttachmentLifecycle)
+      .where(eq(schema.mailLargeAttachmentLifecycle.id, preparedToken.lifecycleId))
+      .limit(1);
+    if (!lifecycleRow) {
+      throw MailServiceError.integrityConflict(
+        "Large attachment lifecycle is missing during token confirmation",
+      );
+    }
+    const transitioned = transitionAcceptedSendToSent(mapLifecycleRow(lifecycleRow), {
       sentAt: input.sentAt,
       downloadTokenHash: preparedToken.tokenHash,
       authorizationPath: input.authorizationMode,
     });
     statements.push(
       db
-      .update(schema.mailLargeAttachmentLifecycle)
-      .set({
-        status: transitioned.status,
-        sentAt: transitioned.sentAt,
-        recipientExpiresAt: transitioned.recipientExpiresAt,
-        downloadTokenHash: transitioned.downloadTokenHash,
-        temporaryExpiresAt: transitioned.temporaryExpiresAt,
-        updatedAt: transitioned.updatedAt,
-      })
-      .where(
-        and(
-          eq(schema.mailLargeAttachmentLifecycle.id, preparedToken.lifecycleId),
-          isNull(schema.mailLargeAttachmentLifecycle.downloadTokenHash),
-          eq(
-            schema.mailLargeAttachmentLifecycle.status,
-            row.status,
+        .update(schema.mailLargeAttachmentDeliveryTokens)
+        .set({
+          state: "confirmed",
+          confirmedAt: input.providerAcceptedAt,
+          providerMessageId: input.providerMessageId,
+          providerAcceptedAt: input.providerAcceptedAt,
+        })
+        .where(
+          and(
+            eq(
+              schema.mailLargeAttachmentDeliveryTokens.id,
+              preparedToken.deliveryTokenId,
+            ),
+            eq(schema.mailLargeAttachmentDeliveryTokens.state, "armed"),
+            eq(
+              schema.mailLargeAttachmentDeliveryTokens.tokenHash,
+              preparedToken.tokenHash,
+            ),
           ),
         ),
-      ),
+      db
+        .update(schema.mailLargeAttachmentLifecycle)
+        .set({
+          status: transitioned.status,
+          sentAt: transitioned.sentAt,
+          recipientExpiresAt: tokenRow.expiresAt,
+          downloadTokenHash: transitioned.downloadTokenHash,
+          temporaryExpiresAt: transitioned.temporaryExpiresAt,
+          updatedAt: transitioned.updatedAt,
+        })
+        .where(
+          and(
+            eq(schema.mailLargeAttachmentLifecycle.id, preparedToken.lifecycleId),
+            isNull(schema.mailLargeAttachmentLifecycle.downloadTokenHash),
+            eq(
+              schema.mailLargeAttachmentLifecycle.status,
+              lifecycleRow.status,
+            ),
+          ),
+        ),
     );
+  }
+  if (statements.length === 0) {
+    return;
   }
   const results = await runMailBatch(db, statements);
   for (let index = 0; index < results.length; index += 1) {
     assertBatchUpdateChanged(
       results,
       index,
-      "Large attachment lifecycle changed during send activation",
+      "Large attachment delivery token confirmation changed during send",
     );
+  }
+}
+
+export async function revokePreparedLargeAttachmentTokens(
+  db: Database,
+  input: {
+    preparedTokens: PreparedLargeAttachmentRecipientToken[];
+    revokedAt: string;
+  },
+): Promise<void> {
+  const uniqueTokens = new Map(
+    input.preparedTokens.map((preparedToken) => [
+      preparedToken.deliveryTokenId,
+      preparedToken,
+    ]),
+  );
+  if (uniqueTokens.size === 0) {
+    return;
+  }
+  const statements = [...uniqueTokens.values()].map((preparedToken) =>
+    db
+      .update(schema.mailLargeAttachmentDeliveryTokens)
+      .set({
+        state: "revoked",
+        revokedAt: input.revokedAt,
+      })
+      .where(
+        and(
+          eq(
+            schema.mailLargeAttachmentDeliveryTokens.id,
+            preparedToken.deliveryTokenId,
+          ),
+          eq(
+            schema.mailLargeAttachmentDeliveryTokens.tokenHash,
+            preparedToken.tokenHash,
+          ),
+          inArray(schema.mailLargeAttachmentDeliveryTokens.state, [
+            "prepared",
+            "armed",
+          ]),
+        ),
+      ),
+  );
+  const results = await runMailBatch(db, statements);
+  for (let index = 0; index < results.length; index += 1) {
+    const changes = results[index]?.meta?.changes ?? 0;
+    if (changes !== 1 && changes !== 0) {
+      throw MailServiceError.integrityConflict(
+        "Large attachment delivery token revoke changed unexpected rows",
+      );
+    }
   }
 }
 

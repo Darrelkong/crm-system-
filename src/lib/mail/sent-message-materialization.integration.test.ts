@@ -47,6 +47,7 @@ import {
 } from "@/lib/mail/large-attachment/large-attachment-download-authorization-service";
 import { hashLargeAttachmentDownloadToken } from "@/lib/mail/large-attachment/large-attachment-download-token";
 import { LARGE_ATTACHMENT_NOTICE_VERSION } from "@/lib/mail/large-attachment/large-attachment-risk-acknowledgement";
+import { activatePreparedLargeAttachmentTokens } from "@/lib/mail/large-attachment/large-attachment-send-service";
 
 const FIXTURE = "mail-phase2c8";
 
@@ -127,7 +128,98 @@ async function enableMailAccess(db: TestDb, userId: string) {
     });
 }
 
+async function ensureVerifiedNotificationIdentity(
+  db: TestDb,
+  userId: string,
+  localPart: string,
+) {
+  const now = new Date().toISOString();
+  const identityId = `${FIXTURE}-${localPart}-notification`;
+  await db
+    .insert(schema.mailNotificationIdentities)
+    .values({
+      id: identityId,
+      userId,
+      email: fixtureAddress(`${localPart}-notification`),
+      verificationStatus: "verified",
+      verificationTokenHash: null,
+      verificationRequestedAt: null,
+      verificationExpiresAt: null,
+      verificationAttemptCount: 0,
+      verifiedAt: now,
+      revokedAt: null,
+      revokedBy: null,
+      revokeReason: null,
+      deliveryHealth: "healthy",
+      deliveryProblemAt: null,
+      lastDeliveryStatus: "accepted",
+      lastDeliveryAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: schema.mailNotificationIdentities.id,
+      set: {
+        userId,
+        email: fixtureAddress(`${localPart}-notification`),
+        verificationStatus: "verified",
+        verifiedAt: now,
+        revokedAt: null,
+        revokedBy: null,
+        revokeReason: null,
+        deliveryHealth: "healthy",
+        updatedAt: now,
+      },
+    });
+
+  const [user] = await db
+    .select()
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+  assert.ok(user);
+  const resolved = await resolveMailActorContext(user, {
+    db,
+    audit: { userAgent: "phase2c8-fixture" },
+  });
+  assert.equal(resolved.effectiveMailAccess?.canUseMailbox, true);
+}
+
 async function cleanupFixtures(db: TestDb) {
+  const notificationIdentities = await db
+    .select({ id: schema.mailNotificationIdentities.id })
+    .from(schema.mailNotificationIdentities)
+    .where(like(schema.mailNotificationIdentities.id, `${FIXTURE}%`));
+  if (notificationIdentities.length) {
+    const notificationIdentityIds = notificationIdentities.map((row) => row.id);
+    const notificationOutboxes = await db
+      .select({ id: schema.mailNotificationOutbox.id })
+      .from(schema.mailNotificationOutbox)
+      .where(
+        inArray(
+          schema.mailNotificationOutbox.notificationIdentityId,
+          notificationIdentityIds,
+        ),
+      );
+    const notificationOutboxIds = notificationOutboxes.map((row) => row.id);
+    if (notificationOutboxIds.length) {
+      await db
+        .delete(schema.mailNotificationAttempts)
+        .where(
+          inArray(
+            schema.mailNotificationAttempts.notificationOutboxId,
+            notificationOutboxIds,
+          ),
+        );
+      await db
+        .delete(schema.mailNotificationOutbox)
+        .where(inArray(schema.mailNotificationOutbox.id, notificationOutboxIds));
+    }
+    await db
+      .delete(schema.mailNotificationIdentities)
+      .where(inArray(schema.mailNotificationIdentities.id, notificationIdentityIds));
+  }
+
   const mailboxes = await db
     .select({ id: schema.mailMailboxes.id })
     .from(schema.mailMailboxes)
@@ -201,6 +293,14 @@ async function cleanupFixtures(db: TestDb) {
 
   if (sendIds.length) {
     await db
+      .delete(schema.mailLargeAttachmentDeliveryTokens)
+      .where(
+        inArray(
+          schema.mailLargeAttachmentDeliveryTokens.sendOperationId,
+          sendIds,
+        ),
+      );
+    await db
       .delete(schema.mailTransportAttempts)
       .where(inArray(schema.mailTransportAttempts.sendOperationId, sendIds));
     await db
@@ -255,6 +355,26 @@ async function cleanupFixtures(db: TestDb) {
     .where(like(schema.mailStoredFiles.id, `${FIXTURE}%`));
   const fixtureStoredFileIds = fixtureStoredFiles.map((row) => row.id);
   if (fixtureStoredFileIds.length) {
+    const fixtureLifecycles = await db
+      .select({ id: schema.mailLargeAttachmentLifecycle.id })
+      .from(schema.mailLargeAttachmentLifecycle)
+      .where(
+        inArray(
+          schema.mailLargeAttachmentLifecycle.storedFileId,
+          fixtureStoredFileIds,
+        ),
+      );
+    const fixtureLifecycleIds = fixtureLifecycles.map((row) => row.id);
+    if (fixtureLifecycleIds.length) {
+      await db
+        .delete(schema.mailLargeAttachmentDeliveryTokens)
+        .where(
+          inArray(
+            schema.mailLargeAttachmentDeliveryTokens.lifecycleId,
+            fixtureLifecycleIds,
+          ),
+        );
+    }
     await db
       .delete(schema.mailLargeAttachmentAcknowledgements)
       .where(inArray(schema.mailLargeAttachmentAcknowledgements.storedFileId, fixtureStoredFileIds));
@@ -361,6 +481,139 @@ async function setupStaffComposeFixture(db: TestDb) {
   return { mailbox, identity };
 }
 
+async function seedStaffApprovalAttachmentFixture(
+  db: TestDb,
+  input: {
+    draftId: string;
+    mailboxId: string;
+    userId: string;
+  },
+) {
+  const now = new Date().toISOString();
+  const normalStoredFileId = `${FIXTURE}-approval-normal-stored`;
+  const largeStoredFileId = `${FIXTURE}-approval-large-stored`;
+  const largeUploadSessionId = `${FIXTURE}-approval-large-session`;
+  const largeLifecycleId = `${FIXTURE}-approval-large-lifecycle`;
+  const largeAcknowledgementId = `${FIXTURE}-approval-large-ack`;
+  const largeContentHash = "f".repeat(64);
+  const largeStorageKey = `mail/large-attachments/2026/09/${crypto.randomUUID()}`;
+
+  await db.insert(schema.mailStoredFiles).values([
+    {
+      id: normalStoredFileId,
+      contentHash: "1".repeat(64),
+      originalFilename: "approval-brief.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2048,
+      storageProvider: "r2",
+      storageBucket: "crm-attachments",
+      storageKey: `${FIXTURE}/approval-brief.pdf`,
+      createdByUserId: input.userId,
+      securityScanStatus: "clean",
+      securityScannedAt: now,
+      createdAt: now,
+    },
+    {
+      id: largeStoredFileId,
+      contentHash: largeContentHash,
+      originalFilename: "approval-video.mov",
+      mimeType: "video/quicktime",
+      sizeBytes: 16_800_000,
+      storageProvider: "r2",
+      storageBucket: "crm-mail-large-attachments",
+      storageKey: largeStorageKey,
+      createdByUserId: input.userId,
+      securityScanStatus: "unscanned",
+      securityScannedAt: null,
+      createdAt: now,
+    },
+  ]);
+  await db.insert(schema.mailDraftAttachments).values([
+    {
+      id: `${FIXTURE}-approval-normal-draft-attachment`,
+      draftId: input.draftId,
+      storedFileId: normalStoredFileId,
+      displayFilename: "approval-brief.pdf",
+      sortOrder: 0,
+      deliveryMode: "direct_attachment",
+      secureExpiryDays: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: `${FIXTURE}-approval-large-draft-attachment`,
+      draftId: input.draftId,
+      storedFileId: largeStoredFileId,
+      displayFilename: "approval-video.mov",
+      sortOrder: 1,
+      deliveryMode: "large_attachment",
+      secureExpiryDays: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ]);
+  await db.insert(schema.mailLargeAttachmentUploadSessions).values({
+    id: largeUploadSessionId,
+    actorUserId: input.userId,
+    draftId: input.draftId,
+    mailboxId: input.mailboxId,
+    storedFileId: largeStoredFileId,
+    storageKey: largeStorageKey,
+    expectedFilename: "approval-video.mov",
+    expectedMimeType: "video/quicktime",
+    expectedSizeBytes: 16_800_000,
+    maxSizeBytes: 100 * 1024 * 1024,
+    declaredContentHash: largeContentHash,
+    expiresAt: "2026-09-13T00:00:00.000Z",
+    finalizedAt: now,
+    invalidatedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await db.insert(schema.mailLargeAttachmentLifecycle).values({
+    id: largeLifecycleId,
+    storedFileId: largeStoredFileId,
+    status: "approval_hold",
+    uploadedAt: now,
+    temporaryExpiresAt: null,
+    approvalHoldStartedAt: now,
+    approvalAbsoluteExpiresAt: "2026-09-13T00:00:00.000Z",
+    sentAt: null,
+    recipientExpiresAt: null,
+    deletedAt: null,
+    deleteReason: null,
+    downloadTokenHash: null,
+    downloadCount: 0,
+    lastDownloadedAt: null,
+    declaredContentHash: largeContentHash,
+    storageVersion: "approval-version-1",
+    storageEtag: "approval-etag-1",
+    finalizedAt: now,
+    createdAt: now,
+    updatedAt: now,
+  });
+  await db.insert(schema.mailLargeAttachmentAcknowledgements).values({
+    id: largeAcknowledgementId,
+    uploadSessionId: largeUploadSessionId,
+    lifecycleId: largeLifecycleId,
+    storedFileId: largeStoredFileId,
+    userId: input.userId,
+    draftId: input.draftId,
+    mailboxId: input.mailboxId,
+    noticeVersion: LARGE_ATTACHMENT_NOTICE_VERSION,
+    acknowledgedAt: now,
+    createdAt: now,
+  });
+
+  return {
+    normalStoredFileId,
+    largeStoredFileId,
+    largeLifecycleId,
+    largeDraftAttachmentId: `${FIXTURE}-approval-large-draft-attachment`,
+    largeStorageKey,
+  };
+}
+
 async function setupAdminComposeFixture(db: TestDb) {
   const address = fixtureAddress("admin-compose");
   const mailbox = await createMailbox(db, setupAdminActor, {
@@ -415,7 +668,7 @@ async function setupSentFolderFixture(db: TestDb) {
     canSend: true,
   });
   const now = new Date().toISOString();
-  for (const [suffix, mailboxId] of [
+  for (const [, mailboxId] of [
     ["compose", composeMailbox.id],
     ["sent", sentMailbox.id],
   ] as const) {
@@ -568,6 +821,8 @@ describe("sent message materialization integration", () => {
 
   it("staff approved accepted send materializes with full recipient set including Bcc", async () => {
     await cleanupFixtures(db);
+    await ensureVerifiedNotificationIdentity(db, SEED_IDS.staffA, "staff-a");
+    await ensureVerifiedNotificationIdentity(db, SEED_IDS.staffB, "staff-b");
     const { mailbox, identity } = await setupStaffComposeFixture(db);
     let draft = await createSendReadyDraft(db, staffActor, mailbox.id, identity.id);
     draft = await addDraftRecipient(db, staffActor, {
@@ -617,6 +872,149 @@ describe("sent message materialization integration", () => {
     assert.equal(recipients.length, 3);
     const types = recipients.map((row) => row.recipientType).sort();
     assert.deepEqual(types, ["bcc", "cc", "to"]);
+  });
+
+  it("staff approval sends frozen mixed attachments as MIME plus Gateway link", async () => {
+    await cleanupFixtures(db);
+    await ensureVerifiedNotificationIdentity(db, SEED_IDS.staffA, "staff-a");
+    await ensureVerifiedNotificationIdentity(db, SEED_IDS.staffB, "staff-b");
+    const { mailbox, identity } = await setupStaffComposeFixture(db);
+    const draft = await createSendReadyDraft(
+      db,
+      staffActor,
+      mailbox.id,
+      identity.id,
+      "Staff large approval",
+    );
+    const seeded = await seedStaffApprovalAttachmentFixture(db, {
+      draftId: draft.id,
+      mailboxId: mailbox.id,
+      userId: staffActor.userId,
+    });
+    process.env.MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED = "true";
+
+    const revision = await createOutboundRevisionFromDraft(db, staffActor, {
+      draftId: draft.id,
+      expectedAutosaveVersion: draft.autosaveVersion,
+    });
+    const approval = await submitRevisionForApproval(db, staffActor, {
+      revisionId: revision.id,
+    });
+    await approveRevision(db, approvalReviewActor, {
+      approvalId: approval.id,
+      expectedWorkflowVersion: 1,
+    });
+
+    const [frozenLargeAttachment] = await db
+      .select()
+      .from(schema.mailOutboundRevisionAttachments)
+      .where(
+        and(
+          eq(schema.mailOutboundRevisionAttachments.revisionId, revision.id),
+          eq(
+            schema.mailOutboundRevisionAttachments.deliveryMode,
+            "large_attachment",
+          ),
+        ),
+      )
+      .limit(1);
+    assert.equal(frozenLargeAttachment?.storedFileId, seeded.largeStoredFileId);
+    assert.equal(frozenLargeAttachment?.displayFilename, "approval-video.mov");
+
+    // Simulate a post-approval draft edit. Send must remain bound to the
+    // immutable revision attachment snapshot, not this mutable draft row.
+    await db
+      .update(schema.mailDraftAttachments)
+      .set({
+        storedFileId: seeded.normalStoredFileId,
+        displayFilename: "swapped-after-approval.pdf",
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.mailDraftAttachments.id, seeded.largeDraftAttachmentId));
+    const initiated = await initiateStaffApprovedSend(db, approvalReviewActor, {
+      revisionId: revision.id,
+      idempotencyKey: `${FIXTURE}-staff-large-approval`,
+    });
+    const adapter = new FakeMailTransportAdapter().setBehavior({
+      outcome: "accepted",
+      providerRequestId: "staff-large-req",
+      providerMessageId: "staff-large-msg",
+    });
+    await dispatchSendOperation(db, approvalReviewActor, {
+      sendOperationId: initiated.id,
+      expectedOrchestrationVersion: initiated.orchestrationVersion,
+      adapter,
+      largeAttachmentSendEnabled: true,
+      largeAttachmentPublicBaseUrl: "https://files.test",
+    });
+
+    const submission = adapter.capture.calls[0];
+    assert.ok(submission);
+    assert.equal(submission.attachments.length, 1);
+    assert.equal(submission.attachments[0]?.displayFilename, "approval-brief.pdf");
+    assert.match(submission.bodyText ?? "", /approval-video\.mov/);
+    assert.doesNotMatch(submission.bodyText ?? "", /swapped-after-approval\.pdf/);
+
+    const [lifecycle] = await db
+      .select()
+      .from(schema.mailLargeAttachmentLifecycle)
+      .where(eq(schema.mailLargeAttachmentLifecycle.id, seeded.largeLifecycleId))
+      .limit(1);
+    assert.equal(lifecycle?.status, "sent");
+    assert.ok(lifecycle?.downloadTokenHash);
+    const token = submission.bodyText?.match(
+      /Download: https:\/\/files\.test\/f\/([A-Za-z0-9_-]{22})/,
+    )?.[1];
+    assert.ok(token);
+    const [deliveryToken] = await db
+      .select()
+      .from(schema.mailLargeAttachmentDeliveryTokens)
+      .where(eq(schema.mailLargeAttachmentDeliveryTokens.lifecycleId, seeded.largeLifecycleId))
+      .limit(1);
+    assert.ok(deliveryToken);
+    await activatePreparedLargeAttachmentTokens(db, {
+      preparedTokens: [
+        {
+          deliveryTokenId: deliveryToken.id,
+          lifecycleId: seeded.largeLifecycleId,
+          revisionId: deliveryToken.revisionId,
+          sendOperationId: deliveryToken.sendOperationId,
+          transportAttemptId: deliveryToken.transportAttemptId,
+          tokenHash: hashLargeAttachmentDownloadToken(token),
+          recipientExpiresAt: deliveryToken.expiresAt,
+        },
+      ],
+      sentAt: lifecycle?.sentAt ?? new Date().toISOString(),
+      authorizationMode: "staff_approved",
+      providerMessageId: deliveryToken.providerMessageId ?? "staff-large-msg",
+      providerAcceptedAt:
+        deliveryToken.providerAcceptedAt ?? lifecycle?.sentAt ?? new Date().toISOString(),
+    });
+
+    const result = await materializeAcceptedOutboundSend(db, initiated.id);
+    const messageAttachments = await db
+      .select()
+      .from(schema.mailMessageAttachments)
+      .where(eq(schema.mailMessageAttachments.messageId, result.message.id))
+      .orderBy(asc(schema.mailMessageAttachments.sortOrder));
+    assert.equal(messageAttachments.length, 2);
+    assert.equal(
+      messageAttachments.find((attachment) => attachment.deliveryMode === "large_attachment")
+        ?.storedFileId,
+      seeded.largeStoredFileId,
+    );
+
+    const gatewayResult = await authorizeLargeAttachmentPublicDownload(
+      createLargeAttachmentGatewayAuthorizationRepository(db),
+      {
+        tokenHash: hashLargeAttachmentDownloadToken(token),
+        trustNowIso: new Date().toISOString(),
+      },
+    );
+    assert.equal(gatewayResult.authorized, true);
+    if (gatewayResult.authorized) {
+      assert.equal(gatewayResult.storageKey, seeded.largeStorageKey);
+    }
   });
 
   it("temp failure retry then accepted materializes once with stable RFC", async () => {
@@ -1167,6 +1565,20 @@ describe("sent message materialization integration", () => {
       assert.equal(lifecycle.status, "temporary");
       assert.equal(lifecycle.downloadTokenHash, null);
     }
+    const revokedDeliveryTokens = await db
+      .select()
+      .from(schema.mailLargeAttachmentDeliveryTokens)
+      .where(
+        eq(
+          schema.mailLargeAttachmentDeliveryTokens.sendOperationId,
+          initiated.id,
+        ),
+      );
+    assert.equal(revokedDeliveryTokens.length, 2);
+    assert.equal(
+      revokedDeliveryTokens.every((token) => token.state === "revoked"),
+      true,
+    );
 
     const dispatched = await retrySendOperation(db, adminActor, {
       sendOperationId: initiated.id,
@@ -1206,6 +1618,43 @@ describe("sent message materialization integration", () => {
       assert.ok(lifecycle.downloadTokenHash);
       assert.ok(lifecycle.recipientExpiresAt);
     }
+    const deliveryTokens = await db
+      .select()
+      .from(schema.mailLargeAttachmentDeliveryTokens)
+      .where(
+        eq(
+          schema.mailLargeAttachmentDeliveryTokens.sendOperationId,
+          initiated.id,
+        ),
+      );
+    assert.equal(deliveryTokens.length, 4);
+    assert.equal(
+      deliveryTokens.filter((token) => token.state === "revoked").length,
+      2,
+    );
+    assert.equal(
+      deliveryTokens.filter((token) => token.state === "confirmed").length,
+      2,
+    );
+    await activatePreparedLargeAttachmentTokens(db, {
+      preparedTokens: deliveryTokens
+        .filter((token) => token.state === "confirmed")
+        .map((token) => ({
+          deliveryTokenId: token.id,
+          lifecycleId: token.lifecycleId,
+          revisionId: token.revisionId,
+          sendOperationId: token.sendOperationId,
+          transportAttemptId: token.transportAttemptId,
+          tokenHash: token.tokenHash,
+          recipientExpiresAt: token.expiresAt,
+        })),
+      sentAt: new Date().toISOString(),
+      authorizationMode: "admin_direct",
+      providerMessageId: "large-retry-msg",
+      providerAcceptedAt:
+        deliveryTokens.find((token) => token.state === "confirmed")
+          ?.providerAcceptedAt ?? new Date().toISOString(),
+    });
 
     const result = await materializeAcceptedOutboundSend(db, initiated.id);
     const messageAttachments = await db
@@ -1229,6 +1678,12 @@ describe("sent message materialization integration", () => {
       ),
     ].map((match) => match[1]);
     assert.equal(rawTokens.length, 2);
+    assert.equal(
+      deliveryTokens.some((deliveryToken) =>
+        rawTokens.includes(deliveryToken.tokenHash),
+      ),
+      false,
+    );
     const gatewayRepository =
       createLargeAttachmentGatewayAuthorizationRepository(db);
     const gatewayResults = await Promise.all(
