@@ -49,6 +49,7 @@ import {
   createOutboundSentMaterializationCounters,
   processOutboundSentMaterializationItem,
 } from "@/lib/mail/outbound-sent-materialization-background-service";
+import { expireDueLargeAttachmentDeliveryTokens } from "@/lib/mail/large-attachment/large-attachment-delivery-token-cleanup-service";
 import { resolveMailOutboundTransportMode } from "@/lib/mail/outbound-transport-constants";
 import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
 
@@ -86,6 +87,11 @@ export type MailBackgroundTickSummary = {
   outboundDispatch: MailBackgroundTickCategoryCounters;
   outboundDispatchSkipped: boolean;
   outboundSentMaterialization: MailBackgroundTickCategoryCounters;
+  largeAttachmentTokenCleanup: {
+    selected: number;
+    expired: number;
+    skipped: number;
+  };
   rawPayloadRetention: InboundRawMimeRetentionTickCounters;
   totalItemsStarted: number;
   stoppedReason?: MailBackgroundTickStopReason;
@@ -182,6 +188,11 @@ export async function runMailBackgroundTick(
     outboundDispatch: emptyCounters(),
     outboundDispatchSkipped: deps.outboundDispatch === undefined,
     outboundSentMaterialization: createOutboundSentMaterializationCounters(),
+    largeAttachmentTokenCleanup: {
+      selected: 0,
+      expired: 0,
+      skipped: 0,
+    },
     rawPayloadRetention: emptyInboundRawMimeRetentionCounters(),
     totalItemsStarted: 0,
   };
@@ -564,7 +575,19 @@ export async function runMailBackgroundTick(
     }
   }
 
-  // 9. Purge expired inbound raw MIME objects (canonical Mail history preserved)
+  // 9. Normalize expired Large Attachment capabilities. Gateway authorization
+  // independently checks expires_at, so this is state hygiene, not the
+  // security boundary. Each update uses a due-state CAS and is rerunnable.
+  if (!summary.stoppedReason && remainingCategoryLimit() > 0) {
+    const cleanup = await expireDueLargeAttachmentDeliveryTokens(db, {
+      trustNow: notificationTrustNow,
+      limit: remainingCategoryLimit(),
+    });
+    summary.largeAttachmentTokenCleanup = cleanup;
+    summary.totalItemsStarted += cleanup.selected;
+  }
+
+  // 10. Purge expired inbound raw MIME objects (canonical Mail history preserved)
   if (!summary.stoppedReason) {
     summary.rawPayloadRetention = await runInboundRawMimeRetentionCleanup(
       db,

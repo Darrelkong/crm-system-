@@ -34,28 +34,33 @@ describe("large attachment delivery-token state machine", () => {
     assert.equal(confirmed.providerMessageId, "provider-message-1");
   });
 
-  it("revokes prepared or armed tokens but never confirmed tokens", () => {
+  it("revokes prepared, armed, or confirmed tokens", () => {
     const revoked = transitionArmedToRevoked(
       transitionPreparedToArmed(BASE, "2026-09-06T08:00:01.000Z"),
       "2026-09-06T08:00:02.000Z",
     );
     assert.equal(revoked.state, "revoked");
-    assert.throws(() =>
-      transitionArmedToRevoked(
-        transitionArmedToConfirmed(
-          transitionPreparedToArmed(BASE, "2026-09-06T08:00:01.000Z"),
-          {
-            confirmedAt: "2026-09-06T08:00:02.000Z",
-            providerMessageId: "provider-message-1",
-            providerAcceptedAt: "2026-09-06T08:00:02.000Z",
-          },
-        ),
-        "2026-09-06T08:00:03.000Z",
+    const revokedConfirmed = transitionArmedToRevoked(
+      transitionArmedToConfirmed(
+        transitionPreparedToArmed(BASE, "2026-09-06T08:00:01.000Z"),
+        {
+          confirmedAt: "2026-09-06T08:00:02.000Z",
+          providerMessageId: "provider-message-1",
+          providerAcceptedAt: "2026-09-06T08:00:02.000Z",
+        },
       ),
+      "2026-09-06T08:00:03.000Z",
     );
+    assert.equal(revokedConfirmed.state, "revoked");
+    assert.equal(revokedConfirmed.providerMessageId, null);
+    assert.equal(revokedConfirmed.confirmedAt, null);
   });
 
-  it("expires armed and confirmed capabilities without extending retention", () => {
+  it("expires prepared, armed, and confirmed capabilities without extending retention", () => {
+    const expiredPrepared = transitionArmedToExpired(BASE);
+    assert.equal(expiredPrepared.state, "expired");
+    assert.equal(expiredPrepared.armedAt, BASE.createdAt);
+    assert.equal(expiredPrepared.expiresAt, BASE.expiresAt);
     const armed = transitionPreparedToArmed(BASE, "2026-09-06T08:00:01.000Z");
     assert.equal(transitionArmedToExpired(armed).state, "expired");
     assert.equal(

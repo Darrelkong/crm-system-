@@ -4,6 +4,7 @@ import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MailServiceError } from "@/lib/mail/errors";
 import { assertEffectiveMailAccess } from "@/lib/permissions/mail";
 import { listAccessibleMailboxes } from "@/lib/mail/mail-read-mailbox-service";
+import { hasMailDeliveryHealth } from "@/lib/permissions/mail";
 import {
   assertCanUseAllMailboxScope,
   type MailboxScope,
@@ -40,6 +41,7 @@ export type MailOutboxItemView = {
   attachmentCount: number;
   hasAttachments: boolean;
   failureCode: "send_failed" | "dispatch_uncertain" | null;
+  operationalDetailAvailable: boolean;
   sourceMailbox?: MailSourceMailboxView;
 };
 
@@ -284,6 +286,8 @@ export async function listOutboxPage(
       attachmentCount,
       hasAttachments: attachmentCount > 0,
       failureCode,
+      operationalDetailAvailable:
+        send.status === "dispatch_uncertain" && hasMailDeliveryHealth(actor),
       sourceMailbox,
     };
   });
@@ -410,6 +414,8 @@ export async function listOutboxItems(
           : send.status === "dispatch_uncertain"
             ? "dispatch_uncertain"
             : null,
+      operationalDetailAvailable:
+        send.status === "dispatch_uncertain" && hasMailDeliveryHealth(actor),
     };
   });
 }

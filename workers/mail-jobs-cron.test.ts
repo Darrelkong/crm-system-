@@ -52,6 +52,14 @@ function emptySummary(): MailBackgroundTickSummary {
     notificationDispatchSkipped: true,
     verificationDispatch: { ...counters },
     verificationDispatchSkipped: true,
+    outboundDispatch: { ...counters },
+    outboundDispatchSkipped: true,
+    outboundSentMaterialization: { ...counters },
+    largeAttachmentTokenCleanup: {
+      selected: 0,
+      expired: 0,
+      skipped: 0,
+    },
     rawPayloadRetention: {
       eligible: 0,
       purged: 0,
@@ -88,6 +96,14 @@ describe("mail jobs cron static config", () => {
     assert.match(
       config,
       /"MAIL_NOTIFICATION_TRANSPORT_ENABLED":\s*"true"/,
+    );
+    assert.match(
+      config,
+      /"MAIL_LARGE_ATTACHMENT_SEND_ENABLED":\s*"false"/,
+    );
+    assert.match(
+      config,
+      /"MAIL_LARGE_ATTACHMENT_PUBLIC_BASE_URL":\s*"https:\/\/files\.echfronthk\.com"/,
     );
     assert.match(config, /"workers_dev":\s*false/);
     assert.match(config, /"preview_urls":\s*false/);
@@ -200,6 +216,25 @@ describe("mail jobs cron wiring", () => {
     });
 
     assert.equal(capturedTransport, undefined);
+  });
+
+  it("passes Large Attachment rollout flags to outbound dispatch", () => {
+    const env = {
+      DB: {} as D1Database,
+      ATTACHMENTS: {} as R2Bucket,
+      MAIL_LARGE_ATTACHMENT_SEND_ENABLED: "false",
+      MAIL_LARGE_ATTACHMENT_PUBLIC_BASE_URL: "https://files.echfronthk.com",
+    } satisfies MailJobsEnv;
+
+    const deps = buildMailBackgroundTickDeps(env);
+    assert.equal(
+      deps.outboundDispatch?.env.MAIL_LARGE_ATTACHMENT_SEND_ENABLED,
+      "false",
+    );
+    assert.equal(
+      deps.outboundDispatch?.env.MAIL_LARGE_ATTACHMENT_PUBLIC_BASE_URL,
+      "https://files.echfronthk.com",
+    );
   });
 
   it("provides verification REST sink when verification transport mode is production", () => {

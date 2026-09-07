@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "crm-mail-test",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "vars": {
+    "CRM_ALLOW_TEST_DB_BIND": "1",
+    "MAIL_TEST_HARNESS_ENABLED": "true",
+    "NODE_ENV": "test"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crm-db",
+      "database_id": "03633dd2-c058-42de-9355-f5450eab7202",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "ATTACHMENTS",
+      "bucket_name": "crm-attachments",
+      "preview_bucket_name": "crm-attachments-preview"
+    },
+    {
+      "binding": "LARGE_ATTACHMENTS",
+      "bucket_name": "crm-mail-large-attachments",
+      "preview_bucket_name": "crm-mail-large-attachments"
+    }
+  ]
+}

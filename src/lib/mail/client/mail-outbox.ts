@@ -33,6 +33,7 @@ export type MailOutboxListItem = {
   attachmentCount: number;
   hasAttachments: boolean;
   failureCode: "send_failed" | "dispatch_uncertain" | null;
+  operationalDetailAvailable: boolean;
   sourceMailbox?: {
     address: string;
     displayName: string | null;
@@ -44,6 +45,54 @@ export type MailOutboxListPage = {
   items: MailOutboxListItem[];
   nextCursor: string | null;
 };
+
+export type LargeAttachmentOperationalSendView = {
+  sendOperationId: string;
+  outboundRevisionId: string;
+  status: "dispatch_uncertain";
+  authorizationMode: "admin_direct" | "staff_approved";
+  subject: string;
+  sender: {
+    address: string;
+    displayName: string | null;
+  };
+  mailbox: {
+    id: string;
+    address: string;
+    displayName: string | null;
+  };
+  recipients: Array<{
+    address: string;
+    displayName: string | null;
+    recipientType: string;
+  }>;
+  createdAt: string;
+  completedAt: string | null;
+  attempt: {
+    id: string;
+    attemptNumber: number;
+    provider: string;
+    providerRequestId: string | null;
+    providerMessageId: string | null;
+    startedAt: string;
+    completedAt: string | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+  } | null;
+  largeAttachment: {
+    involved: boolean;
+    capabilityStates: Array<{
+      deliveryTokenId: string;
+      lifecycleId: string;
+      state: "prepared" | "armed" | "confirmed" | "revoked" | "expired";
+      expiresAt: string;
+      providerMessageId: string | null;
+    }>;
+  };
+};
+
+export const operationalSendPath = (sendOperationId: string): string =>
+  `${OUTBOX_PATH}/${encodeURIComponent(sendOperationId)}/operational`;
 
 export const OUTBOX_PATH = "/api/mail/send-operations";
 
@@ -131,4 +180,56 @@ export async function fetchOutboxPage(input: {
     items: mapOutboxItemsResponse(body),
     nextCursor: body.nextCursor ?? null,
   };
+}
+
+export async function fetchOperationalSend(
+  sendOperationId: string,
+): Promise<LargeAttachmentOperationalSendView> {
+  const response = await fetch(operationalSendPath(sendOperationId), {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw await normalizeMailReadApiError(
+      response,
+      "Failed to load operational send detail",
+    );
+  }
+  const body = (await response.json()) as {
+    item?: LargeAttachmentOperationalSendView;
+  };
+  if (!body.item) {
+    throw MailReadApiError.validation("Invalid operational send response");
+  }
+  return body.item;
+}
+
+async function postOperationalSendAction(
+  sendOperationId: string,
+  action: string,
+): Promise<Record<string, unknown>> {
+  const response = await fetch(operationalSendPath(sendOperationId), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ action }),
+  });
+  if (!response.ok) {
+    throw await normalizeMailReadApiError(
+      response,
+      "Failed to update operational send",
+    );
+  }
+  return (await response.json()) as Record<string, unknown>;
+}
+
+export function acknowledgeOperationalSend(sendOperationId: string) {
+  return postOperationalSendAction(sendOperationId, "acknowledge");
+}
+
+export function revokeOperationalLargeAttachmentCapabilities(
+  sendOperationId: string,
+) {
+  return postOperationalSendAction(
+    sendOperationId,
+    "revoke_large_attachment_capabilities",
+  );
 }

@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
-import { bindTestDatabase } from "@/lib/db";
+import { bindTestDatabase, releaseTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import { stageDeliveryProviderEvent } from "@/lib/mail/delivery-provider-staging-service";
 import { MemoryInboundAttachmentStore } from "@/lib/mail/inbound-attachment-store";
@@ -16,6 +16,7 @@ import {
   recoverExpiredProcessingIngestionEvent,
   recoverExpiredProcessingIngestionEventAsSystem,
 } from "@/lib/mail/ingestion-processing-recovery-service";
+import { ensureIsolatedMailAuthorizationFixture } from "@/lib/mail/test-fixtures/mail-authorization-fixture";
 import {
   listDueDeliveryProviderIngestionEvents,
   listDueInboundProviderIngestionEvents,
@@ -42,7 +43,6 @@ import { createCapturingNotificationVerificationChallengeSink } from "@/lib/mail
 import { FakeNotificationTransportAdapter } from "@/lib/mail/notification-transport-adapter";
 import { claimProviderIngestionForProcessing } from "@/lib/mail/provider-ingestion-claim";
 import {
-  computeIngestionProcessingLease,
   INGESTION_PROCESSING_LEASE_V1_MS,
   setIngestionProcessingLeaseTestClock,
 } from "@/lib/mail/provider-ingestion-processing-lease";
@@ -115,24 +115,6 @@ function sampleMime(messageId: string): Uint8Array {
   return new TextEncoder().encode(
     `From: sender@external.test\r\nTo: ignored@example.com\r\nSubject: tick\r\nMessage-ID: ${messageId}\r\n\r\nbody`,
   );
-}
-
-async function enableMailAccess(db: TestDb, userId: string) {
-  const now = new Date().toISOString();
-  await db
-    .insert(schema.mailUserAccess)
-    .values({
-      userId,
-      isEnabled: 1,
-      enabledAt: now,
-      enabledBy: SEED_IDS.admin,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: schema.mailUserAccess.userId,
-      set: { isEnabled: 1, updatedAt: now },
-    });
 }
 
 async function safeCleanupFixtures(db: TestDb) {
@@ -328,7 +310,7 @@ describe("mail background tick Local D1", () => {
   let db: TestDb;
   let payloadStore: MemoryInboundRawPayloadStore;
   let attachmentStore: MemoryInboundAttachmentStore;
-  let dispose: (() => void) | undefined;
+  let dispose: (() => Promise<void>) | undefined;
   const previousVerificationSecret =
     process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
 
@@ -336,7 +318,7 @@ describe("mail background tick Local D1", () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
     process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR] =
       TEST_VERIFICATION_SECRET;
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -346,8 +328,7 @@ describe("mail background tick Local D1", () => {
     attachmentStore = new MemoryInboundAttachmentStore();
     setIngestionProcessingLeaseTestClock(BASE_TIME);
     setNotificationProcessingLeaseTestClock(BASE_TIME);
-    await enableMailAccess(db, SEED_IDS.admin);
-    await enableMailAccess(db, SEED_IDS.staffA);
+    await ensureIsolatedMailAuthorizationFixture(db);
   });
 
   after(async () => {
@@ -356,7 +337,8 @@ describe("mail background tick Local D1", () => {
     } finally {
       setIngestionProcessingLeaseTestClock(null);
       setNotificationProcessingLeaseTestClock(null);
-      dispose?.();
+      releaseTestDatabase(db);
+      await dispose?.();
       if (previousVerificationSecret === undefined) {
         delete process.env[MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR];
       } else {

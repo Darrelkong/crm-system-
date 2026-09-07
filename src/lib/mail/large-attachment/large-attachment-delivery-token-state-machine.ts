@@ -56,21 +56,43 @@ export function transitionArmedToRevoked(
   token: LargeAttachmentDeliveryTokenRecord,
   revokedAt: string,
 ): LargeAttachmentDeliveryTokenRecord {
-  if (token.state !== "prepared" && token.state !== "armed") {
+  if (
+    token.state !== "prepared" &&
+    token.state !== "armed" &&
+    token.state !== "confirmed"
+  ) {
     throw new LargeAttachmentDeliveryTokenTransitionError(
       `Invalid delivery token revoke from ${token.state}`,
     );
   }
-  return { ...token, state: "revoked", revokedAt };
+  return {
+    ...token,
+    state: "revoked",
+    confirmedAt: null,
+    providerMessageId: null,
+    providerAcceptedAt: null,
+    revokedAt,
+  };
 }
 
 export function transitionArmedToExpired(
   token: LargeAttachmentDeliveryTokenRecord,
 ): LargeAttachmentDeliveryTokenRecord {
-  if (token.state !== "armed" && token.state !== "confirmed") {
+  if (
+    token.state !== "prepared" &&
+    token.state !== "armed" &&
+    token.state !== "confirmed"
+  ) {
     throw new LargeAttachmentDeliveryTokenTransitionError(
       `Invalid delivery token expiry from ${token.state}`,
     );
   }
-  return { ...token, state: "expired" };
+  return {
+    ...token,
+    state: "expired",
+    // A prepared row is only observable if a crash interrupted the
+    // prepare/arm batch. The schema requires armed_at for expired rows;
+    // preserve the original creation time without changing expiry.
+    armedAt: token.armedAt ?? token.createdAt,
+  };
 }

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, asc, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
-import { bindTestDatabase } from "@/lib/db";
+import { bindTestDatabase, releaseTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import {
   resolveMailActorContext,
   type MailActorContext,
@@ -182,7 +182,11 @@ async function ensureVerifiedNotificationIdentity(
     db,
     audit: { userAgent: "phase2c8-fixture" },
   });
-  assert.equal(resolved.effectiveMailAccess?.canUseMailbox, true);
+  assert.equal(resolved.effectiveMailAccess?.mailAccessEnabled, true);
+  assert.equal(
+    resolved.effectiveMailAccess?.notificationIdentityState,
+    "verified",
+  );
 }
 
 async function cleanupFixtures(db: TestDb) {
@@ -751,11 +755,11 @@ async function assertNoDeliveryEvents(db: TestDb, sendOperationId: string) {
 
 describe("sent message materialization integration", () => {
   let db: TestDb;
-  let dispose: (() => void) | undefined;
+  let dispose: (() => Promise<void>) | undefined;
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
@@ -772,7 +776,8 @@ describe("sent message materialization integration", () => {
     try {
       await cleanupFixtures(db);
     } finally {
-      dispose?.();
+      releaseTestDatabase(db);
+      await dispose?.();
     }
   });
 

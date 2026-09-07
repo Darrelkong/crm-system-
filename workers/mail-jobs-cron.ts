@@ -30,7 +30,6 @@ import {
 } from "../src/lib/mail/outbound-business-email-binding";
 import {
   MAIL_OUTBOUND_TRANSPORT_MODE_VAR,
-  resolveMailOutboundTransportMode,
 } from "../src/lib/mail/outbound-transport-constants";
 
 /** Explicit opt-in — production deploy keeps this false until controlled enablement. */
@@ -46,6 +45,8 @@ export interface MailJobsEnv extends OutboundBusinessEmailBindingEnv {
   MAIL_NOTIFICATION_TRANSPORT_ENABLED?: string;
   MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE?: string;
   MAIL_OUTBOUND_TRANSPORT_MODE?: string;
+  MAIL_LARGE_ATTACHMENT_SEND_ENABLED?: string;
+  MAIL_LARGE_ATTACHMENT_PUBLIC_BASE_URL?: string;
   [MAIL_NOTIFICATION_VERIFICATION_SECRET_VAR]?: string;
   [CLOUDFLARE_EMAIL_SENDING_API_TOKEN_ENV]?: string;
   [CLOUDFLARE_EMAIL_SENDING_ACCOUNT_ID_ENV]?: string;
@@ -111,6 +112,10 @@ export function buildMailBackgroundTickDeps(
     outboundDispatch: {
       env: {
         [MAIL_OUTBOUND_TRANSPORT_MODE_VAR]: env.MAIL_OUTBOUND_TRANSPORT_MODE,
+        MAIL_LARGE_ATTACHMENT_SEND_ENABLED:
+          env.MAIL_LARGE_ATTACHMENT_SEND_ENABLED,
+        MAIL_LARGE_ATTACHMENT_PUBLIC_BASE_URL:
+          env.MAIL_LARGE_ATTACHMENT_PUBLIC_BASE_URL,
       },
       db,
       businessEmailBinding: env[MAIL_BUSINESS_EMAIL_BINDING_NAME],
@@ -170,6 +175,7 @@ export function formatMailJobsTickLogSummary(
     outboundDispatch: summary.outboundDispatch,
     outboundDispatchSkipped: summary.outboundDispatchSkipped,
     outboundSentMaterialization: summary.outboundSentMaterialization,
+    largeAttachmentTokenCleanup: summary.largeAttachmentTokenCleanup,
     rawPayloadRetention: summary.rawPayloadRetention,
   };
 }
@@ -197,7 +203,7 @@ export async function runMailJobsScheduledTick(
  *
  * Scheduled-only — no public business API. System authority via frozen 2C.12C.1 services.
  */
-export default {
+const worker = {
   async scheduled(
     _event: ScheduledEvent,
     env: MailJobsEnv,
@@ -222,3 +228,5 @@ export default {
     );
   },
 };
+
+export default worker;

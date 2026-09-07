@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
-import { bindTestDatabase } from "@/lib/db";
+import { bindTestDatabase, releaseTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import {
   approveRevision,
   submitRevisionForApproval,
@@ -38,7 +38,7 @@ import {
   initiateStaffApprovedSend,
   sendOperationTestHooks,
 } from "@/lib/mail/send-operation-service";
-import { materializeAcceptedOutboundSend } from "@/lib/mail/sent-message-materialization-service";
+import { ensureIsolatedMailAuthorizationFixture } from "@/lib/mail/test-fixtures/mail-authorization-fixture";
 import { FakeMailTransportAdapter } from "@/lib/mail/transport/fake-mail-transport-adapter";
 
 const FIXTURE = "mail-phase6n2a";
@@ -69,24 +69,6 @@ const setupAdminActor = actor(SEED_IDS.admin, [
 
 function fixtureAddress(suffix: string): string {
   return `${FIXTURE}-${suffix}-${crypto.randomUUID().slice(0, 8)}@echfronthk.com`;
-}
-
-async function enableMailAccess(db: TestDb, userId: string) {
-  const now = new Date().toISOString();
-  await db
-    .insert(schema.mailUserAccess)
-    .values({
-      userId,
-      isEnabled: 1,
-      enabledAt: now,
-      enabledBy: SEED_IDS.admin,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: schema.mailUserAccess.userId,
-      set: { isEnabled: 1, updatedAt: now },
-    });
 }
 
 async function createSendReadyDraft(
@@ -161,18 +143,17 @@ describe("outbound background dispatch and materialization", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
-    await enableMailAccess(db, SEED_IDS.staffA);
-    await enableMailAccess(db, SEED_IDS.staffB);
-    await enableMailAccess(db, SEED_IDS.admin);
+    await ensureIsolatedMailAuthorizationFixture(db);
   });
 
   after(async () => {
+    releaseTestDatabase(db);
     await dispose?.();
   });
 

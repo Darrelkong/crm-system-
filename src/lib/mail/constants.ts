@@ -60,6 +60,10 @@ export const MAIL_AUDIT_ACTIONS = {
   sendTemporaryFailure: "mail.send.temporary_failure",
   sendPermanentFailure: "mail.send.permanent_failure",
   sendDispatchUncertain: "mail.send.dispatch_uncertain",
+  sendDispatchUncertainAcknowledged:
+    "mail.send.dispatch_uncertain_acknowledged",
+  largeAttachmentCapabilityRevoked:
+    "mail.large_attachment.capability_revoked",
   sendRetryStarted: "mail.send.retry_started",
   sendPreflightBlocked: "mail.send.preflight_blocked",
   sendDispatchAuthorized: "mail.send.dispatch_authorized",

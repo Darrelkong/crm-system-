@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
-import { bindTestDatabase } from "@/lib/db";
+import { bindTestDatabase, releaseTestDatabase } from "@/lib/db";
 import {
   resolveMailActorContext,
   type MailActorContext,
 } from "@/lib/mail/actor-context";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
 import {
   addDraftRecipient,
@@ -17,6 +17,7 @@ import {
   type DraftDetailView,
 } from "@/lib/mail/draft-service";
 import { MailServiceError } from "@/lib/mail/errors";
+import { ensureIsolatedMailAuthorizationFixture } from "@/lib/mail/test-fixtures/mail-authorization-fixture";
 import {
   approveRevision,
   submitRevisionForApproval,
@@ -362,26 +363,25 @@ async function assertNoMaterializationSideEffects(db: TestDb, sendId: string) {
 
 describe("send operation orchestration integration", () => {
   let db: TestDb;
-  let dispose: (() => void) | undefined;
+  let dispose: (() => Promise<void>) | undefined;
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
-    await enableMailAccess(db, SEED_IDS.admin);
-    await enableMailAccess(db, SEED_IDS.staffA);
-    await enableMailAccess(db, SEED_IDS.staffB);
+    await ensureIsolatedMailAuthorizationFixture(db);
     await cleanupFixtures(db);
     assert.ok(sendOperationTestHooks);
   });
 
   after(async () => {
     await cleanupFixtures(db);
-    dispose?.();
+    releaseTestDatabase(db);
+    await dispose?.();
   });
 
   it("staff approved basic: reviewer triggers send, fake accepted", async () => {

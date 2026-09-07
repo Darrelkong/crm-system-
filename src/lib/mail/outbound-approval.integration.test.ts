@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, inArray, like } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
-import { bindTestDatabase } from "@/lib/db";
+import { bindTestDatabase, releaseTestDatabase } from "@/lib/db";
 import type { MailActorContext } from "@/lib/mail/actor-context";
 import { MAIL_AUDIT_ACTIONS } from "@/lib/mail/constants";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import {
   addDraftRecipient,
   createDraft,
@@ -21,6 +21,7 @@ import {
   runMailBatch,
   type ApprovalPostStateGuard,
 } from "@/lib/mail/guarded-batch";
+import { ensureIsolatedMailAuthorizationFixture } from "@/lib/mail/test-fixtures/mail-authorization-fixture";
 import { createMailbox } from "@/lib/mail/mailbox-service";
 import {
   approveRevision,
@@ -73,24 +74,6 @@ const globalReadActor = actor(SEED_IDS.staffB, ["global_mail_read"]);
 
 function fixtureAddress(localPart: string): string {
   return `${FIXTURE}-${localPart}@echfronthk.com`;
-}
-
-async function enableMailAccess(db: TestDb, userId: string) {
-  const now = new Date().toISOString();
-  await db
-    .insert(schema.mailUserAccess)
-    .values({
-      userId,
-      isEnabled: 1,
-      enabledAt: now,
-      enabledBy: SEED_IDS.admin,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .onConflictDoUpdate({
-      target: schema.mailUserAccess.userId,
-      set: { isEnabled: 1, updatedAt: now },
-    });
 }
 
 async function cleanupFixtures(db: TestDb) {
@@ -291,25 +274,24 @@ async function createRevisionFromDraft(
 
 describe("outbound approval workflow integration", () => {
   let db: TestDb;
-  let dispose: (() => void) | undefined;
+  let dispose: (() => Promise<void>) | undefined;
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
-    await enableMailAccess(db, SEED_IDS.admin);
-    await enableMailAccess(db, SEED_IDS.staffA);
-    await enableMailAccess(db, SEED_IDS.staffB);
+    await ensureIsolatedMailAuthorizationFixture(db);
     await cleanupFixtures(db);
   });
 
   after(async () => {
     await cleanupFixtures(db);
-    dispose?.();
+    releaseTestDatabase(db);
+    await dispose?.();
   });
 
   it("basic flow: submit, return, resubmit R2, approve", async () => {
