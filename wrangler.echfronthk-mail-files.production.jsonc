@@ -1,0 +1,27 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "echfront-mail-files",
+  "main": "workers/echfront-mail-files/index.ts",
+  "compatibility_date": "2026-01-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "routes": [
+    {
+      "pattern": "files.echfronthk.com",
+      "custom_domain": true
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "LARGE_ATTACHMENTS",
+      "bucket_name": "crm-mail-large-attachments"
+    }
+  ],
+  "services": [
+    {
+      "binding": "CRM_SYSTEM",
+      "service": "crm-system"
+    }
+  ]
+}

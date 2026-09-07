@@ -200,6 +200,43 @@ describe("echfront-mail-files local gateway fixture", () => {
     }
   });
 
+  it("fails closed when required Production configuration is missing", async () => {
+    const request = new Request(
+      `${buildLargeAttachmentPublicDownloadUrl(TOKEN_PAIR.token)}/download`,
+    );
+
+    const fixture = fixtureEnv();
+    assert.equal(
+      (
+        await handleEchfrontMailFilesRequest(
+          request,
+          { ...fixture.env, CRM_SYSTEM_GATEWAY_SECRET: undefined },
+        )
+      ).status,
+      404,
+    );
+
+    assert.equal(
+      (
+        await handleEchfrontMailFilesRequest(
+          request,
+          { ...fixture.env, CRM_SYSTEM: undefined },
+        )
+      ).status,
+      404,
+    );
+
+    assert.equal(
+      (
+        await handleEchfrontMailFilesRequest(
+          request,
+          { ...fixture.env, LARGE_ATTACHMENTS: undefined },
+        )
+      ).status,
+      404,
+    );
+  });
+
   it("keeps the raw token out of the persisted representation", () => {
     assert.equal(TOKEN_PAIR.token.length, 22);
     assert.match(TOKEN_PAIR.token, /^[A-Za-z0-9_-]{22}$/);
