@@ -14,7 +14,7 @@ const requiredFiles = [
   "scripts/deploy-mail-files-production.mjs",
   "scripts/mail-files-production-guard.mjs",
   "docs/large-attachment/PRODUCTION_RELEASE_PHASE_A.md",
-  "drizzle/migrations/0074_mail_large_attachment_lifecycle.sql",
+  "drizzle/migrations/0074_mail_large_attachment_acknowledgements.sql",
   "drizzle/migrations/0075_mail_large_attachment_delivery_tokens.sql",
 ];
 
