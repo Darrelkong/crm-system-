@@ -1,7 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   assertGatewayProductionConfig,
   readGatewayProductionConfig,
@@ -27,6 +27,30 @@ function captureGit(args) {
 
 function fail(message) {
   throw new Error(`Production precheck failed: ${message}`);
+}
+
+export function stripSqlComments(sql) {
+  return sql.replace(
+    /--[^\r\n]*|\/\*[\s\S]*?\*\//g,
+    (comment) => comment.replace(/[^\r\n]/g, " "),
+  );
+}
+
+export function assertMigrationSqlIsAdditive(
+  source,
+  migration = "migration",
+) {
+  const sql = stripSqlComments(source);
+  if (!/(?:CREATE\s+TABLE|CREATE\s+(?:UNIQUE\s+)?INDEX)\b/i.test(sql)) {
+    throw new Error(`${migration} does not contain an additive CREATE statement.`);
+  }
+  if (
+    /(?:^|;)\s*(?:DROP|DELETE|UPDATE|ALTER)\b/im.test(
+      sql,
+    )
+  ) {
+    throw new Error(`${migration} contains a forbidden SQL mutation statement.`);
+  }
 }
 
 async function assertFlags() {
@@ -63,11 +87,10 @@ async function assertMigrations() {
     file.startsWith("drizzle/"),
   )) {
     const source = await readFile(resolve(repositoryRoot, migration), "utf8");
-    if (
-      !/CREATE TABLE/i.test(source) ||
-      /^\s*(?:DROP TABLE|ALTER TABLE|DELETE FROM|UPDATE)\b/im.test(source)
-    ) {
-      fail(`${migration} is not additive-only.`);
+    try {
+      assertMigrationSqlIsAdditive(source, migration);
+    } catch (error) {
+      fail(error instanceof Error ? error.message : String(error));
     }
   }
 }
@@ -142,7 +165,7 @@ async function assertFilesAndConfig() {
   }
 }
 
-async function run() {
+export async function runProductionPrecheck() {
   const state = assertSourceState();
   await assertFilesAndConfig();
   await assertFlags();
@@ -151,7 +174,12 @@ async function run() {
   console.log("No deployment, migration, secret, DNS, Access, CORS, or Cloudflare mutation was performed.");
 }
 
-run().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exitCode = 1;
-});
+if (
+  process.argv[1] &&
+  pathToFileURL(resolve(process.argv[1])).href === import.meta.url
+) {
+  runProductionPrecheck().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exitCode = 1;
+  });
+}
