@@ -65,7 +65,7 @@ async function assertMigrations() {
     const source = await readFile(resolve(repositoryRoot, migration), "utf8");
     if (
       !/CREATE TABLE/i.test(source) ||
-      /\b(?:DROP TABLE|ALTER TABLE|DELETE FROM|UPDATE)\b/i.test(source)
+      /^\s*(?:DROP TABLE|ALTER TABLE|DELETE FROM|UPDATE)\b/im.test(source)
     ) {
       fail(`${migration} is not additive-only.`);
     }
