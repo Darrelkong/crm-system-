@@ -1,8 +1,4 @@
-import {
-  getPlatformProxy,
-  type GetPlatformProxyOptions,
-  type PlatformProxy,
-} from "wrangler";
+import type { GetPlatformProxyOptions, PlatformProxy } from "wrangler";
 
 type HttpD1Operation = "all" | "raw" | "run";
 type HttpD1StatementPayload = {
@@ -11,7 +7,10 @@ type HttpD1StatementPayload = {
 };
 
 class HttpD1Client {
-  constructor(private readonly endpoint: string) {}
+  constructor(
+    private readonly endpoint: string,
+    private readonly token: string,
+  ) {}
 
   async execute(
     operation: HttpD1Operation,
@@ -19,7 +18,10 @@ class HttpD1Client {
   ): Promise<unknown> {
     const response = await fetch(this.endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${this.token}`,
+        "content-type": "application/json",
+      },
       body: JSON.stringify({ operation, ...statement }),
     });
     const payload = (await response.json()) as { error?: string };
@@ -32,7 +34,10 @@ class HttpD1Client {
   async batch(statements: HttpD1StatementPayload[]): Promise<unknown> {
     const response = await fetch(this.endpoint, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        authorization: `Bearer ${this.token}`,
+        "content-type": "application/json",
+      },
       body: JSON.stringify({ operation: "batch", statements }),
     });
     const payload = (await response.json()) as { error?: string };
@@ -79,8 +84,8 @@ class HttpD1PreparedStatement {
 class HttpD1Database {
   private readonly client: HttpD1Client;
 
-  constructor(endpoint: string) {
-    this.client = new HttpD1Client(endpoint);
+  constructor(endpoint: string, token: string) {
+    this.client = new HttpD1Client(endpoint, token);
   }
 
   prepare(sql: string): HttpD1PreparedStatement {
@@ -95,27 +100,23 @@ class HttpD1Database {
 }
 
 /**
- * Test-only wrapper for isolating Wrangler's local persistence per child process.
- * Without CRM_TEST_D1_PERSIST_PATH, it preserves Wrangler's normal default.
+ * Test-only D1 binding backed by the guarded local Wrangler Worker.
  */
 export function getTestD1PlatformProxy<Env = Record<string, unknown>>(
-  options: GetPlatformProxyOptions = {},
+  _options: GetPlatformProxyOptions = {},
 ): Promise<PlatformProxy<Env>> {
+  void _options;
   const endpoint = process.env.CRM_TEST_D1_HTTP_URL;
-  if (endpoint) {
-    return Promise.resolve({
-      env: { DB: new HttpD1Database(endpoint) },
-      dispose: async () => {},
-    } as unknown as PlatformProxy<Env>);
+  const token = process.env.CRM_TEST_D1_HTTP_TOKEN;
+  if (!endpoint || !token) {
+    throw new Error(
+      "CRM_TEST_D1_HTTP_URL and CRM_TEST_D1_HTTP_TOKEN are required; " +
+        "start the isolated Wrangler D1 harness first",
+    );
   }
 
-  const persistPath = process.env.CRM_TEST_D1_PERSIST_PATH;
-  const configPath =
-    process.env.CRM_TEST_D1_CONFIG_PATH ?? options.configPath;
-  return getPlatformProxy<Env>({
-    ...options,
-    ...(configPath ? { configPath } : {}),
-    remoteBindings: options.remoteBindings ?? false,
-    ...(persistPath ? { persist: { path: persistPath } } : {}),
-  });
+  return Promise.resolve({
+    env: { DB: new HttpD1Database(endpoint, token) },
+    dispose: async () => {},
+  } as unknown as PlatformProxy<Env>);
 }

@@ -1,6 +1,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "crm-mail-test",
+  "main": "workers/mail-test-d1-gateway.ts",
   "compatibility_date": "2025-03-01",
   "compatibility_flags": [
     "nodejs_compat",

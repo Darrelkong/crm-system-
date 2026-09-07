@@ -1,8 +1,10 @@
+import { randomUUID } from "node:crypto";
 import { execFile, spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { createServer } from "node:net";
 import { promisify } from "node:util";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -15,12 +17,13 @@ const defaultFiles = [
   "src/lib/mail/mail-customer-context-resolver.integration.test.ts",
   "src/lib/mail/draft-outbound-revision.integration.test.ts",
   "src/lib/mail/mailbox-management.integration.test.ts",
+  "src/lib/mail/send-operation.integration.test.ts",
+  "src/lib/mail/outbound-background.integration.test.ts",
 ];
 const files = process.argv.slice(2);
 const testFiles = files.length > 0 ? files : defaultFiles;
 const testTimeoutMs = Number(process.env.CRM_TEST_TIMEOUT_MS ?? 120_000);
 const testNamePattern = process.env.CRM_TEST_NAME_PATTERN;
-const gatewayPort = Number(process.env.CRM_TEST_D1_PORT ?? 8799);
 const wranglerCli = path.join(
   repoRoot,
   "node_modules",
@@ -121,7 +124,25 @@ async function stopProcess(child) {
   });
 }
 
-async function startD1Gateway(persistPath) {
+async function allocatePort() {
+  const configuredPort = Number(process.env.CRM_TEST_D1_PORT ?? 0);
+  if (configuredPort > 0) return configuredPort;
+
+  const server = createServer();
+  await new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
+  });
+  const address = server.address();
+  const port = typeof address === "object" && address ? address.port : 0;
+  await new Promise((resolve) => server.close(resolve));
+  if (!port) {
+    throw new Error("Unable to allocate a local test Worker port");
+  }
+  return port;
+}
+
+async function startD1Gateway(persistPath, port, token) {
   const child = spawn(
     process.execPath,
     [
@@ -132,9 +153,11 @@ async function startD1Gateway(persistPath) {
       "wrangler.mail-test.jsonc",
       "--local",
       "--port",
-      String(gatewayPort),
+      String(port),
       "--persist-to",
       persistPath,
+      "--var",
+      `MAIL_TEST_HARNESS_TOKEN:${token}`,
       "--show-interactive-dev-session=false",
       "--log-level",
       "error",
@@ -154,12 +177,15 @@ async function startD1Gateway(persistPath) {
     output += chunk.toString();
   });
 
-  const endpoint = `http://127.0.0.1:${gatewayPort}/`;
+  const endpoint = `http://127.0.0.1:${port}/__test/d1`;
+  const healthEndpoint = `http://127.0.0.1:${port}/__test/healthz`;
   const deadline = Date.now() + 30_000;
   while (Date.now() < deadline) {
     try {
-      const response = await fetch(endpoint);
-      if (response.status === 404 || response.status === 405) {
+      const response = await fetch(healthEndpoint, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (response.ok && (await response.json()).ok === true) {
         return { child, endpoint };
       }
     } catch {
@@ -172,10 +198,13 @@ async function startD1Gateway(persistPath) {
   throw new Error(`D1 gateway did not become ready:\n${output}`);
 }
 
-async function executeD1(endpoint, operation, statement) {
+async function executeD1(endpoint, token, operation, statement) {
   const response = await fetch(endpoint, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      authorization: `Bearer ${token}`,
+      "content-type": "application/json",
+    },
     body: JSON.stringify({ operation, ...statement }),
   });
   const payload = await response.json();
@@ -185,12 +214,12 @@ async function executeD1(endpoint, operation, statement) {
   return payload;
 }
 
-async function verifyD1Integrity(endpoint) {
-  const foreignKeys = await executeD1(endpoint, "all", {
+async function verifyD1Integrity(endpoint, token) {
+  const foreignKeys = await executeD1(endpoint, token, "all", {
     sql: "PRAGMA foreign_key_check",
     params: [],
   });
-  const quickCheck = await executeD1(endpoint, "all", {
+  const quickCheck = await executeD1(endpoint, token, "all", {
     sql: "PRAGMA quick_check",
     params: [],
   });
@@ -204,11 +233,13 @@ async function verifyD1Integrity(endpoint) {
 
 async function runFile(file) {
   const persistPath = await mkdtemp(path.join(os.tmpdir(), "crm-mail-d1-"));
+  const port = await allocatePort();
+  const token = randomUUID();
   let gateway;
   try {
     await createIsolatedDatabase(persistPath);
-    gateway = await startD1Gateway(persistPath);
-    await verifyD1Integrity(gateway.endpoint);
+    gateway = await startD1Gateway(persistPath, port, token);
+    await verifyD1Integrity(gateway.endpoint, token);
     const startedAt = new Date().toISOString();
     console.log(`[mail-d1] START ${file} ${startedAt}`);
     return await new Promise((resolve) => {
@@ -233,6 +264,7 @@ async function runFile(file) {
             CRM_ALLOW_TEST_DB_BIND: "1",
             CRM_TEST_D1_CONFIG_PATH: "wrangler.mail-test.jsonc",
             CRM_TEST_D1_HTTP_URL: gateway.endpoint,
+            CRM_TEST_D1_HTTP_TOKEN: token,
             NODE_ENV: "test",
           },
           stdio: "inherit",

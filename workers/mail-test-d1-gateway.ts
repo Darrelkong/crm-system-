@@ -1,6 +1,7 @@
 interface Env {
   DB: D1Database;
   MAIL_TEST_HARNESS_ENABLED?: string;
+  MAIL_TEST_HARNESS_TOKEN?: string;
   NODE_ENV?: string;
 }
 
@@ -18,7 +19,16 @@ function notFound(): Response {
 function isSafeTestRequest(env: Env): boolean {
   return (
     env.NODE_ENV !== "production" &&
-    env.MAIL_TEST_HARNESS_ENABLED === "true"
+    env.MAIL_TEST_HARNESS_ENABLED === "true" &&
+    typeof env.MAIL_TEST_HARNESS_TOKEN === "string" &&
+    env.MAIL_TEST_HARNESS_TOKEN.length > 0
+  );
+}
+
+function isAuthorized(request: Request, env: Env): boolean {
+  return (
+    request.headers.get("authorization") ===
+    `Bearer ${env.MAIL_TEST_HARNESS_TOKEN}`
   );
 }
 
@@ -35,7 +45,15 @@ async function executeStatement(
 
 const mailTestD1Gateway = {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (!isSafeTestRequest(env) || request.method !== "POST") {
+    if (!isSafeTestRequest(env) || !isAuthorized(request, env)) {
+      return notFound();
+    }
+
+    const pathname = new URL(request.url).pathname;
+    if (pathname === "/__test/healthz" && request.method === "GET") {
+      return Response.json({ ok: true });
+    }
+    if (pathname !== "/__test/d1" || request.method !== "POST") {
       return notFound();
     }
 
