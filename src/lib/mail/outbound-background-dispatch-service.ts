@@ -19,6 +19,10 @@ import { dispatchSendOperation } from "@/lib/mail/send-operation-service";
 import { SYSTEM_MAIL_ACTOR } from "@/lib/mail/system-mail-actor";
 import type { MailTransportAdapter } from "@/lib/mail/transport/mail-transport-adapter";
 import type { MailBackgroundTickCategoryCounters } from "@/lib/mail/mail-background-tick-service";
+import {
+  isLargeAttachmentSendEnabled,
+  resolveLargeAttachmentPublicBaseUrl,
+} from "@/lib/mail/large-attachment/large-attachment-send-service";
 
 export type OutboundBackgroundDispatchDeps = {
   env: Record<string, string | undefined>;
@@ -117,6 +121,11 @@ export async function processOutboundBackgroundDispatchItem(
       expectedOrchestrationVersion: item.orchestrationVersion,
       adapter,
       transportMode,
+      largeAttachmentSendEnabled: isLargeAttachmentSendEnabled(deps.env),
+      largeAttachmentPublicBaseUrl: resolveLargeAttachmentPublicBaseUrl(
+        deps.env,
+      ),
+      runtimeEnv: deps.env,
     });
 
     if (result.status === "accepted" || result.status === "failed" || result.status === "dispatch_uncertain") {

@@ -3,6 +3,7 @@ import type {
   MailTransportSubmitResult,
   NormalizedOutboundSubmission,
 } from "@/lib/mail/transport/mail-transport-adapter";
+import { assertNoLargeAttachmentProviderPayload } from "@/lib/mail/transport/mail-transport-adapter";
 
 export type FakeTransportBehavior =
   | MailTransportSubmitResult
@@ -35,6 +36,7 @@ export class FakeMailTransportAdapter implements MailTransportAdapter {
   async submitOutbound(
     input: NormalizedOutboundSubmission,
   ): Promise<MailTransportSubmitResult> {
+    assertNoLargeAttachmentProviderPayload(input);
     this.capture.callCount += 1;
     this.capture.calls.push(structuredClone(input));
 

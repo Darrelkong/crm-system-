@@ -45,6 +45,12 @@ import { assertStoredFilesEligibleForSend } from "@/lib/mail/stored-file-send-el
 import { runOutboundSendPreflightOrRecordBlock } from "@/lib/mail/outbound-send-preflight-service";
 import { assertOutboundSendRateLimitsWithinPolicy } from "@/lib/mail/outbound-send-rate-limit";
 import {
+  activatePreparedLargeAttachmentTokens,
+  appendPreparedLargeAttachmentRecipientContent,
+  prepareLargeAttachmentRecipientCards,
+  type PreparedLargeAttachmentRecipientToken,
+} from "@/lib/mail/large-attachment/large-attachment-send-service";
+import {
   resolveMailOutboundTransportMode,
   type MailOutboundTransportMode,
 } from "@/lib/mail/outbound-transport-constants";
@@ -276,7 +282,9 @@ export async function validateStaffApprovedSendRevision(
 
   await assertRevisionHashIntegrity(db, revision);
   await assertStaffAuthorSendAuthority(db, revision, actor.audit);
-  await assertStoredFilesEligibleForSend(db, revision.id);
+  await assertStoredFilesEligibleForSend(db, revision.id, {
+    allowUnscannedLargeAttachments: true,
+  });
 
   const recipientRows = await db
     .select({ id: schema.mailOutboundRevisionRecipients.id })
@@ -552,7 +560,9 @@ export async function initiateAdminDirectSend(
 
   await assertRevisionHashIntegrity(db, revision);
   await assertAdminDirectSendAuthority(db, actor, revision);
-  await assertStoredFilesEligibleForSend(db, revision.id);
+  await assertStoredFilesEligibleForSend(db, revision.id, {
+    allowUnscannedLargeAttachments: true,
+  });
 
   const recipientRows = await db
     .select({ id: schema.mailOutboundRevisionRecipients.id })
@@ -704,7 +714,15 @@ async function buildNormalizedSubmission(
   db: Database,
   send: MailSendOperation,
   transportAttemptId: string,
-): Promise<NormalizedOutboundSubmission> {
+  options: {
+    largeAttachmentSendEnabled?: boolean;
+    largeAttachmentPublicBaseUrl?: string | null;
+    runtimeEnv?: Record<string, string | undefined>;
+  } = {},
+): Promise<{
+  submission: NormalizedOutboundSubmission;
+  preparedTokens: PreparedLargeAttachmentRecipientToken[];
+}> {
   const revision = await findRevisionById(db, send.outboundRevisionId);
   if (!revision) {
     throw MailServiceError.notFound("Outbound revision not found");
@@ -764,7 +782,23 @@ async function buildNormalizedSubmission(
     outboundRfcMessageId: rfcIdentity.rfcMessageId,
   });
 
+  const largeAttachmentResult = await prepareLargeAttachmentRecipientCards(db, {
+    revisionId: revision.id,
+    authorizationMode: send.authorizationMode,
+    sentAt: new Date().toISOString(),
+    sendEnabled: options.largeAttachmentSendEnabled,
+    publicBaseUrl: options.largeAttachmentPublicBaseUrl,
+    env: options.runtimeEnv,
+  });
+  const recipientBody = appendPreparedLargeAttachmentRecipientContent({
+    bodyText: revision.bodyText,
+    bodyHtml: revision.bodyHtmlSanitized,
+    cards: largeAttachmentResult.cards,
+  });
+
   return {
+    preparedTokens: largeAttachmentResult.preparedTokens,
+    submission: {
     sendOperationId: send.id,
     transportAttemptId,
     outboundRevisionId: revision.id,
@@ -773,8 +807,8 @@ async function buildNormalizedSubmission(
     fromAddress: revision.fromAddress,
     fromDisplayName: revision.fromDisplayName,
     subject: revision.subject,
-    bodyText: revision.bodyText,
-    bodyHtmlSanitized: revision.bodyHtmlSanitized,
+    bodyText: recipientBody.bodyText,
+    bodyHtmlSanitized: recipientBody.bodyHtml,
     signatureBodyText: snapshot.bodyText,
     signatureBodyHtmlSanitized: snapshot.bodyHtmlSanitized,
     signatureAssets: snapshotAssets.map((asset) => ({
@@ -790,7 +824,9 @@ async function buildNormalizedSubmission(
       address: recipient.address,
       displayName: recipient.displayName,
     })),
-    attachments: attachments.map((attachment) => ({
+    attachments: attachments
+      .filter((attachment) => attachment.deliveryMode !== "large_attachment")
+      .map((attachment) => ({
       revisionAttachmentId: attachment.id,
       storedFileId: attachment.storedFileId,
       contentHash: attachment.contentHash,
@@ -800,9 +836,10 @@ async function buildNormalizedSubmission(
       sortOrder: attachment.sortOrder,
       deliveryMode: attachment.deliveryMode,
       secureExpiryDays: attachment.secureExpiryDays,
-    })),
+      })),
     inReplyTo: threadingFields.inReplyTo,
     referencesHeader: threadingFields.referencesHeader,
+    },
   };
 }
 
@@ -812,6 +849,11 @@ async function claimDispatchAttempt(
   send: MailSendOperation,
   adapter: MailTransportAdapter,
   transportMode: MailOutboundTransportMode,
+  largeAttachmentOptions: {
+    largeAttachmentSendEnabled?: boolean;
+    largeAttachmentPublicBaseUrl?: string | null;
+    runtimeEnv?: Record<string, string | undefined>;
+  } = {},
 ): Promise<{ attempt: MailTransportAttempt; postGuard: SendPostStateGuard }> {
   if (send.status !== "pending") {
     throw MailServiceError.conflict(
@@ -837,6 +879,11 @@ async function claimDispatchAttempt(
     revision,
     adapterProviderId: adapter.providerId,
     transportMode,
+    largeAttachmentSendEnabled:
+      largeAttachmentOptions.largeAttachmentSendEnabled,
+    largeAttachmentPublicBaseUrl:
+      largeAttachmentOptions.largeAttachmentPublicBaseUrl,
+    runtimeEnv: largeAttachmentOptions.runtimeEnv,
   });
 
   const now = new Date().toISOString();
@@ -914,6 +961,7 @@ async function finalizeAttemptAccepted(
     providerMessageId: string;
     diagnostic?: ReturnType<typeof buildOutboundDispatchDiagnosticFromResult>;
   },
+  preparedTokens: PreparedLargeAttachmentRecipientToken[] = [],
 ): Promise<void> {
   const now = new Date().toISOString();
   const expectedVersion = send.orchestrationVersion;
@@ -926,6 +974,12 @@ async function finalizeAttemptAccepted(
     orchestrationVersion: postVersion,
     status: "accepted",
   };
+
+  await activatePreparedLargeAttachmentTokens(db, {
+    preparedTokens,
+    sentAt: now,
+    authorizationMode: send.authorizationMode,
+  });
 
   const results = await runMailBatch(db, [
     db
@@ -1236,6 +1290,9 @@ export async function dispatchSendOperation(
     expectedOrchestrationVersion: number;
     adapter: MailTransportAdapter;
     transportMode?: MailOutboundTransportMode;
+    largeAttachmentSendEnabled?: boolean;
+    largeAttachmentPublicBaseUrl?: string | null;
+    runtimeEnv?: Record<string, string | undefined>;
   },
 ): Promise<SafeSendOperationView> {
   if (!isSystemMailActor(actor)) {
@@ -1275,6 +1332,11 @@ export async function dispatchSendOperation(
     send,
     input.adapter,
     transportMode,
+    {
+      largeAttachmentSendEnabled: input.largeAttachmentSendEnabled,
+      largeAttachmentPublicBaseUrl: input.largeAttachmentPublicBaseUrl,
+      runtimeEnv: input.runtimeEnv,
+    },
   );
 
   const refreshedSend = await findSendById(db, send.id);
@@ -1282,13 +1344,24 @@ export async function dispatchSendOperation(
     throw MailServiceError.notFound("Send operation not found");
   }
 
-  const submission = await buildNormalizedSubmission(db, refreshedSend, attempt.id);
+  const preparedSubmission = await buildNormalizedSubmission(
+    db,
+    refreshedSend,
+    attempt.id,
+    {
+      largeAttachmentSendEnabled: input.largeAttachmentSendEnabled,
+      largeAttachmentPublicBaseUrl: input.largeAttachmentPublicBaseUrl,
+      runtimeEnv: input.runtimeEnv,
+    },
+  );
 
   const dispatchStartedAt = performance.now();
   try {
-    const result = await input.adapter.submitOutbound(submission);
+    const result = await input.adapter.submitOutbound(
+      preparedSubmission.submission,
+    );
     const diagnostic = buildOutboundDispatchDiagnosticFromResult({
-      submission,
+      submission: preparedSubmission.submission,
       provider: input.adapter.providerId,
       result,
       elapsedDispatchMs: performance.now() - dispatchStartedAt,
@@ -1299,11 +1372,18 @@ export async function dispatchSendOperation(
     }
 
     if (result.outcome === "accepted") {
-      await finalizeAttemptAccepted(db, actor, latestSend, attempt, {
-        providerRequestId: result.providerRequestId,
-        providerMessageId: result.providerMessageId,
-        diagnostic,
-      });
+      await finalizeAttemptAccepted(
+        db,
+        actor,
+        latestSend,
+        attempt,
+        {
+          providerRequestId: result.providerRequestId,
+          providerMessageId: result.providerMessageId,
+          diagnostic,
+        },
+        preparedSubmission.preparedTokens,
+      );
     } else if (result.outcome === "temporary_failure") {
       await finalizeAttemptTemporaryFailure(db, actor, latestSend, attempt, {
         errorCode: result.errorCode,
@@ -1334,7 +1414,7 @@ export async function dispatchSendOperation(
     }
     const classification = classifyThrownOutboundProviderDispatchError(error);
     const diagnostic = buildOutboundDispatchDiagnosticFromError({
-      submission,
+      submission: preparedSubmission.submission,
       provider: input.adapter.providerId,
       error,
       elapsedDispatchMs: performance.now() - dispatchStartedAt,
@@ -1358,6 +1438,9 @@ export async function retrySendOperation(
     sendOperationId: string;
     expectedOrchestrationVersion: number;
     adapter: MailTransportAdapter;
+    largeAttachmentSendEnabled?: boolean;
+    largeAttachmentPublicBaseUrl?: string | null;
+    runtimeEnv?: Record<string, string | undefined>;
   },
 ): Promise<SafeSendOperationView> {
   assertMailOutboundApprovalReview(actor);
@@ -1419,6 +1502,9 @@ export async function retrySendOperation(
     sendOperationId: send.id,
     expectedOrchestrationVersion: send.orchestrationVersion,
     adapter: input.adapter,
+    largeAttachmentSendEnabled: input.largeAttachmentSendEnabled,
+    largeAttachmentPublicBaseUrl: input.largeAttachmentPublicBaseUrl,
+    runtimeEnv: input.runtimeEnv,
   });
 }
 

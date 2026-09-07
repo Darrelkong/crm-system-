@@ -27,6 +27,7 @@ import type {
   NormalizedOutboundRecipient,
   NormalizedOutboundSubmission,
 } from "@/lib/mail/transport/mail-transport-adapter";
+import { assertNoLargeAttachmentProviderPayload } from "@/lib/mail/transport/mail-transport-adapter";
 import {
   buildOutboundDispatchDiagnostic,
   classifyOutboundProviderError,
@@ -515,6 +516,7 @@ export function createCloudflareEmailOutboundTransport(
     async submitOutbound(
       submission: NormalizedOutboundSubmission,
     ): Promise<MailTransportSubmitResult> {
+      assertNoLargeAttachmentProviderPayload(submission);
       capture.callCount += 1;
 
       if (transportMode === "disabled" || transportMode === "proof_only") {

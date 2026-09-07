@@ -54,6 +54,20 @@ export type NormalizedOutboundSubmission = {
   referencesHeader: string | null;
 };
 
+export function assertNoLargeAttachmentProviderPayload(
+  submission: Pick<NormalizedOutboundSubmission, "attachments">,
+): void {
+  if (
+    submission.attachments.some(
+      (attachment) => attachment.deliveryMode === "large_attachment",
+    )
+  ) {
+    throw new Error(
+      "Large attachments must be represented by recipient links, never provider MIME attachments",
+    );
+  }
+}
+
 export type MailTransportSubmitAccepted = {
   outcome: "accepted";
   providerRequestId: string;

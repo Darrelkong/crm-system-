@@ -11,6 +11,7 @@ const SEND_ELIGIBLE_SCAN_STATUS = "clean" as const;
 export async function assertStoredFilesEligibleForSend(
   db: Database,
   revisionId: string,
+  options: { allowUnscannedLargeAttachments?: boolean } = {},
 ): Promise<void> {
   const [revision] = await db
     .select({
@@ -25,7 +26,10 @@ export async function assertStoredFilesEligibleForSend(
   }
 
   const attachmentRows = await db
-    .select({ storedFileId: schema.mailOutboundRevisionAttachments.storedFileId })
+    .select({
+      storedFileId: schema.mailOutboundRevisionAttachments.storedFileId,
+      deliveryMode: schema.mailOutboundRevisionAttachments.deliveryMode,
+    })
     .from(schema.mailOutboundRevisionAttachments)
     .where(eq(schema.mailOutboundRevisionAttachments.revisionId, revisionId));
 
@@ -59,6 +63,9 @@ export async function assertStoredFilesEligibleForSend(
     .where(inArray(schema.mailStoredFiles.id, storedFileIds));
 
   const byId = new Map(storedFiles.map((file) => [file.id, file]));
+  const attachmentModeByStoredFileId = new Map(
+    attachmentRows.map((row) => [row.storedFileId, row.deliveryMode]),
+  );
 
   for (const fileId of storedFileIds) {
     const file = byId.get(fileId);
@@ -67,7 +74,14 @@ export async function assertStoredFilesEligibleForSend(
         "Referenced stored file is missing — send blocked",
       );
     }
-    if (file.securityScanStatus !== SEND_ELIGIBLE_SCAN_STATUS) {
+    const allowUnscannedLarge =
+      options.allowUnscannedLargeAttachments === true &&
+      attachmentModeByStoredFileId.get(fileId) === "large_attachment" &&
+      file.securityScanStatus === "unscanned";
+    if (
+      file.securityScanStatus !== SEND_ELIGIBLE_SCAN_STATUS &&
+      !allowUnscannedLarge
+    ) {
       throw MailServiceError.forbidden(
         `Stored file ${fileId} is not send-eligible (scan status: ${file.securityScanStatus})`,
       );

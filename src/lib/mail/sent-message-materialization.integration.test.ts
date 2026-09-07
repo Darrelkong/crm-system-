@@ -41,6 +41,12 @@ import {
   sentMessageMaterializationTestHooks,
 } from "@/lib/mail/sent-message-materialization-service";
 import { FakeMailTransportAdapter } from "@/lib/mail/transport/fake-mail-transport-adapter";
+import {
+  authorizeLargeAttachmentPublicDownload,
+  createLargeAttachmentGatewayAuthorizationRepository,
+} from "@/lib/mail/large-attachment/large-attachment-download-authorization-service";
+import { hashLargeAttachmentDownloadToken } from "@/lib/mail/large-attachment/large-attachment-download-token";
+import { LARGE_ATTACHMENT_NOTICE_VERSION } from "@/lib/mail/large-attachment/large-attachment-risk-acknowledgement";
 
 const FIXTURE = "mail-phase2c8";
 
@@ -241,6 +247,23 @@ async function cleanupFixtures(db: TestDb) {
     await db
       .delete(schema.mailSignatureSnapshots)
       .where(inArray(schema.mailSignatureSnapshots.id, snapshotIds));
+  }
+
+  const fixtureStoredFiles = await db
+    .select({ id: schema.mailStoredFiles.id })
+    .from(schema.mailStoredFiles)
+    .where(like(schema.mailStoredFiles.id, `${FIXTURE}%`));
+  const fixtureStoredFileIds = fixtureStoredFiles.map((row) => row.id);
+  if (fixtureStoredFileIds.length) {
+    await db
+      .delete(schema.mailLargeAttachmentAcknowledgements)
+      .where(inArray(schema.mailLargeAttachmentAcknowledgements.storedFileId, fixtureStoredFileIds));
+    await db
+      .delete(schema.mailLargeAttachmentLifecycle)
+      .where(inArray(schema.mailLargeAttachmentLifecycle.storedFileId, fixtureStoredFileIds));
+    await db
+      .delete(schema.mailLargeAttachmentUploadSessions)
+      .where(inArray(schema.mailLargeAttachmentUploadSessions.storedFileId, fixtureStoredFileIds));
   }
 
   if (draftIds.length) {
@@ -893,6 +916,330 @@ describe("sent message materialization integration", () => {
     assert.equal(attachments[0]?.displayFilename, "First.pdf");
     assert.equal(attachments[1]?.deliveryMode, "secure_file");
     assert.equal(attachments[1]?.secureExpiryDays, 7);
+  });
+
+  it("delivers large attachments as Gateway links and excludes them from MIME", async () => {
+    await cleanupFixtures(db);
+    const { mailbox, identity } = await setupAdminComposeFixture(db);
+    const draft = await createSendReadyDraft(
+      db,
+      adminActor,
+      mailbox.id,
+      identity.id,
+      "Large link delivery",
+    );
+    const now = new Date().toISOString();
+    const storedFileId = `${FIXTURE}-large-stored`;
+    const secondStoredFileId = `${FIXTURE}-large-stored-2`;
+    const normalStoredFileId = `${FIXTURE}-normal-stored`;
+    const uploadSessionId = `${FIXTURE}-large-session`;
+    const secondUploadSessionId = `${FIXTURE}-large-session-2`;
+    const lifecycleId = `${FIXTURE}-large-lifecycle`;
+    const secondLifecycleId = `${FIXTURE}-large-lifecycle-2`;
+    const acknowledgementId = `${FIXTURE}-large-ack`;
+    const secondAcknowledgementId = `${FIXTURE}-large-ack-2`;
+    const contentHash = "c".repeat(64);
+    const secondContentHash = "e".repeat(64);
+    const storageKey = `mail/large-attachments/2026/09/${crypto.randomUUID()}`;
+    const secondStorageKey = `mail/large-attachments/2026/09/${crypto.randomUUID()}`;
+
+    await db.insert(schema.mailStoredFiles).values({
+      id: storedFileId,
+      contentHash,
+      originalFilename: "IMG_5940.mov",
+      mimeType: "video/quicktime",
+      sizeBytes: 17_581_697,
+      storageProvider: "r2",
+      storageBucket: "crm-mail-large-attachments",
+      storageKey,
+      securityScanStatus: "unscanned",
+      createdAt: now,
+    });
+    await db.insert(schema.mailStoredFiles).values({
+      id: normalStoredFileId,
+      contentHash: "d".repeat(64),
+      originalFilename: "brief.pdf",
+      mimeType: "application/pdf",
+      sizeBytes: 2_048,
+      storageProvider: "r2",
+      storageBucket: "crm-attachments",
+      storageKey: `${FIXTURE}/brief.pdf`,
+      securityScanStatus: "clean",
+      securityScannedAt: now,
+      createdAt: now,
+    });
+    await db.insert(schema.mailStoredFiles).values({
+      id: secondStoredFileId,
+      contentHash: secondContentHash,
+      originalFilename: "clip-2.mov",
+      mimeType: "video/quicktime",
+      sizeBytes: 18_000_000,
+      storageProvider: "r2",
+      storageBucket: "crm-mail-large-attachments",
+      storageKey: secondStorageKey,
+      securityScanStatus: "unscanned",
+      createdAt: now,
+    });
+    await db.insert(schema.mailDraftAttachments).values({
+      id: `${FIXTURE}-large-draft-attachment`,
+      draftId: draft.id,
+      storedFileId,
+      displayFilename: "IMG_5940.mov",
+      sortOrder: 0,
+      deliveryMode: "large_attachment",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailDraftAttachments).values({
+      id: `${FIXTURE}-normal-draft-attachment`,
+      draftId: draft.id,
+      storedFileId: normalStoredFileId,
+      displayFilename: "brief.pdf",
+      sortOrder: 1,
+      deliveryMode: "direct_attachment",
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailDraftAttachments).values({
+      id: `${FIXTURE}-large-draft-attachment-2`,
+      draftId: draft.id,
+      storedFileId: secondStoredFileId,
+      displayFilename: "clip-2.mov",
+      sortOrder: 2,
+      deliveryMode: "large_attachment",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    process.env.MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED = "true";
+    const revision = await createAdminDirectRevisionFromDraft(db, adminActor, {
+      draftId: draft.id,
+      expectedAutosaveVersion: draft.autosaveVersion,
+    });
+    await db.insert(schema.mailLargeAttachmentUploadSessions).values({
+      id: uploadSessionId,
+      actorUserId: SEED_IDS.admin,
+      draftId: draft.id,
+      mailboxId: mailbox.id,
+      storedFileId,
+      storageKey,
+      expectedFilename: "IMG_5940.mov",
+      expectedMimeType: "video/quicktime",
+      expectedSizeBytes: 17_581_697,
+      maxSizeBytes: 100 * 1024 * 1024,
+      declaredContentHash: contentHash,
+      expiresAt: "2026-09-13T00:00:00.000Z",
+      finalizedAt: now,
+      invalidatedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailLargeAttachmentUploadSessions).values({
+      id: secondUploadSessionId,
+      actorUserId: SEED_IDS.admin,
+      draftId: draft.id,
+      mailboxId: mailbox.id,
+      storedFileId: secondStoredFileId,
+      storageKey: secondStorageKey,
+      expectedFilename: "clip-2.mov",
+      expectedMimeType: "video/quicktime",
+      expectedSizeBytes: 18_000_000,
+      maxSizeBytes: 100 * 1024 * 1024,
+      declaredContentHash: secondContentHash,
+      expiresAt: "2026-09-13T00:00:00.000Z",
+      finalizedAt: now,
+      invalidatedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailLargeAttachmentLifecycle).values({
+      id: lifecycleId,
+      storedFileId,
+      status: "temporary",
+      uploadedAt: now,
+      temporaryExpiresAt: "2026-09-08T00:00:00.000Z",
+      approvalHoldStartedAt: null,
+      approvalAbsoluteExpiresAt: null,
+      sentAt: null,
+      recipientExpiresAt: null,
+      deletedAt: null,
+      deleteReason: null,
+      downloadTokenHash: null,
+      downloadCount: 0,
+      lastDownloadedAt: null,
+      declaredContentHash: contentHash,
+      storageVersion: "version-1",
+      storageEtag: "etag-1",
+      finalizedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailLargeAttachmentLifecycle).values({
+      id: secondLifecycleId,
+      storedFileId: secondStoredFileId,
+      status: "temporary",
+      uploadedAt: now,
+      temporaryExpiresAt: "2026-09-08T00:00:00.000Z",
+      approvalHoldStartedAt: null,
+      approvalAbsoluteExpiresAt: null,
+      sentAt: null,
+      recipientExpiresAt: null,
+      deletedAt: null,
+      deleteReason: null,
+      downloadTokenHash: null,
+      downloadCount: 0,
+      lastDownloadedAt: null,
+      declaredContentHash: secondContentHash,
+      storageVersion: "version-2",
+      storageEtag: "etag-2",
+      finalizedAt: now,
+      createdAt: now,
+      updatedAt: now,
+    });
+    await db.insert(schema.mailLargeAttachmentAcknowledgements).values({
+      id: acknowledgementId,
+      uploadSessionId,
+      lifecycleId,
+      storedFileId,
+      userId: SEED_IDS.admin,
+      draftId: draft.id,
+      mailboxId: mailbox.id,
+      noticeVersion: LARGE_ATTACHMENT_NOTICE_VERSION,
+      acknowledgedAt: now,
+      createdAt: now,
+    });
+    await db.insert(schema.mailLargeAttachmentAcknowledgements).values({
+      id: secondAcknowledgementId,
+      uploadSessionId: secondUploadSessionId,
+      lifecycleId: secondLifecycleId,
+      storedFileId: secondStoredFileId,
+      userId: SEED_IDS.admin,
+      draftId: draft.id,
+      mailboxId: mailbox.id,
+      noticeVersion: LARGE_ATTACHMENT_NOTICE_VERSION,
+      acknowledgedAt: now,
+      createdAt: now,
+    });
+
+    const initiated = await initiateAdminDirectSend(db, adminActor, {
+      revisionId: revision.id,
+      idempotencyKey: `${FIXTURE}-large-link-send`,
+    });
+    const adapter = new FakeMailTransportAdapter().queueBehavior(
+      { outcome: "temporary_failure", errorCode: "TEMP" },
+      {
+        outcome: "accepted",
+        providerRequestId: "large-retry-req",
+        providerMessageId: "large-retry-msg",
+      },
+    );
+    await assert.rejects(
+      () =>
+        dispatchSendOperation(db, adminActor, {
+          sendOperationId: initiated.id,
+          expectedOrchestrationVersion: initiated.orchestrationVersion,
+          adapter,
+          largeAttachmentSendEnabled: false,
+          largeAttachmentPublicBaseUrl: "https://files.test",
+        }),
+      /link delivery is disabled/i,
+    );
+    assert.equal(adapter.capture.calls.length, 0);
+    const afterTemporaryFailure = await dispatchSendOperation(db, adminActor, {
+      sendOperationId: initiated.id,
+      expectedOrchestrationVersion: initiated.orchestrationVersion,
+      adapter,
+      largeAttachmentSendEnabled: true,
+      largeAttachmentPublicBaseUrl: "https://files.test",
+    });
+    assert.equal(afterTemporaryFailure.status, "pending");
+    const afterFailureLifecycles = await db
+      .select()
+      .from(schema.mailLargeAttachmentLifecycle)
+      .where(
+        inArray(schema.mailLargeAttachmentLifecycle.id, [
+          lifecycleId,
+          secondLifecycleId,
+        ]),
+      );
+    assert.equal(afterFailureLifecycles.length, 2);
+    for (const lifecycle of afterFailureLifecycles) {
+      assert.equal(lifecycle.status, "temporary");
+      assert.equal(lifecycle.downloadTokenHash, null);
+    }
+
+    const dispatched = await retrySendOperation(db, adminActor, {
+      sendOperationId: initiated.id,
+      expectedOrchestrationVersion: afterTemporaryFailure.orchestrationVersion,
+      adapter,
+      largeAttachmentSendEnabled: true,
+      largeAttachmentPublicBaseUrl: "https://files.test",
+    });
+    assert.equal(dispatched.status, "accepted");
+    assert.equal(adapter.capture.calls.length, 2);
+    const submission = adapter.capture.calls[1];
+    assert.ok(submission);
+    assert.equal(submission.attachments.length, 1);
+    assert.equal(submission.attachments[0]?.displayFilename, "brief.pdf");
+    assert.equal(submission.attachments[0]?.deliveryMode, "direct_attachment");
+    assert.equal(
+      submission.bodyText?.match(/Download: https:\/\/files\.test\/f\//g)
+        ?.length,
+      2,
+    );
+    assert.match(submission.bodyHtmlSanitized ?? "", /IMG_5940\.mov/);
+    assert.match(submission.bodyHtmlSanitized ?? "", /clip-2\.mov/);
+    assert.match(submission.bodyHtmlSanitized ?? "", /not automatically scanned/i);
+
+    const lifecycles = await db
+      .select()
+      .from(schema.mailLargeAttachmentLifecycle)
+      .where(
+        inArray(schema.mailLargeAttachmentLifecycle.id, [
+          lifecycleId,
+          secondLifecycleId,
+        ]),
+      );
+    assert.equal(lifecycles.length, 2);
+    for (const lifecycle of lifecycles) {
+      assert.equal(lifecycle.status, "sent");
+      assert.ok(lifecycle.downloadTokenHash);
+      assert.ok(lifecycle.recipientExpiresAt);
+    }
+
+    const result = await materializeAcceptedOutboundSend(db, initiated.id);
+    const messageAttachments = await db
+      .select()
+      .from(schema.mailMessageAttachments)
+      .where(eq(schema.mailMessageAttachments.messageId, result.message.id))
+      .orderBy(asc(schema.mailMessageAttachments.sortOrder));
+    assert.equal(messageAttachments.length, 3);
+    const largeMessageAttachments = messageAttachments.filter(
+      (attachment) => attachment.deliveryMode === "large_attachment",
+    );
+    assert.equal(largeMessageAttachments.length, 2);
+    assert.deepEqual(
+      largeMessageAttachments.map((attachment) => attachment.displayFilename),
+      ["IMG_5940.mov", "clip-2.mov"],
+    );
+
+    const rawTokens = [
+      ...(submission.bodyText ?? "").matchAll(
+        /Download: https:\/\/files\.test\/f\/([A-Za-z0-9_-]{22})/g,
+      ),
+    ].map((match) => match[1]);
+    assert.equal(rawTokens.length, 2);
+    const gatewayRepository =
+      createLargeAttachmentGatewayAuthorizationRepository(db);
+    const gatewayResults = await Promise.all(
+      rawTokens.map((rawToken) =>
+        authorizeLargeAttachmentPublicDownload(gatewayRepository, {
+          tokenHash: hashLargeAttachmentDownloadToken(rawToken ?? ""),
+          trustNowIso: now,
+        }),
+      ),
+    );
+    assert.equal(gatewayResults.every((result) => result.authorized), true);
   });
 
   it("uses frozen revision signature snapshot not live signature version", async () => {

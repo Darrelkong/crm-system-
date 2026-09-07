@@ -38,6 +38,9 @@ export type OutboundSendPreflightInput = {
   revision: MailOutboundRevision;
   adapterProviderId: string;
   transportMode: MailOutboundTransportMode;
+  largeAttachmentSendEnabled?: boolean;
+  largeAttachmentPublicBaseUrl?: string | null;
+  runtimeEnv?: Record<string, string | undefined>;
 };
 
 export type OutboundSendPreflightBlockReason = {
@@ -291,9 +294,18 @@ export async function assertOutboundSendPreflight(
   assertTransportModeAllowsDispatch({ transportMode, adapterProviderId });
 
   await assertRevisionHashIntegrity(db, revision);
-  await assertStoredFilesEligibleForSend(db, revision.id);
+  const largeAttachmentEligibility =
+    await assertRevisionHasNoLargeAttachmentsPendingGateway(db, revision.id, {
+      authorizationMode: send.authorizationMode,
+      sendEnabled: input.largeAttachmentSendEnabled,
+      publicBaseUrl: input.largeAttachmentPublicBaseUrl,
+      env: input.runtimeEnv,
+    });
+  await assertStoredFilesEligibleForSend(db, revision.id, {
+    allowUnscannedLargeAttachments:
+      largeAttachmentEligibility.hasLargeAttachments,
+  });
   await assertRevisionOrdinaryEmailAttachmentsWithinPolicy(db, revision.id);
-  await assertRevisionHasNoLargeAttachmentsPendingGateway(db, revision.id);
 
   if (send.authorizationMode === "staff_approved") {
     await loadApprovedApprovalForRevision(db, revision);
