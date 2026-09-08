@@ -23,6 +23,10 @@ MAIL_NOTIFICATION_VERIFICATION_SECRET=change-me-to-a-long-random-string
 # Debug API（生产环境默认禁用，仅 Admin 排障时可设为 true）
 # ENABLE_DEBUG_API=false
 
+# Local preview only: enable POST /local-preview/auth/simulate-idle-expiry
+# Never enable this in production; the route is always unavailable there.
+# CRM_LOCAL_PREVIEW_AUTH_SIMULATION_ENABLED=false
+
 # AI provider API key（Phase 1B-1；仅 server-side Secret，勿提交到 git）
 # AI_API_KEY=
 

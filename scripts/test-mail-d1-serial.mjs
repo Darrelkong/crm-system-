@@ -33,12 +33,12 @@ const wranglerCli = path.join(
 );
 const seedSql = `
 INSERT INTO users (
-  id, email, display_name, password_hash, role, is_active,
+  id, email, display_name, password_hash, role, cloudflare_access_email, is_active,
   failed_login_attempts, locked_until, created_at, updated_at
 ) VALUES
-  ('11111111-1111-1111-1111-111111111101', 'admin@isolated.test', 'Isolated Admin', '$isolated$', 'admin', 1, 0, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
-  ('11111111-1111-1111-1111-111111111102', 'staff-a@isolated.test', 'Isolated Staff A', '$isolated$', 'staff', 1, 0, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
-  ('11111111-1111-1111-1111-111111111103', 'staff-b@isolated.test', 'Isolated Staff B', '$isolated$', 'staff', 1, 0, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
+  ('11111111-1111-1111-1111-111111111101', 'admin@isolated.test', 'Isolated Admin', '$isolated$', 'admin', 'admin@isolated.test', 1, 0, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+  ('11111111-1111-1111-1111-111111111102', 'staff-a@isolated.test', 'Isolated Staff A', '$isolated$', 'staff', 'staff-a@isolated.test', 1, 0, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z'),
+  ('11111111-1111-1111-1111-111111111103', 'staff-b@isolated.test', 'Isolated Staff B', '$isolated$', 'staff', 'staff-b@isolated.test', 1, 0, NULL, '2026-01-01T00:00:00.000Z', '2026-01-01T00:00:00.000Z');
 `;
 
 async function createIsolatedDatabase(persistPath) {

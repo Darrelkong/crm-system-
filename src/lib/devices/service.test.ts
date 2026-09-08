@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import type { User } from "../../../drizzle/schema/users";
 import { bindTestDatabase } from "@/lib/db";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import { hashDeviceId } from "@/lib/auth/device";
 import {
   approveAuthorizedDevice,
@@ -122,9 +122,7 @@ async function cleanupDevices() {
 describe("device authorization service", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy({
-      configPath: new URL("../../../wrangler.jsonc", import.meta.url).pathname,
-    });
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>();
     db = drizzle(proxy.env.DB, { schema });
     disposeProxy = proxy.dispose;
     bindTestDatabase(db);

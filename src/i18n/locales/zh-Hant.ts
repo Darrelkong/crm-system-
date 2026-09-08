@@ -112,11 +112,13 @@ const zhHant: Messages = {
   },
   security: {
     accessExpired: "Access 驗證已逾時，請重新驗證後再登入 CRM。",
+    accessExpiredTitle: "Access 驗證已逾時",
     sessionExpired:
-      "CRM 工作階段因長時間未操作已逾時，請重新完成 Access 驗證。",
+      "因長時間未操作，您的 CRM 登入狀態已失效。Cloudflare Access 驗證仍然有效，請重新登入 CRM。",
     sessionRevokedByOtherDevice:
       "您的帳號已在其他設備登入，當前會話已失效，請重新登入。",
-    sessionTimedOutReLogin: "登入已超時，請重新登入。",
+    sessionTimedOutReLogin:
+      "CRM 登入狀態已失效，ACC 驗證仍有效。請重新登入。",
     sessionInvalidReLogin: "登入已失效，請重新登入。",
     deviceAuthorizationRevoked: "此設備授權已被撤銷，請聯繫管理員。",
     sessionRevokedTitle: "工作階段已失效",
@@ -127,7 +129,7 @@ const zhHant: Messages = {
     reloginRequired: "請先重新完成 Cloudflare Access 驗證，再登入 CRM。",
     verifyAccessAgain: "重新驗證 Access",
     sessionTimeoutTitle: "工作階段已逾時",
-    timeoutReverifyHint: "如果多次未重新登入，系統將重新進行安全驗證。",
+    crmSessionTimeoutTitle: "登入已逾時",
     accessReverifyRequired: "安全設定已更新，請重新完成驗證後登入。",
     watermarkConfidential: "最高保密 · 嚴禁洩露",
   },
@@ -3400,20 +3402,20 @@ const zhHant: Messages = {
     globalIdleExemption: {
       title: "免除 30 分鐘無操作自動退出",
       description:
-        "開啟後，所有已登入及後續登入的使用者將不再因 CRM 連續 30 分鐘無操作而自動退出。設備授權、帳戶停用、Session 安全檢查及 Cloudflare Access 驗證仍然有效。",
+        "開啟後，所有已登入及後續登入的使用者將不再因 CRM 連續 30 分鐘無操作而自動退出。關閉後，30 分鐘無操作僅會結束 CRM 登入狀態，不會主動註銷仍然有效的 Cloudflare Access 授權。設備授權、帳戶停用及 Session 安全檢查仍然有效。",
       statusOn: "已開啟",
       statusOff: "已關閉",
       loading: "載入中…",
       enableSuccess: "已開啟全局免超時。使用者仍會受到其他安全規則保護。",
       disableSuccess:
-        "已恢復 30 分鐘無操作退出。所有非 Admin 使用者需要重新完成 Access 驗證。",
+        "已恢復 30 分鐘無操作退出；無操作只會結束 CRM 登入狀態。",
       saveFailed: "安全設定更新失敗，請稍後重試。",
       loadFailed: "無法載入全局免超時設定，請稍後重試。",
       saving: "處理中…",
       confirmTitle: "確認恢復 30 分鐘自動退出？",
       confirmDescription:
-        "關閉後，所有非 Admin 使用者的現有 CRM Session 將立即失效，並需要重新完成 Cloudflare Access 驗證。\n\nAdmin 的當前 Session 不會受到影響。此操作不會停用帳戶，也不會刪除任何客戶或業務資料。",
-      confirmSubmit: "確認關閉並要求重新驗證",
+        "關閉後，CRM 會恢復 30 分鐘無操作自動退出。無操作只會結束 CRM 登入狀態，不會主動註銷仍然有效的 Cloudflare Access 授權。\n\n此操作不會停用帳戶，也不會刪除任何客戶或業務資料。",
+      confirmSubmit: "確認關閉",
       confirmCancel: "取消",
     },
     publicPoolQuickEntry: {

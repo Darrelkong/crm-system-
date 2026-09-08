@@ -9,18 +9,15 @@ export type AccessReverifyRedirectPlan =
   | {
       kind: "access_logout";
       clearSessionCookie: true;
-      incrementIdleRelogin: false;
     }
   | {
       kind: "local_login";
       destinationPath: string;
       clearSessionCookie: true;
-      incrementIdleRelogin: false;
     }
   | {
       kind: "local_login_passthrough";
       clearSessionCookie: true;
-      incrementIdleRelogin: false;
     };
 
 /**
@@ -39,21 +36,18 @@ export function planAccessReverifyRedirect(input: {
       return {
         kind: "local_login_passthrough",
         clearSessionCookie: true,
-        incrementIdleRelogin: false,
       };
     }
     return {
       kind: "local_login",
       destinationPath: `/login?session_end=${ACCESS_REVERIFY_SESSION_END}`,
       clearSessionCookie: true,
-      incrementIdleRelogin: false,
     };
   }
 
   return {
     kind: "access_logout",
     clearSessionCookie: true,
-    incrementIdleRelogin: false,
   };
 }
 

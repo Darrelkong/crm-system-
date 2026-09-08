@@ -287,14 +287,18 @@ export function LoginForm() {
               )}
 
               {sessionEndNotice && (
-                <div className="login-page__notice alert-warning">
-                  <p>{sessionEndNotice}</p>
-                  {isTimeoutVisit && (
-                    <p className="login-page__notice-hint">
-                      {t("security.timeoutReverifyHint")}
-                    </p>
-                  )}
-                </div>
+                isTimeoutVisit ? (
+                  <div className="login-page__timeout-card">
+                    <div className="login-page__timeout-title">
+                      {t("security.crmSessionTimeoutTitle")}
+                    </div>
+                    <div className="login-page__timeout-body">{sessionEndNotice}</div>
+                  </div>
+                ) : (
+                  <div className="login-page__notice alert-warning">
+                    <p>{sessionEndNotice}</p>
+                  </div>
+                )
               )}
 
               {error && <p className="login-page__error">{error}</p>}

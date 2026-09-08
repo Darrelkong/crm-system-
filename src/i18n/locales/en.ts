@@ -123,11 +123,13 @@ const en = {
   security: {
     accessExpired:
       "Your Access verification has expired. Please verify again before signing in to CRM.",
+    accessExpiredTitle: "Access verification expired",
     sessionExpired:
-      "Your CRM session has expired due to inactivity. Please verify through Access again.",
+      "Your CRM login has expired due to inactivity. Your Cloudflare Access verification is still valid; please sign in to CRM again.",
     sessionRevokedByOtherDevice:
       "Your account was signed in on another device. This session is no longer valid. Please sign in again.",
-    sessionTimedOutReLogin: "Your session has timed out. Please sign in again.",
+    sessionTimedOutReLogin:
+      "Your CRM login has expired. Your Cloudflare Access verification is still valid. Please sign in again.",
     sessionInvalidReLogin:
       "Your session is no longer valid. Please sign in again.",
     deviceAuthorizationRevoked:
@@ -141,8 +143,7 @@ const en = {
       "Please complete Cloudflare Access verification again before signing in to CRM.",
     verifyAccessAgain: "Verify Access again",
     sessionTimeoutTitle: "Session expired",
-    timeoutReverifyHint:
-      "If you do not sign in again after multiple attempts, security verification will restart.",
+    crmSessionTimeoutTitle: "Login expired",
     accessReverifyRequired:
       "Security settings have changed. Please verify your access again before signing in.",
     watermarkConfidential: "STRICTLY CONFIDENTIAL · DO NOT DISCLOSE",
@@ -3611,22 +3612,22 @@ const en = {
     globalIdleExemption: {
       title: "Exempt users from the 30-minute inactivity logout",
       description:
-        "When enabled, current and future users will not be logged out solely because the CRM has been inactive for 30 minutes. Device authorization, account status, session security checks, and Cloudflare Access verification remain active.",
+        "When enabled, current and future users will not be logged out solely because the CRM has been inactive for 30 minutes. When disabled, 30 minutes of inactivity ends only the CRM login and does not actively log out a still-valid Cloudflare Access authorization. Device authorization, account status, and session security checks remain active.",
       statusOn: "Enabled",
       statusOff: "Disabled",
       loading: "Loading…",
       enableSuccess:
         "Global inactivity exemption has been enabled. Other security protections remain active.",
       disableSuccess:
-        "The 30-minute inactivity logout has been restored. All non-Admin users must verify their Access again.",
+        "The 30-minute inactivity logout has been restored; inactivity ends only the CRM login.",
       saveFailed: "Unable to update the security setting. Please try again.",
       loadFailed:
         "Unable to load the global inactivity exemption setting. Please try again.",
       saving: "Working…",
       confirmTitle: "Restore the 30-minute inactivity logout?",
       confirmDescription:
-        "Disabling this setting will immediately invalidate all current non-Admin CRM sessions. Those users must verify their Cloudflare Access again.\n\nThe current Admin session will remain active. This action does not disable user accounts or delete any customer or business data.",
-      confirmSubmit: "Disable and require re-verification",
+        "Disabling this setting restores the 30-minute CRM inactivity logout. Inactivity ends only the CRM login and does not actively log out a still-valid Cloudflare Access authorization.\n\nThis action does not disable user accounts or delete any customer or business data.",
+      confirmSubmit: "Disable",
       confirmCancel: "Cancel",
     },
     publicPoolQuickEntry: {

@@ -18,10 +18,6 @@ import {
 } from "@/lib/auth/constants";
 import { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";
 import {
-  applyIdleReloginCookieUpdateToStore,
-  resolveIdleReloginStateFromRequest,
-} from "@/lib/auth/idle-relogin-cookie";
-import {
   evaluateAccessLoginEmailBinding,
   shouldRequireCloudflareAccess,
   validateAccessLoginWindowFromRequest,
@@ -50,11 +46,6 @@ import {
   recordAdminDeviceOnLogin,
 } from "@/lib/devices/service";
 import { DEVICE_AUDIT_ACTIONS } from "@/lib/devices/constants";
-import {
-  evaluateStaffLoginAccessEpochGate,
-  getGlobalIdlePolicy,
-} from "@/lib/settings/global-idle-exemption";
-
 export const dynamic = "force-dynamic";
 
 type LoginBody = {
@@ -94,7 +85,6 @@ export async function handlePostLogin(
 
   let accessCheckSkipped = true;
   let verifiedAccessEmail: string | null = null;
-  let verifiedAccessIat: number | null = null;
 
   if (shouldRequireCloudflareAccess(request.headers)) {
     const accessWindow = await validateAccessLoginWindowFromRequest(request);
@@ -111,25 +101,7 @@ export async function handlePostLogin(
 
     accessCheckSkipped = accessWindow.skipped;
     verifiedAccessEmail = accessWindow.email ?? null;
-    verifiedAccessIat = accessWindow.iat;
 
-    const idleState = await resolveIdleReloginStateFromRequest(request);
-    if (idleState.cookieUpdate) {
-      applyIdleReloginCookieUpdateToStore(
-        cookieStore,
-        idleState.cookieUpdate,
-      );
-    }
-    if (idleState.requiresAccessReverify) {
-      return Response.json(
-        {
-          error: "Access reverify required after repeated idle logout",
-          errorCode: AUTH_ERROR_CODES.ACCESS_VERIFICATION_EXPIRED,
-          redirect: getPostLogoutRedirectPath(),
-        },
-        { status: 403 },
-      );
-    }
   }
 
   const body = (await request.json()) as LoginBody;
@@ -320,34 +292,6 @@ export async function handlePostLogin(
 
   await resetLoginFailures(user.id);
   await clearIpEmailRestriction(ipAddress);
-
-  // Staff Access JWT iat must be after staff_access_reverify_after (when active).
-  // Runs before any device DB writes or createSession / session cookie.
-  const idlePolicy = await getGlobalIdlePolicy(db);
-  const accessEpochGate = evaluateStaffLoginAccessEpochGate({
-    role: user.role,
-    accessCheckRequired: !accessCheckSkipped,
-    accessIat: verifiedAccessIat,
-    reverifyAfterUnixSec: idlePolicy.staffAccessReverifyAfter,
-  });
-  if (!accessEpochGate.allowed) {
-    await writeLoginLog({
-      userId: user.id,
-      emailAttempted: email,
-      success: false,
-      failureReason: "access_reverify_required",
-      ipAddress,
-      userAgent,
-    });
-    return Response.json(
-      {
-        error: accessEpochGate.error,
-        errorCode: AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
-        redirect: getPostLogoutRedirectPath(),
-      },
-      { status: 401 },
-    );
-  }
 
   const { deviceId } = resolveDeviceIdFromRequest(request);
   const deviceIdHash = await hashDeviceId(deviceId);

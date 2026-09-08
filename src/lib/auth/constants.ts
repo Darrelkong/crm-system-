@@ -4,9 +4,6 @@ export const DEVICE_COOKIE_NAME = "crm_device";
 /** 7 days — absolute session ceiling; idle timeout revokes earlier */
 export const SESSION_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** After Cloudflare Access, CRM login must complete within this window */
-export const ACCESS_LOGIN_WINDOW_MS = 5 * 60 * 1000;
-
 /** Cloudflare Access logout path (production). Prefer getPostLogoutRedirectPath(). */
 export { CLOUDFLARE_ACCESS_LOGOUT_PATH as ACCESS_LOGOUT_PATH } from "@/lib/auth/logout-redirect";
 export { getPostLogoutRedirectPath } from "@/lib/auth/logout-redirect";

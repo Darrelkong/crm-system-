@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { getDeviceAuthorizationLimit } from "@/lib/devices/queries";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 
 const LIMIT_SETTING = "device_authorization_limit_per_user";
 
@@ -44,9 +44,7 @@ async function setRawLimit(value: string | null) {
 describe("getDeviceAuthorizationLimit", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy({
-      configPath: new URL("../../../wrangler.jsonc", import.meta.url).pathname,
-    });
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>();
     db = drizzle(proxy.env.DB, { schema });
     disposeProxy = proxy.dispose;
     originalSetting = (

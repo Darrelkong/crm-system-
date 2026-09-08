@@ -19,7 +19,6 @@ describe("planAccessReverifyRedirect — production", () => {
     });
     assert.equal(plan.kind, "access_logout");
     assert.equal(plan.clearSessionCookie, true);
-    assert.equal(plan.incrementIdleRelogin, false);
   });
 
   it("Access logout path matches getPostLogoutRedirectPath in production", () => {
@@ -59,7 +58,6 @@ describe("planAccessReverifyRedirect — development", () => {
       plan.destinationPath,
       `/login?session_end=${ACCESS_REVERIFY_SESSION_END}`,
     );
-    assert.equal(plan.incrementIdleRelogin, false);
     assert.ok(!plan.destinationPath.includes("reason=timeout"));
     assert.ok(!plan.destinationPath.includes("session_end=revoked"));
     assert.ok(!plan.destinationPath.includes("session_end=invalid"));
@@ -73,7 +71,6 @@ describe("planAccessReverifyRedirect — development", () => {
     });
     assert.equal(plan.kind, "local_login_passthrough");
     assert.equal(plan.clearSessionCookie, true);
-    assert.equal(plan.incrementIdleRelogin, false);
   });
 
   it("does not target Access logout in development", () => {
@@ -89,12 +86,11 @@ describe("planAccessReverifyRedirect — development", () => {
 });
 
 describe("planAccessReverifyRedirect — cookie / idle policy", () => {
-  it("always clears session cookie and never increments idle relogin", () => {
+  it("always clears only the CRM session cookie", () => {
     for (const nodeEnv of ["production", "development"] as const) {
       for (const pathname of ["/staff", "/login", "/customers"]) {
         const plan = planAccessReverifyRedirect({ nodeEnv, pathname });
         assert.equal(plan.clearSessionCookie, true);
-        assert.equal(plan.incrementIdleRelogin, false);
       }
     }
   });
@@ -120,10 +116,10 @@ describe("middleware access_reverify wiring (source contract)", () => {
     assert.ok(revokedIdx > idleIdx);
   });
 
-  it("keeps idle redirect using reason=timeout and idle-relogin increment", () => {
+  it("keeps idle redirect using reason=timeout without Access logout", () => {
     assert.match(middlewareSrc, /sessionEnd === "idle"/);
     assert.match(middlewareSrc, /reason", "timeout"/);
-    assert.match(middlewareSrc, /incrementIdleReloginOnResponse/);
+    assert.doesNotMatch(middlewareSrc, /incrementIdleReloginOnResponse/);
   });
 
   it("keeps revoked / device_revoked / invalid session_end mapping", () => {

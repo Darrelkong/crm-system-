@@ -8,9 +8,6 @@ import {
   type JWK,
 } from "jose";
 import {
-  ACCESS_LOGIN_WINDOW_MS,
-} from "@/lib/auth/constants";
-import {
   buildAccessJwksUrl,
   evaluateAccessLoginEmailBinding,
   getAccessJwtFromHeaders,
@@ -175,7 +172,7 @@ describe("access-jwt skip gates", () => {
 });
 
 describe("access-jwt cryptographic verification", () => {
-  it("accepts a valid RS256 JWT within login window", async () => {
+  it("accepts a valid RS256 JWT while its Access exp is valid", async () => {
     installLocalJwks();
     const nowSec = Math.floor(Date.now() / 1000);
     const token = await signAccessJwt({
@@ -355,11 +352,10 @@ describe("access-jwt cryptographic verification", () => {
     assert.equal(result.ok, false);
   });
 
-  it("rejects iat older than login window", async () => {
+  it("accepts an older iat while the verified Access exp is still valid", async () => {
     installLocalJwks();
     const nowSec = Math.floor(Date.now() / 1000);
-    const oldIat =
-      nowSec - Math.floor(ACCESS_LOGIN_WINDOW_MS / 1000) - 120;
+    const oldIat = nowSec - 24 * 60 * 60;
     const token = await signAccessJwt({
       email: ACCESS_EMAIL,
       iat: oldIat,
@@ -368,10 +364,8 @@ describe("access-jwt cryptographic verification", () => {
       aud: AUDIENCE,
     });
     const result = await verifyCloudflareAccessJwt(token);
-    assert.equal(result.ok, false);
-    if (!result.ok) {
-      assert.equal(result.reason, "expired");
-    }
+    assert.equal(result.ok, true);
+    if (result.ok) assert.equal(result.identity.iat, oldIat);
   });
 
   it("rejects future iat beyond skew", async () => {

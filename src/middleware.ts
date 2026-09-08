@@ -4,10 +4,6 @@ import {
   AUTH_ERROR_CODES,
   SESSION_COOKIE_NAME,
 } from "@/lib/auth/constants";
-import {
-  incrementIdleReloginOnResponse,
-  syncIdleReloginCookiesOnLoginVisit,
-} from "@/lib/auth/idle-relogin-cookie";
 import { buildAccessReverifyMiddlewareResponse } from "@/lib/auth/access-reverify-redirect";
 import { validateSessionFromRequest } from "@/lib/auth/session";
 import {
@@ -38,9 +34,6 @@ async function redirectToLogin(
       path: "/",
       maxAge: 0,
     });
-  }
-  if (sessionEnd === "idle") {
-    await incrementIdleReloginOnResponse(request, response);
   }
   return response;
 }
@@ -127,7 +120,6 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL(destination, request.url));
     }
     const response = NextResponse.next();
-    await syncIdleReloginCookiesOnLoginVisit(request, response);
     return response;
   }
 

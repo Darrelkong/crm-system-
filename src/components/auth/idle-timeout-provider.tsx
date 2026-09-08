@@ -296,7 +296,7 @@ export function IdleTimeoutProvider({
   const titleKey =
     sessionEndReason === "revoked"
       ? "security.sessionRevokedTitle"
-      : "security.sessionTimeoutTitle";
+      : "security.crmSessionTimeoutTitle";
 
   return (
     <>

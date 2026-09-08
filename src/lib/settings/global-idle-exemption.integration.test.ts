@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import type { User } from "../../../drizzle/schema/users";
 import { bindTestDatabase } from "@/lib/db";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import { AUTH_ERROR_CODES } from "@/lib/auth/constants";
 import {
   createSession,
@@ -113,9 +113,7 @@ async function createTestSession(userId: string): Promise<{
 describe("global idle exemption — DB integration", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy({
-      configPath: new URL("../../../wrangler.jsonc", import.meta.url).pathname,
-    });
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>();
     db = drizzle(proxy.env.DB, { schema });
     disposeProxy = proxy.dispose;
     bindTestDatabase(db);
@@ -454,7 +452,7 @@ describe("global idle exemption — DB integration", () => {
       await setDeviceAuthEnabled(false);
     });
 
-    it("staff session createdAt <= epoch → access_reverify", async () => {
+    it("legacy Access reverify epoch does not invalidate a valid CRM session", async () => {
       await cleanupSessions();
       await setDeviceAuthEnabled(false);
       await upsertSetting(GLOBAL_IDLE_TIMEOUT_EXEMPT_ENABLED_KEY, "false");
@@ -469,14 +467,7 @@ describe("global idle exemption — DB integration", () => {
         .where(eq(schema.sessions.id, sessionId));
 
       const result = await validateSessionToken(token, { touch: false });
-      assert.equal(result.ok, false);
-      if (!result.ok) {
-        assert.equal(result.reason, "access_reverify");
-        assert.equal(
-          result.errorCode,
-          AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
-        );
-      }
+      assert.equal(result.ok, true);
 
       const row = await db
         .select({ revokedAt: schema.sessions.revokedAt })

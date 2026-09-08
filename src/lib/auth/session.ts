@@ -22,7 +22,6 @@ import {
 import { isDeviceAllowedForStaffSession } from "@/lib/devices/service";
 import {
   getGlobalIdlePolicy,
-  isStaffSessionBlockedByReverifyEpoch,
 } from "@/lib/settings/global-idle-exemption";
 import { recordAuthValidationPerf } from "@/lib/auth/validation-perf";
 import { perfNow } from "@/lib/customers/customer-detail-perf";
@@ -148,22 +147,6 @@ export async function validateSessionToken(
 
   if (row.user.isActive !== 1) {
     return { ok: false, reason: "inactive_user" };
-  }
-
-  // Staff sessions created at/before the reverify epoch must complete Access again.
-  // Do not set revokedAt — this is distinct from SESSION_REVOKED / other-device login.
-  if (
-    isStaffSessionBlockedByReverifyEpoch(
-      row.user.role,
-      row.session.createdAt,
-      policy.staffAccessReverifyAfter,
-    )
-  ) {
-    return {
-      ok: false,
-      reason: "access_reverify",
-      errorCode: AUTH_ERROR_CODES.SESSION_ACCESS_REVERIFY_REQUIRED,
-    };
   }
 
   // Admin accounts are never blocked by device authorization status.

@@ -3,9 +3,9 @@ import { after, before, describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import { bindTestDatabase } from "@/lib/db";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import {
   enforceStaffAccessEmailBinding,
   STAFF_ACCESS_EMAIL_BINDING_OUTCOMES,
@@ -71,9 +71,7 @@ function uniqueAccessEmail(label = "staff"): string {
 describe("Staff Cloudflare Access Email binding", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy({
-      configPath: new URL("../../../wrangler.jsonc", import.meta.url).pathname,
-    });
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>();
     db = drizzle(proxy.env.DB, { schema });
     dispose = proxy.dispose;
     bindTestDatabase(db);

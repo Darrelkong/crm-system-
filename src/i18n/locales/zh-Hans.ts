@@ -112,10 +112,13 @@ const zhHans: Messages = {
   },
   security: {
     accessExpired: "Access 验证已超时，请重新验证后再登录 CRM。",
-    sessionExpired: "CRM 会话因长时间未操作已超时，请重新完成 Access 验证。",
+    accessExpiredTitle: "Access 验证已超时",
+    sessionExpired:
+      "因长时间未操作，您的 CRM 登录状态已失效。Cloudflare Access 验证仍然有效，请重新登录 CRM。",
     sessionRevokedByOtherDevice:
       "您的账号已在其他设备登录，当前会话已失效，请重新登录。",
-    sessionTimedOutReLogin: "登录已超时，请重新登录。",
+    sessionTimedOutReLogin:
+      "CRM 登录状态已失效，Cloudflare Access 验证仍有效。请重新登录。",
     sessionInvalidReLogin: "登录已失效，请重新登录。",
     deviceAuthorizationRevoked: "此设备授权已被撤销，请联系管理员。",
     sessionRevokedTitle: "会话已失效",
@@ -126,7 +129,7 @@ const zhHans: Messages = {
     reloginRequired: "请先重新完成 Cloudflare Access 验证，再登录 CRM。",
     verifyAccessAgain: "重新验证 Access",
     sessionTimeoutTitle: "会话已超时",
-    timeoutReverifyHint: "如果多次未重新登录，系统将重新进行安全验证。",
+    crmSessionTimeoutTitle: "登录已超时",
     accessReverifyRequired: "安全设置已更新，请重新完成验证后登录。",
     watermarkConfidential: "最高保密 · 严禁泄露",
   },
@@ -3400,20 +3403,20 @@ const zhHans: Messages = {
     globalIdleExemption: {
       title: "免除 30 分钟无操作自动退出",
       description:
-        "开启后，所有已登录及后续登录的用户将不再因 CRM 连续 30 分钟无操作而自动退出。设备授权、账户停用、Session 安全检查及 Cloudflare Access 验证仍然有效。",
+        "开启后，所有已登录及后续登录的用户将不再因 CRM 连续 30 分钟无操作而自动退出。关闭后，30 分钟无操作仅会结束 CRM 登录状态，不会主动注销仍然有效的 Cloudflare Access 授权。设备授权、账户停用及 Session 安全检查仍然有效。",
       statusOn: "已开启",
       statusOff: "已关闭",
       loading: "加载中…",
       enableSuccess: "已开启全局免超时。用户仍会受到其他安全规则保护。",
       disableSuccess:
-        "已恢复 30 分钟无操作退出。所有非 Admin 用户需要重新完成 Access 验证。",
+        "已恢复 30 分钟无操作退出；无操作只会结束 CRM 登录状态。",
       saveFailed: "安全设置更新失败，请稍后重试。",
       loadFailed: "无法加载全局免超时设置，请稍后重试。",
       saving: "处理中…",
       confirmTitle: "确认恢复 30 分钟自动退出？",
       confirmDescription:
-        "关闭后，所有非 Admin 用户的现有 CRM Session 将立即失效，并需要重新完成 Cloudflare Access 验证。\n\nAdmin 的当前 Session 不会受到影响。此操作不会停用账户，也不会删除任何客户或业务数据。",
-      confirmSubmit: "确认关闭并要求重新验证",
+        "关闭后，CRM 会恢复 30 分钟无操作自动退出。无操作只会结束 CRM 登录状态，不会主动注销仍然有效的 Cloudflare Access 授权。\n\n此操作不会停用账户，也不会删除任何客户或业务数据。",
+      confirmSubmit: "确认关闭",
       confirmCancel: "取消",
     },
     publicPoolQuickEntry: {

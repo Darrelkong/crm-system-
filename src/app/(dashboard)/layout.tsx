@@ -4,11 +4,19 @@ import { IdleExemptModal } from "@/components/auth/idle-exempt-modal";
 import { GlobalPrivacyScreen } from "@/components/privacy/global-privacy-screen";
 import { NavigationPendingProvider } from "@/components/layout/navigation-pending";
 import { GlobalWatermark } from "@/components/security/global-watermark";
+import { LocalPreviewIdleSimulation } from "@/components/auth/local-preview-idle-simulation";
 import { readServerNowMs } from "@/components/security/server-now";
 import { getCurrentUserCached } from "@/lib/auth/request-cache";
 import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 
 export const dynamic = "force-dynamic";
+
+function localAuthSimulationEnabled(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" &&
+    process.env.CRM_LOCAL_PREVIEW_AUTH_SIMULATION_ENABLED === "true"
+  );
+}
 
 export default async function DashboardGroupLayout({
   children,
@@ -34,6 +42,7 @@ export default async function DashboardGroupLayout({
           serverNowMs={serverNowMs}
         />
       ) : null}
+      {localAuthSimulationEnabled() ? <LocalPreviewIdleSimulation /> : null}
     </IdleExemptProvider>
   );
 }

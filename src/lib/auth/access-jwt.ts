@@ -4,7 +4,6 @@ import {
   jwtVerify,
   type JWTVerifyGetKey,
 } from "jose";
-import { ACCESS_LOGIN_WINDOW_MS } from "@/lib/auth/constants";
 
 /** Max allowed clock skew for iat in the future. */
 const MAX_FUTURE_IAT_SKEW_MS = 60_000;
@@ -238,7 +237,8 @@ function mapJoseVerifyError(error: unknown): AccessVerifyFailureReason {
 
 /**
  * Cryptographically verify a Cloudflare Access JWT (RS256 + iss/aud/exp/nbf).
- * Also enforces CRM Access login window via iat age.
+ * Cloudflare Access controls the session lifetime; CRM does not impose an
+ * additional age limit based on iat.
  */
 export async function verifyCloudflareAccessJwt(
   token: string,
@@ -279,11 +279,6 @@ export async function verifyCloudflareAccessJwt(
     const now = nowMs();
     if (payload.iat * 1000 > now + MAX_FUTURE_IAT_SKEW_MS) {
       return { ok: false, reason: "future_iat" };
-    }
-
-    const ageMs = now - payload.iat * 1000;
-    if (ageMs > ACCESS_LOGIN_WINDOW_MS) {
-      return { ok: false, reason: "expired" };
     }
 
     const emailRaw = typeof payload.email === "string" ? payload.email : "";

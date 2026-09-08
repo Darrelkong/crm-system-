@@ -24,7 +24,7 @@ export function AccessExpiredGate() {
       </div>
       <Card className="w-full max-w-md p-6 text-center">
         <h1 className="text-lg font-semibold text-[#172033]">
-          {t("security.sessionTimeoutTitle")}
+          {t("security.accessExpiredTitle")}
         </h1>
         <p className="mt-3 text-sm text-[#6B7890]">{t("security.accessExpired")}</p>
         <p className="mt-2 text-sm text-[#6B7890]">{t("security.reloginRequired")}</p>

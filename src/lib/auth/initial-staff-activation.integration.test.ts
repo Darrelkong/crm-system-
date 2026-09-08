@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
 import * as schema from "../../../drizzle/schema";
 import type { User } from "../../../drizzle/schema/users";
 import { bindTestDatabase } from "@/lib/db";
@@ -26,6 +25,7 @@ import { createUserAccount } from "@/lib/users-admin/service";
 import { DEVICE_AUDIT_ACTIONS } from "@/lib/devices/constants";
 import { countApprovedDevicesForUser } from "@/lib/devices/queries";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 
 let db: ReturnType<typeof drizzle<typeof schema>>;
 let disposeProxy: (() => Promise<void>) | undefined;
@@ -172,9 +172,7 @@ async function countAudits(
 describe("completeInitialStaffActivation", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy({
-      configPath: new URL("../../../wrangler.jsonc", import.meta.url).pathname,
-    });
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>();
     db = drizzle(proxy.env.DB, { schema });
     disposeProxy = proxy.dispose;
     bindTestDatabase(db);

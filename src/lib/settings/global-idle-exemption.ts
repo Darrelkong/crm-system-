@@ -24,8 +24,8 @@ export type GlobalIdlePolicy = {
   /** When true, CRM idle timeout is skipped for all roles. */
   globalIdleTimeoutExempt: boolean;
   /**
-   * Unix seconds. Staff sessions with createdAtSeconds <= this value must
-   * reverify Access. 0 means no epoch is active.
+   * Legacy compatibility value. It is retained in settings storage for
+   * existing databases but is not used to expire CRM sessions or Access.
    */
   staffAccessReverifyAfter: number;
 };
