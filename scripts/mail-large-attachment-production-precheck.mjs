@@ -8,7 +8,10 @@ import {
 } from "./mail-files-production-guard.mjs";
 
 const repositoryRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const featureBranch = "feat/mail-large-attachment-v1";
+const releasePreparationBranches = new Set([
+  "feat/mail-large-attachment-v1",
+  "fix/mail-files-production-bootstrap",
+]);
 const requiredFiles = [
   "wrangler.echfronthk-mail-files.production.jsonc",
   "scripts/deploy-mail-files-production.mjs",
@@ -97,7 +100,7 @@ async function assertMigrations() {
 
 function assertSourceState() {
   const branch = captureGit(["branch", "--show-current"]);
-  if (branch !== "main" && branch !== featureBranch) {
+  if (!releasePreparationBranches.has(branch) && branch !== "main") {
     fail(`unexpected release branch ${branch || "(detached)"}.`);
   }
   const head = captureGit(["rev-parse", "HEAD"]);

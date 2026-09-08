@@ -99,7 +99,7 @@ describe("production release guard", () => {
       new URL("./deploy-production.mjs", import.meta.url),
       "utf8",
     );
-    assert.match(script, /opennextjs-cloudflare", "deploy"/);
+    assert.match(script, /"opennextjs-cloudflare",\s*"deploy"/);
     assert.doesNotMatch(script, /wrangler", "deploy"/);
   });
 });

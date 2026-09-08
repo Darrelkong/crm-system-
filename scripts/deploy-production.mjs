@@ -7,6 +7,7 @@ import {
   assertReleaseArtifact,
   readReleaseMetadata,
 } from "./production-release-guard.mjs";
+import { BOOTSTRAP_DEPLOYMENT_CONTEXT } from "./mail-files-production-bootstrap.mjs";
 
 const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const openNextDirectory = resolve(repositoryRoot, ".open-next");
@@ -41,6 +42,21 @@ function capture(command, args) {
   return result.stdout;
 }
 
+function getBootstrapSecretsArgs(secretsFile, authorization) {
+  if (secretsFile === undefined) {
+    return [];
+  }
+  if (authorization !== BOOTSTRAP_DEPLOYMENT_CONTEXT) {
+    throw new Error(
+      "A secrets file may only be supplied by the authorized Gateway bootstrap flow.",
+    );
+  }
+  if (typeof secretsFile !== "string" || !secretsFile) {
+    throw new Error("The bootstrap secrets file path is missing.");
+  }
+  return ["--secrets-file", secretsFile];
+}
+
 function productionSourceSnapshot() {
   return {
     branch: capture("git", ["branch", "--show-current"]).trim(),
@@ -62,10 +78,14 @@ function productionSourceSnapshot() {
   };
 }
 
-export async function deployProduction() {
+export async function deployProduction({ secretsFile, authorization } = {}) {
   run("git", ["fetch", "origin", "main", "--quiet"]);
   const source = productionSourceSnapshot();
   assertProductionSource(source);
+  const bootstrapSecretsArgs = getBootstrapSecretsArgs(
+    secretsFile,
+    authorization,
+  );
 
   await rm(openNextDirectory, { recursive: true, force: true });
   run("npm", ["run", "generate:locales"], {
@@ -104,9 +124,18 @@ export async function deployProduction() {
   console.log(`Production release Worker target: ${workerName}`);
   console.log("Production release artifact validation: passed");
 
-  run("npx", ["--no-install", "opennextjs-cloudflare", "deploy"], {
-    env: { NEXT_PUBLIC_MAIL_READ_SOURCE: "production" },
-  });
+  run(
+    "npx",
+    [
+      "--no-install",
+      "opennextjs-cloudflare",
+      "deploy",
+      ...bootstrapSecretsArgs,
+    ],
+    {
+      env: { NEXT_PUBLIC_MAIL_READ_SOURCE: "production" },
+    },
+  );
 }
 
 if (
