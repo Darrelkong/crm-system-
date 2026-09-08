@@ -12,6 +12,7 @@ import {
   createSession,
   validateSessionToken,
 } from "@/lib/auth/session";
+import { getIdleLogoutMinutes } from "@/lib/auth/session-policy";
 import {
   GLOBAL_IDLE_EXEMPTION_AUDIT_ACTION,
   GLOBAL_IDLE_TIMEOUT_EXEMPT_ENABLED_KEY,
@@ -19,6 +20,7 @@ import {
   getGlobalIdlePolicy,
   updateGlobalIdleTimeoutExemption,
 } from "@/lib/settings/global-idle-exemption";
+import { IDLE_TIMEOUT_SETTING_KEY } from "@/lib/settings/idle-timeout";
 import {
   SettingsError,
   updateSystemSettings,
@@ -44,6 +46,7 @@ async function cleanupGlobalIdleSettings() {
   for (const key of [
     GLOBAL_IDLE_TIMEOUT_EXEMPT_ENABLED_KEY,
     STAFF_ACCESS_REVERIFY_AFTER_KEY,
+    IDLE_TIMEOUT_SETTING_KEY,
   ]) {
     await db
       .delete(schema.systemSettings)
@@ -179,6 +182,26 @@ describe("global idle exemption — DB integration", () => {
         (await getGlobalIdlePolicy(db)).globalIdleTimeoutExempt,
         false,
       );
+    });
+  });
+
+  describe("configurable CRM idle timeout", () => {
+    it("uses 30 by default and accepts stored 15 and 60", async () => {
+      await cleanupGlobalIdleSettings();
+      assert.equal(await getIdleLogoutMinutes(db), 30);
+
+      await upsertSetting(IDLE_TIMEOUT_SETTING_KEY, "15");
+      assert.equal(await getIdleLogoutMinutes(db), 15);
+
+      await upsertSetting(IDLE_TIMEOUT_SETTING_KEY, "60");
+      assert.equal(await getIdleLogoutMinutes(db), 60);
+    });
+
+    it("falls back to 30 for missing, malformed, or out-of-range values", async () => {
+      for (const value of ["4", "1441", "30.5", "abc", ""]) {
+        await upsertSetting(IDLE_TIMEOUT_SETTING_KEY, value);
+        assert.equal(await getIdleLogoutMinutes(db), 30);
+      }
     });
   });
 
@@ -335,10 +358,88 @@ describe("global idle exemption — DB integration", () => {
       );
       assert.equal(result.device_authorization_enabled, "false");
     });
+
+    it("allows Admins to save the configured idle timeout at both boundaries", async () => {
+      const minimum = await updateSystemSettings(
+        adminUser,
+        { inactivity_logout_minutes: "5" },
+        {},
+      );
+      assert.equal(minimum.inactivity_logout_minutes, "5");
+
+      const maximum = await updateSystemSettings(
+        adminUser,
+        { inactivity_logout_minutes: "1440" },
+        {},
+      );
+      assert.equal(maximum.inactivity_logout_minutes, "1440");
+    });
+
+    it("rejects non-Admin idle timeout updates", async () => {
+      await assert.rejects(
+        () =>
+          updateSystemSettings(
+            staffUser,
+            { inactivity_logout_minutes: "15" },
+            {},
+          ),
+        (err: unknown) =>
+          err instanceof SettingsError && err.message.includes("管理员"),
+      );
+    });
+
+    it("rejects idle timeout values outside the supported range", async () => {
+      for (const value of ["4", "1441", "30.5", "abc", ""]) {
+        await assert.rejects(
+          () =>
+            updateSystemSettings(
+              adminUser,
+              { inactivity_logout_minutes: value },
+              {},
+            ),
+          (err: unknown) =>
+            err instanceof SettingsError &&
+            err.message.includes("inactivity_logout_minutes"),
+        );
+      }
+    });
   });
 
   describe("validateSessionToken — global idle and epoch", () => {
-    it("global false + idle past 30m → SESSION_IDLE_EXPIRED", async () => {
+    it("uses 60 minutes instead of expiring a 45-minute-idle CRM session", async () => {
+      await cleanupSessions();
+      await cleanupGlobalIdleSettings();
+      await upsertSetting(IDLE_TIMEOUT_SETTING_KEY, "60");
+      const { token, sessionId } = await createTestSession(staffUser.id);
+      const old = new Date(Date.now() - 45 * 60 * 1000).toISOString();
+      await db
+        .update(schema.sessions)
+        .set({ lastActivityAt: old })
+        .where(eq(schema.sessions.id, sessionId));
+
+      const result = await validateSessionToken(token, { touch: false });
+      assert.equal(result.ok, true);
+    });
+
+    it("uses 15 minutes and expires a 16-minute-idle CRM session", async () => {
+      await cleanupSessions();
+      await cleanupGlobalIdleSettings();
+      await upsertSetting(IDLE_TIMEOUT_SETTING_KEY, "15");
+      const { token, sessionId } = await createTestSession(staffUser.id);
+      const old = new Date(Date.now() - 16 * 60 * 1000).toISOString();
+      await db
+        .update(schema.sessions)
+        .set({ lastActivityAt: old })
+        .where(eq(schema.sessions.id, sessionId));
+
+      const result = await validateSessionToken(token, { touch: false });
+      assert.equal(result.ok, false);
+      if (!result.ok) {
+        assert.equal(result.reason, "idle_expired");
+      }
+    });
+
+    it("global false + idle past configured limit → SESSION_IDLE_EXPIRED", async () => {
       await cleanupSessions();
       await cleanupGlobalIdleSettings();
       const { token, sessionId } = await createTestSession(staffUser.id);
@@ -359,10 +460,11 @@ describe("global idle exemption — DB integration", () => {
       }
     });
 
-    it("global true + idle past 30m → ok with globalIdleTimeoutExempt", async () => {
+    it("global true skips the configured idle limit", async () => {
       await cleanupSessions();
       await upsertSetting(GLOBAL_IDLE_TIMEOUT_EXEMPT_ENABLED_KEY, "true");
       await upsertSetting(STAFF_ACCESS_REVERIFY_AFTER_KEY, "0");
+      await upsertSetting(IDLE_TIMEOUT_SETTING_KEY, "15");
 
       const { token, sessionId } = await createTestSession(staffUser.id);
       const old = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();

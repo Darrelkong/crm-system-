@@ -38,6 +38,7 @@ export type SessionValidationResult =
       ok: true;
       session: SessionWithUser;
       globalIdleTimeoutExempt: boolean;
+      idleTimeoutMinutes: number;
     }
   | {
       ok: false;
@@ -106,9 +107,10 @@ export async function validateSessionToken(
     .where(eq(schema.sessions.tokenHash, tokenHash))
     .limit(1);
   const policyQuery = getGlobalIdlePolicy(db);
+  const idleTimeoutQuery = getIdleLogoutMinutes(db);
 
   const parallelStart = perfNow();
-  const [sessionTimed, policyTimed] = await Promise.all([
+  const [sessionTimed, policyTimed, idleMinutes] = await Promise.all([
     (async () => {
       const start = perfNow();
       const rows = await sessionQuery;
@@ -119,6 +121,7 @@ export async function validateSessionToken(
       const policy = await policyQuery;
       return { policy, durationMs: perfNow() - start };
     })(),
+    idleTimeoutQuery,
   ]);
   const initialParallelMs = perfNow() - parallelStart;
   const rows = sessionTimed.rows;
@@ -178,7 +181,6 @@ export async function validateSessionToken(
     };
   }
 
-  const idleMinutes = await getIdleLogoutMinutes(db);
   const sessionIdleExempt =
     row.session.idleExemptUntil != null &&
     row.session.idleExemptUntil > nowIso;
@@ -215,6 +217,7 @@ export async function validateSessionToken(
       deviceIdHash: row.session.deviceIdHash ?? null,
     },
     globalIdleTimeoutExempt: policy.globalIdleTimeoutExempt,
+    idleTimeoutMinutes: idleMinutes,
   };
 }
 

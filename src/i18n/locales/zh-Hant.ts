@@ -3377,7 +3377,8 @@ const zhHant: Messages = {
     title: "系統設定",
     pageDescription:
       "集中管理 CRM 的客戶規則、安全策略與系統功能入口。部分高風險功能僅提供只讀狀態與報告入口。",
-    inactivityLogoutFixedHint: "此安全策略已固定為 30 分鐘。",
+    inactivityLogoutHint:
+      "預設 30 分鐘，可由管理員調整。此設定僅控制 CRM 登入會話，不影響 Cloudflare Access 授權狀態。",
     reclaimHelperText:
       "客戶連續多日未有效跟進後，系統會自動回收到公共池。系統會在回收前指定天數提醒負責團隊成員。",
     loading: "載入中…",
@@ -3400,21 +3401,21 @@ const zhHant: Messages = {
     deviceAuthEnabledOn: "設備授權已啟用，團隊成員新設備需要管理員批准",
     deviceAuthEnabledOff: "設備授權未啟用，團隊成員登入不受設備限制",
     globalIdleExemption: {
-      title: "免除 30 分鐘無操作自動退出",
+      title: "免除無操作自動登出",
       description:
-        "開啟後，所有已登入及後續登入的使用者將不再因 CRM 連續 30 分鐘無操作而自動退出。關閉後，30 分鐘無操作僅會結束 CRM 登入狀態，不會主動註銷仍然有效的 Cloudflare Access 授權。設備授權、帳戶停用及 Session 安全檢查仍然有效。",
+        "開啟後，所有已登入及後續登入的使用者將不再因 CRM 設定的無操作時間而自動登出。關閉後，無操作僅會結束 CRM 登入狀態，不會主動註銷仍然有效的 Cloudflare Access 授權。設備授權、帳戶停用及 Session 安全檢查仍然有效。",
       statusOn: "已開啟",
       statusOff: "已關閉",
       loading: "載入中…",
       enableSuccess: "已開啟全局免超時。使用者仍會受到其他安全規則保護。",
       disableSuccess:
-        "已恢復 30 分鐘無操作退出；無操作只會結束 CRM 登入狀態。",
+        "已恢復無操作自動登出；無操作只會結束 CRM 登入狀態。",
       saveFailed: "安全設定更新失敗，請稍後重試。",
       loadFailed: "無法載入全局免超時設定，請稍後重試。",
       saving: "處理中…",
-      confirmTitle: "確認恢復 30 分鐘自動退出？",
+      confirmTitle: "確認恢復無操作自動登出？",
       confirmDescription:
-        "關閉後，CRM 會恢復 30 分鐘無操作自動退出。無操作只會結束 CRM 登入狀態，不會主動註銷仍然有效的 Cloudflare Access 授權。\n\n此操作不會停用帳戶，也不會刪除任何客戶或業務資料。",
+        "關閉後，CRM 會恢復依設定的無操作自動登出。無操作只會結束 CRM 登入狀態，不會主動註銷仍然有效的 Cloudflare Access 授權。\n\n此操作不會停用帳戶，也不會刪除任何客戶或業務資料。",
       confirmSubmit: "確認關閉",
       confirmCancel: "取消",
     },

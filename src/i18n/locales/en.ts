@@ -3585,7 +3585,8 @@ const en = {
     title: "System settings",
     pageDescription:
       "Manage customer rules, security policies, and feature entry points in one place. Some high-risk features show read-only status and report links only.",
-    inactivityLogoutFixedHint: "This security policy is fixed at 30 minutes.",
+    inactivityLogoutHint:
+      "Default 30 minutes; administrators can adjust it. This setting controls only the CRM login session and does not affect Cloudflare Access authorization.",
     reclaimHelperText:
       "Customers without valid follow-up for the configured number of days will be reclaimed to the public pool. The system will remind the responsible team members the configured number of days before reclamation.",
     loading: "Loading…",
@@ -3610,23 +3611,23 @@ const en = {
     deviceAuthEnabledOff:
       "Device authorization is disabled. Team Members login is not restricted by device.",
     globalIdleExemption: {
-      title: "Exempt users from the 30-minute inactivity logout",
+      title: "Exempt users from inactivity logout",
       description:
-        "When enabled, current and future users will not be logged out solely because the CRM has been inactive for 30 minutes. When disabled, 30 minutes of inactivity ends only the CRM login and does not actively log out a still-valid Cloudflare Access authorization. Device authorization, account status, and session security checks remain active.",
+        "When enabled, current and future users will not be logged out solely because the CRM reaches its configured inactivity limit. When disabled, inactivity ends only the CRM login and does not actively log out a still-valid Cloudflare Access authorization. Device authorization, account status, and session security checks remain active.",
       statusOn: "Enabled",
       statusOff: "Disabled",
       loading: "Loading…",
       enableSuccess:
         "Global inactivity exemption has been enabled. Other security protections remain active.",
       disableSuccess:
-        "The 30-minute inactivity logout has been restored; inactivity ends only the CRM login.",
+        "Inactivity logout has been restored; inactivity ends only the CRM login.",
       saveFailed: "Unable to update the security setting. Please try again.",
       loadFailed:
         "Unable to load the global inactivity exemption setting. Please try again.",
       saving: "Working…",
-      confirmTitle: "Restore the 30-minute inactivity logout?",
+      confirmTitle: "Restore inactivity logout?",
       confirmDescription:
-        "Disabling this setting restores the 30-minute CRM inactivity logout. Inactivity ends only the CRM login and does not actively log out a still-valid Cloudflare Access authorization.\n\nThis action does not disable user accounts or delete any customer or business data.",
+        "Disabling this setting restores the configured CRM inactivity logout. Inactivity ends only the CRM login and does not actively log out a still-valid Cloudflare Access authorization.\n\nThis action does not disable user accounts or delete any customer or business data.",
       confirmSubmit: "Disable",
       confirmCancel: "Cancel",
     },

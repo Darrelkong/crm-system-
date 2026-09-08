@@ -40,6 +40,10 @@ export async function updateSystemSettings(
   updates: Record<string, string>,
   meta: { ipAddress?: string | null; userAgent?: string | null },
 ): Promise<SettingsMap> {
+  if (actor.role !== "admin") {
+    throw new SettingsError("需要管理员权限");
+  }
+
   const db = getDb();
   const now = new Date().toISOString();
   const changed: Partial<SettingsMap> = {};

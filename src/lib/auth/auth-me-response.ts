@@ -9,6 +9,7 @@ export type AuthMeSuccessPayload = {
     mustChangePassword: boolean;
   };
   globalIdleTimeoutExempt: boolean;
+  idleTimeoutMinutes: number;
 };
 
 /**
@@ -28,5 +29,6 @@ export function buildAuthMeSuccessPayload(
       mustChangePassword: user.mustChangePassword === 1,
     },
     globalIdleTimeoutExempt: validation.globalIdleTimeoutExempt,
+    idleTimeoutMinutes: validation.idleTimeoutMinutes,
   };
 }

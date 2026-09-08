@@ -1,11 +1,10 @@
-import { isLockedSettingKey, type SettingKey } from "@/lib/settings/keys";
+import { type SettingKey } from "@/lib/settings/keys";
 
 export const COLLABORATIVE_DISSOLUTION_FLAG_KEY =
   "collaborative_dissolution_enabled" as const satisfies SettingKey;
 
 /** Settings shown as read-only badges or disabled inputs — never in PATCH payload. */
 export const READONLY_DISPLAY_SETTING_KEYS = [
-  "inactivity_logout_minutes",
   COLLABORATIVE_DISSOLUTION_FLAG_KEY,
 ] as const satisfies readonly SettingKey[];
 
@@ -79,10 +78,10 @@ export const SETTINGS_UI_SECTIONS: readonly SettingsSection[] = [
     titleKey: "settings.sections.security.title",
     descriptionKey: "settings.sections.security.description",
     editableKeys: [
+      "inactivity_logout_minutes",
       "device_authorization_enabled",
       "device_authorization_limit_per_user",
     ],
-    readonlyKeys: ["inactivity_logout_minutes"],
     linkCards: ["devices", "securityPolicies"],
   },
 ] as const;
@@ -174,7 +173,7 @@ export function buildSettingsSavePayload(
   return Object.fromEntries(
     Object.entries(settings).filter(
       ([key]) =>
-        isEditableSettingKey(key) && !isLockedSettingKey(key),
+        isEditableSettingKey(key),
     ),
   );
 }

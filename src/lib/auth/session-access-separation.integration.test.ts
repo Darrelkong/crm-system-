@@ -127,6 +127,14 @@ describe("Access and CRM session separation — real Wrangler D1", () => {
         assert.equal(crmResult.errorCode, "SESSION_IDLE_EXPIRED");
       }
 
+      const repeatedCrmResult = await validateSessionToken(token, {
+        touch: false,
+      });
+      assert.equal(repeatedCrmResult.ok, false);
+      if (!repeatedCrmResult.ok) {
+        assert.equal(repeatedCrmResult.reason, "revoked");
+      }
+
       const accessResult = await verifyCloudflareAccessJwt(
         await signAccessJwt(),
       );

@@ -4,6 +4,11 @@ import {
   SETTING_KEYS,
   type SettingKey,
 } from "@/lib/settings/keys";
+import {
+  MAX_IDLE_TIMEOUT_MINUTES,
+  MIN_IDLE_TIMEOUT_MINUTES,
+  IDLE_TIMEOUT_SETTING_KEY,
+} from "@/lib/settings/idle-timeout";
 import type { SettingsMap } from "@/lib/settings/service";
 
 export function isSettingKey(key: string): key is SettingKey {
@@ -31,6 +36,19 @@ export function validateSettingValue(
       !(LEGACY_BUSINESS_TIMEZONE_ALIASES as readonly string[]).includes(value)
     ) {
       return "时区仅允许 Asia/Hong_Kong 或 UTC";
+    }
+    return null;
+  }
+
+  if (key === IDLE_TIMEOUT_SETTING_KEY) {
+    const num = Number(value);
+    if (
+      !/^\d+$/.test(value) ||
+      !Number.isSafeInteger(num) ||
+      num < MIN_IDLE_TIMEOUT_MINUTES ||
+      num > MAX_IDLE_TIMEOUT_MINUTES
+    ) {
+      return `必须为 ${MIN_IDLE_TIMEOUT_MINUTES} 到 ${MAX_IDLE_TIMEOUT_MINUTES} 之间的整数`;
     }
     return null;
   }
@@ -77,11 +95,6 @@ export function validateSettingsConsistency(
   const sla = Number(settings.first_contact_sla_hours);
   if (!Number.isFinite(sla) || sla <= 0) {
     return "first_contact_sla_hours 必须大于 0";
-  }
-
-  const inactivity = Number(settings.inactivity_logout_minutes);
-  if (!Number.isFinite(inactivity) || inactivity <= 0) {
-    return "inactivity_logout_minutes 必须大于 0";
   }
 
   if (

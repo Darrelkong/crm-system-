@@ -60,9 +60,10 @@ describe("settings UI sections", () => {
 
   it("device keys are in the security section", () => {
     const keys = getSectionKeys("security");
+    assert.equal(keys.includes("inactivity_logout_minutes"), true);
+    assert.equal(getEditableSettingKeys().includes("inactivity_logout_minutes"), true);
     assert.equal(keys.includes("device_authorization_enabled"), true);
     assert.equal(keys.includes("device_authorization_limit_per_user"), true);
-    assert.equal(keys.includes("inactivity_logout_minutes"), true);
   });
 
   it("keeps global idle exemption out of ordinary settings section keys (dedicated API UI)", () => {
@@ -102,8 +103,8 @@ describe("settings UI sections", () => {
     }
   });
 
-  it("marks locked and collaborative flag keys as readonly display", () => {
-    assert.equal(isReadonlyDisplaySettingKey("inactivity_logout_minutes"), true);
+  it("marks only the collaborative flag as readonly display", () => {
+    assert.equal(isReadonlyDisplaySettingKey("inactivity_logout_minutes"), false);
     assert.equal(
       isReadonlyDisplaySettingKey(COLLABORATIVE_DISSOLUTION_FLAG_KEY),
       true,
@@ -111,7 +112,7 @@ describe("settings UI sections", () => {
     assert.equal(isReadonlyDisplaySettingKey("business_timezone"), false);
   });
 
-  it("save payload excludes collaborative_dissolution_enabled and locked keys", () => {
+  it("save payload includes the editable inactivity timeout", () => {
     const payload = buildSettingsSavePayload({
       business_timezone: "UTC",
       automatic_reclaim_days: "7",
@@ -120,7 +121,7 @@ describe("settings UI sections", () => {
       device_authorization_enabled: "true",
     });
 
-    assert.equal(payload.inactivity_logout_minutes, undefined);
+    assert.equal(payload.inactivity_logout_minutes, "30");
     assert.equal(payload[COLLABORATIVE_DISSOLUTION_FLAG_KEY], undefined);
     assert.equal(payload.business_timezone, "UTC");
     assert.equal(payload.device_authorization_enabled, "true");

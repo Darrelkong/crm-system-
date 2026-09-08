@@ -57,7 +57,10 @@ export async function POST(request: Request) {
 
   return Response.json({
     ok: true,
-    redirect: getPostLogoutRedirectPath(),
+    redirect:
+      reason === "idle"
+        ? "/login?reason=timeout"
+        : getPostLogoutRedirectPath(),
     reason,
   });
 }

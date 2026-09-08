@@ -1,7 +1,7 @@
 import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 import { DEFAULT_DEVICE_AUTHORIZATION_LIMIT } from "@/lib/devices/constants";
 
-export const LOCKED_SETTING_KEYS = ["inactivity_logout_minutes"] as const;
+export const LOCKED_SETTING_KEYS = [] as const;
 
 export type LockedSettingKey = (typeof LOCKED_SETTING_KEYS)[number];
 
@@ -43,7 +43,7 @@ export const SETTING_KEYS = [
   /** When true, enables automatic collaborative dissolution (future C-4/C-5). Default off. */
   "collaborative_dissolution_enabled",
   /**
-   * When true, CRM skips its own 30-minute idle logout for all roles.
+   * When true, CRM skips its configured idle logout for all roles.
    * Mutate only via /api/admin/settings/global-idle-exemption.
    */
   "global_idle_timeout_exempt_enabled",
@@ -82,7 +82,7 @@ export const SETTING_LABELS: Record<SettingKey, string> = {
   device_authorization_enabled: "设备授权（启用后限制团队成员登录设备）",
   device_authorization_limit_per_user: "每位团队成员最多授权设备数",
   collaborative_dissolution_enabled: "协作关系治理（已改为无跟进提醒）",
-  global_idle_timeout_exempt_enabled: "免除 30 分钟无操作自动退出",
+  global_idle_timeout_exempt_enabled: "免除无操作自动登出",
 };
 
 /**

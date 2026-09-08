@@ -2,10 +2,14 @@ import { and, eq, gt, isNull } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../../../drizzle/schema";
 import type { Session } from "../../../drizzle/schema/sessions";
+import { getDb } from "@/lib/db";
 import {
-  INACTIVITY_LOGOUT_MINUTES,
   SESSION_ACTIVITY_TOUCH_INTERVAL_MS,
 } from "@/lib/auth/constants";
+import {
+  IDLE_TIMEOUT_SETTING_KEY,
+  parseIdleTimeoutMinutes,
+} from "@/lib/settings/idle-timeout";
 
 export function isSessionRevoked(session: Pick<Session, "revokedAt">): boolean {
   return session.revokedAt != null;
@@ -166,6 +170,14 @@ export async function revokeExistingSessionsForLogin(
   await revokeAllSessionsForUser(db, userId, now);
 }
 
-export async function getIdleLogoutMinutes(_db?: Db): Promise<number> {
-  return INACTIVITY_LOGOUT_MINUTES;
+export async function getIdleLogoutMinutes(db?: Db): Promise<number> {
+  const database = db ?? getDb();
+
+  const rows = await database
+    .select({ value: schema.systemSettings.value })
+    .from(schema.systemSettings)
+    .where(eq(schema.systemSettings.key, IDLE_TIMEOUT_SETTING_KEY))
+    .limit(1);
+
+  return parseIdleTimeoutMinutes(rows[0]?.value);
 }

@@ -2,22 +2,20 @@
 
 import { Badge } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
-import {
-  INACTIVITY_LOGOUT_MINUTES,
-  LOCKOUT_THRESHOLD,
-} from "@/lib/auth/constants";
+import { LOCKOUT_THRESHOLD } from "@/lib/auth/constants";
 import { RECYCLE_BIN_RETENTION_DAYS } from "@/lib/recycle-bin/constants";
 import { SECURITY_POLICY_SECTIONS } from "@/lib/security-policies/policies";
 import { useTranslation } from "@/i18n/provider";
 
 function policyDescriptionParams(
   policyId: string,
+  idleTimeoutMinutes: number,
 ): Record<string, string> | undefined {
   switch (policyId) {
     case "login-lockout":
       return { count: String(LOCKOUT_THRESHOLD) };
     case "session-inactivity":
-      return { minutes: String(INACTIVITY_LOGOUT_MINUTES) };
+      return { minutes: String(idleTimeoutMinutes) };
     case "customer-retention":
     case "customer-restore":
     case "customer-purge":
@@ -27,7 +25,11 @@ function policyDescriptionParams(
   }
 }
 
-export function SecurityPoliciesClient() {
+export function SecurityPoliciesClient({
+  idleTimeoutMinutes,
+}: {
+  idleTimeoutMinutes: number;
+}) {
   const { t } = useTranslation();
 
   return (
@@ -61,7 +63,7 @@ export function SecurityPoliciesClient() {
                   <p className="mt-2 text-sm leading-relaxed text-[#6B7890]">
                     {t(
                       policy.descriptionKey,
-                      policyDescriptionParams(policy.id),
+                      policyDescriptionParams(policy.id, idleTimeoutMinutes),
                     )}
                   </p>
                 </li>

@@ -3,10 +3,10 @@ import {
   ALLOWED_TIMEZONES,
   LEGACY_BUSINESS_TIMEZONE_ALIASES,
   SETTING_DEFAULTS,
-  type SettingKey,
 } from "@/lib/settings/keys";
 import { HONG_KONG_TIMEZONE } from "@/lib/timezone";
 import { getSystemSettings, type SettingsMap } from "@/lib/settings/service";
+import { parseIdleTimeoutMinutes } from "@/lib/settings/idle-timeout";
 
 export type BusinessTimezone = (typeof ALLOWED_TIMEZONES)[number];
 
@@ -133,10 +133,8 @@ export function parseEffectiveSettings(raw: SettingsMap): EffectiveSettings {
       "first_contact_sla_hours",
     ),
     businessTimezone: parseTimezone(raw.business_timezone),
-    inactivityLogoutMinutes: parsePositiveInt(
+    inactivityLogoutMinutes: parseIdleTimeoutMinutes(
       raw.inactivity_logout_minutes,
-      Number(SETTING_DEFAULTS.inactivity_logout_minutes),
-      "inactivity_logout_minutes",
     ),
   };
 }

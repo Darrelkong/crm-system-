@@ -26,6 +26,7 @@ import {
   interpretAuthMeResponse,
   planIdleCheckAfterMe,
 } from "@/lib/auth/idle-timeout-check";
+import { isValidIdleTimeoutMinutes } from "@/lib/settings/idle-timeout";
 
 type SyncMessage =
   | { type: "activity"; at: number }
@@ -42,9 +43,10 @@ export function IdleTimeoutProvider({
   const [sessionEndReason, setSessionEndReason] = useState<SessionEndReason | null>(
     null,
   );
+  const [effectiveIdleMinutes, setEffectiveIdleMinutes] = useState(idleMinutes);
   const loggingOutRef = useRef(false);
   const globalIdleExemptRef = useRef(false);
-  const idleMs = idleMinutes * 60 * 1000;
+  const idleMs = effectiveIdleMinutes * 60 * 1000;
   const { exemptUntil } = useIdleExempt();
 
   const handleSessionEnd = useCallback(
@@ -128,8 +130,12 @@ export function IdleTimeoutProvider({
         try {
           const data = (await res.json()) as {
             globalIdleTimeoutExempt?: unknown;
+            idleTimeoutMinutes?: unknown;
           };
           globalIdleTimeoutExempt = data.globalIdleTimeoutExempt;
+          if (isValidIdleTimeoutMinutes(data.idleTimeoutMinutes)) {
+            setEffectiveIdleMinutes(data.idleTimeoutMinutes);
+          }
         } catch {
           // treat as ignore / no global flag
         }

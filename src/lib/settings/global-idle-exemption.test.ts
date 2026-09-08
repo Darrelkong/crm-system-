@@ -54,8 +54,22 @@ describe("global idle exemption — setting defaults and keys", () => {
     );
   });
 
-  it("inactivity_logout_minutes remains locked", () => {
-    assert.equal(isLockedSettingKey("inactivity_logout_minutes"), true);
+  it("inactivity_logout_minutes is editable through ordinary Admin settings", () => {
+    assert.equal(isLockedSettingKey("inactivity_logout_minutes"), false);
+    assert.equal(
+      validateSettingValue("inactivity_logout_minutes", "5"),
+      null,
+    );
+    assert.equal(
+      validateSettingValue("inactivity_logout_minutes", "1440"),
+      null,
+    );
+    for (const value of ["0", "4", "1441", "30.5", "abc", ""]) {
+      assert.notEqual(
+        validateSettingValue("inactivity_logout_minutes", value),
+        null,
+      );
+    }
   });
 
   it("global switch only accepts true/false", () => {

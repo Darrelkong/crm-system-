@@ -34,11 +34,13 @@ function makeUser(overrides: Partial<User> = {}): User {
 function okResult(
   user: User,
   globalIdleTimeoutExempt: boolean,
+  idleTimeoutMinutes = 30,
 ): Extract<SessionValidationResult, { ok: true }> {
   return {
     ok: true,
     session: { sessionId: "sess-1", user, deviceIdHash: null },
     globalIdleTimeoutExempt,
+    idleTimeoutMinutes,
   };
 }
 
@@ -46,6 +48,7 @@ describe("buildAuthMeSuccessPayload", () => {
   it("returns globalIdleTimeoutExempt: true when policy exempt", () => {
     const payload = buildAuthMeSuccessPayload(okResult(makeUser(), true));
     assert.equal(payload.globalIdleTimeoutExempt, true);
+    assert.equal(payload.idleTimeoutMinutes, 30);
     assert.equal(payload.user.id, "user-1");
     assert.equal(payload.user.email, "user@example.com");
     assert.equal(payload.user.displayName, "Test User");
@@ -54,8 +57,9 @@ describe("buildAuthMeSuccessPayload", () => {
   });
 
   it("returns globalIdleTimeoutExempt: false when policy not exempt", () => {
-    const payload = buildAuthMeSuccessPayload(okResult(makeUser(), false));
+    const payload = buildAuthMeSuccessPayload(okResult(makeUser(), false, 60));
     assert.equal(payload.globalIdleTimeoutExempt, false);
+    assert.equal(payload.idleTimeoutMinutes, 60);
   });
 
   it("works for admin sessions", () => {
@@ -85,6 +89,7 @@ describe("buildAuthMeSuccessPayload", () => {
     assert.ok(!Object.prototype.hasOwnProperty.call(payload, "session"));
     assert.deepEqual(Object.keys(payload).sort(), [
       "globalIdleTimeoutExempt",
+      "idleTimeoutMinutes",
       "user",
     ]);
     assert.deepEqual(Object.keys(payload.user).sort(), [

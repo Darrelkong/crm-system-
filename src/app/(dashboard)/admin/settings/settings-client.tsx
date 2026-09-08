@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Label, Select } from "@/components/ui/form";
 import { PageIntro } from "@/components/ui/page-intro";
-import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
 import { useTranslation } from "@/i18n/provider";
 import {
   COLLABORATIVE_DISSOLUTION_FLAG_KEY,
@@ -200,34 +199,24 @@ function SettingsSectionCard({
                       <option value="Asia/Hong_Kong">Asia/Hong_Kong</option>
                       <option value="UTC">UTC</option>
                     </Select>
-                  ) : key === "inactivity_logout_minutes" ? (
+                  ) : (
                     <>
                       <Input
                         id={key}
                         type="number"
+                        min={key === "inactivity_logout_minutes" ? 5 : 1}
+                        max={key === "inactivity_logout_minutes" ? 1440 : undefined}
+                        step="1"
                         className="mt-1"
-                        value={String(INACTIVITY_LOGOUT_MINUTES)}
-                        readOnly
-                        disabled
+                        value={settings[key] ?? ""}
+                        onChange={(e) => onChange(key, e.target.value)}
                       />
-                      <div className="mt-2 flex flex-wrap items-center gap-2">
-                        <Badge variant="warning">
-                          {t("settings.badgeReadOnly")}
-                        </Badge>
-                      </div>
-                      <p className="mt-1 text-xs text-[#6B7890]">
-                        {t("settings.inactivityLogoutFixedHint")}
-                      </p>
+                      {key === "inactivity_logout_minutes" ? (
+                        <p className="mt-1 text-xs text-[#6B7890]">
+                          {t("settings.inactivityLogoutHint")}
+                        </p>
+                      ) : null}
                     </>
-                  ) : (
-                    <Input
-                      id={key}
-                      type="number"
-                      min={1}
-                      className="mt-1"
-                      value={settings[key] ?? ""}
-                      onChange={(e) => onChange(key, e.target.value)}
-                    />
                   )}
                 </>
               )}

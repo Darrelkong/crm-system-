@@ -6,8 +6,8 @@ import { NavigationPendingProvider } from "@/components/layout/navigation-pendin
 import { GlobalWatermark } from "@/components/security/global-watermark";
 import { LocalPreviewIdleSimulation } from "@/components/auth/local-preview-idle-simulation";
 import { readServerNowMs } from "@/components/security/server-now";
-import { getCurrentUserCached } from "@/lib/auth/request-cache";
-import { INACTIVITY_LOGOUT_MINUTES } from "@/lib/auth/constants";
+import { getAuthValidationCached } from "@/lib/auth/request-cache";
+import { DEFAULT_IDLE_TIMEOUT_MINUTES } from "@/lib/settings/idle-timeout";
 
 export const dynamic = "force-dynamic";
 
@@ -23,14 +23,18 @@ export default async function DashboardGroupLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getCurrentUserCached();
+  const validation = await getAuthValidationCached();
+  const user = validation.ok ? validation.session.user : null;
+  const idleMinutes = validation.ok
+    ? validation.idleTimeoutMinutes
+    : DEFAULT_IDLE_TIMEOUT_MINUTES;
   // force-dynamic layout: capture server clock once per request for watermark sync
   const serverNowMs = readServerNowMs();
 
   return (
     <IdleExemptProvider>
       <GlobalPrivacyScreen />
-      <IdleTimeoutProvider idleMinutes={INACTIVITY_LOGOUT_MINUTES}>
+      <IdleTimeoutProvider idleMinutes={idleMinutes}>
         <NavigationPendingProvider>{children}</NavigationPendingProvider>
       </IdleTimeoutProvider>
       <IdleExemptModal />

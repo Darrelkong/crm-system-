@@ -45,6 +45,7 @@ function okResult(user: User): SessionValidationResult {
     ok: true,
     session: { sessionId: "sess-1", user, deviceIdHash: null },
     globalIdleTimeoutExempt: false,
+    idleTimeoutMinutes: 30,
   };
 }
 

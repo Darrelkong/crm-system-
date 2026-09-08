@@ -5,7 +5,7 @@ import {
 import { isIdleExemptActive } from "@/lib/auth/idle-exempt-ui";
 
 /**
- * Whether the client should skip the local 30-minute idle timer.
+ * Whether the client should skip the local configured idle timer.
  * Server /api/auth/me remains authoritative for revoke / device / access reverify.
  */
 export function shouldSkipLocalIdleTimeout(input: {

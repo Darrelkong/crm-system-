@@ -29,6 +29,14 @@ describe("timeout login visits", () => {
       new URL("../../components/auth/access-expired-gate.tsx", import.meta.url),
       "utf8",
     );
+    const loginPage = readFileSync(
+      new URL("../../app/(auth)/login/page.tsx", import.meta.url),
+      "utf8",
+    );
+    const logoutRoute = readFileSync(
+      new URL("../../app/api/auth/logout/route.ts", import.meta.url),
+      "utf8",
+    );
 
     assert.match(loginForm, /isTimeoutVisit \?\s*\(/);
     assert.match(loginForm, /className="login-page__timeout-card"/);
@@ -67,5 +75,10 @@ describe("timeout login visits", () => {
     );
     assert.match(accessGate, /security\.accessExpiredTitle/);
     assert.match(accessGate, /security\.verifyAccessAgain/);
+    assert.match(loginPage, /isCrmTimeout/);
+    assert.match(loginPage, /!isCrmTimeout && shouldRequireCloudflareAccess/);
+    assert.match(logoutRoute, /reason === "idle"/);
+    assert.match(logoutRoute, /\/login\?reason=timeout/);
+    assert.match(logoutRoute, /getPostLogoutRedirectPath/);
   });
 });
