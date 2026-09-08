@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import {
   BarChart3,
   Bell,
+  BookOpen,
   CheckSquare,
   CircleHelp,
   ClipboardList,
@@ -50,7 +51,8 @@ export type NavIconId =
   | "backups"
   | "customerImport"
   | "dataExport"
-  | "help";
+  | "help"
+  | "knowledge";
 
 export const navIcons: Record<NavIconId, LucideIcon> = {
   dashboard: LayoutDashboard,
@@ -78,4 +80,5 @@ export const navIcons: Record<NavIconId, LucideIcon> = {
   customerImport: Upload,
   dataExport: Download,
   help: CircleHelp,
+  knowledge: BookOpen,
 };

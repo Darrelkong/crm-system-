@@ -186,6 +186,7 @@ const en = {
     recycleBin: "Recycle Bin",
     more: "More",
     mail: "Mail",
+    knowledge: "Knowledge",
     customersMobile: "Customers",
     collapseSidebar: "Collapse sidebar",
     expandSidebar: "Expand sidebar",
@@ -3100,6 +3101,28 @@ const en = {
     confirmRead: "I Have Read This — Continue",
     backToWelcome: "Back",
     loadFailed: "Failed to load announcement.",
+  },
+  knowledge: {
+    title: "Knowledge",
+    accessTitle: "Knowledge Access",
+    accessDescription: "Business Knowledge security verification",
+    accessNotice:
+      "This area contains internal business materials. Complete the secondary verification to continue.",
+    setupTitle: "Knowledge",
+    setupDescription: "Business Knowledge initialization",
+    setupNotice:
+      "Set the Knowledge access password to enable the business Knowledge module.",
+    passwordLabel: "Access password",
+    confirmPasswordLabel: "Confirm password",
+    accessSubmit: "Verify and enter",
+    setupSubmit: "Initialize Knowledge",
+    helper:
+      "This verification is independent of CRM login and protects internal Knowledge materials.",
+    processing: "Processing…",
+    requestFailed: "Request failed. Please try again.",
+    placeholderTitle: "Business Knowledge",
+    placeholderDescription: "The Knowledge foundation module is enabled.",
+    lock: "Lock Knowledge",
   },
   help: {
     title: "Help Center",

@@ -169,6 +169,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (pathname.startsWith("/knowledge")) {
+    if (!sessionUser) {
+      return await redirectToLogin(request);
+    }
+    return NextResponse.next();
+  }
+
   if (
     pathname.startsWith("/approvals") ||
     pathname.startsWith("/notifications") ||
@@ -202,6 +209,8 @@ export const config = {
     "/staff/:path*",
     "/customers",
     "/customers/:path*",
+    "/knowledge",
+    "/knowledge/:path*",
     "/public-pool",
     "/public-pool/:path*",
     "/approvals",

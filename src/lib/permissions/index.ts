@@ -28,3 +28,11 @@ export {
 } from "./customers";
 
 export { logPermissionDenied } from "./audit";
+
+export {
+  requireKnowledgeSession,
+  requireKnowledgeAccess,
+  requireKnowledgeRole,
+  requireKnowledgeAdmin,
+  knowledgeErrorResponse,
+} from "./knowledge";
