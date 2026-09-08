@@ -133,27 +133,8 @@ describe("Mail Files first-deployment bootstrap guard", () => {
     );
   });
 
-  it("recognizes absent and existing Worker deployment metadata", () => {
-    assert.equal(
-      parseWorkerPresence({
-        status: 1,
-        stderr: 'Worker "echfront-mail-files" not found.',
-      }),
-      false,
-    );
-    assert.equal(parseWorkerPresence({ status: 0, stdout: "[]" }), false);
-    assert.equal(
-      parseWorkerPresence({
-        status: 0,
-        stdout: JSON.stringify([{ id: "deployment" }]),
-      }),
-      true,
-    );
-  });
-
-  it("queries Worker existence without treating unrelated errors as absence", () => {
-    const execute = (_command, _args, options) => ({
-      ...options,
+  it("classifies an existing Gateway Worker and the bootstrap refuses it", async () => {
+    const execute = () => ({
       status: 0,
       stdout: JSON.stringify([{ id: "deployment" }]),
       stderr: "",
@@ -162,14 +143,113 @@ describe("Mail Files first-deployment bootstrap guard", () => {
       readWorkerPresence(repositoryRoot, "echfront-mail-files", execute),
       true,
     );
+
+    const { config, source: gatewaySource } = await productionConfig();
+    const crmSource = await readFile(`${repositoryRoot}/wrangler.jsonc`, "utf8");
     assert.throws(
       () =>
-        readWorkerPresence(repositoryRoot, "echfront-mail-files", () => ({
+        assertBootstrapPreconditions({
+          source: source(),
+          gatewayConfig: config,
+          gatewaySource,
+          crmSource,
+          gatewayExists: true,
+        }),
+      /first-create only/,
+    );
+  });
+
+  it("classifies structured Wrangler code 10007 as absent for the exact Gateway probe", async () => {
+    const execute = () => ({
+      status: 1,
+      stdout: "",
+      stderr:
+        'A request to the Cloudflare API failed. This Worker does not exist on your account. [code: 10007]',
+    });
+    const gatewayExists = readWorkerPresence(
+      repositoryRoot,
+      "echfront-mail-files",
+      execute,
+    );
+    assert.equal(gatewayExists, false);
+
+    const { config, source: gatewaySource } = await productionConfig();
+    const crmSource = await readFile(`${repositoryRoot}/wrangler.jsonc`, "utf8");
+    assert.doesNotThrow(() =>
+      assertBootstrapPreconditions({
+        source: source(),
+        gatewayConfig: config,
+        gatewaySource,
+        crmSource,
+        gatewayExists,
+      }),
+    );
+
+    let nextMockedBootstrapStageReached = false;
+    if (!gatewayExists) nextMockedBootstrapStageReached = true;
+    assert.equal(nextMockedBootstrapStageReached, true);
+  });
+
+  it("does not classify script_not_found text without structured code 10007 as absent", () => {
+    assert.throws(() =>
+      parseWorkerPresence({
+        status: 1,
+        workerName: "echfront-mail-files",
+        stderr: "workers.api.error.script_not_found",
+      }),
+    );
+  });
+
+  it("fails closed for non-10007 API errors, network errors, and malformed responses", () => {
+    for (const result of [
+      {
+        status: 1,
+        workerName: "echfront-mail-files",
+        stderr: "API permission denied [code: 10001]",
+      },
+      {
+        status: 1,
+        workerName: "echfront-mail-files",
+        stderr: "network failure",
+      },
+      {
+        status: 0,
+        workerName: "echfront-mail-files",
+        stdout: "{ malformed",
+      },
+    ]) {
+      assert.throws(() => parseWorkerPresence(result));
+    }
+  });
+
+  it("does not accept 10007 for a non-Gateway Worker target", () => {
+    assert.throws(
+      () =>
+        readWorkerPresence(repositoryRoot, "wrong-worker", () => ({
           status: 1,
           stdout: "",
-          stderr: "network failure",
+          stderr: "This Worker does not exist [code: 10007]",
         })),
-      /Unable to determine/,
+      /must target echfront-mail-files exactly/,
+    );
+  });
+
+  it("recognizes existing deployment metadata without relying on error text", () => {
+    assert.equal(
+      parseWorkerPresence({
+        status: 0,
+        workerName: "echfront-mail-files",
+        stdout: "[]",
+      }),
+      false,
+    );
+    assert.equal(
+      parseWorkerPresence({
+        status: 0,
+        workerName: "echfront-mail-files",
+        stdout: JSON.stringify([{ id: "deployment" }]),
+      }),
+      true,
     );
   });
 

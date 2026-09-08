@@ -8,12 +8,14 @@ import {
 } from "./production-release-guard.mjs";
 import {
   GATEWAY_SECRET_NAME,
+  GATEWAY_WORKER_NAME,
   assertGatewayProductionConfig,
 } from "./mail-files-production-guard.mjs";
 
 export const BOOTSTRAP_DEPLOYMENT_CONTEXT = Symbol(
   "mail-files-production-bootstrap",
 );
+export const GATEWAY_ABSENT_API_ERROR_CODE = 10007;
 
 export class MailFilesProductionBootstrapError extends Error {
   constructor(message) {
@@ -71,10 +73,26 @@ export function assertBootstrapPreconditions({
   }
 }
 
-export function parseWorkerPresence({ status, stdout = "", stderr = "" }) {
+export function parseStructuredWranglerApiErrorCode(output) {
+  const structuredCode = output.match(
+    /(?:\[\s*)?\bcode\b\s*[:=]\s*["']?(\d+)["']?\s*(?:\])?/i,
+  )?.[1];
+  return structuredCode ? Number(structuredCode) : null;
+}
+
+export function parseWorkerPresence({
+  status,
+  workerName,
+  stdout = "",
+  stderr = "",
+}) {
   const output = `${stdout}\n${stderr}`;
   if (status !== 0) {
-    if (/worker\s+"[^"]+"\s+not found/i.test(output)) {
+    const apiErrorCode = parseStructuredWranglerApiErrorCode(output);
+    if (
+      workerName === GATEWAY_WORKER_NAME &&
+      apiErrorCode === GATEWAY_ABSENT_API_ERROR_CODE
+    ) {
       return false;
     }
     throw new MailFilesProductionBootstrapError(
@@ -108,6 +126,12 @@ export function readWorkerPresence(
       stdio: ["ignore", "pipe", "pipe"],
     }),
 ) {
+  if (workerName !== GATEWAY_WORKER_NAME) {
+    throw new MailFilesProductionBootstrapError(
+      `Gateway existence probe must target ${GATEWAY_WORKER_NAME} exactly.`,
+    );
+  }
+
   const result = execute(
     "npx",
     [
@@ -126,6 +150,7 @@ export function readWorkerPresence(
   }
   return parseWorkerPresence({
     status: result.status,
+    workerName,
     stdout: result.stdout,
     stderr: result.stderr,
   });
