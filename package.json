@@ -12,6 +12,7 @@
     "prebuild": "npm run generate:locales",
     "prepreview": "npm run generate:locales",
     "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:knowledge-preview": "node scripts/deploy-knowledge-preview.mjs",
     "deploy": "npm run deploy:production",
     "deploy:production": "node scripts/deploy-production.mjs",
     "deploy:mail-files:production": "node scripts/deploy-mail-files-production.mjs",

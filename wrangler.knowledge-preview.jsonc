@@ -1,0 +1,48 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "crm-system-knowledge-preview",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": false,
+  "preview_urls": false,
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "crm-system-knowledge-preview"
+    }
+  ],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "crm-db-knowledge-preview",
+      "database_id": "14b75c29-3faf-4389-8aa8-48f06fa75355",
+      "migrations_dir": "drizzle/migrations"
+    }
+  ],
+  "r2_buckets": [
+    {
+      "binding": "KNOWLEDGE_SOURCES",
+      "bucket_name": "crm-knowledge-sources-preview"
+    }
+  ],
+  "vars": {
+    "CRM_ALLOW_MOCK_AI": "1",
+    "KNOWLEDGE_AI_DAILY_LIMIT": "20",
+    "MAIL_NOTIFICATION_TRANSPORT_ENABLED": "false",
+    "MAIL_OUTBOUND_TRANSPORT_MODE": "disabled",
+    "MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED": "false",
+    "MAIL_LARGE_ATTACHMENT_SEND_ENABLED": "false"
+  }
+}
