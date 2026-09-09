@@ -13,7 +13,14 @@ export type KnowledgeAuditAction =
   | "knowledge_article_create"
   | "knowledge_article_update"
   | "knowledge_article_archive"
-  | "knowledge_article_view_version";
+  | "knowledge_article_view_version"
+  | "knowledge_source_created"
+  | "knowledge_source_uploaded"
+  | "knowledge_source_extracted"
+  | "knowledge_ai_organization_started"
+  | "knowledge_ai_organization_completed"
+  | "knowledge_ai_organization_failed"
+  | "knowledge_source_converted_to_draft";
 
 export type KnowledgeAuditInput = {
   userId: string;

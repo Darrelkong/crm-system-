@@ -2,6 +2,8 @@ interface CloudflareEnv {
   DB: D1Database;
   ATTACHMENTS: R2Bucket;
   LARGE_ATTACHMENTS?: R2Bucket;
+  /** Optional dedicated Package 3 binding; no production bucket is created by this feature. */
+  KNOWLEDGE_SOURCES?: R2Bucket;
   ASSETS: Fetcher;
   WORKER_SELF_REFERENCE: Fetcher;
   CRM_SYSTEM_GATEWAY_SECRET?: string;

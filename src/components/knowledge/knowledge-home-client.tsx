@@ -153,6 +153,15 @@ export function KnowledgeHomeClient({
               新建草稿
             </Button>
           )}
+          {(role === "contributor" || role === "knowledge_admin") && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => router.push("/knowledge/ingest")}
+            >
+              来源整理
+            </Button>
+          )}
           <Button
             type="button"
             variant="secondary"
