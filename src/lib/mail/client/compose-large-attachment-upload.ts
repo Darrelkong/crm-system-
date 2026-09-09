@@ -108,11 +108,15 @@ export async function authorizeLargeAttachmentUpload(input: {
           : authorizeHttpDiagnosticCode(response.status),
     };
   }
+  const requiredHeaders = payload.requiredHeaders;
   if (
-    !payload.uploadSessionId ||
-    !payload.uploadUrl ||
-    !payload.requiredHeaders ||
-    !payload.expiresAt
+    typeof payload.uploadSessionId !== "string" ||
+    typeof payload.uploadUrl !== "string" ||
+    typeof payload.expiresAt !== "string" ||
+    !requiredHeaders ||
+    typeof requiredHeaders["Content-Type"] !== "string" ||
+    typeof requiredHeaders["Content-MD5"] !== "string" ||
+    requiredHeaders["If-None-Match"] !== "*"
   ) {
     return {
       ok: false,
@@ -121,12 +125,13 @@ export async function authorizeLargeAttachmentUpload(input: {
       errorCode: "LA_AUTHORIZE_RESPONSE_INVALID",
     };
   }
+  const completeRequiredHeaders = requiredHeaders;
   return {
     ok: true,
     authorization: {
       uploadSessionId: payload.uploadSessionId,
       uploadUrl: payload.uploadUrl,
-      requiredHeaders: payload.requiredHeaders,
+      requiredHeaders: completeRequiredHeaders,
       expiresAt: payload.expiresAt,
     },
   };

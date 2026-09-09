@@ -157,15 +157,27 @@ describe("large attachment R2 PUT request construction", () => {
   });
 
   it("maps incomplete successful authorize responses to a sanitized diagnostic", async () => {
-    assert.deepEqual(
-      await runWithAuthorizeFetch(new Response(JSON.stringify({}), { status: 200 })),
+    for (const payload of [
+      {},
       {
-        ok: false,
-        status: 500,
-        error: "Large attachment authorization response incomplete",
-        errorCode: "LA_AUTHORIZE_RESPONSE_INVALID",
+        uploadSessionId: "session-1",
+        uploadUrl: "https://example.invalid/upload",
+        requiredHeaders: {},
+        expiresAt: "2026-08-30T10:10:00.000Z",
       },
-    );
+    ]) {
+      assert.deepEqual(
+        await runWithAuthorizeFetch(
+          new Response(JSON.stringify(payload), { status: 200 }),
+        ),
+        {
+          ok: false,
+          status: 500,
+          error: "Large attachment authorization response incomplete",
+          errorCode: "LA_AUTHORIZE_RESPONSE_INVALID",
+        },
+      );
+    }
   });
 
   it("includes exactly the authorization-required headers", () => {
