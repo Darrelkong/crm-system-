@@ -51,6 +51,7 @@ export const knowledgeArticles = sqliteTable(
     currentVersionNumber: integer("current_version_number")
       .notNull()
       .default(1),
+    publishedVersionNumber: integer("published_version_number"),
     createdByUserId: text("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),

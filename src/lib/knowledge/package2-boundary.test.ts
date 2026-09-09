@@ -30,7 +30,7 @@ describe("Knowledge Package 2 security and UI boundaries", () => {
     }
   });
 
-  it("keeps article content plain text and the UI free of Package 3/4 actions", () => {
+  it("keeps article content plain text and the UI free of Package 5 actions", () => {
     const source = [
       read("src/components/knowledge/knowledge-home-client.tsx"),
       read("src/components/knowledge/knowledge-article-editor.tsx"),
@@ -41,7 +41,7 @@ describe("Knowledge Package 2 security and UI boundaries", () => {
     assert.match(source, /history|版本历史/);
     assert.match(source, /whitespace-pre-wrap/);
     assert.doesNotMatch(source, /dangerouslySetInnerHTML|<iframe/);
-    assert.doesNotMatch(source, /AI|语义搜索|发布文章|Publish/);
+    assert.doesNotMatch(source, /语义搜索/);
   });
 
   it("keeps five primary mobile navigation slots and Knowledge secondary", () => {

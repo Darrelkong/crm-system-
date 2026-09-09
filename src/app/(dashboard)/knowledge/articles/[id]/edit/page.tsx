@@ -7,6 +7,8 @@ import {
   getKnowledgeArticle,
   listKnowledgeCategories,
 } from "@/lib/knowledge/core-service";
+import { getDb } from "@/lib/db";
+import { hasActiveKnowledgeReview } from "@/lib/knowledge/review-state";
 import { requireKnowledgeAccess } from "@/lib/permissions/knowledge";
 
 type PageContext = { params: Promise<{ id: string }> };
@@ -17,7 +19,13 @@ export default async function EditKnowledgeArticlePage(context: PageContext) {
   const article = await getKnowledgeArticle(actor, id).catch(() => null);
   if (!article) notFound();
   if (
-    article.status !== "draft" ||
+    article.isPublishedSnapshot ||
+    (await hasActiveKnowledgeReview(id, getDb()))
+  ) {
+    redirect(`/knowledge/articles/${id}`);
+  }
+  if (
+    article.status === "archived" ||
     (actor.role !== "knowledge_admin" &&
       actor.role !== "contributor" &&
       actor.role !== "reviewer")

@@ -23,6 +23,7 @@ import {
 } from "@/lib/knowledge/audit";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
+import { hasActiveKnowledgeReview } from "@/lib/knowledge/review-state";
 
 export const KNOWLEDGE_CATEGORY_NAME_MAX = 120;
 export const KNOWLEDGE_CATEGORY_DESCRIPTION_MAX = 500;
@@ -68,6 +69,9 @@ export type KnowledgeArticleListItem = {
   visibility: KnowledgeVisibility;
   ownerUserId: string | null;
   currentVersionNumber: number;
+  publishedVersionNumber: number | null;
+  isPublishedSnapshot: boolean;
+  hasUnpublishedChanges: boolean;
   createdAt: string;
   updatedAt: string;
   archivedAt: string | null;
@@ -208,6 +212,10 @@ function articleVisibility(
   return article.visibility;
 }
 
+function versionVisibility(value: string): KnowledgeVisibility {
+  return value === "restricted" || value === "owner" ? value : "team";
+}
+
 function canEditArticle(
   context: KnowledgeSessionContext,
   article: KnowledgeArticleDetail,
@@ -216,7 +224,7 @@ function canEditArticle(
   if (!context.role || !hasKnowledgeRoleAtLeast(context.role, "contributor")) {
     return false;
   }
-  if (article.status !== "draft") return false;
+  if (article.status === "archived") return false;
   if (
     article.visibility === "owner" &&
     article.ownerUserId !== context.user.id
@@ -277,6 +285,11 @@ function mapArticle(
     visibility: articleVisibility(row),
     ownerUserId: row.ownerUserId,
     currentVersionNumber: row.currentVersionNumber,
+    publishedVersionNumber: row.publishedVersionNumber,
+    isPublishedSnapshot: false,
+    hasUnpublishedChanges:
+      row.publishedVersionNumber != null &&
+      row.currentVersionNumber > row.publishedVersionNumber,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     archivedAt: row.archivedAt,
@@ -307,6 +320,68 @@ async function getArticleRow(
   return {
     ...mapArticle(row.article, row.categoryName),
     body: row.article.body,
+  };
+}
+
+async function getPublishedArticleView(
+  current: KnowledgeArticleDetail,
+  context: KnowledgeSessionContext,
+  db: Database,
+): Promise<KnowledgeArticleDetail> {
+  if (
+    context.role !== "viewer" ||
+    current.status === "archived" ||
+    current.publishedVersionNumber == null
+  ) {
+    throw new KnowledgeServiceError(
+      KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_FOUND,
+      "文章不存在或无法访问",
+      404,
+    );
+  }
+  const rows = await db
+    .select()
+    .from(schema.knowledgeArticleVersions)
+    .where(
+      and(
+        eq(schema.knowledgeArticleVersions.articleId, current.id),
+        eq(
+          schema.knowledgeArticleVersions.versionNumber,
+          current.publishedVersionNumber,
+        ),
+      ),
+    )
+    .limit(1);
+  const version = rows[0];
+  if (
+    !version ||
+    !canViewKnowledgeVisibility({
+      role: "viewer",
+      visibility: versionVisibility(version.visibilitySnapshot),
+      userId: context.user.id,
+      ownerId: version.ownerUserIdSnapshot,
+      hasRestrictedGrant: false,
+    })
+  ) {
+    throw new KnowledgeServiceError(
+      KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_FOUND,
+      "文章不存在或无法访问",
+      404,
+    );
+  }
+  return {
+    ...current,
+    categoryId: version.categoryIdSnapshot,
+    title: version.titleSnapshot,
+    summary: version.summarySnapshot,
+    body: version.bodySnapshot,
+    status: "published",
+    visibility: versionVisibility(version.visibilitySnapshot),
+    ownerUserId: version.ownerUserIdSnapshot,
+    currentVersionNumber: version.versionNumber,
+    publishedVersionNumber: version.versionNumber,
+    isPublishedSnapshot: true,
+    hasUnpublishedChanges: false,
   };
 }
 
@@ -462,17 +537,33 @@ export async function listKnowledgeArticles(
     )
     .where(and(...conditions))
     .orderBy(desc(schema.knowledgeArticles.updatedAt));
-  return rows
-    .map((row) => mapArticle(row.article, row.categoryName))
-    .filter((article) =>
-      canViewKnowledgeVisibility({
-        role: context.role ?? "viewer",
-        visibility: article.visibility,
-        userId: context.user.id,
-        ownerId: article.ownerUserId,
-        hasRestrictedGrant: false,
-      }),
-    );
+  const visible: KnowledgeArticleListItem[] = [];
+  for (const row of rows) {
+    const current = {
+      ...mapArticle(row.article, row.categoryName),
+      body: row.article.body,
+    };
+    try {
+      if (context.role === "viewer") {
+        visible.push(await getPublishedArticleView(current, context, db));
+        continue;
+      }
+      if (
+        canViewKnowledgeVisibility({
+          role: context.role ?? "viewer",
+          visibility: current.visibility,
+          userId: context.user.id,
+          ownerId: current.ownerUserId,
+          hasRestrictedGrant: false,
+        })
+      ) {
+        visible.push(current);
+      }
+    } catch {
+      // Unpublished drafts and inaccessible snapshots are omitted from lists.
+    }
+  }
+  return visible;
 }
 
 export async function getKnowledgeCatalog(
@@ -498,6 +589,9 @@ export async function getKnowledgeArticle(
       "文章不存在",
       404,
     );
+  }
+  if (context.role === "viewer") {
+    return getPublishedArticleView(article, context, db);
   }
   assertArticleRead(context, article);
   return article;
@@ -702,6 +796,7 @@ export async function createKnowledgeArticle(
       visibility: values.visibility,
       ownerUserId,
       currentVersionNumber: 1,
+      publishedVersionNumber: null,
       createdByUserId: context.user.id,
       updatedByUserId: context.user.id,
       createdAt: now,
@@ -755,6 +850,13 @@ export async function updateKnowledgeArticle(
       KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_EDITABLE,
       "只有可编辑的草稿文章可以更新",
       403,
+    );
+  }
+  if (await hasActiveKnowledgeReview(articleId, db)) {
+    throw new KnowledgeServiceError(
+      KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_EDITABLE,
+      "此版本正在审核中。如需修改，请先撤回审核",
+      409,
     );
   }
   const values = parseArticleInput(input);
@@ -867,6 +969,13 @@ export async function archiveKnowledgeArticle(
       403,
     );
   }
+  if (await hasActiveKnowledgeReview(articleId, db)) {
+    throw new KnowledgeServiceError(
+      KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_EDITABLE,
+      "请先撤回或完成审核，再归档文章",
+      409,
+    );
+  }
   const updatedAt = nextUpdatedAt(current.updatedAt);
   const archivedAt = new Date().toISOString();
   const update = db
@@ -921,13 +1030,20 @@ export async function listKnowledgeArticleVersions(
   articleId: string,
   db: Database = getDb(),
 ): Promise<KnowledgeArticleVersionView[]> {
-  await getKnowledgeArticle(context, articleId, db);
+  const article = await getKnowledgeArticle(context, articleId, db);
   const rows = await db
     .select()
     .from(schema.knowledgeArticleVersions)
     .where(eq(schema.knowledgeArticleVersions.articleId, articleId))
     .orderBy(desc(schema.knowledgeArticleVersions.versionNumber));
-  return rows.map(mapVersion);
+  return rows
+    .filter(
+      (row) =>
+        context.role !== "viewer" ||
+        (article.publishedVersionNumber != null &&
+          row.versionNumber <= article.publishedVersionNumber),
+    )
+    .map(mapVersion);
 }
 
 export async function getKnowledgeArticleVersion(
@@ -937,7 +1053,7 @@ export async function getKnowledgeArticleVersion(
   meta: Pick<KnowledgeAuditInput, "ipAddress" | "userAgent">,
   db: Database = getDb(),
 ): Promise<KnowledgeArticleVersionView> {
-  await getKnowledgeArticle(context, articleId, db);
+  const article = await getKnowledgeArticle(context, articleId, db);
   if (!Number.isSafeInteger(versionNumber) || versionNumber < 1) {
     throw new KnowledgeServiceError(
       KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_FOUND,
@@ -957,6 +1073,24 @@ export async function getKnowledgeArticleVersion(
     .limit(1);
   const version = rows[0];
   if (!version) {
+    throw new KnowledgeServiceError(
+      KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_FOUND,
+      "文章版本不存在",
+      404,
+    );
+  }
+  if (
+    context.role === "viewer" &&
+    (article.publishedVersionNumber == null ||
+      versionNumber > article.publishedVersionNumber ||
+      !canViewKnowledgeVisibility({
+        role: "viewer",
+        visibility: versionVisibility(version.visibilitySnapshot),
+        userId: context.user.id,
+        ownerId: version.ownerUserIdSnapshot,
+        hasRestrictedGrant: false,
+      }))
+  ) {
     throw new KnowledgeServiceError(
       KNOWLEDGE_ERROR_CODES.ARTICLE_NOT_FOUND,
       "文章版本不存在",

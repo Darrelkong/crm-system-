@@ -162,6 +162,15 @@ export function KnowledgeHomeClient({
               来源整理
             </Button>
           )}
+          {(role === "reviewer" || role === "knowledge_admin") && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => router.push("/knowledge/review")}
+            >
+              Review Center
+            </Button>
+          )}
           <Button
             type="button"
             variant="secondary"

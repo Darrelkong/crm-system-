@@ -20,7 +20,13 @@ export type KnowledgeAuditAction =
   | "knowledge_ai_organization_started"
   | "knowledge_ai_organization_completed"
   | "knowledge_ai_organization_failed"
-  | "knowledge_source_converted_to_draft";
+  | "knowledge_source_converted_to_draft"
+  | "knowledge_review_submitted"
+  | "knowledge_review_assigned"
+  | "knowledge_review_withdrawn"
+  | "knowledge_review_changes_requested"
+  | "knowledge_review_approved"
+  | "knowledge_article_published";
 
 export type KnowledgeAuditInput = {
   userId: string;

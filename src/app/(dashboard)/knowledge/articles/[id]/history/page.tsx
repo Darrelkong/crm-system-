@@ -5,6 +5,9 @@ import { notFound } from "next/navigation";
 import { Badge, Card } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
 import {
+  listKnowledgeArticlePublications,
+} from "@/lib/knowledge/review-service";
+import {
   getKnowledgeArticle,
   getKnowledgeArticleVersion,
   listKnowledgeArticleVersions,
@@ -26,7 +29,13 @@ export default async function KnowledgeArticleHistoryPage(
   const actor = await requireKnowledgeAccess();
   const article = await getKnowledgeArticle(actor, id).catch(() => null);
   if (!article) notFound();
-  const versions = await listKnowledgeArticleVersions(actor, id);
+  const [versions, publications] = await Promise.all([
+    listKnowledgeArticleVersions(actor, id),
+    listKnowledgeArticlePublications(actor, id).catch(() => []),
+  ]);
+  const publishedVersions = new Set(
+    publications.map((publication) => publication.versionNumber),
+  );
   const requestedVersion = searchParams.version
     ? Number(searchParams.version)
     : null;
@@ -53,7 +62,8 @@ export default async function KnowledgeArticleHistoryPage(
             >
               返回文章
             </Link>
-            {article.status === "draft" &&
+            {!article.isPublishedSnapshot &&
+              article.status !== "archived" &&
               (actor.role === "contributor" ||
                 actor.role === "reviewer" ||
                 actor.role === "knowledge_admin") && (
@@ -88,6 +98,13 @@ export default async function KnowledgeArticleHistoryPage(
                   {version.versionNumber === article.currentVersionNumber && (
                     <Badge variant="success">当前</Badge>
                   )}
+                  {version.versionNumber === article.publishedVersionNumber && (
+                    <Badge variant="accent">目前已发布</Badge>
+                  )}
+                  {publishedVersions.has(version.versionNumber) &&
+                    version.versionNumber !== article.publishedVersionNumber && (
+                      <Badge variant="default">曾发布</Badge>
+                    )}
                 </div>
                 <p className="mt-1 text-xs crm-text-secondary">
                   {new Date(version.createdAt).toLocaleString()}
