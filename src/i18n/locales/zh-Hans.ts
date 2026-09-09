@@ -318,6 +318,7 @@ const zhHans: Messages = {
         finalizing: "正在完成…",
         ready: "附件已就绪",
         uploadFailed: "大附件上传失败",
+        diagnosticCode: "诊断代码：{{code}}",
         expiredPlaceholder: "此大附件已过期并自动删除，请重新上传。",
         fileTooLarge: "单个大附件不可超过 {{size}}",
         aggregateExceeded: "每封邮件的大附件总量不可超过 {{totalSize}}",

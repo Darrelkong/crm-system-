@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  composeAttachmentUploadErrorMessageKey,
   createQueuedAttachmentEntry,
+  isLargeAttachmentR2DiagnosticCode,
   isAttachmentPendingUpload,
   mergeUploadedDraftAttachments,
   validateLocalAttachmentFile,
@@ -20,6 +22,16 @@ describe("compose-attachment-upload", () => {
     assert.equal(
       isAttachmentPendingUpload({ uploadStatus: "uploaded" }),
       false,
+    );
+  });
+
+  it("recognizes safe large-attachment diagnostics without exposing raw errors", () => {
+    assert.equal(isLargeAttachmentR2DiagnosticCode("LA_R2_HTTP_403"), true);
+    assert.equal(isLargeAttachmentR2DiagnosticCode("LA_R2_NETWORK_OR_CORS"), true);
+    assert.equal(isLargeAttachmentR2DiagnosticCode("LARGE_UPLOAD_FAILED"), false);
+    assert.equal(
+      composeAttachmentUploadErrorMessageKey("LA_R2_HTTP_403"),
+      "mail.compose.largeAttachment.uploadFailed",
     );
   });
 

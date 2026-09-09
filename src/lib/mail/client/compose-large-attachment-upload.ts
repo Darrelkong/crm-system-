@@ -28,6 +28,11 @@ export type LargeUploadResult =
       putCompleted?: boolean;
     };
 
+export type LargeAttachmentR2PutDiagnosticCode =
+  | `LA_R2_HTTP_${number}`
+  | "LA_R2_NETWORK_OR_CORS"
+  | "LA_R2_ABORTED";
+
 export async function authorizeLargeAttachmentUpload(input: {
   draftId: string;
   file: File;
@@ -109,7 +114,13 @@ export function putLargeAttachmentToR2WithProgress(input: {
   onProgress?: (percent: number) => void;
 }): Promise<
   | { ok: true }
-  | { ok: false; status: number; error: string; cancelled?: boolean }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      errorCode: LargeAttachmentR2PutDiagnosticCode;
+      cancelled?: boolean;
+    }
 > {
   return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
@@ -138,15 +149,27 @@ export function putLargeAttachmentToR2WithProgress(input: {
         ok: false,
         status: xhr.status,
         error: "Large attachment upload to storage failed",
+        errorCode: `LA_R2_HTTP_${xhr.status}`,
       });
     };
     xhr.onerror = () => {
       input.signal?.removeEventListener("abort", abortHandler);
-      resolve({ ok: false, status: 0, error: "Large attachment upload network error" });
+      resolve({
+        ok: false,
+        status: 0,
+        error: "Large attachment upload network error",
+        errorCode: "LA_R2_NETWORK_OR_CORS",
+      });
     };
     xhr.onabort = () => {
       input.signal?.removeEventListener("abort", abortHandler);
-      resolve({ ok: false, status: 0, error: "Upload cancelled", cancelled: true });
+      resolve({
+        ok: false,
+        status: 0,
+        error: "Upload cancelled",
+        errorCode: "LA_R2_ABORTED",
+        cancelled: true,
+      });
     };
     xhr.send(input.file);
   });

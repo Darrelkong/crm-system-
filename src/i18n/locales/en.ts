@@ -340,6 +340,7 @@ const en = {
         finalizing: "Finalizing…",
         ready: "Attachment ready",
         uploadFailed: "Large attachment upload failed",
+        diagnosticCode: "Diagnostic code: {{code}}",
         expiredPlaceholder:
           "This large attachment has expired and was automatically deleted. Please upload again.",
         fileTooLarge: "Each large attachment must be {{size}} or smaller.",

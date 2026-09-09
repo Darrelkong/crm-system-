@@ -13,6 +13,7 @@ import {
   unifiedComposeAttachmentI18nKey,
   type UnifiedComposeAttachmentIssueCode,
 } from "@/lib/mail/client/compose-attachment-classifier-client";
+import type { LargeAttachmentR2PutDiagnosticCode } from "@/lib/mail/client/compose-large-attachment-upload";
 import type { MailDeliveryMode } from "../../../../drizzle/schema/mail-draft-attachments";
 
 export type ComposeAttachmentUploadStatus =
@@ -34,7 +35,8 @@ export type ComposeAttachmentUploadErrorCode =
   | "UPLOAD_FILE_MISSING"
   | "LARGE_UPLOAD_FAILED"
   | "LARGE_FINALIZE_FAILED"
-  | "LARGE_AUTHORIZE_FAILED";
+  | "LARGE_AUTHORIZE_FAILED"
+  | LargeAttachmentR2PutDiagnosticCode;
 
 export type ComposeAttachmentUploadState = {
   localId: string;
@@ -75,6 +77,9 @@ export function composeAttachmentPolicyErrorParams(
 export function composeAttachmentUploadErrorMessageKey(
   errorCode: ComposeAttachmentUploadErrorCode | null | undefined,
 ): string {
+  if (errorCode?.startsWith("LA_R2_")) {
+    return "mail.compose.largeAttachment.uploadFailed";
+  }
   switch (errorCode) {
     case "DRAFT_SAVE_FAILED":
       return "mail.compose.attachment.draftSaveFailed";
@@ -107,6 +112,16 @@ export function composeAttachmentUploadErrorMessageKey(
     default:
       return "mail.compose.attachment.uploadFailed";
   }
+}
+
+export function isLargeAttachmentR2DiagnosticCode(
+  errorCode: string | null | undefined,
+): errorCode is LargeAttachmentR2PutDiagnosticCode {
+  return (
+    errorCode === "LA_R2_NETWORK_OR_CORS" ||
+    errorCode === "LA_R2_ABORTED" ||
+    (typeof errorCode === "string" && /^LA_R2_HTTP_[0-9]+$/.test(errorCode))
+  );
 }
 
 export function isAttachmentPendingUpload(
