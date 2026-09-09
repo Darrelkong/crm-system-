@@ -25,6 +25,7 @@ export function createLargeAttachmentS3Client(
   return new S3Client({
     region: "auto",
     endpoint: env.endpoint,
+    requestChecksumCalculation: "WHEN_REQUIRED",
     credentials: {
       accessKeyId: env.accessKeyId,
       secretAccessKey: env.secretAccessKey,
@@ -51,6 +52,7 @@ export async function presignLargeAttachmentPut(input: {
   });
   const uploadUrl = await getSignedUrl(client, command, {
     expiresIn: input.expiresInSeconds,
+    signableHeaders: new Set(["content-type"]),
   });
   return {
     uploadUrl,
