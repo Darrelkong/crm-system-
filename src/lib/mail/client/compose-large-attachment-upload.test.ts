@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  authorizeLargeAttachmentUpload,
   buildLargeAttachmentR2PutHeaders,
   putLargeAttachmentToR2WithProgress,
   type LargeAttachmentAuthorizeResponse,
@@ -79,7 +80,94 @@ async function runWithFakeXhr(
   }
 }
 
+const authorizeInput = {
+  draftId: "draft-1",
+  file: { name: "archive.zip", type: "application/zip", size: 4 } as File,
+  declaredSha256: "c".repeat(64),
+  contentMd5Base64: "1B2M2Y8AsgTpgAmY7PhCfg==",
+  acknowledgementNoticeVersion: "large_attachment_notice_v1",
+};
+
+async function runWithAuthorizeFetch(
+  response: Response | Error,
+): Promise<Awaited<ReturnType<typeof authorizeLargeAttachmentUpload>>> {
+  const original = globalThis.fetch;
+  Object.defineProperty(globalThis, "fetch", {
+    configurable: true,
+    writable: true,
+    value: async () => {
+      if (response instanceof Error) throw response;
+      return response;
+    },
+  });
+  try {
+    return await authorizeLargeAttachmentUpload(authorizeInput);
+  } finally {
+    Object.defineProperty(globalThis, "fetch", {
+      configurable: true,
+      writable: true,
+      value: original,
+    });
+  }
+}
+
 describe("large attachment R2 PUT request construction", () => {
+  it("maps authorize HTTP failures to sanitized status diagnostics", async () => {
+    for (const status of [400, 403, 500]) {
+      const result = await runWithAuthorizeFetch(
+        new Response(JSON.stringify({ error: "raw secret response" }), { status }),
+      );
+      assert.deepEqual(result, {
+        ok: false,
+        status,
+        error: "Large attachment authorization failed",
+        errorCode: `LA_AUTHORIZE_HTTP_${status}`,
+      });
+    }
+  });
+
+  it("preserves only the dedicated server presign diagnostic", async () => {
+    const result = await runWithAuthorizeFetch(
+      new Response(
+        JSON.stringify({
+          error: "Large attachment authorization failed",
+          errorCode: "LARGE_PRESIGN_FAILED",
+        }),
+        { status: 500 },
+      ),
+    );
+    assert.deepEqual(result, {
+      ok: false,
+      status: 500,
+      error: "Large attachment authorization failed",
+      errorCode: "LARGE_PRESIGN_FAILED",
+    });
+  });
+
+  it("maps authorize network failures to a sanitized network diagnostic", async () => {
+    assert.deepEqual(
+      await runWithAuthorizeFetch(new Error("raw network details")),
+      {
+        ok: false,
+        status: 0,
+        error: "Large attachment authorization network error",
+        errorCode: "LA_AUTHORIZE_NETWORK",
+      },
+    );
+  });
+
+  it("maps incomplete successful authorize responses to a sanitized diagnostic", async () => {
+    assert.deepEqual(
+      await runWithAuthorizeFetch(new Response(JSON.stringify({}), { status: 200 })),
+      {
+        ok: false,
+        status: 500,
+        error: "Large attachment authorization response incomplete",
+        errorCode: "LA_AUTHORIZE_RESPONSE_INVALID",
+      },
+    );
+  });
+
   it("includes exactly the authorization-required headers", () => {
     const headers = buildLargeAttachmentR2PutHeaders(authorization);
     assert.deepEqual(headers, {

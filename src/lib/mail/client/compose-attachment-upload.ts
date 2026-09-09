@@ -13,7 +13,7 @@ import {
   unifiedComposeAttachmentI18nKey,
   type UnifiedComposeAttachmentIssueCode,
 } from "@/lib/mail/client/compose-attachment-classifier-client";
-import type { LargeAttachmentR2PutDiagnosticCode } from "@/lib/mail/client/compose-large-attachment-upload";
+import type { LargeAttachmentDiagnosticCode } from "@/lib/mail/client/compose-large-attachment-upload";
 import type { MailDeliveryMode } from "../../../../drizzle/schema/mail-draft-attachments";
 
 export type ComposeAttachmentUploadStatus =
@@ -36,7 +36,7 @@ export type ComposeAttachmentUploadErrorCode =
   | "LARGE_UPLOAD_FAILED"
   | "LARGE_FINALIZE_FAILED"
   | "LARGE_AUTHORIZE_FAILED"
-  | LargeAttachmentR2PutDiagnosticCode;
+  | LargeAttachmentDiagnosticCode;
 
 export type ComposeAttachmentUploadState = {
   localId: string;
@@ -77,7 +77,7 @@ export function composeAttachmentPolicyErrorParams(
 export function composeAttachmentUploadErrorMessageKey(
   errorCode: ComposeAttachmentUploadErrorCode | null | undefined,
 ): string {
-  if (errorCode?.startsWith("LA_R2_")) {
+  if (isLargeAttachmentDiagnosticCode(errorCode)) {
     return "mail.compose.largeAttachment.uploadFailed";
   }
   switch (errorCode) {
@@ -114,15 +114,22 @@ export function composeAttachmentUploadErrorMessageKey(
   }
 }
 
-export function isLargeAttachmentR2DiagnosticCode(
+export function isLargeAttachmentDiagnosticCode(
   errorCode: string | null | undefined,
-): errorCode is LargeAttachmentR2PutDiagnosticCode {
+): errorCode is LargeAttachmentDiagnosticCode {
   return (
-    errorCode === "LA_R2_NETWORK_OR_CORS" ||
-    errorCode === "LA_R2_ABORTED" ||
-    (typeof errorCode === "string" && /^LA_R2_HTTP_[0-9]+$/.test(errorCode))
+    errorCode === "LA_AUTHORIZE_NETWORK" ||
+    errorCode === "LA_AUTHORIZE_RESPONSE_INVALID" ||
+    errorCode === "LARGE_PRESIGN_FAILED" ||
+    (typeof errorCode === "string" &&
+      (/^LA_AUTHORIZE_HTTP_[0-9]+$/.test(errorCode) ||
+        errorCode === "LA_R2_NETWORK_OR_CORS" ||
+        errorCode === "LA_R2_ABORTED" ||
+        /^LA_R2_HTTP_[0-9]+$/.test(errorCode)))
   );
 }
+
+export const isLargeAttachmentR2DiagnosticCode = isLargeAttachmentDiagnosticCode;
 
 export function isAttachmentPendingUpload(
   attachment: Pick<ComposeAttachmentUploadState, "uploadStatus">,

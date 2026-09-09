@@ -7,7 +7,7 @@ import {
   composeAttachmentPolicyErrorParams,
   composeAttachmentRemoveMessageKey,
   composeAttachmentUploadErrorMessageKey,
-  isLargeAttachmentR2DiagnosticCode,
+  isLargeAttachmentDiagnosticCode,
 } from "@/lib/mail/client/compose-attachment-upload";
 import {
   composeAttachmentTrayKindKey,
@@ -117,7 +117,7 @@ function CompactAttachmentStatus({
               )
             : attachment.error ?? t("mail.compose.attachment.uploadFailed")}
         </p>
-        {isLargeAttachmentR2DiagnosticCode(attachment.errorCode) ? (
+        {isLargeAttachmentDiagnosticCode(attachment.errorCode) ? (
           <p className="mt-0.5 break-words text-[10px] text-red-600/80 dark:text-red-400/80">
             {t("mail.compose.largeAttachment.diagnosticCode", {
               code: attachment.errorCode,

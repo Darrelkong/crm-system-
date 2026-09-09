@@ -28,10 +28,26 @@ export type LargeUploadResult =
       putCompleted?: boolean;
     };
 
+export type LargeAttachmentAuthorizeDiagnosticCode =
+  | `LA_AUTHORIZE_HTTP_${number}`
+  | "LA_AUTHORIZE_NETWORK"
+  | "LA_AUTHORIZE_RESPONSE_INVALID";
+
 export type LargeAttachmentR2PutDiagnosticCode =
   | `LA_R2_HTTP_${number}`
   | "LA_R2_NETWORK_OR_CORS"
   | "LA_R2_ABORTED";
+
+export type LargeAttachmentDiagnosticCode =
+  | LargeAttachmentAuthorizeDiagnosticCode
+  | LargeAttachmentR2PutDiagnosticCode
+  | "LARGE_PRESIGN_FAILED";
+
+function authorizeHttpDiagnosticCode(
+  status: number,
+): LargeAttachmentAuthorizeDiagnosticCode {
+  return `LA_AUTHORIZE_HTTP_${status}`;
+}
 
 export async function authorizeLargeAttachmentUpload(input: {
   draftId: string;
@@ -42,22 +58,37 @@ export async function authorizeLargeAttachmentUpload(input: {
   signal?: AbortSignal;
 }): Promise<
   | { ok: true; authorization: LargeAttachmentAuthorizeResponse }
-  | { ok: false; status: number; error: string; errorCode?: string }
+  | {
+      ok: false;
+      status: number;
+      error: string;
+      errorCode: LargeAttachmentAuthorizeDiagnosticCode | "LARGE_PRESIGN_FAILED";
+    }
 > {
-  const response = await fetch(draftLargeAttachmentsAuthorizePath(input.draftId), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      filename: input.file.name,
-      mimeType: input.file.type || "application/octet-stream",
-      sizeBytes: input.file.size,
-      declaredSha256: input.declaredSha256,
-      contentMd5: input.contentMd5Base64,
-      acknowledged: true,
-      acknowledgementNoticeVersion: input.acknowledgementNoticeVersion,
-    }),
-    signal: input.signal,
-  });
+  let response: Response;
+  try {
+    response = await fetch(draftLargeAttachmentsAuthorizePath(input.draftId), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: input.file.name,
+        mimeType: input.file.type || "application/octet-stream",
+        sizeBytes: input.file.size,
+        declaredSha256: input.declaredSha256,
+        contentMd5: input.contentMd5Base64,
+        acknowledged: true,
+        acknowledgementNoticeVersion: input.acknowledgementNoticeVersion,
+      }),
+      signal: input.signal,
+    });
+  } catch {
+    return {
+      ok: false,
+      status: 0,
+      error: "Large attachment authorization network error",
+      errorCode: "LA_AUTHORIZE_NETWORK",
+    };
+  }
   const payload = (await response.json().catch(() => ({}))) as {
     error?: string;
     errorCode?: string;
@@ -70,8 +101,11 @@ export async function authorizeLargeAttachmentUpload(input: {
     return {
       ok: false,
       status: response.status,
-      error: payload.error ?? "Large attachment authorization failed",
-      errorCode: payload.errorCode,
+      error: "Large attachment authorization failed",
+      errorCode:
+        payload.errorCode === "LARGE_PRESIGN_FAILED"
+          ? payload.errorCode
+          : authorizeHttpDiagnosticCode(response.status),
     };
   }
   if (
@@ -84,6 +118,7 @@ export async function authorizeLargeAttachmentUpload(input: {
       ok: false,
       status: 500,
       error: "Large attachment authorization response incomplete",
+      errorCode: "LA_AUTHORIZE_RESPONSE_INVALID",
     };
   }
   return {

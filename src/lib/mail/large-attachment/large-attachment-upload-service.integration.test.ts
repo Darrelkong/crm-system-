@@ -239,6 +239,56 @@ describe("large attachment upload service integration", () => {
     );
   });
 
+  it("maps presign failures to a safe internal error and observability event", async () => {
+    const draft = await createDraftItem();
+    const logArgs: unknown[][] = [];
+    const originalConsoleError = console.error;
+    console.error = (...args: unknown[]) => {
+      logArgs.push(args);
+    };
+
+    try {
+      await assert.rejects(
+        () =>
+          authorizeLargeAttachmentUpload(db, staffActor, {
+            draftId: draft.id,
+            authorize: {
+              filename: "archive.zip",
+              mimeType: "application/zip",
+              sizeBytes: FILE_BYTES,
+              declaredSha256: DECLARED_SHA256,
+              contentMd5: CONTENT_MD5,
+            },
+            acknowledgement: ACKNOWLEDGEMENT,
+            ports: {
+              presignPut: async () => {
+                throw new Error("secret endpoint details");
+              },
+              trustNow: () => TRUST_NOW,
+            },
+          }),
+        (error: unknown) =>
+          error instanceof MailServiceError &&
+          error.status === 500 &&
+          error.errorCode === "LARGE_PRESIGN_FAILED" &&
+          error.message === "Large attachment authorization failed",
+      );
+    } finally {
+      console.error = originalConsoleError;
+    }
+
+    assert.equal(logArgs.length, 1);
+    assert.deepEqual(logArgs[0], [
+      "large_attachment_presign_failed",
+      {
+        event: "large_attachment_presign_failed",
+        exceptionName: "Error",
+        stage: "presign",
+      },
+    ]);
+    assert.doesNotMatch(JSON.stringify(logArgs), /secret endpoint details/);
+  });
+
   it("finalizes with mocked HEAD adapter and supports idempotent replay", async () => {
     const draft = await createDraftItem();
     const authorization = await authorizeLargeAttachmentUpload(db, staffActor, {

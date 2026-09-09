@@ -57,7 +57,7 @@ import {
   composeAttachmentUploadErrorMessageKey,
   createQueuedAttachmentEntry,
   deleteDraftAttachment,
-  isLargeAttachmentR2DiagnosticCode,
+  isLargeAttachmentDiagnosticCode,
   mergeUploadedDraftAttachments,
   uploadDraftAttachmentWithProgress,
   validateLocalAttachmentFile,
@@ -919,7 +919,7 @@ export function useMailComposeDraft(input: {
 
           markAttachmentFailed(
             queued.localId,
-            isLargeAttachmentR2DiagnosticCode(largeResult.errorCode)
+            isLargeAttachmentDiagnosticCode(largeResult.errorCode)
               ? largeResult.errorCode
               : largeResult.putCompleted
                 ? "LARGE_FINALIZE_FAILED"

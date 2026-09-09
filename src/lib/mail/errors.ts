@@ -72,6 +72,14 @@ export class MailServiceError extends Error {
     );
   }
 
+  static largePresignFailed() {
+    return new MailServiceError(
+      MAIL_ERROR_CODES.LARGE_PRESIGN_FAILED,
+      "Large attachment authorization failed",
+      500,
+    );
+  }
+
   static ambiguousProviderState(
     message = "Ambiguous provider state requires admin review",
     metadata?: Record<string, unknown>,
