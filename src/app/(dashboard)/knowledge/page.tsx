@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { PageIntro } from "@/components/ui/page-intro";
 import { KnowledgeHomeClient } from "@/components/knowledge/knowledge-home-client";
 import { getKnowledgeSessionStatus } from "@/lib/permissions/knowledge";
+import { getKnowledgeCatalog } from "@/lib/knowledge/core-service";
 
 export default async function KnowledgePage() {
   const status = await getKnowledgeSessionStatus();
@@ -15,13 +16,18 @@ export default async function KnowledgePage() {
     redirect("/knowledge/access");
   }
 
+  const catalog = await getKnowledgeCatalog(status);
+
   return (
     <div>
       <PageIntro
         title="Knowledge"
         description="业务知识库"
       />
-      <KnowledgeHomeClient />
+      <KnowledgeHomeClient
+        initialCatalog={catalog}
+        role={status.role}
+      />
     </div>
   );
 }

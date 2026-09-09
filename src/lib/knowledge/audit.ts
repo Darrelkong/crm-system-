@@ -6,7 +6,14 @@ export type KnowledgeAuditAction =
   | "knowledge.unlock_failed"
   | "knowledge.lock"
   | "knowledge.password_change"
-  | "knowledge.role_change";
+  | "knowledge.role_change"
+  | "knowledge_category_create"
+  | "knowledge_category_update"
+  | "knowledge_category_archive"
+  | "knowledge_article_create"
+  | "knowledge_article_update"
+  | "knowledge_article_archive"
+  | "knowledge_article_view_version";
 
 export type KnowledgeAuditInput = {
   userId: string;
