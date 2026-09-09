@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  composeAttachmentUploadErrorMessageKey,
   createQueuedAttachmentEntry,
+  isLargeAttachmentDiagnosticCode,
   isAttachmentPendingUpload,
   mergeUploadedDraftAttachments,
   validateLocalAttachmentFile,
@@ -20,6 +22,22 @@ describe("compose-attachment-upload", () => {
     assert.equal(
       isAttachmentPendingUpload({ uploadStatus: "uploaded" }),
       false,
+    );
+  });
+
+  it("recognizes safe large-attachment diagnostics without exposing raw errors", () => {
+    for (const code of [
+      "LA_AUTHORIZE_HTTP_500",
+      "LARGE_PRESIGN_FAILED",
+      "LA_R2_HTTP_403",
+    ]) {
+      assert.equal(isLargeAttachmentDiagnosticCode(code), true);
+    }
+    assert.equal(isLargeAttachmentDiagnosticCode("LARGE_UPLOAD_FAILED"), false);
+    assert.equal(isLargeAttachmentDiagnosticCode("SERVER_SECRET_VALUE"), false);
+    assert.equal(
+      composeAttachmentUploadErrorMessageKey("LA_R2_HTTP_403"),
+      "mail.compose.largeAttachment.uploadFailed",
     );
   });
 

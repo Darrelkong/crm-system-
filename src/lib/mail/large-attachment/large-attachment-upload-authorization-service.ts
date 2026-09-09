@@ -245,16 +245,31 @@ export async function authorizeLargeAttachmentUpload(
 
   const localRelayEnabled =
     input.ports?.localRelayEnabled ?? isLocalLargeAttachmentRelayEnabled();
-  const presigned = localRelayEnabled
-    ? null
-    : await (input.ports?.presignPut ?? presignLargeAttachmentPut)({
-          storageKey,
-          contentType: mimeType,
-          contentMd5Base64,
-          expiresInSeconds: Math.floor(
-            LARGE_ATTACHMENT_UPLOAD_AUTH_TTL_MS / 1000,
-          ),
-        });
+  let presigned: Awaited<ReturnType<typeof presignLargeAttachmentPut>> | null =
+    null;
+  if (!localRelayEnabled) {
+    try {
+      presigned = await (input.ports?.presignPut ?? presignLargeAttachmentPut)({
+        storageKey,
+        contentType: mimeType,
+        contentMd5Base64,
+        expiresInSeconds: Math.floor(
+          LARGE_ATTACHMENT_UPLOAD_AUTH_TTL_MS / 1000,
+        ),
+      });
+    } catch (error) {
+      const exceptionName =
+        error instanceof Error && /^[A-Za-z][A-Za-z0-9_]*$/.test(error.name)
+          ? error.name
+          : "UnknownError";
+      console.error("large_attachment_presign_failed", {
+        event: "large_attachment_presign_failed",
+        exceptionName,
+        stage: "presign",
+      });
+      throw MailServiceError.largePresignFailed();
+    }
+  }
 
   return {
     uploadSessionId: sessionId,

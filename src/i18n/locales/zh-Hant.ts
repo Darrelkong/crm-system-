@@ -319,6 +319,7 @@ const zhHant: Messages = {
         finalizing: "正在完成…",
         ready: "附件已就緒",
         uploadFailed: "大附件上傳失敗",
+        diagnosticCode: "診斷代碼：{{code}}",
         expiredPlaceholder: "此大附件已過期並自動刪除，請重新上傳。",
         fileTooLarge: "單個大附件不可超過 {{size}}",
         aggregateExceeded: "每封郵件的大附件總量不可超過 {{totalSize}}",

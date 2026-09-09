@@ -1,9 +1,8 @@
 import {
   HeadObjectCommand,
-  PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
-import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import { AwsClient } from "aws4fetch";
 import {
   resolveLargeAttachmentR2Env,
   type LargeAttachmentR2Env,
@@ -25,6 +24,7 @@ export function createLargeAttachmentS3Client(
   return new S3Client({
     region: "auto",
     endpoint: env.endpoint,
+    requestChecksumCalculation: "WHEN_REQUIRED",
     credentials: {
       accessKeyId: env.accessKeyId,
       secretAccessKey: env.secretAccessKey,
@@ -38,22 +38,48 @@ export async function presignLargeAttachmentPut(input: {
   contentMd5Base64: string;
   expiresInSeconds: number;
   env?: LargeAttachmentR2Env;
-  client?: S3Client;
 }): Promise<LargeAttachmentPresignedPutResult> {
   const env = input.env ?? resolveLargeAttachmentR2Env();
-  const client = input.client ?? createLargeAttachmentS3Client(env);
-  const command = new PutObjectCommand({
-    Bucket: env.bucketName,
-    Key: input.storageKey,
-    ContentType: input.contentType,
-    ContentMD5: input.contentMd5Base64,
-    IfNoneMatch: "*",
+  const objectUrl = new URL(env.endpoint);
+  objectUrl.pathname = [
+    objectUrl.pathname.replace(/\/+$/, ""),
+    encodeURIComponent(env.bucketName),
+    input.storageKey
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/"),
+  ]
+    .filter(Boolean)
+    .join("/");
+  objectUrl.search = "";
+  objectUrl.hash = "";
+  objectUrl.searchParams.set("X-Amz-Expires", String(input.expiresInSeconds));
+
+  const client = new AwsClient({
+    accessKeyId: env.accessKeyId,
+    secretAccessKey: env.secretAccessKey,
+    service: "s3",
+    region: "auto",
   });
-  const uploadUrl = await getSignedUrl(client, command, {
-    expiresIn: input.expiresInSeconds,
-  });
+  const signed = await client.sign(
+    new Request(objectUrl, {
+      method: "PUT",
+      headers: {
+        "Content-Type": input.contentType,
+        "Content-MD5": input.contentMd5Base64,
+        "If-None-Match": "*",
+      },
+    }),
+    {
+      aws: {
+        signQuery: true,
+        allHeaders: true,
+      },
+    },
+  );
+
   return {
-    uploadUrl,
+    uploadUrl: signed.url.toString(),
     requiredHeaders: {
       "Content-Type": input.contentType,
       "Content-MD5": input.contentMd5Base64,
