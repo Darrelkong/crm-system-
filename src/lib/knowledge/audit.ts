@@ -26,7 +26,11 @@ export type KnowledgeAuditAction =
   | "knowledge_review_withdrawn"
   | "knowledge_review_changes_requested"
   | "knowledge_review_approved"
-  | "knowledge_article_published";
+  | "knowledge_article_published"
+  | "knowledge_search_performed"
+  | "knowledge_ai_question_started"
+  | "knowledge_ai_question_completed"
+  | "knowledge_ai_question_failed";
 
 export type KnowledgeAuditInput = {
   userId: string;

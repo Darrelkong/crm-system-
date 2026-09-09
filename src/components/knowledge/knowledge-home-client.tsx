@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
+import { KnowledgeSearchAiPanel } from "@/components/knowledge/knowledge-search-ai-panel";
 import type {
   KnowledgeArticleDetail,
   KnowledgeArticleListItem,
@@ -138,6 +139,7 @@ export function KnowledgeHomeClient({
 
   return (
     <div className="space-y-6">
+      <KnowledgeSearchAiPanel />
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm crm-text-secondary">
           按分类浏览内部业务资料，文章内容仅供 Knowledge 权限范围内使用。

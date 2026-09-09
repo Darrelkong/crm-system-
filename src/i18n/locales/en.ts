@@ -3184,6 +3184,20 @@ const en = {
       unpublishedChanges: "Unpublished changes",
       exactVersion: "Reviewing Version {{version}}",
     },
+    searchAi: {
+      search: "Search Knowledge",
+      ask: "Ask Knowledge AI",
+      searchPlaceholder: "Search published Knowledge",
+      askPlaceholder: "Answers use published Knowledge only",
+      searchButton: "Search",
+      askButton: "Ask",
+      openArticle: "Open article",
+      sources: "Sources",
+      noResults: "No matching published Knowledge was found.",
+      insufficient:
+        "The current published Knowledge does not contain enough information.",
+      providerUnavailable: "Knowledge AI is temporarily unavailable.",
+    },
   },
   help: {
     title: "Help Center",

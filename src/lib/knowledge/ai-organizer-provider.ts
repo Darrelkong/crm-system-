@@ -16,6 +16,13 @@ export class KnowledgeAiProviderOutputError extends Error {
   }
 }
 
+export class KnowledgeAiProviderTimeoutError extends Error {
+  constructor() {
+    super("Knowledge AI provider timed out");
+    this.name = "KnowledgeAiProviderTimeoutError";
+  }
+}
+
 function stripCodeFence(content: string): string {
   return content
     .trim()
@@ -36,6 +43,9 @@ async function postOpenAiCompatible(
   config: ProviderRuntimeConfig,
   systemPrompt: string,
   userPrompt: string,
+  responseSchema: Readonly<Record<string, unknown>> =
+    KNOWLEDGE_AI_ORGANIZATION_JSON_SCHEMA,
+  responseSchemaName = "knowledge_source_organization",
 ): Promise<unknown> {
   if (validateAiApiBaseUrl(config.apiBaseUrl)) throw new AiProviderError();
   const controller = new AbortController();
@@ -54,9 +64,9 @@ async function postOpenAiCompatible(
         response_format: {
           type: "json_schema",
           json_schema: {
-            name: "knowledge_source_organization",
+            name: responseSchemaName,
             strict: true,
-            schema: KNOWLEDGE_AI_ORGANIZATION_JSON_SCHEMA,
+            schema: responseSchema,
           },
         },
         messages: [
@@ -87,7 +97,11 @@ async function postOpenAiCompatible(
     return parseJson(content);
   } catch (error) {
     if (error instanceof KnowledgeAiProviderOutputError) throw error;
+    if (error instanceof KnowledgeAiProviderTimeoutError) throw error;
     if (error instanceof AiProviderError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new KnowledgeAiProviderTimeoutError();
+    }
     throw new AiProviderError();
   } finally {
     clearTimeout(timeout);
@@ -147,7 +161,11 @@ async function postGemini(
     return parseJson(content);
   } catch (error) {
     if (error instanceof KnowledgeAiProviderOutputError) throw error;
+    if (error instanceof KnowledgeAiProviderTimeoutError) throw error;
     if (error instanceof AiProviderError) throw error;
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new KnowledgeAiProviderTimeoutError();
+    }
     throw new AiProviderError();
   } finally {
     clearTimeout(timeout);
@@ -172,4 +190,24 @@ export async function callKnowledgeOrganizationProvider(input: {
     input.systemPrompt,
     input.userPrompt,
   );
+}
+
+export async function callKnowledgeStructuredProvider(input: {
+  kind: "openai_compatible" | "google_gemini";
+  config: ProviderRuntimeConfig;
+  systemPrompt: string;
+  userPrompt: string;
+  responseSchema: Readonly<Record<string, unknown>>;
+  responseSchemaName: string;
+}): Promise<unknown> {
+  if (input.kind === "openai_compatible") {
+    return postOpenAiCompatible(
+      input.config,
+      input.systemPrompt,
+      input.userPrompt,
+      input.responseSchema,
+      input.responseSchemaName,
+    );
+  }
+  return postGemini(input.config, input.systemPrompt, input.userPrompt);
 }

@@ -10,6 +10,7 @@ export * from "./knowledge-sources";
 export * from "./knowledge-ai-organization-runs";
 export * from "./knowledge-review-requests";
 export * from "./knowledge-article-publications";
+export * from "./knowledge-ai-query-runs";
 export * from "./authorized-devices";
 export * from "./customers";
 export * from "./customer-assignees";
