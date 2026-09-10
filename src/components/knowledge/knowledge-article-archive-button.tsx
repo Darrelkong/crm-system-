@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 
 export function KnowledgeArticleArchiveButton({
@@ -11,6 +12,7 @@ export function KnowledgeArticleArchiveButton({
   articleId: string;
   updatedAt: string;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,10 +31,16 @@ export function KnowledgeArticleArchiveButton({
         }),
       });
       const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "归档失败");
+      if (!response.ok) {
+        throw new Error(payload.error ?? t("knowledge.article.archiveFailed"));
+      }
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "归档失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.article.archiveFailed"),
+      );
     } finally {
       setBusy(false);
       setConfirming(false);
@@ -43,11 +51,13 @@ export function KnowledgeArticleArchiveButton({
     <div className="mt-6 border-t border-slate-200 pt-5">
       {confirming ? (
         <div className="rounded-xl border border-red-200 bg-red-50 p-4">
-          <p className="text-sm text-red-950">确认归档此文章？归档后不可再编辑。</p>
+          <p className="text-sm text-red-950">
+            {t("knowledge.article.confirmArchiveMessage")}
+          </p>
           {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" variant="danger" onClick={() => void archive()} disabled={busy}>
-              确认归档
+              {t("knowledge.article.confirmArchive")}
             </Button>
             <Button
               type="button"
@@ -55,13 +65,13 @@ export function KnowledgeArticleArchiveButton({
               onClick={() => setConfirming(false)}
               disabled={busy}
             >
-              取消
+              {t("knowledge.article.cancel")}
             </Button>
           </div>
         </div>
       ) : (
         <Button type="button" variant="danger" onClick={() => setConfirming(true)}>
-          归档文章
+          {t("knowledge.article.archiveArticle")}
         </Button>
       )}
     </div>

@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { PageIntro } from "@/components/ui/page-intro";
-import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
+import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
+import { KnowledgeBackLinkLocalized } from "@/components/knowledge/knowledge-back-link-localized";
 import { KnowledgeReviewCenterClient } from "@/components/knowledge/knowledge-review-center-client";
 import { listKnowledgeUsers } from "@/lib/knowledge/role-service";
 import { listKnowledgeReviewRequests } from "@/lib/knowledge/review-service";
@@ -27,10 +27,15 @@ export default async function KnowledgeReviewPage() {
   ]);
   return (
     <div>
-      <PageIntro
-        title="审核中心 · Review Center"
-        description="集中查看固定版本的审核内容与发布历史。审核中心不提供文章编辑。"
-        action={<KnowledgeBackLink href="/knowledge">返回 Knowledge</KnowledgeBackLink>}
+      <KnowledgeLocalizedPageIntro
+        titleKey="knowledge.review.pageTitle"
+        descriptionKey="knowledge.review.centerDescription"
+        action={
+          <KnowledgeBackLinkLocalized
+            href="/knowledge"
+            labelKey="knowledge.article.backToKnowledge"
+          />
+        }
       />
       <KnowledgeReviewCenterClient
         initialPending={pending}

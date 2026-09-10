@@ -22,12 +22,12 @@ describe("Knowledge Package 4 mobile review UI boundary", () => {
     assert.match(center, /grid gap-6 lg:grid-cols/);
     assert.match(center, /flex flex-wrap/);
     assert.match(center, /whitespace-pre-wrap break-words/);
-    assert.match(center, /确认批准并发布/);
-    assert.match(center, /要求修改/);
-    assert.match(center, /正在审核 Version/);
+    assert.match(center, /knowledge\.review\.confirmApprovePublish/);
+    assert.match(center, /knowledge\.review\.requestChanges/);
+    assert.match(center, /knowledge\.review\.exactVersion/);
     assert.doesNotMatch(center, /<table/);
-    assert.match(actions, /撤回审核/);
-    assert.match(actions, /提交审核/);
+    assert.match(actions, /knowledge\.article\.withdrawReview/);
+    assert.match(actions, /knowledge\.article\.submitReview/);
     assert.doesNotMatch(actions, /dangerouslySetInnerHTML|<iframe/);
   });
 });

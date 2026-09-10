@@ -1,8 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { PageIntro } from "@/components/ui/page-intro";
-import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
+import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
+import { KnowledgeBackLinkLocalized } from "@/components/knowledge/knowledge-back-link-localized";
 import { KnowledgeIngestClient } from "@/components/knowledge/knowledge-ingest-client";
 import { canAuthorKnowledgeArticle } from "@/lib/knowledge/article-permissions";
 import { listKnowledgeCategories } from "@/lib/knowledge/core-service";
@@ -23,10 +23,15 @@ export default async function KnowledgeIngestPage() {
 
   return (
     <div>
-      <PageIntro
-        title="资料整理 · Source Ingest"
-        description="贴入文字或上传内部资料，由 AI 整理后经人工确认并保存为草稿。"
-        action={<KnowledgeBackLink href="/knowledge">返回 Knowledge</KnowledgeBackLink>}
+      <KnowledgeLocalizedPageIntro
+        titleKey="knowledge.ingest.pageTitle"
+        descriptionKey="knowledge.ingest.description"
+        action={
+          <KnowledgeBackLinkLocalized
+            href="/knowledge"
+            labelKey="knowledge.article.backToKnowledge"
+          />
+        }
       />
       <KnowledgeIngestClient
         initialCategories={await listKnowledgeCategories()}

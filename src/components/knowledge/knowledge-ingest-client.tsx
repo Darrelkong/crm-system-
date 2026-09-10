@@ -165,7 +165,7 @@ export function KnowledgeIngestClient({
             body,
             categoryId,
             visibility: "team",
-            changeNote: "由 AI 整理结果经人工审阅后建立",
+            changeNote: t("knowledge.article.ingestChangeNote"),
           }),
         },
       );

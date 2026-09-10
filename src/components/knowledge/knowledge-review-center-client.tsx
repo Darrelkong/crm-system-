@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/i18n/provider";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,19 +18,6 @@ import type {
 } from "@/lib/knowledge/review-service";
 
 type Tab = "pending" | "mine" | "history";
-
-const TAB_LABELS: Record<Tab, string> = {
-  pending: "待审核 · Pending",
-  mine: "我提交的 · My Reviews",
-  history: "历史记录 · History",
-};
-
-function dueLabel(dueAt: string | null): string {
-  if (!dueAt) return "";
-  const due = Date.parse(dueAt);
-  if (!Number.isFinite(due)) return "";
-  return due < Date.now() ? "已逾期" : due - Date.now() < 48 * 60 * 60 * 1000 ? "即将到期" : "正常";
-}
 
 export function KnowledgeReviewCenterClient({
   initialPending,
@@ -50,6 +38,7 @@ export function KnowledgeReviewCenterClient({
     role: KnowledgeRole | null;
   }>;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [tab, setTab] = useState<Tab>(
     role === "reviewer" || role === "knowledge_admin" ? "pending" : "mine",
@@ -65,6 +54,24 @@ export function KnowledgeReviewCenterClient({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmPublish, setConfirmPublish] = useState(false);
+  const [renderedAt] = useState(() => Date.now());
+
+  const tabLabels: Record<Tab, string> = {
+    pending: t("knowledge.review.pending"),
+    mine: t("knowledge.review.mine"),
+    history: t("knowledge.review.history"),
+  };
+
+  function dueLabel(dueAt: string | null): string {
+    if (!dueAt) return "";
+    const due = Date.parse(dueAt);
+    if (!Number.isFinite(due)) return "";
+    if (due < renderedAt) return t("knowledge.review.dueOverdue");
+    if (due - renderedAt < 48 * 60 * 60 * 1000) {
+      return t("knowledge.review.dueSoon");
+    }
+    return t("knowledge.review.dueNormal");
+  }
 
   const currentList = useMemo(() => lists[tab], [lists, tab]);
   const visibleTabs = useMemo(
@@ -84,7 +91,7 @@ export function KnowledgeReviewCenterClient({
       error?: string;
     };
     if (!response.ok || !payload.reviews) {
-      throw new Error(payload.error ?? "审核列表载入失败");
+      throw new Error(payload.error ?? t("knowledge.review.loadListFailed"));
     }
     setLists((current) => ({ ...current, [nextTab]: payload.reviews! }));
   }
@@ -101,14 +108,18 @@ export function KnowledgeReviewCenterClient({
         error?: string;
       };
       if (!response.ok || !payload.review) {
-        throw new Error(payload.error ?? "审核记录载入失败");
+        throw new Error(payload.error ?? t("knowledge.review.loadDetailFailed"));
       }
       setSelected(payload.review);
       setReviewNote("");
       setReviewerId(payload.review.assignedReviewerUserId ?? "");
       setConfirmPublish(false);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "审核记录载入失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.review.loadDetailFailed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -135,14 +146,18 @@ export function KnowledgeReviewCenterClient({
         error?: string;
       };
       if (!response.ok || !payload.review) {
-        throw new Error(payload.error ?? "审核操作失败");
+        throw new Error(payload.error ?? t("knowledge.review.actionFailed"));
       }
       setSelected(payload.review);
       setConfirmPublish(false);
       await refreshTab(tab);
       if (actionName !== "approve_publish") router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "审核操作失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.review.actionFailed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -161,16 +176,20 @@ export function KnowledgeReviewCenterClient({
               onClick={() => {
                 setTab(name);
                 void refreshTab(name).catch((caught: unknown) =>
-                  setError(caught instanceof Error ? caught.message : "审核列表载入失败"),
+                  setError(
+                    caught instanceof Error
+                      ? caught.message
+                      : t("knowledge.review.loadListFailed"),
+                  ),
                 );
               }}
             >
-              {TAB_LABELS[name]}
+              {tabLabels[name]}
             </Button>
           ))}
         </div>
         {currentList.length === 0 ? (
-          <EmptyState message="目前没有审核记录。" />
+          <EmptyState message={t("knowledge.review.emptyList")} />
         ) : (
           <div className="space-y-3">
             {currentList.map((review) => (
@@ -201,11 +220,11 @@ export function KnowledgeReviewCenterClient({
                             : "default"
                     }
                   >
-                    {formatKnowledgeReviewStatus(review.status)}
+                    {formatKnowledgeReviewStatus(review.status, t)}
                   </Badge>
                 </div>
                 <p className="mt-2 text-xs crm-text-secondary">
-                  {formatKnowledgeVisibility(review.visibility)} ·{" "}
+                  {formatKnowledgeVisibility(review.visibility, t)} ·{" "}
                   {new Date(review.submittedAt).toLocaleString()}
                   {review.dueAt && ` · ${dueLabel(review.dueAt)}`}
                 </p>
@@ -221,7 +240,9 @@ export function KnowledgeReviewCenterClient({
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
-                  正在审核 Version {selected.submittedVersionNumber}
+                  {t("knowledge.review.exactVersion", {
+                    version: String(selected.submittedVersionNumber),
+                  })}
                 </p>
                 <h2 className="mt-1 text-xl font-semibold crm-text">
                   {selected.titleSnapshot}
@@ -232,59 +253,75 @@ export function KnowledgeReviewCenterClient({
                   href={`/knowledge/articles/${selected.articleId}`}
                   className="secondary-button inline-flex min-h-9 items-center rounded-xl px-3 py-2 text-sm"
                 >
-                  查看文章
+                  {t("knowledge.review.viewArticle")}
                 </Link>
                 <Badge variant={selected.status === "pending" ? "warning" : "default"}>
-                  {formatKnowledgeReviewStatus(selected.status)}
+                  {formatKnowledgeReviewStatus(selected.status, t)}
                 </Badge>
               </div>
             </div>
             <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
               <div>
-                <dt className="crm-text-secondary">提交者</dt>
+                <dt className="crm-text-secondary">
+                  {t("knowledge.review.submittedBy")}
+                </dt>
                 <dd className="crm-text">{selected.submittedByName}</dd>
               </div>
               <div>
-                <dt className="crm-text-secondary">提交时间</dt>
+                <dt className="crm-text-secondary">
+                  {t("knowledge.review.submittedAt")}
+                </dt>
                 <dd className="crm-text">
                   {new Date(selected.submittedAt).toLocaleString()}
                 </dd>
               </div>
               <div>
-                <dt className="crm-text-secondary">可见范围</dt>
+                <dt className="crm-text-secondary">
+                  {t("knowledge.review.visibilityLabel")}
+                </dt>
                 <dd className="crm-text">
-                  {formatKnowledgeVisibility(selected.visibility)}
+                  {formatKnowledgeVisibility(selected.visibility, t)}
                 </dd>
               </div>
               <div>
-                <dt className="crm-text-secondary">分类</dt>
+                <dt className="crm-text-secondary">
+                  {t("knowledge.review.categoryLabel")}
+                </dt>
                 <dd className="crm-text">{selected.categoryName}</dd>
               </div>
               <div>
-                <dt className="crm-text-secondary">Reviewer</dt>
+                <dt className="crm-text-secondary">
+                  {t("knowledge.review.reviewerLabel")}
+                </dt>
                 <dd className="crm-text">
-                  {formatAssignedReviewerLabel(selected.assignedReviewerName)}
+                  {formatAssignedReviewerLabel(selected.assignedReviewerName, t)}
                 </dd>
               </div>
             </dl>
             {selected.status === "pending" && !selected.assignedReviewerName && (
               <p className="mt-3 text-xs crm-text-secondary">
-                未指定审核人的请求会进入可用审核者的待审核队列。
+                {t("knowledge.review.unassignedQueueHint")}
               </p>
             )}
             {selected.submissionNote && (
               <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm crm-text-secondary">
-                提交说明：{selected.submissionNote}
+                {t("knowledge.review.submissionNoteLabel", {
+                  note: selected.submissionNote,
+                })}
               </p>
             )}
             {selected.summarySnapshot && (
               <p className="mt-3 rounded-xl bg-slate-50 p-4 text-sm crm-text-secondary">
-                摘要：{selected.summarySnapshot}
+                {t("knowledge.review.summaryLabel", {
+                  summary: selected.summarySnapshot,
+                })}
               </p>
             )}
             {selected.reviewNote && (
               <p className="mt-3 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">
-                审核意见：{selected.reviewNote}
+                {t("knowledge.review.reviewNoteLabel", {
+                  note: selected.reviewNote,
+                })}
               </p>
             )}
             <article className="mt-6 whitespace-pre-wrap break-words text-sm leading-8 crm-text">
@@ -294,13 +331,13 @@ export function KnowledgeReviewCenterClient({
             {role === "knowledge_admin" && selected.status === "pending" && (
               <div className="mt-6 border-t border-slate-200 pt-5">
                 <label className="block text-sm font-medium crm-text">
-                  分配 Reviewer
+                  {t("knowledge.review.assignReviewer")}
                   <select
                     value={reviewerId}
                     onChange={(event) => setReviewerId(event.target.value)}
                     className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
                   >
-                    <option value="">请选择</option>
+                    <option value="">{t("knowledge.review.selectOption")}</option>
                     {reviewerOptions
                       .filter(
                         (option) =>
@@ -323,7 +360,7 @@ export function KnowledgeReviewCenterClient({
                   onClick={() => void action("assign")}
                   disabled={busy || !reviewerId}
                 >
-                  分配审核
+                  {t("knowledge.review.assignReview")}
                 </Button>
               </div>
             )}
@@ -333,7 +370,7 @@ export function KnowledgeReviewCenterClient({
               (role === "reviewer" || role === "knowledge_admin") && (
                 <div className="mt-6 border-t border-slate-200 pt-5">
                   <label className="block text-sm font-medium crm-text">
-                    要求修改说明
+                    {t("knowledge.review.changesNoteLabel")}
                     <textarea
                       value={reviewNote}
                       onChange={(event) => setReviewNote(event.target.value)}
@@ -345,9 +382,14 @@ export function KnowledgeReviewCenterClient({
                   {confirmPublish ? (
                     <div className="mt-3 rounded-xl border border-red-200 bg-red-50 p-4">
                       <p className="text-sm text-red-950">
-                        确认发布「{selected.titleSnapshot}」Version{" "}
-                        {selected.submittedVersionNumber}？
-                        可见范围：{formatKnowledgeVisibility(selected.visibility)}
+                        {t("knowledge.review.confirmPublishPrompt", {
+                          title: selected.titleSnapshot,
+                          version: String(selected.submittedVersionNumber),
+                          visibility: formatKnowledgeVisibility(
+                            selected.visibility,
+                            t,
+                          ),
+                        })}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button
@@ -355,7 +397,7 @@ export function KnowledgeReviewCenterClient({
                           onClick={() => void action("approve_publish")}
                           disabled={busy}
                         >
-                          确认批准并发布
+                          {t("knowledge.review.confirmApprovePublish")}
                         </Button>
                         <Button
                           type="button"
@@ -363,7 +405,7 @@ export function KnowledgeReviewCenterClient({
                           onClick={() => setConfirmPublish(false)}
                           disabled={busy}
                         >
-                          取消
+                          {t("knowledge.review.cancel")}
                         </Button>
                       </div>
                     </div>
@@ -375,14 +417,14 @@ export function KnowledgeReviewCenterClient({
                         onClick={() => void action("request_changes")}
                         disabled={busy || reviewNote.trim().length < 2}
                       >
-                        要求修改
+                        {t("knowledge.review.requestChanges")}
                       </Button>
                       <Button
                         type="button"
                         onClick={() => setConfirmPublish(true)}
                         disabled={busy}
                       >
-                        批准并发布
+                        {t("knowledge.review.approvePublish")}
                       </Button>
                     </div>
                   )}
@@ -399,7 +441,7 @@ export function KnowledgeReviewCenterClient({
                   onClick={() => void action("withdraw")}
                   disabled={busy}
                 >
-                  撤回审核
+                  {t("knowledge.review.withdraw")}
                 </Button>
               )}
             {error && (
@@ -409,7 +451,7 @@ export function KnowledgeReviewCenterClient({
             )}
           </Card>
         ) : (
-          <EmptyState message="请选择一项审核记录查看固定版本内容。" />
+          <EmptyState message={t("knowledge.review.emptySelection")} />
         )}
       </section>
     </div>

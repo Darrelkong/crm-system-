@@ -37,8 +37,8 @@ describe("Knowledge Package 2 security and UI boundaries", () => {
       read("src/app/(dashboard)/knowledge/articles/[id]/page.tsx"),
       read("src/app/(dashboard)/knowledge/articles/[id]/history/page.tsx"),
     ].join("\n");
-    assert.match(source, /Quick|快速查看/);
-    assert.match(source, /history|版本历史/);
+    assert.match(source, /knowledge\.home\.quickView/);
+    assert.match(source, /knowledge\.home\.versionHistory/);
     assert.match(source, /whitespace-pre-wrap/);
     assert.doesNotMatch(source, /dangerouslySetInnerHTML|<iframe/);
     assert.doesNotMatch(source, /语义搜索/);

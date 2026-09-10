@@ -1,42 +1,35 @@
 import type { KnowledgeVisibility } from "@/lib/knowledge/constants";
 import type { KnowledgeReviewStatus } from "../../../drizzle/schema/knowledge-review-requests";
 
+export type KnowledgeTranslate = (
+  key: string,
+  params?: Record<string, string>,
+) => string;
+
 export function formatKnowledgeReviewStatus(
   status: KnowledgeReviewStatus,
+  t: KnowledgeTranslate,
 ): string {
-  switch (status) {
-    case "pending":
-      return "待审核 · Pending";
-    case "changes_requested":
-      return "需要修改 · Changes requested";
-    case "approved":
-      return "已批准 · Approved";
-    case "withdrawn":
-      return "已撤回 · Withdrawn";
-    case "superseded":
-      return "已失效 · Superseded";
-    default:
-      return status;
-  }
+  return t(`knowledge.labels.reviewStatus.${status}`);
 }
 
 export function formatKnowledgeVisibility(
   visibility: KnowledgeVisibility | string,
+  t: KnowledgeTranslate,
 ): string {
-  switch (visibility) {
-    case "team":
-      return "团队 · Team";
-    case "owner":
-      return "仅本人 · Owner";
-    case "restricted":
-      return "受限 · Restricted";
-    default:
-      return String(visibility);
+  if (
+    visibility === "team" ||
+    visibility === "owner" ||
+    visibility === "restricted"
+  ) {
+    return t(`knowledge.labels.visibility.${visibility}`);
   }
+  return String(visibility);
 }
 
 export function formatAssignedReviewerLabel(
   assignedReviewerName: string | null,
+  t: KnowledgeTranslate,
 ): string {
-  return assignedReviewerName ?? "未指定 · Reviewer Queue";
+  return assignedReviewerName ?? t("knowledge.labels.reviewerQueue");
 }

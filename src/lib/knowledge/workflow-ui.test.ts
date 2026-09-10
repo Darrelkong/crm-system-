@@ -7,29 +7,42 @@ import {
   formatKnowledgeReviewStatus,
   formatKnowledgeVisibility,
 } from "@/lib/knowledge/review-labels";
+import en from "@/i18n/locales/en";
 
 const root = process.cwd();
 const read = (path: string) => readFileSync(join(root, path), "utf8");
+const t = (key: string) => {
+  const parts = key.split(".");
+  let value: unknown = en;
+  for (const part of parts) {
+    value = (value as Record<string, unknown>)[part];
+  }
+  return String(value);
+};
 
 describe("Knowledge workflow UX stabilization", () => {
-  it("adds back navigation on secondary Knowledge pages", () => {
-    assert.match(read("src/app/(dashboard)/knowledge/ingest/page.tsx"), /返回 Knowledge/);
-    assert.match(read("src/app/(dashboard)/knowledge/review/page.tsx"), /返回 Knowledge/);
+  it("adds localized back navigation on secondary Knowledge pages", () => {
+    assert.match(read("src/app/(dashboard)/knowledge/ingest/page.tsx"), /KnowledgeBackLinkLocalized/);
+    assert.match(
+      read("src/app/(dashboard)/knowledge/ingest/page.tsx"),
+      /labelKey="knowledge\.article\.backToKnowledge"/,
+    );
+    assert.match(read("src/app/(dashboard)/knowledge/review/page.tsx"), /KnowledgeBackLinkLocalized/);
     assert.match(
       read("src/app/(dashboard)/knowledge/members/page.tsx"),
       /KnowledgeMembersBackLink/,
     );
     assert.match(
       read("src/app/(dashboard)/knowledge/articles/[id]/edit/page.tsx"),
-      /返回文章/,
+      /labelKey="knowledge\.article\.backToArticle"/,
     );
     assert.match(
       read("src/app/(dashboard)/knowledge/articles/[id]/history/page.tsx"),
-      /返回文章/,
+      /KnowledgeArticleHistoryClient/,
     );
     assert.match(
       read("src/app/(dashboard)/knowledge/articles/new/page.tsx"),
-      /返回 Knowledge/,
+      /labelKey="knowledge\.article\.backToKnowledge"/,
     );
   });
 
@@ -51,10 +64,10 @@ describe("Knowledge workflow UX stabilization", () => {
     assert.match(page, /showMyReviews = actor\.role === "contributor"/);
     assert.match(page, /KnowledgeArticleReviewStatus/);
     assert.match(page, /canShowKnowledgeArticleEditCta/);
-    assert.match(page, /canShowEdit &&/);
+    assert.match(page, /canShowEdit={canShowEdit}/);
     assert.match(
       read("src/components/knowledge/knowledge-article-review-status.tsx"),
-      /审核退回 · Changes requested/,
+      /knowledge\.article\.changesRequestedTitle/,
     );
     assert.doesNotMatch(page, /role === "reviewer"[\s\S]*编辑文章/);
     assert.doesNotMatch(page, /canEdit &&[\s\S]*编辑文章/);
@@ -62,39 +75,45 @@ describe("Knowledge workflow UX stabilization", () => {
 
   it("removes reviewer edit/archive affordances from editor and history", () => {
     const editor = read("src/components/knowledge/knowledge-article-editor.tsx");
-    const history = read("src/app/(dashboard)/knowledge/articles/[id]/history/page.tsx");
+    const history = read("src/components/knowledge/knowledge-article-history-client.tsx");
     assert.doesNotMatch(editor, /role === "reviewer"/);
     assert.doesNotMatch(editor, /归档/);
     assert.doesNotMatch(history, /Package 2/);
     assert.doesNotMatch(history, /编辑文章/);
-    assert.match(history, /当前暂不支持一键恢复/);
+    assert.match(history, /knowledge\.article\.historyDescription/);
   });
 
   it("polishes review center labels and contributor tabs", () => {
     const center = read("src/components/knowledge/knowledge-review-center-client.tsx");
     assert.match(center, /formatKnowledgeReviewStatus/);
     assert.match(center, /formatKnowledgeVisibility/);
-    assert.match(center, /未指定审核人的请求会进入可用审核者的待审核队列/);
-    assert.match(center, /查看文章/);
+    assert.match(center, /knowledge\.review\.unassignedQueueHint/);
+    assert.match(center, /knowledge\.review\.viewArticle/);
     assert.match(center, /role === "contributor"/);
     assert.doesNotMatch(center, /\{review\.status\}/);
   });
 
-  it("uses bilingual ingest title and removes members duplicate description", () => {
-    assert.match(read("src/app/(dashboard)/knowledge/ingest/page.tsx"), /资料整理 · Source Ingest/);
+  it("uses localized ingest intro and removes members duplicate description", () => {
+    assert.match(
+      read("src/app/(dashboard)/knowledge/ingest/page.tsx"),
+      /titleKey="knowledge\.ingest\.pageTitle"/,
+    );
     const members = read("src/components/knowledge/knowledge-members-client.tsx");
     assert.doesNotMatch(members, /knowledge\.members\.description/);
   });
 
-  it("maps review and visibility enums to polished bilingual labels", () => {
+  it("maps review and visibility enums through locale keys", () => {
     assert.equal(
-      formatKnowledgeReviewStatus("changes_requested"),
-      "需要修改 · Changes requested",
+      formatKnowledgeReviewStatus("changes_requested", t),
+      en.knowledge.labels.reviewStatus.changes_requested,
     );
-    assert.equal(formatKnowledgeVisibility("team"), "团队 · Team");
     assert.equal(
-      formatAssignedReviewerLabel(null),
-      "未指定 · Reviewer Queue",
+      formatKnowledgeVisibility("team", t),
+      en.knowledge.labels.visibility.team,
+    );
+    assert.equal(
+      formatAssignedReviewerLabel(null, t),
+      en.knowledge.labels.reviewerQueue,
     );
   });
 });

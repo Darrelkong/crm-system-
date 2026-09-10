@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
-import { PageIntro } from "@/components/ui/page-intro";
+import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
+import { KnowledgeBackLinkLocalized } from "@/components/knowledge/knowledge-back-link-localized";
 import { KnowledgeArticleEditor } from "@/components/knowledge/knowledge-article-editor";
-import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
 import { canAuthorKnowledgeArticle } from "@/lib/knowledge/article-permissions";
 import { listKnowledgeCategories } from "@/lib/knowledge/core-service";
 import { requireKnowledgeAccess } from "@/lib/permissions/knowledge";
@@ -15,10 +15,15 @@ export default async function NewKnowledgeArticlePage() {
   }
   return (
     <div>
-      <PageIntro
-        title="新建 Knowledge 草稿"
-        description="建立一篇纯文字文章草稿，保存后可提交审核。"
-        action={<KnowledgeBackLink href="/knowledge">返回 Knowledge</KnowledgeBackLink>}
+      <KnowledgeLocalizedPageIntro
+        titleKey="knowledge.article.newTitle"
+        descriptionKey="knowledge.article.newDescription"
+        action={
+          <KnowledgeBackLinkLocalized
+            href="/knowledge"
+            labelKey="knowledge.article.backToKnowledge"
+          />
+        }
       />
       <KnowledgeArticleEditor
         article={null}

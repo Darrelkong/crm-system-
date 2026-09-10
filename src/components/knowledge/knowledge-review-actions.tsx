@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
@@ -27,6 +28,7 @@ export function KnowledgeReviewActions({
   activeReview: ActiveReview | null;
   hasChangesRequested?: boolean;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
@@ -48,11 +50,17 @@ export function KnowledgeReviewActions({
         }),
       });
       const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "提交审核失败");
+      if (!response.ok) {
+        throw new Error(payload.error ?? t("knowledge.article.submitReviewFailed"));
+      }
       setOpen(false);
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "提交审核失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.article.submitReviewFailed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -69,10 +77,16 @@ export function KnowledgeReviewActions({
         body: JSON.stringify({ action: "withdraw" }),
       });
       const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "撤回审核失败");
+      if (!response.ok) {
+        throw new Error(payload.error ?? t("knowledge.article.withdrawReviewFailed"));
+      }
       router.refresh();
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "撤回审核失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.article.withdrawReviewFailed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -83,7 +97,9 @@ export function KnowledgeReviewActions({
       {activeReview ? (
         <Card className="border-amber-200 bg-amber-50 p-4">
           <p className="text-sm text-amber-950">
-            此版本正在审核中（Version {activeReview.submittedVersionNumber}）。如需修改，请先撤回审核。
+            {t("knowledge.article.inReviewActive", {
+              version: String(activeReview.submittedVersionNumber),
+            })}
           </p>
           {activeReview.submittedByUserId === userId && (
             <Button
@@ -94,19 +110,21 @@ export function KnowledgeReviewActions({
               onClick={() => void withdraw()}
               disabled={busy}
             >
-              撤回审核
+              {t("knowledge.article.withdrawReview")}
             </Button>
           )}
         </Card>
       ) : open ? (
         <Card className="border-blue-200 bg-blue-50 p-4">
           <p className="text-sm font-semibold text-blue-950">
-            提交当前 Version {currentVersionNumber} 审核
+            {t("knowledge.article.submitCurrentVersion", {
+              version: String(currentVersionNumber),
+            })}
           </p>
           <textarea
             value={note}
             onChange={(event) => setNote(event.target.value)}
-            placeholder="提交说明（可选）"
+            placeholder={t("knowledge.article.submissionNotePlaceholder")}
             rows={3}
             maxLength={2_000}
             className="mt-3 w-full rounded-xl border border-blue-200 bg-white p-3 text-sm"
@@ -114,7 +132,9 @@ export function KnowledgeReviewActions({
           {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             <Button type="button" onClick={() => void submit()} disabled={busy}>
-              {busy ? "提交中…" : "确认提交审核"}
+              {busy
+                ? t("knowledge.article.submitting")
+                : t("knowledge.article.confirmSubmitReview")}
             </Button>
             <Button
               type="button"
@@ -122,14 +142,16 @@ export function KnowledgeReviewActions({
               onClick={() => setOpen(false)}
               disabled={busy}
             >
-              取消
+              {t("knowledge.article.cancel")}
             </Button>
           </div>
         </Card>
       ) : (
         <div>
           <Button type="button" onClick={() => setOpen(true)}>
-            {hasChangesRequested ? "重新提交审核" : "提交审核"}
+            {hasChangesRequested
+              ? t("knowledge.article.resubmitReview")
+              : t("knowledge.article.submitReview")}
           </Button>
           {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
         </div>

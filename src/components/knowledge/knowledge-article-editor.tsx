@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type {
@@ -19,6 +20,7 @@ export function KnowledgeArticleEditor({
   categories: KnowledgeCategoryListItem[];
   role: KnowledgeRole | null;
 }) {
+  const { t } = useTranslation();
   const router = useRouter();
   const [title, setTitle] = useState(article?.title ?? "");
   const [categoryId, setCategoryId] = useState(article?.categoryId ?? "");
@@ -59,7 +61,7 @@ export function KnowledgeArticleEditor({
         error?: string;
       };
       if (!response.ok || !payload.article) {
-        throw new Error(payload.error ?? "文章保存失败");
+        throw new Error(payload.error ?? t("knowledge.article.saveFailed"));
       }
       router.push(`/knowledge/articles/${payload.article.id}`);
       router.refresh();
@@ -67,7 +69,7 @@ export function KnowledgeArticleEditor({
       setError(
         submissionError instanceof Error
           ? submissionError.message
-          : "文章保存失败",
+          : t("knowledge.article.saveFailed"),
       );
     } finally {
       setBusy(false);
@@ -77,7 +79,9 @@ export function KnowledgeArticleEditor({
   if (!canEdit) {
     return (
       <Card>
-        <p className="crm-text-secondary">你没有编辑 Knowledge 文章的权限。</p>
+        <p className="crm-text-secondary">
+          {t("knowledge.article.noEditPermission")}
+        </p>
       </Card>
     );
   }
@@ -87,7 +91,7 @@ export function KnowledgeArticleEditor({
       <form className="space-y-5" onSubmit={submit}>
         <div>
           <label htmlFor="knowledge-title" className="mb-2 block text-sm font-medium crm-text">
-            标题
+            {t("knowledge.article.titleLabel")}
           </label>
           <input
             id="knowledge-title"
@@ -101,7 +105,7 @@ export function KnowledgeArticleEditor({
         <div className="grid gap-5 sm:grid-cols-2">
           <div>
             <label htmlFor="knowledge-category" className="mb-2 block text-sm font-medium crm-text">
-              分类
+              {t("knowledge.article.categoryLabel")}
             </label>
             <select
               id="knowledge-category"
@@ -110,7 +114,7 @@ export function KnowledgeArticleEditor({
               onChange={(event) => setCategoryId(event.target.value)}
               className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
             >
-              <option value="">请选择分类</option>
+              <option value="">{t("knowledge.article.selectCategory")}</option>
               {categories
                 .filter((category) => category.isActive)
                 .map((category) => (
@@ -122,7 +126,7 @@ export function KnowledgeArticleEditor({
           </div>
           <div>
             <label htmlFor="knowledge-visibility" className="mb-2 block text-sm font-medium crm-text">
-              可见范围
+              {t("knowledge.article.visibilityLabel")}
             </label>
             <select
               id="knowledge-visibility"
@@ -132,17 +136,19 @@ export function KnowledgeArticleEditor({
               }
               className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
             >
-              <option value="team">Team</option>
-              <option value="owner">Owner（仅自己与 Admin）</option>
+              <option value="team">{t("knowledge.article.visibilityTeam")}</option>
+              <option value="owner">{t("knowledge.article.visibilityOwner")}</option>
               {role === "knowledge_admin" && (
-                <option value="restricted">Restricted（目前仅 Admin）</option>
+                <option value="restricted">
+                  {t("knowledge.article.visibilityRestricted")}
+                </option>
               )}
             </select>
           </div>
         </div>
         <div>
           <label htmlFor="knowledge-summary" className="mb-2 block text-sm font-medium crm-text">
-            摘要
+            {t("knowledge.article.summaryLabel")}
           </label>
           <textarea
             id="knowledge-summary"
@@ -155,7 +161,7 @@ export function KnowledgeArticleEditor({
         </div>
         <div>
           <label htmlFor="knowledge-body" className="mb-2 block text-sm font-medium crm-text">
-            正文
+            {t("knowledge.article.bodyLabel")}
           </label>
           <textarea
             id="knowledge-body"
@@ -167,12 +173,12 @@ export function KnowledgeArticleEditor({
             className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6"
           />
           <p className="mt-2 text-xs crm-text-secondary">
-            使用纯文字格式，避免脚本、iframe 或不安全 HTML。
+            {t("knowledge.article.bodyHint")}
           </p>
         </div>
         <div>
           <label htmlFor="knowledge-change-note" className="mb-2 block text-sm font-medium crm-text">
-            修改说明（可选）
+            {t("knowledge.article.changeNoteLabel")}
           </label>
           <input
             id="knowledge-change-note"
@@ -189,7 +195,7 @@ export function KnowledgeArticleEditor({
         )}
         <div className="flex flex-wrap gap-2">
           <Button type="submit" disabled={busy}>
-            保存草稿
+            {t("knowledge.article.saveDraft")}
           </Button>
           <Button
             type="button"
@@ -199,7 +205,7 @@ export function KnowledgeArticleEditor({
             }
             disabled={busy}
           >
-            取消
+            {t("knowledge.article.cancel")}
           </Button>
         </div>
       </form>

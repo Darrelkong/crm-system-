@@ -1,9 +1,9 @@
 export const dynamic = "force-dynamic";
 
 import { notFound, redirect } from "next/navigation";
-import { PageIntro } from "@/components/ui/page-intro";
+import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
+import { KnowledgeBackLinkLocalized } from "@/components/knowledge/knowledge-back-link-localized";
 import { KnowledgeArticleEditor } from "@/components/knowledge/knowledge-article-editor";
-import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
 import {
   getKnowledgeArticle,
   listKnowledgeCategories,
@@ -31,13 +31,14 @@ export default async function EditKnowledgeArticlePage(context: PageContext) {
   }
   return (
     <div>
-      <PageIntro
-        title="编辑 Knowledge 草稿"
-        description="保存时会建立不可变的文章版本快照。"
+      <KnowledgeLocalizedPageIntro
+        titleKey="knowledge.article.editTitle"
+        descriptionKey="knowledge.article.editDescription"
         action={
-          <KnowledgeBackLink href={`/knowledge/articles/${id}`}>
-            返回文章
-          </KnowledgeBackLink>
+          <KnowledgeBackLinkLocalized
+            href={`/knowledge/articles/${id}`}
+            labelKey="knowledge.article.backToArticle"
+          />
         }
       />
       <KnowledgeArticleEditor
