@@ -1,11 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CompositionEvent,
+  type FormEvent,
+} from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import type { KnowledgeAiAnswer } from "@/lib/knowledge/qa-service";
 import type { KnowledgeSearchResult } from "@/lib/knowledge/published-retrieval";
+import {
+  fetchKnowledgeSearchResults,
+  isLiveKnowledgeSearchAbortError,
+  KNOWLEDGE_LIVE_SEARCH_DEBOUNCE_MS,
+  shouldSkipLiveKnowledgeSearch,
+} from "@/lib/knowledge/knowledge-live-search";
 
 type Mode = "search" | "ask";
 
@@ -14,50 +27,164 @@ export function KnowledgeSearchAiPanel() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
   const [answer, setAnswer] = useState<KnowledgeAiAnswer | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [searchBusy, setSearchBusy] = useState(false);
+  const [askBusy, setAskBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const composingRef = useRef(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchAbortRef = useRef<AbortController | null>(null);
+  const searchRequestIdRef = useRef(0);
 
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
+  const clearSearchDebounce = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+  }, []);
+
+  const cancelSearchRequest = useCallback(() => {
+    searchAbortRef.current?.abort();
+    searchAbortRef.current = null;
+  }, []);
+
+  const resetSearchState = useCallback(() => {
+    clearSearchDebounce();
+    cancelSearchRequest();
+    setSearchBusy(false);
+    setResults([]);
+    setError(null);
+  }, [cancelSearchRequest, clearSearchDebounce]);
+
+  const runLiveSearch = useCallback(async (rawQuery: string) => {
+    const value = rawQuery.trim();
+    if (!value) {
+      resetSearchState();
+      return;
+    }
+    if (shouldSkipLiveKnowledgeSearch(value, composingRef.current)) {
+      return;
+    }
+
+    clearSearchDebounce();
+    cancelSearchRequest();
+
+    const requestId = searchRequestIdRef.current + 1;
+    searchRequestIdRef.current = requestId;
+    const controller = new AbortController();
+    searchAbortRef.current = controller;
+    setSearchBusy(true);
+    setError(null);
+    setAnswer(null);
+
+    try {
+      const nextResults = await fetchKnowledgeSearchResults(value, controller.signal);
+      if (requestId !== searchRequestIdRef.current) return;
+      setResults(nextResults);
+    } catch (caught) {
+      if (requestId !== searchRequestIdRef.current) return;
+      if (isLiveKnowledgeSearchAbortError(caught)) return;
+      setError(caught instanceof Error ? caught.message : "请求失败");
+      setResults([]);
+    } finally {
+      if (requestId === searchRequestIdRef.current) {
+        setSearchBusy(false);
+        if (searchAbortRef.current === controller) {
+          searchAbortRef.current = null;
+        }
+      }
+    }
+  }, [cancelSearchRequest, clearSearchDebounce, resetSearchState]);
+
+  const scheduleLiveSearch = useCallback(
+    (rawQuery: string) => {
+      clearSearchDebounce();
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        void runLiveSearch(rawQuery);
+      }, KNOWLEDGE_LIVE_SEARCH_DEBOUNCE_MS);
+    },
+    [clearSearchDebounce, runLiveSearch],
+  );
+
+  useEffect(() => {
+    if (mode !== "search" || composingRef.current || query.trim() === "") {
+      return;
+    }
+    scheduleLiveSearch(query);
+    return () => {
+      clearSearchDebounce();
+    };
+  }, [clearSearchDebounce, mode, query, scheduleLiveSearch]);
+
+  useEffect(() => {
+    return () => {
+      clearSearchDebounce();
+      cancelSearchRequest();
+    };
+  }, [cancelSearchRequest, clearSearchDebounce]);
+
+  const onSearchQueryChange = (value: string) => {
+    setQuery(value);
+    if (mode !== "search") return;
+    if (value.trim() === "") {
+      resetSearchState();
+      return;
+    }
+    if (composingRef.current) return;
+    scheduleLiveSearch(value);
+  };
+
+  const onCompositionStart = () => {
+    composingRef.current = true;
+    clearSearchDebounce();
+    cancelSearchRequest();
+  };
+
+  const onCompositionEnd = (event: CompositionEvent<HTMLInputElement>) => {
+    composingRef.current = false;
+    const value = event.currentTarget.value;
+    setQuery(value);
+    if (mode !== "search") return;
+    if (value.trim() === "") {
+      resetSearchState();
+      return;
+    }
+    scheduleLiveSearch(value);
+  };
+
+  async function submitAsk(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const value = query.trim();
-    if (!value || busy) return;
-    setBusy(true);
+    if (!value || askBusy) return;
+    setAskBusy(true);
     setError(null);
     setAnswer(null);
     try {
-      if (mode === "search") {
-        const response = await fetch(
-          `/api/knowledge/search?q=${encodeURIComponent(value)}`,
-          { cache: "no-store" },
-        );
-        const payload = (await response.json()) as {
-          results?: KnowledgeSearchResult[];
-          error?: string;
-        };
-        if (!response.ok || !payload.results) {
-          throw new Error(payload.error ?? "搜索失败");
-        }
-        setResults(payload.results);
-      } else {
-        const response = await fetch("/api/knowledge/ask", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question: value }),
-        });
-        const payload = (await response.json()) as {
-          answer?: KnowledgeAiAnswer;
-          error?: string;
-        };
-        if (!response.ok || !payload.answer) {
-          throw new Error(payload.error ?? "Knowledge AI 暂时无法使用");
-        }
-        setAnswer(payload.answer);
+      const response = await fetch("/api/knowledge/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: value }),
+      });
+      const payload = (await response.json()) as {
+        answer?: KnowledgeAiAnswer;
+        error?: string;
+      };
+      if (!response.ok || !payload.answer) {
+        throw new Error(payload.error ?? "Knowledge AI 暂时无法使用");
       }
+      setAnswer(payload.answer);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "请求失败");
     } finally {
-      setBusy(false);
+      setAskBusy(false);
     }
+  }
+
+  function onSearchSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (mode !== "search") return;
+    clearSearchDebounce();
+    void runLiveSearch(query);
   }
 
   return (
@@ -69,7 +196,6 @@ export function KnowledgeSearchAiPanel() {
           variant={mode === "search" ? "primary" : "secondary"}
           onClick={() => {
             setMode("search");
-            setResults([]);
             setAnswer(null);
             setError(null);
           }}
@@ -82,7 +208,7 @@ export function KnowledgeSearchAiPanel() {
           variant={mode === "ask" ? "primary" : "secondary"}
           onClick={() => {
             setMode("ask");
-            setResults([]);
+            resetSearchState();
             setAnswer(null);
             setError(null);
           }}
@@ -90,7 +216,10 @@ export function KnowledgeSearchAiPanel() {
           Ask Knowledge AI
         </Button>
       </div>
-      <form className="mt-4 flex flex-col gap-3 sm:flex-row" onSubmit={submit}>
+      <form
+        className="mt-4 flex flex-col gap-3 sm:flex-row"
+        onSubmit={mode === "ask" ? submitAsk : onSearchSubmit}
+      >
         {mode === "ask" ? (
           <textarea
             value={query}
@@ -104,17 +233,24 @@ export function KnowledgeSearchAiPanel() {
         ) : (
           <input
             value={query}
-            onChange={(event) => setQuery(event.target.value)}
+            onChange={(event) => onSearchQueryChange(event.target.value)}
+            onCompositionStart={onCompositionStart}
+            onCompositionEnd={onCompositionEnd}
             placeholder="搜索已发布 Knowledge"
             aria-label="搜索 Knowledge"
             maxLength={200}
             className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm"
           />
         )}
-        <Button type="submit" disabled={busy || !query.trim()}>
-          {busy ? "处理中…" : mode === "search" ? "搜索" : "提问"}
-        </Button>
+        {mode === "ask" && (
+          <Button type="submit" disabled={askBusy || !query.trim()}>
+            {askBusy ? "处理中…" : "提问"}
+          </Button>
+        )}
       </form>
+      {mode === "search" && searchBusy && (
+        <p className="mt-3 text-sm crm-text-secondary">正在搜索…</p>
+      )}
       {error && (
         <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
           {error}
@@ -153,7 +289,7 @@ export function KnowledgeSearchAiPanel() {
           ))}
         </div>
       )}
-      {mode === "search" && !busy && query.trim() && results.length === 0 && !error && (
+      {mode === "search" && !searchBusy && query.trim() && results.length === 0 && !error && (
         <div className="mt-4">
           <EmptyState message="目前没有找到符合条件的已发布 Knowledge。" />
         </div>
