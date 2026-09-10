@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Shield } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
@@ -47,6 +48,20 @@ export function KnowledgeHomeClient({
     });
   }, [catalog.articles, selectedCategoryId]);
 
+  const articleCountLabel = selectedCategoryId
+    ? t("knowledge.home.articleCountFiltered", {
+        count: String(visibleArticles.length),
+      })
+    : t("knowledge.home.articleCount", {
+        count: String(visibleArticles.length),
+      });
+
+  function articleStatusLabel(status: KnowledgeArticleListItem["status"]) {
+    if (status === "draft") return t("knowledge.home.statusDraft");
+    if (status === "archived") return t("knowledge.home.statusArchived");
+    return t("knowledge.home.statusPublished");
+  }
+
   async function reloadCatalog() {
     const response = await fetch("/api/knowledge/catalog", {
       cache: "no-store",
@@ -88,13 +103,19 @@ export function KnowledgeHomeClient({
       });
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string };
-        throw new Error(payload.error ?? "分类建立失败");
+        throw new Error(
+          payload.error ?? t("knowledge.home.createCategoryFailed"),
+        );
       }
       setCategoryName("");
       setCategoryDescription("");
       await reloadCatalog();
     } catch (error) {
-      setCategoryError(error instanceof Error ? error.message : "分类建立失败");
+      setCategoryError(
+        error instanceof Error
+          ? error.message
+          : t("knowledge.home.createCategoryFailed"),
+      );
     } finally {
       setBusy(false);
     }
@@ -133,53 +154,73 @@ export function KnowledgeHomeClient({
     }
   }
 
+  const canAuthor =
+    role === "contributor" || role === "knowledge_admin";
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       <KnowledgeSearchAiPanel />
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm crm-text-secondary">
-          按分类浏览内部业务资料，文章内容仅供 Knowledge 权限范围内使用。
+
+      <div
+        className="flex gap-2 rounded-xl border border-slate-200/80 bg-slate-50 px-3 py-2.5 text-xs leading-relaxed crm-text-secondary"
+        role="note"
+      >
+        <Shield
+          className="mt-0.5 h-4 w-4 shrink-0 text-slate-500"
+          aria-hidden
+        />
+        <p>{t("knowledge.home.confidentialityNotice")}</p>
+      </div>
+
+      <div className="space-y-3">
+        <p className="hidden text-sm crm-text-secondary md:block">
+          {t("knowledge.home.browseHint")}
         </p>
-        <div className="flex flex-wrap gap-2">
-          {(role === "contributor" || role === "knowledge_admin") && (
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          {canAuthor && (
             <Button
               type="button"
+              className="col-span-2 min-h-11 w-full"
               onClick={() => router.push("/knowledge/articles/new")}
             >
-              新建草稿
+              {t("knowledge.home.newDraft")}
             </Button>
           )}
-          {(role === "contributor" || role === "knowledge_admin") && (
+          {canAuthor && (
             <Button
               type="button"
               variant="secondary"
+              className="min-h-11 w-full"
               onClick={() => router.push("/knowledge/ingest")}
             >
-              来源整理
+              {t("knowledge.home.ingest")}
             </Button>
           )}
           {role === "contributor" && (
             <Button
               type="button"
               variant="secondary"
+              className="min-h-11 w-full"
               onClick={() => router.push("/knowledge/review")}
             >
-              我的审核 · My Reviews
+              {t("knowledge.home.myReviews")}
             </Button>
           )}
           {(role === "reviewer" || role === "knowledge_admin") && (
             <Button
               type="button"
               variant="secondary"
+              className="min-h-11 w-full"
               onClick={() => router.push("/knowledge/review")}
             >
-              审核中心 · Review Center
+              {t("knowledge.home.reviewCenter")}
             </Button>
           )}
           {role === "knowledge_admin" && (
             <Button
               type="button"
               variant="secondary"
+              className="min-h-11 w-full"
               onClick={() => router.push("/knowledge/members")}
             >
               {t("knowledge.members.homeEntry")}
@@ -187,30 +228,33 @@ export function KnowledgeHomeClient({
           )}
           <Button
             type="button"
-            variant="secondary"
+            variant="ghost"
+            className="col-span-2 min-h-11 w-full border border-slate-200 bg-white"
             onClick={lockKnowledge}
             disabled={busy}
           >
-            锁定 Knowledge
+            {t("knowledge.home.lockKnowledge")}
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(12rem,16rem)_minmax(0,1fr)]">
-        <aside className="space-y-4">
-          <Card className="p-4">
-            <h2 className="text-sm font-semibold crm-text">分类</h2>
-            <div className="mt-3 space-y-1">
+      <div className="grid gap-4 lg:grid-cols-[minmax(11rem,14rem)_minmax(0,1fr)] lg:gap-6">
+        <aside className="space-y-3 lg:space-y-4">
+          <Card className="p-3 sm:p-4">
+            <h2 className="text-sm font-semibold crm-text">
+              {t("knowledge.home.categories")}
+            </h2>
+            <div className="mt-2 space-y-0.5">
               <button
                 type="button"
-                className={`w-full rounded-xl px-3 py-2 text-left text-sm ${
+                className={`w-full rounded-lg px-2.5 py-2 text-left text-sm ${
                   selectedCategoryId === null
                     ? "bg-blue-50 font-semibold text-blue-700"
                     : "crm-text-secondary hover:bg-slate-50"
                 }`}
                 onClick={() => setSelectedCategoryId(null)}
               >
-                全部文章
+                {t("knowledge.home.allArticles")}
               </button>
               {catalog.categories
                 .filter(
@@ -221,7 +265,7 @@ export function KnowledgeHomeClient({
                   <div key={category.id} className="group">
                     <button
                       type="button"
-                      className={`w-full rounded-xl px-3 py-2 text-left text-sm ${
+                      className={`w-full rounded-lg px-2.5 py-2 text-left text-sm ${
                         selectedCategoryId === category.id
                           ? "bg-blue-50 font-semibold text-blue-700"
                           : "crm-text-secondary hover:bg-slate-50"
@@ -230,18 +274,18 @@ export function KnowledgeHomeClient({
                     >
                       <span className="block truncate">{category.name}</span>
                       <span className="text-xs opacity-70">
-                        {category.articleCount} 篇
-                        {!category.isActive && " · 已停用"}
+                        {category.articleCount} {t("knowledge.home.articlesUnit")}
+                        {!category.isActive && t("knowledge.home.inactiveSuffix")}
                       </span>
                     </button>
                     {role === "knowledge_admin" && category.isActive && (
                       <button
                         type="button"
-                        className="invisible px-3 text-xs text-slate-500 underline group-hover:visible"
+                        className="invisible px-2.5 text-xs text-slate-500 underline group-hover:visible"
                         onClick={() => deactivateCategory(category)}
                         disabled={busy}
                       >
-                        停用分类
+                        {t("knowledge.home.deactivateCategory")}
                       </button>
                     )}
                   </div>
@@ -250,82 +294,84 @@ export function KnowledgeHomeClient({
           </Card>
 
           {role === "knowledge_admin" && (
-            <Card className="p-4">
-              <h2 className="text-sm font-semibold crm-text">管理分类</h2>
-              <form className="mt-3 space-y-3" onSubmit={createCategory}>
+            <Card className="p-3 sm:p-4">
+              <h2 className="text-sm font-semibold crm-text">
+                {t("knowledge.home.manageCategories")}
+              </h2>
+              <form className="mt-2 space-y-2" onSubmit={createCategory}>
                 <input
                   required
                   value={categoryName}
                   onChange={(event) => setCategoryName(event.target.value)}
-                  placeholder="分类名称"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  placeholder={t("knowledge.home.categoryName")}
+                  aria-label={t("knowledge.home.categoryName")}
+                  className="min-h-10 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                 />
                 <textarea
                   value={categoryDescription}
-                  onChange={(event) => setCategoryDescription(event.target.value)}
-                  placeholder="简短说明（可选）"
-                  rows={3}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm"
+                  onChange={(event) =>
+                    setCategoryDescription(event.target.value)
+                  }
+                  placeholder={t("knowledge.home.categoryDescription")}
+                  aria-label={t("knowledge.home.categoryDescription")}
+                  rows={2}
+                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
                 />
                 {categoryError && (
                   <p className="text-xs text-red-600">{categoryError}</p>
                 )}
-                <Button type="submit" size="sm" disabled={busy}>
-                  新增分类
+                <Button type="submit" size="sm" className="min-h-10" disabled={busy}>
+                  {t("knowledge.home.addCategory")}
                 </Button>
               </form>
             </Card>
           )}
         </aside>
 
-        <section className="min-w-0 space-y-4">
-          <p className="text-sm crm-text-secondary">
-            {visibleArticles.length} 篇文章
-            {selectedCategoryId ? "（当前分类）" : ""}
-          </p>
+        <section className="min-w-0 space-y-3">
+          <p className="text-sm crm-text-secondary">{articleCountLabel}</p>
 
           {visibleArticles.length === 0 ? (
             <EmptyState
-              message="此分类目前没有文章。"
+              message={t("knowledge.home.emptyCategory")}
               action={
-                role === "contributor" || role === "knowledge_admin" ? (
-                  <Button onClick={() => router.push("/knowledge/articles/new")}>
-                    新建草稿
+                canAuthor ? (
+                  <Button
+                    size="sm"
+                    onClick={() => router.push("/knowledge/articles/new")}
+                  >
+                    {t("knowledge.home.newDraft")}
                   </Button>
                 ) : undefined
               }
             />
           ) : (
-            <div className="grid gap-4 xl:grid-cols-2">
+            <div className="grid gap-3 xl:grid-cols-2">
               {visibleArticles.map((article) => (
-                <Card key={article.id} className="flex min-w-0 flex-col">
+                <Card key={article.id} className="flex min-w-0 flex-col p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs crm-text-secondary">
                         {article.categoryName}
                       </p>
-                      <h2 className="mt-1 truncate text-lg font-semibold crm-text">
+                      <h3 className="mt-1 truncate text-base font-semibold crm-text">
                         {article.title}
-                      </h2>
+                      </h3>
                     </div>
                     <Badge
                       variant={
                         article.status === "draft" ? "warning" : "success"
                       }
                     >
-                      {article.status === "draft"
-                        ? "草稿"
-                        : article.status === "archived"
-                          ? "已归档"
-                          : "已发布"}
+                      {articleStatusLabel(article.status)}
                     </Badge>
                   </div>
                   {article.summary && (
-                    <p className="mt-3 line-clamp-3 text-sm crm-text-secondary">
+                    <p className="mt-2 line-clamp-3 text-sm crm-text-secondary">
                       {article.summary}
                     </p>
                   )}
-                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-5">
+                  <div className="mt-auto flex flex-wrap items-center gap-2 pt-4">
                     <Button
                       type="button"
                       size="sm"
@@ -333,7 +379,7 @@ export function KnowledgeHomeClient({
                       onClick={() => openQuickView(article.id)}
                       disabled={busy}
                     >
-                      快速查看
+                      {t("knowledge.home.quickView")}
                     </Button>
                     <Button
                       type="button"
@@ -343,10 +389,12 @@ export function KnowledgeHomeClient({
                         router.push(`/knowledge/articles/${article.id}`)
                       }
                     >
-                      完整文章
+                      {t("knowledge.home.fullArticle")}
                     </Button>
                     <span className="ml-auto text-xs crm-text-secondary">
-                      更新于 {new Date(article.updatedAt).toLocaleDateString()}
+                      {t("knowledge.home.updatedAt", {
+                        date: new Date(article.updatedAt).toLocaleDateString(),
+                      })}
                     </span>
                   </div>
                 </Card>
@@ -361,7 +409,7 @@ export function KnowledgeHomeClient({
           className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 p-3 sm:items-center"
           role="dialog"
           aria-modal="true"
-          aria-label="文章快速查看"
+          aria-label={t("knowledge.home.quickViewDialogLabel")}
           onClick={() => setSelectedArticle(null)}
         >
           <div
@@ -383,7 +431,7 @@ export function KnowledgeHomeClient({
                 variant="ghost"
                 onClick={() => setSelectedArticle(null)}
               >
-                关闭
+                {t("knowledge.home.close")}
               </Button>
             </div>
             {selectedArticle.summary && (
@@ -402,7 +450,7 @@ export function KnowledgeHomeClient({
                   router.push(`/knowledge/articles/${selectedArticle.id}`)
                 }
               >
-                查看完整文章
+                {t("knowledge.home.viewFullArticle")}
               </Button>
               <Button
                 type="button"
@@ -414,7 +462,7 @@ export function KnowledgeHomeClient({
                   )
                 }
               >
-                版本历史
+                {t("knowledge.home.versionHistory")}
               </Button>
             </div>
           </div>

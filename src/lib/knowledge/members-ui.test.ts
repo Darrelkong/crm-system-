@@ -26,16 +26,19 @@ describe("Knowledge members role management UI", () => {
     assert.match(page, /status\.role !== "knowledge_admin"/);
     assert.match(page, /redirect\("\/knowledge"\)/);
     assert.match(page, /listKnowledgeUsers/);
+    assert.match(page, /currentUserId={status\.user\.id}/);
   });
 
-  it("loads members from GET /api/knowledge/roles and updates via PATCH", () => {
+  it("loads members from GET /api/knowledge/roles and batch-updates via PATCH", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
     assert.match(client, /fetch\("\/api\/knowledge\/roles"/);
     assert.match(client, /method: "PATCH"/);
-    assert.match(client, /JSON\.stringify\(\{ userId, role: draft\.role \}\)/);
+    assert.match(client, /savePendingChanges/);
+    assert.match(client, /pendingChanges/);
     assert.match(client, /member\.displayName/);
     assert.match(client, /member\.email/);
     assert.doesNotMatch(client, /customer|contact_id|followUp/i);
+    assert.doesNotMatch(client, /saveRole\(/);
   });
 
   it("exposes all four Knowledge role options", () => {
@@ -57,14 +60,32 @@ describe("Knowledge members role management UI", () => {
     const constants = read("src/lib/knowledge/constants.ts");
     assert.match(client, /KNOWLEDGE_LAST_ADMIN/);
     assert.match(client, /knowledge\.members\.lastAdminError/);
+    assert.match(client, /isLastAdminLocked/);
+    assert.match(client, /lastAdminReadonly/);
     assert.match(roleService, /KNOWLEDGE_ERROR_CODES\.LAST_ADMIN/);
     assert.match(roleService, /countKnowledgeAdmins/);
     assert.match(constants, /LAST_ADMIN: "KNOWLEDGE_LAST_ADMIN"/);
   });
 
-  it("uses a mobile-safe card layout without desktop table width", () => {
+  it("marks the current user and disables last-admin self-demotion in UI", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
-    assert.match(client, /grid gap-4/);
+    assert.match(client, /currentUserId/);
+    assert.match(client, /knowledge\.members\.youBadge/);
+    assert.match(client, /isLastAdminLocked/);
+    assert.match(client, /disabled={saving \|\| lastAdminLocked}/);
+  });
+
+  it("uses batch save with pending-changes indication", () => {
+    const client = read("src/components/knowledge/knowledge-members-client.tsx");
+    assert.match(client, /hasPendingChanges/);
+    assert.match(client, /knowledge\.members\.unsavedChanges/);
+    assert.match(client, /knowledge\.members\.saveChanges/);
+    assert.match(client, /sticky bottom-0/);
+  });
+
+  it("uses a mobile-safe compact layout without desktop table width", () => {
+    const client = read("src/components/knowledge/knowledge-members-client.tsx");
+    assert.match(client, /space-y-2/);
     assert.match(client, /min-w-0/);
     assert.match(client, /break-all/);
     assert.match(client, /w-full/);

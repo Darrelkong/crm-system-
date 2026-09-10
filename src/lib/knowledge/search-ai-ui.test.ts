@@ -12,8 +12,8 @@ describe("Knowledge Package 5 mobile Search and AI UI", () => {
       ),
       "utf8",
     );
-    assert.match(source, /Search Knowledge|搜索 Knowledge/);
-    assert.match(source, /Ask Knowledge AI/);
+    assert.match(source, /knowledge\.searchAi\.search/);
+    assert.match(source, /knowledge\.searchAi\.ask/);
     assert.match(source, /disabled={askBusy/);
     assert.match(source, /whitespace-pre-wrap break-words/);
     assert.match(source, /flex flex-col/);
@@ -29,11 +29,11 @@ describe("Knowledge Package 5 mobile Search and AI UI", () => {
       "utf8",
     );
     assert.match(source, /knowledge-live-search/);
-    assert.match(source, /正在搜索…/);
+    assert.match(source, /knowledge\.searchAi\.searching/);
     assert.match(source, /onCompositionStart/);
     assert.match(source, /onCompositionEnd/);
     assert.match(source, /\{mode === "ask" && \([\s\S]*type="submit"/);
     assert.doesNotMatch(source, /\{mode === "search" && \([\s\S]*type="submit"/);
-    assert.match(source, /提问/);
+    assert.match(source, /knowledge\.searchAi\.askButton/);
   });
 });

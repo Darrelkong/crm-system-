@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
-import { KnowledgeAccessForm } from "@/components/knowledge/knowledge-access-form";
-import { PageIntro } from "@/components/ui/page-intro";
+import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
+import { KnowledgeSetupPageContent } from "@/components/knowledge/knowledge-setup-page-content";
 import { getKnowledgeSessionStatus } from "@/lib/permissions/knowledge";
 
 export default async function KnowledgeSetupPage() {
@@ -15,18 +15,11 @@ export default async function KnowledgeSetupPage() {
 
   return (
     <div>
-      <PageIntro
-        title="Knowledge"
-        description="业务知识库初始化"
+      <KnowledgeLocalizedPageIntro
+        titleKey="knowledge.setupTitle"
+        descriptionKey="knowledge.setupDescription"
       />
-      <div className="surface-card max-w-xl p-6">
-        <p className="text-sm crm-text-secondary">
-          首次启用业务知识库，请设置 Knowledge 访问密码。
-        </p>
-        <div className="mt-6">
-          <KnowledgeAccessForm setup />
-        </div>
-      </div>
+      <KnowledgeSetupPageContent />
     </div>
   );
 }

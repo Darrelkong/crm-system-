@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
@@ -26,18 +26,35 @@ function buildDrafts(
   );
 }
 
+function countKnowledgeAdmins(members: KnowledgeMember[]): number {
+  return members.filter((member) => member.role === "knowledge_admin").length;
+}
+
 export function KnowledgeMembersClient({
   initialMembers,
+  currentUserId,
 }: {
   initialMembers: KnowledgeMember[];
+  currentUserId: string;
 }) {
   const { t } = useTranslation();
   const [members, setMembers] = useState(initialMembers);
   const [drafts, setDrafts] = useState(() => buildDrafts(initialMembers));
   const [loading, setLoading] = useState(false);
-  const [busyUserId, setBusyUserId] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+
+  const pendingChanges = useMemo(() => {
+    return members.filter((member) => {
+      const draft = drafts[member.id];
+      if (!draft?.role) return false;
+      return (draft.role || null) !== (member.role ?? null);
+    });
+  }, [drafts, members]);
+
+  const hasPendingChanges = pendingChanges.length > 0;
+  const adminCount = countKnowledgeAdmins(members);
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -66,44 +83,68 @@ export function KnowledgeMembersClient({
     }
   }, [t]);
 
-  async function saveRole(userId: string) {
-    const draft = drafts[userId];
-    if (!draft?.role) return;
-    setBusyUserId(userId);
+  function isLastAdminLocked(member: KnowledgeMember): boolean {
+    return (
+      member.id === currentUserId &&
+      member.role === "knowledge_admin" &&
+      adminCount <= 1
+    );
+  }
+
+  async function savePendingChanges() {
+    if (!hasPendingChanges || saving) return;
+    setSaving(true);
     setError(null);
     setSuccess(null);
-    try {
-      const response = await fetch("/api/knowledge/roles", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, role: draft.role }),
-      });
-      const payload = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        errorCode?: string;
-      };
-      if (!response.ok || !payload.ok) {
-        if (payload.errorCode === "KNOWLEDGE_LAST_ADMIN") {
-          throw new Error(t("knowledge.members.lastAdminError"));
+
+    const failures: string[] = [];
+    let savedCount = 0;
+
+    for (const member of pendingChanges) {
+      const draft = drafts[member.id];
+      if (!draft?.role) continue;
+
+      try {
+        const response = await fetch("/api/knowledge/roles", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: member.id, role: draft.role }),
+        });
+        const payload = (await response.json()) as {
+          ok?: boolean;
+          error?: string;
+          errorCode?: string;
+        };
+        if (!response.ok || !payload.ok) {
+          if (payload.errorCode === "KNOWLEDGE_LAST_ADMIN") {
+            failures.push(t("knowledge.members.lastAdminError"));
+          } else {
+            failures.push(payload.error ?? t("knowledge.members.updateFailed"));
+          }
+          continue;
         }
-        throw new Error(payload.error ?? t("knowledge.members.updateFailed"));
+        savedCount += 1;
+      } catch {
+        failures.push(t("knowledge.members.updateFailed"));
       }
-      setSuccess(t("knowledge.members.roleSaved"));
-      await loadMembers();
-    } catch (caught) {
-      setError(
-        caught instanceof Error
-          ? caught.message
-          : t("knowledge.members.updateFailed"),
-      );
-    } finally {
-      setBusyUserId(null);
     }
+
+    await loadMembers();
+
+    if (failures.length > 0) {
+      setError(failures[0]);
+      if (savedCount > 0) {
+        setSuccess(t("knowledge.members.changesSaved"));
+      }
+    } else {
+      setSuccess(t("knowledge.members.changesSaved"));
+    }
+
+    setSaving(false);
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 pb-4 md:space-y-6">
       {error && (
         <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
@@ -115,37 +156,57 @@ export function KnowledgeMembersClient({
         </p>
       )}
 
+      {hasPendingChanges && (
+        <p className="text-sm font-medium text-amber-800">
+          {t("knowledge.members.unsavedChanges")}
+        </p>
+      )}
+
       {loading ? (
         <p className="text-sm crm-text-secondary">{t("common.loading")}</p>
       ) : members.length === 0 ? (
         <EmptyState message={t("knowledge.members.noMembers")} />
       ) : (
-        <div className="grid gap-4">
+        <div className="space-y-2">
           {members.map((member) => {
             const draft = drafts[member.id] ?? { role: member.role ?? "" };
-            const hasRoleChange =
-              (draft.role || null) !== (member.role ?? null);
-            const isBusy = busyUserId === member.id;
+            const isCurrentUser = member.id === currentUserId;
+            const lastAdminLocked = isLastAdminLocked(member);
+            const displayRole = member.role;
+            const roleBadgeLabel = displayRole
+              ? displayRole === "knowledge_admin"
+                ? t("knowledge.members.knowledgeAdminBadge")
+                : t(`knowledge.members.roles.${displayRole}`)
+              : t("knowledge.members.noRole");
+
             return (
-              <Card key={member.id} className="min-w-0 p-4 sm:p-5">
-                <div className="flex flex-col gap-4">
+              <Card
+                key={member.id}
+                className="min-w-0 p-3 sm:p-4"
+              >
+                <div className="flex flex-col gap-2">
                   <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h2 className="truncate text-base font-semibold crm-text">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h2 className="truncate text-sm font-semibold crm-text sm:text-base">
                         {member.displayName}
                       </h2>
-                      <Badge variant={member.role ? "success" : "warning"}>
-                        {member.role
-                          ? t(`knowledge.members.roles.${member.role}`)
-                          : t("knowledge.members.noRole")}
+                      {isCurrentUser && (
+                        <Badge variant="default">
+                          {t("knowledge.members.youBadge")}
+                        </Badge>
+                      )}
+                      <Badge
+                        variant={member.role ? "success" : "warning"}
+                      >
+                        {roleBadgeLabel}
                       </Badge>
                     </div>
-                    <p className="mt-1 break-all text-sm crm-text-secondary">
+                    <p className="mt-0.5 break-all text-xs crm-text-secondary sm:text-sm">
                       {member.email}
                     </p>
                   </div>
 
-                  <label className="block text-sm font-medium crm-text">
+                  <label className="block text-xs font-medium crm-text sm:text-sm">
                     {t("knowledge.members.knowledgeRole")}
                     <select
                       value={draft.role}
@@ -157,36 +218,55 @@ export function KnowledgeMembersClient({
                           },
                         }))
                       }
-                      className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-                      disabled={isBusy}
+                      className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+                      disabled={saving || lastAdminLocked}
+                      aria-describedby={
+                        lastAdminLocked
+                          ? `last-admin-hint-${member.id}`
+                          : undefined
+                      }
                     >
                       <option value="">
                         {t("knowledge.members.noRole")}
                       </option>
                       {KNOWLEDGE_ROLES.map((role) => (
                         <option key={role} value={role}>
-                          {t(`knowledge.members.roles.${role}`)}
+                          {role === "knowledge_admin"
+                            ? t("knowledge.members.knowledgeAdminBadge")
+                            : t(`knowledge.members.roles.${role}`)}
                         </option>
                       ))}
                     </select>
                   </label>
-
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      type="button"
-                      size="sm"
-                      onClick={() => void saveRole(member.id)}
-                      disabled={!draft.role || !hasRoleChange || isBusy}
+                  {lastAdminLocked && (
+                    <p
+                      id={`last-admin-hint-${member.id}`}
+                      className="text-xs crm-text-secondary"
                     >
-                      {isBusy
-                        ? t("knowledge.members.savingRole")
-                        : t("knowledge.members.saveRole")}
-                    </Button>
-                  </div>
+                      {t("knowledge.members.lastAdminReadonly")}
+                    </p>
+                  )}
                 </div>
               </Card>
             );
           })}
+        </div>
+      )}
+
+      {hasPendingChanges && (
+        <div
+          className="sticky bottom-0 z-30 -mx-1 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur md:static md:mx-0 md:rounded-xl md:border md:px-4"
+        >
+          <Button
+            type="button"
+            className="min-h-11 w-full md:w-auto"
+            onClick={() => void savePendingChanges()}
+            disabled={saving || !hasPendingChanges}
+          >
+            {saving
+              ? t("knowledge.members.savingChanges")
+              : t("knowledge.members.saveChanges")}
+          </Button>
         </div>
       )}
     </div>

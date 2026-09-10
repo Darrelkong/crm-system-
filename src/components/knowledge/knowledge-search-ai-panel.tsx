@@ -9,6 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import Link from "next/link";
+import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import type { KnowledgeAiAnswer } from "@/lib/knowledge/qa-service";
@@ -23,6 +24,7 @@ import {
 type Mode = "search" | "ask";
 
 export function KnowledgeSearchAiPanel() {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<Mode>("search");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<KnowledgeSearchResult[]>([]);
@@ -83,7 +85,11 @@ export function KnowledgeSearchAiPanel() {
     } catch (caught) {
       if (requestId !== searchRequestIdRef.current) return;
       if (isLiveKnowledgeSearchAbortError(caught)) return;
-      setError(caught instanceof Error ? caught.message : "请求失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.searchAi.requestFailed"),
+      );
       setResults([]);
     } finally {
       if (requestId === searchRequestIdRef.current) {
@@ -93,7 +99,7 @@ export function KnowledgeSearchAiPanel() {
         }
       }
     }
-  }, [cancelSearchRequest, clearSearchDebounce, resetSearchState]);
+  }, [cancelSearchRequest, clearSearchDebounce, resetSearchState, t]);
 
   const scheduleLiveSearch = useCallback(
     (rawQuery: string) => {
@@ -170,11 +176,17 @@ export function KnowledgeSearchAiPanel() {
         error?: string;
       };
       if (!response.ok || !payload.answer) {
-        throw new Error(payload.error ?? "Knowledge AI 暂时无法使用");
+        throw new Error(
+          payload.error ?? t("knowledge.searchAi.providerUnavailable"),
+        );
       }
       setAnswer(payload.answer);
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "请求失败");
+      setError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.searchAi.requestFailed"),
+      );
     } finally {
       setAskBusy(false);
     }
@@ -188,7 +200,7 @@ export function KnowledgeSearchAiPanel() {
   }
 
   return (
-    <Card className="border-blue-100 bg-blue-50/40">
+    <Card className="border-blue-100 bg-blue-50/40 p-3 sm:p-4">
       <div className="flex flex-wrap items-center gap-2">
         <Button
           type="button"
@@ -200,7 +212,7 @@ export function KnowledgeSearchAiPanel() {
             setError(null);
           }}
         >
-          搜索 Knowledge
+          {t("knowledge.searchAi.search")}
         </Button>
         <Button
           type="button"
@@ -213,19 +225,19 @@ export function KnowledgeSearchAiPanel() {
             setError(null);
           }}
         >
-          Ask Knowledge AI
+          {t("knowledge.searchAi.ask")}
         </Button>
       </div>
       <form
-        className="mt-4 flex flex-col gap-3 sm:flex-row"
+        className="mt-3 flex flex-col gap-3 sm:mt-4 sm:flex-row"
         onSubmit={mode === "ask" ? submitAsk : onSearchSubmit}
       >
         {mode === "ask" ? (
           <textarea
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="只会根据已发布 Knowledge 回答"
-            aria-label="Ask Knowledge AI"
+            placeholder={t("knowledge.searchAi.askPlaceholder")}
+            aria-label={t("knowledge.searchAi.ask")}
             maxLength={200}
             rows={3}
             className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
@@ -236,20 +248,24 @@ export function KnowledgeSearchAiPanel() {
             onChange={(event) => onSearchQueryChange(event.target.value)}
             onCompositionStart={onCompositionStart}
             onCompositionEnd={onCompositionEnd}
-            placeholder="搜索已发布 Knowledge"
-            aria-label="搜索 Knowledge"
+            placeholder={t("knowledge.searchAi.searchPlaceholder")}
+            aria-label={t("knowledge.searchAi.search")}
             maxLength={200}
             className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm"
           />
         )}
         {mode === "ask" && (
-          <Button type="submit" disabled={askBusy || !query.trim()}>
-            {askBusy ? "处理中…" : "提问"}
+          <Button type="submit" className="min-h-11" disabled={askBusy || !query.trim()}>
+            {askBusy
+              ? t("knowledge.searchAi.processing")
+              : t("knowledge.searchAi.askButton")}
           </Button>
         )}
       </form>
       {mode === "search" && searchBusy && (
-        <p className="mt-3 text-sm crm-text-secondary">正在搜索…</p>
+        <p className="mt-3 text-sm crm-text-secondary">
+          {t("knowledge.searchAi.searching")}
+        </p>
       )}
       {error && (
         <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
@@ -257,9 +273,9 @@ export function KnowledgeSearchAiPanel() {
         </p>
       )}
       {mode === "search" && results.length > 0 && (
-        <div className="mt-5 grid gap-3">
+        <div className="mt-4 grid gap-3 sm:mt-5">
           {results.map((result) => (
-            <Card key={result.citationId} className="p-4">
+            <Card key={result.citationId} className="p-3 sm:p-4">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs crm-text-secondary">{result.categoryName}</p>
@@ -283,7 +299,7 @@ export function KnowledgeSearchAiPanel() {
                 href={`/knowledge/articles/${result.articleId}`}
                 className="primary-button mt-4 inline-flex min-h-10 items-center rounded-xl px-3 py-2 text-sm text-white"
               >
-                打开文章
+                {t("knowledge.searchAi.openArticle")}
               </Link>
             </Card>
           ))}
@@ -291,22 +307,24 @@ export function KnowledgeSearchAiPanel() {
       )}
       {mode === "search" && !searchBusy && query.trim() && results.length === 0 && !error && (
         <div className="mt-4">
-          <EmptyState message="目前没有找到符合条件的已发布 Knowledge。" />
+          <EmptyState message={t("knowledge.searchAi.noResults")} />
         </div>
       )}
       {mode === "ask" && answer && (
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:mt-5">
           <p className="whitespace-pre-wrap break-words text-sm leading-7 crm-text">
             {answer.answer}
           </p>
           {answer.insufficientInformation && (
             <p className="mt-3 text-sm text-amber-800">
-              以上内容仅反映目前已发布 Knowledge，现有资料可能不足。
+              {t("knowledge.searchAi.insufficientAnswer")}
             </p>
           )}
           {answer.citations.length > 0 && (
             <div className="mt-5 border-t border-slate-200 pt-4">
-              <p className="text-xs font-semibold crm-text-secondary">资料来源</p>
+              <p className="text-xs font-semibold crm-text-secondary">
+                {t("knowledge.searchAi.sources")}
+              </p>
               <div className="mt-2 flex flex-col gap-2">
                 {answer.citations.map((citation, index) => (
                   <Link

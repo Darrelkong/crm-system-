@@ -15,7 +15,10 @@ describe("Knowledge workflow UX stabilization", () => {
   it("adds back navigation on secondary Knowledge pages", () => {
     assert.match(read("src/app/(dashboard)/knowledge/ingest/page.tsx"), /返回 Knowledge/);
     assert.match(read("src/app/(dashboard)/knowledge/review/page.tsx"), /返回 Knowledge/);
-    assert.match(read("src/app/(dashboard)/knowledge/members/page.tsx"), /返回 Knowledge/);
+    assert.match(
+      read("src/app/(dashboard)/knowledge/members/page.tsx"),
+      /KnowledgeMembersBackLink/,
+    );
     assert.match(
       read("src/app/(dashboard)/knowledge/articles/[id]/edit/page.tsx"),
       /返回文章/,
@@ -32,11 +35,11 @@ describe("Knowledge workflow UX stabilization", () => {
 
   it("shows role-aware home actions and removes duplicate list search", () => {
     const home = read("src/components/knowledge/knowledge-home-client.tsx");
-    assert.match(home, /我的审核 · My Reviews/);
-    assert.match(home, /审核中心 · Review Center/);
+    assert.match(home, /knowledge\.home\.myReviews/);
+    assert.match(home, /knowledge\.home\.reviewCenter/);
     assert.match(
       home,
-      /role === "contributor" \|\| role === "knowledge_admin"[\s\S]*新建草稿/,
+      /canAuthor[\s\S]*knowledge\.home\.newDraft/,
     );
     assert.doesNotMatch(home, /按标题或分类筛选/);
     assert.doesNotMatch(home, /归档文章/);

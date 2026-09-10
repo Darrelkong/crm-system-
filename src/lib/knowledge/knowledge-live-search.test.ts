@@ -99,9 +99,9 @@ describe("Knowledge live search panel wiring", () => {
     assert.match(panelSource, /AbortController/);
     assert.match(panelSource, /onCompositionStart/);
     assert.match(panelSource, /onCompositionEnd/);
-    assert.match(panelSource, /正在搜索…/);
+    assert.match(panelSource, /knowledge\.searchAi\.searching/);
     assert.match(panelSource, /mode === "ask" &&/);
-    assert.match(panelSource, /提问/);
+    assert.match(panelSource, /knowledge\.searchAi\.askButton/);
     assert.match(panelSource, /\{mode === "ask" && \([\s\S]*type="submit"/);
     assert.doesNotMatch(panelSource, /\{mode === "search" && \([\s\S]*type="submit"/);
     assert.doesNotMatch(panelSource, /setInterval/);

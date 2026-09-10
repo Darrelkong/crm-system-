@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { PageIntro } from "@/components/ui/page-intro";
+import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
 import { KnowledgeHomeClient } from "@/components/knowledge/knowledge-home-client";
 import { getKnowledgeSessionStatus } from "@/lib/permissions/knowledge";
 import { getKnowledgeCatalog } from "@/lib/knowledge/core-service";
@@ -20,9 +20,10 @@ export default async function KnowledgePage() {
 
   return (
     <div>
-      <PageIntro
-        title="Knowledge"
-        description="业务知识库"
+      <KnowledgeLocalizedPageIntro
+        titleKey="knowledge.title"
+        descriptionKey="knowledge.home.pageDescription"
+        hideOnMobile
       />
       <KnowledgeHomeClient
         initialCatalog={catalog}
