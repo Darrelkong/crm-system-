@@ -78,7 +78,7 @@ const ERROR_CLIENT_FILES = [
   "src/components/knowledge/knowledge-article-editor.tsx",
   "src/components/knowledge/knowledge-review-actions.tsx",
   "src/components/knowledge/knowledge-article-archive-button.tsx",
-  "src/components/knowledge/knowledge-home-client.tsx",
+  "src/components/knowledge/knowledge-categories-client.tsx",
   "src/components/knowledge/knowledge-members-client.tsx",
   "src/components/knowledge/knowledge-search-ai-panel.tsx",
 ];

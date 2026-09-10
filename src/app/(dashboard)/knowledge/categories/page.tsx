@@ -2,12 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { redirect } from "next/navigation";
 import { KnowledgeLocalizedPageIntro } from "@/components/knowledge/knowledge-localized-page-intro";
-import { KnowledgeMembersBackLink } from "@/components/knowledge/knowledge-members-back-link";
-import { KnowledgeMembersClient } from "@/components/knowledge/knowledge-members-client";
-import { listKnowledgeUsers } from "@/lib/knowledge/role-service";
+import { KnowledgeBackLinkLocalized } from "@/components/knowledge/knowledge-back-link-localized";
+import { KnowledgeCategoriesClient } from "@/components/knowledge/knowledge-categories-client";
+import { getKnowledgeCatalog } from "@/lib/knowledge/core-service";
 import { getKnowledgeSessionStatus } from "@/lib/permissions/knowledge";
 
-export default async function KnowledgeMembersPage() {
+export default async function KnowledgeCategoriesPage() {
   const status = await getKnowledgeSessionStatus();
 
   if (!status.access.initialized) {
@@ -22,20 +22,17 @@ export default async function KnowledgeMembersPage() {
     redirect("/knowledge");
   }
 
-  const members = await listKnowledgeUsers();
+  const catalog = await getKnowledgeCatalog(status);
 
   return (
     <div>
       <KnowledgeLocalizedPageIntro
-        titleKey="knowledge.members.pageTitle"
-        descriptionKey="knowledge.members.description"
-        action={<KnowledgeMembersBackLink />}
+        titleKey="knowledge.categories.pageTitle"
+        descriptionKey="knowledge.categories.description"
+        action={<KnowledgeBackLinkLocalized href="/knowledge" labelKey="knowledge.categories.backToKnowledge" />}
         hideOnMobile
       />
-      <KnowledgeMembersClient
-        initialMembers={members}
-        currentUserId={status.user.id}
-      />
+      <KnowledgeCategoriesClient initialCategories={catalog.categories} />
     </div>
   );
 }

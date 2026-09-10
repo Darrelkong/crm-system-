@@ -25,6 +25,7 @@ import {
   KNOWLEDGE_LIVE_SEARCH_DEBOUNCE_MS,
   shouldSkipLiveKnowledgeSearch,
 } from "@/lib/knowledge/knowledge-live-search";
+import { cn } from "@/lib/cn";
 
 type Mode = "search" | "ask";
 
@@ -210,36 +211,45 @@ export function KnowledgeSearchAiPanel() {
   }
 
   return (
-    <Card className="border-blue-100 bg-blue-50/40 p-3 sm:p-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant={mode === "search" ? "primary" : "secondary"}
-          onClick={() => {
-            setMode("search");
-            setAnswer(null);
-            setError(null);
-          }}
-        >
-          {t("knowledge.searchAi.search")}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant={mode === "ask" ? "primary" : "secondary"}
-          onClick={() => {
-            setMode("ask");
-            resetSearchState();
-            setAnswer(null);
-            setError(null);
-          }}
-        >
-          {t("knowledge.searchAi.ask")}
-        </Button>
+    <div className="space-y-2.5">
+      <div
+        className="inline-flex w-full rounded-lg border border-slate-200 bg-slate-50 p-0.5"
+        role="tablist"
+        aria-label={t("knowledge.searchAi.modeLabel")}
+      >
+        {(["search", "ask"] as const).map((tab) => (
+          <button
+            key={tab}
+            type="button"
+            role="tab"
+            aria-selected={mode === tab}
+            className={cn(
+              "min-h-9 flex-1 rounded-md px-3 text-sm font-medium transition-colors",
+              mode === tab
+                ? "bg-white text-blue-700 shadow-sm"
+                : "crm-text-secondary hover:text-slate-700",
+            )}
+            onClick={() => {
+              setMode(tab);
+              if (tab === "search") {
+                setAnswer(null);
+                setError(null);
+              } else {
+                resetSearchState();
+                setAnswer(null);
+                setError(null);
+              }
+            }}
+          >
+            {tab === "search"
+              ? t("knowledge.searchAi.search")
+              : t("knowledge.searchAi.ask")}
+          </button>
+        ))}
       </div>
+
       <form
-        className="mt-3 flex flex-col gap-3 sm:mt-4 sm:flex-row"
+        className="space-y-2"
         onSubmit={mode === "ask" ? submitAsk : onSearchSubmit}
       >
         {mode === "ask" ? (
@@ -249,8 +259,8 @@ export function KnowledgeSearchAiPanel() {
             placeholder={t("knowledge.searchAi.askPlaceholder")}
             aria-label={t("knowledge.searchAi.ask")}
             maxLength={200}
-            rows={3}
-            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"
+            rows={2}
+            className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
           />
         ) : (
           <input
@@ -261,37 +271,46 @@ export function KnowledgeSearchAiPanel() {
             placeholder={t("knowledge.searchAi.searchPlaceholder")}
             aria-label={t("knowledge.searchAi.search")}
             maxLength={200}
-            className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm"
+            className="min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm"
           />
         )}
         {mode === "ask" && (
-          <Button type="submit" className="min-h-11" disabled={askBusy || !query.trim()}>
+          <Button
+            type="submit"
+            size="sm"
+            className="min-h-10 w-full sm:w-auto"
+            disabled={askBusy || !query.trim()}
+          >
             {askBusy
               ? t("knowledge.searchAi.processing")
               : t("knowledge.searchAi.askButton")}
           </Button>
         )}
       </form>
+
       {mode === "search" && searchBusy && (
-        <p className="mt-3 text-sm crm-text-secondary">
+        <p className="text-xs crm-text-secondary">
           {t("knowledge.searchAi.searching")}
         </p>
       )}
       {error && (
-        <p role="alert" className="mt-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">
+        <p
+          role="alert"
+          className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700"
+        >
           {error}
         </p>
       )}
       {mode === "search" && results.length > 0 && (
-        <div className="mt-4 grid gap-3 sm:mt-5">
+        <div className="grid gap-2 pt-1">
           {results.map((result) => (
-            <Card key={result.citationId} className="p-3 sm:p-4">
+            <Card key={result.citationId} className="p-3">
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <p className="text-xs crm-text-secondary">{result.categoryName}</p>
-                  <h3 className="mt-1 font-semibold crm-text">{result.title}</h3>
+                  <h3 className="mt-0.5 font-semibold crm-text">{result.title}</h3>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5">
                   <Badge variant="default">Version {result.versionNumber}</Badge>
                   <Badge variant="default">
                     {result.visibility === "restricted"
@@ -302,12 +321,12 @@ export function KnowledgeSearchAiPanel() {
                   </Badge>
                 </div>
               </div>
-              <p className="mt-3 whitespace-pre-wrap break-words text-sm leading-6 crm-text-secondary">
+              <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6 crm-text-secondary">
                 {result.snippet}
               </p>
               <Link
                 href={`/knowledge/articles/${result.articleId}`}
-                className="primary-button mt-4 inline-flex min-h-10 items-center rounded-xl px-3 py-2 text-sm text-white"
+                className="primary-button mt-3 inline-flex min-h-9 items-center rounded-lg px-3 py-1.5 text-sm text-white"
               >
                 {t("knowledge.searchAi.openArticle")}
               </Link>
@@ -316,26 +335,24 @@ export function KnowledgeSearchAiPanel() {
         </div>
       )}
       {mode === "search" && !searchBusy && query.trim() && results.length === 0 && !error && (
-        <div className="mt-4">
-          <EmptyState message={t("knowledge.searchAi.noResults")} />
-        </div>
+        <EmptyState message={t("knowledge.searchAi.noResults")} />
       )}
       {mode === "ask" && answer && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 sm:mt-5">
+        <div className="rounded-lg border border-slate-200 bg-white p-3">
           <p className="whitespace-pre-wrap break-words text-sm leading-7 crm-text">
             {answer.answer}
           </p>
           {answer.insufficientInformation && (
-            <p className="mt-3 text-sm text-amber-800">
+            <p className="mt-2 text-sm text-amber-800">
               {t("knowledge.searchAi.insufficientAnswer")}
             </p>
           )}
           {answer.citations.length > 0 && (
-            <div className="mt-5 border-t border-slate-200 pt-4">
+            <div className="mt-4 border-t border-slate-200 pt-3">
               <p className="text-xs font-semibold crm-text-secondary">
                 {t("knowledge.searchAi.sources")}
               </p>
-              <div className="mt-2 flex flex-col gap-2">
+              <div className="mt-2 flex flex-col gap-1.5">
                 {answer.citations.map((citation, index) => (
                   <Link
                     key={citation.citationId}
@@ -351,6 +368,6 @@ export function KnowledgeSearchAiPanel() {
           )}
         </div>
       )}
-    </Card>
+    </div>
   );
 }

@@ -10,10 +10,10 @@ const read = (path: string) => readFileSync(join(root, path), "utf8");
 describe("Knowledge members role management UI", () => {
   it("shows the home entry only for Knowledge Admin", () => {
     const home = read("src/components/knowledge/knowledge-home-client.tsx");
-    assert.match(
-      home,
-      /role === "knowledge_admin"[\s\S]*\/knowledge\/members[\s\S]*knowledge\.members\.homeEntry/,
-    );
+    assert.match(home, /if \(role === "knowledge_admin"\)/);
+    assert.match(home, /key: "members"/);
+    assert.match(home, /href: "\/knowledge\/members"/);
+    assert.match(home, /knowledge\.members\.homeEntry/);
     const membersLinkCount = home.match(/\/knowledge\/members/g)?.length ?? 0;
     assert.equal(membersLinkCount, 1);
   });
@@ -41,7 +41,7 @@ describe("Knowledge members role management UI", () => {
     assert.doesNotMatch(client, /saveRole\(/);
   });
 
-  it("exposes all four Knowledge role options", () => {
+  it("exposes all four Knowledge role options in the mobile role chooser", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
     assert.deepEqual(KNOWLEDGE_ROLES, [
       "viewer",
@@ -51,7 +51,8 @@ describe("Knowledge members role management UI", () => {
     ]);
     assert.match(client, /KNOWLEDGE_ROLES\.map/);
     assert.match(client, /knowledge\.members\.roles\.\$\{/);
-    assert.match(client, /value={role}/);
+    assert.match(client, /roleOptions/);
+    assert.match(client, /data-role-chooser="true"/);
   });
 
   it("surfaces last-admin protection errors without bypassing server checks", () => {
@@ -60,37 +61,38 @@ describe("Knowledge members role management UI", () => {
     const constants = read("src/lib/knowledge/constants.ts");
     assert.match(client, /resolveKnowledgeApiError/);
     assert.match(client, /isLastAdminLocked/);
-    assert.match(client, /lastAdminReadonly/);
+    assert.match(client, /soleAdminProtected/);
     assert.match(roleService, /KNOWLEDGE_ERROR_CODES\.LAST_ADMIN/);
     assert.match(roleService, /countKnowledgeAdmins/);
     assert.match(constants, /LAST_ADMIN: "KNOWLEDGE_LAST_ADMIN"/);
   });
 
-  it("marks the current user and disables last-admin self-demotion in UI", () => {
+  it("marks the current user and protects last-admin self-demotion in UI", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
     assert.match(client, /currentUserId/);
     assert.match(client, /knowledge\.members\.youBadge/);
     assert.match(client, /isLastAdminLocked/);
-    assert.match(client, /disabled={saving \|\| lastAdminLocked}/);
+    assert.match(client, /data-sole-admin-protected="true"/);
+    assert.match(client, /knowledge\.members\.soleAdminProtected/);
   });
 
-  it("uses batch save with pending-changes indication", () => {
+  it("uses batch save with pending-changes bar above bottom navigation", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
     assert.match(client, /hasPendingChanges/);
-    assert.match(client, /knowledge\.members\.unsavedChanges/);
+    assert.match(client, /knowledge\.members\.pendingCount/);
     assert.match(client, /knowledge\.members\.saveChanges/);
-    assert.match(client, /sticky bottom-0/);
+    assert.match(client, /data-pending-save-bar="true"/);
+    assert.match(client, /bottom-\[calc\(env\(safe-area-inset-bottom/);
   });
 
-  it("uses a mobile-safe compact layout without desktop table width", () => {
+  it("uses a mobile-safe compact list layout without desktop table width", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
-    assert.match(client, /space-y-2/);
+    assert.match(client, /data-member-list="true"/);
     assert.match(client, /min-w-0/);
-    assert.match(client, /break-all/);
+    assert.match(client, /truncate/);
     assert.match(client, /w-full/);
-    assert.match(client, /flex flex-col/);
     assert.doesNotMatch(client, /<table/);
     assert.doesNotMatch(client, /min-w-\[/);
-    assert.doesNotMatch(client, /overflow-x-auto/);
+    assert.doesNotMatch(client, /<select/);
   });
 });

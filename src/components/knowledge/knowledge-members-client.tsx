@@ -1,12 +1,16 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { Check, ChevronRight, Lock, Search } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
-import { Badge, Card, EmptyState } from "@/components/ui/card";
-import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles";
+import { Badge, EmptyState } from "@/components/ui/card";
+import { KnowledgeMobileSheet } from "@/components/knowledge/knowledge-mobile-sheet";
 import { KNOWLEDGE_ROLES } from "@/lib/knowledge/constants";
+import { knowledgeDisplayInitials } from "@/lib/knowledge/display-initials";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
+import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles";
+import { cn } from "@/lib/cn";
 
 type KnowledgeMember = {
   id: string;
@@ -19,6 +23,8 @@ type MemberDraft = {
   role: KnowledgeRole | "";
 };
 
+type MemberFilter = "all" | "unassigned";
+
 function buildDrafts(
   members: KnowledgeMember[],
 ): Record<string, MemberDraft> {
@@ -29,6 +35,17 @@ function buildDrafts(
 
 function countKnowledgeAdmins(members: KnowledgeMember[]): number {
   return members.filter((member) => member.role === "knowledge_admin").length;
+}
+
+function roleLabel(
+  t: (key: string) => string,
+  role: KnowledgeRole | null | "",
+): string {
+  if (!role) return t("knowledge.members.noRole");
+  if (role === "knowledge_admin") {
+    return t("knowledge.members.knowledgeAdminBadge");
+  }
+  return t(`knowledge.members.roles.${role}`);
 }
 
 export function KnowledgeMembersClient({
@@ -45,6 +62,9 @@ export function KnowledgeMembersClient({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [memberFilter, setMemberFilter] = useState<MemberFilter>("all");
+  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
 
   const pendingChanges = useMemo(() => {
     return members.filter((member) => {
@@ -56,6 +76,24 @@ export function KnowledgeMembersClient({
 
   const hasPendingChanges = pendingChanges.length > 0;
   const adminCount = countKnowledgeAdmins(members);
+
+  const filteredMembers = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    return members.filter((member) => {
+      if (memberFilter === "unassigned" && member.role) {
+        return false;
+      }
+      if (!query) return true;
+      return (
+        member.displayName.toLowerCase().includes(query) ||
+        member.email.toLowerCase().includes(query)
+      );
+    });
+  }, [memberFilter, members, searchQuery]);
+
+  const editingMember = editingMemberId
+    ? members.find((member) => member.id === editingMemberId) ?? null
+    : null;
 
   const loadMembers = useCallback(async () => {
     setLoading(true);
@@ -93,6 +131,24 @@ export function KnowledgeMembersClient({
       member.role === "knowledge_admin" &&
       adminCount <= 1
     );
+  }
+
+  function isRowEditable(member: KnowledgeMember): boolean {
+    return !isLastAdminLocked(member);
+  }
+
+  function discardPendingChanges() {
+    setDrafts(buildDrafts(members));
+    setError(null);
+    setSuccess(null);
+  }
+
+  function selectRole(memberId: string, role: KnowledgeRole | "") {
+    setDrafts((current) => ({
+      ...current,
+      [memberId]: { role },
+    }));
+    setEditingMemberId(null);
   }
 
   async function savePendingChanges() {
@@ -149,132 +205,281 @@ export function KnowledgeMembersClient({
     setSaving(false);
   }
 
+  const roleOptions: Array<{ value: KnowledgeRole | ""; label: string }> = [
+    { value: "", label: t("knowledge.members.noRole") },
+    ...KNOWLEDGE_ROLES.map((role) => ({
+      value: role,
+      label: roleLabel(t, role),
+    })),
+  ];
+
   return (
-    <div className="space-y-4 pb-4 md:space-y-6">
+    <div className="space-y-3 pb-24 md:space-y-4 md:pb-4">
       {error && (
-        <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
+        <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">
           {error}
         </p>
       )}
       {success && (
-        <p className="rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+        <p className="rounded-lg bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
           {success}
         </p>
       )}
 
-      {hasPendingChanges && (
-        <p className="text-sm font-medium text-amber-800">
-          {t("knowledge.members.unsavedChanges")}
-        </p>
-      )}
+      <div className="space-y-2">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(event) => setSearchQuery(event.target.value)}
+            placeholder={t("knowledge.members.searchPlaceholder")}
+            aria-label={t("knowledge.members.searchPlaceholder")}
+            className="min-h-10 w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm"
+          />
+        </div>
+        <div className="flex gap-2">
+          {(["all", "unassigned"] as const).map((filter) => (
+            <button
+              key={filter}
+              type="button"
+              className={cn(
+                "rounded-full px-3 py-1 text-xs font-medium",
+                memberFilter === filter
+                  ? "bg-blue-50 text-blue-700"
+                  : "border border-slate-200 crm-text-secondary",
+              )}
+              onClick={() => setMemberFilter(filter)}
+            >
+              {filter === "all"
+                ? t("knowledge.members.filterAll")
+                : t("knowledge.members.filterUnassigned")}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {loading ? (
         <p className="text-sm crm-text-secondary">{t("common.loading")}</p>
-      ) : members.length === 0 ? (
+      ) : filteredMembers.length === 0 ? (
         <EmptyState message={t("knowledge.members.noMembers")} />
       ) : (
-        <div className="space-y-2">
-          {members.map((member) => {
+        <div
+          className="overflow-hidden rounded-xl border border-slate-200 bg-white"
+          data-member-list="true"
+        >
+          {filteredMembers.map((member, index) => {
             const draft = drafts[member.id] ?? { role: member.role ?? "" };
             const isCurrentUser = member.id === currentUserId;
             const lastAdminLocked = isLastAdminLocked(member);
-            const displayRole = member.role;
-            const roleBadgeLabel = displayRole
-              ? displayRole === "knowledge_admin"
-                ? t("knowledge.members.knowledgeAdminBadge")
-                : t(`knowledge.members.roles.${displayRole}`)
-              : t("knowledge.members.noRole");
+            const editable = isRowEditable(member);
+            const displayRole = draft.role || member.role;
+            const roleBadgeLabel = roleLabel(t, displayRole);
+            const hasDraftChange =
+              (draft.role || null) !== (member.role ?? null);
 
             return (
-              <Card
+              <div
                 key={member.id}
-                className="min-w-0 p-3 sm:p-4"
+                className={cn(
+                  "px-3 py-3",
+                  index > 0 && "border-t border-slate-100",
+                )}
               >
-                <div className="flex flex-col gap-2">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <h2 className="truncate text-sm font-semibold crm-text sm:text-base">
-                        {member.displayName}
-                      </h2>
-                      {isCurrentUser && (
-                        <Badge variant="default">
-                          {t("knowledge.members.youBadge")}
-                        </Badge>
-                      )}
-                      <Badge
-                        variant={member.role ? "success" : "warning"}
-                      >
-                        {roleBadgeLabel}
-                      </Badge>
-                    </div>
-                    <p className="mt-0.5 break-all text-xs crm-text-secondary sm:text-sm">
-                      {member.email}
-                    </p>
+                {editable ? (
+                  <button
+                    type="button"
+                    data-member-row="true"
+                    data-member-editable="true"
+                    className="flex w-full min-w-0 items-center gap-3 text-left"
+                    onClick={() => setEditingMemberId(member.id)}
+                    disabled={saving}
+                  >
+                    <MemberRowContent
+                      member={member}
+                      isCurrentUser={isCurrentUser}
+                      roleBadgeLabel={roleBadgeLabel}
+                      hasDraftChange={hasDraftChange}
+                      lastAdminLocked={false}
+                      t={t}
+                    />
+                    <ChevronRight
+                      className="h-4 w-4 shrink-0 text-slate-400"
+                      aria-hidden
+                    />
+                  </button>
+                ) : (
+                  <div
+                    data-member-row="true"
+                    data-member-editable="false"
+                    data-sole-admin-protected="true"
+                    className="flex w-full min-w-0 items-center gap-3"
+                  >
+                    <MemberRowContent
+                      member={member}
+                      isCurrentUser={isCurrentUser}
+                      roleBadgeLabel={roleBadgeLabel}
+                      hasDraftChange={false}
+                      lastAdminLocked={lastAdminLocked}
+                      t={t}
+                    />
                   </div>
-
-                  <label className="block text-xs font-medium crm-text sm:text-sm">
-                    {t("knowledge.members.knowledgeRole")}
-                    <select
-                      value={draft.role}
-                      onChange={(event) =>
-                        setDrafts((current) => ({
-                          ...current,
-                          [member.id]: {
-                            role: event.target.value as KnowledgeRole | "",
-                          },
-                        }))
-                      }
-                      className="mt-1.5 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
-                      disabled={saving || lastAdminLocked}
-                      aria-describedby={
-                        lastAdminLocked
-                          ? `last-admin-hint-${member.id}`
-                          : undefined
-                      }
-                    >
-                      <option value="">
-                        {t("knowledge.members.noRole")}
-                      </option>
-                      {KNOWLEDGE_ROLES.map((role) => (
-                        <option key={role} value={role}>
-                          {role === "knowledge_admin"
-                            ? t("knowledge.members.knowledgeAdminBadge")
-                            : t(`knowledge.members.roles.${role}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {lastAdminLocked && (
-                    <p
-                      id={`last-admin-hint-${member.id}`}
-                      className="text-xs crm-text-secondary"
-                    >
-                      {t("knowledge.members.lastAdminReadonly")}
-                    </p>
-                  )}
-                </div>
-              </Card>
+                )}
+                {lastAdminLocked && (
+                  <p className="mt-1 pl-11 text-xs crm-text-secondary">
+                    {t("knowledge.members.soleAdminProtected")}
+                  </p>
+                )}
+              </div>
             );
           })}
         </div>
       )}
 
+      <KnowledgeMobileSheet
+        open={editingMember !== null}
+        title={t("knowledge.members.roleChooserTitle")}
+        description={
+          editingMember
+            ? `${editingMember.displayName} · ${editingMember.email}`
+            : undefined
+        }
+        closeLabel={t("knowledge.home.close")}
+        onClose={() => setEditingMemberId(null)}
+      >
+        {editingMember && (
+          <div
+            className="space-y-1"
+            role="listbox"
+            aria-label={t("knowledge.members.roleChooserTitle")}
+            data-role-chooser="true"
+          >
+            {roleOptions.map((option) => {
+              const selected =
+                (drafts[editingMember.id]?.role ?? "") === option.value;
+              return (
+                <button
+                  key={option.value || "none"}
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  className={cn(
+                    "flex w-full items-center justify-between rounded-lg px-3 py-2.5 text-left text-sm",
+                    selected
+                      ? "bg-blue-50 text-blue-700"
+                      : "hover:bg-slate-50 crm-text",
+                  )}
+                  onClick={() =>
+                    selectRole(editingMember.id, option.value as KnowledgeRole | "")
+                  }
+                >
+                  <span>{option.label}</span>
+                  {selected && (
+                    <Check className="h-4 w-4 shrink-0" aria-hidden />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </KnowledgeMobileSheet>
+
       {hasPendingChanges && (
         <div
-          className="sticky bottom-0 z-30 -mx-1 border-t border-slate-200 bg-white/95 px-1 py-3 backdrop-blur md:static md:mx-0 md:rounded-xl md:border md:px-4"
+          className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] z-30 border-t border-slate-200 bg-white/95 px-4 py-2.5 shadow-[0_-4px_16px_rgba(15,23,42,0.08)] backdrop-blur md:static md:bottom-auto md:rounded-xl md:border md:shadow-none"
+          data-pending-save-bar="true"
         >
-          <Button
-            type="button"
-            className="min-h-11 w-full md:w-auto"
-            onClick={() => void savePendingChanges()}
-            disabled={saving || !hasPendingChanges}
-          >
-            {saving
-              ? t("knowledge.members.savingChanges")
-              : t("knowledge.members.saveChanges")}
-          </Button>
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-sm font-medium crm-text">
+              {t("knowledge.members.pendingCount", {
+                count: String(pendingChanges.length),
+              })}
+            </p>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="min-h-9"
+                onClick={discardPendingChanges}
+                disabled={saving}
+              >
+                {t("knowledge.members.cancelChanges")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                className="min-h-9"
+                onClick={() => void savePendingChanges()}
+                disabled={saving}
+              >
+                {saving
+                  ? t("knowledge.members.savingChanges")
+                  : t("knowledge.members.saveChanges")}
+              </Button>
+            </div>
+          </div>
         </div>
       )}
     </div>
+  );
+}
+
+function MemberRowContent({
+  member,
+  isCurrentUser,
+  roleBadgeLabel,
+  hasDraftChange,
+  lastAdminLocked,
+  t,
+}: {
+  member: KnowledgeMember;
+  isCurrentUser: boolean;
+  roleBadgeLabel: string;
+  hasDraftChange: boolean;
+  lastAdminLocked: boolean;
+  t: (key: string) => string;
+}) {
+  const initials = knowledgeDisplayInitials(member.displayName);
+
+  return (
+    <>
+      <div
+        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600"
+        aria-hidden
+      >
+        {initials}
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <p className="truncate text-sm font-medium crm-text">
+            {member.displayName}
+          </p>
+          {isCurrentUser && (
+            <span
+              className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium crm-text-secondary"
+              data-you-badge="true"
+            >
+              {t("knowledge.members.youBadge")}
+            </span>
+          )}
+        </div>
+        <p className="truncate text-xs crm-text-secondary">{member.email}</p>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <Badge
+          variant={member.role || hasDraftChange ? "success" : "warning"}
+          className="max-w-[7.5rem] truncate"
+        >
+          {roleBadgeLabel}
+        </Badge>
+        {lastAdminLocked && (
+          <Lock className="h-3.5 w-3.5 text-slate-500" aria-hidden />
+        )}
+      </div>
+    </>
   );
 }
