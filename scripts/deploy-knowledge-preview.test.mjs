@@ -18,6 +18,34 @@ describe("Knowledge preview deployment guard", () => {
     assert.equal(validateKnowledgePreviewConfig(validInput), true);
   });
 
+  it("requires only the Preview custom domain", () => {
+    for (const mutation of [
+      (value) => {
+        delete value.routes;
+      },
+      (value) => {
+        value.routes[0].pattern = "preview.echfronthk.com";
+      },
+      (value) => {
+        value.routes.push({
+          pattern: "other-preview.echfronthk.com",
+          custom_domain: true,
+        });
+      },
+    ]) {
+      const mutated = structuredClone(config);
+      mutation(mutated);
+      assert.throws(
+        () =>
+          validateKnowledgePreviewConfig({
+            ...validInput,
+            config: mutated,
+          }),
+        /deployment blocked/,
+      );
+    }
+  });
+
   it("rejects production D1, R2, and route references", () => {
     for (const mutation of [
       (value) => {

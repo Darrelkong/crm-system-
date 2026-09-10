@@ -11,6 +11,8 @@ const configPath = resolve(
 const PREVIEW_WORKER = "crm-system-knowledge-preview";
 const PREVIEW_DATABASE = "crm-db-knowledge-preview";
 const PREVIEW_BUCKET = "crm-knowledge-sources-preview";
+const PREVIEW_HOSTNAME = "knowledge-preview.echfronthk.com";
+const PREVIEW_ACCESS_TEAM_DOMAIN = "https://echfronthk.cloudflareaccess.com";
 const PRODUCTION_DATABASE_ID = "03633dd2-c058-42de-9355-f5450eab7202";
 const PRODUCTION_NAMES = new Set([
   "crm-system",
@@ -57,8 +59,16 @@ export function validateKnowledgePreviewConfig({
   if (config.name !== PREVIEW_WORKER) {
     fail(`worker name must be ${PREVIEW_WORKER}`);
   }
-  if (config.routes?.length || config.send_email || config.triggers) {
-    fail("routes, email bindings, and cron triggers are forbidden");
+  const routes = config.routes ?? [];
+  if (
+    routes.length !== 1 ||
+    routes[0].pattern !== PREVIEW_HOSTNAME ||
+    routes[0].custom_domain !== true
+  ) {
+    fail(`only the Preview custom domain ${PREVIEW_HOSTNAME} is allowed`);
+  }
+  if (config.send_email || config.triggers) {
+    fail("email bindings and cron triggers are forbidden");
   }
   if (config.workers_dev !== false || config.preview_urls !== false) {
     fail("workers.dev and preview URLs must be disabled");
@@ -102,6 +112,9 @@ export function validateKnowledgePreviewConfig({
   }
   if (
     config.vars?.CRM_ALLOW_MOCK_AI !== "1" ||
+    config.vars?.CF_ACCESS_TEAM_DOMAIN !== PREVIEW_ACCESS_TEAM_DOMAIN ||
+    typeof config.vars?.CF_ACCESS_AUD !== "string" ||
+    config.vars.CF_ACCESS_AUD.trim() === "" ||
     config.vars?.MAIL_NOTIFICATION_TRANSPORT_ENABLED !== "false" ||
     config.vars?.MAIL_OUTBOUND_TRANSPORT_MODE !== "disabled" ||
     config.vars?.MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED !== "false" ||
