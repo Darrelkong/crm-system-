@@ -435,6 +435,15 @@ export type KnowledgeArticleReviewSummary = {
   assignedReviewerName: string | null;
 };
 
+export function isActiveArticleReviewForCurrentVersion(
+  status: KnowledgeReviewStatus,
+  submittedVersionNumber: number,
+  currentVersionNumber: number,
+): boolean {
+  if (submittedVersionNumber !== currentVersionNumber) return false;
+  return status === "pending" || status === "changes_requested";
+}
+
 export async function getArticleReviewSummaryForViewer(
   context: KnowledgeSessionContext,
   articleId: string,
@@ -447,6 +456,10 @@ export async function getArticleReviewSummaryForViewer(
   ) {
     return null;
   }
+
+  const articleRecord = await getRawArticle(articleId, db);
+  if (!articleRecord) return null;
+  const currentVersionNumber = articleRecord.article.currentVersionNumber;
 
   const requests = await db
     .select({ id: schema.knowledgeReviewRequests.id })
@@ -469,8 +482,11 @@ export async function getArticleReviewSummaryForViewer(
     const record = await getReviewRecord(row.id, db);
     if (!record) continue;
     if (
-      record.request.status !== "pending" &&
-      record.request.status !== "changes_requested"
+      !isActiveArticleReviewForCurrentVersion(
+        record.request.status,
+        record.request.submittedVersionNumber,
+        currentVersionNumber,
+      )
     ) {
       continue;
     }

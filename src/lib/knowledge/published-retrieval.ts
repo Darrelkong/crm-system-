@@ -12,6 +12,11 @@ import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { KNOWLEDGE_ERROR_CODES, type KnowledgeVisibility } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
+import {
+  expandHanSearchToken,
+  expandHanSearchVariants,
+  HAN_RE,
+} from "@/lib/knowledge/han-search-normalization";
 import { canViewKnowledgeVisibility } from "@/lib/knowledge/visibility";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 
@@ -59,15 +64,52 @@ function normalizeQuery(query: unknown): string {
   return normalized;
 }
 
+function splitLongHanToken(token: string): string[] {
+  if (!HAN_RE.test(token) || token.length < 6) return [];
+  const segments = new Set<string>();
+  segments.add(token.slice(0, 4));
+  segments.add(token.slice(-4));
+  if (token.length >= 8) {
+    segments.add(token.slice(4, 8));
+  }
+  return Array.from(segments).filter((segment) => segment.length >= 2);
+}
+
 function queryTokens(query: string): string[] {
-  return Array.from(
-    new Set(
-      query
-        .toLocaleLowerCase()
-        .match(/[\p{Letter}\p{Number}]+/gu)
-        ?.map((token) => token.slice(0, 60)) ?? [],
-    ),
-  ).slice(0, 8);
+  const baseTokens =
+    query
+      .toLocaleLowerCase()
+      .match(/[\p{Letter}\p{Number}]+/gu)
+      ?.map((token) => token.slice(0, 60)) ?? [];
+  const tokens = new Set(baseTokens);
+  for (const token of baseTokens) {
+    for (const segment of splitLongHanToken(token)) {
+      tokens.add(segment);
+    }
+  }
+  return Array.from(tokens).slice(0, 8);
+}
+
+function sqlSearchVariants(token: string): string[] {
+  return expandHanSearchToken(token).slice(0, 3);
+}
+
+function tokenVariantGroups(tokens: string[]): string[][] {
+  return tokens.map((token) => expandHanSearchToken(token));
+}
+
+function fieldMatchesAnyVariant(field: string, variants: string[]): boolean {
+  const lower = field.toLocaleLowerCase();
+  return variants.some((variant) => lower.includes(variant));
+}
+
+function findFirstVariantIndex(haystack: string, variants: string[]): number {
+  const lower = haystack.toLocaleLowerCase();
+  const indexes = variants
+    .map((variant) => lower.indexOf(variant))
+    .filter((index) => index >= 0)
+    .sort((left, right) => left - right);
+  return indexes[0] ?? -1;
 }
 
 function publishedVisibilityCondition(context: KnowledgeSessionContext) {
@@ -88,25 +130,36 @@ function normalizeVisibility(value: string): KnowledgeVisibility {
   return value === "restricted" || value === "owner" ? value : "team";
 }
 
-function scoreDocument(document: PublishedKnowledgeDocument, query: string, tokens: string[]) {
-  const title = document.title.toLocaleLowerCase();
-  const summary = (document.summary ?? "").toLocaleLowerCase();
-  const body = document.body.toLocaleLowerCase();
-  const category = document.categoryName.toLocaleLowerCase();
-  let score = title === query.toLocaleLowerCase() ? 10_000 : 0;
-  for (const token of tokens) {
-    if (title.includes(token)) score += 1_000;
-    if (summary.includes(token)) score += 300;
-    if (body.includes(token)) score += 100;
-    if (category.includes(token)) score += 50;
+function scoreDocument(
+  document: PublishedKnowledgeDocument,
+  query: string,
+  variantGroups: string[][],
+) {
+  const title = document.title;
+  const summary = document.summary ?? "";
+  const body = document.body;
+  const category = document.categoryName;
+  const queryVariants = expandHanSearchVariants(query);
+  let score = queryVariants.some(
+    (variant) => title.toLocaleLowerCase() === variant,
+  )
+    ? 10_000
+    : 0;
+  for (const variants of variantGroups) {
+    if (fieldMatchesAnyVariant(title, variants)) score += 1_000;
+    if (fieldMatchesAnyVariant(summary, variants)) score += 300;
+    if (fieldMatchesAnyVariant(body, variants)) score += 100;
+    if (fieldMatchesAnyVariant(category, variants)) score += 50;
   }
   return score;
 }
 
 function excerpt(document: PublishedKnowledgeDocument, query: string): string {
   const haystack = `${document.title}\n${document.summary ?? ""}\n${document.body}`;
-  const lower = haystack.toLocaleLowerCase();
-  const matchIndex = lower.indexOf(query.toLocaleLowerCase());
+  const matchIndex = findFirstVariantIndex(
+    haystack,
+    expandHanSearchVariants(query),
+  );
   const start = matchIndex >= 0 ? Math.max(0, matchIndex - 100) : 0;
   const value = haystack.slice(start, start + 280).trim();
   return start > 0 ? `…${value}` : value;
@@ -114,10 +167,9 @@ function excerpt(document: PublishedKnowledgeDocument, query: string): string {
 
 function boundedBody(body: string, query: string, maxChars: number): string {
   if (body.length <= maxChars) return body;
-  const tokens = queryTokens(query);
-  const lowerBody = body.toLocaleLowerCase();
-  const matchIndex = tokens
-    .map((token) => lowerBody.indexOf(token))
+  const variantGroups = tokenVariantGroups(queryTokens(query));
+  const matchIndex = variantGroups
+    .flatMap((variants) => findFirstVariantIndex(body, variants))
     .filter((index) => index >= 0)
     .sort((left, right) => left - right)[0];
   const center = matchIndex ?? 0;
@@ -143,18 +195,24 @@ export async function retrievePublishedKnowledge(
   const normalized = normalizeQuery(query);
   const tokens = queryTokens(normalized);
   if (tokens.length === 0) return [];
+  const variantGroups = tokenVariantGroups(tokens);
+  const scoringVariantGroups = variantGroups;
   const limit = Math.min(
     Math.max(1, options.limit ?? KNOWLEDGE_SEARCH_RESULT_MAX),
     KNOWLEDGE_SEARCH_RESULT_MAX,
   );
   const tokenConditions = tokens.map((token) => {
-    const pattern = `%${token}%`;
-    return or(
-      like(schema.knowledgeArticleVersions.titleSnapshot, pattern),
-      like(schema.knowledgeArticleVersions.summarySnapshot, pattern),
-      like(schema.knowledgeArticleVersions.bodySnapshot, pattern),
-      like(schema.knowledgeCategories.name, pattern),
-    );
+    const variants = sqlSearchVariants(token);
+    const variantConditions = variants.map((variant) => {
+      const pattern = `%${variant}%`;
+      return or(
+        like(schema.knowledgeArticleVersions.titleSnapshot, pattern),
+        like(schema.knowledgeArticleVersions.summarySnapshot, pattern),
+        like(schema.knowledgeArticleVersions.bodySnapshot, pattern),
+        like(schema.knowledgeCategories.name, pattern),
+      );
+    });
+    return or(...variantConditions);
   });
   const rows = await db
     .select({
@@ -223,7 +281,7 @@ export async function retrievePublishedKnowledge(
       };
       return {
         document,
-        score: scoreDocument(document, normalized, tokens),
+        score: scoreDocument(document, normalized, scoringVariantGroups),
       };
     })
     .filter(({ document }) =>

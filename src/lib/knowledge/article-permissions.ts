@@ -13,6 +13,14 @@ export function canAuthorKnowledgeArticle(
   return role === "contributor" || role === "knowledge_admin";
 }
 
+export function canShowKnowledgeArticleEditCta(
+  canEdit: boolean,
+  reviewSummary: { status: string } | null,
+): boolean {
+  if (!canEdit) return false;
+  return reviewSummary?.status !== "pending";
+}
+
 export function canEditKnowledgeArticle(
   context: KnowledgeSessionContext,
   article: ArticlePermissionFields,

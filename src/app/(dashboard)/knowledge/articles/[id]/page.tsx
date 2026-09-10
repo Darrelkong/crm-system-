@@ -12,6 +12,7 @@ import {
   canArchiveKnowledgeArticle,
   canEditKnowledgeArticle,
   canReviewInCenter,
+  canShowKnowledgeArticleEditCta,
   canSubmitKnowledgeReview,
 } from "@/lib/knowledge/article-permissions";
 import { formatKnowledgeVisibility } from "@/lib/knowledge/review-labels";
@@ -39,6 +40,7 @@ export default async function KnowledgeArticlePage(context: PageContext) {
     getArticleReviewSummaryForViewer(actor, id),
     listKnowledgeArticlePublications(actor, id).catch(() => []),
   ]);
+  const canShowEdit = canShowKnowledgeArticleEditCta(canEdit, reviewSummary);
   const activeReview =
     reviewSummary?.status === "pending"
       ? {
@@ -70,7 +72,7 @@ export default async function KnowledgeArticlePage(context: PageContext) {
                 我的审核 · My Reviews
               </KnowledgeBackLink>
             )}
-            {canEdit && (
+            {canShowEdit && (
               <Link
                 href={`/knowledge/articles/${article.id}/edit`}
                 className="primary-button inline-flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm text-white"

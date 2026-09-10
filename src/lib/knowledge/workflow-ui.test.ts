@@ -47,11 +47,14 @@ describe("Knowledge workflow UX stabilization", () => {
     assert.match(page, /canReviewInCenter/);
     assert.match(page, /showMyReviews = actor\.role === "contributor"/);
     assert.match(page, /KnowledgeArticleReviewStatus/);
+    assert.match(page, /canShowKnowledgeArticleEditCta/);
+    assert.match(page, /canShowEdit &&/);
     assert.match(
       read("src/components/knowledge/knowledge-article-review-status.tsx"),
       /审核退回 · Changes requested/,
     );
     assert.doesNotMatch(page, /role === "reviewer"[\s\S]*编辑文章/);
+    assert.doesNotMatch(page, /canEdit &&[\s\S]*编辑文章/);
   });
 
   it("removes reviewer edit/archive affordances from editor and history", () => {

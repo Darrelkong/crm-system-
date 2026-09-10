@@ -18,6 +18,7 @@ import {
 import { createKnowledgePasteSource } from "@/lib/knowledge/source-service";
 import { askKnowledge } from "@/lib/knowledge/qa-service";
 import {
+  retrievePublishedKnowledge,
   searchPublishedKnowledge,
   type KnowledgeSearchResult,
 } from "@/lib/knowledge/published-retrieval";
@@ -465,6 +466,154 @@ describe("Knowledge Package 5 secure search and grounded AI", () => {
     );
     assert.equal(noSource.sourceCount, 0);
     assert.equal(noSourceProviderCalled, false);
+  });
+
+  it("matches simplified and traditional Chinese search variants", async () => {
+    const category = await createKnowledgeCategory(
+      adminContext(),
+      { name: "Package 5 Han search", description: null },
+      META,
+      db,
+    );
+    const traditional = await createKnowledgeArticle(
+      contributorContext(),
+      {
+        title: "海外銀行帳戶服務",
+        categoryId: category.id,
+        body: "開戶目的與資料準備。",
+        visibility: "team",
+      },
+      META,
+      db,
+    );
+    await forcePublish(traditional.id, 1);
+    const simplified = await createKnowledgeArticle(
+      contributorContext(),
+      {
+        title: "国内银行账户",
+        categoryId: category.id,
+        body: "开户目的与资料准备。",
+        visibility: "team",
+      },
+      META,
+      db,
+    );
+    await forcePublish(simplified.id, 1);
+
+    const traditionalHit = await searchPublishedKnowledge(
+      viewerContext(),
+      "开户目的",
+      db,
+    );
+    assert.ok(
+      traditionalHit.some((result) => result.articleId === traditional.id),
+    );
+    const simplifiedHit = await searchPublishedKnowledge(
+      viewerContext(),
+      "開戶目的",
+      db,
+    );
+    assert.ok(
+      simplifiedHit.some((result) => result.articleId === simplified.id),
+    );
+    const mixedSentenceHit = await searchPublishedKnowledge(
+      viewerContext(),
+      "海外银行账户开户目的",
+      db,
+    );
+    assert.ok(
+      mixedSentenceHit.some((result) => result.articleId === traditional.id),
+    );
+    await assertNoSecret(
+      await searchPublishedKnowledge(viewerContext(), "完全不相关查询词", db),
+      "完全不相关查询词",
+    );
+  });
+
+  it("keeps unpublished draft markers out of Han-normalized search", async () => {
+    const category = await createKnowledgeCategory(
+      adminContext(),
+      { name: "Package 5 Han draft", description: null },
+      META,
+      db,
+    );
+    const article = await createKnowledgeArticle(
+      contributorContext(),
+      {
+        title: "Published Han article",
+        categoryId: category.id,
+        body: "已发布内容。",
+        visibility: "team",
+      },
+      META,
+      db,
+    );
+    await publishAsReviewer(article.id);
+    const current = await getKnowledgeArticle(
+      contributorContext(),
+      article.id,
+      db,
+    );
+    await updateKnowledgeArticle(
+      contributorContext(),
+      article.id,
+      {
+        title: "Working Han article",
+        categoryId: category.id,
+        body: "未发布草稿标记開戶目的",
+        expectedUpdatedAt: current.updatedAt,
+      },
+      META,
+      db,
+    );
+    await assertNoSecret(
+      await searchPublishedKnowledge(viewerContext(), "開戶目的", db),
+      "未发布草稿标记開戶目的",
+    );
+  });
+
+  it("inherits Han-normalized retrieval in Knowledge AI", async () => {
+    const category = await createKnowledgeCategory(
+      adminContext(),
+      { name: "Package 5 Han AI", description: null },
+      META,
+      db,
+    );
+    const article = await createKnowledgeArticle(
+      contributorContext(),
+      {
+        title: "Han AI article",
+        categoryId: category.id,
+        body: "Han AI unique marker 開戶目的與資料準備。",
+        visibility: "team",
+      },
+      META,
+      db,
+    );
+    await forcePublish(article.id, 1);
+    const sources = await retrievePublishedKnowledge(
+      viewerContext(),
+      "Han AI unique marker 开户目的",
+      { limit: 5 },
+      db,
+    );
+    assert.ok(sources.some((source) => source.articleId === article.id));
+    const result = await askKnowledge(
+      viewerContext(),
+      "Han AI unique marker 开户目的是什么？",
+      db,
+      {
+        providerCall: async ({ userPrompt }) => {
+          assert.match(userPrompt, /開戶目的/);
+          return {
+            answer: "开户目的与资料准备。",
+            citationIds: [`${article.id}:1`],
+            insufficientInformation: false,
+          };
+        },
+      },
+    );
+    assert.equal(result.citations[0]?.articleId, article.id);
   });
 
   it("enforces a configurable rolling limit and one active request", async () => {

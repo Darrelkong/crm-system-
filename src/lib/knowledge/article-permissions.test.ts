@@ -5,6 +5,7 @@ import {
   canAuthorKnowledgeArticle,
   canEditKnowledgeArticle,
   canReviewInCenter,
+  canShowKnowledgeArticleEditCta,
   canSubmitKnowledgeReview,
 } from "@/lib/knowledge/article-permissions";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
@@ -68,5 +69,22 @@ describe("Knowledge article permissions", () => {
     assert.equal(canReviewInCenter("knowledge_admin"), true);
     assert.equal(canReviewInCenter("contributor"), false);
     assert.equal(canReviewInCenter("viewer"), false);
+  });
+
+  it("hides edit CTA during pending review but keeps it for changes_requested", () => {
+    assert.equal(canShowKnowledgeArticleEditCta(true, null), true);
+    assert.equal(
+      canShowKnowledgeArticleEditCta(true, { status: "pending" }),
+      false,
+    );
+    assert.equal(
+      canShowKnowledgeArticleEditCta(true, { status: "changes_requested" }),
+      true,
+    );
+    assert.equal(canShowKnowledgeArticleEditCta(false, null), false);
+    assert.equal(
+      canShowKnowledgeArticleEditCta(false, { status: "pending" }),
+      false,
+    );
   });
 });
