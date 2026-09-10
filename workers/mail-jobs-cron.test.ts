@@ -99,7 +99,7 @@ describe("mail jobs cron static config", () => {
     );
     assert.match(
       config,
-      /"MAIL_LARGE_ATTACHMENT_SEND_ENABLED":\s*"false"/,
+      /"MAIL_LARGE_ATTACHMENT_SEND_ENABLED":\s*"true"/,
     );
     assert.match(
       config,

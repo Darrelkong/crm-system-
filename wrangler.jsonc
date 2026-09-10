@@ -45,6 +45,10 @@
       "binding": "LARGE_ATTACHMENTS",
       "bucket_name": "crm-mail-large-attachments",
       "preview_bucket_name": "crm-mail-large-attachments"
+    },
+    {
+      "binding": "KNOWLEDGE_SOURCES",
+      "bucket_name": "crm-knowledge-sources"
     }
   ],
   "routes": [
