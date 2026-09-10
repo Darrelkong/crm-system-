@@ -25,6 +25,17 @@ export const KNOWLEDGE_SEARCH_RESULT_MAX = 20;
 export const KNOWLEDGE_AI_SOURCE_MAX = 8;
 export const KNOWLEDGE_AI_SOURCE_TEXT_MAX_CHARS = 6_000;
 
+/** Bounded SQL retrieval: max candidate tokens passed to LIKE predicates. */
+export const KNOWLEDGE_SQL_MAX_CANDIDATE_TOKENS = 6;
+/** Bounded SQL retrieval: max characters per token/variant in LIKE patterns. */
+export const KNOWLEDGE_SQL_MAX_TOKEN_LENGTH = 8;
+export const KNOWLEDGE_SQL_MAX_VARIANTS_PER_TOKEN = 3;
+export const KNOWLEDGE_SQL_MAX_LIKE_PATTERN_CHARS = 12;
+export const KNOWLEDGE_SQL_MAX_LIKE_CONDITIONS =
+  KNOWLEDGE_SQL_MAX_CANDIDATE_TOKENS *
+  KNOWLEDGE_SQL_MAX_VARIANTS_PER_TOKEN *
+  4;
+
 export type PublishedKnowledgeDocument = {
   articleId: string;
   versionNumber: number;
@@ -75,6 +86,56 @@ function splitLongHanToken(token: string): string[] {
   return Array.from(segments).filter((segment) => segment.length >= 2);
 }
 
+function longHanSqlSegments(token: string): string[] {
+  return splitLongHanToken(token).map((segment) =>
+    segment.slice(0, KNOWLEDGE_SQL_MAX_TOKEN_LENGTH),
+  );
+}
+
+function boundSqlToken(token: string): string {
+  return token.slice(0, KNOWLEDGE_SQL_MAX_TOKEN_LENGTH);
+}
+
+function boundSqlLikePattern(variant: string): string {
+  return `%${variant.slice(0, KNOWLEDGE_SQL_MAX_LIKE_PATTERN_CHARS)}%`;
+}
+
+/**
+ * Short, bounded tokens for SQL candidate retrieval only.
+ * Long Han phrases are never passed to LIKE; only short segments are used.
+ */
+export function sqlCandidateTokens(query: string): string[] {
+  const baseTokens =
+    query
+      .toLocaleLowerCase()
+      .match(/[\p{Letter}\p{Number}]+/gu) ?? [];
+  const candidates: string[] = [];
+  const seen = new Set<string>();
+
+  function addCandidate(token: string) {
+    const bounded = boundSqlToken(token);
+    if (!bounded || seen.has(bounded)) return;
+    seen.add(bounded);
+    candidates.push(bounded);
+  }
+
+  for (const rawToken of baseTokens) {
+    if (candidates.length >= KNOWLEDGE_SQL_MAX_CANDIDATE_TOKENS) break;
+    const token = rawToken.slice(0, 60);
+    const isHan = HAN_RE.test(token);
+    if (isHan && token.length > KNOWLEDGE_SQL_MAX_TOKEN_LENGTH) {
+      for (const segment of longHanSqlSegments(token)) {
+        if (candidates.length >= KNOWLEDGE_SQL_MAX_CANDIDATE_TOKENS) break;
+        addCandidate(segment);
+      }
+      continue;
+    }
+    addCandidate(token);
+  }
+
+  return candidates.slice(0, KNOWLEDGE_SQL_MAX_CANDIDATE_TOKENS);
+}
+
 function queryTokens(query: string): string[] {
   const baseTokens =
     query
@@ -91,7 +152,17 @@ function queryTokens(query: string): string[] {
 }
 
 function sqlSearchVariants(token: string): string[] {
-  return expandHanSearchToken(token).slice(0, 3);
+  const boundedToken = boundSqlToken(token);
+  const variants: string[] = [];
+  const seen = new Set<string>();
+  for (const variant of expandHanSearchToken(boundedToken)) {
+    const boundedVariant = boundSqlToken(variant);
+    if (!boundedVariant || seen.has(boundedVariant)) continue;
+    seen.add(boundedVariant);
+    variants.push(boundedVariant);
+    if (variants.length >= KNOWLEDGE_SQL_MAX_VARIANTS_PER_TOKEN) break;
+  }
+  return variants;
 }
 
 function tokenVariantGroups(tokens: string[]): string[][] {
@@ -193,18 +264,18 @@ export async function retrievePublishedKnowledge(
   db: Database = getDb(),
 ): Promise<PublishedKnowledgeDocument[]> {
   const normalized = normalizeQuery(query);
-  const tokens = queryTokens(normalized);
-  if (tokens.length === 0) return [];
-  const variantGroups = tokenVariantGroups(tokens);
-  const scoringVariantGroups = variantGroups;
+  const scoringTokens = queryTokens(normalized);
+  const sqlTokens = sqlCandidateTokens(normalized);
+  if (sqlTokens.length === 0) return [];
+  const scoringVariantGroups = tokenVariantGroups(scoringTokens);
   const limit = Math.min(
     Math.max(1, options.limit ?? KNOWLEDGE_SEARCH_RESULT_MAX),
     KNOWLEDGE_SEARCH_RESULT_MAX,
   );
-  const tokenConditions = tokens.map((token) => {
+  const tokenConditions = sqlTokens.map((token) => {
     const variants = sqlSearchVariants(token);
     const variantConditions = variants.map((variant) => {
-      const pattern = `%${variant}%`;
+      const pattern = boundSqlLikePattern(variant);
       return or(
         like(schema.knowledgeArticleVersions.titleSnapshot, pattern),
         like(schema.knowledgeArticleVersions.summarySnapshot, pattern),

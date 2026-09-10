@@ -616,6 +616,127 @@ describe("Knowledge Package 5 secure search and grounded AI", () => {
     assert.equal(result.citations[0]?.articleId, article.id);
   });
 
+  it("retrieves long natural-language Chinese queries without SQL LIKE complexity errors", async () => {
+    const category = await createKnowledgeCategory(
+      adminContext(),
+      { name: "Package 5 long query", description: null },
+      META,
+      db,
+    );
+    const article = await createKnowledgeArticle(
+      contributorContext(),
+      {
+        title: "海外银行账户服务基础流程",
+        categoryId: category.id,
+        body:
+          "服务开始前需要确认开户目的、账户服务资料与海外银行相关准备。确认什么资料齐全后再推进。",
+        visibility: "team",
+      },
+      META,
+      db,
+    );
+    await forcePublish(article.id, 1);
+    await db
+      .update(schema.knowledgeArticles)
+      .set({ currentVersionNumber: 1, publishedVersionNumber: 1 })
+      .where(eq(schema.knowledgeArticles.id, article.id));
+
+    const longSimplified = "海外银行账户服务开始前需要确认什么？";
+    const longTraditional = "海外銀行賬戶服務開始前需要確認什麼？";
+    const nearMaxHan = "海".repeat(200);
+
+    const retrieved = await retrievePublishedKnowledge(
+      viewerContext(),
+      longSimplified,
+      { limit: 8 },
+      db,
+    );
+    assert.ok(retrieved.length > 0);
+    assert.equal(retrieved[0]?.versionNumber, 1);
+    assert.equal(retrieved[0]?.articleId, article.id);
+
+    const searched = await searchPublishedKnowledge(
+      viewerContext(),
+      longSimplified,
+      db,
+    );
+    assert.ok(searched.some((result) => result.articleId === article.id));
+
+    const traditionalSearch = await searchPublishedKnowledge(
+      viewerContext(),
+      longTraditional,
+      db,
+    );
+    assert.ok(traditionalSearch.some((result) => result.articleId === article.id));
+
+    const mixedSearch = await searchPublishedKnowledge(
+      viewerContext(),
+      "海外银行账户開戶目的确认",
+      db,
+    );
+    assert.ok(mixedSearch.some((result) => result.articleId === article.id));
+
+    await assertNoSecret(
+      await searchPublishedKnowledge(viewerContext(), nearMaxHan, db),
+      "海",
+    );
+    await assertNoSecret(
+      await searchPublishedKnowledge(
+        viewerContext(),
+        "完全不相关的长篇自然语言查询".repeat(8),
+        db,
+      ),
+      "海外银行",
+    );
+
+    let providerReached = false;
+    const aiResult = await askKnowledge(
+      viewerContext(),
+      longSimplified,
+      db,
+      {
+        providerCall: async ({ userPrompt }) => {
+          providerReached = true;
+          assert.match(userPrompt, /开户目的|開戶目的|确认什么|確認什麼/);
+          return {
+            answer: "服务开始前需要确认开户目的与资料。",
+            citationIds: [`${article.id}:1`],
+            insufficientInformation: false,
+          };
+        },
+      },
+    );
+    assert.equal(providerReached, true);
+    assert.equal(aiResult.citations[0]?.versionNumber, 1);
+  });
+
+  it("search route equivalent path returns valid results for long query", async () => {
+    const category = await createKnowledgeCategory(
+      adminContext(),
+      { name: "Package 5 long route", description: null },
+      META,
+      db,
+    );
+    const article = await createKnowledgeArticle(
+      contributorContext(),
+      {
+        title: "Long route article",
+        categoryId: category.id,
+        body: "服务开始前需要确认海外银行账户资料。",
+        visibility: "team",
+      },
+      META,
+      db,
+    );
+    await forcePublish(article.id, 1);
+    const query = "海外银行账户服务开始前需要确认什么？";
+    const results = await searchPublishedKnowledge(viewerContext(), query, db);
+    const responseBody = { query, results };
+    assert.equal(typeof responseBody.query, "string");
+    assert.ok(Array.isArray(responseBody.results));
+    assert.ok(responseBody.results.some((result) => result.articleId === article.id));
+  });
+
   it("enforces a configurable rolling limit and one active request", async () => {
     await db.delete(schema.knowledgeAiQueryRuns);
     const previous = process.env.KNOWLEDGE_AI_DAILY_LIMIT;
