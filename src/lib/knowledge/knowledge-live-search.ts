@@ -1,3 +1,4 @@
+import { KnowledgeApiClientError } from "@/lib/knowledge/error-messages";
 import type { KnowledgeSearchResult } from "@/lib/knowledge/published-retrieval";
 
 export const KNOWLEDGE_LIVE_SEARCH_DEBOUNCE_MS = 300;
@@ -20,6 +21,7 @@ export function isLiveKnowledgeSearchAbortError(error: unknown): boolean {
 export type KnowledgeSearchResponse = {
   results?: KnowledgeSearchResult[];
   error?: string;
+  errorCode?: string;
 };
 
 export async function fetchKnowledgeSearchResults(
@@ -32,7 +34,7 @@ export async function fetchKnowledgeSearchResults(
   });
   const payload = (await response.json()) as KnowledgeSearchResponse;
   if (!response.ok || !payload.results) {
-    throw new Error(payload.error ?? "搜索失败");
+    throw new KnowledgeApiClientError(payload.errorCode);
   }
   return payload.results;
 }

@@ -13,6 +13,7 @@ import type {
   KnowledgeCategoryListItem,
 } from "@/lib/knowledge/core-service";
 import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 type Catalog = {
   categories: KnowledgeCategoryListItem[];
@@ -102,9 +103,16 @@ export function KnowledgeHomeClient({
         }),
       });
       if (!response.ok) {
-        const payload = (await response.json()) as { error?: string };
+        const payload = (await response.json()) as {
+          error?: string;
+          errorCode?: string;
+        };
         throw new Error(
-          payload.error ?? t("knowledge.home.createCategoryFailed"),
+          resolveKnowledgeApiError(
+            t,
+            payload,
+            "knowledge.home.createCategoryFailed",
+          ),
         );
       }
       setCategoryName("");

@@ -1,4 +1,6 @@
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
+import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
   createKnowledgeFileSource,
   createKnowledgePasteSource,
@@ -33,9 +35,10 @@ export async function POST(request: Request) {
         typeof candidate !== "object" ||
         typeof (candidate as File).arrayBuffer !== "function"
       ) {
-        return Response.json(
-          { error: "请选择一个来源文件", errorCode: "KNOWLEDGE_SOURCE_INVALID" },
-          { status: 400 },
+        throw new KnowledgeServiceError(
+          KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+          "Knowledge source file required",
+          400,
         );
       }
       const source = await createKnowledgeFileSource(

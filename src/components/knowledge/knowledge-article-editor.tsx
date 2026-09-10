@@ -10,6 +10,7 @@ import type {
   KnowledgeCategoryListItem,
 } from "@/lib/knowledge/core-service";
 import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 export function KnowledgeArticleEditor({
   article,
@@ -59,9 +60,12 @@ export function KnowledgeArticleEditor({
       const payload = (await response.json()) as {
         article?: KnowledgeArticleDetail;
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.article) {
-        throw new Error(payload.error ?? t("knowledge.article.saveFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.article.saveFailed"),
+        );
       }
       router.push(`/knowledge/articles/${payload.article.id}`);
       router.refresh();

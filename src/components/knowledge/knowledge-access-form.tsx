@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input, Label } from "@/components/ui/form";
 import { useTranslation } from "@/i18n/provider";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 export function KnowledgeAccessForm({
   setup = false,
@@ -37,10 +38,11 @@ export function KnowledgeAccessForm({
       );
       const data = (await response.json()) as {
         error?: string;
+        errorCode?: string;
         redirect?: string;
       };
       if (!response.ok) {
-        setError(data.error ?? t("knowledge.requestFailed"));
+        setError(resolveKnowledgeApiError(t, data, "knowledge.requestFailed"));
         return;
       }
       setPassword("");

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 type ActiveReview = {
   id: string;
@@ -49,9 +50,18 @@ export function KnowledgeReviewActions({
           submissionNote: note,
         }),
       });
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        errorCode?: string;
+      };
       if (!response.ok) {
-        throw new Error(payload.error ?? t("knowledge.article.submitReviewFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(
+            t,
+            payload,
+            "knowledge.article.submitReviewFailed",
+          ),
+        );
       }
       setOpen(false);
       router.refresh();
@@ -76,9 +86,18 @@ export function KnowledgeReviewActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "withdraw" }),
       });
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        errorCode?: string;
+      };
       if (!response.ok) {
-        throw new Error(payload.error ?? t("knowledge.article.withdrawReviewFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(
+            t,
+            payload,
+            "knowledge.article.withdrawReviewFailed",
+          ),
+        );
       }
       router.refresh();
     } catch (caught) {

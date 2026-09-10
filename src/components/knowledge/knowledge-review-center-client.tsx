@@ -16,6 +16,7 @@ import type {
   KnowledgeReviewDetail,
   KnowledgeReviewListItem,
 } from "@/lib/knowledge/review-service";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 type Tab = "pending" | "mine" | "history";
 
@@ -89,9 +90,12 @@ export function KnowledgeReviewCenterClient({
     const payload = (await response.json()) as {
       reviews?: KnowledgeReviewListItem[];
       error?: string;
+      errorCode?: string;
     };
     if (!response.ok || !payload.reviews) {
-      throw new Error(payload.error ?? t("knowledge.review.loadListFailed"));
+      throw new Error(
+        resolveKnowledgeApiError(t, payload, "knowledge.review.loadListFailed"),
+      );
     }
     setLists((current) => ({ ...current, [nextTab]: payload.reviews! }));
   }
@@ -106,9 +110,12 @@ export function KnowledgeReviewCenterClient({
       const payload = (await response.json()) as {
         review?: KnowledgeReviewDetail;
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.review) {
-        throw new Error(payload.error ?? t("knowledge.review.loadDetailFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.review.loadDetailFailed"),
+        );
       }
       setSelected(payload.review);
       setReviewNote("");
@@ -144,9 +151,12 @@ export function KnowledgeReviewCenterClient({
       const payload = (await response.json()) as {
         review?: KnowledgeReviewDetail;
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.review) {
-        throw new Error(payload.error ?? t("knowledge.review.actionFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.review.actionFailed"),
+        );
       }
       setSelected(payload.review);
       setConfirmPublish(false);

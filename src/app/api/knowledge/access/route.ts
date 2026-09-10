@@ -1,4 +1,6 @@
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
+import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import { verifyKnowledgePassword } from "@/lib/knowledge/unlock-service";
 import { knowledgeErrorResponse, requireKnowledgeSession } from "@/lib/permissions/knowledge";
 
@@ -9,12 +11,10 @@ export async function POST(request: Request) {
     const context = await requireKnowledgeSession(request);
     const body = (await request.json()) as { password?: unknown };
     if (typeof body.password !== "string") {
-      return Response.json(
-        {
-          error: "请输入 Knowledge 密码",
-          errorCode: "KNOWLEDGE_PASSWORD_REQUIRED",
-        },
-        { status: 400 },
+      throw new KnowledgeServiceError(
+        KNOWLEDGE_ERROR_CODES.PASSWORD_REQUIRED,
+        "Knowledge password required",
+        400,
       );
     }
 

@@ -5,6 +5,7 @@ import {
   updateKnowledgeArticle,
   type KnowledgeArticleInput,
 } from "@/lib/knowledge/core-service";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
   knowledgeErrorResponse,
@@ -34,8 +35,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (input.archive === true) {
       if (typeof input.expectedUpdatedAt !== "string") {
         throw new KnowledgeServiceError(
-          "KNOWLEDGE_ARTICLE_CONFLICT",
-          "文章版本资料缺失",
+          KNOWLEDGE_ERROR_CODES.ARTICLE_CONFLICT,
+          "Article version metadata missing",
           409,
         );
       }
@@ -49,8 +50,8 @@ export async function PATCH(request: Request, context: RouteContext) {
     }
     if ("status" in input || "publish" in input) {
       throw new KnowledgeServiceError(
-        "KNOWLEDGE_ARTICLE_INVALID",
-        "Package 2 不提供发布操作",
+        KNOWLEDGE_ERROR_CODES.ARTICLE_INVALID,
+        "Publish action unavailable",
         400,
       );
     }

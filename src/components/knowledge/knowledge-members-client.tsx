@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles";
 import { KNOWLEDGE_ROLES } from "@/lib/knowledge/constants";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 type KnowledgeMember = {
   id: string;
@@ -66,9 +67,12 @@ export function KnowledgeMembersClient({
       const payload = (await response.json()) as {
         users?: KnowledgeMember[];
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.users) {
-        throw new Error(payload.error ?? t("knowledge.members.loadFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.members.loadFailed"),
+        );
       }
       setMembers(payload.users);
       setDrafts(buildDrafts(payload.users));
@@ -116,11 +120,13 @@ export function KnowledgeMembersClient({
           errorCode?: string;
         };
         if (!response.ok || !payload.ok) {
-          if (payload.errorCode === "KNOWLEDGE_LAST_ADMIN") {
-            failures.push(t("knowledge.members.lastAdminError"));
-          } else {
-            failures.push(payload.error ?? t("knowledge.members.updateFailed"));
-          }
+          failures.push(
+            resolveKnowledgeApiError(
+              t,
+              payload,
+              "knowledge.members.updateFailed",
+            ),
+          );
           continue;
         }
         savedCount += 1;

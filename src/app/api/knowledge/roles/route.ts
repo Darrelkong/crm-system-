@@ -3,6 +3,7 @@ import {
   knowledgeErrorResponse,
   requireKnowledgeAdmin,
 } from "@/lib/permissions/knowledge";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
   listKnowledgeUsers,
@@ -29,8 +30,8 @@ export async function PATCH(request: Request) {
     };
     if (typeof body.userId !== "string" || typeof body.role !== "string") {
       throw new KnowledgeServiceError(
-        "KNOWLEDGE_ROLE_REQUIRED",
-        "用户及 Knowledge 角色必填",
+        KNOWLEDGE_ERROR_CODES.ROLE_REQUIRED,
+        "Knowledge role required",
         400,
       );
     }

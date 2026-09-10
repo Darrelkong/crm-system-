@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 export function KnowledgeArticleArchiveButton({
   articleId,
@@ -30,9 +31,14 @@ export function KnowledgeArticleArchiveButton({
           expectedUpdatedAt: updatedAt,
         }),
       });
-      const payload = (await response.json()) as { error?: string };
+      const payload = (await response.json()) as {
+        error?: string;
+        errorCode?: string;
+      };
       if (!response.ok) {
-        throw new Error(payload.error ?? t("knowledge.article.archiveFailed"));
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.article.archiveFailed"),
+        );
       }
       router.refresh();
     } catch (caught) {

@@ -1,5 +1,6 @@
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { changeKnowledgePassword } from "@/lib/knowledge/access-policy-service";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
   knowledgeErrorResponse,
@@ -20,15 +21,15 @@ export async function POST(request: Request) {
       typeof body.confirmPassword !== "string"
     ) {
       throw new KnowledgeServiceError(
-        "KNOWLEDGE_PASSWORD_REQUIRED",
-        "请输入 Knowledge 密码及确认密码",
+        KNOWLEDGE_ERROR_CODES.PASSWORD_REQUIRED,
+        "Knowledge password required",
         400,
       );
     }
     if (body.password !== body.confirmPassword) {
       throw new KnowledgeServiceError(
-        "KNOWLEDGE_PASSWORD_MISMATCH",
-        "两次输入的 Knowledge 密码不一致",
+        KNOWLEDGE_ERROR_CODES.PASSWORD_MISMATCH,
+        "Knowledge password mismatch",
         400,
       );
     }

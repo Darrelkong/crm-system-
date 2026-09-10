@@ -177,6 +177,17 @@ describe("Knowledge i18n", () => {
     assertKnowledgeKeyParity();
   });
 
+  it("defines knowledge.errors keys in all locales", () => {
+    const errorKeys = Object.keys(en.knowledge.errors) as Array<
+      keyof typeof en.knowledge.errors
+    >;
+    assert.ok(errorKeys.length > 0);
+    for (const key of errorKeys) {
+      assert.ok(zhHans.knowledge.errors[key], `zh-Hans missing knowledge.errors.${key}`);
+      assert.ok(zhHant.knowledge.errors[key], `zh-Hant missing knowledge.errors.${key}`);
+    }
+  });
+
   it("defines ingest, review, and article keys in all locales", () => {
     for (const key of INGEST_KEYS) {
       assert.ok(zhHans.knowledge.ingest[key], `zh-Hans missing knowledge.ingest.${key}`);

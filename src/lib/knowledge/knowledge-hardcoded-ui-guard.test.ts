@@ -71,7 +71,35 @@ function isAllowedHardcodedLine(line: string): boolean {
   return ALLOWED_LINE_PATTERNS.some((pattern) => pattern.test(line));
 }
 
+const ERROR_CLIENT_FILES = [
+  "src/components/knowledge/knowledge-access-form.tsx",
+  "src/components/knowledge/knowledge-ingest-client.tsx",
+  "src/components/knowledge/knowledge-review-center-client.tsx",
+  "src/components/knowledge/knowledge-article-editor.tsx",
+  "src/components/knowledge/knowledge-review-actions.tsx",
+  "src/components/knowledge/knowledge-article-archive-button.tsx",
+  "src/components/knowledge/knowledge-home-client.tsx",
+  "src/components/knowledge/knowledge-members-client.tsx",
+  "src/components/knowledge/knowledge-search-ai-panel.tsx",
+];
+
 describe("Knowledge hardcoded UI guard", () => {
+  it("does not render raw payload.error in Knowledge API clients", () => {
+    const violations: string[] = [];
+    for (const relative of ERROR_CLIENT_FILES) {
+      const content = readFileSync(join(ROOT, relative), "utf8");
+      if (content.includes("payload.error")) {
+        violations.push(`${relative}: payload.error`);
+      }
+      if (
+        !/resolveKnowledgeApiError|getKnowledgeErrorMessage/.test(content)
+      ) {
+        violations.push(`${relative}: missing centralized error mapper`);
+      }
+    }
+    assert.deepEqual(violations, []);
+  });
+
   it("does not reintroduce known visible Chinese literals in Knowledge UI sources", () => {
     const violations: string[] = [];
 

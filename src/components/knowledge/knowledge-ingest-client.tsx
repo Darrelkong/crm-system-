@@ -11,6 +11,7 @@ import type {
   KnowledgeSourceDetail,
   KnowledgeSourceListItem,
 } from "@/lib/knowledge/source-service";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 
 function statusLabel(
   t: (key: string, params?: Record<string, string>) => string,
@@ -67,9 +68,10 @@ export function KnowledgeIngestClient({
     const payload = (await response.json()) as {
       source?: KnowledgeSourceDetail;
       error?: string;
+      errorCode?: string;
     };
     if (!response.ok || !payload.source) {
-      throw new Error(payload.error ?? t("knowledge.ingest.failure"));
+      throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
     }
     setSelected(payload.source);
     applyOrganization(payload.source);
@@ -101,9 +103,10 @@ export function KnowledgeIngestClient({
       const payload = (await response.json()) as {
         source?: KnowledgeSourceDetail;
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.source) {
-        throw new Error(payload.error ?? t("knowledge.ingest.failure"));
+        throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSources((current) => [payload.source!, ...current]);
       setSelected(payload.source);
@@ -129,9 +132,10 @@ export function KnowledgeIngestClient({
       const payload = (await response.json()) as {
         source?: KnowledgeSourceDetail;
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.source) {
-        throw new Error(payload.error ?? t("knowledge.ingest.failure"));
+        throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSelected(payload.source);
       applyOrganization(payload.source);
@@ -172,9 +176,10 @@ export function KnowledgeIngestClient({
       const payload = (await response.json()) as {
         article?: { id: string };
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.article) {
-        throw new Error(payload.error ?? t("knowledge.ingest.failure"));
+        throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSaved(true);
       router.push(`/knowledge/articles/${payload.article.id}`);

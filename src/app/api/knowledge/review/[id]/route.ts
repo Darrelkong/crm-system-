@@ -1,4 +1,6 @@
 import { getRequestMeta } from "@/lib/auth/cookies";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
+import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
   approveAndPublishKnowledgeReview,
   assignKnowledgeReview,
@@ -64,9 +66,10 @@ export async function PATCH(request: Request, context: RouteContext) {
         review: await withdrawKnowledgeReview(actor, id, meta),
       });
     }
-    return Response.json(
-      { error: "审核操作无效", errorCode: "KNOWLEDGE_REVIEW_INVALID" },
-      { status: 400 },
+    throw new KnowledgeServiceError(
+      KNOWLEDGE_ERROR_CODES.REVIEW_INVALID,
+      "Knowledge review action invalid",
+      400,
     );
   } catch (error) {
     return knowledgeErrorResponse(error);

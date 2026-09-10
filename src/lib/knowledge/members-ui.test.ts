@@ -58,8 +58,7 @@ describe("Knowledge members role management UI", () => {
     const client = read("src/components/knowledge/knowledge-members-client.tsx");
     const roleService = read("src/lib/knowledge/role-service.ts");
     const constants = read("src/lib/knowledge/constants.ts");
-    assert.match(client, /KNOWLEDGE_LAST_ADMIN/);
-    assert.match(client, /knowledge\.members\.lastAdminError/);
+    assert.match(client, /resolveKnowledgeApiError/);
     assert.match(client, /isLastAdminLocked/);
     assert.match(client, /lastAdminReadonly/);
     assert.match(roleService, /KNOWLEDGE_ERROR_CODES\.LAST_ADMIN/);

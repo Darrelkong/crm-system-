@@ -15,6 +15,11 @@ import { Badge, Card, EmptyState } from "@/components/ui/card";
 import type { KnowledgeAiAnswer } from "@/lib/knowledge/qa-service";
 import type { KnowledgeSearchResult } from "@/lib/knowledge/published-retrieval";
 import {
+  getKnowledgeErrorMessage,
+  KnowledgeApiClientError,
+  resolveKnowledgeApiError,
+} from "@/lib/knowledge/error-messages";
+import {
   fetchKnowledgeSearchResults,
   isLiveKnowledgeSearchAbortError,
   KNOWLEDGE_LIVE_SEARCH_DEBOUNCE_MS,
@@ -86,8 +91,8 @@ export function KnowledgeSearchAiPanel() {
       if (requestId !== searchRequestIdRef.current) return;
       if (isLiveKnowledgeSearchAbortError(caught)) return;
       setError(
-        caught instanceof Error
-          ? caught.message
+        caught instanceof KnowledgeApiClientError
+          ? getKnowledgeErrorMessage(t, caught.errorCode)
           : t("knowledge.searchAi.requestFailed"),
       );
       setResults([]);
@@ -174,10 +179,15 @@ export function KnowledgeSearchAiPanel() {
       const payload = (await response.json()) as {
         answer?: KnowledgeAiAnswer;
         error?: string;
+        errorCode?: string;
       };
       if (!response.ok || !payload.answer) {
         throw new Error(
-          payload.error ?? t("knowledge.searchAi.providerUnavailable"),
+          resolveKnowledgeApiError(
+            t,
+            payload,
+            "knowledge.searchAi.providerUnavailable",
+          ),
         );
       }
       setAnswer(payload.answer);
