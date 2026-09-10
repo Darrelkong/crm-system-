@@ -1,9 +1,15 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import {
+  formatAssignedReviewerLabel,
+  formatKnowledgeReviewStatus,
+  formatKnowledgeVisibility,
+} from "@/lib/knowledge/review-labels";
 import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles";
 import type {
   KnowledgeReviewDetail,
@@ -11,6 +17,12 @@ import type {
 } from "@/lib/knowledge/review-service";
 
 type Tab = "pending" | "mine" | "history";
+
+const TAB_LABELS: Record<Tab, string> = {
+  pending: "待审核 · Pending",
+  mine: "我提交的 · My Reviews",
+  history: "历史记录 · History",
+};
 
 function dueLabel(dueAt: string | null): string {
   if (!dueAt) return "";
@@ -55,6 +67,13 @@ export function KnowledgeReviewCenterClient({
   const [confirmPublish, setConfirmPublish] = useState(false);
 
   const currentList = useMemo(() => lists[tab], [lists, tab]);
+  const visibleTabs = useMemo(
+    () =>
+      role === "contributor"
+        ? (["mine", "history"] as const)
+        : (["pending", "mine", "history"] as const),
+    [role],
+  );
 
   async function refreshTab(nextTab = tab) {
     const response = await fetch(`/api/knowledge/review?view=${nextTab}`, {
@@ -133,7 +152,7 @@ export function KnowledgeReviewCenterClient({
     <div className="grid gap-6 lg:grid-cols-[minmax(16rem,24rem)_minmax(0,1fr)]">
       <section className="min-w-0 space-y-4">
         <div className="flex flex-wrap gap-2">
-          {(["pending", "mine", "history"] as const).map((name) => (
+          {visibleTabs.map((name) => (
             <Button
               key={name}
               type="button"
@@ -146,11 +165,7 @@ export function KnowledgeReviewCenterClient({
                 );
               }}
             >
-              {name === "pending"
-                ? "待审核"
-                : name === "mine"
-                  ? "我提交的"
-                  : "历史记录"}
+              {TAB_LABELS[name]}
             </Button>
           ))}
         </div>
@@ -181,14 +196,16 @@ export function KnowledgeReviewCenterClient({
                         ? "warning"
                         : review.status === "approved"
                           ? "success"
-                          : "default"
+                          : review.status === "changes_requested"
+                            ? "warning"
+                            : "default"
                     }
                   >
-                    {review.status}
+                    {formatKnowledgeReviewStatus(review.status)}
                   </Badge>
                 </div>
                 <p className="mt-2 text-xs crm-text-secondary">
-                  {review.visibility} ·{" "}
+                  {formatKnowledgeVisibility(review.visibility)} ·{" "}
                   {new Date(review.submittedAt).toLocaleString()}
                   {review.dueAt && ` · ${dueLabel(review.dueAt)}`}
                 </p>
@@ -202,7 +219,7 @@ export function KnowledgeReviewCenterClient({
         {selected ? (
           <Card>
             <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
+              <div className="min-w-0">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">
                   正在审核 Version {selected.submittedVersionNumber}
                 </p>
@@ -210,9 +227,17 @@ export function KnowledgeReviewCenterClient({
                   {selected.titleSnapshot}
                 </h2>
               </div>
-              <Badge variant={selected.status === "pending" ? "warning" : "default"}>
-                {selected.status}
-              </Badge>
+              <div className="flex flex-wrap gap-2">
+                <Link
+                  href={`/knowledge/articles/${selected.articleId}`}
+                  className="secondary-button inline-flex min-h-9 items-center rounded-xl px-3 py-2 text-sm"
+                >
+                  查看文章
+                </Link>
+                <Badge variant={selected.status === "pending" ? "warning" : "default"}>
+                  {formatKnowledgeReviewStatus(selected.status)}
+                </Badge>
+              </div>
             </div>
             <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
               <div>
@@ -227,7 +252,9 @@ export function KnowledgeReviewCenterClient({
               </div>
               <div>
                 <dt className="crm-text-secondary">可见范围</dt>
-                <dd className="crm-text">{selected.visibility}</dd>
+                <dd className="crm-text">
+                  {formatKnowledgeVisibility(selected.visibility)}
+                </dd>
               </div>
               <div>
                 <dt className="crm-text-secondary">分类</dt>
@@ -236,10 +263,15 @@ export function KnowledgeReviewCenterClient({
               <div>
                 <dt className="crm-text-secondary">Reviewer</dt>
                 <dd className="crm-text">
-                  {selected.assignedReviewerName ?? "未分配"}
+                  {formatAssignedReviewerLabel(selected.assignedReviewerName)}
                 </dd>
               </div>
             </dl>
+            {selected.status === "pending" && !selected.assignedReviewerName && (
+              <p className="mt-3 text-xs crm-text-secondary">
+                未指定审核人的请求会进入可用审核者的待审核队列。
+              </p>
+            )}
             {selected.submissionNote && (
               <p className="mt-5 rounded-xl bg-slate-50 p-4 text-sm crm-text-secondary">
                 提交说明：{selected.submissionNote}
@@ -315,7 +347,7 @@ export function KnowledgeReviewCenterClient({
                       <p className="text-sm text-red-950">
                         确认发布「{selected.titleSnapshot}」Version{" "}
                         {selected.submittedVersionNumber}？
-                        可见范围：{selected.visibility}
+                        可见范围：{formatKnowledgeVisibility(selected.visibility)}
                       </p>
                       <div className="mt-3 flex flex-wrap gap-2">
                         <Button

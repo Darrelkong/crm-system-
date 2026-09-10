@@ -14,13 +14,15 @@ import {
 } from "@/lib/knowledge/constants";
 import { canViewKnowledgeVisibility } from "@/lib/knowledge/visibility";
 import {
-  hasKnowledgeRoleAtLeast,
-} from "@/lib/knowledge/role-service";
-import {
   buildKnowledgeAuditInsert,
   writeKnowledgeAudit,
   type KnowledgeAuditInput,
 } from "@/lib/knowledge/audit";
+import {
+  canArchiveKnowledgeArticle,
+  canAuthorKnowledgeArticle,
+  canEditKnowledgeArticle,
+} from "@/lib/knowledge/article-permissions";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import { hasActiveKnowledgeReview } from "@/lib/knowledge/review-state";
@@ -220,35 +222,14 @@ function canEditArticle(
   context: KnowledgeSessionContext,
   article: KnowledgeArticleDetail,
 ): boolean {
-  if (context.role === "knowledge_admin") return true;
-  if (!context.role || !hasKnowledgeRoleAtLeast(context.role, "contributor")) {
-    return false;
-  }
-  if (article.status === "archived") return false;
-  if (
-    article.visibility === "owner" &&
-    article.ownerUserId !== context.user.id
-  ) {
-    return false;
-  }
-  return article.visibility !== "restricted";
+  return canEditKnowledgeArticle(context, article);
 }
 
 function canArchiveArticle(
   context: KnowledgeSessionContext,
   article: KnowledgeArticleDetail,
 ): boolean {
-  if (context.role === "knowledge_admin") return true;
-  if (!context.role || !hasKnowledgeRoleAtLeast(context.role, "contributor")) {
-    return false;
-  }
-  if (
-    article.visibility === "owner" &&
-    article.ownerUserId !== context.user.id
-  ) {
-    return false;
-  }
-  return article.visibility !== "restricted";
+  return canArchiveKnowledgeArticle(context, article);
 }
 
 function assertArticleRead(
@@ -759,7 +740,7 @@ export async function createKnowledgeArticle(
   meta: Pick<KnowledgeAuditInput, "ipAddress" | "userAgent">,
   db: Database = getDb(),
 ): Promise<KnowledgeArticleDetail> {
-  if (!context.role || !hasKnowledgeRoleAtLeast(context.role, "contributor")) {
+  if (!canAuthorKnowledgeArticle(context.role)) {
     throw new KnowledgeServiceError(
       KNOWLEDGE_ERROR_CODES.ROLE_REQUIRED,
       "需要 Knowledge Contributor 权限",

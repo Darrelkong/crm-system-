@@ -18,12 +18,14 @@ export function KnowledgeReviewActions({
   userId,
   canSubmit,
   activeReview,
+  hasChangesRequested = false,
 }: {
   articleId: string;
   currentVersionNumber: number;
   userId: string;
   canSubmit: boolean;
   activeReview: ActiveReview | null;
+  hasChangesRequested?: boolean;
 }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -127,7 +129,7 @@ export function KnowledgeReviewActions({
       ) : (
         <div>
           <Button type="button" onClick={() => setOpen(true)}>
-            提交审核
+            {hasChangesRequested ? "重新提交审核" : "提交审核"}
           </Button>
           {error && <p className="mt-2 text-sm text-red-700">{error}</p>}
         </div>

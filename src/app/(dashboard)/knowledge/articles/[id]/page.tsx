@@ -4,11 +4,21 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
+import { KnowledgeArticleArchiveButton } from "@/components/knowledge/knowledge-article-archive-button";
+import { KnowledgeArticleReviewStatus } from "@/components/knowledge/knowledge-article-review-status";
+import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
 import { KnowledgeReviewActions } from "@/components/knowledge/knowledge-review-actions";
+import {
+  canArchiveKnowledgeArticle,
+  canEditKnowledgeArticle,
+  canReviewInCenter,
+  canSubmitKnowledgeReview,
+} from "@/lib/knowledge/article-permissions";
+import { formatKnowledgeVisibility } from "@/lib/knowledge/review-labels";
 import { getKnowledgeArticle } from "@/lib/knowledge/core-service";
 import {
+  getArticleReviewSummaryForViewer,
   listKnowledgeArticlePublications,
-  listKnowledgeReviewRequests,
 } from "@/lib/knowledge/review-service";
 import { requireKnowledgeAccess } from "@/lib/permissions/knowledge";
 
@@ -20,59 +30,46 @@ export default async function KnowledgeArticlePage(context: PageContext) {
   const article = await getKnowledgeArticle(actor, id).catch(() => null);
   if (!article) notFound();
 
-  const canEdit =
-    !article.isPublishedSnapshot &&
-    article.status !== "archived" &&
-    (actor.role === "contributor" ||
-      actor.role === "reviewer" ||
-      actor.role === "knowledge_admin");
-  const canSubmitReview =
-    !article.isPublishedSnapshot &&
-    article.status !== "archived" &&
-    (actor.role === "contributor" || actor.role === "knowledge_admin");
-  const [myReviews, publications] = await Promise.all([
-    actor.role && actor.role !== "viewer"
-      ? listKnowledgeReviewRequests(actor, "mine").catch(() => [])
-      : Promise.resolve([]),
+  const canEdit = canEditKnowledgeArticle(actor, article);
+  const canSubmitReview = canSubmitKnowledgeReview(actor, article);
+  const canArchive = canArchiveKnowledgeArticle(actor, article);
+  const showReviewCenter = canReviewInCenter(actor.role);
+  const showMyReviews = actor.role === "contributor";
+  const [reviewSummary, publications] = await Promise.all([
+    getArticleReviewSummaryForViewer(actor, id),
     listKnowledgeArticlePublications(actor, id).catch(() => []),
   ]);
-  const pendingReview = myReviews.find(
-    (review) => review.articleId === id && review.status === "pending",
-  );
-  const activeReview = pendingReview
-    ? {
-        id: pendingReview.id,
-        submittedVersionNumber: pendingReview.submittedVersionNumber,
-        submittedByUserId: pendingReview.submittedByUserId,
-        status: "pending" as const,
-      }
-    : null;
+  const activeReview =
+    reviewSummary?.status === "pending"
+      ? {
+          id: reviewSummary.id,
+          submittedVersionNumber: reviewSummary.submittedVersionNumber,
+          submittedByUserId: reviewSummary.submittedByUserId,
+          status: "pending" as const,
+        }
+      : null;
 
   return (
-    <div>
+    <div className="space-y-6">
       <PageIntro
         title={article.title}
         description={`${article.categoryName} · 更新于 ${new Date(article.updatedAt).toLocaleString()}`}
         action={
           <div className="flex flex-wrap gap-2">
-            <Link
-              href="/knowledge"
-              className="secondary-button inline-flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm"
-            >
-              返回 Knowledge
-            </Link>
-            <Link
-              href={`/knowledge/articles/${article.id}/history`}
-              className="secondary-button inline-flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm"
-            >
-              版本历史
-            </Link>
-            <Link
-              href="/knowledge/review"
-              className="secondary-button inline-flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm"
-            >
-              Review Center
-            </Link>
+            <KnowledgeBackLink href="/knowledge">返回 Knowledge</KnowledgeBackLink>
+            <KnowledgeBackLink href={`/knowledge/articles/${article.id}/history`}>
+              版本历史 · Version History
+            </KnowledgeBackLink>
+            {showReviewCenter && (
+              <KnowledgeBackLink href="/knowledge/review">
+                审核中心 · Review Center
+              </KnowledgeBackLink>
+            )}
+            {showMyReviews && (
+              <KnowledgeBackLink href="/knowledge/review">
+                我的审核 · My Reviews
+              </KnowledgeBackLink>
+            )}
             {canEdit && (
               <Link
                 href={`/knowledge/articles/${article.id}/edit`}
@@ -84,7 +81,16 @@ export default async function KnowledgeArticlePage(context: PageContext) {
           </div>
         }
       />
-      <Card className="max-w-4xl">
+
+      <KnowledgeArticleReviewStatus
+        articleId={article.id}
+        review={reviewSummary}
+        publishedVersionNumber={article.publishedVersionNumber}
+        currentVersionNumber={article.currentVersionNumber}
+        hasUnpublishedChanges={article.hasUnpublishedChanges}
+      />
+
+      <Card className="max-w-4xl min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant={article.status === "draft" ? "warning" : "success"}>
             {article.status === "draft"
@@ -100,14 +106,10 @@ export default async function KnowledgeArticlePage(context: PageContext) {
             </Badge>
           )}
           {article.hasUnpublishedChanges && (
-            <Badge variant="warning">目前草稿 · 未发布变更</Badge>
+            <Badge variant="warning">未发布变更</Badge>
           )}
           <Badge variant="accent">
-            {article.visibility === "team"
-              ? "Team"
-              : article.visibility === "owner"
-                ? "Owner"
-                : "Restricted"}
+            {formatKnowledgeVisibility(article.visibility)}
           </Badge>
         </div>
         {article.summary && (
@@ -129,21 +131,30 @@ export default async function KnowledgeArticlePage(context: PageContext) {
                 >
                   Version {publication.versionNumber} ·{" "}
                   {new Date(publication.publishedAt).toLocaleString()} ·{" "}
-                  {publication.publishedByName} · 审核记录{" "}
-                  {publication.reviewRequestId.slice(0, 8)}
+                  {publication.publishedByName}
                 </div>
               ))}
             </div>
           </div>
         )}
+        {canArchive && (
+          <KnowledgeArticleArchiveButton
+            articleId={article.id}
+            updatedAt={article.updatedAt}
+          />
+        )}
       </Card>
-      <KnowledgeReviewActions
-        articleId={article.id}
-        currentVersionNumber={article.currentVersionNumber}
-        userId={actor.user.id}
-        canSubmit={canSubmitReview}
-        activeReview={activeReview}
-      />
+
+      {canSubmitReview && (
+        <KnowledgeReviewActions
+          articleId={article.id}
+          currentVersionNumber={article.currentVersionNumber}
+          userId={actor.user.id}
+          canSubmit={canSubmitReview}
+          activeReview={activeReview}
+          hasChangesRequested={reviewSummary?.status === "changes_requested"}
+        />
+      )}
     </div>
   );
 }

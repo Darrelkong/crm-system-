@@ -65,11 +65,24 @@ function reviewError(code: string, message: string, status = 400) {
 function requireSubmitRole(context: KnowledgeSessionContext): void {
   if (
     !context.role ||
-    !hasKnowledgeRoleAtLeast(context.role, "contributor")
+    (context.role !== "contributor" && context.role !== "knowledge_admin")
   ) {
     throw reviewError(
       KNOWLEDGE_ERROR_CODES.REVIEW_ACCESS_DENIED,
       "需要 Knowledge Contributor 权限",
+      403,
+    );
+  }
+}
+
+function requireReviewListRole(context: KnowledgeSessionContext): void {
+  if (
+    !context.role ||
+    context.role === "viewer"
+  ) {
+    throw reviewError(
+      KNOWLEDGE_ERROR_CODES.REVIEW_ACCESS_DENIED,
+      "需要 Knowledge 审核访问权限",
       403,
     );
   }
@@ -361,7 +374,7 @@ export async function listKnowledgeReviewRequests(
   db: Database = getDb(),
 ): Promise<KnowledgeReviewListItem[]> {
   if (view === "pending") requireReviewerRole(context);
-  if (view !== "pending") requireSubmitRole(context);
+  if (view !== "pending") requireReviewListRole(context);
   const requests = await db
     .select({ id: schema.knowledgeReviewRequests.id })
     .from(schema.knowledgeReviewRequests)
@@ -407,6 +420,90 @@ export async function listKnowledgeReviewRequests(
     }
   }
   return result;
+}
+
+export type KnowledgeArticleReviewSummary = {
+  id: string;
+  status: KnowledgeReviewStatus;
+  submittedVersionNumber: number;
+  submittedByUserId: string;
+  submissionNote: string | null;
+  reviewNote: string | null;
+  submittedAt: string;
+  decidedAt: string | null;
+  decidedByName: string | null;
+  assignedReviewerName: string | null;
+};
+
+export async function getArticleReviewSummaryForViewer(
+  context: KnowledgeSessionContext,
+  articleId: string,
+  db: Database = getDb(),
+): Promise<KnowledgeArticleReviewSummary | null> {
+  if (
+    !context.role ||
+    context.role === "viewer" ||
+    context.role === "reviewer"
+  ) {
+    return null;
+  }
+
+  const requests = await db
+    .select({ id: schema.knowledgeReviewRequests.id })
+    .from(schema.knowledgeReviewRequests)
+    .where(
+      and(
+        eq(schema.knowledgeReviewRequests.articleId, articleId),
+        context.role === "knowledge_admin"
+          ? sql`1 = 1`
+          : eq(
+              schema.knowledgeReviewRequests.submittedByUserId,
+              context.user.id,
+            ),
+      ),
+    )
+    .orderBy(desc(schema.knowledgeReviewRequests.updatedAt))
+    .limit(10);
+
+  for (const row of requests) {
+    const record = await getReviewRecord(row.id, db);
+    if (!record) continue;
+    if (
+      record.request.status !== "pending" &&
+      record.request.status !== "changes_requested"
+    ) {
+      continue;
+    }
+    const version = await getVersion(
+      record.request.articleId,
+      record.request.submittedVersionNumber,
+      db,
+    );
+    if (!version) continue;
+    try {
+      await assertReviewAccess(context, record, version);
+    } catch {
+      continue;
+    }
+    const [decidedByName, assignedReviewerName] = await Promise.all([
+      getUserName(record.request.decidedByUserId, db),
+      getUserName(record.request.assignedReviewerUserId, db),
+    ]);
+    return {
+      id: record.request.id,
+      status: record.request.status,
+      submittedVersionNumber: record.request.submittedVersionNumber,
+      submittedByUserId: record.request.submittedByUserId,
+      submissionNote: record.request.submissionNote,
+      reviewNote: record.request.reviewNote,
+      submittedAt: record.request.submittedAt,
+      decidedAt: record.request.decidedAt,
+      decidedByName,
+      assignedReviewerName,
+    };
+  }
+
+  return null;
 }
 
 export async function submitKnowledgeReview(

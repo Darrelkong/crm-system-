@@ -3,10 +3,12 @@ export const dynamic = "force-dynamic";
 import { notFound, redirect } from "next/navigation";
 import { PageIntro } from "@/components/ui/page-intro";
 import { KnowledgeArticleEditor } from "@/components/knowledge/knowledge-article-editor";
+import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
 import {
   getKnowledgeArticle,
   listKnowledgeCategories,
 } from "@/lib/knowledge/core-service";
+import { canEditKnowledgeArticle } from "@/lib/knowledge/article-permissions";
 import { getDb } from "@/lib/db";
 import { hasActiveKnowledgeReview } from "@/lib/knowledge/review-state";
 import { requireKnowledgeAccess } from "@/lib/permissions/knowledge";
@@ -24,12 +26,7 @@ export default async function EditKnowledgeArticlePage(context: PageContext) {
   ) {
     redirect(`/knowledge/articles/${id}`);
   }
-  if (
-    article.status === "archived" ||
-    (actor.role !== "knowledge_admin" &&
-      actor.role !== "contributor" &&
-      actor.role !== "reviewer")
-  ) {
+  if (!canEditKnowledgeArticle(actor, article)) {
     redirect(`/knowledge/articles/${id}`);
   }
   return (
@@ -37,6 +34,11 @@ export default async function EditKnowledgeArticlePage(context: PageContext) {
       <PageIntro
         title="编辑 Knowledge 草稿"
         description="保存时会建立不可变的文章版本快照。"
+        action={
+          <KnowledgeBackLink href={`/knowledge/articles/${id}`}>
+            返回文章
+          </KnowledgeBackLink>
+        }
       />
       <KnowledgeArticleEditor
         article={article}

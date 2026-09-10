@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Badge, Card } from "@/components/ui/card";
 import { PageIntro } from "@/components/ui/page-intro";
+import { KnowledgeBackLink } from "@/components/knowledge/knowledge-back-link";
 import {
   listKnowledgeArticlePublications,
 } from "@/lib/knowledge/review-service";
@@ -52,29 +53,12 @@ export default async function KnowledgeArticleHistoryPage(
   return (
     <div>
       <PageIntro
-        title={`版本历史 · ${article.title}`}
-        description="历史版本仅供查看，Package 2 不提供一键恢复。"
+        title={`版本历史 · Version History · ${article.title}`}
+        description="历史版本仅供查看，当前暂不支持一键恢复。"
         action={
-          <div className="flex flex-wrap gap-2">
-            <Link
-              href={`/knowledge/articles/${id}`}
-              className="secondary-button inline-flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm"
-            >
-              返回文章
-            </Link>
-            {!article.isPublishedSnapshot &&
-              article.status !== "archived" &&
-              (actor.role === "contributor" ||
-                actor.role === "reviewer" ||
-                actor.role === "knowledge_admin") && (
-                <Link
-                  href={`/knowledge/articles/${id}/edit`}
-                  className="primary-button inline-flex min-h-11 items-center rounded-xl px-4 py-2.5 text-sm text-white"
-                >
-                  编辑文章
-                </Link>
-              )}
-          </div>
+          <KnowledgeBackLink href={`/knowledge/articles/${id}`}>
+            返回文章
+          </KnowledgeBackLink>
         }
       />
       <div className="grid gap-6 lg:grid-cols-[minmax(12rem,18rem)_minmax(0,1fr)]">

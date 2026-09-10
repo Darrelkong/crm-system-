@@ -388,32 +388,20 @@ describe("Knowledge Package 4 review, publish, and isolation", () => {
       "KNOWLEDGE_REVIEW_SELF_APPROVAL",
     );
 
-    const reviewerArticle = await createKnowledgeArticle(
-      reviewerContext(),
-      {
-        title: "Reviewer cannot self approve",
-        categoryId: category.id,
-        body: "Reviewer body",
-        visibility: "team",
-      },
-      META,
-      db,
-    );
-    const reviewerReview = await submitKnowledgeReview(
-      reviewerContext(),
-      { articleId: reviewerArticle.id },
-      META,
-      db,
-    );
     await assertError(
       () =>
-        approveAndPublishKnowledgeReview(
+        createKnowledgeArticle(
           reviewerContext(),
-          reviewerReview.id,
+          {
+            title: "Reviewer cannot author articles",
+            categoryId: category.id,
+            body: "Reviewer body",
+            visibility: "team",
+          },
           META,
           db,
         ),
-      "KNOWLEDGE_REVIEW_SELF_APPROVAL",
+      "KNOWLEDGE_ROLE_REQUIRED",
     );
   });
 

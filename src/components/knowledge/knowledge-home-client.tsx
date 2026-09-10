@@ -31,7 +31,6 @@ export function KnowledgeHomeClient({
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
-  const [query, setQuery] = useState("");
   const [selectedArticle, setSelectedArticle] =
     useState<KnowledgeArticleDetail | null>(null);
   const [busy, setBusy] = useState(false);
@@ -40,18 +39,13 @@ export function KnowledgeHomeClient({
   const [categoryError, setCategoryError] = useState<string | null>(null);
 
   const visibleArticles = useMemo(() => {
-    const normalizedQuery = query.trim().toLocaleLowerCase();
     return catalog.articles.filter((article) => {
       if (selectedCategoryId && article.categoryId !== selectedCategoryId) {
         return false;
       }
-      if (!normalizedQuery) return true;
-      return [article.title, article.categoryName, article.summary ?? ""]
-        .join(" ")
-        .toLocaleLowerCase()
-        .includes(normalizedQuery);
+      return true;
     });
-  }, [catalog.articles, query, selectedCategoryId]);
+  }, [catalog.articles, selectedCategoryId]);
 
   async function reloadCatalog() {
     const response = await fetch("/api/knowledge/catalog", {
@@ -147,9 +141,7 @@ export function KnowledgeHomeClient({
           按分类浏览内部业务资料，文章内容仅供 Knowledge 权限范围内使用。
         </p>
         <div className="flex flex-wrap gap-2">
-          {(role === "contributor" ||
-            role === "reviewer" ||
-            role === "knowledge_admin") && (
+          {(role === "contributor" || role === "knowledge_admin") && (
             <Button
               type="button"
               onClick={() => router.push("/knowledge/articles/new")}
@@ -166,13 +158,22 @@ export function KnowledgeHomeClient({
               来源整理
             </Button>
           )}
+          {role === "contributor" && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => router.push("/knowledge/review")}
+            >
+              我的审核 · My Reviews
+            </Button>
+          )}
           {(role === "reviewer" || role === "knowledge_admin") && (
             <Button
               type="button"
               variant="secondary"
               onClick={() => router.push("/knowledge/review")}
             >
-              Review Center
+              审核中心 · Review Center
             </Button>
           )}
           {role === "knowledge_admin" && (
@@ -278,26 +279,16 @@ export function KnowledgeHomeClient({
         </aside>
 
         <section className="min-w-0 space-y-4">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="按标题或分类筛选"
-              aria-label="按标题或分类筛选"
-              className="min-h-11 min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-4 text-sm"
-            />
-            <span className="self-center text-sm crm-text-secondary">
-              {visibleArticles.length} 篇文章
-            </span>
-          </div>
+          <p className="text-sm crm-text-secondary">
+            {visibleArticles.length} 篇文章
+            {selectedCategoryId ? "（当前分类）" : ""}
+          </p>
 
           {visibleArticles.length === 0 ? (
             <EmptyState
-              message="目前没有符合条件的文章。可以先建立一篇草稿。"
+              message="此分类目前没有文章。"
               action={
-                role === "contributor" ||
-                role === "reviewer" ||
-                role === "knowledge_admin" ? (
+                role === "contributor" || role === "knowledge_admin" ? (
                   <Button onClick={() => router.push("/knowledge/articles/new")}>
                     新建草稿
                   </Button>
@@ -358,25 +349,6 @@ export function KnowledgeHomeClient({
                       更新于 {new Date(article.updatedAt).toLocaleDateString()}
                     </span>
                   </div>
-                  {role === "knowledge_admin" && article.status !== "archived" && (
-                    <button
-                      type="button"
-                      className="mt-3 self-start text-xs text-slate-500 underline"
-                      onClick={async () => {
-                        await fetch(`/api/knowledge/articles/${article.id}`, {
-                          method: "PATCH",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            archive: true,
-                            expectedUpdatedAt: article.updatedAt,
-                          }),
-                        });
-                        await reloadCatalog();
-                      }}
-                    >
-                      归档文章
-                    </button>
-                  )}
                 </Card>
               ))}
             </div>

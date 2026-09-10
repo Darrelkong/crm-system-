@@ -29,10 +29,7 @@ export function KnowledgeArticleEditor({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const canEdit =
-    role === "knowledge_admin" ||
-    role === "contributor" ||
-    role === "reviewer";
+  const canEdit = role === "knowledge_admin" || role === "contributor";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -72,30 +69,6 @@ export function KnowledgeArticleEditor({
           ? submissionError.message
           : "文章保存失败",
       );
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function archive() {
-    if (!article) return;
-    setError(null);
-    setBusy(true);
-    try {
-      const response = await fetch(`/api/knowledge/articles/${article.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          archive: true,
-          expectedUpdatedAt: article.updatedAt,
-        }),
-      });
-      const payload = (await response.json()) as { error?: string };
-      if (!response.ok) throw new Error(payload.error ?? "归档失败");
-      router.push(`/knowledge/articles/${article.id}`);
-      router.refresh();
-    } catch (archiveError) {
-      setError(archiveError instanceof Error ? archiveError.message : "归档失败");
     } finally {
       setBusy(false);
     }
@@ -228,11 +201,6 @@ export function KnowledgeArticleEditor({
           >
             取消
           </Button>
-          {article && article.status !== "archived" && (
-            <Button type="button" variant="danger" onClick={archive} disabled={busy}>
-              归档
-            </Button>
-          )}
         </div>
       </form>
     </Card>

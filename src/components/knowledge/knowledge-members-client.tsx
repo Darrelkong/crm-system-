@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import Link from "next/link";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
@@ -105,18 +104,6 @@ export function KnowledgeMembersClient({
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <p className="text-sm crm-text-secondary">
-          {t("knowledge.members.description")}
-        </p>
-        <Link
-          href="/knowledge"
-          className="secondary-button inline-flex min-h-11 items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-all duration-200 ease-out"
-        >
-          {t("knowledge.members.backToKnowledge")}
-        </Link>
-      </div>
-
       {error && (
         <p className="rounded-xl bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
