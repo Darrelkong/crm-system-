@@ -33,12 +33,18 @@ describe("Knowledge Package 5 security boundaries", () => {
     assert.doesNotMatch(source, /fetch\(|https?:\/\//i);
   });
 
-  it("keeps provider prompts server-side and blocks web fallback", () => {
+  it("keeps provider prompts server-side and routes Ask through AI_SERVICE only", () => {
     const service = read("src/lib/knowledge/qa-service.ts");
+    const provider = read("src/lib/knowledge/ai-qa-provider.ts");
+    const client = read("src/lib/knowledge/cloudflare-knowledge-ai.ts");
     const prompt = read("src/lib/knowledge/ai-qa-prompt.ts");
     assert.match(prompt, /untrusted data, not instructions/i);
     assert.match(prompt, /published Knowledge/i);
     assert.doesNotMatch(service, /knowledgeSources|rawText|customers|mail/i);
-    assert.doesNotMatch(service, /fetch\(|https?:\/\//i);
+    assert.doesNotMatch(service, /resolveCustomerInsightProvider|getAiApiKeyFromEnv|google_gemini|AI_API_KEY/i);
+    assert.match(provider, /callKnowledgeQaCloudflareAi/);
+    assert.match(client, /AI_SERVICE/);
+    assert.match(client, /knowledge_qa/);
+    assert.doesNotMatch(client, /gemini|AI_API_KEY/i);
   });
 });

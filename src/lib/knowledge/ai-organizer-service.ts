@@ -1,11 +1,12 @@
 import { and, eq, inArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
-import {
-  allowMockDeepInsightGeneration,
-  resolveCustomerInsightProvider,
-} from "@/lib/ai/providers/factory";
+import { allowMockDeepInsightGeneration } from "@/lib/ai/providers/factory";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
+import {
+  KNOWLEDGE_CLOUDFLARE_AI_MODEL,
+  KNOWLEDGE_CLOUDFLARE_AI_PROVIDER,
+} from "@/lib/knowledge/cloudflare-knowledge-ai";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import {
@@ -160,31 +161,17 @@ export async function organizeKnowledgeSource(
       .set({ status: "processing" })
       .where(eq(schema.knowledgeAiOrganizationRuns.id, runId));
 
-    const settings = await getEffectiveAiSettings(db);
-    const resolved = resolveCustomerInsightProvider(settings);
     let output: KnowledgeAiOrganizationOutput;
-    provider = resolved.kind;
-    model = resolved.config?.model ?? "mock-knowledge-organizer-v1";
-    if (resolved.kind === "mock") {
-      if (!allowMockDeepInsightGeneration()) {
-        throw organizerError(
-          KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_FAILED,
-          "AI 整理服务目前未配置",
-          503,
-        );
-      }
+    if (allowMockDeepInsightGeneration()) {
+      provider = "mock";
+      model = "mock-knowledge-organizer-v1";
       output = mockOrganization(source);
     } else {
-      if (!resolved.config) {
-        throw organizerError(
-          KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_FAILED,
-          "AI 整理服务目前未配置",
-          503,
-        );
-      }
+      const settings = await getEffectiveAiSettings(db);
+      provider = KNOWLEDGE_CLOUDFLARE_AI_PROVIDER;
+      model = KNOWLEDGE_CLOUDFLARE_AI_MODEL;
       const rawOutput = await callKnowledgeOrganizationProvider({
-        kind: resolved.kind,
-        config: resolved.config,
+        locale: settings.aiAnalysisLanguage,
         systemPrompt: buildKnowledgeOrganizerSystemPrompt(
           settings.aiAnalysisLanguage,
         ),

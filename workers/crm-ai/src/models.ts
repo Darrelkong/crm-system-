@@ -38,6 +38,16 @@ export const STAFF_TODAY_ACTIONS_MODEL = MODEL_QWEN;
 export const STAFF_TODAY_ACTIONS_MAX_RETRIES = 1;
 export const STAFF_TODAY_ACTIONS_TOTAL_DEADLINE_MS = 20_000;
 
+export const KNOWLEDGE_ORGANIZE_PROMPT_VERSION = "knowledge-organize-v1";
+export const KNOWLEDGE_QA_PROMPT_VERSION = "knowledge-qa-v1";
+export const KNOWLEDGE_MODEL = MODEL_QWEN;
+export const KNOWLEDGE_ORGANIZE_TEMPERATURE = 0.2;
+export const KNOWLEDGE_QA_TEMPERATURE = 0.2;
+export const KNOWLEDGE_ORGANIZE_MAX_TOKENS = 4096;
+export const KNOWLEDGE_QA_MAX_TOKENS = 2048;
+export const KNOWLEDGE_MAX_RETRIES = 1;
+export const KNOWLEDGE_TOTAL_DEADLINE_MS = 20_000;
+
 export function resolveTimeoutMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
@@ -62,6 +72,16 @@ export function resolveAdminBriefDeadlineMs(raw: string | undefined): number {
 export function resolveStaffActionsDeadlineMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return STAFF_TODAY_ACTIONS_TOTAL_DEADLINE_MS;
+  const rounded = Math.round(parsed);
+  if (process.env.NODE_ENV === "test" && rounded >= 50) {
+    return rounded;
+  }
+  return Math.min(20_000, Math.max(15_000, rounded));
+}
+
+export function resolveKnowledgeDeadlineMs(raw: string | undefined): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return KNOWLEDGE_TOTAL_DEADLINE_MS;
   const rounded = Math.round(parsed);
   if (process.env.NODE_ENV === "test" && rounded >= 50) {
     return rounded;

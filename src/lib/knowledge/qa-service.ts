@@ -1,12 +1,14 @@
 import { and, count, eq, gte, inArray } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
-import { AiConfigError, AiProviderError } from "@/lib/ai/customer-insights/errors";
+import { AiProviderError } from "@/lib/ai/customer-insights/errors";
+import { allowMockDeepInsightGeneration } from "@/lib/ai/providers/factory";
 import {
-  allowMockDeepInsightGeneration,
-  resolveCustomerInsightProvider,
-} from "@/lib/ai/providers/factory";
+  KNOWLEDGE_CLOUDFLARE_AI_MODEL,
+  KNOWLEDGE_CLOUDFLARE_AI_PROVIDER,
+} from "@/lib/knowledge/cloudflare-knowledge-ai";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
+import type { AiAnalysisLanguage } from "@/lib/settings/ai-keys";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { buildKnowledgeAuditInsert } from "@/lib/knowledge/audit";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
@@ -36,10 +38,7 @@ export const KNOWLEDGE_AI_QUESTION_MAX_CHARS = 200;
 export const KNOWLEDGE_AI_DEFAULT_DAILY_LIMIT = 20;
 
 type KnowledgeQaProviderCall = (input: {
-  kind: "openai_compatible" | "google_gemini";
-  config: NonNullable<
-    ReturnType<typeof resolveCustomerInsightProvider>["config"]
-  >;
+  locale: AiAnalysisLanguage;
   systemPrompt: string;
   userPrompt: string;
 }) => Promise<unknown>;
@@ -286,7 +285,7 @@ function mapProviderError(error: unknown): KnowledgeServiceError {
       504,
     );
   }
-  if (error instanceof AiConfigError || error instanceof AiProviderError) {
+  if (error instanceof AiProviderError) {
     return aiError(
       KNOWLEDGE_ERROR_CODES.AI_PROVIDER_FAILED,
       "Knowledge AI 暂时无法使用，请稍后再试",
@@ -337,46 +336,28 @@ export async function askKnowledge(
       };
     }
     const settings = await getEffectiveAiSettings(db);
-    const resolved = resolveCustomerInsightProvider(settings);
-    providerName = resolved.kind;
-    modelName = resolved.model;
+    const systemPrompt = buildKnowledgeQaSystemPrompt(settings.aiAnalysisLanguage);
+    const userPrompt = buildKnowledgeQaUserPrompt(normalizedQuestion, documents);
     let rawOutput: unknown;
-    if (resolved.kind === "mock") {
-      if (!allowMockDeepInsightGeneration() && !dependencies.providerCall) {
-        throw aiError(
-          KNOWLEDGE_ERROR_CODES.AI_PROVIDER_FAILED,
-          "Knowledge AI 暂时无法使用，请稍后再试",
-          503,
-        );
-      }
-      rawOutput = dependencies.providerCall
-        ? await dependencies.providerCall({
-            kind: "openai_compatible",
-            config: {
-              apiBaseUrl: "",
-              model: "test",
-              temperature: 0,
-              maxTokens: 1024,
-              timeoutMs: 5_000,
-              apiKey: "test",
-            },
-            systemPrompt: buildKnowledgeQaSystemPrompt(settings.aiAnalysisLanguage),
-            userPrompt: buildKnowledgeQaUserPrompt(normalizedQuestion, documents),
-          })
-        : mockAnswer(documents);
+    if (dependencies.providerCall) {
+      providerName = "test";
+      modelName = "test-knowledge-qa";
+      rawOutput = await dependencies.providerCall({
+        locale: settings.aiAnalysisLanguage,
+        systemPrompt,
+        userPrompt,
+      });
+    } else if (allowMockDeepInsightGeneration()) {
+      providerName = "mock";
+      modelName = "mock-knowledge-qa-v1";
+      rawOutput = mockAnswer(documents);
     } else {
-      if (!resolved.config) {
-        throw aiError(
-          KNOWLEDGE_ERROR_CODES.AI_PROVIDER_FAILED,
-          "Knowledge AI 暂时无法使用，请稍后再试",
-          503,
-        );
-      }
-      rawOutput = await (dependencies.providerCall ?? callKnowledgeQaProvider)({
-        kind: resolved.kind,
-        config: resolved.config,
-        systemPrompt: buildKnowledgeQaSystemPrompt(settings.aiAnalysisLanguage),
-        userPrompt: buildKnowledgeQaUserPrompt(normalizedQuestion, documents),
+      providerName = KNOWLEDGE_CLOUDFLARE_AI_PROVIDER;
+      modelName = KNOWLEDGE_CLOUDFLARE_AI_MODEL;
+      rawOutput = await callKnowledgeQaProvider({
+        locale: settings.aiAnalysisLanguage,
+        systemPrompt,
+        userPrompt,
       });
     }
     const output = validateAnswer(rawOutput, documents);

@@ -1,22 +1,37 @@
-import type { ProviderRuntimeConfig } from "@/lib/ai/providers/types";
+import { AiProviderError } from "@/lib/ai/customer-insights/errors";
 import {
-  callKnowledgeStructuredProvider,
+  callKnowledgeQaCloudflareAi,
+  type KnowledgeCloudflareAiCallResult,
+} from "@/lib/knowledge/cloudflare-knowledge-ai";
+import type { AiAnalysisLanguage } from "@/lib/settings/ai-keys";
+import {
   KnowledgeAiProviderOutputError,
   KnowledgeAiProviderTimeoutError,
 } from "@/lib/knowledge/ai-organizer-provider";
-import { KNOWLEDGE_AI_QA_JSON_SCHEMA } from "@/lib/knowledge/ai-qa-schema";
+
+function mapCloudflareFailure(
+  result: Extract<KnowledgeCloudflareAiCallResult, { ok: false }>,
+): never {
+  if (result.category === "timeout") {
+    throw new KnowledgeAiProviderTimeoutError();
+  }
+  if (result.category === "invalid_response") {
+    throw new KnowledgeAiProviderOutputError();
+  }
+  throw new AiProviderError();
+}
 
 export async function callKnowledgeQaProvider(input: {
-  kind: "openai_compatible" | "google_gemini";
-  config: ProviderRuntimeConfig;
+  locale: AiAnalysisLanguage;
   systemPrompt: string;
   userPrompt: string;
+  aiService?: CloudflareEnv["AI_SERVICE"];
 }) {
-  return callKnowledgeStructuredProvider({
-    ...input,
-    responseSchema: KNOWLEDGE_AI_QA_JSON_SCHEMA,
-    responseSchemaName: "knowledge_grounded_answer",
-  });
+  const result = await callKnowledgeQaCloudflareAi(input);
+  if (!result.ok) {
+    mapCloudflareFailure(result);
+  }
+  return result.data;
 }
 
 export { KnowledgeAiProviderOutputError, KnowledgeAiProviderTimeoutError };

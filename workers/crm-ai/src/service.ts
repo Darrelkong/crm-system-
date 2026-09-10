@@ -7,13 +7,22 @@ import {
   HEALTH_PROBE_JSON_SCHEMA,
   HEALTH_PROBE_SYSTEM_PROMPT,
   SYNTHETIC_HEALTH_PROBE_USER_PROMPT,
+  KNOWLEDGE_MAX_RETRIES,
+  KNOWLEDGE_MODEL,
   resolveAdminBriefDeadlineMs,
+  resolveKnowledgeDeadlineMs,
   resolveModelForTask,
   resolveStaffActionsDeadlineMs,
   resolveTimeoutMs,
   STAFF_TODAY_ACTIONS_MAX_RETRIES,
   STAFF_TODAY_ACTIONS_MODEL,
 } from "./models";
+import {
+  runKnowledgeOrganize,
+  runKnowledgeQa,
+  validateKnowledgeOrganizeRequest,
+  validateKnowledgeQaRequest,
+} from "./knowledge";
 import {
   ADMIN_BRIEF_JSON_SCHEMA,
   ADMIN_BRIEF_MAX_TOKENS,
@@ -51,9 +60,13 @@ import type {
   CrmAiAdminBriefRequest,
   CrmAiEnv,
   CrmAiHandleResult,
+  CrmAiKnowledgeOrganizeRequest,
+  CrmAiKnowledgeQaRequest,
   CrmAiRequest,
   CrmAiStaffActionsRequest,
   HealthProbeOutput,
+  KnowledgeOrganizeOutput,
+  KnowledgeQaOutput,
   StaffTodayActionsOutput,
   SystemAiTask,
 } from "./types";
@@ -595,6 +608,120 @@ export async function runStaffTodayActions(
   return { ok: false, error: lastError };
 }
 
+async function runKnowledgeTaskWithRetries<T>(
+  task: "knowledge_organize" | "knowledge_qa",
+  model: string,
+  totalDeadlineMs: number,
+  attemptRunner: (remainingMs: number) => Promise<AiServiceResult<T>>,
+): Promise<AiServiceResult<T>> {
+  const startedAt = Date.now();
+  let lastError: AiServiceError = "internal_error";
+
+  for (let attempt = 0; attempt <= KNOWLEDGE_MAX_RETRIES; attempt++) {
+    const elapsed = Date.now() - startedAt;
+    const remainingMs = totalDeadlineMs - elapsed;
+    if (remainingMs <= 100) {
+      lastError = "timeout";
+      break;
+    }
+
+    try {
+      const result = await attemptRunner(remainingMs);
+      if (
+        !result.ok &&
+        result.error === "invalid_output" &&
+        attempt < KNOWLEDGE_MAX_RETRIES
+      ) {
+        lastError = result.error;
+        continue;
+      }
+      if (
+        !result.ok &&
+        result.error === "model_unavailable" &&
+        attempt < KNOWLEDGE_MAX_RETRIES
+      ) {
+        lastError = result.error;
+        continue;
+      }
+      if (!result.ok && result.error === "timeout") {
+        lastError = result.error;
+        break;
+      }
+
+      logCrmAiEvent({
+        task,
+        model,
+        ok: result.ok,
+        durationMs: Date.now() - startedAt,
+        error: result.ok ? undefined : result.error,
+      });
+      return result;
+    } catch (error) {
+      lastError = mapRunFailure(error);
+      if (lastError === "timeout") {
+        break;
+      }
+      if (
+        attempt >= KNOWLEDGE_MAX_RETRIES ||
+        (lastError !== "invalid_output" && lastError !== "model_unavailable")
+      ) {
+        break;
+      }
+    }
+  }
+
+  logCrmAiEvent({
+    task,
+    model,
+    ok: false,
+    durationMs: Date.now() - startedAt,
+    error: lastError,
+  });
+  return { ok: false, error: lastError };
+}
+
+export async function runKnowledgeOrganizeTask(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeOrganizeRequest,
+): Promise<AiServiceResult<KnowledgeOrganizeOutput>> {
+  const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  return runKnowledgeTaskWithRetries(
+    "knowledge_organize",
+    KNOWLEDGE_MODEL,
+    totalDeadlineMs,
+    (remainingMs) =>
+      runKnowledgeOrganize(
+        env,
+        request,
+        (model, task, schemaVersion, payload, timeoutMs) =>
+          invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
+        parseJsonValue,
+        remainingMs,
+      ),
+  );
+}
+
+export async function runKnowledgeQaTask(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeQaRequest,
+): Promise<AiServiceResult<KnowledgeQaOutput>> {
+  const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  return runKnowledgeTaskWithRetries(
+    "knowledge_qa",
+    KNOWLEDGE_MODEL,
+    totalDeadlineMs,
+    (remainingMs) =>
+      runKnowledgeQa(
+        env,
+        request,
+        (model, task, schemaVersion, payload, timeoutMs) =>
+          invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
+        parseJsonValue,
+        remainingMs,
+      ),
+  );
+}
+
 export async function handleCrmAiRequest(
   env: CrmAiEnv,
   request: CrmAiRequest,
@@ -610,6 +737,12 @@ export async function handleCrmAiRequest(
   }
   if (request.task === "staff_today_actions") {
     return runStaffTodayActions(env, request);
+  }
+  if (request.task === "knowledge_organize") {
+    return runKnowledgeOrganizeTask(env, request);
+  }
+  if (request.task === "knowledge_qa") {
+    return runKnowledgeQaTask(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -660,5 +793,16 @@ export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
         : undefined;
     return { task: record.task, model };
   }
+
+  const organizeRequest = validateKnowledgeOrganizeRequest(record);
+  if (organizeRequest) {
+    return organizeRequest;
+  }
+
+  const qaRequest = validateKnowledgeQaRequest(record);
+  if (qaRequest) {
+    return qaRequest;
+  }
+
   return null;
 }

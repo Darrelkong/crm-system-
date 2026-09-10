@@ -29,9 +29,10 @@ describe("Knowledge Package 3 migration boundary", () => {
     assert.doesNotMatch(migration, /r2\.dev|https?:\/\//i);
   });
 
-  it("does not change the production Wrangler bindings or Mail settings", () => {
+  it("keeps approved Production Knowledge binding and Mail settings unchanged", () => {
     const wrangler = readFileSync(join(process.cwd(), "wrangler.jsonc"), "utf8");
-    assert.doesNotMatch(wrangler, /KNOWLEDGE_SOURCES|crm-knowledge-sources/);
+    assert.match(wrangler, /"binding": "KNOWLEDGE_SOURCES"/);
+    assert.match(wrangler, /"bucket_name": "crm-knowledge-sources"/);
     assert.match(wrangler, /MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED": "true"/);
     assert.match(wrangler, /MAIL_LARGE_ATTACHMENT_SEND_ENABLED": "true"/);
   });

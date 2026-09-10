@@ -2,7 +2,9 @@ export type SystemAiTask =
   | "health_probe"
   | "structured_probe"
   | "admin_management_brief"
-  | "staff_today_actions";
+  | "staff_today_actions"
+  | "knowledge_organize"
+  | "knowledge_qa";
 
 export type AiServiceError =
   | "timeout"
@@ -62,10 +64,42 @@ export type CrmAiStaffActionsRequest = {
   context: Record<string, unknown>;
 };
 
+export type CrmAiKnowledgeOrganizeRequest = {
+  task: "knowledge_organize";
+  schemaVersion: string;
+  locale: string;
+  systemPrompt: string;
+  userPrompt: string;
+};
+
+export type CrmAiKnowledgeQaRequest = {
+  task: "knowledge_qa";
+  schemaVersion: string;
+  locale: string;
+  systemPrompt: string;
+  userPrompt: string;
+};
+
+export type KnowledgeOrganizeOutput = {
+  title: string;
+  summary: string | null;
+  body: string;
+  suggestedCategory: string | null;
+  warnings: string[];
+};
+
+export type KnowledgeQaOutput = {
+  answer: string;
+  citationIds: string[];
+  insufficientInformation: boolean;
+};
+
 export type CrmAiRequest =
   | CrmAiProbeRequest
   | CrmAiAdminBriefRequest
-  | CrmAiStaffActionsRequest;
+  | CrmAiStaffActionsRequest
+  | CrmAiKnowledgeOrganizeRequest
+  | CrmAiKnowledgeQaRequest;
 
 export type CrmAiEnv = {
   AI: Ai;
@@ -75,4 +109,6 @@ export type CrmAiEnv = {
 export type CrmAiHandleResult =
   | AiServiceResult<HealthProbeOutput>
   | AiServiceResult<AdminBriefOutput>
-  | AiServiceResult<StaffTodayActionsOutput>;
+  | AiServiceResult<StaffTodayActionsOutput>
+  | AiServiceResult<KnowledgeOrganizeOutput>
+  | AiServiceResult<KnowledgeQaOutput>;
