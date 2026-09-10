@@ -3184,6 +3184,28 @@ const en = {
       unpublishedChanges: "Unpublished changes",
       exactVersion: "Reviewing Version {{version}}",
     },
+    members: {
+      homeEntry: "Members & roles",
+      pageTitle: "Members & roles",
+      description:
+        "Manage member access and permissions within Knowledge.",
+      backToKnowledge: "Back to Knowledge",
+      knowledgeRole: "Knowledge role",
+      noRole: "No role assigned",
+      saveRole: "Save role",
+      savingRole: "Saving…",
+      roleSaved: "Role updated",
+      loadFailed: "Failed to load members",
+      updateFailed: "Failed to update role",
+      lastAdminError: "At least one Knowledge Admin must remain.",
+      noMembers: "No active members found.",
+      roles: {
+        viewer: "Viewer",
+        contributor: "Contributor",
+        reviewer: "Reviewer",
+        knowledge_admin: "Knowledge Admin",
+      },
+    },
     searchAi: {
       search: "Search Knowledge",
       ask: "Ask Knowledge AI",

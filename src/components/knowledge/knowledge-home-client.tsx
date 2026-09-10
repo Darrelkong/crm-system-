@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { KnowledgeSearchAiPanel } from "@/components/knowledge/knowledge-search-ai-panel";
@@ -25,6 +26,7 @@ export function KnowledgeHomeClient({
   role: KnowledgeRole | null;
 }) {
   const router = useRouter();
+  const { t } = useTranslation();
   const [catalog, setCatalog] = useState(initialCatalog);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
@@ -171,6 +173,15 @@ export function KnowledgeHomeClient({
               onClick={() => router.push("/knowledge/review")}
             >
               Review Center
+            </Button>
+          )}
+          {role === "knowledge_admin" && (
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => router.push("/knowledge/members")}
+            >
+              {t("knowledge.members.homeEntry")}
             </Button>
           )}
           <Button
