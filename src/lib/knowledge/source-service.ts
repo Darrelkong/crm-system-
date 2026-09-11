@@ -1,10 +1,14 @@
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import {
   KNOWLEDGE_ERROR_CODES,
 } from "@/lib/knowledge/constants";
-import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
+import {
+  buildKnowledgeAuditInsert,
+  type KnowledgeAuditInput,
+  writeKnowledgeAudit,
+} from "@/lib/knowledge/audit";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import {
@@ -61,6 +65,8 @@ const BLOCKED_EXTENSIONS = new Set([
   ".zip",
 ]);
 
+export type KnowledgeSourceLifecycle = "active" | "archived";
+
 export type KnowledgeSourceListItem = {
   id: string;
   sourceType: KnowledgeSourceType;
@@ -71,6 +77,8 @@ export type KnowledgeSourceListItem = {
   status: KnowledgeSourceStatus;
   failureCode: string | null;
   linkedArticleId: string | null;
+  archivedAt: string | null;
+  archivedByUserId: string | null;
   createdAt: string;
   updatedAt: string;
   processedAt: string | null;
@@ -109,7 +117,9 @@ function sourceError(
   return new KnowledgeServiceError(code, message, status);
 }
 
-function requireContributor(context: KnowledgeSessionContext): void {
+export function requireKnowledgeIngestRole(
+  context: KnowledgeSessionContext,
+): void {
   if (
     context.role !== "contributor" &&
     context.role !== "knowledge_admin"
@@ -118,24 +128,62 @@ function requireContributor(context: KnowledgeSessionContext): void {
   }
 }
 
-function canManageSource(
-  context: KnowledgeSessionContext,
-  source: Pick<KnowledgeSource, "createdByUserId">,
-): boolean {
-  return (
-    context.role === "knowledge_admin" ||
-    (context.role === "contributor" && source.createdByUserId === context.user.id)
-  );
+function requireContributor(context: KnowledgeSessionContext): void {
+  requireKnowledgeIngestRole(context);
 }
 
-function canViewSource(
+export function canManageKnowledgeSource(
   context: KnowledgeSessionContext,
   source: Pick<KnowledgeSource, "createdByUserId">,
 ): boolean {
+  if (context.role === "knowledge_admin") return true;
+  if (context.role !== "contributor") return false;
+  return source.createdByUserId === context.user.id;
+}
+
+export function canViewKnowledgeSource(
+  context: KnowledgeSessionContext,
+  source: Pick<KnowledgeSource, "createdByUserId">,
+): boolean {
+  return canManageKnowledgeSource(context, source);
+}
+
+function normalizeSourceLifecycle(value: unknown): KnowledgeSourceLifecycle {
+  if (value === "archived") return "archived";
+  return "active";
+}
+
+function assertSourceNotArchived(
+  source: Pick<KnowledgeSource, "archivedAt">,
+): void {
+  if (source.archivedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ARCHIVED,
+      "此来源已封存，无法继续操作",
+      409,
+    );
+  }
+}
+
+export async function getActiveKnowledgeOrganizationRun(
+  sourceId: string,
+  db: Database = getDb(),
+): Promise<KnowledgeAiOrganizationRun | null> {
   return (
-    context.role === "knowledge_admin" ||
-    source.createdByUserId === context.user.id
-  );
+    await db
+      .select()
+      .from(schema.knowledgeAiOrganizationRuns)
+      .where(
+        and(
+          eq(schema.knowledgeAiOrganizationRuns.sourceId, sourceId),
+          inArray(schema.knowledgeAiOrganizationRuns.status, [
+            "pending",
+            "processing",
+          ]),
+        ),
+      )
+      .limit(1)
+  )[0] ?? null;
 }
 
 function normalizeTitle(value: unknown): string | null {
@@ -311,6 +359,8 @@ function toListItem(source: KnowledgeSource): KnowledgeSourceListItem {
     status: source.status,
     failureCode: source.failureCode,
     linkedArticleId: source.linkedArticleId,
+    archivedAt: source.archivedAt,
+    archivedByUserId: source.archivedByUserId,
     createdAt: source.createdAt,
     updatedAt: source.updatedAt,
     processedAt: source.processedAt,
@@ -332,7 +382,7 @@ async function getSourceRow(
   if (!source) {
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_NOT_FOUND, "来源不存在", 404);
   }
-  if (!canViewSource(context, source)) {
+  if (!canViewKnowledgeSource(context, source)) {
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, "来源访问被拒绝", 403);
   }
   return source;
@@ -385,16 +435,25 @@ function mapOrganization(
 
 export async function listKnowledgeSources(
   context: KnowledgeSessionContext,
+  options: { lifecycle?: KnowledgeSourceLifecycle } = {},
   db: Database = getDb(),
 ): Promise<KnowledgeSourceListItem[]> {
+  requireKnowledgeIngestRole(context);
+  const lifecycle = normalizeSourceLifecycle(options.lifecycle);
+  const conditions = [
+    lifecycle === "archived"
+      ? isNotNull(schema.knowledgeSources.archivedAt)
+      : isNull(schema.knowledgeSources.archivedAt),
+  ];
+  if (context.role !== "knowledge_admin") {
+    conditions.push(
+      eq(schema.knowledgeSources.createdByUserId, context.user.id),
+    );
+  }
   const rows = await db
     .select()
     .from(schema.knowledgeSources)
-    .where(
-      context.role === "knowledge_admin"
-        ? undefined
-        : eq(schema.knowledgeSources.createdByUserId, context.user.id),
-    )
+    .where(and(...conditions))
     .orderBy(desc(schema.knowledgeSources.updatedAt));
   return rows.map(toListItem);
 }
@@ -597,15 +656,106 @@ export async function createKnowledgeFileSource(
   return getKnowledgeSource(context, id, db);
 }
 
+export async function archiveKnowledgeSource(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  expectedUpdatedAt: string,
+  meta: Pick<KnowledgeAuditInput, "ipAddress" | "userAgent">,
+  db: Database = getDb(),
+): Promise<KnowledgeSourceDetail> {
+  const source = await getSourceRow(context, sourceId, db);
+  if (!canManageKnowledgeSource(context, source)) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED,
+      "来源封存权限不足",
+      403,
+    );
+  }
+  if (source.archivedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_ARCHIVED,
+      "此来源已封存",
+      409,
+    );
+  }
+  if (source.status === "organizing") {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_NOT_ARCHIVABLE,
+      "来源正在整理中，无法封存",
+      409,
+    );
+  }
+  if (await getActiveKnowledgeOrganizationRun(sourceId, db)) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_NOT_ARCHIVABLE,
+      "来源有进行中的整理，无法封存",
+      409,
+    );
+  }
+  if (source.updatedAt !== expectedUpdatedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+      "来源已被其他用户更新，请重新载入",
+      409,
+    );
+  }
+  const archivedAt = new Date().toISOString();
+  const previousStatus = source.status;
+  await db.batch([
+    db
+      .update(schema.knowledgeSources)
+      .set({
+        archivedAt,
+        archivedByUserId: context.user.id,
+        updatedAt: archivedAt,
+      })
+      .where(
+        and(
+          eq(schema.knowledgeSources.id, sourceId),
+          eq(schema.knowledgeSources.updatedAt, expectedUpdatedAt),
+          isNull(schema.knowledgeSources.archivedAt),
+        ),
+      ),
+    buildKnowledgeAuditInsert(db, {
+      userId: context.user.id,
+      action: "knowledge_source_archived",
+      entityType: "knowledge_source",
+      entityId: sourceId,
+      ...meta,
+      metadata: {
+        sourceId,
+        previousStatus,
+        linkedArticleId: source.linkedArticleId,
+      },
+    }),
+  ]);
+  const archived = (
+    await db
+      .select()
+      .from(schema.knowledgeSources)
+      .where(eq(schema.knowledgeSources.id, sourceId))
+      .limit(1)
+  )[0];
+  if (!archived?.archivedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+      "来源已被其他用户更新，请重新载入",
+      409,
+    );
+  }
+  return getKnowledgeSource(context, sourceId, db);
+}
+
 export async function markKnowledgeSourceOrganizing(
   context: KnowledgeSessionContext,
   sourceId: string,
   db: Database = getDb(),
 ): Promise<KnowledgeSource> {
   const source = await getSourceRow(context, sourceId, db);
-  if (!canManageSource(context, source)) {
+  if (!canManageKnowledgeSource(context, source)) {
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, "来源整理权限不足", 403);
   }
+  assertSourceNotArchived(source);
   if (source.status !== "ready" && source.status !== "organized") {
     throw sourceError(
       KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
@@ -661,9 +811,10 @@ export async function markKnowledgeSourceConverted(
   db: Database = getDb(),
 ): Promise<void> {
   const source = await getSourceRow(context, sourceId, db);
-  if (!canManageSource(context, source)) {
+  if (!canManageKnowledgeSource(context, source)) {
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, "来源转换权限不足", 403);
   }
+  assertSourceNotArchived(source);
   if (source.linkedArticleId || source.status === "converted") {
     throw sourceError(
       KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_CONVERTED,
@@ -720,9 +871,10 @@ export async function convertKnowledgeSourceToDraft(
   db: Database = getDb(),
 ) {
   const source = await getSourceRow(context, sourceId, db);
-  if (!canManageSource(context, source)) {
+  if (!canManageKnowledgeSource(context, source)) {
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, "来源转换权限不足", 403);
   }
+  assertSourceNotArchived(source);
   if (source.linkedArticleId || source.status === "converted") {
     throw sourceError(
       KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_CONVERTED,
@@ -773,5 +925,8 @@ export function isKnowledgeSourceOwner(
   context: KnowledgeSessionContext,
   source: Pick<KnowledgeSource, "createdByUserId">,
 ): boolean {
-  return canViewSource(context, source);
+  return (
+    context.role === "contributor" &&
+    source.createdByUserId === context.user.id
+  );
 }

@@ -16,7 +16,12 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   try {
     const context = await requireKnowledgeAccess(request);
-    return Response.json({ sources: await listKnowledgeSources(context) });
+    const lifecycle = new URL(request.url).searchParams.get("lifecycle");
+    return Response.json({
+      sources: await listKnowledgeSources(context, {
+        lifecycle: lifecycle === "archived" ? "archived" : "active",
+      }),
+    });
   } catch (error) {
     return knowledgeErrorResponse(error);
   }

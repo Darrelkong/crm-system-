@@ -9,6 +9,8 @@ const routes = [
   "src/app/api/knowledge/sources/[id]/convert/route.ts",
 ];
 
+const patchRoute = "src/app/api/knowledge/sources/[id]/route.ts";
+
 describe("Knowledge Package 3 boundaries", () => {
   it("protects every source route with Package 1 Knowledge guards", () => {
     for (const route of routes) {
@@ -19,6 +21,13 @@ describe("Knowledge Package 3 boundaries", () => {
         /\b(customer_id|contact_id|lead_id|mail_message_id|approval_id|follow_up_id)\b/,
       );
     }
+  });
+
+  it("supports archive through PATCH without delete endpoints", () => {
+    const source = readFileSync(patchRoute, "utf8");
+    assert.match(source, /archiveKnowledgeSource/);
+    assert.match(source, /input\.archive === true/);
+    assert.doesNotMatch(source, /\bDELETE\b/);
   });
 
   it("keeps raw files private and blocks automatic publication", () => {

@@ -52,6 +52,10 @@ export const knowledgeSources = sqliteTable(
       () => knowledgeArticles.id,
       { onDelete: "set null" },
     ),
+    archivedAt: text("archived_at"),
+    archivedByUserId: text("archived_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
   (table) => [
     index("idx_knowledge_sources_creator_updated").on(
@@ -63,6 +67,11 @@ export const knowledgeSources = sqliteTable(
       table.updatedAt,
     ),
     index("idx_knowledge_sources_content_hash").on(table.contentHash),
+    index("idx_knowledge_sources_active_updated").on(table.updatedAt),
+    index("idx_knowledge_sources_archived_updated").on(
+      table.archivedAt,
+      table.updatedAt,
+    ),
     check(
       "knowledge_sources_type_allowed",
       sql`${table.sourceType} IN ('paste', 'file')`,

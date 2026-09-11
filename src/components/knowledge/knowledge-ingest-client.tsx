@@ -12,6 +12,8 @@ import type {
   KnowledgeSourceListItem,
 } from "@/lib/knowledge/source-service";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
+import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
+import type { KnowledgeSourceLifecycle } from "@/lib/knowledge/source-service";
 
 function statusLabel(
   t: (key: string, params?: Record<string, string>) => string,
@@ -35,6 +37,7 @@ export function KnowledgeIngestClient({
   const [sourceTitle, setSourceTitle] = useState("");
   const [rawText, setRawText] = useState("");
   const [file, setFile] = useState<File | null>(null);
+  const [lifecycle, setLifecycle] = useState<KnowledgeSourceLifecycle>("active");
   const [sources, setSources] = useState(initialSources);
   const [selected, setSelected] = useState<KnowledgeSourceDetail | null>(null);
   const [title, setTitle] = useState("");
@@ -58,6 +61,26 @@ export function KnowledgeIngestClient({
         category.slug.toLocaleLowerCase() === suggested,
     );
     setCategoryId(match?.id ?? "");
+  }
+
+  async function reloadSources(nextLifecycle: KnowledgeSourceLifecycle = lifecycle) {
+    const response = await fetch(
+      `/api/knowledge/sources?lifecycle=${nextLifecycle}`,
+      { cache: "no-store" },
+    );
+    const payload = (await response.json()) as {
+      sources?: KnowledgeSourceListItem[];
+    };
+    if (response.ok && payload.sources) {
+      setSources(payload.sources);
+    }
+  }
+
+  async function switchLifecycle(nextLifecycle: KnowledgeSourceLifecycle) {
+    setLifecycle(nextLifecycle);
+    setSelected(null);
+    setSaved(false);
+    await reloadSources(nextLifecycle);
   }
 
   async function loadSource(sourceId: string) {
@@ -195,6 +218,8 @@ export function KnowledgeIngestClient({
     role === "contributor" ||
     role === "knowledge_admin";
   const organizationReady = selected?.organization?.status === "completed";
+  const isArchivedView = lifecycle === "archived";
+  const selectedArchived = Boolean(selected?.archivedAt);
 
   if (!canIngest) {
     return (
@@ -214,10 +239,36 @@ export function KnowledgeIngestClient({
         <aside className="space-y-4">
           <Card className="p-4">
             <h2 className="font-semibold crm-text">{t("knowledge.ingest.sourceList")}</h2>
+            <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1">
+              <button
+                type="button"
+                className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
+                  lifecycle === "active"
+                    ? "bg-blue-50 font-medium text-blue-700"
+                    : "border border-slate-200 bg-white crm-text-secondary"
+                }`}
+                onClick={() => void switchLifecycle("active")}
+              >
+                {t("knowledge.ingest.lifecycleActive")}
+              </button>
+              <button
+                type="button"
+                className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
+                  lifecycle === "archived"
+                    ? "bg-blue-50 font-medium text-blue-700"
+                    : "border border-slate-200 bg-white crm-text-secondary"
+                }`}
+                onClick={() => void switchLifecycle("archived")}
+              >
+                {t("knowledge.ingest.lifecycleArchived")}
+              </button>
+            </div>
             <div className="mt-3 space-y-2">
               {sources.length === 0 ? (
                 <p className="text-sm crm-text-secondary">
-                  {t("knowledge.ingest.noSources")}
+                  {isArchivedView
+                    ? t("knowledge.ingest.noArchivedSources")
+                    : t("knowledge.ingest.noSources")}
                 </p>
               ) : (
                 sources.map((source) => (
@@ -230,8 +281,15 @@ export function KnowledgeIngestClient({
                     <span className="block truncate text-sm font-medium crm-text">
                       {source.sourceTitle ?? source.originalFilename ?? source.id.slice(0, 8)}
                     </span>
-                    <span className="mt-1 block text-xs crm-text-secondary">
-                      {statusLabel(t, source.status)}
+                    <span className="mt-1 flex flex-wrap items-center gap-2 text-xs crm-text-secondary">
+                      <span>{statusLabel(t, source.status)}</span>
+                      <span>·</span>
+                      <span>{source.sourceType}</span>
+                      <span>·</span>
+                      <span>{new Date(source.createdAt).toLocaleDateString()}</span>
+                      {source.archivedAt && (
+                        <Badge>{t("knowledge.ingest.archivedBadge")}</Badge>
+                      )}
                     </span>
                   </button>
                 ))
@@ -241,6 +299,7 @@ export function KnowledgeIngestClient({
         </aside>
 
         <main className="min-w-0 space-y-4">
+          {!isArchivedView && (
           <Card>
             <div className="flex flex-wrap gap-2">
               <Button
@@ -300,6 +359,7 @@ export function KnowledgeIngestClient({
               </Button>
             </form>
           </Card>
+          )}
 
           {selected && (
             <Card>
@@ -312,11 +372,16 @@ export function KnowledgeIngestClient({
                     {selected.originalFilename ?? selected.sourceTitle ?? selected.sourceType}
                   </p>
                 </div>
-                <Badge
-                  variant={selected.status === "failed" ? "danger" : "accent"}
-                >
-                  {statusLabel(t, selected.status)}
-                </Badge>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant={selected.status === "failed" ? "danger" : "accent"}
+                  >
+                    {statusLabel(t, selected.status)}
+                  </Badge>
+                  {selectedArchived && (
+                    <Badge>{t("knowledge.ingest.archivedBadge")}</Badge>
+                  )}
+                </div>
               </div>
               <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
                 <div>
@@ -350,9 +415,10 @@ export function KnowledgeIngestClient({
                 </p>
               )}
               {selected.rawText &&
+                !selectedArchived &&
                 selected.status !== "converted" &&
                 !organizationReady && (
-                  <div className="mt-5">
+                  <div className="mt-5 flex flex-wrap items-center gap-3">
                     <Button
                       type="button"
                       onClick={() => void organize()}
@@ -362,12 +428,43 @@ export function KnowledgeIngestClient({
                         ? t("knowledge.ingest.organizing")
                         : t("knowledge.ingest.organize")}
                     </Button>
+                    <KnowledgeSourceArchiveButton
+                      sourceId={selected.id}
+                      updatedAt={selected.updatedAt}
+                      onArchived={() => {
+                        setSelected(null);
+                        void reloadSources("active");
+                        void switchLifecycle("active");
+                        router.refresh();
+                      }}
+                    />
+                  </div>
+                )}
+              {selectedArchived && (
+                <p className="mt-5 text-sm crm-text-secondary">
+                  {t("knowledge.ingest.archivedReadOnly")}
+                </p>
+              )}
+              {!selectedArchived &&
+                selected.status !== "organizing" &&
+                !(selected.rawText && selected.status !== "converted" && !organizationReady) && (
+                  <div className="mt-5">
+                    <KnowledgeSourceArchiveButton
+                      sourceId={selected.id}
+                      updatedAt={selected.updatedAt}
+                      onArchived={() => {
+                        setSelected(null);
+                        void reloadSources("active");
+                        void switchLifecycle("active");
+                        router.refresh();
+                      }}
+                    />
                   </div>
                 )}
             </Card>
           )}
 
-          {organizationReady && selected && (
+          {organizationReady && selected && !selectedArchived && (
             <Card>
               <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
                 <p className="font-semibold text-blue-950">

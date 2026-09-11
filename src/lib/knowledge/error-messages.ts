@@ -45,6 +45,11 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
     "knowledge.errors.sourceAccessDenied",
   [KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_CONVERTED]:
     "knowledge.errors.sourceAlreadyConverted",
+  [KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_ARCHIVED]:
+    "knowledge.errors.sourceAlreadyArchived",
+  [KNOWLEDGE_ERROR_CODES.SOURCE_ARCHIVED]: "knowledge.errors.sourceArchived",
+  [KNOWLEDGE_ERROR_CODES.SOURCE_NOT_ARCHIVABLE]:
+    "knowledge.errors.sourceNotArchivable",
   [KNOWLEDGE_ERROR_CODES.UNSUPPORTED_FILE_TYPE]:
     "knowledge.errors.unsupportedFileType",
   [KNOWLEDGE_ERROR_CODES.FILE_TOO_LARGE]: "knowledge.errors.fileTooLarge",
