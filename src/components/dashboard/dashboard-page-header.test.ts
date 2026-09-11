@@ -10,6 +10,10 @@ describe("dashboard page header", () => {
       "src/components/dashboard/dashboard-header-actions.tsx",
       "utf8",
     );
+    const header = readFileSync(
+      "src/components/dashboard/dashboard-page-header.tsx",
+      "utf8",
+    );
 
     for (const source of [adminPage, staffPage]) {
       assert.match(source, /DashboardPageHeader/);
@@ -24,10 +28,9 @@ describe("dashboard page header", () => {
     assert.match(actions, /href="\/knowledge"/);
     assert.match(actions, /Knowledge AI/);
     assert.doesNotMatch(actions, /grid-cols-2/);
-    assert.match(
-      readFileSync("src/components/dashboard/dashboard-page-header.tsx", "utf8"),
-      /justify-end/,
-    );
+    assert.match(header, /DashboardHeaderActions/);
+    assert.doesNotMatch(header, /justify-end/);
+    assert.doesNotMatch(actions, /justify-end/);
     assert.doesNotMatch(actions, /knowledge_admin|knowledgeAdmin|role ===/i);
   });
 
@@ -41,5 +44,17 @@ describe("dashboard page header", () => {
     assert.match(header, /\{displayName\}/);
     assert.doesNotMatch(header, /layout\.greeting"/);
     assert.doesNotMatch(header, /titleParams/);
+  });
+
+  it("keeps hero actions aligned with the greeting content column", () => {
+    const header = readFileSync(
+      "src/components/dashboard/dashboard-page-header.tsx",
+      "utf8",
+    );
+
+    assert.match(header, /getAdminDisplayNameClass/);
+    assert.match(header, /mt-6 sm:mt-7/);
+    assert.doesNotMatch(header, /sm:flex-row/);
+    assert.doesNotMatch(header, /sm:justify-between/);
   });
 });

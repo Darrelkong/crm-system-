@@ -12,6 +12,13 @@ describe("dashboard visual refinement", () => {
     assert.match(adminClient, /DashboardSourceDistributionDonut/);
     assert.match(adminClient, /DashboardSalesStageOverview/);
     assert.doesNotMatch(adminClient, /SimpleBarRow/);
+    assert.doesNotMatch(
+      readFileSync(
+        "src/components/dashboard/dashboard-source-distribution-donut.tsx",
+        "utf8",
+      ),
+      /grid-cols-1 gap-2 sm:flex-1/,
+    );
   });
 
   it("keeps stage distribution card compact with expandable full stage access", () => {

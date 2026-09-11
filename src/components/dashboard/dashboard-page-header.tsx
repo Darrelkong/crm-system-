@@ -1,7 +1,19 @@
 "use client";
 
 import { DashboardHeaderActions } from "@/components/dashboard/dashboard-header-actions";
+import { cn } from "@/lib/cn";
 import { useTranslation } from "@/i18n/provider";
+
+function getAdminDisplayNameClass(displayName: string): string {
+  const length = displayName.length;
+  if (length > 18) {
+    return "text-[1.75rem] leading-[1.12] sm:text-[1.875rem]";
+  }
+  if (length > 12) {
+    return "text-[2rem] leading-[1.1] sm:text-[2.125rem]";
+  }
+  return "text-[2.25rem] leading-[1.08] sm:text-[2.5rem]";
+}
 
 export function DashboardPageHeader({
   displayName,
@@ -15,26 +27,25 @@ export function DashboardPageHeader({
   const { t } = useTranslation();
   const displayNameClassName =
     nameEmphasis === "admin"
-      ? "text-[2rem] font-bold leading-[1.1] tracking-tight sm:text-[2.375rem]"
-      : "text-[1.875rem] font-bold leading-tight tracking-tight sm:text-[2.125rem]";
+      ? cn(
+          "font-bold tracking-tight text-[var(--color-crm-text)] break-words",
+          getAdminDisplayNameClass(displayName),
+        )
+      : "text-[1.875rem] font-bold leading-tight tracking-tight text-[var(--color-crm-text)] break-words sm:text-[2.125rem]";
 
   return (
-    <div className="page-header flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-      <div className="min-w-0 flex-1">
-        <p className="text-[1.0625rem] leading-snug text-[var(--color-crm-text-secondary)] sm:text-lg">
+    <div className="page-header">
+      <div className="min-w-0">
+        <p className="text-[1.125rem] font-medium leading-snug text-slate-500 sm:text-[1.1875rem]">
           {t("layout.greetingHello")}
         </p>
-        <h1
-          className={`mt-0.5 break-words text-[var(--color-crm-text)] ${displayNameClassName}`}
-        >
-          {displayName}
-        </h1>
-        <p className="page-description mt-1.5 text-[0.9375rem] sm:text-base">
+        <h1 className={cn("mt-1", displayNameClassName)}>{displayName}</h1>
+        <p className="page-description mt-2 text-[0.9375rem] sm:text-base">
           {t(descriptionKey)}
         </p>
-      </div>
-      <div className="flex w-full justify-end sm:w-auto sm:shrink-0">
-        <DashboardHeaderActions />
+        <div className="mt-6 sm:mt-7">
+          <DashboardHeaderActions />
+        </div>
       </div>
     </div>
   );
