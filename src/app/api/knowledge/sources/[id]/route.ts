@@ -4,6 +4,7 @@ import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
   archiveKnowledgeSource,
   getKnowledgeSource,
+  restoreKnowledgeSource,
 } from "@/lib/knowledge/source-service";
 import {
   knowledgeErrorResponse,
@@ -30,7 +31,14 @@ export async function PATCH(request: Request, context: RouteContext) {
     const actor = await requireKnowledgeAccess(request);
     const input = (await request.json()) as Record<string, unknown>;
     const { ipAddress, userAgent } = getRequestMeta(request);
-    if (input.archive === true) {
+    if (input.archive === true && input.restore === true) {
+      throw new KnowledgeServiceError(
+        KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+        "Conflicting source lifecycle action",
+        400,
+      );
+    }
+    if (input.archive === true || input.restore === true) {
       if (typeof input.expectedUpdatedAt !== "string") {
         throw new KnowledgeServiceError(
           KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
@@ -38,12 +46,20 @@ export async function PATCH(request: Request, context: RouteContext) {
           409,
         );
       }
-      const source = await archiveKnowledgeSource(
-        actor,
-        id,
-        input.expectedUpdatedAt,
-        { ipAddress, userAgent },
-      );
+      const source =
+        input.restore === true
+          ? await restoreKnowledgeSource(
+              actor,
+              id,
+              input.expectedUpdatedAt,
+              { ipAddress, userAgent },
+            )
+          : await archiveKnowledgeSource(
+              actor,
+              id,
+              input.expectedUpdatedAt,
+              { ipAddress, userAgent },
+            );
       return Response.json({ source });
     }
     throw new KnowledgeServiceError(

@@ -23,10 +23,12 @@ describe("Knowledge Package 3 boundaries", () => {
     }
   });
 
-  it("supports archive through PATCH without delete endpoints", () => {
+  it("supports archive and restore through PATCH without delete endpoints", () => {
     const source = readFileSync(patchRoute, "utf8");
     assert.match(source, /archiveKnowledgeSource/);
+    assert.match(source, /restoreKnowledgeSource/);
     assert.match(source, /input\.archive === true/);
+    assert.match(source, /input\.restore === true/);
     assert.doesNotMatch(source, /\bDELETE\b/);
   });
 

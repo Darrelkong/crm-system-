@@ -3162,8 +3162,11 @@ const en = {
       sourceAlreadyConverted: "This source has already been converted to a draft.",
       sourceAlreadyArchived: "This source is already archived.",
       sourceArchived: "This source is archived and cannot be changed.",
+      sourceNotArchived: "This source is not archived.",
       sourceNotArchivable:
         "This source cannot be archived while organization is in progress.",
+      sourceRestoreConflict:
+        "The source has changed. Reload and try again.",
       unsupportedFileType: "This file type is not supported.",
       fileTooLarge: "The file exceeds the allowed size limit.",
       mimeMismatch: "The file type does not match its extension.",
@@ -3340,6 +3343,14 @@ const en = {
       confirmArchiveMessage:
         "This source will be removed from the active list. Organizer history is preserved, linked articles are not affected, and the source is not permanently deleted.",
       archiveFailed: "Could not archive this source.",
+      restoreSource: "Restore source",
+      confirmRestore: "Restore source",
+      cancelRestore: "Cancel",
+      confirmRestoreMessage:
+        "This source will return to the Active list. Its original workflow status, AI history, linked article, and stored file will remain unchanged.",
+      restoreFailed: "Could not restore this source.",
+      restoreSuccess: "Source restored to the Active list.",
+      restoreUnavailable: "Restore is not available for this source.",
       archivedReadOnly: "This archived source is read-only. Organizer history is preserved.",
       noSources: "No raw sources yet.",
       noArchivedSources: "No archived sources.",

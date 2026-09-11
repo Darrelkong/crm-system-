@@ -22,6 +22,7 @@ export type KnowledgeAuditAction =
   | "knowledge_ai_organization_failed"
   | "knowledge_source_converted_to_draft"
   | "knowledge_source_archived"
+  | "knowledge_source_restored"
   | "knowledge_review_submitted"
   | "knowledge_review_assigned"
   | "knowledge_review_withdrawn"

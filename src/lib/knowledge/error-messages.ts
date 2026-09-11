@@ -48,8 +48,12 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
   [KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_ARCHIVED]:
     "knowledge.errors.sourceAlreadyArchived",
   [KNOWLEDGE_ERROR_CODES.SOURCE_ARCHIVED]: "knowledge.errors.sourceArchived",
+  [KNOWLEDGE_ERROR_CODES.SOURCE_NOT_ARCHIVED]:
+    "knowledge.errors.sourceNotArchived",
   [KNOWLEDGE_ERROR_CODES.SOURCE_NOT_ARCHIVABLE]:
     "knowledge.errors.sourceNotArchivable",
+  [KNOWLEDGE_ERROR_CODES.SOURCE_RESTORE_CONFLICT]:
+    "knowledge.errors.sourceRestoreConflict",
   [KNOWLEDGE_ERROR_CODES.UNSUPPORTED_FILE_TYPE]:
     "knowledge.errors.unsupportedFileType",
   [KNOWLEDGE_ERROR_CODES.FILE_TOO_LARGE]: "knowledge.errors.fileTooLarge",

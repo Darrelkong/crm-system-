@@ -746,6 +746,85 @@ export async function archiveKnowledgeSource(
   return getKnowledgeSource(context, sourceId, db);
 }
 
+export async function restoreKnowledgeSource(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  expectedUpdatedAt: string,
+  meta: Pick<KnowledgeAuditInput, "ipAddress" | "userAgent">,
+  db: Database = getDb(),
+): Promise<KnowledgeSourceDetail> {
+  const source = await getSourceRow(context, sourceId, db);
+  if (!canManageKnowledgeSource(context, source)) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED,
+      "来源恢复权限不足",
+      403,
+    );
+  }
+  if (!source.archivedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_NOT_ARCHIVED,
+      "此来源未封存",
+      409,
+    );
+  }
+  if (source.updatedAt !== expectedUpdatedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_RESTORE_CONFLICT,
+      "来源已被其他用户更新，请重新载入",
+      409,
+    );
+  }
+  const restoredAt = new Date().toISOString();
+  const previousStatus = source.status;
+  const archivedAtBefore = source.archivedAt;
+  await db.batch([
+    db
+      .update(schema.knowledgeSources)
+      .set({
+        archivedAt: null,
+        archivedByUserId: null,
+        updatedAt: restoredAt,
+      })
+      .where(
+        and(
+          eq(schema.knowledgeSources.id, sourceId),
+          eq(schema.knowledgeSources.updatedAt, expectedUpdatedAt),
+          isNotNull(schema.knowledgeSources.archivedAt),
+        ),
+      ),
+    buildKnowledgeAuditInsert(db, {
+      userId: context.user.id,
+      action: "knowledge_source_restored",
+      entityType: "knowledge_source",
+      entityId: sourceId,
+      ...meta,
+      metadata: {
+        sourceId,
+        previousStatus,
+        sourceType: source.sourceType,
+        linkedArticleId: source.linkedArticleId,
+        archivedAt: archivedAtBefore,
+      },
+    }),
+  ]);
+  const restored = (
+    await db
+      .select()
+      .from(schema.knowledgeSources)
+      .where(eq(schema.knowledgeSources.id, sourceId))
+      .limit(1)
+  )[0];
+  if (restored?.archivedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_RESTORE_CONFLICT,
+      "来源已被其他用户更新，请重新载入",
+      409,
+    );
+  }
+  return getKnowledgeSource(context, sourceId, db);
+}
+
 export async function markKnowledgeSourceOrganizing(
   context: KnowledgeSessionContext,
   sourceId: string,

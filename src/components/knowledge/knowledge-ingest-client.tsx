@@ -13,6 +13,7 @@ import type {
 } from "@/lib/knowledge/source-service";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
+import { KnowledgeSourceRestoreButton } from "@/components/knowledge/knowledge-source-restore-button";
 import type { KnowledgeSourceLifecycle } from "@/lib/knowledge/source-service";
 
 function statusLabel(
@@ -47,6 +48,7 @@ export function KnowledgeIngestClient({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
 
   function applyOrganization(source: KnowledgeSourceDetail) {
     const organization = source.organization;
@@ -80,6 +82,7 @@ export function KnowledgeIngestClient({
     setLifecycle(nextLifecycle);
     setSelected(null);
     setSaved(false);
+    setRestoreNotice(null);
     await reloadSources(nextLifecycle);
   }
 
@@ -234,6 +237,11 @@ export function KnowledgeIngestClient({
       <Card className="border-amber-200 bg-amber-50">
         <p className="text-sm leading-6 text-amber-950">{t("knowledge.ingest.notice")}</p>
       </Card>
+      {restoreNotice && (
+        <Card className="border-emerald-200 bg-emerald-50">
+          <p className="text-sm leading-6 text-emerald-950">{restoreNotice}</p>
+        </Card>
+      )}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]">
         <aside className="space-y-4">
@@ -441,9 +449,21 @@ export function KnowledgeIngestClient({
                   </div>
                 )}
               {selectedArchived && (
-                <p className="mt-5 text-sm crm-text-secondary">
-                  {t("knowledge.ingest.archivedReadOnly")}
-                </p>
+                <div className="mt-5 space-y-3">
+                  <p className="text-sm crm-text-secondary">
+                    {t("knowledge.ingest.archivedReadOnly")}
+                  </p>
+                  <KnowledgeSourceRestoreButton
+                    sourceId={selected.id}
+                    updatedAt={selected.updatedAt}
+                    onRestored={() => {
+                      setRestoreNotice(t("knowledge.ingest.restoreSuccess"));
+                      setSelected(null);
+                      void switchLifecycle("active");
+                      router.refresh();
+                    }}
+                  />
+                </div>
               )}
               {!selectedArchived &&
                 selected.status !== "organizing" &&
