@@ -2808,6 +2808,10 @@ const zhHans: Messages = {
     stageDistributionScopeHint:
       "仅统计当前由有效内部成员持有的私有活跃客户，不包含公共池和归档客户。",
     stageDistributionShare: "占比 {{percent}}%",
+    viewAllStages: "查看全部阶段",
+    viewAllSourceDetails: "查看全部",
+    sourceDistributionOther: "其他",
+    sourceDistributionCenterLabel: "来源",
     teamExecutionOverview: "团队执行概览",
     teamExecutionReportingPeriod: "统计周期",
     teamExecutionLast7Days: "最近 7 天",

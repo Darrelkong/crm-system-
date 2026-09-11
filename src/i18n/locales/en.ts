@@ -2984,6 +2984,10 @@ const en = {
     stageDistributionScopeHint:
       "Includes active private customers owned by valid internal team members. Public-pool and archived customers are excluded.",
     stageDistributionShare: "{{percent}}% share",
+    viewAllStages: "View all stages",
+    viewAllSourceDetails: "View all sources",
+    sourceDistributionOther: "Other",
+    sourceDistributionCenterLabel: "Sources",
     teamExecutionOverview: "Team execution overview",
     teamExecutionReportingPeriod: "Reporting period",
     teamExecutionLast7Days: "Last 7 days",

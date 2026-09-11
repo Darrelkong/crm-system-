@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { useTranslation } from "@/i18n/provider";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
@@ -29,6 +30,7 @@ export function DashboardStageDistributionCard({
 }: Props) {
   const { t } = useTranslation();
   const { salesStage } = useCustomerLabels();
+  const [expanded, setExpanded] = useState(false);
 
   if (error) {
     return (
@@ -53,6 +55,8 @@ export function DashboardStageDistributionCard({
   }
 
   const nonZeroStages = distribution.stages.filter((stage) => stage.count > 0);
+  const zeroStages = distribution.stages.filter((stage) => stage.count === 0);
+  const visibleStages = expanded ? distribution.stages : nonZeroStages;
   const isEmpty = distribution.totalCustomers === 0;
   const countLabel =
     distribution.role === "admin"
@@ -86,7 +90,7 @@ export function DashboardStageDistributionCard({
       ) : (
         <>
           <div
-            className="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-slate-100"
+            className="mt-4 flex h-3 w-full overflow-hidden rounded-full bg-slate-100 motion-safe:transition-all motion-safe:duration-500"
             role="img"
             aria-label={t("dashboard.stageDistributionTitle")}
           >
@@ -103,53 +107,56 @@ export function DashboardStageDistributionCard({
             ))}
           </div>
 
-          <ul className="mt-4 space-y-2">
-            {distribution.stages.map((stage) => {
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            {visibleStages.map((stage) => {
               const label = resolveStageLabel(stage.labelKey, t, salesStage);
-              const row = (
-                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <div className="flex min-w-0 items-center gap-2">
+              const chip = (
+                <div className="h-full rounded-xl border border-slate-100 px-3 py-2.5">
+                  <div className="flex items-center justify-between gap-2">
                     <span
-                      className={`inline-flex shrink-0 rounded-full px-2 py-0.5 text-xs font-medium ${getSalesStageBadgeClass(stage.tone)}`}
+                      className={`inline-flex max-w-[72%] truncate rounded-full px-2 py-0.5 text-xs font-medium ${getSalesStageBadgeClass(stage.tone)}`}
                     >
                       {label}
                     </span>
-                    <span className="text-sm crm-text-secondary">
-                      {t("dashboard.stageDistributionShare", {
-                        percent: String(stage.percentage),
-                      })}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3 sm:justify-end">
-                    <div className="h-1.5 w-full max-w-[8rem] rounded-full bg-slate-100 sm:w-28">
-                      <div
-                        className={`h-full rounded-full ${getSalesStageBadgeClass(stage.tone)}`}
-                        style={{ width: `${Math.max(stage.percentage, 0)}%` }}
-                      />
-                    </div>
                     <span className="shrink-0 text-sm font-semibold tabular-nums crm-text">
                       {stage.count}
                     </span>
                   </div>
+                  <p className="mt-1 text-xs crm-text-secondary">
+                    {t("dashboard.stageDistributionShare", {
+                      percent: String(stage.percentage),
+                    })}
+                  </p>
                 </div>
               );
 
-              return (
-                <li key={stage.key} className="rounded-lg border border-slate-100 px-3 py-2.5">
-                  {stage.href ? (
-                    <Link
-                      href={stage.href}
-                      className="block transition-colors hover:bg-slate-50/80"
-                    >
-                      {row}
-                    </Link>
-                  ) : (
-                    row
-                  )}
-                </li>
+              return stage.href ? (
+                <Link
+                  key={stage.key}
+                  href={stage.href}
+                  className="block transition-colors hover:bg-slate-50/80"
+                >
+                  {chip}
+                </Link>
+              ) : (
+                <div key={stage.key}>{chip}</div>
               );
             })}
-          </ul>
+          </div>
+
+          {zeroStages.length > 0 ? (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setExpanded((value) => !value)}
+                className="text-sm font-medium text-[var(--color-crm-primary)] hover:underline"
+              >
+                {expanded
+                  ? t("common.collapse")
+                  : t("dashboard.viewAllStages")}
+              </button>
+            </div>
+          ) : null}
         </>
       )}
     </Card>

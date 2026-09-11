@@ -16,22 +16,25 @@ export function DashboardHeaderActions() {
   const { t } = useTranslation();
 
   return (
-    <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto sm:flex-wrap">
-      <Link href="/customers/new" className="min-w-0">
-        <Button size="lg" className="h-full w-full gap-2 sm:w-auto">
+    <div className="inline-flex max-w-full flex-row items-stretch justify-end gap-2">
+      <Link href="/customers/new" className="shrink-0">
+        <Button size="md" className="gap-1.5 px-3.5 whitespace-nowrap">
           <Plus className="h-4 w-4 shrink-0" aria-hidden />
-          <span className="truncate">{t("nav.addCustomerButton")}</span>
+          {t("nav.addCustomerButton")}
         </Button>
       </Link>
-      <Link href="/knowledge" className="min-w-0">
-        <Button size="lg" className={cn("h-full w-full sm:w-auto", knowledgeAiButtonClassName)}>
+      <Link href="/knowledge" className="shrink-0">
+        <Button
+          size="md"
+          className={cn("gap-1.5 px-3.5 whitespace-nowrap", knowledgeAiButtonClassName)}
+        >
           <span
-            className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/15"
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/15"
             aria-hidden
           >
-            <Sparkles className="h-4 w-4" />
+            <Sparkles className="h-3.5 w-3.5" />
           </span>
-          <span className="truncate">Knowledge AI</span>
+          Knowledge AI
         </Button>
       </Link>
     </div>

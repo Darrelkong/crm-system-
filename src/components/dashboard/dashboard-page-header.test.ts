@@ -18,10 +18,16 @@ describe("dashboard page header", () => {
     }
 
     assert.match(adminPage, /layout\.adminControlCenter/);
+    assert.match(adminPage, /nameEmphasis="admin"/);
     assert.match(staffPage, /brand\.dashboardSubtitle/);
     assert.match(actions, /href="\/customers\/new"/);
     assert.match(actions, /href="\/knowledge"/);
     assert.match(actions, /Knowledge AI/);
+    assert.doesNotMatch(actions, /grid-cols-2/);
+    assert.match(
+      readFileSync("src/components/dashboard/dashboard-page-header.tsx", "utf8"),
+      /justify-end/,
+    );
     assert.doesNotMatch(actions, /knowledge_admin|knowledgeAdmin|role ===/i);
   });
 

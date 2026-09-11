@@ -1,29 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { Card } from "@/components/ui/card";
+import { DashboardSalesStageOverview } from "@/components/dashboard/dashboard-sales-stage-overview";
+import { DashboardSourceDistributionDonut } from "@/components/dashboard/dashboard-source-distribution-donut";
 import {
   KpiCard,
   kpiIcons,
-  SimpleBarRow,
   WorkflowPrioritiesPanel,
 } from "@/components/dashboard/dashboard-widgets";
 import { useTranslation } from "@/i18n/provider";
-import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { AdminDashboardStats } from "@/lib/reports/types";
 
 const linkClass = "link-primary hover:underline";
 
 export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) {
   const { t } = useTranslation();
-  const { salesStage } = useCustomerLabels();
-
-  const maxSource = Math.max(...stats.customersBySource.map((s) => s.count), 1);
-  const maxStage = Math.max(
-    ...stats.customersBySalesStage.map((s) => s.count),
-    1,
-  );
-
   return (
     <div className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -165,37 +156,8 @@ export function AdminDashboardClient({ stats }: { stats: AdminDashboardStats }) 
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <h3 className="section-title mb-4">
-            {t("dashboard.customersBySource")}
-          </h3>
-          <div className="space-y-3">
-            {stats.customersBySource.map((item) => (
-              <SimpleBarRow
-                key={item.label}
-                label={item.label}
-                count={item.count}
-                max={maxSource}
-              />
-            ))}
-          </div>
-        </Card>
-
-        <Card>
-          <h3 className="section-title mb-4">
-            {t("dashboard.customersBySalesStage")}
-          </h3>
-          <div className="space-y-3">
-            {stats.customersBySalesStage.map((item) => (
-              <SimpleBarRow
-                key={item.label}
-                label={salesStage(item.label)}
-                count={item.count}
-                max={maxStage}
-              />
-            ))}
-          </div>
-        </Card>
+        <DashboardSourceDistributionDonut sources={stats.customersBySource} />
+        <DashboardSalesStageOverview stages={stats.customersBySalesStage} />
       </div>
     </div>
   );

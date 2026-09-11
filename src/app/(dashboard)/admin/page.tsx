@@ -12,6 +12,7 @@ export default async function AdminDashboardPage() {
       <DashboardPageHeader
         displayName={user.displayName}
         descriptionKey="layout.adminControlCenter"
+        nameEmphasis="admin"
       />
       <AdminDashboardView user={user} />
     </div>
