@@ -1324,6 +1324,7 @@ const zhHans: Messages = {
     adminDashboard: "管理员工作台",
     staffDashboard: "团队成员工作台",
     greeting: "Hello, {{name}}",
+    greetingHello: "Hello,",
     adminKpiDescription: "管理员数据看板",
     staffKpiDescription: "团队成员数据看板",
     staffWorkspaceDescription: "我的工作台数据",

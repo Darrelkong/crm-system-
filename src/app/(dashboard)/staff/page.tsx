@@ -1,5 +1,4 @@
-import { DashboardHeaderActions } from "@/components/dashboard/dashboard-header-actions";
-import { TranslatedPageHeader } from "@/components/i18n/translated-page-header";
+import { DashboardPageHeader } from "@/components/dashboard/dashboard-page-header";
 import { requireStaffCached } from "@/lib/auth/request-cache";
 import { StaffDashboardView } from "@/components/dashboard/staff-dashboard-view";
 
@@ -10,11 +9,9 @@ export default async function StaffDashboardPage() {
 
   return (
     <div>
-      <TranslatedPageHeader
-        titleKey="layout.greeting"
-        titleParams={{ name: user.displayName }}
+      <DashboardPageHeader
+        displayName={user.displayName}
         descriptionKey="brand.dashboardSubtitle"
-        action={<DashboardHeaderActions />}
       />
       <StaffDashboardView user={user} />
     </div>

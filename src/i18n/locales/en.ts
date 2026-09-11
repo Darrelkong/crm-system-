@@ -1411,6 +1411,7 @@ const en = {
     adminDashboard: "Admin workspace",
     staffDashboard: "Team Member Workspace",
     greeting: "Hello, {{name}}",
+    greetingHello: "Hello,",
     adminKpiDescription: "Admin performance overview",
     staffKpiDescription: "Your performance overview",
     staffWorkspaceDescription: "My workspace overview",
