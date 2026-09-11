@@ -13,9 +13,9 @@ const actionButtonClassName = cn(
 
 const knowledgeAiButtonClassName = cn(
   actionButtonClassName,
-  "border border-indigo-200/80 bg-indigo-50/90 text-indigo-700 shadow-none",
-  "hover:border-indigo-300 hover:bg-indigo-100/90 hover:text-indigo-800",
-  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-300",
+  "border border-indigo-500/20 bg-gradient-to-br from-indigo-600 to-violet-700 text-white shadow-sm",
+  "hover:-translate-y-px hover:from-indigo-500 hover:to-violet-600 hover:shadow-md",
+  "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400",
 );
 
 export function DashboardHeaderActions() {
@@ -41,10 +41,12 @@ export function DashboardHeaderActions() {
             "min-w-[9.0625rem] max-w-[9.875rem] whitespace-nowrap",
           )}
         >
-          <Sparkles
-            className="h-[1.125rem] w-[1.125rem] shrink-0 text-indigo-600"
+          <span
+            className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-white/15"
             aria-hidden
-          />
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+          </span>
           Knowledge AI
         </Button>
       </Link>
