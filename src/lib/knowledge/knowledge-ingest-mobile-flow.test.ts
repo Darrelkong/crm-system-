@@ -24,6 +24,18 @@ describe("knowledge ingest mobile flow", () => {
     assert.match(listModeSection, /knowledge\.ingest\.newSourceAction/);
   });
 
+  it("renders the source-list title only once in list mode", () => {
+    const ingest = readFileSync(
+      join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),
+      "utf8",
+    );
+    const listModeStart = ingest.indexOf('data-ingest-layout={inDetailMode ? "detail" : "list"}');
+    const listModeEnd = ingest.indexOf("data-source-detail=");
+    const listModeBlock = ingest.slice(listModeStart, listModeEnd);
+    const sourceListMatches = listModeBlock.match(/knowledge\.ingest\.sourceList/g) ?? [];
+    assert.equal(sourceListMatches.length, 1);
+  });
+
   it("keeps the new-source action row inside the content column on mobile", () => {
     const ingest = readFileSync(
       join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),
