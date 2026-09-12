@@ -17,11 +17,40 @@ describe("knowledge ingest mobile flow", () => {
       "utf8",
     );
     const listModeSection = ingest.slice(
-      ingest.indexOf("data-new-source-action"),
+      ingest.indexOf("data-new-source-action-row"),
       ingest.indexOf("data-create-source-panel"),
     );
     assert.doesNotMatch(listModeSection, /knowledge\.ingest\.sourceList/);
     assert.match(listModeSection, /knowledge\.ingest\.newSourceAction/);
+  });
+
+  it("keeps the new-source action row inside the content column on mobile", () => {
+    const ingest = readFileSync(
+      join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),
+      "utf8",
+    );
+    const actionRowStart = ingest.indexOf('data-new-source-action-row="true"');
+    const actionRow = ingest.slice(
+      ingest.lastIndexOf("<div", actionRowStart),
+      ingest.indexOf(">", actionRowStart) + 1,
+    );
+    assert.match(actionRow, /w-full/);
+    assert.match(actionRow, /min-w-0/);
+    assert.match(actionRow, /justify-end/);
+    assert.doesNotMatch(actionRow, /w-screen/);
+    assert.doesNotMatch(actionRow, /100vw/);
+    assert.doesNotMatch(actionRow, /absolute/);
+    assert.doesNotMatch(actionRow, /-mx-/);
+    const buttonStart = ingest.indexOf('data-new-source-action="true"');
+    const buttonSection = ingest.slice(
+      ingest.lastIndexOf("<Button", buttonStart),
+      buttonStart + 'data-new-source-action="true"'.length,
+    );
+    assert.match(buttonSection, /max-w-full shrink-0/);
+    assert.match(ingest, /overflow-x-clip/);
+    assert.match(ingest, /grid min-w-0 max-w-full/);
+    assert.match(ingest, /<aside className="min-w-0/);
+    assert.match(ingest, /<main className="min-w-0 max-w-full/);
   });
 
   it("renders source management without a numeric step prefix", () => {

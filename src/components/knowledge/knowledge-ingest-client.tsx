@@ -443,7 +443,7 @@ export function KnowledgeIngestClient({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-6 overflow-x-clip">
       <Card className="border-amber-200 bg-amber-50">
         <p className="text-sm leading-6 text-amber-950">{t("knowledge.ingest.notice")}</p>
       </Card>
@@ -455,16 +455,16 @@ export function KnowledgeIngestClient({
 
       <div
         className={cn(
-          "grid gap-6",
+          "grid min-w-0 max-w-full gap-6",
           inDetailMode ? "grid-cols-1" : "lg:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]",
         )}
         data-ingest-layout={inDetailMode ? "detail" : "list"}
       >
         {!inDetailMode && (
-        <aside className="space-y-4">
-          <Card className="p-4">
+        <aside className="min-w-0 space-y-4">
+          <Card className="min-w-0 max-w-full p-4">
             <h2 className="font-semibold crm-text">{t("knowledge.ingest.sourceList")}</h2>
-            <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto px-1">
+            <div className="mt-3 flex min-w-0 max-w-full gap-2 overflow-x-auto">
               <button
                 type="button"
                 className={`shrink-0 rounded-full px-3 py-1.5 text-sm ${
@@ -574,7 +574,7 @@ export function KnowledgeIngestClient({
         </aside>
         )}
 
-        <main className="min-w-0 space-y-4">
+        <main className="min-w-0 max-w-full space-y-4">
           {inDetailMode && selected && (
             <div ref={detailHeaderRef} className="space-y-4" data-source-detail="true">
               <Button
@@ -850,11 +850,15 @@ export function KnowledgeIngestClient({
 
           {!inDetailMode && !isArchivedView && (
           <>
-          <div className="flex justify-end">
+          <div
+            className="flex w-full min-w-0 justify-end"
+            data-new-source-action-row="true"
+          >
             <Button
               type="button"
               variant="secondary"
               size="sm"
+              className="inline-flex max-w-full shrink-0"
               data-new-source-action="true"
               onClick={() => setCreateFormOpen((current) => !current)}
             >
