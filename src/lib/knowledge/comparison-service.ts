@@ -27,8 +27,10 @@ import {
   retrieveComparisonCandidates,
   type ComparisonCandidate,
 } from "@/lib/knowledge/comparison-candidate-retrieval";
+import { redactKnowledgeComparisonForActor } from "@/lib/knowledge/comparison-visibility";
 import {
   requireManageableKnowledgeSource,
+  requireViewableKnowledgeSource,
   type KnowledgeSourceMeta,
 } from "@/lib/knowledge/source-service";
 import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
@@ -36,42 +38,15 @@ import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import type { KnowledgeAiComparisonRun } from "../../../drizzle/schema/knowledge-ai-comparison-runs";
 import type { KnowledgeAiOrganizationRun } from "../../../drizzle/schema/knowledge-ai-organization-runs";
+import type {
+  ComparisonCandidateSnapshot,
+  KnowledgeComparisonDetail,
+} from "@/lib/knowledge/comparison-types";
 
-export type ComparisonCandidateSnapshot = {
-  candidateKey: string;
-  articleId: string;
-  articleVersionId: string;
-  versionNumber: number;
-  title: string;
-  categoryName: string;
-  preRank: number | null;
-  preScore: number;
-  postRank: number | null;
-  postScore: number;
-  combinedScore: number;
-  bodyExcerptStart: number;
-  bodyExcerptEnd: number;
-};
-
-export type KnowledgeComparisonDetail = {
-  id: string;
-  sourceId: string;
-  organizationRunId: string;
-  status: KnowledgeAiComparisonRun["status"];
-  relationship: KnowledgeAiComparisonRun["relationship"];
-  matchedArticleId: string | null;
-  matchedArticleVersionId: string | null;
-  matchedVersionNumber: number | null;
-  matchConfidence: number | null;
-  candidateSnapshot: ComparisonCandidateSnapshot[];
-  comparison: KnowledgeComparisonStoredResult | null;
-  degradationLevel: string | null;
-  provider: string | null;
-  model: string | null;
-  failureCode: string | null;
-  createdAt: string;
-  completedAt: string | null;
-};
+export type {
+  ComparisonCandidateSnapshot,
+  KnowledgeComparisonDetail,
+} from "@/lib/knowledge/comparison-types";
 
 function comparisonError(code: string, message: string, status = 400) {
   return new KnowledgeServiceError(code, message, status);
@@ -272,9 +247,14 @@ export async function getLatestKnowledgeComparison(
   sourceId: string,
   db: Database = getDb(),
 ): Promise<KnowledgeComparisonDetail | null> {
-  await requireManageableKnowledgeSource(context, sourceId, db);
+  await requireViewableKnowledgeSource(context, sourceId, db);
   const run = await latestComparison(sourceId, db);
-  return run ? mapComparisonRun(run) : null;
+  if (!run) return null;
+  return redactKnowledgeComparisonForActor(
+    context,
+    mapComparisonRun(run),
+    db,
+  );
 }
 
 type KnowledgeComparisonProviderCall = (input: {

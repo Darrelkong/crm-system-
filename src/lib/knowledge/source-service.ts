@@ -20,6 +20,7 @@ import {
   writeKnowledgeAudit,
 } from "@/lib/knowledge/audit";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
+import { hasKnowledgeCapability } from "@/lib/knowledge/role-service";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import {
   createKnowledgeArticle,
@@ -160,6 +161,18 @@ export function canViewKnowledgeSource(
   return canManageKnowledgeSource(context, source);
 }
 
+export function canViewKnowledgeComparisonSource(
+  context: KnowledgeSessionContext,
+  source: Pick<KnowledgeSource, "createdByUserId">,
+): boolean {
+  if (canManageKnowledgeSource(context, source)) {
+    return true;
+  }
+  return (
+    context.role !== null && hasKnowledgeCapability(context.role, "review")
+  );
+}
+
 export async function requireManageableKnowledgeSource(
   context: KnowledgeSessionContext,
   sourceId: string,
@@ -168,6 +181,28 @@ export async function requireManageableKnowledgeSource(
 ): Promise<KnowledgeSource> {
   const source = await getSourceRow(context, sourceId, db);
   if (!canManageKnowledgeSource(context, source)) {
+    throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, deniedMessage, 403);
+  }
+  return source;
+}
+
+export async function requireViewableKnowledgeSource(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  db: Database = getDb(),
+  deniedMessage = "来源访问被拒绝",
+): Promise<KnowledgeSource> {
+  const source = (
+    await db
+      .select()
+      .from(schema.knowledgeSources)
+      .where(eq(schema.knowledgeSources.id, sourceId))
+      .limit(1)
+  )[0];
+  if (!source) {
+    throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_NOT_FOUND, "来源不存在", 404);
+  }
+  if (!canViewKnowledgeComparisonSource(context, source)) {
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, deniedMessage, 403);
   }
   return source;
