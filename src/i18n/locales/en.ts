@@ -119,6 +119,7 @@ const en = {
       "A new authorization request has been submitted for this device. Please wait for administrator approval.",
     initialActivationStateChanged:
       "Activation state changed. Please sign in again and retry.",
+    copyrightNotice: "Copyright © 2026 Echfront Inc. All rights reserved",
   },
   security: {
     accessExpired:

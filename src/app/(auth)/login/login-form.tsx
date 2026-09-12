@@ -24,6 +24,7 @@ import { fetchIpEmailRestrictionStatus } from "@/lib/auth/login-ip-restriction-c
 import {
   LoginThemeToggle,
 } from "@/app/(auth)/login/login-theme-toggle";
+import { LoginCopyrightFooter } from "@/app/(auth)/login/login-copyright-footer";
 import { useToggleCrmTheme, applyCrmThemeToDocument } from "@/lib/theme/crm-theme";
 import "./login-page.css";
 
@@ -245,7 +246,8 @@ export function LoginForm() {
         <LanguageSwitcher />
       </div>
 
-      <div className="login-page__stack">
+      <div className="login-page__body">
+        <div className="login-page__stack">
         <Card className="login-page__card p-5" padding>
           <div className="login-page__form-header">
             <p className="login-page__card-brand">{LOGIN_BRAND.name}</p>
@@ -313,7 +315,10 @@ export function LoginForm() {
             </fieldset>
           </form>
         </Card>
+        </div>
       </div>
+
+      <LoginCopyrightFooter />
 
       <LoginPendingModal open={loading} />
       <UnauthorizedEmailModal

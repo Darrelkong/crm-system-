@@ -46,6 +46,7 @@ yarn-error.log*
 .release-prep-backup/
 backups/
 backup-*.sql
+backup-pre-*.sql
 pre-migrate-*.sql
 *.sqlite
 *.sqlite-wal

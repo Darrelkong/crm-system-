@@ -109,6 +109,7 @@ const zhHans: Messages = {
     deviceRejected: "此设备授权申请已被拒绝，请联系管理员。",
     deviceReapprovalPending: "此设备已重新提交授权申请，请等待管理员审核。",
     initialActivationStateChanged: "启用状态已更新，请重新登录后再试。",
+    copyrightNotice: "Copyright © 2026 Echfront Inc. 保留一切权利",
   },
   security: {
     accessExpired: "Access 验证已超时，请重新验证后再登录 CRM。",
