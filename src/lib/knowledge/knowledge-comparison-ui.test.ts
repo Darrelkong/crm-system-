@@ -38,6 +38,15 @@ describe("Knowledge comparison UI boundary", () => {
     assert.match(section, /useKnowledgeSourceComparison/);
     assert.match(ingest, /KnowledgeComparisonSourceSection/);
     assert.match(ingest, /setAutoCompareSignal/);
+    assert.match(ingest, /data-ingest-step="comparison"/);
+    const hook = readFileSync(
+      join(root, "src/lib/knowledge/use-knowledge-source-comparison.ts"),
+      "utf8",
+    );
+    assert.match(hook, /timedOut/);
+    assert.match(hook, /KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS/);
+    assert.match(panel, /timedOut/);
+    assert.match(panel, /data-comparison-panel="failed"/);
     assert.match(review, /linkedSourceId/);
     assert.match(review, /KnowledgeComparisonSourceSection/);
   });

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FileText, Loader2, Upload } from "lucide-react";
+import { AlertCircle, ChevronLeft, FileText, Loader2, Upload } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ import {
   isKnowledgeIngestLifecycleAbortError,
 } from "@/lib/knowledge/knowledge-ingest-lifecycle";
 import { KnowledgeComparisonSourceSection } from "@/components/knowledge/knowledge-comparison-source-section";
+import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
 import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
+import { cn } from "@/lib/cn";
 import { KnowledgeSourceRestoreButton } from "@/components/knowledge/knowledge-source-restore-button";
 import type { KnowledgeSourceLifecycle } from "@/lib/knowledge/source-service";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
@@ -91,7 +93,9 @@ export function KnowledgeIngestClient({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sourceListRef = useRef<HTMLDivElement>(null);
   const sourceButtonRefs = useRef(new Map<string, HTMLButtonElement>());
+  const detailHeaderRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<KnowledgeSourceDetail | null>(null);
+  const [createFormOpen, setCreateFormOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
@@ -207,20 +211,34 @@ export function KnowledgeIngestClient({
     [t],
   );
 
-  const switchLifecycle = useCallback(
-    (nextLifecycle: KnowledgeSourceLifecycle) => {
-      setLifecycle(nextLifecycle);
-      setSelected(null);
-      setSaved(false);
-      setRestoreNotice(null);
-      setError(null);
-      void loadSourcesForLifecycle(nextLifecycle);
-    },
-    [loadSourcesForLifecycle],
-  );
+  function switchLifecycle(nextLifecycle: KnowledgeSourceLifecycle) {
+    setLifecycle(nextLifecycle);
+    setSelected(null);
+    setCreateFormOpen(false);
+    setSaved(false);
+    setRestoreNotice(null);
+    setError(null);
+    void loadSourcesForLifecycle(nextLifecycle);
+  }
+
+  function clearSelectedSource() {
+    setSelected(null);
+    setSaved(false);
+    setError(null);
+  }
+
+  function scrollDetailIntoView() {
+    window.requestAnimationFrame(() => {
+      detailHeaderRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+  }
 
   async function loadSource(sourceId: string) {
     setError(null);
+    setCreateFormOpen(false);
     const response = await fetch(`/api/knowledge/sources/${sourceId}`, {
       cache: "no-store",
     });
@@ -235,6 +253,7 @@ export function KnowledgeIngestClient({
     setSelected(payload.source);
     applyOrganization(payload.source);
     setSaved(false);
+    scrollDetailIntoView();
   }
 
   async function createSource(event: React.FormEvent<HTMLFormElement>) {
@@ -407,6 +426,13 @@ export function KnowledgeIngestClient({
   const organizationReady = selected?.organization?.status === "completed";
   const isArchivedView = lifecycle === "archived";
   const selectedArchived = Boolean(selected?.archivedAt);
+  const inDetailMode = Boolean(selected);
+  const organizerWarnings = selected?.organization?.warnings ?? [];
+  const canOrganizeSelected =
+    Boolean(selected?.rawText) &&
+    !selectedArchived &&
+    selected?.status !== "converted" &&
+    selected?.status !== "organizing";
 
   if (!canIngest) {
     return (
@@ -427,7 +453,14 @@ export function KnowledgeIngestClient({
         </Card>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]">
+      <div
+        className={cn(
+          "grid gap-6",
+          inDetailMode ? "grid-cols-1" : "lg:grid-cols-[minmax(14rem,20rem)_minmax(0,1fr)]",
+        )}
+        data-ingest-layout={inDetailMode ? "detail" : "list"}
+      >
+        {!inDetailMode && (
         <aside className="space-y-4">
           <Card className="p-4">
             <h2 className="font-semibold crm-text">{t("knowledge.ingest.sourceList")}</h2>
@@ -539,10 +572,301 @@ export function KnowledgeIngestClient({
             </div>
           </Card>
         </aside>
+        )}
 
         <main className="min-w-0 space-y-4">
-          {!isArchivedView && (
-          <Card>
+          {inDetailMode && selected && (
+            <div ref={detailHeaderRef} className="space-y-4" data-source-detail="true">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-10 px-0 text-blue-700"
+                data-back-to-source-list="true"
+                onClick={clearSelectedSource}
+              >
+                <ChevronLeft className="mr-1 h-4 w-4" aria-hidden="true" />
+                {t("knowledge.ingest.backToSourceList")}
+              </Button>
+
+              <Card className="p-4" data-ingest-step="raw-source">
+                <KnowledgeIngestStepHeader
+                  step={1}
+                  title={t("knowledge.ingest.stepRawSource")}
+                  status={selected.rawText ? t("knowledge.ingest.statusRead") : undefined}
+                  tone={selected.rawText ? "success" : "warning"}
+                />
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-base font-semibold crm-text">
+                      {selected.originalFilename ?? selected.sourceTitle ?? selected.sourceType}
+                    </p>
+                    <p className="mt-1 text-sm crm-text-secondary">
+                      {new Date(selected.createdAt).toLocaleString()}
+                    </p>
+                  </div>
+                  <Badge
+                    variant={
+                      isScannedPdfFailure(selected.failureCode) ||
+                      isExtractionFailureStatus(selected.status)
+                        ? "warning"
+                        : selected.status === "failed"
+                          ? "danger"
+                          : "accent"
+                    }
+                  >
+                    {sourceListStatusLabel(t, selected)}
+                  </Badge>
+                </div>
+                {selected.rawText ? (
+                  <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text">
+                    {selected.rawText}
+                  </pre>
+                ) : (
+                  <div
+                    className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"
+                    data-extraction-notice="true"
+                  >
+                    <p className="text-sm font-medium text-amber-950">
+                      {isScannedPdfFailure(selected.failureCode)
+                        ? t("knowledge.ingest.scannedPdfListLabel")
+                        : t("knowledge.ingest.extractionFailedListLabel")}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-amber-900">
+                      {extractionFailureMessage(selected.failureCode)}
+                    </p>
+                  </div>
+                )}
+              </Card>
+
+              {!selectedArchived && selected.status !== "converted" && (
+                <Card className="p-4" data-ingest-step="organize">
+                  <KnowledgeIngestStepHeader
+                    step={2}
+                    title={t("knowledge.ingest.stepOrganize")}
+                    status={
+                      organizationReady
+                        ? t("knowledge.ingest.statusCompleted")
+                        : selected.status === "organizing" || busy
+                          ? t("knowledge.ingest.organizing")
+                          : undefined
+                    }
+                    tone={
+                      organizationReady
+                        ? "success"
+                        : selected.status === "organizing" || busy
+                          ? "processing"
+                          : "neutral"
+                    }
+                  />
+                  {canOrganizeSelected && (
+                    <div className="mt-4 flex flex-wrap gap-3">
+                      <Button
+                        type="button"
+                        onClick={() => void organize()}
+                        disabled={busy || selected.status === "organizing"}
+                        data-organize-button="true"
+                      >
+                        {busy
+                          ? t("knowledge.ingest.organizing")
+                          : organizationReady
+                            ? t("knowledge.ingest.reorganize")
+                            : t("knowledge.ingest.organize")}
+                      </Button>
+                    </div>
+                  )}
+                  {organizationReady && (
+                    <div className="mt-4 space-y-3">
+                      <p className="text-sm crm-text-secondary">
+                        {t("knowledge.ingest.warning")}
+                      </p>
+                      {organizerWarnings.length > 0 && (
+                        <div
+                          className="rounded-xl border border-amber-200 bg-amber-50 p-4"
+                          data-organizer-advisory="true"
+                        >
+                          <div className="flex items-start gap-2">
+                            <AlertCircle
+                              className="mt-0.5 h-4 w-4 shrink-0 text-amber-700"
+                              aria-hidden="true"
+                            />
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-amber-950">
+                                {t("knowledge.ingest.organizerAdvisoryTitle", {
+                                  count: String(organizerWarnings.length),
+                                })}
+                              </p>
+                              <p className="mt-1 text-sm text-amber-900">
+                                {t("knowledge.ingest.organizerAdvisoryBody")}
+                              </p>
+                              <ul className="mt-3 space-y-1 text-sm text-amber-900">
+                                {organizerWarnings.map((warning) => (
+                                  <li key={warning}>{warning}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
+              )}
+
+              {organizationReady && !selectedArchived && (
+                <Card className="p-4" data-ingest-step="comparison">
+                  <KnowledgeIngestStepHeader
+                    step={3}
+                    title={t("knowledge.ingest.stepComparison")}
+                  />
+                  <KnowledgeComparisonSourceSection
+                    sourceId={selected.id}
+                    sourceCreatedByUserId={selected.createdByUserId}
+                    sourceStatus={selected.status}
+                    organizationReady={organizationReady}
+                    role={role}
+                    userId={userId}
+                    autoCompareSignal={autoCompareSignal}
+                    onCreateDraft={() => {
+                      organizerFormRef.current?.scrollIntoView({
+                        behavior: "smooth",
+                        block: "start",
+                      });
+                    }}
+                    className="mt-4 border-0 p-0 shadow-none"
+                  />
+                </Card>
+              )}
+
+              {organizationReady && !selectedArchived && (
+                <Card className="p-4" data-ingest-step="draft">
+                  <KnowledgeIngestStepHeader
+                    step={4}
+                    title={t("knowledge.ingest.stepDraft")}
+                  />
+                  <p className="mt-3 text-sm crm-text-secondary">
+                    {t("knowledge.ingest.draftPendingComparisonHint")}
+                  </p>
+                  <form
+                    ref={organizerFormRef}
+                    className="mt-4 space-y-4"
+                    onSubmit={saveDraft}
+                  >
+                    <label className="block text-sm font-medium crm-text">
+                      {t("knowledge.ingest.title")}
+                      <input
+                        required
+                        value={title}
+                        onChange={(event) => setTitle(event.target.value)}
+                        className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium crm-text">
+                      {t("knowledge.ingest.summary")}
+                      <textarea
+                        value={summary}
+                        onChange={(event) => setSummary(event.target.value)}
+                        className="mt-1 min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium crm-text">
+                      {t("knowledge.ingest.body")}
+                      <textarea
+                        required
+                        value={body}
+                        onChange={(event) => setBody(event.target.value)}
+                        className="mt-1 min-h-64 w-full rounded-xl border border-slate-200 bg-white p-3"
+                      />
+                    </label>
+                    <label className="block text-sm font-medium crm-text">
+                      {t("knowledge.ingest.category")}
+                      <select
+                        required
+                        value={categoryId}
+                        onChange={(event) => setCategoryId(event.target.value)}
+                        className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
+                      >
+                        <option value="">{t("knowledge.ingest.noCategory")}</option>
+                        {initialCategories
+                          .filter((category) => category.isActive)
+                          .map((category) => (
+                            <option key={category.id} value={category.id}>
+                              {category.name}
+                            </option>
+                          ))}
+                      </select>
+                    </label>
+                    <Button
+                      type="submit"
+                      disabled={busy || selected.status === "converted"}
+                    >
+                      {busy
+                        ? t("knowledge.ingest.savingDraft")
+                        : saved
+                          ? t("knowledge.ingest.savedDraft")
+                          : t("knowledge.ingest.saveDraft")}
+                    </Button>
+                  </form>
+                </Card>
+              )}
+
+              {!selectedArchived && selected.status !== "converted" && (
+                <Card className="p-4" data-ingest-step="source-management">
+                  <KnowledgeIngestStepHeader
+                    step={5}
+                    title={t("knowledge.ingest.stepSourceManagement")}
+                  />
+                  <div className="mt-4">
+                    <KnowledgeSourceArchiveButton
+                      sourceId={selected.id}
+                      updatedAt={selected.updatedAt}
+                      onArchived={() => {
+                        clearSelectedSource();
+                        switchLifecycle("active");
+                        router.refresh();
+                      }}
+                    />
+                  </div>
+                </Card>
+              )}
+
+              {selectedArchived && (
+                <Card className="p-4">
+                  <p className="text-sm crm-text-secondary">
+                    {t("knowledge.ingest.archivedReadOnly")}
+                  </p>
+                  <KnowledgeSourceRestoreButton
+                    sourceId={selected.id}
+                    updatedAt={selected.updatedAt}
+                    onRestored={() => {
+                      setRestoreNotice(t("knowledge.ingest.restoreSuccess"));
+                      switchLifecycle("active");
+                      router.refresh();
+                    }}
+                  />
+                </Card>
+              )}
+            </div>
+          )}
+
+          {!inDetailMode && !isArchivedView && (
+          <>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <p className="text-sm crm-text-secondary">
+              {t("knowledge.ingest.sourceList")}
+            </p>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              data-new-source-action="true"
+              onClick={() => setCreateFormOpen((current) => !current)}
+            >
+              {t("knowledge.ingest.newSourceAction")}
+            </Button>
+          </div>
+          {createFormOpen && (
+          <Card data-create-source-panel="true">
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
@@ -746,221 +1070,7 @@ export function KnowledgeIngestClient({
             </form>
           </Card>
           )}
-
-          {selected && (
-            <Card>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-semibold crm-text">
-                    {t("knowledge.ingest.sourcePreview")}
-                  </h2>
-                  <p className="mt-1 text-sm crm-text-secondary">
-                    {selected.originalFilename ?? selected.sourceTitle ?? selected.sourceType}
-                  </p>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant={
-                      isScannedPdfFailure(selected.failureCode) ||
-                      isExtractionFailureStatus(selected.status)
-                        ? "warning"
-                        : selected.status === "failed"
-                          ? "danger"
-                          : "accent"
-                    }
-                  >
-                    {sourceListStatusLabel(t, selected)}
-                  </Badge>
-                  {selectedArchived && (
-                    <Badge>{t("knowledge.ingest.archivedBadge")}</Badge>
-                  )}
-                </div>
-              </div>
-              <dl className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-                <div>
-                  <dt className="crm-text-secondary">{t("knowledge.ingest.sourceType")}</dt>
-                  <dd className="crm-text">{selected.sourceType}</dd>
-                </div>
-                <div>
-                  <dt className="crm-text-secondary">{t("knowledge.ingest.extraction")}</dt>
-                  <dd className="crm-text">
-                    {selected.rawText
-                      ? t("knowledge.ingest.extractionReady")
-                      : t("knowledge.ingest.extractionFailed")}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="crm-text-secondary">{t("common.createdAt")}</dt>
-                  <dd className="crm-text">
-                    {new Date(selected.createdAt).toLocaleString()}
-                  </dd>
-                </div>
-              </dl>
-              {selected.rawText ? (
-                <pre className="mt-5 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text">
-                  {selected.rawText}
-                </pre>
-              ) : (
-                <div
-                  className="mt-5 rounded-xl border border-amber-200 bg-amber-50 p-4"
-                  data-extraction-notice="true"
-                >
-                  <p className="text-sm font-medium text-amber-950">
-                    {isScannedPdfFailure(selected.failureCode)
-                      ? t("knowledge.ingest.scannedPdfListLabel")
-                      : t("knowledge.ingest.extractionFailedListLabel")}
-                  </p>
-                  <p className="mt-2 text-sm leading-6 text-amber-900">
-                    {extractionFailureMessage(selected.failureCode)}
-                  </p>
-                </div>
-              )}
-              {selected.rawText &&
-                !selectedArchived &&
-                selected.status !== "converted" &&
-                !organizationReady && (
-                  <div className="mt-5 flex flex-wrap items-center gap-3">
-                    <Button
-                      type="button"
-                      onClick={() => void organize()}
-                      disabled={busy || selected.status === "organizing"}
-                    >
-                      {busy
-                        ? t("knowledge.ingest.organizing")
-                        : t("knowledge.ingest.organize")}
-                    </Button>
-                    <KnowledgeSourceArchiveButton
-                      sourceId={selected.id}
-                      updatedAt={selected.updatedAt}
-                      onArchived={() => {
-                        switchLifecycle("active");
-                        router.refresh();
-                      }}
-                    />
-                  </div>
-                )}
-              {selectedArchived && (
-                <div className="mt-5 space-y-3">
-                  <p className="text-sm crm-text-secondary">
-                    {t("knowledge.ingest.archivedReadOnly")}
-                  </p>
-                  <KnowledgeSourceRestoreButton
-                    sourceId={selected.id}
-                    updatedAt={selected.updatedAt}
-                    onRestored={() => {
-                      setRestoreNotice(t("knowledge.ingest.restoreSuccess"));
-                      switchLifecycle("active");
-                      router.refresh();
-                    }}
-                  />
-                </div>
-              )}
-              {!selectedArchived &&
-                selected.status !== "organizing" &&
-                !(selected.rawText && selected.status !== "converted" && !organizationReady) && (
-                  <div className="mt-5">
-                    <KnowledgeSourceArchiveButton
-                      sourceId={selected.id}
-                      updatedAt={selected.updatedAt}
-                      onArchived={() => {
-                        switchLifecycle("active");
-                        router.refresh();
-                      }}
-                    />
-                  </div>
-                )}
-            </Card>
-          )}
-
-          {organizationReady && selected && !selectedArchived && (
-            <Card>
-              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
-                <p className="font-semibold text-blue-950">
-                  {t("knowledge.ingest.aiLabel")}
-                </p>
-                <p className="mt-1 text-sm text-blue-900">
-                  {t("knowledge.ingest.warning")}
-                </p>
-              </div>
-              {selected.organization?.warnings.map((warning) => (
-                <p key={warning} className="mt-3 text-sm text-amber-700">
-                  ⚠ {warning}
-                </p>
-              ))}
-              <KnowledgeComparisonSourceSection
-                sourceId={selected.id}
-                sourceCreatedByUserId={selected.createdByUserId}
-                sourceStatus={selected.status}
-                organizationReady={organizationReady}
-                role={role}
-                userId={userId}
-                autoCompareSignal={autoCompareSignal}
-                onCreateDraft={() => {
-                  organizerFormRef.current?.scrollIntoView({
-                    behavior: "smooth",
-                    block: "start",
-                  });
-                }}
-                className="mt-5"
-              />
-              <form
-                ref={organizerFormRef}
-                className="mt-5 space-y-4"
-                onSubmit={saveDraft}
-              >
-                <label className="block text-sm font-medium crm-text">
-                  {t("knowledge.ingest.title")}
-                  <input
-                    required
-                    value={title}
-                    onChange={(event) => setTitle(event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
-                  />
-                </label>
-                <label className="block text-sm font-medium crm-text">
-                  {t("knowledge.ingest.summary")}
-                  <textarea
-                    value={summary}
-                    onChange={(event) => setSummary(event.target.value)}
-                    className="mt-1 min-h-24 w-full rounded-xl border border-slate-200 bg-white p-3"
-                  />
-                </label>
-                <label className="block text-sm font-medium crm-text">
-                  {t("knowledge.ingest.body")}
-                  <textarea
-                    required
-                    value={body}
-                    onChange={(event) => setBody(event.target.value)}
-                    className="mt-1 min-h-64 w-full rounded-xl border border-slate-200 bg-white p-3"
-                  />
-                </label>
-                <label className="block text-sm font-medium crm-text">
-                  {t("knowledge.ingest.category")}
-                  <select
-                    required
-                    value={categoryId}
-                    onChange={(event) => setCategoryId(event.target.value)}
-                    className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
-                  >
-                    <option value="">{t("knowledge.ingest.noCategory")}</option>
-                    {initialCategories
-                      .filter((category) => category.isActive)
-                      .map((category) => (
-                        <option key={category.id} value={category.id}>
-                          {category.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <Button type="submit" disabled={busy || selected.status === "converted"}>
-                  {busy
-                    ? t("knowledge.ingest.savingDraft")
-                    : saved
-                      ? t("knowledge.ingest.savedDraft")
-                      : t("knowledge.ingest.saveDraft")}
-                </Button>
-              </form>
-            </Card>
+          </>
           )}
 
           {error && (

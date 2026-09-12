@@ -48,6 +48,7 @@ export function KnowledgeComparisonSourceSection({
       loading={comparisonState.loading}
       comparing={comparisonState.comparing}
       processing={comparisonState.processing}
+      timedOut={comparisonState.timedOut}
       error={comparisonState.error}
       canExecute={comparisonState.canExecute}
       canView={comparisonState.canView}

@@ -27,6 +27,7 @@ type ComparisonPanelProps = {
   loading: boolean;
   comparing: boolean;
   processing: boolean;
+  timedOut?: boolean;
   error: string | null;
   canExecute: boolean;
   canView: boolean;
@@ -248,6 +249,7 @@ export function KnowledgeComparisonPanel({
   loading,
   comparing,
   processing,
+  timedOut = false,
   error,
   canExecute,
   canView,
@@ -287,18 +289,10 @@ export function KnowledgeComparisonPanel({
     );
   }
 
-  if (processing && (!comparison || comparison.status !== "completed")) {
-    return (
-      <Card className={className} data-comparison-panel="loading">
-        <div className="flex items-center gap-3 text-sm crm-text-secondary">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-          <span>{t("knowledge.comparison.comparing")}</span>
-        </div>
-      </Card>
-    );
-  }
-
-  if (comparison?.status === "failed") {
+  if (
+    timedOut ||
+    (comparison?.status === "failed" && !processing)
+  ) {
     return (
       <Card className={className} data-comparison-panel="failed">
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
@@ -306,7 +300,7 @@ export function KnowledgeComparisonPanel({
             {t("knowledge.comparison.failedTitle")}
           </p>
           <p className="mt-2 text-sm text-amber-900">
-            {t("knowledge.comparison.failedMessage")}
+            {error ?? t("knowledge.comparison.failedMessage")}
           </p>
           {canExecute && onRetry && (
             <Button
@@ -320,6 +314,17 @@ export function KnowledgeComparisonPanel({
               {t("knowledge.comparison.retryAction")}
             </Button>
           )}
+        </div>
+      </Card>
+    );
+  }
+
+  if (processing && (!comparison || comparison.status !== "completed")) {
+    return (
+      <Card className={className} data-comparison-panel="loading">
+        <div className="flex items-center gap-3 text-sm crm-text-secondary">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+          <span>{t("knowledge.comparison.comparing")}</span>
         </div>
       </Card>
     );

@@ -6,7 +6,7 @@
  */
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import * as schema from "../drizzle/schema/index.ts";
+import * as schema from "../drizzle/schema";
 import { bindTestDatabase, getDb } from "../src/lib/db/index.ts";
 import { SEED_IDS } from "../src/lib/constants/seed-ids.ts";
 import { getTestD1PlatformProxy } from "../src/lib/mail/test-d1-platform-proxy.ts";

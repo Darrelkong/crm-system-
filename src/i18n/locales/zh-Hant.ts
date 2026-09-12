@@ -3219,6 +3219,23 @@ const zhHant: Messages = {
       savedDraft: "草稿已儲存",
       noCategory: "請選擇分類",
       warning: "請逐項審閱結果。AI 不得新增來源沒有支持的事實。",
+      backToSourceList: "返回來源列表",
+      newSourceAction: "＋ 新建來源",
+      stepRawSource: "原始來源",
+      stepOrganize: "AI 整理",
+      stepComparison: "現有知識比對",
+      stepDraft: "準備草稿",
+      stepSourceManagement: "來源管理",
+      statusRead: "已讀取",
+      statusCompleted: "已完成",
+      statusComparing: "正在比對",
+      statusTemporarilyUnavailable: "暫時未完成",
+      reorganize: "重新整理",
+      organizerAdvisoryTitle: "需要人工確認 {{count}} 項",
+      organizerAdvisoryBody:
+        "AI 已完成整理，但以下資訊建議人工核實。",
+      draftPendingComparisonHint:
+        "建議先完成現有知識比對，再決定建立新文章或更新現有知識。",
       failure: "此來源目前無法繼續，請檢查狀態後再試。",
       unsupportedExtraction: "無法從此檔案提取文字，請檢查格式後重試。",
       scannedPdfNotice:

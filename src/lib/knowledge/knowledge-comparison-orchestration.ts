@@ -1,5 +1,21 @@
 import type { KnowledgeComparisonDetail } from "@/lib/knowledge/comparison-types";
 
+/** Bounded client wait for comparison POST/refresh in Preview and ingest UI. */
+export const KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS = 30_000;
+
+export class KnowledgeComparisonClientTimeoutError extends Error {
+  constructor() {
+    super("Knowledge comparison client timeout");
+    this.name = "KnowledgeComparisonClientTimeoutError";
+  }
+}
+
+export function isKnowledgeComparisonClientTimeoutError(
+  error: unknown,
+): boolean {
+  return error instanceof KnowledgeComparisonClientTimeoutError;
+}
+
 export function createKnowledgeComparisonRequestGuard() {
   let currentRequestId = 0;
   return {

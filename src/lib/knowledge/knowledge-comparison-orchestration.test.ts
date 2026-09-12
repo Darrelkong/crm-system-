@@ -5,6 +5,9 @@ import {
   countComparisonDiffGroups,
   createKnowledgeComparisonRequestGuard,
   formatMatchConfidencePercent,
+  isKnowledgeComparisonClientTimeoutError,
+  KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS,
+  KnowledgeComparisonClientTimeoutError,
   resolveComparisonConfidenceTone,
   shouldAutoCompareAfterOrganize,
   shouldExpandComparisonGroupByDefault,
@@ -130,5 +133,15 @@ describe("knowledge comparison orchestration", () => {
     assert.equal(shouldExpandComparisonGroupByDefault(1), true);
     assert.equal(shouldExpandComparisonGroupByDefault(2), true);
     assert.equal(shouldExpandComparisonGroupByDefault(3), false);
+  });
+
+  it("defines a bounded client comparison timeout", () => {
+    assert.equal(KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS, 30_000);
+    assert.equal(
+      isKnowledgeComparisonClientTimeoutError(
+        new KnowledgeComparisonClientTimeoutError(),
+      ),
+      true,
+    );
   });
 });

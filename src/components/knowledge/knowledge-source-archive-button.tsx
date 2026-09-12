@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Archive } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
@@ -76,7 +77,15 @@ export function KnowledgeSourceArchiveButton({
   }
 
   return (
-    <Button type="button" variant="ghost" size="sm" onClick={() => setConfirming(true)}>
+    <Button
+      type="button"
+      variant="secondary"
+      size="sm"
+      className="border border-amber-200 bg-white text-amber-950 hover:bg-amber-50"
+      data-archive-source-button="true"
+      onClick={() => setConfirming(true)}
+    >
+      <Archive className="mr-1.5 h-4 w-4" aria-hidden="true" />
       {t("knowledge.ingest.archiveSource")}
     </Button>
   );

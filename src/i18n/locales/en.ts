@@ -3420,6 +3420,23 @@ const en = {
       savedDraft: "Draft saved",
       noCategory: "Select a category",
       warning: "Please review every field. AI must not add unsupported facts.",
+      backToSourceList: "Back to source list",
+      newSourceAction: "+ New source",
+      stepRawSource: "Raw source",
+      stepOrganize: "AI organize",
+      stepComparison: "Compare with published knowledge",
+      stepDraft: "Prepare draft",
+      stepSourceManagement: "Source management",
+      statusRead: "Read",
+      statusCompleted: "Completed",
+      statusComparing: "Comparing",
+      statusTemporarilyUnavailable: "Temporarily unavailable",
+      reorganize: "Re-organize",
+      organizerAdvisoryTitle: "{{count}} item(s) need human review",
+      organizerAdvisoryBody:
+        "AI organization is complete, but the following details should be verified manually.",
+      draftPendingComparisonHint:
+        "Finish comparing with published knowledge before deciding whether to create a new article or update an existing one.",
       failure: "This source cannot continue. Check the status and try again.",
       unsupportedExtraction:
         "Text could not be extracted from this file. Check the format and try again.",
