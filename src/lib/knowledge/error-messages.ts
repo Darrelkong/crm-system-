@@ -73,8 +73,18 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
     "knowledge.errors.sourceDuplicate",
   [KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_FAILED]:
     "knowledge.errors.aiOrganizationFailed",
+  [KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_REQUIRED]:
+    "knowledge.errors.aiOrganizationRequired",
   [KNOWLEDGE_ERROR_CODES.AI_OUTPUT_INVALID]: "knowledge.errors.aiOutputInvalid",
   [KNOWLEDGE_ERROR_CODES.AI_RUN_CONFLICT]: "knowledge.errors.aiRunConflict",
+  [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_FAILED]:
+    "knowledge.errors.aiComparisonFailed",
+  [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_OUTPUT_INVALID]:
+    "knowledge.errors.aiComparisonOutputInvalid",
+  [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_CANDIDATE_INVALID]:
+    "knowledge.errors.aiComparisonCandidateInvalid",
+  [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_RUN_CONFLICT]:
+    "knowledge.errors.aiComparisonRunConflict",
   [KNOWLEDGE_ERROR_CODES.STORAGE_UNAVAILABLE]:
     "knowledge.errors.storageUnavailable",
   [KNOWLEDGE_ERROR_CODES.REVIEW_INVALID]: "knowledge.errors.reviewInvalid",

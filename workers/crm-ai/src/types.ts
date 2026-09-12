@@ -4,7 +4,8 @@ export type SystemAiTask =
   | "admin_management_brief"
   | "staff_today_actions"
   | "knowledge_organize"
-  | "knowledge_qa";
+  | "knowledge_qa"
+  | "knowledge_compare";
 
 export type AiServiceError =
   | "timeout"
@@ -80,6 +81,14 @@ export type CrmAiKnowledgeQaRequest = {
   userPrompt: string;
 };
 
+export type CrmAiKnowledgeCompareRequest = {
+  task: "knowledge_compare";
+  schemaVersion: string;
+  locale: string;
+  systemPrompt: string;
+  userPrompt: string;
+};
+
 export type KnowledgeOrganizeOutput = {
   title: string;
   summary: string | null;
@@ -94,12 +103,42 @@ export type KnowledgeQaOutput = {
   insufficientInformation: boolean;
 };
 
+export type KnowledgeComparisonDiffItem = {
+  id: string;
+  topic: string;
+  existingValue: string | null;
+  incomingValue: string | null;
+  explanation: string;
+  confidence: number;
+  sourceExcerpt: string | null;
+  existingExcerpt: string | null;
+};
+
+export type KnowledgeComparisonSuggestedUpdate = {
+  topic: string;
+  suggestion: string;
+  rationale: string;
+  confidence: number;
+};
+
+export type KnowledgeCompareOutput = {
+  relationship: "update_existing" | "new_article" | "ambiguous";
+  matchedCandidateKey: "C1" | "C2" | "C3" | null;
+  matchConfidence: number;
+  newFacts: KnowledgeComparisonDiffItem[];
+  changedFacts: KnowledgeComparisonDiffItem[];
+  conflicts: KnowledgeComparisonDiffItem[];
+  uncertainties: KnowledgeComparisonDiffItem[];
+  suggestedUpdates: KnowledgeComparisonSuggestedUpdate[];
+};
+
 export type CrmAiRequest =
   | CrmAiProbeRequest
   | CrmAiAdminBriefRequest
   | CrmAiStaffActionsRequest
   | CrmAiKnowledgeOrganizeRequest
-  | CrmAiKnowledgeQaRequest;
+  | CrmAiKnowledgeQaRequest
+  | CrmAiKnowledgeCompareRequest;
 
 export type CrmAiEnv = {
   AI: Ai;
@@ -111,4 +150,5 @@ export type CrmAiHandleResult =
   | AiServiceResult<AdminBriefOutput>
   | AiServiceResult<StaffTodayActionsOutput>
   | AiServiceResult<KnowledgeOrganizeOutput>
-  | AiServiceResult<KnowledgeQaOutput>;
+  | AiServiceResult<KnowledgeQaOutput>
+  | AiServiceResult<KnowledgeCompareOutput>;

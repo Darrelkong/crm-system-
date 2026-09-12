@@ -160,6 +160,19 @@ export function canViewKnowledgeSource(
   return canManageKnowledgeSource(context, source);
 }
 
+export async function requireManageableKnowledgeSource(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  db: Database = getDb(),
+  deniedMessage = "来源访问被拒绝",
+): Promise<KnowledgeSource> {
+  const source = await getSourceRow(context, sourceId, db);
+  if (!canManageKnowledgeSource(context, source)) {
+    throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED, deniedMessage, 403);
+  }
+  return source;
+}
+
 function normalizeSourceLifecycle(value: unknown): KnowledgeSourceLifecycle {
   if (value === "archived") return "archived";
   return "active";

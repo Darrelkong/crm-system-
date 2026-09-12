@@ -18,8 +18,10 @@ import {
   STAFF_TODAY_ACTIONS_MODEL,
 } from "./models";
 import {
+  runKnowledgeCompare,
   runKnowledgeOrganize,
   runKnowledgeQa,
+  validateKnowledgeCompareRequest,
   validateKnowledgeOrganizeRequest,
   validateKnowledgeQaRequest,
 } from "./knowledge";
@@ -60,11 +62,13 @@ import type {
   CrmAiAdminBriefRequest,
   CrmAiEnv,
   CrmAiHandleResult,
+  CrmAiKnowledgeCompareRequest,
   CrmAiKnowledgeOrganizeRequest,
   CrmAiKnowledgeQaRequest,
   CrmAiRequest,
   CrmAiStaffActionsRequest,
   HealthProbeOutput,
+  KnowledgeCompareOutput,
   KnowledgeOrganizeOutput,
   KnowledgeQaOutput,
   StaffTodayActionsOutput,
@@ -609,7 +613,7 @@ export async function runStaffTodayActions(
 }
 
 async function runKnowledgeTaskWithRetries<T>(
-  task: "knowledge_organize" | "knowledge_qa",
+  task: "knowledge_organize" | "knowledge_qa" | "knowledge_compare",
   model: string,
   totalDeadlineMs: number,
   attemptRunner: (remainingMs: number) => Promise<AiServiceResult<T>>,
@@ -722,6 +726,27 @@ export async function runKnowledgeQaTask(
   );
 }
 
+export async function runKnowledgeCompareTask(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeCompareRequest,
+): Promise<AiServiceResult<KnowledgeCompareOutput>> {
+  const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  return runKnowledgeTaskWithRetries(
+    "knowledge_compare",
+    KNOWLEDGE_MODEL,
+    totalDeadlineMs,
+    (remainingMs) =>
+      runKnowledgeCompare(
+        env,
+        request,
+        (model, task, schemaVersion, payload, timeoutMs) =>
+          invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
+        parseJsonValue,
+        remainingMs,
+      ),
+  );
+}
+
 export async function handleCrmAiRequest(
   env: CrmAiEnv,
   request: CrmAiRequest,
@@ -743,6 +768,9 @@ export async function handleCrmAiRequest(
   }
   if (request.task === "knowledge_qa") {
     return runKnowledgeQaTask(env, request);
+  }
+  if (request.task === "knowledge_compare") {
+    return runKnowledgeCompareTask(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -802,6 +830,11 @@ export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
   const qaRequest = validateKnowledgeQaRequest(record);
   if (qaRequest) {
     return qaRequest;
+  }
+
+  const compareRequest = validateKnowledgeCompareRequest(record);
+  if (compareRequest) {
+    return compareRequest;
   }
 
   return null;

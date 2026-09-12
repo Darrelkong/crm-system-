@@ -39,6 +39,7 @@ describe("Knowledge grounded AI contract", () => {
     const user = buildKnowledgeQaUserPrompt("What is recorded?", [
       {
         articleId: "article",
+        articleVersionId: "article-version-3",
         versionNumber: 3,
         citationId: "article:3",
         title: "Title",

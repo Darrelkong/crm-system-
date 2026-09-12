@@ -38,6 +38,7 @@ export const KNOWLEDGE_SQL_MAX_LIKE_CONDITIONS =
 
 export type PublishedKnowledgeDocument = {
   articleId: string;
+  articleVersionId: string;
   versionNumber: number;
   citationId: string;
   title: string;
@@ -288,6 +289,7 @@ export async function retrievePublishedKnowledge(
   const rows = await db
     .select({
       articleId: schema.knowledgeArticles.id,
+      articleVersionId: schema.knowledgeArticleVersions.id,
       versionNumber: schema.knowledgeArticleVersions.versionNumber,
       title: schema.knowledgeArticleVersions.titleSnapshot,
       summary: schema.knowledgeArticleVersions.summarySnapshot,
@@ -336,6 +338,7 @@ export async function retrievePublishedKnowledge(
     .map((row) => {
       const document: PublishedKnowledgeDocument = {
         articleId: row.articleId,
+        articleVersionId: row.articleVersionId,
         versionNumber: row.versionNumber,
         citationId: `${row.articleId}:${row.versionNumber}`,
         title: row.title,

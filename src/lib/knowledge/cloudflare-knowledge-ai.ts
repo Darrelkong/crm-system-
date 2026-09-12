@@ -5,6 +5,7 @@ export const KNOWLEDGE_CLOUDFLARE_AI_MODEL = "@cf/qwen/qwen3-30b-a3b-fp8";
 export const KNOWLEDGE_CLOUDFLARE_AI_PROVIDER = "cloudflare_workers_ai";
 export const KNOWLEDGE_ORGANIZE_SCHEMA_VERSION = "knowledge-organize-v1";
 export const KNOWLEDGE_QA_SCHEMA_VERSION = "knowledge-qa-v1";
+export const KNOWLEDGE_COMPARE_SCHEMA_VERSION = "knowledge-compare-v1";
 
 type CrmAiServiceResponse =
   | { ok: true; data: unknown; model: string }
@@ -108,6 +109,24 @@ export async function callKnowledgeQaCloudflareAi(input: {
     {
       task: "knowledge_qa",
       schemaVersion: KNOWLEDGE_QA_SCHEMA_VERSION,
+      locale: input.locale,
+      systemPrompt: input.systemPrompt,
+      userPrompt: input.userPrompt,
+    },
+    input.aiService,
+  );
+}
+
+export async function callKnowledgeCompareCloudflareAi(input: {
+  locale: AiAnalysisLanguage;
+  systemPrompt: string;
+  userPrompt: string;
+  aiService?: CloudflareEnv["AI_SERVICE"];
+}): Promise<KnowledgeCloudflareAiCallResult> {
+  return callKnowledgeCloudflareAi(
+    {
+      task: "knowledge_compare",
+      schemaVersion: KNOWLEDGE_COMPARE_SCHEMA_VERSION,
       locale: input.locale,
       systemPrompt: input.systemPrompt,
       userPrompt: input.userPrompt,

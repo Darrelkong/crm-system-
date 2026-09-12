@@ -8,6 +8,7 @@ export * from "./knowledge-articles";
 export * from "./knowledge-article-versions";
 export * from "./knowledge-sources";
 export * from "./knowledge-ai-organization-runs";
+export * from "./knowledge-ai-comparison-runs";
 export * from "./knowledge-review-requests";
 export * from "./knowledge-article-publications";
 export * from "./knowledge-ai-query-runs";
