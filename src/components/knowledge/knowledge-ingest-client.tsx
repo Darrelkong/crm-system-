@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FileText } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -40,14 +42,22 @@ function statusLabel(
   return t(`knowledge.ingest.sourceStatuses.${status}`);
 }
 
+function formatSelectedFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
 export function KnowledgeIngestClient({
   initialCategories,
   initialSources,
   role,
+  previewFixturesEnabled = false,
 }: {
   initialCategories: KnowledgeCategoryListItem[];
   initialSources: KnowledgeSourceListItem[];
   role: KnowledgeRole | null;
+  previewFixturesEnabled?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -60,6 +70,7 @@ export function KnowledgeIngestClient({
   const [sourcesLoading, setSourcesLoading] = useState(false);
   const lifecycleAbortRef = useRef<AbortController | null>(null);
   const lifecycleRequestGuardRef = useRef(createKnowledgeIngestLifecycleRequestGuard());
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [selected, setSelected] = useState<KnowledgeSourceDetail | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -231,6 +242,9 @@ export function KnowledgeIngestClient({
       setSourceTitle("");
       setRawText("");
       setFile(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
     } finally {
@@ -470,19 +484,66 @@ export function KnowledgeIngestClient({
                   </label>
                 </>
               ) : (
-                <label className="block text-sm font-medium crm-text">
-                  {t("knowledge.ingest.chooseFile")}
-                  <input
-                    required
-                    type="file"
-                    accept=".txt,.md,.pdf,.docx"
-                    onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                    className="mt-2 block min-h-11 w-full text-sm"
-                  />
-                  <span className="mt-2 block text-xs crm-text-secondary">
-                    {t("knowledge.ingest.supportedFormats")}
-                  </span>
-                </label>
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium crm-text">
+                      {t("knowledge.ingest.chooseFile")}
+                    </p>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".txt,.md,.pdf,.docx"
+                      onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                      className="sr-only"
+                    />
+                    <div className="mt-2 flex flex-wrap items-center gap-3">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {t("knowledge.ingest.chooseFileButton")}
+                      </Button>
+                      <span className="text-sm crm-text-secondary">
+                        {file
+                          ? t("knowledge.ingest.fileSelected")
+                          : t("knowledge.ingest.noFileSelected")}
+                      </span>
+                    </div>
+                    {file ? (
+                      <div className="mt-3 flex min-w-0 items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <FileText
+                          className="mt-0.5 h-4 w-4 shrink-0 text-slate-500"
+                          aria-hidden
+                        />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium crm-text">
+                            {file.name}
+                          </p>
+                          <p className="mt-0.5 text-xs crm-text-secondary">
+                            {formatSelectedFileSize(file.size)}
+                          </p>
+                        </div>
+                      </div>
+                    ) : null}
+                    <p className="mt-2 text-xs leading-5 crm-text-secondary">
+                      {t("knowledge.ingest.supportedFormats")}
+                    </p>
+                    <p className="text-xs crm-text-secondary">
+                      {t("knowledge.ingest.maxFileSize")}
+                    </p>
+                  </div>
+                  {previewFixturesEnabled && (
+                    <p className="text-sm">
+                      <Link
+                        href="/local-preview/knowledge-fixtures"
+                        className="text-blue-700 underline"
+                      >
+                        {t("knowledge.ingest.getTestFixtures")}
+                      </Link>
+                    </p>
+                  )}
+                </div>
               )}
               {tab === "file" && uploadPhase !== "idle" && (
                 <p className="text-sm text-blue-900">

@@ -7,6 +7,7 @@ import { KnowledgeIngestClient } from "@/components/knowledge/knowledge-ingest-c
 import { canAuthorKnowledgeArticle } from "@/lib/knowledge/article-permissions";
 import { listKnowledgeCategories } from "@/lib/knowledge/core-service";
 import { listKnowledgeSources } from "@/lib/knowledge/source-service";
+import { isKnowledgePreviewFixturesEnabled } from "@/lib/knowledge/knowledge-preview-fixtures";
 import { getKnowledgeSessionStatus } from "@/lib/permissions/knowledge";
 
 export default async function KnowledgeIngestPage() {
@@ -37,6 +38,7 @@ export default async function KnowledgeIngestPage() {
         initialCategories={await listKnowledgeCategories()}
         initialSources={await listKnowledgeSources(context, { lifecycle: "active" })}
         role={context.role}
+        previewFixturesEnabled={isKnowledgePreviewFixturesEnabled()}
       />
     </div>
   );
