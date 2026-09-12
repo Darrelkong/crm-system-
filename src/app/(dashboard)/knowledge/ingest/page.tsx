@@ -35,7 +35,7 @@ export default async function KnowledgeIngestPage() {
       />
       <KnowledgeIngestClient
         initialCategories={await listKnowledgeCategories()}
-        initialSources={await listKnowledgeSources(context)}
+        initialSources={await listKnowledgeSources(context, { lifecycle: "active" })}
         role={context.role}
       />
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslation } from "@/i18n/provider";
 import { Badge, Card, EmptyState } from "@/components/ui/card";
@@ -11,7 +11,16 @@ import type {
   KnowledgeSourceDetail,
   KnowledgeSourceListItem,
 } from "@/lib/knowledge/source-service";
-import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
+import {
+  getKnowledgeErrorMessage,
+  KnowledgeApiClientError,
+  resolveKnowledgeApiError,
+} from "@/lib/knowledge/error-messages";
+import {
+  createKnowledgeIngestLifecycleRequestGuard,
+  fetchKnowledgeSourcesForLifecycle,
+  isKnowledgeIngestLifecycleAbortError,
+} from "@/lib/knowledge/knowledge-ingest-lifecycle";
 import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
 import { KnowledgeSourceRestoreButton } from "@/components/knowledge/knowledge-source-restore-button";
 import type { KnowledgeSourceLifecycle } from "@/lib/knowledge/source-service";
@@ -40,6 +49,9 @@ export function KnowledgeIngestClient({
   const [file, setFile] = useState<File | null>(null);
   const [lifecycle, setLifecycle] = useState<KnowledgeSourceLifecycle>("active");
   const [sources, setSources] = useState(initialSources);
+  const [sourcesLoading, setSourcesLoading] = useState(false);
+  const lifecycleAbortRef = useRef<AbortController | null>(null);
+  const lifecycleRequestGuardRef = useRef(createKnowledgeIngestLifecycleRequestGuard());
   const [selected, setSelected] = useState<KnowledgeSourceDetail | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
@@ -65,26 +77,55 @@ export function KnowledgeIngestClient({
     setCategoryId(match?.id ?? "");
   }
 
-  async function reloadSources(nextLifecycle: KnowledgeSourceLifecycle = lifecycle) {
-    const response = await fetch(
-      `/api/knowledge/sources?lifecycle=${nextLifecycle}`,
-      { cache: "no-store" },
-    );
-    const payload = (await response.json()) as {
-      sources?: KnowledgeSourceListItem[];
-    };
-    if (response.ok && payload.sources) {
-      setSources(payload.sources);
-    }
-  }
+  const loadSourcesForLifecycle = useCallback(
+    async (nextLifecycle: KnowledgeSourceLifecycle) => {
+      lifecycleAbortRef.current?.abort();
+      const requestId = lifecycleRequestGuardRef.current.begin();
+      const controller = new AbortController();
+      lifecycleAbortRef.current = controller;
 
-  async function switchLifecycle(nextLifecycle: KnowledgeSourceLifecycle) {
-    setLifecycle(nextLifecycle);
-    setSelected(null);
-    setSaved(false);
-    setRestoreNotice(null);
-    await reloadSources(nextLifecycle);
-  }
+      setSourcesLoading(true);
+      setSources([]);
+
+      try {
+        const nextSources = await fetchKnowledgeSourcesForLifecycle(
+          nextLifecycle,
+          controller.signal,
+        );
+        if (!lifecycleRequestGuardRef.current.isCurrent(requestId)) return;
+        setSources(nextSources);
+      } catch (caught) {
+        if (!lifecycleRequestGuardRef.current.isCurrent(requestId)) return;
+        if (isKnowledgeIngestLifecycleAbortError(caught)) return;
+        setSources([]);
+        setError(
+          caught instanceof KnowledgeApiClientError
+            ? getKnowledgeErrorMessage(t, caught.errorCode)
+            : t("knowledge.ingest.failure"),
+        );
+      } finally {
+        if (lifecycleRequestGuardRef.current.isCurrent(requestId)) {
+          setSourcesLoading(false);
+          if (lifecycleAbortRef.current === controller) {
+            lifecycleAbortRef.current = null;
+          }
+        }
+      }
+    },
+    [t],
+  );
+
+  const switchLifecycle = useCallback(
+    (nextLifecycle: KnowledgeSourceLifecycle) => {
+      setLifecycle(nextLifecycle);
+      setSelected(null);
+      setSaved(false);
+      setRestoreNotice(null);
+      setError(null);
+      void loadSourcesForLifecycle(nextLifecycle);
+    },
+    [loadSourcesForLifecycle],
+  );
 
   async function loadSource(sourceId: string) {
     setError(null);
@@ -271,8 +312,14 @@ export function KnowledgeIngestClient({
                 {t("knowledge.ingest.lifecycleArchived")}
               </button>
             </div>
-            <div className="mt-3 space-y-2">
-              {sources.length === 0 ? (
+            <div className="mt-3 space-y-2" data-lifecycle-list="true">
+              {sourcesLoading ? (
+                <div className="space-y-2" aria-busy="true" data-lifecycle-loading="true">
+                  <p className="text-sm crm-text-secondary">{t("common.loading")}</p>
+                  <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                  <div className="h-14 animate-pulse rounded-xl bg-slate-100" />
+                </div>
+              ) : sources.length === 0 ? (
                 <p className="text-sm crm-text-secondary">
                   {isArchivedView
                     ? t("knowledge.ingest.noArchivedSources")
@@ -440,9 +487,7 @@ export function KnowledgeIngestClient({
                       sourceId={selected.id}
                       updatedAt={selected.updatedAt}
                       onArchived={() => {
-                        setSelected(null);
-                        void reloadSources("active");
-                        void switchLifecycle("active");
+                        switchLifecycle("active");
                         router.refresh();
                       }}
                     />
@@ -458,8 +503,7 @@ export function KnowledgeIngestClient({
                     updatedAt={selected.updatedAt}
                     onRestored={() => {
                       setRestoreNotice(t("knowledge.ingest.restoreSuccess"));
-                      setSelected(null);
-                      void switchLifecycle("active");
+                      switchLifecycle("active");
                       router.refresh();
                     }}
                   />
@@ -473,9 +517,7 @@ export function KnowledgeIngestClient({
                       sourceId={selected.id}
                       updatedAt={selected.updatedAt}
                       onArchived={() => {
-                        setSelected(null);
-                        void reloadSources("active");
-                        void switchLifecycle("active");
+                        switchLifecycle("active");
                         router.refresh();
                       }}
                     />
@@ -560,8 +602,14 @@ export function KnowledgeIngestClient({
               {error}
             </p>
           )}
-          {!selected && sources.length === 0 && (
-            <EmptyState message={t("knowledge.ingest.noSources")} />
+          {!selected && !sourcesLoading && sources.length === 0 && (
+            <EmptyState
+              message={
+                isArchivedView
+                  ? t("knowledge.ingest.noArchivedSources")
+                  : t("knowledge.ingest.noSources")
+              }
+            />
           )}
         </main>
       </div>
