@@ -38,6 +38,7 @@ export default async function KnowledgeIngestPage() {
         initialCategories={await listKnowledgeCategories()}
         initialSources={await listKnowledgeSources(context, { lifecycle: "active" })}
         role={context.role}
+        userId={context.user.id}
         previewFixturesEnabled={isKnowledgePreviewFixturesEnabled()}
       />
     </div>

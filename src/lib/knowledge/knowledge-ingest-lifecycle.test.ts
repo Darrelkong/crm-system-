@@ -23,6 +23,7 @@ function source(
     status: "ready",
     failureCode: null,
     linkedArticleId: null,
+    createdByUserId: "user-1",
     archivedAt,
     archivedByUserId: archivedAt ? "user" : null,
     createdAt: "2026-01-01T00:00:00.000Z",

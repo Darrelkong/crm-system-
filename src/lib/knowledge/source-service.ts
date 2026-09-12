@@ -90,6 +90,7 @@ export type KnowledgeSourceListItem = {
   status: KnowledgeSourceStatus;
   failureCode: string | null;
   linkedArticleId: string | null;
+  createdByUserId: string;
   archivedAt: string | null;
   archivedByUserId: string | null;
   createdAt: string;
@@ -391,6 +392,7 @@ function toListItem(source: KnowledgeSource): KnowledgeSourceListItem {
     status: source.status,
     failureCode: source.failureCode,
     linkedArticleId: source.linkedArticleId,
+    createdByUserId: source.createdByUserId,
     archivedAt: source.archivedAt,
     archivedByUserId: source.archivedByUserId,
     createdAt: source.createdAt,

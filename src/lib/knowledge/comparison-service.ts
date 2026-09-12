@@ -38,6 +38,10 @@ import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import type { KnowledgeAiComparisonRun } from "../../../drizzle/schema/knowledge-ai-comparison-runs";
 import type { KnowledgeAiOrganizationRun } from "../../../drizzle/schema/knowledge-ai-organization-runs";
+import {
+  buildKnowledgeComparisonPreviewMock,
+  shouldUseKnowledgeComparisonPreviewMock,
+} from "@/lib/knowledge/knowledge-comparison-preview-mock";
 import type {
   ComparisonCandidateSnapshot,
   KnowledgeComparisonDetail,
@@ -468,7 +472,12 @@ export async function compareKnowledgeSource(
     } else if (allowMockDeepInsightGeneration()) {
       provider = "mock";
       model = "mock-knowledge-compare-v1";
-      output = mockComparisonOutput(promptCandidates);
+      output = shouldUseKnowledgeComparisonPreviewMock(
+        organizationRun.proposedBody!,
+        promptCandidates,
+      )
+        ? buildKnowledgeComparisonPreviewMock(promptCandidates)
+        : mockComparisonOutput(promptCandidates);
     } else {
       provider = KNOWLEDGE_CLOUDFLARE_AI_PROVIDER;
       model = KNOWLEDGE_CLOUDFLARE_AI_MODEL;

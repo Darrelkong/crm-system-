@@ -46,6 +46,10 @@ export type KnowledgeReviewDetail = KnowledgeReviewListItem & {
   bodySnapshot: string;
   categoryIdSnapshot: string;
   ownerUserIdSnapshot: string | null;
+  linkedSourceId: string | null;
+  linkedSourceCreatedByUserId: string | null;
+  linkedSourceStatus: string | null;
+  linkedSourceOrganizationReady: boolean;
   publication: {
     id: string;
     publishedByUserId: string;
@@ -295,6 +299,50 @@ async function assertReviewAccess(
   }
 }
 
+async function getLinkedSourceContext(
+  articleId: string,
+  db: Database,
+): Promise<{
+  linkedSourceId: string | null;
+  linkedSourceCreatedByUserId: string | null;
+  linkedSourceStatus: string | null;
+  linkedSourceOrganizationReady: boolean;
+}> {
+  const source = (
+    await db
+      .select({
+        id: schema.knowledgeSources.id,
+        createdByUserId: schema.knowledgeSources.createdByUserId,
+        status: schema.knowledgeSources.status,
+      })
+      .from(schema.knowledgeSources)
+      .where(eq(schema.knowledgeSources.linkedArticleId, articleId))
+      .limit(1)
+  )[0];
+  if (!source) {
+    return {
+      linkedSourceId: null,
+      linkedSourceCreatedByUserId: null,
+      linkedSourceStatus: null,
+      linkedSourceOrganizationReady: false,
+    };
+  }
+  const organizationRun = (
+    await db
+      .select({ status: schema.knowledgeAiOrganizationRuns.status })
+      .from(schema.knowledgeAiOrganizationRuns)
+      .where(eq(schema.knowledgeAiOrganizationRuns.sourceId, source.id))
+      .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt))
+      .limit(1)
+  )[0];
+  return {
+    linkedSourceId: source.id,
+    linkedSourceCreatedByUserId: source.createdByUserId,
+    linkedSourceStatus: source.status,
+    linkedSourceOrganizationReady: organizationRun?.status === "completed",
+  };
+}
+
 async function toDetail(
   context: KnowledgeSessionContext,
   record: NonNullable<Awaited<ReturnType<typeof getReviewRecord>>>,
@@ -314,9 +362,10 @@ async function toDetail(
     );
   }
   if (enforceAccess) await assertReviewAccess(context, record, version);
-  const [submittedByName, assignedReviewerName] = await Promise.all([
+  const [submittedByName, assignedReviewerName, linkedSource] = await Promise.all([
     getUserName(record.request.submittedByUserId, db),
     getUserName(record.request.assignedReviewerUserId, db),
+    getLinkedSourceContext(record.request.articleId, db),
   ]);
   return {
     id: record.request.id,
@@ -348,6 +397,10 @@ async function toDetail(
     bodySnapshot: version.bodySnapshot,
     categoryIdSnapshot: version.categoryIdSnapshot,
     ownerUserIdSnapshot: version.ownerUserIdSnapshot,
+    linkedSourceId: linkedSource.linkedSourceId,
+    linkedSourceCreatedByUserId: linkedSource.linkedSourceCreatedByUserId,
+    linkedSourceStatus: linkedSource.linkedSourceStatus,
+    linkedSourceOrganizationReady: linkedSource.linkedSourceOrganizationReady,
     publication: await getPublication(record.request.id, db),
   };
 }

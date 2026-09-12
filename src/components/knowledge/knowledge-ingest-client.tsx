@@ -23,6 +23,7 @@ import {
   fetchKnowledgeSourcesForLifecycle,
   isKnowledgeIngestLifecycleAbortError,
 } from "@/lib/knowledge/knowledge-ingest-lifecycle";
+import { KnowledgeComparisonSourceSection } from "@/components/knowledge/knowledge-comparison-source-section";
 import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
 import { KnowledgeSourceRestoreButton } from "@/components/knowledge/knowledge-source-restore-button";
 import type { KnowledgeSourceLifecycle } from "@/lib/knowledge/source-service";
@@ -67,11 +68,13 @@ export function KnowledgeIngestClient({
   initialCategories,
   initialSources,
   role,
+  userId,
   previewFixturesEnabled = false,
 }: {
   initialCategories: KnowledgeCategoryListItem[];
   initialSources: KnowledgeSourceListItem[];
   role: KnowledgeRole | null;
+  userId: string;
   previewFixturesEnabled?: boolean;
 }) {
   const { t } = useTranslation();
@@ -106,6 +109,8 @@ export function KnowledgeIngestClient({
   const [highlightedSourceId, setHighlightedSourceId] = useState<string | null>(
     null,
   );
+  const [autoCompareSignal, setAutoCompareSignal] = useState(0);
+  const organizerFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!highlightedSourceId) return;
@@ -346,6 +351,9 @@ export function KnowledgeIngestClient({
           source.id === payload.source!.id ? payload.source! : source,
         ),
       );
+      if (payload.source.organization?.status === "completed") {
+        setAutoCompareSignal((current) => current + 1);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
     } finally {
@@ -879,7 +887,27 @@ export function KnowledgeIngestClient({
                   ⚠ {warning}
                 </p>
               ))}
-              <form className="mt-5 space-y-4" onSubmit={saveDraft}>
+              <KnowledgeComparisonSourceSection
+                sourceId={selected.id}
+                sourceCreatedByUserId={selected.createdByUserId}
+                sourceStatus={selected.status}
+                organizationReady={organizationReady}
+                role={role}
+                userId={userId}
+                autoCompareSignal={autoCompareSignal}
+                onCreateDraft={() => {
+                  organizerFormRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
+                }}
+                className="mt-5"
+              />
+              <form
+                ref={organizerFormRef}
+                className="mt-5 space-y-4"
+                onSubmit={saveDraft}
+              >
                 <label className="block text-sm font-medium crm-text">
                   {t("knowledge.ingest.title")}
                   <input

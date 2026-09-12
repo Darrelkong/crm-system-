@@ -16,7 +16,9 @@ import type {
   KnowledgeReviewDetail,
   KnowledgeReviewListItem,
 } from "@/lib/knowledge/review-service";
+import { KnowledgeComparisonSourceSection } from "@/components/knowledge/knowledge-comparison-source-section";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
+import type { KnowledgeSourceStatus } from "../../../drizzle/schema/knowledge-sources";
 
 type Tab = "pending" | "mine" | "history";
 
@@ -337,6 +339,20 @@ export function KnowledgeReviewCenterClient({
             <article className="mt-6 whitespace-pre-wrap break-words text-sm leading-8 crm-text">
               {selected.bodySnapshot}
             </article>
+
+            {selected.linkedSourceId && (
+              <KnowledgeComparisonSourceSection
+                sourceId={selected.linkedSourceId}
+                sourceCreatedByUserId={selected.linkedSourceCreatedByUserId}
+                sourceStatus={
+                  selected.linkedSourceStatus as KnowledgeSourceStatus | null
+                }
+                organizationReady={selected.linkedSourceOrganizationReady}
+                role={role}
+                userId={userId}
+                className="mt-6"
+              />
+            )}
 
             {role === "knowledge_admin" && selected.status === "pending" && (
               <div className="mt-6 border-t border-slate-200 pt-5">

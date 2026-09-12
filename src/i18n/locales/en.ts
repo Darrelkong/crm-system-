@@ -3182,8 +3182,18 @@ const en = {
         "This PDF is encrypted or password-protected and cannot be read.",
       sourceDuplicate: "This source already exists in Knowledge.",
       aiOrganizationFailed: "AI organization failed. Please try again later.",
+      aiOrganizationRequired:
+        "Complete AI organization before comparing this source.",
       aiOutputInvalid: "AI output was invalid.",
       aiRunConflict: "Another AI operation is already in progress.",
+      aiComparisonFailed:
+        "Knowledge comparison could not be completed. Please try again later.",
+      aiComparisonOutputInvalid:
+        "Knowledge comparison returned an invalid result.",
+      aiComparisonCandidateInvalid:
+        "Knowledge comparison referenced an invalid candidate.",
+      aiComparisonRunConflict:
+        "Another knowledge comparison is already in progress for this source.",
       storageUnavailable:
         "Source storage is temporarily unavailable. Please try again later.",
       reviewInvalid: "The review action is invalid.",
@@ -3428,6 +3438,51 @@ const en = {
         failed: "Failed",
         converted: "Converted to draft",
       },
+    },
+    comparison: {
+      compareAction: "Compare with published Knowledge",
+      comparing: "Comparing with published Knowledge…",
+      noResultYetExecutable:
+        "No knowledge comparison yet. Run a comparison against published Knowledge.",
+      noResultYetReadOnly: "No knowledge comparison result has been generated yet.",
+      matchedHeader: "Matched published Knowledge",
+      matchedArticleFallback: "Matched article",
+      matchConfidence: "Match confidence {{percent}}%",
+      countNewFacts: "New information",
+      countChangedFacts: "Possible updates",
+      countConflicts: "Conflicts",
+      countUncertainties: "Uncertainties",
+      groupNewFacts: "New information",
+      groupChangedFacts: "Possible updates",
+      groupConflicts: "Conflicts",
+      groupUncertainties: "Uncertainties",
+      existingKnowledge: "Current published Knowledge",
+      incomingMaterial: "New source material",
+      aiJudgment: "AI assessment",
+      itemConfidence: "Assessment confidence {{percent}}%",
+      suggestedUpdatesTitle: "AI verification suggestions",
+      suggestionLabel: "Suggestion",
+      rationaleLabel: "Rationale",
+      newArticleTitle: "No suitable existing Knowledge to update directly",
+      newArticleBody: "Suggestion: create a new Knowledge article from this source.",
+      noMatchTitle: "No matching published Knowledge found",
+      noMatchBody:
+        "You can continue organizing this source and create a new Knowledge article.",
+      ambiguousTitle: "Multiple related Knowledge articles found",
+      ambiguousBody:
+        "Review the candidate articles below and confirm the most relevant match before deciding how to update.",
+      ambiguousGuidance:
+        "A reviewer should confirm the most relevant Knowledge before choosing an update path.",
+      degradedBadge: "Comparison content simplified",
+      degradedHint:
+        "Because the source material is long, this comparison used selected highlights. Review the original source manually.",
+      failedTitle: "Knowledge comparison is not complete yet",
+      failedMessage:
+        "The organization result is preserved. You can compare again later.",
+      retryAction: "Compare again",
+      loadFailed: "Failed to load knowledge comparison.",
+      viewExistingKnowledge: "View existing Knowledge",
+      createArticleAction: "Create article",
     },
     previewFixtures: {
       pageTitle: "Knowledge test files",
