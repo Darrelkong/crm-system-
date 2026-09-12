@@ -10,9 +10,9 @@ import { extractKnowledgeSourceText } from "@/lib/knowledge/source-extraction";
 import {
   assertNoBinaryDuplicate,
   assertNoTextDuplicate,
-  resolveBinaryDuplicateRace,
   type KnowledgeSourceDuplicateKind,
 } from "@/lib/knowledge/source-duplicate";
+import type { KnowledgeSourceExtractionResult } from "@/lib/knowledge/source-extraction";
 import { normalizeKnowledgeSourceText } from "@/lib/knowledge/source-text-normalization";
 import {
   buildKnowledgeAuditInsert,
@@ -486,6 +486,35 @@ async function writeDuplicateBlockedAudit(
   );
 }
 
+async function auditDuplicateBlockedIfNeeded(
+  context: KnowledgeSessionContext,
+  meta: KnowledgeSourceMeta,
+  error: unknown,
+  input: {
+    attemptedFilename?: string | null;
+    duplicateKind: KnowledgeSourceDuplicateKind;
+  },
+  db: Database,
+): Promise<void> {
+  if (
+    error instanceof KnowledgeServiceError &&
+    error.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE &&
+    error.details?.duplicate &&
+    typeof error.details.duplicate === "object"
+  ) {
+    const duplicate = error.details.duplicate as {
+      id: string;
+      lifecycle: "active" | "archived";
+    };
+    await writeDuplicateBlockedAudit(context, meta, {
+      attemptedFilename: input.attemptedFilename,
+      existingSourceId: duplicate.id,
+      existingLifecycle: duplicate.lifecycle,
+      duplicateKind: input.duplicateKind,
+    }, db);
+  }
+}
+
 export async function createKnowledgePasteSource(
   context: KnowledgeSessionContext,
   input: { sourceTitle?: unknown; rawText?: unknown },
@@ -497,22 +526,9 @@ export async function createKnowledgePasteSource(
   try {
     await assertNoTextDuplicate(values.rawText, undefined, db);
   } catch (error) {
-    if (
-      error instanceof KnowledgeServiceError &&
-      error.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE &&
-      error.details?.duplicate &&
-      typeof error.details.duplicate === "object"
-    ) {
-      const duplicate = error.details.duplicate as {
-        id: string;
-        lifecycle: "active" | "archived";
-      };
-      await writeDuplicateBlockedAudit(context, meta, {
-        existingSourceId: duplicate.id,
-        existingLifecycle: duplicate.lifecycle,
-        duplicateKind: "text",
-      }, db);
-    }
+    await auditDuplicateBlockedIfNeeded(context, meta, error, {
+      duplicateKind: "text",
+    }, db);
     throw error;
   }
   const now = new Date().toISOString();
@@ -576,31 +592,52 @@ export async function createKnowledgeFileSource(
     throw sourceError(KNOWLEDGE_ERROR_CODES.SOURCE_INVALID, "文件大小验证失败");
   }
   const contentHash = await sha256Hex(bytes);
+
   try {
     await assertNoBinaryDuplicate(contentHash, db);
   } catch (error) {
-    if (
-      error instanceof KnowledgeServiceError &&
-      error.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE &&
-      error.details?.duplicate &&
-      typeof error.details.duplicate === "object"
-    ) {
-      const duplicate = error.details.duplicate as {
-        id: string;
-        lifecycle: "active" | "archived";
-      };
-      await writeDuplicateBlockedAudit(context, meta, {
-        attemptedFilename: metadata.filename,
-        existingSourceId: duplicate.id,
-        existingLifecycle: duplicate.lifecycle,
-        duplicateKind: "binary",
-      }, db);
-    }
+    await auditDuplicateBlockedIfNeeded(context, meta, error, {
+      attemptedFilename: metadata.filename,
+      duplicateKind: "binary",
+    }, db);
     throw error;
   }
+
+  let extracted: KnowledgeSourceExtractionResult | null = null;
+  let extractionFailure: KnowledgeServiceError | null = null;
+  try {
+    extracted = await extractKnowledgeSourceText({
+      bytes,
+      filename: metadata.filename,
+      mimeType: metadata.mimeType,
+    });
+  } catch (error) {
+    extractionFailure =
+      error instanceof KnowledgeServiceError
+        ? error
+        : sourceError(
+            KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
+            "来源文字提取失败",
+          );
+  }
+
+  if (extracted) {
+    try {
+      await assertNoTextDuplicate(extracted.text, undefined, db);
+    } catch (error) {
+      await auditDuplicateBlockedIfNeeded(context, meta, error, {
+        attemptedFilename: metadata.filename,
+        duplicateKind: "text",
+      }, db);
+      throw error;
+    }
+  }
+
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
   const storageKey = createKnowledgeSourceStorageKey();
+  const isReady = extracted != null;
+  const processedAt = isReady ? now : null;
   await db.insert(schema.knowledgeSources).values({
     id,
     sourceType: "file",
@@ -608,14 +645,14 @@ export async function createKnowledgeFileSource(
     originalFilename: metadata.filename,
     mimeType: metadata.mimeType || null,
     sizeBytes: metadata.sizeBytes,
-    rawText: null,
+    rawText: extracted?.text ?? null,
     storageKey,
     contentHash,
-    status: "received",
+    status: isReady ? "ready" : "received",
     createdByUserId: context.user.id,
     createdAt: now,
     updatedAt: now,
-    processedAt: null,
+    processedAt,
     failureCode: null,
     linkedArticleId: null,
   });
@@ -626,7 +663,10 @@ export async function createKnowledgeFileSource(
       entityType: "knowledge_source",
       entityId: id,
       ...meta,
-      metadata: { sourceType: "file", status: "received" },
+      metadata: {
+        sourceType: "file",
+        status: isReady ? "ready" : "received",
+      },
     },
     db,
   );
@@ -659,90 +699,15 @@ export async function createKnowledgeFileSource(
       entityType: "knowledge_source",
       entityId: id,
       ...meta,
-      metadata: { sourceType: "file", status: "received" },
+      metadata: {
+        sourceType: "file",
+        status: isReady ? "ready" : "received",
+      },
     },
     db,
   );
-  await db
-    .update(schema.knowledgeSources)
-    .set({ status: "extracting", updatedAt: new Date().toISOString() })
-    .where(eq(schema.knowledgeSources.id, id));
 
-  try {
-    const raceDuplicate = await resolveBinaryDuplicateRace(id, contentHash, db);
-    if (raceDuplicate) {
-      await storage.delete(storageKey);
-      await db
-        .delete(schema.knowledgeSources)
-        .where(eq(schema.knowledgeSources.id, id));
-      const summary = {
-        id: raceDuplicate.id,
-        sourceTitle: raceDuplicate.sourceTitle,
-        originalFilename: raceDuplicate.originalFilename,
-        status: raceDuplicate.status,
-        lifecycle: raceDuplicate.archivedAt ? "archived" as const : "active" as const,
-        createdAt: raceDuplicate.createdAt,
-      };
-      await writeDuplicateBlockedAudit(context, meta, {
-        attemptedFilename: metadata.filename,
-        existingSourceId: summary.id,
-        existingLifecycle: summary.lifecycle,
-        duplicateKind: "binary",
-      }, db);
-      throw new KnowledgeServiceError(
-        KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE,
-        summary.lifecycle === "archived"
-          ? "此资料已存在于已封存来源中"
-          : "此资料已经存在于有效来源中",
-        409,
-        { duplicate: summary, duplicateKind: "binary", duplicateLifecycle: summary.lifecycle },
-      );
-    }
-
-    const extracted = await extractKnowledgeSourceText({
-      bytes,
-      filename: metadata.filename,
-      mimeType: metadata.mimeType,
-    });
-
-    try {
-      await assertNoTextDuplicate(extracted.text, id, db);
-    } catch (error) {
-      await storage.delete(storageKey);
-      await db
-        .delete(schema.knowledgeSources)
-        .where(eq(schema.knowledgeSources.id, id));
-      if (
-        error instanceof KnowledgeServiceError &&
-        error.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE &&
-        error.details?.duplicate &&
-        typeof error.details.duplicate === "object"
-      ) {
-        const duplicate = error.details.duplicate as {
-          id: string;
-          lifecycle: "active" | "archived";
-        };
-        await writeDuplicateBlockedAudit(context, meta, {
-          attemptedFilename: metadata.filename,
-          existingSourceId: duplicate.id,
-          existingLifecycle: duplicate.lifecycle,
-          duplicateKind: "text",
-        }, db);
-      }
-      throw error;
-    }
-
-    const processedAt = new Date().toISOString();
-    await db
-      .update(schema.knowledgeSources)
-      .set({
-        rawText: extracted.text,
-        status: "ready",
-        processedAt,
-        updatedAt: processedAt,
-        failureCode: null,
-      })
-      .where(eq(schema.knowledgeSources.id, id));
+  if (extracted) {
     await writeKnowledgeAudit(
       {
         userId: context.user.id,
@@ -750,35 +715,29 @@ export async function createKnowledgeFileSource(
         entityType: "knowledge_source",
         entityId: id,
         ...meta,
-        metadata: { sourceType: "file", status: "ready", format: extracted.format },
+        metadata: {
+          sourceType: "file",
+          status: "ready",
+          format: extracted.format,
+        },
       },
       db,
     );
-  } catch (error) {
-    if (
-      error instanceof KnowledgeServiceError &&
-      error.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE
-    ) {
-      throw error;
-    }
-    const failureCode =
-      error instanceof KnowledgeServiceError
-        ? error.errorCode
-        : KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED;
-    await db
-      .update(schema.knowledgeSources)
-      .set({
-        status: "failed",
-        failureCode,
-        updatedAt: new Date().toISOString(),
-      })
-      .where(eq(schema.knowledgeSources.id, id));
-    throw error instanceof KnowledgeServiceError
-      ? error
-      : sourceError(failureCode, "来源文字提取失败");
+    return getKnowledgeSource(context, id, db);
   }
 
-  return getKnowledgeSource(context, id, db);
+  const failureCode =
+    extractionFailure?.errorCode ?? KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED;
+  const failureAt = new Date().toISOString();
+  await db
+    .update(schema.knowledgeSources)
+    .set({
+      status: "failed",
+      failureCode,
+      updatedAt: failureAt,
+    })
+    .where(eq(schema.knowledgeSources.id, id));
+  throw extractionFailure ?? sourceError(failureCode, "来源文字提取失败");
 }
 
 export async function archiveKnowledgeSource(

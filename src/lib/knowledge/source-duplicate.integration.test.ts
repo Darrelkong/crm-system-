@@ -20,7 +20,11 @@ import {
   createMemoryKnowledgeSourceStorage,
   type KnowledgeSourceStorage,
 } from "@/lib/knowledge/source-storage";
-import { buildTestDocxBytes, buildTestTextPdfBytes } from "@/lib/knowledge/test-fixtures/source-documents";
+import {
+  buildScannedPdfBytes,
+  buildTestDocxBytes,
+  buildTestTextPdfBytes,
+} from "@/lib/knowledge/test-fixtures/source-documents";
 
 const META = { ipAddress: null, userAgent: "knowledge-duplicate-test" };
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -28,17 +32,13 @@ let disposeProxy: (() => Promise<void>) | undefined;
 let adminUser: User;
 let staffUser: User;
 let storage: KnowledgeSourceStorage;
+let storagePutCount = 0;
+let storageDeleteCount = 0;
 
 const contributorContext = () => ({
   user: staffUser,
   sessionId: "duplicate-staff-session",
   role: "contributor" as const,
-});
-
-const adminContext = () => ({
-  user: adminUser,
-  sessionId: "duplicate-admin-session",
-  role: "knowledge_admin" as const,
 });
 
 async function cleanup() {
@@ -52,7 +52,24 @@ function fileFrom(bytes: ArrayBuffer, name: string, type: string) {
     name,
     type,
     size: bytes.byteLength,
-    arrayBuffer: async () => bytes,
+    arrayBuffer: async () => bytes.slice(0),
+  };
+}
+
+function createInstrumentedStorage(): KnowledgeSourceStorage {
+  const inner = createMemoryKnowledgeSourceStorage();
+  return {
+    async put(key, value, metadata) {
+      storagePutCount += 1;
+      await inner.put(key, value, metadata);
+    },
+    async get(key) {
+      return inner.get(key);
+    },
+    async delete(key) {
+      storageDeleteCount += 1;
+      await inner.delete(key);
+    },
   };
 }
 
@@ -81,7 +98,9 @@ describe("Knowledge source exact duplicate detection", () => {
 
   beforeEach(async () => {
     await cleanup();
-    storage = createMemoryKnowledgeSourceStorage();
+    storagePutCount = 0;
+    storageDeleteCount = 0;
+    storage = createInstrumentedStorage();
   });
 
   it("blocks identical DOCX uploads without creating a second source or R2 object", async () => {
@@ -113,6 +132,8 @@ describe("Knowledge source exact duplicate detection", () => {
     const rows = await db.select().from(schema.knowledgeSources);
     assert.equal(rows.length, 1);
     assert.equal(await storage.get(key) != null, true);
+    assert.equal(storagePutCount, 1);
+    assert.equal(storageDeleteCount, 0);
   });
 
   it("blocks identical PDF uploads and different filenames with the same binary", async () => {
@@ -140,6 +161,8 @@ describe("Knowledge source exact duplicate detection", () => {
       },
     );
     assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
+    assert.equal(storagePutCount, 1);
+    assert.equal(storageDeleteCount, 0);
   });
 
   it("blocks duplicate paste and whitespace-only differences", async () => {
@@ -195,6 +218,8 @@ describe("Knowledge source exact duplicate detection", () => {
       },
     );
     assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
+    assert.equal(storagePutCount, 0);
+    assert.equal(storageDeleteCount, 0);
   });
 
   it("reports archived duplicates and still blocks re-upload after archive", async () => {
@@ -240,6 +265,53 @@ describe("Knowledge source exact duplicate detection", () => {
     );
     assert.equal(restored.id, source.id);
     assert.equal(restored.archivedAt, null);
+    assert.equal(storagePutCount, 1);
+    assert.equal(storageDeleteCount, 0);
+  });
+
+  it("preserves R2 for extraction failures without delete rollback", async () => {
+    const bytes = buildScannedPdfBytes();
+    await assert.rejects(
+      () =>
+        createKnowledgeFileSource(
+          contributorContext(),
+          fileFrom(bytes, "scan.pdf", "application/pdf"),
+          META,
+          db,
+          storage,
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof KnowledgeServiceError);
+        assert.equal(error.errorCode, KNOWLEDGE_ERROR_CODES.SCANNED_PDF_UNSUPPORTED);
+        return true;
+      },
+    );
+    const failed = (await db.select().from(schema.knowledgeSources))[0];
+    assert.equal(failed?.status, "failed");
+    assert.equal(failed?.failureCode, KNOWLEDGE_ERROR_CODES.SCANNED_PDF_UNSUPPORTED);
+    assert.ok(failed?.storageKey);
+    assert.ok(await storage.get(failed!.storageKey!));
+    assert.equal(storagePutCount, 1);
+    assert.equal(storageDeleteCount, 0);
+  });
+
+  it("stores exactly one source and one R2 object for a new valid DOCX", async () => {
+    const bytes = await buildTestDocxBytes({ paragraphs: ["Valid unique DOCX body"] });
+    const source = await createKnowledgeFileSource(
+      contributorContext(),
+      fileFrom(
+        bytes,
+        "unique.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+      META,
+      db,
+      storage,
+    );
+    assert.equal(source.status, "ready");
+    assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
+    assert.equal(storagePutCount, 1);
+    assert.equal(storageDeleteCount, 0);
   });
 
   it("writes duplicate-blocked audit metadata without raw text", async () => {

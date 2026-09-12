@@ -101,22 +101,3 @@ export async function assertNoTextDuplicate(
     throw duplicateError(toDuplicateSummary(existing), "text");
   }
 }
-
-export async function resolveBinaryDuplicateRace(
-  sourceId: string,
-  contentHash: string,
-  db: Database = getDb(),
-): Promise<KnowledgeSource | null> {
-  const matches = await db
-    .select()
-    .from(schema.knowledgeSources)
-    .where(eq(schema.knowledgeSources.contentHash, contentHash))
-    .orderBy(asc(schema.knowledgeSources.createdAt));
-  if (matches.length <= 1) return null;
-  const canonical = matches[0];
-  if (canonical.id === sourceId) return null;
-  if (matches.some((row) => row.id === sourceId)) {
-    return canonical;
-  }
-  return null;
-}
