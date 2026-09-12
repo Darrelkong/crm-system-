@@ -75,6 +75,7 @@
     "drizzle-orm": "^0.45.2",
     "jose": "^6.2.3",
     "lucide-react": "^1.21.0",
+    "mammoth": "^1.12.2",
     "next": "16.2.9",
     "opencc-js": "^1.4.2",
     "postal-mime": "^2.7.6",
@@ -82,6 +83,7 @@
     "react-dom": "19.2.4",
     "sanitize-html": "^2.17.7",
     "spark-md5": "^3.0.2",
+    "unpdf": "^1.8.1",
     "zod": "^4.4.3"
   },
   "devDependencies": {

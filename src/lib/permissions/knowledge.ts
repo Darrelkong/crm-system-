@@ -101,13 +101,14 @@ export async function requireKnowledgeAdmin(
 
 export function knowledgeErrorResponse(error: unknown): Response {
   if (error instanceof KnowledgeServiceError) {
-    return Response.json(
-      {
-        error: error.message,
-        errorCode: error.errorCode,
-      },
-      { status: error.httpStatus },
-    );
+    const body: Record<string, unknown> = {
+      error: error.message,
+      errorCode: error.errorCode,
+    };
+    if (error.details) {
+      Object.assign(body, error.details);
+    }
+    return Response.json(body, { status: error.httpStatus });
   }
   return authErrorResponse(error);
 }

@@ -111,7 +111,7 @@ describe("Knowledge Package 3 source validation", () => {
     );
   });
 
-  it("extracts UTF-8 TXT/Markdown and safely refuses PDF/DOCX without a parser", () => {
+  it("extracts UTF-8 TXT/Markdown through the legacy helper", () => {
     const bytes = new TextEncoder().encode("# 流程\n仅用于测试。").buffer;
     assert.equal(extractKnowledgeText(bytes, ".md").status, "ready");
     assertCode(

@@ -17,6 +17,7 @@ export type KnowledgeAuditAction =
   | "knowledge_source_created"
   | "knowledge_source_uploaded"
   | "knowledge_source_extracted"
+  | "knowledge_source_duplicate_blocked"
   | "knowledge_ai_organization_started"
   | "knowledge_ai_organization_completed"
   | "knowledge_ai_organization_failed"

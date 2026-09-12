@@ -3174,6 +3174,13 @@ const en = {
       textExtractionFailed: "Text could not be extracted from this source.",
       textExtractionUnavailable:
         "Text extraction is not available for this file format yet.",
+      textExtractionTooLarge:
+        "The extracted text exceeds the allowed Knowledge source size.",
+      scannedPdfUnsupported:
+        "This PDF has no readable text layer. It may be scanned or image-based. Image/OCR support will be added in a later release.",
+      pdfPasswordProtected:
+        "This PDF is encrypted or password-protected and cannot be read.",
+      sourceDuplicate: "This source already exists in Knowledge.",
       aiOrganizationFailed: "AI organization failed. Please try again later.",
       aiOutputInvalid: "AI output was invalid.",
       aiRunConflict: "Another AI operation is already in progress.",
@@ -3331,8 +3338,13 @@ const en = {
       sourceTitle: "Optional source title",
       rawText: "Source text",
       chooseFile: "Choose one TXT, Markdown, PDF, or DOCX file (maximum 20 MiB).",
+      supportedFormats: "Supported formats: TXT, Markdown (.md), DOCX, and text-based PDF.",
       createSource: "Create raw source",
       creatingSource: "Creating source…",
+      uploading: "Uploading…",
+      readingDocument: "Reading document…",
+      documentReady: "Document ready",
+      documentExtractionFailed: "Document extraction failed",
       sourceList: "My raw sources",
       lifecycleActive: "Active",
       lifecycleArchived: "Archived",
@@ -3357,8 +3369,17 @@ const en = {
       sourcePreview: "Raw source preview",
       sourceType: "Source type",
       extraction: "Extraction",
-      extractionReady: "Text ready",
+      extractionReady: "Ready to organize",
       extractionFailed: "Extraction failed",
+      duplicateDetected: "Duplicate source detected",
+      duplicateActiveMessage:
+        "\"{{label}}\" already exists in active sources.",
+      duplicateArchivedMessage:
+        "\"{{label}}\" already exists in archived sources. Restore the existing source instead of uploading a copy.",
+      duplicateExistingActive: "Existing active source",
+      duplicateExistingArchived: "Existing archived source",
+      viewExistingSource: "View existing source",
+      goToArchivedSources: "Go to archived sources",
       organize: "AI organize",
       organizing: "AI organizing…",
       aiLabel: "AI organization result · Not official Knowledge yet",
@@ -3373,7 +3394,13 @@ const en = {
       warning: "Please review every field. AI must not add unsupported facts.",
       failure: "This source cannot continue. Check the status and try again.",
       unsupportedExtraction:
-        "PDF/DOCX is stored privately, but this build has no safe Worker-compatible text extractor for it yet.",
+        "Text could not be extracted from this file. Check the format and try again.",
+      scannedPdfNotice:
+        "This PDF has no readable text layer. It may be scanned. Image/OCR support will be added in a later release.",
+      passwordProtectedPdfNotice:
+        "This PDF is encrypted or password-protected.",
+      extractionTooLargeNotice:
+        "The extracted document text exceeds the allowed Knowledge source size.",
       sourceStatuses: {
         received: "Received",
         extracting: "Extracting",

@@ -63,6 +63,14 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
     "knowledge.errors.textExtractionFailed",
   [KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_UNAVAILABLE]:
     "knowledge.errors.textExtractionUnavailable",
+  [KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_TOO_LARGE]:
+    "knowledge.errors.textExtractionTooLarge",
+  [KNOWLEDGE_ERROR_CODES.SCANNED_PDF_UNSUPPORTED]:
+    "knowledge.errors.scannedPdfUnsupported",
+  [KNOWLEDGE_ERROR_CODES.PDF_PASSWORD_PROTECTED]:
+    "knowledge.errors.pdfPasswordProtected",
+  [KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE]:
+    "knowledge.errors.sourceDuplicate",
   [KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_FAILED]:
     "knowledge.errors.aiOrganizationFailed",
   [KNOWLEDGE_ERROR_CODES.AI_OUTPUT_INVALID]: "knowledge.errors.aiOutputInvalid",

@@ -24,6 +24,14 @@ import {
 import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
 import { KnowledgeSourceRestoreButton } from "@/components/knowledge/knowledge-source-restore-button";
 import type { KnowledgeSourceLifecycle } from "@/lib/knowledge/source-service";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
+
+type KnowledgeSourceDuplicateNotice = {
+  id: string;
+  sourceTitle: string | null;
+  originalFilename: string | null;
+  lifecycle: "active" | "archived";
+};
 
 function statusLabel(
   t: (key: string, params?: Record<string, string>) => string,
@@ -59,8 +67,36 @@ export function KnowledgeIngestClient({
   const [categoryId, setCategoryId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [uploadPhase, setUploadPhase] = useState<
+    "idle" | "uploading" | "reading"
+  >("idle");
+  const [duplicateNotice, setDuplicateNotice] =
+    useState<KnowledgeSourceDuplicateNotice | null>(null);
   const [saved, setSaved] = useState(false);
   const [restoreNotice, setRestoreNotice] = useState<string | null>(null);
+
+  function duplicateLabel(notice: KnowledgeSourceDuplicateNotice): string {
+    return (
+      notice.originalFilename ??
+      notice.sourceTitle ??
+      t("knowledge.ingest.sourcePreview")
+    );
+  }
+
+  function extractionFailureMessage(failureCode: string | null): string {
+    switch (failureCode) {
+      case KNOWLEDGE_ERROR_CODES.SCANNED_PDF_UNSUPPORTED:
+        return t("knowledge.ingest.scannedPdfNotice");
+      case KNOWLEDGE_ERROR_CODES.PDF_PASSWORD_PROTECTED:
+        return t("knowledge.ingest.passwordProtectedPdfNotice");
+      case KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_TOO_LARGE:
+        return t("knowledge.ingest.extractionTooLargeNotice");
+      case KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_UNAVAILABLE:
+        return t("knowledge.ingest.unsupportedExtraction");
+      default:
+        return t("knowledge.ingest.documentExtractionFailed");
+    }
+  }
 
   function applyOrganization(source: KnowledgeSourceDetail) {
     const organization = source.organization;
@@ -149,13 +185,18 @@ export function KnowledgeIngestClient({
     event.preventDefault();
     setBusy(true);
     setError(null);
+    setDuplicateNotice(null);
     setSaved(false);
+    if (tab === "file") {
+      setUploadPhase("uploading");
+    }
     try {
       let response: Response;
       if (tab === "file") {
         if (!file) throw new Error(t("knowledge.ingest.chooseFile"));
         const form = new FormData();
         form.set("file", file);
+        setUploadPhase("reading");
         response = await fetch("/api/knowledge/sources", {
           method: "POST",
           body: form,
@@ -171,7 +212,17 @@ export function KnowledgeIngestClient({
         source?: KnowledgeSourceDetail;
         error?: string;
         errorCode?: string;
+        duplicate?: KnowledgeSourceDuplicateNotice;
       };
+      if (
+        !response.ok &&
+        payload.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE &&
+        payload.duplicate
+      ) {
+        setDuplicateNotice(payload.duplicate);
+        setSelected(null);
+        return;
+      }
       if (!response.ok || !payload.source) {
         throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
@@ -184,6 +235,27 @@ export function KnowledgeIngestClient({
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
     } finally {
       setBusy(false);
+      setUploadPhase("idle");
+    }
+  }
+
+  async function openDuplicateSource(
+    sourceId: string,
+    duplicateLifecycle: "active" | "archived",
+  ) {
+    setDuplicateNotice(null);
+    setError(null);
+    if (duplicateLifecycle === "archived") {
+      if (lifecycle !== "archived") {
+        switchLifecycle("archived");
+      }
+    } else if (lifecycle !== "active") {
+      switchLifecycle("active");
+    }
+    try {
+      await loadSource(sourceId);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
     }
   }
 
@@ -407,10 +479,26 @@ export function KnowledgeIngestClient({
                     onChange={(event) => setFile(event.target.files?.[0] ?? null)}
                     className="mt-2 block min-h-11 w-full text-sm"
                   />
+                  <span className="mt-2 block text-xs crm-text-secondary">
+                    {t("knowledge.ingest.supportedFormats")}
+                  </span>
                 </label>
               )}
+              {tab === "file" && uploadPhase !== "idle" && (
+                <p className="text-sm text-blue-900">
+                  {uploadPhase === "uploading"
+                    ? t("knowledge.ingest.uploading")
+                    : t("knowledge.ingest.readingDocument")}
+                </p>
+              )}
               <Button type="submit" disabled={busy}>
-                {busy ? t("knowledge.ingest.creatingSource") : t("knowledge.ingest.createSource")}
+                {busy
+                  ? tab === "file"
+                    ? uploadPhase === "reading"
+                      ? t("knowledge.ingest.readingDocument")
+                      : t("knowledge.ingest.uploading")
+                    : t("knowledge.ingest.creatingSource")
+                  : t("knowledge.ingest.createSource")}
               </Button>
             </form>
           </Card>
@@ -464,9 +552,7 @@ export function KnowledgeIngestClient({
                 </pre>
               ) : (
                 <p className="mt-5 rounded-xl bg-red-50 p-4 text-sm text-red-700">
-                  {selected.failureCode === "TEXT_EXTRACTION_UNAVAILABLE"
-                    ? t("knowledge.ingest.unsupportedExtraction")
-                    : t("knowledge.ingest.failure")}
+                  {extractionFailureMessage(selected.failureCode)}
                 </p>
               )}
               {selected.rawText &&
@@ -597,6 +683,38 @@ export function KnowledgeIngestClient({
             </Card>
           )}
 
+          {duplicateNotice && (
+            <Card className="border-amber-200 bg-amber-50">
+              <h2 className="text-base font-semibold text-amber-950">
+                {t("knowledge.ingest.duplicateDetected")}
+              </h2>
+              <p className="mt-2 text-sm text-amber-900">
+                {duplicateNotice.lifecycle === "archived"
+                  ? t("knowledge.ingest.duplicateArchivedMessage", {
+                      label: duplicateLabel(duplicateNotice),
+                    })
+                  : t("knowledge.ingest.duplicateActiveMessage", {
+                      label: duplicateLabel(duplicateNotice),
+                    })}
+              </p>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() =>
+                    void openDuplicateSource(
+                      duplicateNotice.id,
+                      duplicateNotice.lifecycle,
+                    )
+                  }
+                >
+                  {duplicateNotice.lifecycle === "archived"
+                    ? t("knowledge.ingest.goToArchivedSources")
+                    : t("knowledge.ingest.viewExistingSource")}
+                </Button>
+              </div>
+            </Card>
+          )}
           {error && (
             <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">
               {error}

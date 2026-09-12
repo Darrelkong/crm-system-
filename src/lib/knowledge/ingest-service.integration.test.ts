@@ -205,7 +205,7 @@ describe("Knowledge Package 3 ingest lifecycle", () => {
     );
   });
 
-  it("stores file bytes in the dedicated adapter and safely marks PDF extraction unavailable", async () => {
+  it("stores file bytes in the dedicated adapter and safely marks invalid PDF extraction as failed", async () => {
     const storage = createMemoryKnowledgeSourceStorage();
     const pdfBytes = new TextEncoder().encode("synthetic PDF bytes").buffer;
     const source = await createKnowledgeFileSource(
@@ -221,7 +221,7 @@ describe("Knowledge Package 3 ingest lifecycle", () => {
       storage,
     ).catch((error: unknown) => {
       assert.ok(error instanceof KnowledgeServiceError);
-      assert.equal(error.errorCode, "TEXT_EXTRACTION_UNAVAILABLE");
+      assert.equal(error.errorCode, "TEXT_EXTRACTION_FAILED");
       return null;
     });
     assert.equal(source, null);
@@ -233,8 +233,48 @@ describe("Knowledge Package 3 ingest lifecycle", () => {
         .limit(1)
     )[0];
     assert.equal(failed?.status, "failed");
-    assert.equal(failed?.failureCode, "TEXT_EXTRACTION_UNAVAILABLE");
+    assert.equal(failed?.failureCode, "TEXT_EXTRACTION_FAILED");
     assert.ok(failed?.storageKey);
     assert.ok(await storage.get(failed!.storageKey!));
+  });
+
+  it("extracts DOCX and text PDF into ready sources for Organizer", async () => {
+    const storage = createMemoryKnowledgeSourceStorage();
+    const { buildTestDocxBytes, buildTestTextPdfBytes } = await import(
+      "@/lib/knowledge/test-fixtures/source-documents"
+    );
+    const docxBytes = await buildTestDocxBytes({
+      paragraphs: ["Organizer-ready DOCX body"],
+    });
+    const docx = await createKnowledgeFileSource(
+      contributorContext(),
+      {
+        name: "organizer.docx",
+        type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        size: docxBytes.byteLength,
+        arrayBuffer: async () => docxBytes,
+      },
+      META,
+      db,
+      storage,
+    );
+    assert.equal(docx.status, "ready");
+    assert.match(docx.rawText ?? "", /Organizer-ready DOCX body/);
+
+    const pdfBytes = buildTestTextPdfBytes(["Organizer-ready PDF body"]);
+    const pdf = await createKnowledgeFileSource(
+      contributorContext(),
+      {
+        name: "organizer.pdf",
+        type: "application/pdf",
+        size: pdfBytes.byteLength,
+        arrayBuffer: async () => pdfBytes,
+      },
+      META,
+      db,
+      storage,
+    );
+    assert.equal(pdf.status, "ready");
+    assert.match(pdf.rawText ?? "", /Organizer-ready PDF body/);
   });
 });
