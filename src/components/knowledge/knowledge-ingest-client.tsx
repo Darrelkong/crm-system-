@@ -813,7 +813,6 @@ export function KnowledgeIngestClient({
               {!selectedArchived && selected.status !== "converted" && (
                 <Card className="p-4" data-ingest-step="source-management">
                   <KnowledgeIngestStepHeader
-                    step={5}
                     title={t("knowledge.ingest.stepSourceManagement")}
                   />
                   <div className="mt-4">
@@ -851,10 +850,7 @@ export function KnowledgeIngestClient({
 
           {!inDetailMode && !isArchivedView && (
           <>
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <p className="text-sm crm-text-secondary">
-              {t("knowledge.ingest.sourceList")}
-            </p>
+          <div className="flex justify-end">
             <Button
               type="button"
               variant="secondary"

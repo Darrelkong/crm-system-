@@ -47,6 +47,10 @@ describe("Knowledge comparison UI boundary", () => {
     assert.match(hook, /KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS/);
     assert.match(panel, /timedOut/);
     assert.match(panel, /data-comparison-panel="failed"/);
+    assert.match(
+      panel,
+      /data-comparison-panel="completed"[\s\S]*knowledge\.comparison\.retryAction/,
+    );
     assert.match(review, /linkedSourceId/);
     assert.match(review, /KnowledgeComparisonSourceSection/);
   });

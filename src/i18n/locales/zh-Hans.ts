@@ -3090,7 +3090,7 @@ const zhHans: Messages = {
       editArticle: "编辑文章",
       metaDescription: "{{category}} · 更新于 {{date}}",
       versionBadge: "版本 {{version}}",
-      publishedVersionBadge: "已发布 Version {{version}}",
+      publishedVersionBadge: "已发布版本 {{version}}",
       publicationHistory: "发布记录",
       noEditPermission: "你没有编辑 Knowledge 文章的权限。",
       titleLabel: "标题",

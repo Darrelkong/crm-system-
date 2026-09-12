@@ -61,6 +61,17 @@ export function useKnowledgeSourceComparison(input: {
   t: Translate;
   autoCompareSignal?: number;
 }) {
+  const {
+    sourceId,
+    role,
+    userId,
+    sourceCreatedByUserId,
+    sourceStatus,
+    organizationReady,
+    t,
+    autoCompareSignal = 0,
+  } = input;
+
   const [comparison, setComparison] = useState<KnowledgeComparisonDetail | null>(
     null,
   );
@@ -76,14 +87,14 @@ export function useKnowledgeSourceComparison(input: {
   const lastAutoCompareSignalRef = useRef(0);
 
   const canExecute = canExecuteKnowledgeComparison(
-    input.role,
-    input.userId,
-    input.sourceCreatedByUserId,
+    role,
+    userId,
+    sourceCreatedByUserId,
   );
   const canView = canViewKnowledgeComparison(
-    input.role,
-    input.userId,
-    input.sourceCreatedByUserId,
+    role,
+    userId,
+    sourceCreatedByUserId,
   );
 
   const cancelLoad = useCallback(() => {
@@ -98,7 +109,7 @@ export function useKnowledgeSourceComparison(input: {
 
   const loadComparison = useCallback(
     async (options?: { silent?: boolean }) => {
-      if (!input.sourceId || !canView) {
+      if (!sourceId || !canView) {
         setComparison(null);
         setLoading(false);
         setError(null);
@@ -117,16 +128,10 @@ export function useKnowledgeSourceComparison(input: {
       setError(null);
 
       try {
-        const next = await fetchKnowledgeComparison(
-          input.sourceId,
-          controller.signal,
-        );
+        const next = await fetchKnowledgeComparison(sourceId, controller.signal);
         if (!loadRequestGuardRef.current.isCurrent(requestId)) return;
         setComparison(next);
-        if (
-          next?.status === "completed" ||
-          next?.status === "failed"
-        ) {
+        if (next?.status === "completed" || next?.status === "failed") {
           setTimedOut(false);
         }
       } catch (caught) {
@@ -135,8 +140,8 @@ export function useKnowledgeSourceComparison(input: {
         setComparison(null);
         setError(
           caught instanceof KnowledgeApiClientError
-            ? getKnowledgeErrorMessage(input.t, caught.errorCode)
-            : input.t("knowledge.comparison.loadFailed"),
+            ? getKnowledgeErrorMessage(t, caught.errorCode)
+            : t("knowledge.comparison.loadFailed"),
         );
       } finally {
         if (loadRequestGuardRef.current.isCurrent(requestId)) {
@@ -147,12 +152,12 @@ export function useKnowledgeSourceComparison(input: {
         }
       }
     },
-    [canView, cancelLoad, input.sourceId, input.t],
+    [canView, cancelLoad, sourceId, t],
   );
 
   const runComparison = useCallback(
     async (options?: { manual?: boolean }) => {
-      if (!input.sourceId || !canExecute) return;
+      if (!sourceId || !canExecute) return;
       cancelCompare();
       const requestId = compareRequestGuardRef.current.begin();
       const controller = new AbortController();
@@ -165,7 +170,7 @@ export function useKnowledgeSourceComparison(input: {
 
       try {
         const next = await withClientTimeout(
-          (signal) => triggerKnowledgeComparison(input.sourceId!, signal),
+          (signal) => triggerKnowledgeComparison(sourceId, signal),
           controller,
           KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS,
         );
@@ -178,14 +183,14 @@ export function useKnowledgeSourceComparison(input: {
         if (isKnowledgeComparisonAbortError(caught)) return;
         if (isKnowledgeComparisonClientTimeoutError(caught)) {
           setTimedOut(true);
-          setError(input.t("knowledge.comparison.failedMessage"));
+          setError(t("knowledge.comparison.failedMessage"));
           await loadComparison({ silent: true });
           return;
         }
         setError(
           caught instanceof KnowledgeApiClientError
-            ? getKnowledgeErrorMessage(input.t, caught.errorCode)
-            : input.t("knowledge.comparison.failedMessage"),
+            ? getKnowledgeErrorMessage(t, caught.errorCode)
+            : t("knowledge.comparison.failedMessage"),
         );
         await loadComparison({ silent: true });
       } finally {
@@ -195,7 +200,7 @@ export function useKnowledgeSourceComparison(input: {
         }
       }
     },
-    [canExecute, cancelCompare, input.sourceId, input.t, loadComparison],
+    [canExecute, cancelCompare, loadComparison, sourceId, t],
   );
 
   useEffect(() => {
@@ -206,37 +211,37 @@ export function useKnowledgeSourceComparison(input: {
       cancelLoad();
       cancelCompare();
     };
-  }, [input.sourceId, cancelCompare, cancelLoad, loadComparison]);
+  }, [sourceId, cancelCompare, cancelLoad, loadComparison]);
 
   useEffect(() => {
-    if (input.autoCompareSignal === lastAutoCompareSignalRef.current) {
+    if (autoCompareSignal === lastAutoCompareSignalRef.current) {
       return;
     }
-    lastAutoCompareSignalRef.current = input.autoCompareSignal ?? 0;
+    lastAutoCompareSignalRef.current = autoCompareSignal;
     autoCompareAttemptedRef.current = null;
-  }, [input.autoCompareSignal]);
+  }, [autoCompareSignal]);
 
   useEffect(() => {
     if (
       !shouldAutoCompareAfterOrganize({
         canExecute,
-        organizationReady: input.organizationReady,
-        sourceStatus: input.sourceStatus,
-        sourceId: input.sourceId,
+        organizationReady,
+        sourceStatus,
+        sourceId,
         autoCompareAttemptedForSourceId: autoCompareAttemptedRef.current,
       })
     ) {
       return;
     }
-    autoCompareAttemptedRef.current = input.sourceId;
+    autoCompareAttemptedRef.current = sourceId;
     void runComparison();
   }, [
+    autoCompareSignal,
     canExecute,
-    input.autoCompareSignal,
-    input.organizationReady,
-    input.sourceId,
-    input.sourceStatus,
+    organizationReady,
     runComparison,
+    sourceId,
+    sourceStatus,
   ]);
 
   useEffect(() => {
@@ -252,18 +257,16 @@ export function useKnowledgeSourceComparison(input: {
     );
     const timer = window.setTimeout(() => {
       setTimedOut(true);
-      setError(input.t("knowledge.comparison.failedMessage"));
+      setError(t("knowledge.comparison.failedMessage"));
       void loadComparison({ silent: true });
     }, remainingMs);
 
     return () => window.clearTimeout(timer);
-  }, [comparison, comparing, input.t, loadComparison, timedOut]);
+  }, [comparison, comparing, loadComparison, t, timedOut]);
 
   const processing =
     !timedOut &&
-    (comparing ||
-      loading ||
-      isComparisonProcessing(comparison));
+    (comparing || loading || isComparisonProcessing(comparison));
 
   return {
     comparison,

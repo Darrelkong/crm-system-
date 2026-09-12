@@ -548,7 +548,7 @@ export function KnowledgeComparisonPanel({
               onClick={onCompare}
               disabled={processing}
             >
-              {t("knowledge.comparison.compareAction")}
+              {t("knowledge.comparison.retryAction")}
             </Button>
           )}
         </div>

@@ -11,6 +11,32 @@ import {
 const root = process.cwd();
 
 describe("knowledge ingest mobile flow", () => {
+  it("shows only the new-source action without duplicating the source-list title", () => {
+    const ingest = readFileSync(
+      join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),
+      "utf8",
+    );
+    const listModeSection = ingest.slice(
+      ingest.indexOf("data-new-source-action"),
+      ingest.indexOf("data-create-source-panel"),
+    );
+    assert.doesNotMatch(listModeSection, /knowledge\.ingest\.sourceList/);
+    assert.match(listModeSection, /knowledge\.ingest\.newSourceAction/);
+  });
+
+  it("renders source management without a numeric step prefix", () => {
+    const ingest = readFileSync(
+      join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),
+      "utf8",
+    );
+    const managementSection = ingest.slice(
+      ingest.indexOf('data-ingest-step="source-management"'),
+      ingest.indexOf('data-ingest-step="source-management"') + 400,
+    );
+    assert.doesNotMatch(managementSection, /step=\{5\}/);
+    assert.match(managementSection, /stepSourceManagement/);
+  });
+
   it("enters source detail mode and hides create form when a source is selected", () => {
     const ingest = readFileSync(
       join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),

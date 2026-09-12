@@ -13,7 +13,7 @@ export function KnowledgeIngestStepHeader({
   status,
   tone = "neutral",
 }: {
-  step: number;
+  step?: number;
   title: string;
   status?: string;
   tone?: KnowledgeIngestStepStatusTone;
@@ -32,11 +32,13 @@ export function KnowledgeIngestStepHeader({
   return (
     <div
       className="flex min-w-0 items-start justify-between gap-3"
-      data-ingest-step-header={step}
+      data-ingest-step-header={step ?? "management"}
     >
       <div className="min-w-0">
         <p className="text-sm font-semibold crm-text">
-          <span className="mr-2 text-slate-400">{step}.</span>
+          {step != null ? (
+            <span className="mr-2 text-slate-400">{step}.</span>
+          ) : null}
           {title}
         </p>
       </div>

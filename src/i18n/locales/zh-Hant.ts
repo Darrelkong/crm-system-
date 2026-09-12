@@ -3090,7 +3090,7 @@ const zhHant: Messages = {
       editArticle: "文章編輯",
       metaDescription: "{{category}} · 更新於 {{date}}",
       versionBadge: "版本 {{version}}",
-      publishedVersionBadge: "已發布 Version {{version}}",
+      publishedVersionBadge: "已發布版本 {{version}}",
       publicationHistory: "發佈記錄",
       noEditPermission: "你沒有編輯 Knowledge 文章的權限。",
       titleLabel: "標題",
