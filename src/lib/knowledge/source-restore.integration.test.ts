@@ -89,13 +89,19 @@ async function assertCode(action: () => Promise<unknown>, code: string) {
   });
 }
 
+let restorePasteCounter = 0;
+
 async function createPasteSource(
   context = contributorContext(),
   title = "Restore test source",
 ) {
+  restorePasteCounter += 1;
   return createKnowledgePasteSource(
     context,
-    { sourceTitle: title, rawText: "ORBIT-RESTORE 三步流程測試內容。" },
+    {
+      sourceTitle: title,
+      rawText: `ORBIT-RESTORE 三步流程測試內容 #${restorePasteCounter} · ${title}`,
+    },
     META,
     db,
   );
