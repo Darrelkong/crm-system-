@@ -246,8 +246,7 @@ export function LoginForm() {
         <LanguageSwitcher />
       </div>
 
-      <div className="login-page__body">
-        <div className="login-page__stack">
+      <div className="login-page__stack">
         <Card className="login-page__card p-5" padding>
           <div className="login-page__form-header">
             <p className="login-page__card-brand">{LOGIN_BRAND.name}</p>
@@ -315,7 +314,6 @@ export function LoginForm() {
             </fieldset>
           </form>
         </Card>
-        </div>
       </div>
 
       <LoginCopyrightFooter />

@@ -41,7 +41,7 @@ describe("login copyright footer", () => {
     }
   });
 
-  it("renders the footer outside the login card in page flow", () => {
+  it("renders the footer outside the login card without altering page layout", () => {
     const loginForm = readFileSync(
       join(root, "src/app/(auth)/login/login-form.tsx"),
       "utf8",
@@ -55,33 +55,41 @@ describe("login copyright footer", () => {
 
     assert.ok(cardClose > -1);
     assert.ok(footerMount > cardClose);
-    assert.match(loginForm, /login-page__body/);
+    assert.doesNotMatch(loginForm, /login-page__body/);
     assert.match(footerComponent, /data-login-copyright-footer="true"/);
     assert.doesNotMatch(
       loginForm.slice(loginForm.indexOf("<Card"), cardClose),
       /LoginCopyrightFooter/,
     );
+    assert.match(loginForm, /<div className="login-page__stack">/);
   });
 
-  it("uses in-flow mobile-safe layout without fixed footer positioning", () => {
+  it("uses fixed footer positioning independent of login layout", () => {
     const css = readFileSync(
       join(root, "src/app/(auth)/login/login-page.css"),
       "utf8",
     );
-
-    assert.match(css, /\.login-page__body/);
-    assert.match(css, /\.login-page__copyright/);
-    assert.match(css, /font-size:\s*12px/);
-    assert.match(css, /font-weight:\s*400/);
-    assert.match(css, /--login-copyright/);
-    assert.match(css, /calc\(18px \+ env\(safe-area-inset-bottom\)\)/);
-    assert.match(css, /flex-direction:\s*column/);
+    const layoutCss = css.slice(0, css.indexOf(".login-page__copyright"));
     const copyrightBlock = css.slice(
       css.indexOf(".login-page__copyright"),
-      css.indexOf(".login-page__scene"),
+      css.length,
     );
-    assert.doesNotMatch(copyrightBlock, /position:\s*fixed/);
-    assert.doesNotMatch(copyrightBlock, /w-screen|100vw/);
+
+    assert.doesNotMatch(layoutCss, /login-page__body/);
+    assert.doesNotMatch(layoutCss, /flex-direction:\s*column/);
+    assert.match(layoutCss, /\.login-page \{[\s\S]*align-items:\s*center/);
+    assert.match(layoutCss, /\.login-page \{[\s\S]*justify-content:\s*center/);
+    assert.match(copyrightBlock, /position:\s*fixed/);
+    assert.match(copyrightBlock, /left:\s*0/);
+    assert.match(copyrightBlock, /right:\s*0/);
+    assert.match(copyrightBlock, /bottom:\s*calc\(18px \+ env\(safe-area-inset-bottom\)\)/);
+    assert.match(copyrightBlock, /text-align:\s*center/);
+    assert.match(copyrightBlock, /pointer-events:\s*none/);
+    assert.match(copyrightBlock, /font-size:\s*12px/);
+    assert.match(copyrightBlock, /font-weight:\s*400/);
+    assert.doesNotMatch(css, /\.login-page__body/);
+    assert.match(css, /\.login-page\s*\{[\s\S]*align-items:\s*center/);
+    assert.match(css, /\.login-page\s*\{[\s\S]*justify-content:\s*center/);
   });
 
   it("does not change login submit endpoint or auth handling", () => {
