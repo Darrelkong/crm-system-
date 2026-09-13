@@ -51,12 +51,6 @@ describe("Knowledge comparison UI boundary", () => {
       panel,
       /data-comparison-panel="completed"[\s\S]*knowledge\.comparison\.retryAction/,
     );
-    assert.match(panel, /knowledge\.comparison\.recomparingAction/);
-    assert.match(panel, /data-comparison-recompare-button/);
-    assert.match(panel, /data-comparison-last-compared/);
-    assert.match(panel, /data-comparison-recompare-status/);
-    assert.match(hook, /recompareFeedback/);
-    assert.match(hook, /lastComparedAt/);
     assert.match(review, /linkedSourceId/);
     assert.match(review, /KnowledgeComparisonSourceSection/);
   });

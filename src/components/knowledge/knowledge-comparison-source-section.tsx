@@ -47,13 +47,9 @@ export function KnowledgeComparisonSourceSection({
       comparison={comparisonState.comparison}
       loading={comparisonState.loading}
       comparing={comparisonState.comparing}
-      recomparing={comparisonState.recomparing}
       processing={comparisonState.processing}
       timedOut={comparisonState.timedOut}
       error={comparisonState.error}
-      recompareFeedback={comparisonState.recompareFeedback}
-      recompareError={comparisonState.recompareError}
-      lastComparedAt={comparisonState.lastComparedAt}
       canExecute={comparisonState.canExecute}
       canView={comparisonState.canView}
       onCompare={() => void comparisonState.runComparison({ manual: true })}

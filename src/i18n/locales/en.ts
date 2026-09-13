@@ -3518,13 +3518,6 @@ const en = {
       failedMessage:
         "The organization result is preserved. You can compare again later.",
       retryAction: "Compare again",
-      recomparingAction: "Recomparing…",
-      recompareUpdated: "Comparison result updated",
-      recompareUnchangedTitle: "Recompare completed",
-      recompareUnchangedBody:
-        "The current result is already up to date. No new changes were found.",
-      recompareFailed: "Recompare failed. Please try again later.",
-      lastComparedAt: "Last compared: {{datetime}}",
       loadFailed: "Failed to load knowledge comparison.",
       viewExistingKnowledge: "View existing Knowledge",
       createArticleAction: "Create article",

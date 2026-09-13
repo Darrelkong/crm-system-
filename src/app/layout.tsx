@@ -13,7 +13,6 @@ import { CRM_BOOT_SPLASH_INIT_SCRIPT } from "@/lib/pwa/boot-splash-bootstrap";
 import {
   CRM_THEME_BOOTSTRAP_SCRIPT,
 } from "@/lib/theme/crm-theme-bootstrap";
-import { DASHBOARD_SHELL_CRITICAL_CSS } from "@/lib/layout/dashboard-shell-critical-css";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -65,10 +64,6 @@ export default function RootLayout({
         <style
           id="crm-boot-splash-critical"
           dangerouslySetInnerHTML={{ __html: CRM_BOOT_SPLASH_CRITICAL_CSS }}
-        />
-        <style
-          id="dashboard-shell-critical"
-          dangerouslySetInnerHTML={{ __html: DASHBOARD_SHELL_CRITICAL_CSS }}
         />
         <script
           id="crm-theme-bootstrap"

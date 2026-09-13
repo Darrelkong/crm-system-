@@ -12,11 +12,9 @@ import type {
   KnowledgeComparisonDiffItem,
   KnowledgeComparisonSuggestedUpdate,
 } from "@/lib/knowledge/ai-comparison-schema";
-import type { KnowledgeComparisonRecompareFeedback } from "@/lib/knowledge/use-knowledge-source-comparison";
 import {
   buildArticleHistoryHref,
   countComparisonDiffGroups,
-  formatKnowledgeComparisonLastComparedAt,
   formatMatchConfidencePercent,
   resolveComparisonConfidenceTone,
   resolveMatchedArticleTitle,
@@ -28,13 +26,9 @@ type ComparisonPanelProps = {
   comparison: KnowledgeComparisonDetail | null;
   loading: boolean;
   comparing: boolean;
-  recomparing?: boolean;
   processing: boolean;
   timedOut?: boolean;
   error: string | null;
-  recompareFeedback?: KnowledgeComparisonRecompareFeedback | null;
-  recompareError?: boolean;
-  lastComparedAt?: string | null;
   canExecute: boolean;
   canView: boolean;
   onCompare?: () => void;
@@ -254,13 +248,9 @@ export function KnowledgeComparisonPanel({
   comparison,
   loading,
   comparing,
-  recomparing = false,
   processing,
   timedOut = false,
   error,
-  recompareFeedback = null,
-  recompareError = false,
-  lastComparedAt = null,
   canExecute,
   canView,
   onCompare,
@@ -268,7 +258,7 @@ export function KnowledgeComparisonPanel({
   onCreateDraft,
   className,
 }: ComparisonPanelProps) {
-  const { t, locale } = useTranslation();
+  const { t } = useTranslation();
   const counts = useMemo(
     () => countComparisonDiffGroups(comparison),
     [comparison],
@@ -384,10 +374,6 @@ export function KnowledgeComparisonPanel({
     }
     return null;
   };
-
-  const formattedLastComparedAt = lastComparedAt
-    ? formatKnowledgeComparisonLastComparedAt(lastComparedAt, locale)
-    : null;
 
   return (
     <Card className={className} data-comparison-panel="completed">
@@ -552,57 +538,7 @@ export function KnowledgeComparisonPanel({
           </div>
         )}
 
-        <div
-          className="space-y-3 border-t border-slate-100 pt-4"
-          data-comparison-recompare-status="true"
-        >
-          {formattedLastComparedAt && (
-            <p
-              className="text-xs crm-text-secondary"
-              data-comparison-last-compared="true"
-            >
-              {t("knowledge.comparison.lastComparedAt", {
-                datetime: formattedLastComparedAt,
-              })}
-            </p>
-          )}
-
-          {recompareFeedback === "changed" && (
-            <div
-              className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-950"
-              role="status"
-              data-comparison-recompare-feedback="changed"
-            >
-              {t("knowledge.comparison.recompareUpdated")}
-            </div>
-          )}
-
-          {recompareFeedback === "unchanged" && (
-            <div
-              className="rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-950"
-              role="status"
-              data-comparison-recompare-feedback="unchanged"
-            >
-              <p className="font-medium">
-                {t("knowledge.comparison.recompareUnchangedTitle")}
-              </p>
-              <p className="mt-1 text-xs leading-5">
-                {t("knowledge.comparison.recompareUnchangedBody")}
-              </p>
-            </div>
-          )}
-
-          {recompareError && (
-            <div
-              className="rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-950"
-              role="alert"
-              data-comparison-recompare-feedback="failed"
-            >
-              {t("knowledge.comparison.recompareFailed")}
-            </div>
-          )}
-
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-4">
           {renderActions()}
           {canExecute && onCompare && (
             <Button
@@ -611,24 +547,10 @@ export function KnowledgeComparisonPanel({
               variant="secondary"
               onClick={onCompare}
               disabled={processing}
-              aria-busy={recomparing}
-              className="inline-flex min-w-[7.5rem] items-center justify-center"
-              data-comparison-recompare-button="true"
             >
-              {recomparing ? (
-                <>
-                  <Loader2
-                    className="mr-2 h-4 w-4 shrink-0 animate-spin"
-                    aria-hidden="true"
-                  />
-                  {t("knowledge.comparison.recomparingAction")}
-                </>
-              ) : (
-                t("knowledge.comparison.retryAction")
-              )}
+              {t("knowledge.comparison.retryAction")}
             </Button>
           )}
-        </div>
         </div>
       </div>
     </Card>
