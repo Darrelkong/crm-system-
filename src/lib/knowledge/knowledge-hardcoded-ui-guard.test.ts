@@ -88,7 +88,7 @@ describe("Knowledge hardcoded UI guard", () => {
     const violations: string[] = [];
     for (const relative of ERROR_CLIENT_FILES) {
       const content = readFileSync(join(ROOT, relative), "utf8");
-      if (content.includes("payload.error")) {
+      if (/payload\.error(?!Code)/.test(content)) {
         violations.push(`${relative}: payload.error`);
       }
       if (

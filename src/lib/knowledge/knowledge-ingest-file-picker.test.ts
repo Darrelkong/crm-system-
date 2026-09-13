@@ -23,7 +23,7 @@ describe("Knowledge ingest file upload UI", () => {
   it("keeps a hidden native file input behind styled controls", () => {
     assert.match(source, /type="file"/);
     assert.match(source, /className="sr-only"/);
-    assert.match(source, /accept="\.txt,\.md,\.pdf,\.docx"/);
+    assert.match(source, /accept="\.txt,\.md,\.pdf,\.docx,\.jpg,\.jpeg,\.png"/);
     assert.match(source, /fileInputRef\.current\?\.click\(\)/);
     assert.doesNotMatch(source, /no file selected/i);
     assert.doesNotMatch(source, />Choose File</);

@@ -19,7 +19,10 @@ import {
   createMemoryKnowledgeSourceStorage,
   type KnowledgeSourceStorage,
 } from "@/lib/knowledge/source-storage";
-import { buildTestPngBytes } from "@/lib/knowledge/test-fixtures/source-images";
+import {
+  buildTestPngBytes,
+  buildUniqueTestPngBytes,
+} from "@/lib/knowledge/test-fixtures/source-images";
 
 const META = { ipAddress: null, userAgent: "knowledge-vision-ingest-test" };
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -114,7 +117,12 @@ describe("Knowledge vision image ingest integration", () => {
     await disposeProxy?.();
   });
 
-  beforeEach(() => {
+  beforeEach(async () => {
+    if (!d1HarnessReady) {
+      return;
+    }
+    await cleanup();
+    storage = createInstrumentedStorage();
     storagePutCount = 0;
   });
 
@@ -148,7 +156,7 @@ describe("Knowledge vision image ingest integration", () => {
       t.skip("D1 harness not available");
       return;
     }
-    const bytes = buildTestPngBytes();
+    const bytes = buildUniqueTestPngBytes(42);
     await createKnowledgeFileSource(
       contributorContext(),
       fileFrom(bytes, "first.png", "image/png"),

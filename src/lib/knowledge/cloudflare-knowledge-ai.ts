@@ -9,7 +9,7 @@ export const KNOWLEDGE_COMPARE_SCHEMA_VERSION = "knowledge-compare-v1";
 export const KNOWLEDGE_VISION_EXTRACT_SCHEMA_VERSION =
   "knowledge-vision-extract-v1";
 export const KNOWLEDGE_VISION_CLOUDFLARE_AI_MODEL =
-  "@cf/meta/llama-3.2-11b-vision-instruct";
+  "@cf/google/gemma-4-26b-a4b-it";
 
 type CrmAiServiceResponse =
   | { ok: true; data: unknown; model: string }

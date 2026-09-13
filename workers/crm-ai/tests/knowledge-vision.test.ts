@@ -73,7 +73,7 @@ describe("knowledge vision extract task", () => {
     }
   });
 
-  it("returns invalid_output for malformed provider JSON", async () => {
+  it("wraps Gemma-style plain transcription into structured output", async () => {
     const result = await runKnowledgeVisionExtract(
       { AI: {} as Ai },
       {
@@ -84,7 +84,36 @@ describe("knowledge vision extract task", () => {
         imageBase64: "aGVsbG8=",
         byteSize: 5,
       },
-      async () => ({ response: "not-json" }),
+      async () => ({
+        choices: [
+          {
+            message: {
+              content: "汇丰香港\n最低资产要求 50 万",
+            },
+          },
+        ],
+      }),
+      5_000,
+    );
+    assert.equal(result.ok, true);
+    if (result.ok) {
+      assert.match(result.data.text, /汇丰香港/);
+      assert.equal(result.data.quality, "high");
+    }
+  });
+
+  it("returns invalid_output for empty provider transcription", async () => {
+    const result = await runKnowledgeVisionExtract(
+      { AI: {} as Ai },
+      {
+        task: "knowledge_vision_extract",
+        schemaVersion: KNOWLEDGE_VISION_EXTRACT_PROMPT_VERSION,
+        locale: "zh-Hant",
+        mimeType: "image/png",
+        imageBase64: "aGVsbG8=",
+        byteSize: 5,
+      },
+      async () => ({ choices: [{ message: { content: "" } }] }),
       5_000,
     );
     assert.equal(result.ok, false);

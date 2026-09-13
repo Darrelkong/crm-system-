@@ -3,6 +3,8 @@ export const MODEL_QWEN = "@cf/qwen/qwen3-30b-a3b-fp8";
 export const MODEL_LLAMA = "@cf/meta/llama-3.1-8b-instruct-fast";
 export const MODEL_VISION_LLAMA =
   "@cf/meta/llama-3.2-11b-vision-instruct";
+export const MODEL_VISION_GEMMA =
+  "@cf/google/gemma-4-26b-a4b-it";
 
 export const AI_GATEWAY_ID = "default";
 
@@ -55,7 +57,8 @@ export const KNOWLEDGE_TOTAL_DEADLINE_MS = 20_000;
 
 export const KNOWLEDGE_VISION_EXTRACT_PROMPT_VERSION =
   "knowledge-vision-extract-v1";
-export const KNOWLEDGE_VISION_MODEL = MODEL_VISION_LLAMA;
+/** Selected after P2C-B1.2 OCR benchmark — Gemma 4 plain transcription. */
+export const KNOWLEDGE_VISION_MODEL = MODEL_VISION_GEMMA;
 export const KNOWLEDGE_VISION_EXTRACT_TEMPERATURE = 0.1;
 export const KNOWLEDGE_VISION_EXTRACT_MAX_TOKENS = 2048;
 export const KNOWLEDGE_VISION_MAX_RETRIES = 1;

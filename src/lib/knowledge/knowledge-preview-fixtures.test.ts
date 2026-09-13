@@ -33,7 +33,7 @@ describe("Knowledge preview fixtures", () => {
   });
 
   it("uses a fixed allowlist without directory traversal", () => {
-    assert.equal(KNOWLEDGE_PREVIEW_FIXTURES.length, 5);
+    assert.equal(KNOWLEDGE_PREVIEW_FIXTURES.length, 10);
     assert.equal(getKnowledgePreviewFixture("p2c-a1-simple")?.filename, "p2c-a1-simple.docx");
     assert.equal(getKnowledgePreviewFixture("../secrets"), null);
     assert.throws(() =>

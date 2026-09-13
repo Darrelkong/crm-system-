@@ -12,6 +12,7 @@ import {
   buildTestDocxBytes,
   buildTestTextPdfBytes,
 } from "@/lib/knowledge/test-fixtures/source-documents";
+import { buildTestWebpBytes } from "@/lib/knowledge/test-fixtures/source-images";
 
 function assertCode(action: () => Promise<unknown>, code: string) {
   return assert.rejects(action, (error: unknown) => {
@@ -127,12 +128,11 @@ describe("Knowledge source extraction", () => {
   });
 
   it("rejects unsupported extensions", async () => {
-    const bytes = new TextEncoder().encode("hello").buffer;
     await assertCode(
       () =>
         extractKnowledgeSourceText({
-          bytes,
-          filename: "photo.png",
+          bytes: buildTestWebpBytes(),
+          filename: "photo.webp",
         }),
       KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_UNAVAILABLE,
     );
