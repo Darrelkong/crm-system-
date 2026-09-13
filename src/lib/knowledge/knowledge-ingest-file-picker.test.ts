@@ -73,9 +73,13 @@ describe("Knowledge ingest file upload UI", () => {
   it("uses amber duplicate notices inside the upload panel", () => {
     assert.match(source, /data-duplicate-notice="true"/);
     assert.match(source, /duplicateDetected/);
+    assert.match(source, /duplicateFailedDetected/);
     assert.match(source, /duplicateActiveMessage/);
+    assert.match(source, /duplicateFailedMessage/);
     assert.match(source, /duplicateArchivedMessage/);
     assert.match(source, /viewExistingSource/);
+    assert.match(source, /viewFailedSource/);
+    assert.match(source, /retryImageExtraction/);
     assert.match(source, /goToArchivedSources/);
   });
 

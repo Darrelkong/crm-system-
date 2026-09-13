@@ -3214,12 +3214,18 @@ const zhHans: Messages = {
       extractionReady: "可整理",
       extractionFailed: "提取失败",
       duplicateDetected: "检测到重复资料",
+      duplicateFailedDetected: "检测到相同文件",
       duplicateActiveMessage: "「{{label}}」已存在于有效来源中。",
+      duplicateFailedMessage:
+        "「{{label}}」先前读取失败，原始文件已安全保留。",
       duplicateArchivedMessage:
         "「{{label}}」已存在于已封存来源中，可前往已封存来源恢复原资料。",
       duplicateExistingActive: "有效来源中的现有资料",
       duplicateExistingArchived: "已封存来源中的现有资料",
       viewExistingSource: "查看已有来源",
+      viewFailedSource: "查看失败来源",
+      retryImageExtraction: "重新读取图片",
+      retryingImageExtraction: "正在重新读取图片内容…",
       goToArchivedSources: "前往已封存来源",
       organize: "AI 整理",
       organizing: "AI 整理中…",

@@ -45,8 +45,35 @@ type KnowledgeSourceDuplicateNotice = {
   id: string;
   sourceTitle: string | null;
   originalFilename: string | null;
+  status: KnowledgeSourceListItem["status"];
   lifecycle: "active" | "archived";
 };
+
+function isFailedVisionDuplicateNotice(
+  notice: KnowledgeSourceDuplicateNotice,
+): boolean {
+  return (
+    notice.lifecycle === "active" &&
+    notice.status === "failed" &&
+    Boolean(
+      notice.originalFilename &&
+        isKnowledgeImageFilename(notice.originalFilename),
+    )
+  );
+}
+
+function canRetryVisionExtraction(source: KnowledgeSourceDetail): boolean {
+  return (
+    !source.archivedAt &&
+    source.status === "failed" &&
+    source.sourceType === "file" &&
+    Boolean(source.storageKey) &&
+    Boolean(
+      source.originalFilename &&
+        isKnowledgeImageFilename(source.originalFilename),
+    )
+  );
+}
 
 function statusLabel(
   t: (key: string, params?: Record<string, string>) => string,
@@ -107,6 +134,7 @@ export function KnowledgeIngestClient({
   const [uploadPhase, setUploadPhase] = useState<
     "idle" | "uploading" | "reading"
   >("idle");
+  const [retryingExtraction, setRetryingExtraction] = useState(false);
   const [duplicateNotice, setDuplicateNotice] =
     useState<KnowledgeSourceDuplicateNotice | null>(null);
   const [saved, setSaved] = useState(false);
@@ -353,6 +381,44 @@ export function KnowledgeIngestClient({
       await loadSource(sourceId);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
+    }
+  }
+
+  async function retryImageExtraction(sourceId?: string) {
+    const targetId = sourceId ?? selected?.id;
+    if (!targetId) return;
+    setRetryingExtraction(true);
+    setBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/knowledge/sources/${targetId}/retry-extraction`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as {
+        source?: KnowledgeSourceDetail;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!response.ok || !payload.source) {
+        throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
+      }
+      setSelected(payload.source);
+      setSources((current) =>
+        current.map((source) =>
+          source.id === payload.source!.id
+            ? { ...source, ...payload.source! }
+            : source,
+        ),
+      );
+      if (selected?.id === payload.source.id) {
+        applyOrganization(payload.source);
+      }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
+    } finally {
+      setRetryingExtraction(false);
+      setBusy(false);
     }
   }
 
@@ -654,6 +720,14 @@ export function KnowledgeIngestClient({
                   <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text">
                     {selected.rawText}
                   </pre>
+                ) : selected.status === "extracting" || retryingExtraction ? (
+                  <div
+                    className="mt-4 flex items-center gap-2 text-sm text-slate-700"
+                    data-extraction-retrying="true"
+                  >
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+                    {t("knowledge.ingest.retryingImageExtraction")}
+                  </div>
                 ) : (
                   <div
                     className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"
@@ -667,6 +741,21 @@ export function KnowledgeIngestClient({
                     <p className="mt-2 text-sm leading-6 text-amber-900">
                       {extractionFailureMessage(selected.failureCode)}
                     </p>
+                    {canRetryVisionExtraction(selected) && (
+                      <div className="mt-4">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={busy || retryingExtraction}
+                          data-retry-image-extraction="true"
+                          onClick={() => void retryImageExtraction()}
+                        >
+                          {retryingExtraction
+                            ? t("knowledge.ingest.retryingImageExtraction")
+                            : t("knowledge.ingest.retryImageExtraction")}
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
               </Card>
@@ -1062,20 +1151,31 @@ export function KnowledgeIngestClient({
                     <div
                       className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
                       data-duplicate-notice="true"
+                      data-duplicate-kind={
+                        isFailedVisionDuplicateNotice(duplicateNotice)
+                          ? "failed-vision"
+                          : duplicateNotice.lifecycle
+                      }
                     >
                       <h3 className="text-sm font-semibold text-amber-950">
-                        {t("knowledge.ingest.duplicateDetected")}
+                        {isFailedVisionDuplicateNotice(duplicateNotice)
+                          ? t("knowledge.ingest.duplicateFailedDetected")
+                          : t("knowledge.ingest.duplicateDetected")}
                       </h3>
                       <p className="mt-2 text-sm text-amber-900">
                         {duplicateNotice.lifecycle === "archived"
                           ? t("knowledge.ingest.duplicateArchivedMessage", {
                               label: duplicateLabel(duplicateNotice),
                             })
-                          : t("knowledge.ingest.duplicateActiveMessage", {
-                              label: duplicateLabel(duplicateNotice),
-                            })}
+                          : isFailedVisionDuplicateNotice(duplicateNotice)
+                            ? t("knowledge.ingest.duplicateFailedMessage", {
+                                label: duplicateLabel(duplicateNotice),
+                              })
+                            : t("knowledge.ingest.duplicateActiveMessage", {
+                                label: duplicateLabel(duplicateNotice),
+                              })}
                       </p>
-                      <div className="mt-4">
+                      <div className="mt-4 flex flex-wrap gap-3">
                         <Button
                           type="button"
                           variant="secondary"
@@ -1088,8 +1188,28 @@ export function KnowledgeIngestClient({
                         >
                           {duplicateNotice.lifecycle === "archived"
                             ? t("knowledge.ingest.goToArchivedSources")
-                            : t("knowledge.ingest.viewExistingSource")}
+                            : isFailedVisionDuplicateNotice(duplicateNotice)
+                              ? t("knowledge.ingest.viewFailedSource")
+                              : t("knowledge.ingest.viewExistingSource")}
                         </Button>
+                        {isFailedVisionDuplicateNotice(duplicateNotice) && (
+                          <Button
+                            type="button"
+                            disabled={busy || retryingExtraction}
+                            data-retry-image-extraction="true"
+                            onClick={() => {
+                              setDuplicateNotice(null);
+                              void openDuplicateSource(
+                                duplicateNotice.id,
+                                duplicateNotice.lifecycle,
+                              ).then(() => void retryImageExtraction(duplicateNotice.id));
+                            }}
+                          >
+                            {retryingExtraction
+                              ? t("knowledge.ingest.retryingImageExtraction")
+                              : t("knowledge.ingest.retryImageExtraction")}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   )}

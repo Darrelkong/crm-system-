@@ -3214,12 +3214,18 @@ const zhHant: Messages = {
       extractionReady: "可整理",
       extractionFailed: "提取失敗",
       duplicateDetected: "偵測到重複資料",
+      duplicateFailedDetected: "偵測到相同檔案",
       duplicateActiveMessage: "「{{label}}」已存在於有效來源中。",
+      duplicateFailedMessage:
+        "「{{label}}」先前讀取失敗，原始檔案已安全保留。",
       duplicateArchivedMessage:
         "「{{label}}」已存在於已封存來源中，可前往已封存來源恢復原資料。",
       duplicateExistingActive: "有效來源中的現有資料",
       duplicateExistingArchived: "已封存來源中的現有資料",
       viewExistingSource: "查看已有來源",
+      viewFailedSource: "查看失敗來源",
+      retryImageExtraction: "重新讀取圖片",
+      retryingImageExtraction: "正在重新讀取圖片內容…",
       goToArchivedSources: "前往已封存來源",
       organize: "AI 整理",
       organizing: "AI 整理中…",

@@ -16,6 +16,7 @@ import {
   getKnowledgeSource,
   restoreKnowledgeSource,
 } from "@/lib/knowledge/source-service";
+import { isFailedVisionImageDuplicate } from "@/lib/knowledge/source-duplicate";
 import {
   createMemoryKnowledgeSourceStorage,
   type KnowledgeSourceStorage,
@@ -25,6 +26,7 @@ import {
   buildTestDocxBytes,
   buildTestTextPdfBytes,
 } from "@/lib/knowledge/test-fixtures/source-documents";
+import { buildTestPngBytes } from "@/lib/knowledge/test-fixtures/source-images";
 
 const META = { ipAddress: null, userAgent: "knowledge-duplicate-test" };
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -312,6 +314,61 @@ describe("Knowledge source exact duplicate detection", () => {
     assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
     assert.equal(storagePutCount, 1);
     assert.equal(storageDeleteCount, 0);
+  });
+
+  it("reports failed vision image duplicates without active-source wording", async () => {
+    process.env.CRM_ALLOW_MOCK_AI = "1";
+    const bytes = buildTestPngBytes();
+    const first = await createKnowledgeFileSource(
+      contributorContext(),
+      fileFrom(bytes, "p2c-b1-table.png", "image/png"),
+      META,
+      db,
+      storage,
+    );
+    await db
+      .update(schema.knowledgeSources)
+      .set({
+        status: "failed",
+        failureCode: KNOWLEDGE_ERROR_CODES.VISION_OUTPUT_INVALID,
+        rawText: null,
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.knowledgeSources.id, first.id));
+    storagePutCount = 0;
+    await assert.rejects(
+      () =>
+        createKnowledgeFileSource(
+          contributorContext(),
+          fileFrom(bytes.slice(0), "p2c-b1-table.png", "image/png"),
+          META,
+          db,
+          storage,
+        ),
+      (error: unknown) => {
+        assert.ok(error instanceof KnowledgeServiceError);
+        assert.equal(error.errorCode, KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE);
+        const duplicate = error.details?.duplicate as {
+          id: string;
+          status: string;
+        };
+        assert.equal(duplicate.id, first.id);
+        assert.equal(duplicate.status, "failed");
+        assert.equal(
+          isFailedVisionImageDuplicate(
+            error.details?.duplicate as Parameters<
+              typeof isFailedVisionImageDuplicate
+            >[0],
+          ),
+          true,
+        );
+        assert.match(error.message, /讀取失敗/);
+        assert.doesNotMatch(error.message, /有效来源/);
+        return true;
+      },
+    );
+    assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
+    assert.equal(storagePutCount, 0);
   });
 
   it("writes duplicate-blocked audit metadata without raw text", async () => {

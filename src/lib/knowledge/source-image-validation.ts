@@ -24,6 +24,12 @@ export function isKnowledgeImageExtension(extension: string): boolean {
   return KNOWLEDGE_IMAGE_EXTENSIONS.has(extension);
 }
 
+export function isKnowledgeImageFilename(filename: string): boolean {
+  const dot = filename.lastIndexOf(".");
+  const extension = dot >= 0 ? filename.slice(dot).toLowerCase() : "";
+  return isKnowledgeImageExtension(extension);
+}
+
 export function knowledgeImageMimeForExtension(
   extension: string,
 ): Set<string> | null {

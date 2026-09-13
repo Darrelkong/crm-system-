@@ -8,6 +8,7 @@ import {
   KNOWLEDGE_SOURCE_TEXT_MAX_CHARS,
 } from "@/lib/knowledge/constants";
 import {
+  isKnowledgeImageFilename,
   JPEG_MIME_TYPES,
   knowledgeImageMimeForExtension,
   PNG_MIME_TYPES,
@@ -1173,6 +1174,185 @@ export async function convertKnowledgeSourceToDraft(
   );
   await markKnowledgeSourceConverted(context, sourceId, article.id, meta, db);
   return article;
+}
+
+export function isRetryableVisionImageSource(
+  source: Pick<
+    KnowledgeSource,
+    | "status"
+    | "sourceType"
+    | "storageKey"
+    | "originalFilename"
+    | "archivedAt"
+  >,
+): boolean {
+  if (source.archivedAt) return false;
+  if (source.status !== "failed") return false;
+  if (source.sourceType !== "file") return false;
+  if (!source.storageKey) return false;
+  if (!source.originalFilename) return false;
+  return isKnowledgeImageFilename(source.originalFilename);
+}
+
+export async function retryKnowledgeSourceExtraction(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  meta: KnowledgeSourceMeta,
+  db: Database = getDb(),
+  storage: KnowledgeSourceStorage = getKnowledgeSourceStorage(),
+): Promise<KnowledgeSourceDetail> {
+  const source = await requireManageableKnowledgeSource(
+    context,
+    sourceId,
+    db,
+    "来源重新读取权限不足",
+  );
+  assertSourceNotArchived(source);
+  if (!isRetryableVisionImageSource(source)) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+      "此来源目前无法重新读取图片",
+      409,
+    );
+  }
+
+  const claimTime = new Date().toISOString();
+  const claimResult = await db
+    .update(schema.knowledgeSources)
+    .set({ status: "extracting", updatedAt: claimTime })
+    .where(
+      and(
+        eq(schema.knowledgeSources.id, sourceId),
+        eq(schema.knowledgeSources.status, "failed"),
+      ),
+    );
+  if (claimResult.meta.changes !== 1) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.AI_RUN_CONFLICT,
+      "来源正在重新读取中，请稍后再试",
+      409,
+    );
+  }
+
+  await writeKnowledgeAudit(
+    {
+      userId: context.user.id,
+      action: "knowledge_source_extraction_retried",
+      entityType: "knowledge_source",
+      entityId: sourceId,
+      ...meta,
+      metadata: {
+        sourceType: source.sourceType,
+        originalFilename: source.originalFilename,
+      },
+    },
+    db,
+  );
+
+  const storageKey = source.storageKey!;
+  const bytes = await storage.get(storageKey);
+  if (!bytes) {
+    const failureAt = new Date().toISOString();
+    await db
+      .update(schema.knowledgeSources)
+      .set({
+        status: "failed",
+        failureCode: KNOWLEDGE_ERROR_CODES.STORAGE_UNAVAILABLE,
+        updatedAt: failureAt,
+      })
+      .where(eq(schema.knowledgeSources.id, sourceId));
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.STORAGE_UNAVAILABLE,
+      "来源文件暂时无法读取，请稍后再试",
+      503,
+    );
+  }
+
+  let extracted: KnowledgeSourceExtractionResult | null = null;
+  let extractionFailure: KnowledgeServiceError | null = null;
+  try {
+    extracted = await extractKnowledgeSourceText({
+      bytes,
+      filename: source.originalFilename!,
+      mimeType: source.mimeType,
+    });
+  } catch (error) {
+    extractionFailure =
+      error instanceof KnowledgeServiceError
+        ? error
+        : sourceError(
+            KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
+            "来源文字提取失败",
+          );
+  }
+
+  if (extracted) {
+    try {
+      await assertNoTextDuplicate(extracted.text, sourceId, db);
+    } catch (error) {
+      const failureAt = new Date().toISOString();
+      await db
+        .update(schema.knowledgeSources)
+        .set({
+          status: "failed",
+          failureCode:
+            error instanceof KnowledgeServiceError
+              ? error.errorCode
+              : KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
+          updatedAt: failureAt,
+        })
+        .where(eq(schema.knowledgeSources.id, sourceId));
+      throw error;
+    }
+
+    const successAt = new Date().toISOString();
+    await db
+      .update(schema.knowledgeSources)
+      .set({
+        rawText: extracted.text,
+        extractionMethod: extracted.extractionMethod ?? "vision",
+        extractionModel: extracted.extractionModel ?? null,
+        extractionMetadataJson: extracted.extractionMetadata
+          ? serializeVisionExtractionMetadata(extracted.extractionMetadata)
+          : null,
+        pageCount: extracted.pageCount ?? 1,
+        status: "ready",
+        failureCode: null,
+        processedAt: successAt,
+        updatedAt: successAt,
+      })
+      .where(eq(schema.knowledgeSources.id, sourceId));
+    await writeKnowledgeAudit(
+      {
+        userId: context.user.id,
+        action: "knowledge_source_extracted",
+        entityType: "knowledge_source",
+        entityId: sourceId,
+        ...meta,
+        metadata: {
+          sourceType: source.sourceType,
+          status: "ready",
+          format: extracted.format,
+          retry: true,
+        },
+      },
+      db,
+    );
+    return getKnowledgeSource(context, sourceId, db);
+  }
+
+  const failureCode =
+    extractionFailure?.errorCode ?? KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED;
+  const failureAt = new Date().toISOString();
+  await db
+    .update(schema.knowledgeSources)
+    .set({
+      status: "failed",
+      failureCode,
+      updatedAt: failureAt,
+    })
+    .where(eq(schema.knowledgeSources.id, sourceId));
+  throw extractionFailure ?? sourceError(failureCode, "来源文字提取失败");
 }
 
 export function isKnowledgeSourceOwner(

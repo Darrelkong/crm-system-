@@ -3415,13 +3415,19 @@ const en = {
       extractionReady: "Ready to organize",
       extractionFailed: "Extraction failed",
       duplicateDetected: "Duplicate source detected",
+      duplicateFailedDetected: "Same file detected",
       duplicateActiveMessage:
         "\"{{label}}\" already exists in active sources.",
+      duplicateFailedMessage:
+        "\"{{label}}\" failed to read earlier. The original file is safely retained.",
       duplicateArchivedMessage:
         "\"{{label}}\" already exists in archived sources. Restore the existing source instead of uploading a copy.",
       duplicateExistingActive: "Existing active source",
       duplicateExistingArchived: "Existing archived source",
       viewExistingSource: "View existing source",
+      viewFailedSource: "View failed source",
+      retryImageExtraction: "Re-read image",
+      retryingImageExtraction: "Re-reading image content…",
       goToArchivedSources: "Go to archived sources",
       organize: "AI organize",
       organizing: "AI organizing…",
