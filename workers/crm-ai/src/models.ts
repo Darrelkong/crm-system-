@@ -60,9 +60,9 @@ export const KNOWLEDGE_VISION_EXTRACT_PROMPT_VERSION =
 /** Selected after P2C-B1.2 OCR benchmark — Gemma 4 plain transcription. */
 export const KNOWLEDGE_VISION_MODEL = MODEL_VISION_GEMMA;
 export const KNOWLEDGE_VISION_EXTRACT_TEMPERATURE = 0.1;
-export const KNOWLEDGE_VISION_EXTRACT_MAX_TOKENS = 2048;
+export const KNOWLEDGE_VISION_EXTRACT_MAX_TOKENS = 4096;
 export const KNOWLEDGE_VISION_MAX_RETRIES = 1;
-export const KNOWLEDGE_VISION_TOTAL_DEADLINE_MS = 20_000;
+export const KNOWLEDGE_VISION_TOTAL_DEADLINE_MS = 60_000;
 /** Base64 payload cap (~10 MiB raw image upper bound). */
 export const KNOWLEDGE_VISION_IMAGE_MAX_BASE64_CHARS = 14_000_000;
 
@@ -116,7 +116,7 @@ export function resolveKnowledgeVisionDeadlineMs(
   if (process.env.NODE_ENV === "test" && rounded >= 50) {
     return rounded;
   }
-  return Math.min(20_000, Math.max(15_000, rounded));
+  return Math.min(60_000, Math.max(15_000, rounded));
 }
 
 export function resolveModelForTask(

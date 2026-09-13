@@ -173,6 +173,7 @@ export type CrmAiRequest =
 export type CrmAiEnv = {
   AI: Ai;
   CRM_AI_TIMEOUT_MS?: string;
+  CRM_AI_VISION_TIMEOUT_MS?: string;
 };
 
 export type CrmAiHandleResult =

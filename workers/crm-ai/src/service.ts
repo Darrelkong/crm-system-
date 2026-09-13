@@ -745,7 +745,7 @@ export async function runKnowledgeVisionExtractTask(
   request: CrmAiKnowledgeVisionExtractRequest,
 ): Promise<AiServiceResult<KnowledgeVisionExtractOutput>> {
   const totalDeadlineMs = resolveKnowledgeVisionDeadlineMs(
-    env.CRM_AI_TIMEOUT_MS,
+    env.CRM_AI_VISION_TIMEOUT_MS,
   );
   return runKnowledgeTaskWithRetries(
     "knowledge_vision_extract",
