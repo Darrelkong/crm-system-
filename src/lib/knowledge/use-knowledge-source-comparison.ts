@@ -12,12 +12,14 @@ import {
   triggerKnowledgeComparison,
 } from "@/lib/knowledge/knowledge-comparison-client";
 import {
+  areKnowledgeComparisonsSemanticallyEqual,
   createKnowledgeComparisonRequestGuard,
   isComparisonProcessing,
   isKnowledgeComparisonClientTimeoutError,
   KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS,
   KnowledgeComparisonClientTimeoutError,
   shouldAutoCompareAfterOrganize,
+  shouldBlockManualRecompare,
 } from "@/lib/knowledge/knowledge-comparison-orchestration";
 import {
   getKnowledgeErrorMessage,
@@ -27,6 +29,8 @@ import type { KnowledgeRole } from "../../../drizzle/schema/knowledge-user-roles
 import type { KnowledgeSourceStatus } from "../../../drizzle/schema/knowledge-sources";
 
 type Translate = (key: string, params?: Record<string, string>) => string;
+
+export type KnowledgeComparisonRecompareFeedback = "changed" | "unchanged";
 
 function withClientTimeout<T>(
   operation: (signal: AbortSignal) => Promise<T>,
@@ -79,12 +83,17 @@ export function useKnowledgeSourceComparison(input: {
   const [comparing, setComparing] = useState(false);
   const [timedOut, setTimedOut] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recompareFeedback, setRecompareFeedback] =
+    useState<KnowledgeComparisonRecompareFeedback | null>(null);
+  const [recompareError, setRecompareError] = useState(false);
+  const [lastComparedAt, setLastComparedAt] = useState<string | null>(null);
   const loadAbortRef = useRef<AbortController | null>(null);
   const compareAbortRef = useRef<AbortController | null>(null);
   const loadRequestGuardRef = useRef(createKnowledgeComparisonRequestGuard());
   const compareRequestGuardRef = useRef(createKnowledgeComparisonRequestGuard());
   const autoCompareAttemptedRef = useRef<string | null>(null);
   const lastAutoCompareSignalRef = useRef(0);
+  const manualRecompareInFlightRef = useRef(false);
 
   const canExecute = canExecuteKnowledgeComparison(
     role,
@@ -131,6 +140,9 @@ export function useKnowledgeSourceComparison(input: {
         const next = await fetchKnowledgeComparison(sourceId, controller.signal);
         if (!loadRequestGuardRef.current.isCurrent(requestId)) return;
         setComparison(next);
+        if (next?.status === "completed" && next.completedAt) {
+          setLastComparedAt(next.completedAt);
+        }
         if (next?.status === "completed" || next?.status === "failed") {
           setTimedOut(false);
         }
@@ -158,6 +170,20 @@ export function useKnowledgeSourceComparison(input: {
   const runComparison = useCallback(
     async (options?: { manual?: boolean }) => {
       if (!sourceId || !canExecute) return;
+
+      const previousCompleted =
+        options?.manual && comparison?.status === "completed" ? comparison : null;
+
+      if (
+        options?.manual &&
+        shouldBlockManualRecompare({
+          inFlight: manualRecompareInFlightRef.current,
+          comparing,
+        })
+      ) {
+        return;
+      }
+
       cancelCompare();
       const requestId = compareRequestGuardRef.current.begin();
       const controller = new AbortController();
@@ -165,6 +191,9 @@ export function useKnowledgeSourceComparison(input: {
       setComparing(true);
       setTimedOut(false);
       if (options?.manual) {
+        manualRecompareInFlightRef.current = true;
+        setRecompareFeedback(null);
+        setRecompareError(false);
         setError(null);
       }
 
@@ -175,12 +204,39 @@ export function useKnowledgeSourceComparison(input: {
           KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS,
         );
         if (!compareRequestGuardRef.current.isCurrent(requestId)) return;
-        setComparison(next);
-        setError(null);
+
+        if (previousCompleted) {
+          if (next.status === "completed") {
+            const unchanged = areKnowledgeComparisonsSemanticallyEqual(
+              previousCompleted,
+              next,
+            );
+            setRecompareFeedback(unchanged ? "unchanged" : "changed");
+            setLastComparedAt(next.completedAt ?? new Date().toISOString());
+            setComparison(next);
+            setError(null);
+            setRecompareError(false);
+          } else {
+            setRecompareError(true);
+          }
+        } else {
+          setComparison(next);
+          setError(null);
+          if (next.status === "completed" && next.completedAt) {
+            setLastComparedAt(next.completedAt);
+          }
+        }
         setTimedOut(false);
       } catch (caught) {
         if (!compareRequestGuardRef.current.isCurrent(requestId)) return;
         if (isKnowledgeComparisonAbortError(caught)) return;
+
+        if (previousCompleted) {
+          setRecompareError(true);
+          setError(null);
+          return;
+        }
+
         if (isKnowledgeComparisonClientTimeoutError(caught)) {
           setTimedOut(true);
           setError(t("knowledge.comparison.failedMessage"));
@@ -194,13 +250,16 @@ export function useKnowledgeSourceComparison(input: {
         );
         await loadComparison({ silent: true });
       } finally {
+        if (options?.manual) {
+          manualRecompareInFlightRef.current = false;
+        }
         setComparing(false);
         if (compareAbortRef.current === controller) {
           compareAbortRef.current = null;
         }
       }
     },
-    [canExecute, cancelCompare, loadComparison, sourceId, t],
+    [canExecute, cancelCompare, comparison, comparing, loadComparison, sourceId, t],
   );
 
   useEffect(() => {
@@ -267,14 +326,20 @@ export function useKnowledgeSourceComparison(input: {
   const processing =
     !timedOut &&
     (comparing || loading || isComparisonProcessing(comparison));
+  const recomparing =
+    comparing && comparison?.status === "completed" && !timedOut;
 
   return {
     comparison,
     loading,
     comparing,
+    recomparing,
     timedOut,
     processing,
     error,
+    recompareFeedback,
+    recompareError,
+    lastComparedAt,
     canExecute,
     canView,
     loadComparison,

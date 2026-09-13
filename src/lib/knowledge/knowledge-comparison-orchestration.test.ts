@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  areKnowledgeComparisonsSemanticallyEqual,
   buildArticleHistoryHref,
   countComparisonDiffGroups,
   createKnowledgeComparisonRequestGuard,
+  formatKnowledgeComparisonLastComparedAt,
   formatMatchConfidencePercent,
   isKnowledgeComparisonClientTimeoutError,
   KNOWLEDGE_COMPARISON_CLIENT_TIMEOUT_MS,
@@ -11,6 +13,7 @@ import {
   resolveComparisonConfidenceTone,
   shouldAutoCompareAfterOrganize,
   shouldExpandComparisonGroupByDefault,
+  shouldBlockManualRecompare,
 } from "@/lib/knowledge/knowledge-comparison-orchestration";
 import type { KnowledgeComparisonDetail } from "@/lib/knowledge/comparison-types";
 
@@ -143,5 +146,29 @@ describe("knowledge comparison orchestration", () => {
       ),
       true,
     );
+  });
+
+  it("blocks concurrent manual recompare requests", () => {
+    assert.equal(
+      shouldBlockManualRecompare({ inFlight: true, comparing: false }),
+      true,
+    );
+  });
+
+  it("ignores run metadata when comparing semantic equality", () => {
+    const previous = sampleComparison();
+    const next = sampleComparison({
+      id: "run-99",
+      completedAt: "2026-09-13T06:36:00.000Z",
+    });
+    assert.equal(areKnowledgeComparisonsSemanticallyEqual(previous, next), true);
+  });
+
+  it("formats localized last-compared timestamps", () => {
+    const formatted = formatKnowledgeComparisonLastComparedAt(
+      "2026-09-13T06:36:00.000Z",
+      "zh-Hant",
+    );
+    assert.match(formatted, /2026/);
   });
 });
