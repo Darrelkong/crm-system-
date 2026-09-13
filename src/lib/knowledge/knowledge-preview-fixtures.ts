@@ -53,6 +53,41 @@ export const KNOWLEDGE_PREVIEW_FIXTURES: readonly KnowledgePreviewFixture[] = [
     mimeType:
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   },
+  {
+    id: "p2c-b1-clear-chinese",
+    filename: "p2c-b1-clear-chinese.png",
+    titleKey: "knowledge.previewFixtures.clearChineseImage",
+    descriptionKey: "knowledge.previewFixtures.clearChineseImageDescription",
+    mimeType: "image/png",
+  },
+  {
+    id: "p2c-b1-blurry-uncertain",
+    filename: "p2c-b1-blurry-uncertain.png",
+    titleKey: "knowledge.previewFixtures.blurryImage",
+    descriptionKey: "knowledge.previewFixtures.blurryImageDescription",
+    mimeType: "image/png",
+  },
+  {
+    id: "p2c-b1-table",
+    filename: "p2c-b1-table.png",
+    titleKey: "knowledge.previewFixtures.tableImage",
+    descriptionKey: "knowledge.previewFixtures.tableImageDescription",
+    mimeType: "image/png",
+  },
+  {
+    id: "p2c-b1-prompt-injection",
+    filename: "p2c-b1-prompt-injection.png",
+    titleKey: "knowledge.previewFixtures.promptInjectionImage",
+    descriptionKey: "knowledge.previewFixtures.promptInjectionImageDescription",
+    mimeType: "image/png",
+  },
+  {
+    id: "p2c-b1-duplicate",
+    filename: "p2c-b1-duplicate.png",
+    titleKey: "knowledge.previewFixtures.duplicateImage",
+    descriptionKey: "knowledge.previewFixtures.duplicateImageDescription",
+    mimeType: "image/png",
+  },
 ] as const;
 
 const fixtureById = new Map(

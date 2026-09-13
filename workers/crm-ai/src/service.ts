@@ -9,8 +9,12 @@ import {
   SYNTHETIC_HEALTH_PROBE_USER_PROMPT,
   KNOWLEDGE_MAX_RETRIES,
   KNOWLEDGE_MODEL,
+  KNOWLEDGE_VISION_MAX_RETRIES,
+  KNOWLEDGE_VISION_MODEL,
+  KNOWLEDGE_VISION_TOTAL_DEADLINE_MS,
   resolveAdminBriefDeadlineMs,
   resolveKnowledgeDeadlineMs,
+  resolveKnowledgeVisionDeadlineMs,
   resolveModelForTask,
   resolveStaffActionsDeadlineMs,
   resolveTimeoutMs,
@@ -25,6 +29,10 @@ import {
   validateKnowledgeOrganizeRequest,
   validateKnowledgeQaRequest,
 } from "./knowledge";
+import {
+  runKnowledgeVisionExtract,
+  validateKnowledgeVisionExtractRequest,
+} from "./knowledge-vision";
 import {
   ADMIN_BRIEF_JSON_SCHEMA,
   ADMIN_BRIEF_MAX_TOKENS,
@@ -65,12 +73,14 @@ import type {
   CrmAiKnowledgeCompareRequest,
   CrmAiKnowledgeOrganizeRequest,
   CrmAiKnowledgeQaRequest,
+  CrmAiKnowledgeVisionExtractRequest,
   CrmAiRequest,
   CrmAiStaffActionsRequest,
   HealthProbeOutput,
   KnowledgeCompareOutput,
   KnowledgeOrganizeOutput,
   KnowledgeQaOutput,
+  KnowledgeVisionExtractOutput,
   StaffTodayActionsOutput,
   SystemAiTask,
 } from "./types";
@@ -613,7 +623,11 @@ export async function runStaffTodayActions(
 }
 
 async function runKnowledgeTaskWithRetries<T>(
-  task: "knowledge_organize" | "knowledge_qa" | "knowledge_compare",
+  task:
+    | "knowledge_organize"
+    | "knowledge_qa"
+    | "knowledge_compare"
+    | "knowledge_vision_extract",
   model: string,
   totalDeadlineMs: number,
   attemptRunner: (remainingMs: number) => Promise<AiServiceResult<T>>,
@@ -726,6 +740,28 @@ export async function runKnowledgeQaTask(
   );
 }
 
+export async function runKnowledgeVisionExtractTask(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeVisionExtractRequest,
+): Promise<AiServiceResult<KnowledgeVisionExtractOutput>> {
+  const totalDeadlineMs = resolveKnowledgeVisionDeadlineMs(
+    env.CRM_AI_TIMEOUT_MS,
+  );
+  return runKnowledgeTaskWithRetries(
+    "knowledge_vision_extract",
+    KNOWLEDGE_VISION_MODEL,
+    totalDeadlineMs,
+    (remainingMs) =>
+      runKnowledgeVisionExtract(
+        env,
+        request,
+        (model, task, schemaVersion, payload, timeoutMs) =>
+          invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
+        remainingMs,
+      ),
+  );
+}
+
 export async function runKnowledgeCompareTask(
   env: CrmAiEnv,
   request: CrmAiKnowledgeCompareRequest,
@@ -771,6 +807,9 @@ export async function handleCrmAiRequest(
   }
   if (request.task === "knowledge_compare") {
     return runKnowledgeCompareTask(env, request);
+  }
+  if (request.task === "knowledge_vision_extract") {
+    return runKnowledgeVisionExtractTask(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -835,6 +874,11 @@ export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
   const compareRequest = validateKnowledgeCompareRequest(record);
   if (compareRequest) {
     return compareRequest;
+  }
+
+  const visionRequest = validateKnowledgeVisionExtractRequest(record);
+  if (visionRequest) {
+    return visionRequest;
   }
 
   return null;

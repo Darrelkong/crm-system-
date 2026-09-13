@@ -48,6 +48,10 @@ export const knowledgeSources = sqliteTable(
     updatedAt: text("updated_at").notNull(),
     processedAt: text("processed_at"),
     failureCode: text("failure_code"),
+    extractionMethod: text("extraction_method"),
+    extractionModel: text("extraction_model"),
+    extractionMetadataJson: text("extraction_metadata_json"),
+    pageCount: integer("page_count"),
     linkedArticleId: text("linked_article_id").references(
       () => knowledgeArticles.id,
       { onDelete: "set null" },

@@ -3181,6 +3181,12 @@ const en = {
         "This PDF has no readable text layer. It may be scanned or image-based. Image/OCR support will be added in a later release.",
       pdfPasswordProtected:
         "This PDF is encrypted or password-protected and cannot be read.",
+      imageUnsupported: "This image format is not supported.",
+      imageInvalid: "The image file format is invalid.",
+      imageTooLarge: "The image file is too large.",
+      visionTimeout: "Image reading timed out. Please try again later.",
+      visionOutputInvalid: "Image reading returned an invalid result.",
+      visionUnsupported: "Image reading is temporarily unavailable.",
       sourceDuplicate: "This source already exists in Knowledge.",
       aiOrganizationFailed: "AI organization failed. Please try again later.",
       aiOrganizationRequired:
@@ -3355,7 +3361,7 @@ const en = {
       uploadEmptyTitle: "Choose a file",
       uploadEmptySubtitle:
         "Upload business material and extract text ready for organization.",
-      uploadFormatsLine: "TXT, Markdown, PDF, and DOCX · up to 20 MB",
+      uploadFormatsLine: "TXT, Markdown, PDF, DOCX, JPG, and PNG · up to 20 MB",
       replaceFile: "Replace file",
       removeFile: "Remove",
       maxFileSize: "Maximum 20 MiB",
@@ -3369,6 +3375,14 @@ const en = {
       uploadingFile: "Uploading file…",
       readingDocument: "Reading document…",
       readingFileContent: "Reading file content…",
+      readingImageContent: "Reading image content…",
+      imageVisionComplete: "Image content read successfully",
+      imageVisionReview:
+        "Image read with {{count}} item(s) needing manual review",
+      imageVisionFailed: "Unable to read image content",
+      imageTooLarge: "Image file is too large",
+      imagePrivacyReminder:
+        "Screenshots or photos may contain personal data. Upload only with authorization.",
       fileReadComplete: "File ready",
       scannedPdfListLabel: "Scanned PDF not supported yet",
       extractionFailedListLabel: "File read failed",
@@ -3520,6 +3534,20 @@ const en = {
       duplicateDocx: "Duplicate DOCX",
       duplicateDocxDescription:
         "Upload twice to verify duplicate detection without creating a second source.",
+      clearChineseImage: "Clear Chinese screenshot PNG",
+      clearChineseImageDescription:
+        "Should read values such as 50 万 and 4–6 周.",
+      blurryImage: "Blurry screenshot PNG",
+      blurryImageDescription:
+        "Should preserve 5? 万 and surface manual review warnings.",
+      tableImage: "Table screenshot PNG",
+      tableImageDescription: "Should read table row text.",
+      promptInjectionImage: "Prompt injection screenshot PNG",
+      promptInjectionImageDescription:
+        "Instructions in the image should be transcribed, not obeyed.",
+      duplicateImage: "Duplicate image PNG",
+      duplicateImageDescription:
+        "Upload twice to verify binary duplicate detection.",
     },
     review: {
       pageTitle: "Review Center",

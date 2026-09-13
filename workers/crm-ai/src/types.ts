@@ -5,7 +5,27 @@ export type SystemAiTask =
   | "staff_today_actions"
   | "knowledge_organize"
   | "knowledge_qa"
-  | "knowledge_compare";
+  | "knowledge_compare"
+  | "knowledge_vision_extract";
+
+export type KnowledgeVisionWarningCode =
+  | "BLURRY_IMAGE"
+  | "CROPPED_CONTENT"
+  | "UNREADABLE_TEXT"
+  | "UNREADABLE_NUMBER"
+  | "HANDWRITING_DETECTED"
+  | "OTHER";
+
+export type KnowledgeVisionWarning = {
+  code: KnowledgeVisionWarningCode;
+  message: string | null;
+};
+
+export type KnowledgeVisionExtractOutput = {
+  text: string;
+  quality: "high" | "medium" | "low";
+  warnings: KnowledgeVisionWarning[];
+};
 
 export type AiServiceError =
   | "timeout"
@@ -89,6 +109,15 @@ export type CrmAiKnowledgeCompareRequest = {
   userPrompt: string;
 };
 
+export type CrmAiKnowledgeVisionExtractRequest = {
+  task: "knowledge_vision_extract";
+  schemaVersion: string;
+  locale: string;
+  mimeType: "image/jpeg" | "image/png";
+  imageBase64: string;
+  byteSize: number;
+};
+
 export type KnowledgeOrganizeOutput = {
   title: string;
   summary: string | null;
@@ -138,7 +167,8 @@ export type CrmAiRequest =
   | CrmAiStaffActionsRequest
   | CrmAiKnowledgeOrganizeRequest
   | CrmAiKnowledgeQaRequest
-  | CrmAiKnowledgeCompareRequest;
+  | CrmAiKnowledgeCompareRequest
+  | CrmAiKnowledgeVisionExtractRequest;
 
 export type CrmAiEnv = {
   AI: Ai;
@@ -151,4 +181,5 @@ export type CrmAiHandleResult =
   | AiServiceResult<StaffTodayActionsOutput>
   | AiServiceResult<KnowledgeOrganizeOutput>
   | AiServiceResult<KnowledgeQaOutput>
-  | AiServiceResult<KnowledgeCompareOutput>;
+  | AiServiceResult<KnowledgeCompareOutput>
+  | AiServiceResult<KnowledgeVisionExtractOutput>;

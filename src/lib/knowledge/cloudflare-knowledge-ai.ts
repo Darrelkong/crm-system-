@@ -6,6 +6,10 @@ export const KNOWLEDGE_CLOUDFLARE_AI_PROVIDER = "cloudflare_workers_ai";
 export const KNOWLEDGE_ORGANIZE_SCHEMA_VERSION = "knowledge-organize-v1";
 export const KNOWLEDGE_QA_SCHEMA_VERSION = "knowledge-qa-v1";
 export const KNOWLEDGE_COMPARE_SCHEMA_VERSION = "knowledge-compare-v1";
+export const KNOWLEDGE_VISION_EXTRACT_SCHEMA_VERSION =
+  "knowledge-vision-extract-v1";
+export const KNOWLEDGE_VISION_CLOUDFLARE_AI_MODEL =
+  "@cf/meta/llama-3.2-11b-vision-instruct";
 
 type CrmAiServiceResponse =
   | { ok: true; data: unknown; model: string }
@@ -112,6 +116,26 @@ export async function callKnowledgeQaCloudflareAi(input: {
       locale: input.locale,
       systemPrompt: input.systemPrompt,
       userPrompt: input.userPrompt,
+    },
+    input.aiService,
+  );
+}
+
+export async function callKnowledgeVisionExtractCloudflareAi(input: {
+  locale: string;
+  mimeType: "image/jpeg" | "image/png";
+  imageBase64: string;
+  byteSize: number;
+  aiService?: CloudflareEnv["AI_SERVICE"];
+}): Promise<KnowledgeCloudflareAiCallResult> {
+  return callKnowledgeCloudflareAi(
+    {
+      task: "knowledge_vision_extract",
+      schemaVersion: KNOWLEDGE_VISION_EXTRACT_SCHEMA_VERSION,
+      locale: input.locale,
+      mimeType: input.mimeType,
+      imageBase64: input.imageBase64,
+      byteSize: input.byteSize,
     },
     input.aiService,
   );

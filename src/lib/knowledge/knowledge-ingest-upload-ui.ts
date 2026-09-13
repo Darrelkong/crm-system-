@@ -18,6 +18,11 @@ export function formatFileTypeLabel(filename: string): string {
       return "Markdown";
     case "txt":
       return "TXT";
+    case "jpg":
+    case "jpeg":
+      return "JPG";
+    case "png":
+      return "PNG";
     default:
       return extension ? extension.toUpperCase() : "File";
   }
@@ -36,7 +41,30 @@ export function formatFileTypeFromSource(
   if (normalized.includes("wordprocessingml")) return "DOCX";
   if (normalized.includes("markdown")) return "Markdown";
   if (normalized.includes("text/plain")) return "TXT";
+  if (normalized.includes("image/jpeg")) return "JPG";
+  if (normalized.includes("image/png")) return "PNG";
   return null;
+}
+
+export function isKnowledgeImageFilename(filename: string): boolean {
+  const extension = filename.split(".").pop()?.toLowerCase() ?? "";
+  return extension === "jpg" || extension === "jpeg" || extension === "png";
+}
+
+export function visionExtractionAdvisoryKey(
+  metadata: {
+    quality: "high" | "medium" | "low";
+    warnings: Array<{ code: string; message?: string }>;
+  } | null,
+): "complete" | "review" | null {
+  if (!metadata) return null;
+  if (
+    metadata.quality === "high" &&
+    metadata.warnings.length === 0
+  ) {
+    return "complete";
+  }
+  return "review";
 }
 
 export function formatSourceSizeBytes(sizeBytes: number | null): string | null {

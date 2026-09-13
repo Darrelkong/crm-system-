@@ -36,7 +36,9 @@ import {
   formatSelectedFileSize,
   isExtractionFailureStatus,
   isFileUploadSource,
+  isKnowledgeImageFilename,
   isScannedPdfFailure,
+  visionExtractionAdvisoryKey,
 } from "@/lib/knowledge/knowledge-ingest-upload-ui";
 
 type KnowledgeSourceDuplicateNotice = {
@@ -153,6 +155,14 @@ export function KnowledgeIngestClient({
         return t("knowledge.ingest.extractionTooLargeNotice");
       case KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_UNAVAILABLE:
         return t("knowledge.ingest.unsupportedExtraction");
+      case KNOWLEDGE_ERROR_CODES.IMAGE_UNSUPPORTED:
+      case KNOWLEDGE_ERROR_CODES.IMAGE_INVALID:
+      case KNOWLEDGE_ERROR_CODES.VISION_UNSUPPORTED:
+      case KNOWLEDGE_ERROR_CODES.VISION_OUTPUT_INVALID:
+      case KNOWLEDGE_ERROR_CODES.VISION_TIMEOUT:
+        return t("knowledge.ingest.imageVisionFailed");
+      case KNOWLEDGE_ERROR_CODES.IMAGE_TOO_LARGE:
+        return t("knowledge.ingest.imageTooLarge");
       default:
         return t("knowledge.ingest.documentExtractionFailed");
     }
@@ -618,6 +628,28 @@ export function KnowledgeIngestClient({
                     {sourceListStatusLabel(t, selected)}
                   </Badge>
                 </div>
+                {selected.extractionMetadata &&
+                visionExtractionAdvisoryKey(selected.extractionMetadata) ===
+                  "complete" ? (
+                  <p
+                    className="mt-4 text-sm text-emerald-800"
+                    data-vision-advisory="complete"
+                  >
+                    {t("knowledge.ingest.imageVisionComplete")}
+                  </p>
+                ) : null}
+                {selected.extractionMetadata &&
+                visionExtractionAdvisoryKey(selected.extractionMetadata) ===
+                  "review" ? (
+                  <p
+                    className="mt-4 text-sm text-amber-900"
+                    data-vision-advisory="review"
+                  >
+                    {t("knowledge.ingest.imageVisionReview", {
+                      count: String(selected.extractionMetadata.warnings.length),
+                    })}
+                  </p>
+                ) : null}
                 {selected.rawText ? (
                   <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text">
                     {selected.rawText}
@@ -914,7 +946,7 @@ export function KnowledgeIngestClient({
                     ref={fileInputRef}
                     id="knowledge-ingest-file-input"
                     type="file"
-                    accept=".txt,.md,.pdf,.docx"
+                    accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png"
                     onChange={(event) => {
                       setDuplicateNotice(null);
                       setFile(event.target.files?.[0] ?? null);
@@ -939,6 +971,9 @@ export function KnowledgeIngestClient({
                       </p>
                       <p className="mt-3 text-xs leading-5 crm-text-secondary">
                         {t("knowledge.ingest.uploadFormatsLine")}
+                      </p>
+                      <p className="mt-2 text-xs leading-5 crm-text-secondary">
+                        {t("knowledge.ingest.imagePrivacyReminder")}
                       </p>
                       <div className="mt-5">
                         <Button
@@ -1017,7 +1052,9 @@ export function KnowledgeIngestClient({
                       <span>
                         {uploadPhase === "uploading"
                           ? t("knowledge.ingest.uploadingFile")
-                          : t("knowledge.ingest.readingFileContent")}
+                          : file && isKnowledgeImageFilename(file.name)
+                            ? t("knowledge.ingest.readingImageContent")
+                            : t("knowledge.ingest.readingFileContent")}
                       </span>
                     </div>
                   )}

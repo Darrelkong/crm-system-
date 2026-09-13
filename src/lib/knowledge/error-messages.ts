@@ -69,6 +69,15 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
     "knowledge.errors.scannedPdfUnsupported",
   [KNOWLEDGE_ERROR_CODES.PDF_PASSWORD_PROTECTED]:
     "knowledge.errors.pdfPasswordProtected",
+  [KNOWLEDGE_ERROR_CODES.IMAGE_UNSUPPORTED]:
+    "knowledge.errors.imageUnsupported",
+  [KNOWLEDGE_ERROR_CODES.IMAGE_INVALID]: "knowledge.errors.imageInvalid",
+  [KNOWLEDGE_ERROR_CODES.IMAGE_TOO_LARGE]: "knowledge.errors.imageTooLarge",
+  [KNOWLEDGE_ERROR_CODES.VISION_TIMEOUT]: "knowledge.errors.visionTimeout",
+  [KNOWLEDGE_ERROR_CODES.VISION_OUTPUT_INVALID]:
+    "knowledge.errors.visionOutputInvalid",
+  [KNOWLEDGE_ERROR_CODES.VISION_UNSUPPORTED]:
+    "knowledge.errors.visionUnsupported",
   [KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE]:
     "knowledge.errors.sourceDuplicate",
   [KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_FAILED]:

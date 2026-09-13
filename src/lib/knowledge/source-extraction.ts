@@ -2,22 +2,40 @@ import mammoth from "mammoth";
 import { extractText, getDocumentProxy } from "unpdf";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
-import { KNOWLEDGE_SOURCE_TEXT_MAX_CHARS } from "@/lib/knowledge/constants";
+import {
+  KNOWLEDGE_SOURCE_IMAGE_MAX_BYTES,
+  KNOWLEDGE_SOURCE_TEXT_MAX_CHARS,
+} from "@/lib/knowledge/constants";
+import {
+  assertKnowledgeImageMagicBytes,
+  isKnowledgeImageExtension,
+  normalizeKnowledgeImageMimeType,
+} from "@/lib/knowledge/source-image-validation";
 import {
   isMeaningfulKnowledgeSourceText,
   normalizeKnowledgeSourceText,
 } from "@/lib/knowledge/source-text-normalization";
+import {
+  buildVisionExtractionMetadata,
+  type KnowledgeVisionExtractionMetadata,
+} from "@/lib/knowledge/vision-extraction-metadata";
+import { extractKnowledgeVisionImage } from "@/lib/knowledge/vision-extraction-provider";
 
 export type KnowledgeSourceExtractFormat =
   | "txt"
   | "markdown"
   | "docx"
-  | "pdf";
+  | "pdf"
+  | "image";
 
 export type KnowledgeSourceExtractionResult = {
   text: string;
   format: KnowledgeSourceExtractFormat;
   warnings: string[];
+  extractionMethod?: "vision" | "text";
+  extractionModel?: string | null;
+  extractionMetadata?: KnowledgeVisionExtractionMetadata | null;
+  pageCount?: number | null;
 };
 
 const PDF_MAGIC = "%PDF";
@@ -70,6 +88,7 @@ function finalizeExtractedText(
   text: string,
   format: KnowledgeSourceExtractFormat,
   warnings: string[] = [],
+  extra: Partial<KnowledgeSourceExtractionResult> = {},
 ): KnowledgeSourceExtractionResult {
   const normalized = normalizeKnowledgeSourceText(text);
   if (!isMeaningfulKnowledgeSourceText(normalized)) {
@@ -79,7 +98,15 @@ function finalizeExtractedText(
     );
   }
   assertMaxExtractedText(normalized);
-  return { text: normalized, format, warnings };
+  return {
+    text: normalized,
+    format,
+    warnings,
+    extractionMethod: extra.extractionMethod ?? "text",
+    extractionModel: extra.extractionModel ?? null,
+    extractionMetadata: extra.extractionMetadata ?? null,
+    pageCount: extra.pageCount ?? null,
+  };
 }
 
 async function extractDocxText(bytes: ArrayBuffer): Promise<string> {
@@ -120,6 +147,46 @@ function mapPdfExtractionError(error: unknown): KnowledgeServiceError {
     KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
     "PDF 文件无法读取",
   );
+}
+
+async function extractVisionImageText(input: {
+  bytes: ArrayBuffer;
+  filename: string;
+  mimeType?: string | null;
+}): Promise<KnowledgeSourceExtractionResult> {
+  const extension = extensionOf(input.filename);
+  if (!isKnowledgeImageExtension(extension)) {
+    throw extractionError(
+      KNOWLEDGE_ERROR_CODES.IMAGE_UNSUPPORTED,
+      "不支持此图片格式",
+    );
+  }
+  if (input.bytes.byteLength > KNOWLEDGE_SOURCE_IMAGE_MAX_BYTES) {
+    throw extractionError(
+      KNOWLEDGE_ERROR_CODES.IMAGE_TOO_LARGE,
+      "图片文件过大",
+    );
+  }
+  assertKnowledgeImageMagicBytes(input.bytes, extension);
+  const mimeType = normalizeKnowledgeImageMimeType(extension, input.mimeType);
+  const vision = await extractKnowledgeVisionImage({
+    bytes: input.bytes,
+    filename: input.filename,
+    mimeType,
+  });
+  const metadata = buildVisionExtractionMetadata({
+    quality: vision.quality,
+    warnings: vision.warnings.map((warning) => ({
+      code: warning.code,
+      message: warning.message ?? undefined,
+    })),
+  });
+  return finalizeExtractedText(vision.text, "image", [], {
+    extractionMethod: "vision",
+    extractionModel: vision.model,
+    extractionMetadata: metadata,
+    pageCount: 1,
+  });
 }
 
 async function extractPdfText(bytes: ArrayBuffer): Promise<string> {
@@ -179,6 +246,11 @@ export async function extractKnowledgeSourceText(input: {
     case ".pdf": {
       const extracted = await extractPdfText(input.bytes);
       return finalizeExtractedText(extracted, "pdf");
+    }
+    case ".jpg":
+    case ".jpeg":
+    case ".png": {
+      return extractVisionImageText(input);
     }
     default:
       throw extractionError(

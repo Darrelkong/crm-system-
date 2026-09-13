@@ -1,6 +1,8 @@
 /** Cloudflare Workers AI model identifiers for Phase 10A benchmark. */
 export const MODEL_QWEN = "@cf/qwen/qwen3-30b-a3b-fp8";
 export const MODEL_LLAMA = "@cf/meta/llama-3.1-8b-instruct-fast";
+export const MODEL_VISION_LLAMA =
+  "@cf/meta/llama-3.2-11b-vision-instruct";
 
 export const AI_GATEWAY_ID = "default";
 
@@ -51,6 +53,16 @@ export const KNOWLEDGE_COMPARE_MAX_TOKENS = 3072;
 export const KNOWLEDGE_MAX_RETRIES = 1;
 export const KNOWLEDGE_TOTAL_DEADLINE_MS = 20_000;
 
+export const KNOWLEDGE_VISION_EXTRACT_PROMPT_VERSION =
+  "knowledge-vision-extract-v1";
+export const KNOWLEDGE_VISION_MODEL = MODEL_VISION_LLAMA;
+export const KNOWLEDGE_VISION_EXTRACT_TEMPERATURE = 0.1;
+export const KNOWLEDGE_VISION_EXTRACT_MAX_TOKENS = 2048;
+export const KNOWLEDGE_VISION_MAX_RETRIES = 1;
+export const KNOWLEDGE_VISION_TOTAL_DEADLINE_MS = 20_000;
+/** Base64 payload cap (~10 MiB raw image upper bound). */
+export const KNOWLEDGE_VISION_IMAGE_MAX_BASE64_CHARS = 14_000_000;
+
 export function resolveTimeoutMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return DEFAULT_TIMEOUT_MS;
@@ -85,6 +97,18 @@ export function resolveStaffActionsDeadlineMs(raw: string | undefined): number {
 export function resolveKnowledgeDeadlineMs(raw: string | undefined): number {
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) return KNOWLEDGE_TOTAL_DEADLINE_MS;
+  const rounded = Math.round(parsed);
+  if (process.env.NODE_ENV === "test" && rounded >= 50) {
+    return rounded;
+  }
+  return Math.min(20_000, Math.max(15_000, rounded));
+}
+
+export function resolveKnowledgeVisionDeadlineMs(
+  raw: string | undefined,
+): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return KNOWLEDGE_VISION_TOTAL_DEADLINE_MS;
   const rounded = Math.round(parsed);
   if (process.env.NODE_ENV === "test" && rounded >= 50) {
     return rounded;

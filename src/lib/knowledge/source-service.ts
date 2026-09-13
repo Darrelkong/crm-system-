@@ -4,8 +4,19 @@ import { getDb, schema } from "@/lib/db";
 import {
   KNOWLEDGE_ERROR_CODES,
   KNOWLEDGE_SOURCE_FILE_MAX_BYTES,
+  KNOWLEDGE_SOURCE_IMAGE_MAX_BYTES,
   KNOWLEDGE_SOURCE_TEXT_MAX_CHARS,
 } from "@/lib/knowledge/constants";
+import {
+  JPEG_MIME_TYPES,
+  knowledgeImageMimeForExtension,
+  PNG_MIME_TYPES,
+} from "@/lib/knowledge/source-image-validation";
+import {
+  parseVisionExtractionMetadata,
+  serializeVisionExtractionMetadata,
+  type KnowledgeVisionExtractionMetadata,
+} from "@/lib/knowledge/vision-extraction-metadata";
 import { extractKnowledgeSourceText } from "@/lib/knowledge/source-extraction";
 import {
   assertNoBinaryDuplicate,
@@ -55,6 +66,8 @@ const PDF_MIME_TYPES = new Set(["application/pdf"]);
 const DOCX_MIME_TYPES = new Set([
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ]);
+const IMAGE_JPEG_MIME_TYPES = JPEG_MIME_TYPES;
+const IMAGE_PNG_MIME_TYPES = PNG_MIME_TYPES;
 const BLOCKED_EXTENSIONS = new Set([
   ".exe",
   ".com",
@@ -102,6 +115,10 @@ export type KnowledgeSourceDetail = KnowledgeSourceListItem & {
   rawText: string | null;
   storageKey: string | null;
   contentHash: string;
+  extractionMethod: string | null;
+  extractionModel: string | null;
+  extractionMetadata: KnowledgeVisionExtractionMetadata | null;
+  pageCount: number | null;
   organization: {
     id: string;
     status: KnowledgeAiOrganizationRun["status"];
@@ -282,7 +299,7 @@ function extensionOf(filename: string): string {
 }
 
 export function supportedKnowledgeExtensions(): string[] {
-  return [".txt", ".md", ".pdf", ".docx"];
+  return [".txt", ".md", ".pdf", ".docx", ".jpg", ".jpeg", ".png"];
 }
 
 function assertFileType(filename: string, mimeType: string): string {
@@ -302,11 +319,15 @@ function assertFileType(filename: string, mimeType: string): string {
           ? PDF_MIME_TYPES
           : extension === ".docx"
             ? DOCX_MIME_TYPES
-            : null;
+            : extension === ".jpg" || extension === ".jpeg"
+              ? IMAGE_JPEG_MIME_TYPES
+              : extension === ".png"
+                ? IMAGE_PNG_MIME_TYPES
+                : null;
   if (!expected) {
     throw sourceError(
       KNOWLEDGE_ERROR_CODES.UNSUPPORTED_FILE_TYPE,
-      "仅支持 TXT、Markdown、PDF 或 DOCX 文件",
+      "仅支持 TXT、Markdown、PDF、DOCX、JPG 或 PNG 文件",
     );
   }
   if (mimeType && !expected.has(mimeType.toLocaleLowerCase())) {
@@ -340,6 +361,13 @@ export function validateKnowledgeFileMetadata(input: {
     );
   }
   const extension = assertFileType(filename, mimeType);
+  const imageMime = knowledgeImageMimeForExtension(extension);
+  if (imageMime && sizeBytes > KNOWLEDGE_SOURCE_IMAGE_MAX_BYTES) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.IMAGE_TOO_LARGE,
+      "图片文件过大",
+    );
+  }
   return { filename, mimeType, sizeBytes, extension };
 }
 
@@ -503,6 +531,12 @@ export async function getKnowledgeSource(
     rawText: source.rawText,
     storageKey: source.storageKey,
     contentHash: source.contentHash,
+    extractionMethod: source.extractionMethod,
+    extractionModel: source.extractionModel,
+    extractionMetadata: parseVisionExtractionMetadata(
+      source.extractionMetadataJson,
+    ),
+    pageCount: source.pageCount,
     organization: mapOrganization(await latestOrganization(source.id, db)),
   };
 }
@@ -698,6 +732,13 @@ export async function createKnowledgeFileSource(
     rawText: extracted?.text ?? null,
     storageKey,
     contentHash,
+    extractionMethod: extracted?.extractionMethod ?? null,
+    extractionModel: extracted?.extractionModel ?? null,
+    extractionMetadataJson:
+      extracted?.extractionMetadata
+        ? serializeVisionExtractionMetadata(extracted.extractionMetadata)
+        : null,
+    pageCount: extracted?.pageCount ?? null,
     status: isReady ? "ready" : "received",
     createdByUserId: context.user.id,
     createdAt: now,
