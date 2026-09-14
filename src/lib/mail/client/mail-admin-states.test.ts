@@ -10,6 +10,7 @@ const ADMIN_SECTIONS = [
   "src/components/mail/admin/sender-identity-management.tsx",
   "src/components/mail/admin/mailbox-management.tsx",
   "src/components/mail/admin/proof-diagnostics.tsx",
+  "src/components/mail/admin/mail-permission-management.tsx",
 ] as const;
 
 describe("mail admin shared states", () => {

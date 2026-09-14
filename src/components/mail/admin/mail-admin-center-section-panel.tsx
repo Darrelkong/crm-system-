@@ -13,6 +13,7 @@ import { SenderIdentityManagement } from "./sender-identity-management";
 import { SignatureManagement } from "./signature-management";
 import { ApprovalWorkflowManagement } from "./approval-workflow-management";
 import { SharedMailboxManagement } from "./shared-mailbox-management";
+import { MailPermissionManagement } from "./mail-permission-management";
 
 const SECTION_TITLE_KEY: Record<MailAdminCenterSectionId, string> = {
   overview: "mail.adminCenter.sections.overview",
@@ -43,7 +44,6 @@ const SECTION_DESC_KEY: Record<MailAdminCenterSectionId, string> = {
 };
 
 const PLACEHOLDER_SECTIONS = new Set<MailAdminCenterSectionId>([
-  "permission",
   "deliveryHealth",
 ]);
 
@@ -90,6 +90,10 @@ export function MailAdminCenterSectionPanel({
 
   if (section === "sharedMailbox") {
     return <SharedMailboxManagement />;
+  }
+
+  if (section === "permission") {
+    return <MailPermissionManagement />;
   }
 
   return (

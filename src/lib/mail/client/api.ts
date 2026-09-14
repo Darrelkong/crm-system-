@@ -7,6 +7,12 @@ import type {
   MailAccessAdminUser,
   MailAccessApiItem,
 } from "@/lib/mail/client/mail-access-management";
+import type { MailAdminPermission } from "../../../../drizzle/schema/mail-admin-grants";
+import type { MailAdminGrantApiItem } from "@/lib/mail/client/mail-permission-management";
+import {
+  adminGrantRevokePath,
+  adminGrantsPath,
+} from "@/lib/mail/client/mail-permission-management";
 import type { NotificationIdentityApiItem } from "@/lib/mail/client/notification-identity-management";
 import type { NotificationProofRunApiItem } from "@/lib/mail/client/proof-diagnostics";
 import type { MailboxApiItem } from "@/lib/mail/client/mailbox-management";
@@ -237,6 +243,74 @@ export async function postMailAccessDisable(userId: string): Promise<{
     return { ok: false, status: res.status, error, errorCode };
   }
   const data = (await res.json()) as { item: MailAccessApiItem };
+  return { ok: true, item: data.item };
+}
+
+export async function fetchAdminGrantsForUser(userId: string): Promise<{
+  ok: true;
+  items: MailAdminGrantApiItem[];
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(adminGrantsPath(userId), { cache: "no-store" });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(
+      res,
+      "Failed to load mail admin grants",
+    );
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { items?: MailAdminGrantApiItem[] };
+  return { ok: true, items: data.items ?? [] };
+}
+
+export async function postAdminGrant(
+  userId: string,
+  permission: MailAdminPermission,
+): Promise<{
+  ok: true;
+  item: MailAdminGrantApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(adminGrantsPath(userId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ permission }),
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(res, "Failed to grant permission");
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: MailAdminGrantApiItem };
+  return { ok: true, item: data.item };
+}
+
+export async function postAdminGrantRevoke(grantId: string): Promise<{
+  ok: true;
+  item: MailAdminGrantApiItem;
+} | {
+  ok: false;
+  status: number;
+  error: string;
+  errorCode?: string;
+}> {
+  const res = await fetch(adminGrantRevokePath(grantId), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!res.ok) {
+    const { error, errorCode } = await readApiError(res, "Failed to revoke grant");
+    return { ok: false, status: res.status, error, errorCode };
+  }
+  const data = (await res.json()) as { item: MailAdminGrantApiItem };
   return { ok: true, item: data.item };
 }
 
