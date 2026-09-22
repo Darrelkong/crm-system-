@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Badge, Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { PageIntro } from "@/components/ui/page-intro";
@@ -288,7 +289,6 @@ export function MailPermissionManagement() {
   const [feedback, setFeedback] = useState<MailPermissionManagementFeedback | null>(
     null,
   );
-
   const loadList = useCallback(
     async ({ background = false }: { background?: boolean } = {}) => {
       if (!canManage) {
@@ -549,87 +549,94 @@ export function MailPermissionManagement() {
         </div>
       )}
 
-      <QuickEntryDrawer
-        open={selectedUser != null}
-        title={selectedUser?.name ?? t("mail.adminCenter.permission.detailTitle")}
-        description={selectedUser?.email}
-        onRequestClose={closeUser}
-        closeLabel={t("common.close")}
-      >
-        {selectedUser ? (
-          <div className="space-y-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <CrmRoleBadge role={selectedUser.crmRole} />
-              <MailAccessLifecycleBadge lifecycle={selectedUser.mailAccessLifecycle} />
-            </div>
-
-            <PermissionFeedbackPanel feedback={feedback} />
-
-            {detailLoading ? (
-              <MailAdminLoadingState compact />
-            ) : detailError ? (
-              <MailAdminErrorState
-                message={detailError}
-                onRetry={() => void loadDetail(selectedUser.userId)}
-              />
-            ) : (
-              <>
-                <div className="space-y-2">
-                  <h4 className="text-sm font-semibold crm-text">
-                    {t("mail.adminCenter.permission.currentGrantsTitle")}
-                  </h4>
-                  <PermissionGrantList
-                    grants={selectedGrantRows}
-                    targetIsRootCrmAdmin={selectedUser.isRootCrmAdmin}
-                    canManageSuperAdmin={canManageSuperAdmin}
-                    pendingGrantId={pendingGrantId}
-                    onRevoke={handleRevoke}
+      {selectedUser && typeof document !== "undefined"
+        ? createPortal(
+            <QuickEntryDrawer
+              open
+              rootClassName="qe-drawer-root--stacked"
+              title={selectedUser.name}
+              description={selectedUser.email}
+              onRequestClose={closeUser}
+              closeLabel={t("common.close")}
+            >
+              <div className="mail-permission-detail-panel space-y-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <CrmRoleBadge role={selectedUser.crmRole} />
+                  <MailAccessLifecycleBadge
+                    lifecycle={selectedUser.mailAccessLifecycle}
                   />
                 </div>
 
-                {!selectedUser.isRootCrmAdmin && grantablePermissions.length > 0 ? (
-                  <div className="space-y-2">
-                    <h4 className="text-sm font-semibold crm-text">
-                      {t("mail.adminCenter.permission.addGrantTitle")}
-                    </h4>
-                    <div className="space-y-2">
-                      {grantablePermissions.map((permission) => (
-                        <div
-                          key={permission}
-                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border crm-border px-3 py-3"
-                        >
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium crm-text">
-                              {t(mailAdminPermissionLabelKey(permission))}
-                            </p>
-                            <p className="text-xs crm-text-secondary">
-                              {permission}
-                            </p>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            disabled={pendingGrantId === permission}
-                            onClick={() => void handleGrant(permission)}
-                          >
-                            {t("mail.adminCenter.permission.grantAction")}
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ) : null}
+                <PermissionFeedbackPanel feedback={feedback} />
 
-                {selectedUser.isRootCrmAdmin ? (
-                  <p className="text-xs crm-text-secondary">
-                    {t("mail.adminCenter.permission.rootAdminGrantHint")}
-                  </p>
-                ) : null}
-              </>
-            )}
-          </div>
-        ) : null}
-      </QuickEntryDrawer>
+                {detailLoading ? (
+                  <MailAdminLoadingState compact />
+                ) : detailError ? (
+                  <MailAdminErrorState
+                    message={detailError}
+                    onRetry={() => void loadDetail(selectedUser.userId)}
+                  />
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <h4 className="text-sm font-semibold crm-text">
+                        {t("mail.adminCenter.permission.currentGrantsTitle")}
+                      </h4>
+                      <PermissionGrantList
+                        grants={selectedGrantRows}
+                        targetIsRootCrmAdmin={selectedUser.isRootCrmAdmin}
+                        canManageSuperAdmin={canManageSuperAdmin}
+                        pendingGrantId={pendingGrantId}
+                        onRevoke={handleRevoke}
+                      />
+                    </div>
+
+                    {!selectedUser.isRootCrmAdmin &&
+                    grantablePermissions.length > 0 ? (
+                      <div className="space-y-2">
+                        <h4 className="text-sm font-semibold crm-text">
+                          {t("mail.adminCenter.permission.addGrantTitle")}
+                        </h4>
+                        <div className="space-y-2">
+                          {grantablePermissions.map((permission) => (
+                            <div
+                              key={permission}
+                              className="flex flex-wrap items-center justify-between gap-3 rounded-lg border crm-border px-3 py-3"
+                            >
+                              <div className="min-w-0">
+                                <p className="text-sm font-medium crm-text">
+                                  {t(mailAdminPermissionLabelKey(permission))}
+                                </p>
+                                <p className="text-xs crm-text-secondary">
+                                  {permission}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                disabled={pendingGrantId === permission}
+                                onClick={() => void handleGrant(permission)}
+                              >
+                                {t("mail.adminCenter.permission.grantAction")}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    {selectedUser.isRootCrmAdmin ? (
+                      <p className="text-xs crm-text-secondary">
+                        {t("mail.adminCenter.permission.rootAdminGrantHint")}
+                      </p>
+                    ) : null}
+                  </>
+                )}
+              </div>
+            </QuickEntryDrawer>,
+            document.body,
+          )
+        : null}
     </div>
   );
 }

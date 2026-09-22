@@ -267,4 +267,47 @@ describe("mail permission management UI wiring", () => {
     assert.match(component, /canRevokeMailAdminGrant/);
     assert.match(component, /rootAdminGrantHint/);
   });
+
+  it("portals member detail drawer to document.body above admin center", () => {
+    const component = readFileSync(
+      "src/components/mail/admin/mail-permission-management.tsx",
+      "utf8",
+    );
+    const drawer = readFileSync("src/components/ui/quick-entry-drawer.tsx", "utf8");
+    const globals = readFileSync("src/app/globals.css", "utf8");
+
+    assert.match(component, /createPortal/);
+    assert.match(component, /document\.body/);
+    assert.match(component, /qe-drawer-root--stacked/);
+    assert.match(component, /mail-permission-detail-panel/);
+    assert.match(drawer, /rootClassName/);
+    assert.match(globals, /\.qe-drawer-root--stacked/);
+  });
+});
+
+describe("mail permission mobile layout", () => {
+  it("resets admin center content scroll when section changes", () => {
+    const drawer = readFileSync(
+      "src/components/mail/admin/mail-admin-center-drawer.tsx",
+      "utf8",
+    );
+    const globals = readFileSync("src/app/globals.css", "utf8");
+
+    assert.match(drawer, /contentRef/);
+    assert.match(drawer, /scrollTo\(\{ top: 0 \}\)/);
+    assert.match(globals, /@media \(max-width: 767px\)[\s\S]*\.mail-admin-center-content[\s\S]*flex: 1 1 auto/);
+    assert.match(globals, /\.mail-admin-center-content[\s\S]*flex: 1 1 auto/);
+  });
+
+  it("keeps inherited admin and empty delegated notices in detail panel", () => {
+    const component = readFileSync(
+      "src/components/mail/admin/mail-permission-management.tsx",
+      "utf8",
+    );
+
+    assert.match(component, /inheritedAuthorityTitle/);
+    assert.match(component, /inheritedAuthorityDescription/);
+    assert.match(component, /detailNoGrants/);
+    assert.match(component, /addGrantTitle/);
+  });
 });

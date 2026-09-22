@@ -46,5 +46,11 @@ describe("mail admin center mobile layout", () => {
     assert.match(globals, /\.mail-admin-center-sidebar/);
     assert.match(globals, /overflow-x: hidden/);
     assert.match(globals, /\.mail-admin-center-content/);
+    assert.match(source, /ref=\{contentRef\}/);
+    assert.match(
+      globals,
+      /@media \(max-width: 767px\)[\s\S]*\.mail-admin-center-sidebar[\s\S]*flex-shrink: 0/,
+    );
+    assert.match(globals, /\.qe-drawer-root--stacked/);
   });
 });

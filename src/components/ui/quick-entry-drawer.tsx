@@ -27,6 +27,8 @@ type Props = {
   labelledById?: string;
   /** Optional panel width/layout variant (e.g. wide admin workspace). */
   panelClassName?: string;
+  /** Optional root wrapper class (e.g. stacked z-index above another drawer). */
+  rootClassName?: string;
 };
 
 function getFocusable(root: HTMLElement): HTMLElement[] {
@@ -57,6 +59,7 @@ export function QuickEntryDrawer({
   returnFocusRef,
   labelledById,
   panelClassName,
+  rootClassName,
 }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const autoTitleId = useId();
@@ -119,7 +122,7 @@ export function QuickEntryDrawer({
   if (!open) return null;
 
   return (
-    <div className="qe-drawer-root" role="presentation">
+    <div className={cn("qe-drawer-root", rootClassName)} role="presentation">
       <button
         type="button"
         className="qe-drawer-overlay"

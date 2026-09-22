@@ -27,6 +27,7 @@ export function MailAdminCenterDrawer({
     null,
   );
   const prevOpenRef = useRef(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (open && !prevOpenRef.current) {
@@ -42,6 +43,11 @@ export function MailAdminCenterDrawer({
   const effectiveSection =
     activeSection ??
     (open ? initialSection ?? resolveDefaultMailAdminCenterSection(capabilities) : null);
+
+  useEffect(() => {
+    if (!open || !effectiveSection) return;
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [open, effectiveSection]);
 
   if (!open || !canOpenAdminCenter || !session || !effectiveSection) {
     return null;
@@ -72,7 +78,7 @@ export function MailAdminCenterDrawer({
               onSelectSection={setActiveSection}
             />
           </aside>
-          <div className="mail-admin-center-content">
+          <div ref={contentRef} className="mail-admin-center-content">
             <MailAdminCenterSectionPanel section={effectiveSection} session={session} />
           </div>
         </div>
