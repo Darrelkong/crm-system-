@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { TURKEY_HK_INCORPORATION_FIXTURE_TEXT } from "@/lib/knowledge/knowledge-evidence-grounding";
 import type { KnowledgeVisionExtractResult } from "@/lib/knowledge/vision-types";
 
 const MOCK_VISION_MODEL = "mock-knowledge-vision-v1";
@@ -26,6 +27,29 @@ export function mockKnowledgeVisionExtract(input: {
   const hash = createHash("sha256").update(Buffer.from(input.bytes)).digest("hex");
   const lowerName = input.filename.toLowerCase();
 
+  if (
+    lowerName.includes("clear-chinese") ||
+    lowerName.includes("clear_chinese")
+  ) {
+    return {
+      text: CLEAR_TEXT,
+      quality: "high",
+      warnings: [],
+      model: MOCK_VISION_MODEL,
+    };
+  }
+  if (
+    lowerName.includes("turkey-hk") ||
+    lowerName.includes("turkey_hk") ||
+    lowerName.includes("incorporation-fixture")
+  ) {
+    return {
+      text: TURKEY_HK_INCORPORATION_FIXTURE_TEXT,
+      quality: "high",
+      warnings: [],
+      model: MOCK_VISION_MODEL,
+    };
+  }
   if (lowerName.includes("duplicate")) {
     return {
       text: CLEAR_TEXT,
@@ -90,9 +114,14 @@ export function mockKnowledgeVisionExtract(input: {
   }
 
   return {
-    text: CLEAR_TEXT,
-    quality: "high",
-    warnings: [],
+    text: "[无法可靠读取来源 — 需要人工确认]",
+    quality: "low",
+    warnings: [
+      {
+        code: "OTHER",
+        message: "测试环境未匹配到专用图片样本，请勿生成虚构内容",
+      },
+    ],
     model: MOCK_VISION_MODEL,
   };
 }

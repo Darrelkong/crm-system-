@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, type ComponentType } from "react";
+import { useEffect, useMemo, useState, type ComponentType } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -93,18 +93,40 @@ export function KnowledgeHomeClient({
   initialCatalog,
   role,
 }: {
-  initialCatalog: Catalog;
+  initialCatalog?: Catalog;
   role: KnowledgeRole | null;
 }) {
   const router = useRouter();
   const { t } = useTranslation();
-  const [catalog] = useState(initialCatalog);
+  const [catalog, setCatalog] = useState<Catalog | null>(initialCatalog ?? null);
+  const [catalogLoading, setCatalogLoading] = useState(!initialCatalog);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(
     null,
   );
   const [selectedArticle, setSelectedArticle] =
     useState<KnowledgeArticleDetail | null>(null);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (initialCatalog) return;
+    let cancelled = false;
+    void fetch("/api/knowledge/catalog", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const payload = (await response.json()) as { catalog?: Catalog };
+        return payload.catalog ?? null;
+      })
+      .then((nextCatalog) => {
+        if (cancelled || !nextCatalog) return;
+        setCatalog(nextCatalog);
+      })
+      .finally(() => {
+        if (!cancelled) setCatalogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialCatalog]);
 
   const canAuthor =
     role === "contributor" || role === "knowledge_admin";
@@ -115,20 +137,21 @@ export function KnowledgeHomeClient({
   );
 
   const visibleArticles = useMemo(() => {
+    if (!catalog) return [];
     return catalog.articles.filter((article) => {
       if (selectedCategoryId && article.categoryId !== selectedCategoryId) {
         return false;
       }
       return true;
     });
-  }, [catalog.articles, selectedCategoryId]);
+  }, [catalog, selectedCategoryId]);
 
   const visibleCategories = useMemo(
     () =>
-      catalog.categories.filter(
+      (catalog?.categories ?? []).filter(
         (category) => category.isActive || role === "knowledge_admin",
       ),
-    [catalog.categories, role],
+    [catalog, role],
   );
 
   function articleStatusLabel(status: KnowledgeArticleListItem["status"]) {
@@ -264,7 +287,12 @@ export function KnowledgeHomeClient({
           {t("knowledge.home.articlesHeading")}
         </h3>
 
-        {visibleArticles.length === 0 ? (
+        {catalogLoading ? (
+          <div className="space-y-2" aria-busy="true" data-home-catalog-loading="true">
+            <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+            <div className="h-16 animate-pulse rounded-xl bg-slate-100" />
+          </div>
+        ) : visibleArticles.length === 0 ? (
           <div
             className="flex flex-col items-center rounded-xl border border-dashed border-slate-200 px-4 py-6 text-center"
             data-home-empty-articles="true"

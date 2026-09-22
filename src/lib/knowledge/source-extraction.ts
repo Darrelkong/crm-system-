@@ -20,6 +20,7 @@ import {
   type KnowledgeVisionExtractionMetadata,
 } from "@/lib/knowledge/vision-extraction-metadata";
 import { extractKnowledgeVisionImage } from "@/lib/knowledge/vision-extraction-provider";
+import { assessVisionExtractionReliability } from "@/lib/knowledge/knowledge-evidence-grounding";
 
 export type KnowledgeSourceExtractFormat =
   | "txt"
@@ -174,13 +175,35 @@ async function extractVisionImageText(input: {
     filename: input.filename,
     mimeType,
   });
-  const metadata = buildVisionExtractionMetadata({
+  let metadata = buildVisionExtractionMetadata({
     quality: vision.quality,
     warnings: vision.warnings.map((warning) => ({
       code: warning.code,
       message: warning.message ?? undefined,
     })),
   });
+  const reliability = assessVisionExtractionReliability({
+    rawText: vision.text,
+    extractionMetadata: metadata,
+  });
+  if (!reliability.ok) {
+    throw extractionError(
+      KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
+      "无法可靠读取来源，需要人工确认",
+    );
+  }
+  if (reliability.requiresHumanReview) {
+    metadata = {
+      ...metadata,
+      warnings: [
+        ...metadata.warnings,
+        {
+          code: "OTHER",
+          message: "需要人工确认",
+        },
+      ],
+    };
+  }
   return finalizeExtractedText(vision.text, "image", [], {
     extractionMethod: "vision",
     extractionModel: vision.model,

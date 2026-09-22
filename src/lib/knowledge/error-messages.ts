@@ -85,6 +85,10 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
   [KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_REQUIRED]:
     "knowledge.errors.aiOrganizationRequired",
   [KNOWLEDGE_ERROR_CODES.AI_OUTPUT_INVALID]: "knowledge.errors.aiOutputInvalid",
+  [KNOWLEDGE_ERROR_CODES.ORGANIZATION_UNGROUNDED]:
+    "knowledge.errors.organizationUngrounded",
+  [KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW]:
+    "knowledge.errors.extractionNeedsReview",
   [KNOWLEDGE_ERROR_CODES.AI_RUN_CONFLICT]: "knowledge.errors.aiRunConflict",
   [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_FAILED]:
     "knowledge.errors.aiComparisonFailed",

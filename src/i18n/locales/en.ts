@@ -3174,6 +3174,7 @@ const en = {
     helper:
       "This verification is independent of CRM login and protects internal Knowledge materials.",
     processing: "Processing…",
+    unlockTransition: "Verified. Opening Knowledge…",
     requestFailed: "Request failed. Please try again.",
     errors: {
       generic: "The action failed. Please try again.",
@@ -3235,6 +3236,10 @@ const en = {
       aiOrganizationRequired:
         "Complete AI organization before comparing this source.",
       aiOutputInvalid: "AI output was invalid.",
+      organizationUngrounded:
+        "AI output includes facts not present in the source and needs human review.",
+      extractionNeedsReview:
+        "The source could not be read reliably and needs human review.",
       aiRunConflict: "Another AI operation is already in progress.",
       aiComparisonFailed:
         "Knowledge comparison could not be completed. Please try again later.",

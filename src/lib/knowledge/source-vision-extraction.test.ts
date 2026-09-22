@@ -125,6 +125,28 @@ describe("Knowledge vision mock extraction", () => {
     assert.equal(parsed?.warnings.length, 1);
   });
 
+  it("does not fabricate HSBC content for unmatched real image filenames", async () => {
+    const result = await extractKnowledgeSourceText({
+      bytes: buildTestJpegBytes(),
+      filename: "IMG_6819.jpeg",
+      mimeType: "image/jpeg",
+    });
+    assert.doesNotMatch(result.text, /汇丰香港/);
+    assert.match(result.text, /需要人工确认/);
+    assert.equal(result.extractionMetadata?.quality, "low");
+  });
+
+  it("transcribes Turkey/HK incorporation fixture without HSBC content", async () => {
+    const result = await extractKnowledgeSourceText({
+      bytes: buildTestJpegBytes(),
+      filename: "turkey-hk-incorporation-fixture.jpeg",
+      mimeType: "image/jpeg",
+    });
+    assert.match(result.text, /ECHFRONT \(Hong Kong\) Limited/);
+    assert.match(result.text, /土耳其投資入籍/);
+    assert.doesNotMatch(result.text, /汇丰香港/);
+  });
+
   it("mock duplicate fixture is deterministic", () => {
     const bytes = buildTestPngBytes();
     const first = mockKnowledgeVisionExtract({

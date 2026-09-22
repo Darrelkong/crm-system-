@@ -2994,6 +2994,7 @@ const zhHans: Messages = {
     setupSubmit: "初始化 Knowledge",
     helper: "此验证独立于 CRM 登录，仅用于保护内部知识资料。",
     processing: "处理中…",
+    unlockTransition: "验证成功，正在进入 Knowledge…",
     requestFailed: "请求失败，请稍后重试。",
     errors: {
       generic: "操作失败，请稍后再试。",
@@ -3047,6 +3048,8 @@ const zhHans: Messages = {
       aiOrganizationFailed: "AI 整理失败，请稍后再试。",
       aiOrganizationRequired: "请先完成 AI 整理，再进行知识比对。",
       aiOutputInvalid: "AI 整理结果格式无效。",
+      organizationUngrounded: "AI 整理结果包含来源中不存在的事实，需要人工确认。",
+      extractionNeedsReview: "无法可靠读取来源，需要人工确认。",
       aiRunConflict: "此来源已有进行中的 AI 整理。",
       aiComparisonFailed: "知识比对暂时未能完成，请稍后再试。",
       aiComparisonOutputInvalid: "知识比对结果格式无效。",

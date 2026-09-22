@@ -31,6 +31,10 @@ import {
 import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
+import {
+  assessVisionExtractionReliability,
+  validateOrganizerEvidenceGrounding,
+} from "@/lib/knowledge/knowledge-evidence-grounding";
 
 export const KNOWLEDGE_AI_INPUT_MAX_CHARS = 60_000;
 
@@ -102,6 +106,16 @@ export async function organizeKnowledgeSource(
     throw organizerError(
       KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
       "来源文字超过 AI 整理的安全长度限制，请先分割来源",
+    );
+  }
+  const extractionReliability = assessVisionExtractionReliability({
+    rawText: source.rawText,
+    extractionMetadata: source.extractionMetadata,
+  });
+  if (!extractionReliability.ok || extractionReliability.requiresHumanReview) {
+    throw organizerError(
+      KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
+      "无法可靠读取来源，需要人工确认后再整理",
     );
   }
   if (await getActiveRun(sourceId, db)) {
@@ -189,6 +203,13 @@ export async function organizeKnowledgeSource(
         );
       }
       output = parsed.data;
+      const grounding = validateOrganizerEvidenceGrounding(source.rawText!, output);
+      if (!grounding.ok) {
+        throw organizerError(
+          KNOWLEDGE_ERROR_CODES.ORGANIZATION_UNGROUNDED,
+          "AI 整理结果包含来源中不存在的事实，需要人工确认",
+        );
+      }
     }
 
     const completedAt = new Date().toISOString();
@@ -222,7 +243,17 @@ export async function organizeKnowledgeSource(
         entityType: "knowledge_ai_organization_run",
         entityId: runId,
         ...meta,
-        metadata: { sourceId, status: "completed", provider, model },
+        metadata: {
+          sourceId,
+          runId,
+          status: "completed",
+          provider,
+          model,
+          extractionMethod: source.extractionMethod,
+          extractionModel: source.extractionModel,
+          extractionMetadataVersion:
+            source.extractionMetadata?.schemaVersion ?? null,
+        },
       }),
     ]);
   } catch (error) {

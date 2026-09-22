@@ -25,6 +25,7 @@ import {
 } from "@/lib/knowledge/knowledge-ingest-lifecycle";
 import { KnowledgeComparisonSourceSection } from "@/components/knowledge/knowledge-comparison-source-section";
 import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
+import { KnowledgeMobileSheet } from "@/components/knowledge/knowledge-mobile-sheet";
 import { KnowledgeSourceArchiveButton } from "@/components/knowledge/knowledge-source-archive-button";
 import { cn } from "@/lib/cn";
 import { KnowledgeSourceRestoreButton } from "@/components/knowledge/knowledge-source-restore-button";
@@ -119,10 +120,14 @@ export function KnowledgeIngestClient({
   const [sourcesLoading, setSourcesLoading] = useState(false);
   const lifecycleAbortRef = useRef<AbortController | null>(null);
   const lifecycleRequestGuardRef = useRef(createKnowledgeIngestLifecycleRequestGuard());
+  const sourceLoadRequestGuardRef = useRef(createKnowledgeIngestLifecycleRequestGuard());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sourceListRef = useRef<HTMLDivElement>(null);
   const sourceButtonRefs = useRef(new Map<string, HTMLButtonElement>());
   const detailHeaderRef = useRef<HTMLDivElement>(null);
+  const createFormPanelRef = useRef<HTMLDivElement>(null);
+  const [loadingSourceId, setLoadingSourceId] = useState<string | null>(null);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [selected, setSelected] = useState<KnowledgeSourceDetail | null>(null);
   const [createFormOpen, setCreateFormOpen] = useState(false);
   const [title, setTitle] = useState("");
@@ -157,6 +162,14 @@ export function KnowledgeIngestClient({
     const timer = window.setTimeout(() => setSuccessToast(null), 3200);
     return () => window.clearTimeout(timer);
   }, [successToast]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 767px)");
+    const syncViewport = () => setIsMobileViewport(mediaQuery.matches);
+    syncViewport();
+    mediaQuery.addEventListener("change", syncViewport);
+    return () => mediaQuery.removeEventListener("change", syncViewport);
+  }, []);
 
   function clearSelectedFile() {
     setFile(null);
@@ -274,24 +287,53 @@ export function KnowledgeIngestClient({
     });
   }
 
+  function openCreateSourcePanel() {
+    setCreateFormOpen(true);
+    if (!isMobileViewport) {
+      window.requestAnimationFrame(() => {
+        createFormPanelRef.current?.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      });
+    }
+  }
+
   async function loadSource(sourceId: string) {
+    if (loadingSourceId === sourceId) return;
+    const requestId = sourceLoadRequestGuardRef.current.begin();
     setError(null);
     setCreateFormOpen(false);
-    const response = await fetch(`/api/knowledge/sources/${sourceId}`, {
-      cache: "no-store",
-    });
-    const payload = (await response.json()) as {
-      source?: KnowledgeSourceDetail;
-      error?: string;
-      errorCode?: string;
-    };
-    if (!response.ok || !payload.source) {
-      throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
+    setLoadingSourceId(sourceId);
+    try {
+      const response = await fetch(`/api/knowledge/sources/${sourceId}`, {
+        cache: "no-store",
+      });
+      const payload = (await response.json()) as {
+        source?: KnowledgeSourceDetail;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!sourceLoadRequestGuardRef.current.isCurrent(requestId)) return;
+      if (!response.ok || !payload.source) {
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+        );
+      }
+      setSelected(payload.source);
+      applyOrganization(payload.source);
+      setSaved(false);
+      scrollDetailIntoView();
+    } catch (caught) {
+      if (!sourceLoadRequestGuardRef.current.isCurrent(requestId)) return;
+      setError(
+        caught instanceof Error ? caught.message : t("knowledge.ingest.failure"),
+      );
+    } finally {
+      if (sourceLoadRequestGuardRef.current.isCurrent(requestId)) {
+        setLoadingSourceId(null);
+      }
     }
-    setSelected(payload.source);
-    applyOrganization(payload.source);
-    setSaved(false);
-    scrollDetailIntoView();
   }
 
   async function createSource(event: React.FormEvent<HTMLFormElement>) {
@@ -518,6 +560,248 @@ export function KnowledgeIngestClient({
     );
   }
 
+  const createSourceForm = (
+    <>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={tab === "paste" ? "primary" : "secondary"}
+                onClick={() => setTab("paste")}
+              >
+                {t("knowledge.ingest.pasteTab")}
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={tab === "file" ? "primary" : "secondary"}
+                onClick={() => setTab("file")}
+              >
+                {t("knowledge.ingest.fileTab")}
+              </Button>
+            </div>
+            <form className="mt-5 space-y-4" onSubmit={createSource}>
+              {tab === "paste" ? (
+                <>
+                  <label className="block text-sm font-medium crm-text">
+                    {t("knowledge.ingest.sourceTitle")}
+                    <input
+                      value={sourceTitle}
+                      onChange={(event) => setSourceTitle(event.target.value)}
+                      className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
+                      maxLength={200}
+                    />
+                  </label>
+                  <label className="block text-sm font-medium crm-text">
+                    {t("knowledge.ingest.rawText")}
+                    <textarea
+                      required
+                      value={rawText}
+                      onChange={(event) => setRawText(event.target.value)}
+                      className="mt-1 min-h-48 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
+                      maxLength={100_000}
+                    />
+                  </label>
+                </>
+              ) : (
+                <div className="min-w-0 space-y-4" data-upload-panel="true">
+                  <input
+                    ref={fileInputRef}
+                    id="knowledge-ingest-file-input"
+                    type="file"
+                    accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png"
+                    onChange={(event) => {
+                      setDuplicateNotice(null);
+                      setFile(event.target.files?.[0] ?? null);
+                    }}
+                    className="sr-only"
+                    aria-label={t("knowledge.ingest.chooseFileButton")}
+                  />
+                  {!file ? (
+                    <div
+                      className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/90 px-4 py-8 text-center"
+                      data-upload-empty="true"
+                    >
+                      <Upload
+                        className="mx-auto h-10 w-10 text-slate-400"
+                        aria-hidden
+                      />
+                      <h3 className="mt-4 text-base font-semibold crm-text">
+                        {t("knowledge.ingest.uploadEmptyTitle")}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 crm-text-secondary">
+                        {t("knowledge.ingest.uploadEmptySubtitle")}
+                      </p>
+                      <p className="mt-3 text-xs leading-5 crm-text-secondary">
+                        {t("knowledge.ingest.uploadFormatsLine")}
+                      </p>
+                      <p className="mt-2 text-xs leading-5 crm-text-secondary">
+                        {t("knowledge.ingest.imagePrivacyReminder")}
+                      </p>
+                      <div className="mt-5">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {t("knowledge.ingest.chooseFileButton")}
+                        </Button>
+                      </div>
+                      {previewFixturesEnabled && (
+                        <p className="mt-5 text-sm">
+                          <Link
+                            href="/local-preview/knowledge-fixtures"
+                            className="text-blue-700 underline"
+                            data-preview-fixtures-link="true"
+                          >
+                            {t("knowledge.ingest.getTestFixtures")}
+                          </Link>
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div
+                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
+                      data-upload-selected="true"
+                    >
+                      <div className="flex min-w-0 items-start gap-3">
+                        <FileText
+                          className="mt-0.5 h-5 w-5 shrink-0 text-slate-500"
+                          aria-hidden
+                        />
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className="truncate text-sm font-medium crm-text"
+                            data-selected-filename="true"
+                          >
+                            {file.name}
+                          </p>
+                          <p
+                            className="mt-1 text-xs crm-text-secondary"
+                            data-selected-meta="true"
+                          >
+                            {formatFileTypeLabel(file.name)} ·{" "}
+                            {formatSelectedFileSize(file.size)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4 flex flex-wrap gap-4 border-t border-slate-100 pt-3">
+                        <button
+                          type="button"
+                          className="text-sm font-medium text-blue-700"
+                          data-replace-file="true"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          {t("knowledge.ingest.replaceFile")}
+                        </button>
+                        <button
+                          type="button"
+                          className="text-sm font-medium crm-text-secondary"
+                          data-remove-file="true"
+                          onClick={clearSelectedFile}
+                        >
+                          {t("knowledge.ingest.removeFile")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  {(uploadPhase === "uploading" || uploadPhase === "reading") && (
+                    <div
+                      className="flex min-w-0 items-center gap-2 rounded-xl bg-blue-50 px-3 py-2.5 text-sm text-blue-900"
+                      data-upload-phase={uploadPhase}
+                      aria-live="polite"
+                    >
+                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                      <span>
+                        {uploadPhase === "uploading"
+                          ? t("knowledge.ingest.uploadingFile")
+                          : file && isKnowledgeImageFilename(file.name)
+                            ? t("knowledge.ingest.readingImageContent")
+                            : t("knowledge.ingest.readingFileContent")}
+                      </span>
+                    </div>
+                  )}
+                  {duplicateNotice && (
+                    <div
+                      className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
+                      data-duplicate-notice="true"
+                      data-duplicate-kind={
+                        isFailedVisionDuplicateNotice(duplicateNotice)
+                          ? "failed-vision"
+                          : duplicateNotice.lifecycle
+                      }
+                    >
+                      <h3 className="text-sm font-semibold text-amber-950">
+                        {isFailedVisionDuplicateNotice(duplicateNotice)
+                          ? t("knowledge.ingest.duplicateFailedDetected")
+                          : t("knowledge.ingest.duplicateDetected")}
+                      </h3>
+                      <p className="mt-2 text-sm text-amber-900">
+                        {duplicateNotice.lifecycle === "archived"
+                          ? t("knowledge.ingest.duplicateArchivedMessage", {
+                              label: duplicateLabel(duplicateNotice),
+                            })
+                          : isFailedVisionDuplicateNotice(duplicateNotice)
+                            ? t("knowledge.ingest.duplicateFailedMessage", {
+                                label: duplicateLabel(duplicateNotice),
+                              })
+                            : t("knowledge.ingest.duplicateActiveMessage", {
+                                label: duplicateLabel(duplicateNotice),
+                              })}
+                      </p>
+                      <div className="mt-4 flex flex-wrap gap-3">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onClick={() =>
+                            void openDuplicateSource(
+                              duplicateNotice.id,
+                              duplicateNotice.lifecycle,
+                            )
+                          }
+                        >
+                          {duplicateNotice.lifecycle === "archived"
+                            ? t("knowledge.ingest.goToArchivedSources")
+                            : isFailedVisionDuplicateNotice(duplicateNotice)
+                              ? t("knowledge.ingest.viewFailedSource")
+                              : t("knowledge.ingest.viewExistingSource")}
+                        </Button>
+                        {isFailedVisionDuplicateNotice(duplicateNotice) && (
+                          <Button
+                            type="button"
+                            disabled={busy || retryingExtraction}
+                            data-retry-image-extraction="true"
+                            onClick={() => {
+                              setDuplicateNotice(null);
+                              void openDuplicateSource(
+                                duplicateNotice.id,
+                                duplicateNotice.lifecycle,
+                              ).then(() => void retryImageExtraction(duplicateNotice.id));
+                            }}
+                          >
+                            {retryingExtraction
+                              ? t("knowledge.ingest.retryingImageExtraction")
+                              : t("knowledge.ingest.retryImageExtraction")}
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+              <Button
+                type="submit"
+                disabled={busy || (tab === "file" && !file)}
+                className="w-full sm:w-auto"
+              >
+                {busy
+                  ? t("knowledge.ingest.creatingSource")
+                  : t("knowledge.ingest.createSource")}
+              </Button>
+            </form>
+    </>
+  );
+
   return (
     <div className="min-w-0 max-w-full space-y-6 overflow-x-clip">
       <Card className="border-amber-200 bg-amber-50">
@@ -596,6 +880,8 @@ export function KnowledgeIngestClient({
                       source.id.slice(0, 8))
                     : (source.sourceTitle ?? t("knowledge.ingest.textSourceLabel"));
                   const isHighlighted = highlightedSourceId === source.id;
+                  const isLoading = loadingSourceId === source.id;
+                  const isActiveSelection = selected?.id === source.id;
                   const statusTone =
                     isScannedPdfFailure(source.failureCode) ||
                     isExtractionFailureStatus(source.status)
@@ -615,11 +901,16 @@ export function KnowledgeIngestClient({
                       type="button"
                       onClick={() => void loadSource(source.id)}
                       data-source-id={source.id}
-                      className={`w-full min-w-0 rounded-xl border p-3 text-left transition-colors ${
+                      aria-busy={isLoading}
+                      className={cn(
+                        "w-full min-w-0 rounded-xl border p-3 text-left transition-colors active:scale-[0.99] active:bg-slate-100",
                         isHighlighted
                           ? "border-blue-300 bg-blue-50 ring-2 ring-blue-200"
-                          : "border-slate-200 hover:bg-slate-50"
-                      }`}
+                          : isActiveSelection
+                            ? "border-blue-200 bg-blue-50/70"
+                            : "border-slate-200 hover:bg-slate-50",
+                        isLoading && "opacity-80",
+                      )}
                     >
                       <div className="flex min-w-0 items-start justify-between gap-2">
                         <span className="block min-w-0 truncate text-sm font-medium crm-text">
@@ -629,7 +920,9 @@ export function KnowledgeIngestClient({
                           variant={statusTone === "warning" ? "warning" : "accent"}
                           className="shrink-0"
                         >
-                          {sourceListStatusLabel(t, source)}
+                          {isLoading
+                            ? t("common.loading")
+                            : sourceListStatusLabel(t, source)}
                         </Badge>
                       </div>
                       <span className="mt-1 block truncate text-xs crm-text-secondary">
@@ -981,252 +1274,30 @@ export function KnowledgeIngestClient({
               size="sm"
               className="inline-flex max-w-full shrink-0"
               data-new-source-action="true"
-              onClick={() => setCreateFormOpen((current) => !current)}
+              onClick={() =>
+                createFormOpen ? setCreateFormOpen(false) : openCreateSourcePanel()
+              }
             >
               {t("knowledge.ingest.newSourceAction")}
             </Button>
           </div>
-          {createFormOpen && (
+          {createFormOpen && !isMobileViewport && (
+          <div ref={createFormPanelRef}>
           <Card data-create-source-panel="true">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={tab === "paste" ? "primary" : "secondary"}
-                onClick={() => setTab("paste")}
-              >
-                {t("knowledge.ingest.pasteTab")}
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={tab === "file" ? "primary" : "secondary"}
-                onClick={() => setTab("file")}
-              >
-                {t("knowledge.ingest.fileTab")}
-              </Button>
-            </div>
-            <form className="mt-5 space-y-4" onSubmit={createSource}>
-              {tab === "paste" ? (
-                <>
-                  <label className="block text-sm font-medium crm-text">
-                    {t("knowledge.ingest.sourceTitle")}
-                    <input
-                      value={sourceTitle}
-                      onChange={(event) => setSourceTitle(event.target.value)}
-                      className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
-                      maxLength={200}
-                    />
-                  </label>
-                  <label className="block text-sm font-medium crm-text">
-                    {t("knowledge.ingest.rawText")}
-                    <textarea
-                      required
-                      value={rawText}
-                      onChange={(event) => setRawText(event.target.value)}
-                      className="mt-1 min-h-48 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm"
-                      maxLength={100_000}
-                    />
-                  </label>
-                </>
-              ) : (
-                <div className="min-w-0 space-y-4" data-upload-panel="true">
-                  <input
-                    ref={fileInputRef}
-                    id="knowledge-ingest-file-input"
-                    type="file"
-                    accept=".txt,.md,.pdf,.docx,.jpg,.jpeg,.png"
-                    onChange={(event) => {
-                      setDuplicateNotice(null);
-                      setFile(event.target.files?.[0] ?? null);
-                    }}
-                    className="sr-only"
-                    aria-label={t("knowledge.ingest.chooseFileButton")}
-                  />
-                  {!file ? (
-                    <div
-                      className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/90 px-4 py-8 text-center"
-                      data-upload-empty="true"
-                    >
-                      <Upload
-                        className="mx-auto h-10 w-10 text-slate-400"
-                        aria-hidden
-                      />
-                      <h3 className="mt-4 text-base font-semibold crm-text">
-                        {t("knowledge.ingest.uploadEmptyTitle")}
-                      </h3>
-                      <p className="mt-2 text-sm leading-6 crm-text-secondary">
-                        {t("knowledge.ingest.uploadEmptySubtitle")}
-                      </p>
-                      <p className="mt-3 text-xs leading-5 crm-text-secondary">
-                        {t("knowledge.ingest.uploadFormatsLine")}
-                      </p>
-                      <p className="mt-2 text-xs leading-5 crm-text-secondary">
-                        {t("knowledge.ingest.imagePrivacyReminder")}
-                      </p>
-                      <div className="mt-5">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {t("knowledge.ingest.chooseFileButton")}
-                        </Button>
-                      </div>
-                      {previewFixturesEnabled && (
-                        <p className="mt-5 text-sm">
-                          <Link
-                            href="/local-preview/knowledge-fixtures"
-                            className="text-blue-700 underline"
-                            data-preview-fixtures-link="true"
-                          >
-                            {t("knowledge.ingest.getTestFixtures")}
-                          </Link>
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div
-                      className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"
-                      data-upload-selected="true"
-                    >
-                      <div className="flex min-w-0 items-start gap-3">
-                        <FileText
-                          className="mt-0.5 h-5 w-5 shrink-0 text-slate-500"
-                          aria-hidden
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p
-                            className="truncate text-sm font-medium crm-text"
-                            data-selected-filename="true"
-                          >
-                            {file.name}
-                          </p>
-                          <p
-                            className="mt-1 text-xs crm-text-secondary"
-                            data-selected-meta="true"
-                          >
-                            {formatFileTypeLabel(file.name)} ·{" "}
-                            {formatSelectedFileSize(file.size)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-4 flex flex-wrap gap-4 border-t border-slate-100 pt-3">
-                        <button
-                          type="button"
-                          className="text-sm font-medium text-blue-700"
-                          data-replace-file="true"
-                          onClick={() => fileInputRef.current?.click()}
-                        >
-                          {t("knowledge.ingest.replaceFile")}
-                        </button>
-                        <button
-                          type="button"
-                          className="text-sm font-medium crm-text-secondary"
-                          data-remove-file="true"
-                          onClick={clearSelectedFile}
-                        >
-                          {t("knowledge.ingest.removeFile")}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {(uploadPhase === "uploading" || uploadPhase === "reading") && (
-                    <div
-                      className="flex min-w-0 items-center gap-2 rounded-xl bg-blue-50 px-3 py-2.5 text-sm text-blue-900"
-                      data-upload-phase={uploadPhase}
-                      aria-live="polite"
-                    >
-                      <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-                      <span>
-                        {uploadPhase === "uploading"
-                          ? t("knowledge.ingest.uploadingFile")
-                          : file && isKnowledgeImageFilename(file.name)
-                            ? t("knowledge.ingest.readingImageContent")
-                            : t("knowledge.ingest.readingFileContent")}
-                      </span>
-                    </div>
-                  )}
-                  {duplicateNotice && (
-                    <div
-                      className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
-                      data-duplicate-notice="true"
-                      data-duplicate-kind={
-                        isFailedVisionDuplicateNotice(duplicateNotice)
-                          ? "failed-vision"
-                          : duplicateNotice.lifecycle
-                      }
-                    >
-                      <h3 className="text-sm font-semibold text-amber-950">
-                        {isFailedVisionDuplicateNotice(duplicateNotice)
-                          ? t("knowledge.ingest.duplicateFailedDetected")
-                          : t("knowledge.ingest.duplicateDetected")}
-                      </h3>
-                      <p className="mt-2 text-sm text-amber-900">
-                        {duplicateNotice.lifecycle === "archived"
-                          ? t("knowledge.ingest.duplicateArchivedMessage", {
-                              label: duplicateLabel(duplicateNotice),
-                            })
-                          : isFailedVisionDuplicateNotice(duplicateNotice)
-                            ? t("knowledge.ingest.duplicateFailedMessage", {
-                                label: duplicateLabel(duplicateNotice),
-                              })
-                            : t("knowledge.ingest.duplicateActiveMessage", {
-                                label: duplicateLabel(duplicateNotice),
-                              })}
-                      </p>
-                      <div className="mt-4 flex flex-wrap gap-3">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          onClick={() =>
-                            void openDuplicateSource(
-                              duplicateNotice.id,
-                              duplicateNotice.lifecycle,
-                            )
-                          }
-                        >
-                          {duplicateNotice.lifecycle === "archived"
-                            ? t("knowledge.ingest.goToArchivedSources")
-                            : isFailedVisionDuplicateNotice(duplicateNotice)
-                              ? t("knowledge.ingest.viewFailedSource")
-                              : t("knowledge.ingest.viewExistingSource")}
-                        </Button>
-                        {isFailedVisionDuplicateNotice(duplicateNotice) && (
-                          <Button
-                            type="button"
-                            disabled={busy || retryingExtraction}
-                            data-retry-image-extraction="true"
-                            onClick={() => {
-                              setDuplicateNotice(null);
-                              void openDuplicateSource(
-                                duplicateNotice.id,
-                                duplicateNotice.lifecycle,
-                              ).then(() => void retryImageExtraction(duplicateNotice.id));
-                            }}
-                          >
-                            {retryingExtraction
-                              ? t("knowledge.ingest.retryingImageExtraction")
-                              : t("knowledge.ingest.retryImageExtraction")}
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-              <Button
-                type="submit"
-                disabled={busy || (tab === "file" && !file)}
-                className="w-full sm:w-auto"
-              >
-                {busy
-                  ? t("knowledge.ingest.creatingSource")
-                  : t("knowledge.ingest.createSource")}
-              </Button>
-            </form>
+            {createSourceForm}
           </Card>
+          </div>
           )}
+          <KnowledgeMobileSheet
+            open={createFormOpen && isMobileViewport}
+            title={t("knowledge.ingest.newSourceAction")}
+            closeLabel={t("common.close")}
+            onClose={() => setCreateFormOpen(false)}
+          >
+            <div data-create-source-panel="true" data-create-source-mobile-sheet="true">
+              {createSourceForm}
+            </div>
+          </KnowledgeMobileSheet>
           </>
           )}
 
