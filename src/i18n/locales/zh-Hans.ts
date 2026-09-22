@@ -3224,6 +3224,11 @@ const zhHans: Messages = {
       readingImageContent: "正在读取图片内容…",
       imageVisionComplete: "图片内容读取完成",
       imageVisionReview: "图片已读取，但有 {{count}} 项需要人工确认",
+      imageVisionHumanReviewTitle: "需要人工确认",
+      imageVisionHumanReviewBody:
+        "此图片来自生成式视觉转录，系统不会自动将其作为高置信度事实。请对照原始图片核对下方提取文字，确认无误后再整理。",
+      organizeBlockedHumanReview:
+        "图片提取尚未通过人工确认，暂不可自动整理。请先核对上方提取内容与原始来源。",
       imageVisionFailed: "图片内容无法读取",
       imageTooLarge: "图片文件过大",
       imagePrivacyReminder:

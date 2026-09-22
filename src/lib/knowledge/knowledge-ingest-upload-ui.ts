@@ -55,9 +55,13 @@ export function visionExtractionAdvisoryKey(
   metadata: {
     quality: "high" | "medium" | "low";
     warnings: Array<{ code: string; message?: string }>;
+    integrityTrace?: { requiresHumanReview: boolean } | null;
   } | null,
 ): "complete" | "review" | null {
   if (!metadata) return null;
+  if (metadata.integrityTrace?.requiresHumanReview) {
+    return "review";
+  }
   if (
     metadata.quality === "high" &&
     metadata.warnings.length === 0

@@ -41,6 +41,7 @@ import {
   isScannedPdfFailure,
   visionExtractionAdvisoryKey,
 } from "@/lib/knowledge/knowledge-ingest-upload-ui";
+import { sourceRequiresVisionHumanReview } from "@/lib/knowledge/knowledge-vision-integrity";
 
 type KnowledgeSourceDuplicateNotice = {
   id: string;
@@ -546,9 +547,17 @@ export function KnowledgeIngestClient({
   const selectedArchived = Boolean(selected?.archivedAt);
   const inDetailMode = Boolean(selected);
   const organizerWarnings = selected?.organization?.warnings ?? [];
+  const visionHumanReviewRequired = selected
+    ? sourceRequiresVisionHumanReview({
+        extractionMethod: selected.extractionMethod,
+        extractionMetadata: selected.extractionMetadata,
+        rawText: selected.rawText,
+      })
+    : false;
   const canOrganizeSelected =
     Boolean(selected?.rawText) &&
     !selectedArchived &&
+    !visionHumanReviewRequired &&
     selected?.status !== "converted" &&
     selected?.status !== "organizing";
 
@@ -1000,14 +1009,33 @@ export function KnowledgeIngestClient({
                 {selected.extractionMetadata &&
                 visionExtractionAdvisoryKey(selected.extractionMetadata) ===
                   "review" ? (
-                  <p
-                    className="mt-4 text-sm text-amber-900"
+                  <div
+                    className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"
                     data-vision-advisory="review"
+                    data-vision-human-review-required={visionHumanReviewRequired ? "true" : "false"}
                   >
-                    {t("knowledge.ingest.imageVisionReview", {
-                      count: String(selected.extractionMetadata.warnings.length),
-                    })}
-                  </p>
+                    <p className="text-sm font-medium text-amber-950">
+                      {visionHumanReviewRequired
+                        ? t("knowledge.ingest.imageVisionHumanReviewTitle")
+                        : t("knowledge.ingest.imageVisionReview", {
+                            count: String(selected.extractionMetadata.warnings.length),
+                          })}
+                    </p>
+                    {visionHumanReviewRequired ? (
+                      <p className="mt-2 text-sm leading-6 text-amber-900">
+                        {t("knowledge.ingest.imageVisionHumanReviewBody")}
+                      </p>
+                    ) : null}
+                    {selected.extractionMetadata.warnings.length > 0 ? (
+                      <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-amber-900">
+                        {selected.extractionMetadata.warnings.map((warning, index) => (
+                          <li key={`${warning.code}-${index}`}>
+                            {warning.message ?? warning.code}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
                 ) : null}
                 {selected.rawText ? (
                   <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text">
@@ -1073,6 +1101,14 @@ export function KnowledgeIngestClient({
                           : "neutral"
                     }
                   />
+                  {visionHumanReviewRequired ? (
+                    <p
+                      className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"
+                      data-organize-blocked-human-review="true"
+                    >
+                      {t("knowledge.ingest.organizeBlockedHumanReview")}
+                    </p>
+                  ) : null}
                   {canOrganizeSelected && (
                     <div className="mt-4 flex flex-wrap gap-3">
                       <Button

@@ -3427,6 +3427,11 @@ const en = {
       imageVisionComplete: "Image content read successfully",
       imageVisionReview:
         "Image read with {{count}} item(s) needing manual review",
+      imageVisionHumanReviewTitle: "Manual review required",
+      imageVisionHumanReviewBody:
+        "This image text came from generative vision transcription. The system will not treat it as high-confidence fact automatically. Compare the extracted text below with the original image before organizing.",
+      organizeBlockedHumanReview:
+        "Image extraction has not passed manual review yet, so automatic organization is blocked. Review the extracted text against the original source first.",
       imageVisionFailed: "Unable to read image content",
       imageTooLarge: "Image file is too large",
       imagePrivacyReminder:

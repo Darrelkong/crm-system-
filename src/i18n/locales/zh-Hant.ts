@@ -3224,6 +3224,11 @@ const zhHant: Messages = {
       readingImageContent: "正在讀取圖片內容…",
       imageVisionComplete: "圖片內容讀取完成",
       imageVisionReview: "圖片已讀取，但有 {{count}} 項需要人工確認",
+      imageVisionHumanReviewTitle: "需要人工確認",
+      imageVisionHumanReviewBody:
+        "此圖片來自生成式視覺轉錄，系統不會自動將其作為高置信度事實。請對照原始圖片核對下方提取文字，確認無誤後再整理。",
+      organizeBlockedHumanReview:
+        "圖片提取尚未通過人工確認，暫不可自動整理。請先核對上方提取內容與原始來源。",
       imageVisionFailed: "圖片內容無法讀取",
       imageTooLarge: "圖片檔案過大",
       imagePrivacyReminder:

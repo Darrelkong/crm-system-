@@ -21,6 +21,10 @@ import {
 } from "@/lib/knowledge/vision-extraction-metadata";
 import { extractKnowledgeVisionImage } from "@/lib/knowledge/vision-extraction-provider";
 import { assessVisionExtractionReliability } from "@/lib/knowledge/knowledge-evidence-grounding";
+import {
+  applyVisionIntegrityToMetadata,
+  assessVisionExtractionIntegrity,
+} from "@/lib/knowledge/knowledge-vision-integrity";
 
 export type KnowledgeSourceExtractFormat =
   | "txt"
@@ -182,27 +186,24 @@ async function extractVisionImageText(input: {
       message: warning.message ?? undefined,
     })),
   });
+  const integrity = assessVisionExtractionIntegrity({
+    rawText: vision.text,
+    extractionMetadata: metadata,
+    extractionMethod: "vision",
+    extractionModel: vision.model,
+  });
+  metadata = applyVisionIntegrityToMetadata(metadata, integrity);
   const reliability = assessVisionExtractionReliability({
     rawText: vision.text,
     extractionMetadata: metadata,
+    extractionMethod: "vision",
+    extractionModel: vision.model,
   });
   if (!reliability.ok) {
     throw extractionError(
       KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
       "无法可靠读取来源，需要人工确认",
     );
-  }
-  if (reliability.requiresHumanReview) {
-    metadata = {
-      ...metadata,
-      warnings: [
-        ...metadata.warnings,
-        {
-          code: "OTHER",
-          message: "需要人工确认",
-        },
-      ],
-    };
   }
   return finalizeExtractedText(vision.text, "image", [], {
     extractionMethod: "vision",

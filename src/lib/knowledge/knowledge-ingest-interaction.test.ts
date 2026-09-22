@@ -32,6 +32,17 @@ describe("knowledge ingest interaction", () => {
     assert.match(ingest, /isMobileViewport/);
   });
 
+  it("blocks organize and shows human review for generative vision sources", () => {
+    const ingest = readFileSync(
+      join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),
+      "utf8",
+    );
+    assert.match(ingest, /sourceRequiresVisionHumanReview/);
+    assert.match(ingest, /data-vision-human-review-required/);
+    assert.match(ingest, /data-organize-blocked-human-review/);
+    assert.match(ingest, /!visionHumanReviewRequired/);
+  });
+
   it("handles failed, ready, and organized source clicks through loadSource", () => {
     const ingest = readFileSync(
       join(root, "src/components/knowledge/knowledge-ingest-client.tsx"),

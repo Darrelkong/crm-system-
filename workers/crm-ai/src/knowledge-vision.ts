@@ -214,10 +214,15 @@ function parseStructuredVisionPayload(raw: unknown): KnowledgeVisionExtractOutpu
     }
   }
 
-  const warnings: KnowledgeVisionWarning[] = [];
-  let quality: KnowledgeVisionExtractOutput["quality"] = "high";
+  const warnings: KnowledgeVisionWarning[] = [
+    {
+      code: "OTHER",
+      message: "Generative vision transcription requires human verification",
+    },
+  ];
+  let quality: KnowledgeVisionExtractOutput["quality"] = "medium";
   if (/\[unreadable\]/i.test(directText) || /\?\s*万/.test(directText)) {
-    quality = "medium";
+    quality = "low";
     warnings.push({ code: "UNREADABLE_NUMBER", message: null });
   }
   return validateKnowledgeVisionExtractOutput({

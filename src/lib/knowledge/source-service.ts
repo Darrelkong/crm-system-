@@ -149,6 +149,25 @@ function sourceError(
   return new KnowledgeServiceError(code, message, status);
 }
 
+function buildExtractionAuditMetadata(
+  extracted: KnowledgeSourceExtractionResult,
+  extra: Record<string, unknown> = {},
+) {
+  const trace = extracted.extractionMetadata?.integrityTrace;
+  return {
+    format: extracted.format,
+    extractionMethod: extracted.extractionMethod ?? null,
+    extractionModel: extracted.extractionModel ?? null,
+    extractionMetadataVersion:
+      extracted.extractionMetadata?.schemaVersion ?? null,
+    effectiveQuality: extracted.extractionMetadata?.quality ?? null,
+    requiresHumanReview: trace?.requiresHumanReview ?? false,
+    integrityReasons: trace?.reasons ?? [],
+    highRiskFacts: trace?.highRiskFacts ?? [],
+    ...extra,
+  };
+}
+
 export function requireKnowledgeIngestRole(
   context: KnowledgeSessionContext,
 ): void {
@@ -807,11 +826,10 @@ export async function createKnowledgeFileSource(
         entityType: "knowledge_source",
         entityId: id,
         ...meta,
-        metadata: {
+        metadata: buildExtractionAuditMetadata(extracted, {
           sourceType: "file",
           status: "ready",
-          format: extracted.format,
-        },
+        }),
       },
       db,
     );
@@ -1329,12 +1347,11 @@ export async function retryKnowledgeSourceExtraction(
         entityType: "knowledge_source",
         entityId: sourceId,
         ...meta,
-        metadata: {
+        metadata: buildExtractionAuditMetadata(extracted, {
           sourceType: source.sourceType,
           status: "ready",
-          format: extracted.format,
           retry: true,
-        },
+        }),
       },
       db,
     );

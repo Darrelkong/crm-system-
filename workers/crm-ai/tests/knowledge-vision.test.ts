@@ -96,7 +96,8 @@ describe("knowledge vision extract task", () => {
     assert.equal(result.ok, true);
     if (result.ok) {
       assert.match(result.data.text, /汇丰香港/);
-      assert.equal(result.data.quality, "high");
+      assert.equal(result.data.quality, "medium");
+      assert.ok(result.data.warnings.length > 0);
     }
   });
 

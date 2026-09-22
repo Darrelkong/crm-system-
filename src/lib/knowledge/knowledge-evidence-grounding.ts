@@ -1,4 +1,8 @@
 import type { KnowledgeAiOrganizationOutput } from "@/lib/knowledge/ai-organizer-schema";
+import {
+  assessVisionExtractionIntegrity,
+  isGenerativeVisionExtraction,
+} from "@/lib/knowledge/knowledge-vision-integrity";
 import type { KnowledgeVisionExtractionMetadata } from "@/lib/knowledge/vision-extraction-metadata";
 
 /** Known mock / regression banking template — must never pass as grounded evidence. */
@@ -38,7 +42,24 @@ export type KnowledgeEvidenceGroundingResult = {
 export function assessVisionExtractionReliability(input: {
   rawText: string;
   extractionMetadata: KnowledgeVisionExtractionMetadata | null;
+  extractionMethod?: string | null;
+  extractionModel?: string | null;
 }): KnowledgeEvidenceGroundingResult {
+  if (isGenerativeVisionExtraction(input.extractionMethod)) {
+    const integrity = assessVisionExtractionIntegrity({
+      rawText: input.rawText,
+      extractionMetadata: input.extractionMetadata,
+      extractionMethod: input.extractionMethod ?? null,
+      extractionModel: input.extractionModel ?? null,
+    });
+    return {
+      ok: integrity.ok,
+      unsupportedTerms: integrity.unsupportedTerms,
+      requiresHumanReview: integrity.requiresHumanReview,
+      reason: integrity.reason,
+    };
+  }
+
   const trimmed = input.rawText.trim();
   if (!trimmed) {
     return {

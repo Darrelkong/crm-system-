@@ -111,6 +111,8 @@ export async function organizeKnowledgeSource(
   const extractionReliability = assessVisionExtractionReliability({
     rawText: source.rawText,
     extractionMetadata: source.extractionMetadata,
+    extractionMethod: source.extractionMethod,
+    extractionModel: source.extractionModel,
   });
   if (!extractionReliability.ok || extractionReliability.requiresHumanReview) {
     throw organizerError(

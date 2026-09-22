@@ -16,6 +16,15 @@ export type KnowledgeVisionPageMetadata = {
   warnings: KnowledgeVisionMetadataWarning[];
 };
 
+export type KnowledgeVisionIntegrityTrace = {
+  extractionModel: string | null;
+  modelReportedQuality: KnowledgeVisionExtractionQuality;
+  effectiveQuality: KnowledgeVisionExtractionQuality;
+  requiresHumanReview: boolean;
+  reasons: string[];
+  highRiskFacts: string[];
+};
+
 export type KnowledgeVisionExtractionMetadata = {
   schemaVersion: typeof KNOWLEDGE_VISION_EXTRACTION_SCHEMA_VERSION;
   quality: KnowledgeVisionExtractionQuality;
@@ -24,6 +33,7 @@ export type KnowledgeVisionExtractionMetadata = {
   pagesTotal: number;
   warnings: KnowledgeVisionMetadataWarning[];
   pages: KnowledgeVisionPageMetadata[];
+  integrityTrace?: KnowledgeVisionIntegrityTrace;
 };
 
 const METADATA_WARNING_MAX = 20;

@@ -1,0 +1,22 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "crm-system-knowledge-vision-validate-local",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-03-01",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env",
+    "global_fetch_strictly_public"
+  ],
+  "workers_dev": true,
+  "services": [
+    {
+      "binding": "AI_SERVICE",
+      "service": "crm-ai"
+    }
+  ],
+  "vars": {
+    "CRM_ALLOW_MOCK_AI": "0",
+    "KNOWLEDGE_AI_DAILY_LIMIT": "5"
+  }
+}
