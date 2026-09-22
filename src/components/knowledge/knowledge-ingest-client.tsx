@@ -41,7 +41,11 @@ import {
   isScannedPdfFailure,
   visionExtractionAdvisoryKey,
 } from "@/lib/knowledge/knowledge-ingest-upload-ui";
-import { sourceRequiresVisionHumanReview } from "@/lib/knowledge/knowledge-vision-integrity";
+import {
+  sourceBlocksOrganizeForVisionReview,
+  sourceRequiresVisionHumanReview,
+  visionExtractionReviewConfirmed,
+} from "@/lib/knowledge/knowledge-vision-integrity";
 
 type KnowledgeSourceDuplicateNotice = {
   id: string;
@@ -141,6 +145,8 @@ export function KnowledgeIngestClient({
     "idle" | "uploading" | "reading"
   >("idle");
   const [retryingExtraction, setRetryingExtraction] = useState(false);
+  const [reviewDraftText, setReviewDraftText] = useState("");
+  const [confirmingVisionReview, setConfirmingVisionReview] = useState(false);
   const [duplicateNotice, setDuplicateNotice] =
     useState<KnowledgeSourceDuplicateNotice | null>(null);
   const [saved, setSaved] = useState(false);
@@ -171,6 +177,10 @@ export function KnowledgeIngestClient({
     mediaQuery.addEventListener("change", syncViewport);
     return () => mediaQuery.removeEventListener("change", syncViewport);
   }, []);
+
+  function syncReviewDraftFromSource(source: KnowledgeSourceDetail | null) {
+    setReviewDraftText(source?.rawText ?? "");
+  }
 
   function clearSelectedFile() {
     setFile(null);
@@ -322,6 +332,7 @@ export function KnowledgeIngestClient({
         );
       }
       setSelected(payload.source);
+      syncReviewDraftFromSource(payload.source);
       applyOrganization(payload.source);
       setSaved(false);
       scrollDetailIntoView();
@@ -398,6 +409,7 @@ export function KnowledgeIngestClient({
         });
       } else {
         setSelected(createdSource);
+        syncReviewDraftFromSource(createdSource);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
@@ -447,6 +459,7 @@ export function KnowledgeIngestClient({
         throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSelected(payload.source);
+      syncReviewDraftFromSource(payload.source);
       setSources((current) =>
         current.map((source) =>
           source.id === payload.source!.id
@@ -462,6 +475,48 @@ export function KnowledgeIngestClient({
     } finally {
       setRetryingExtraction(false);
       setBusy(false);
+    }
+  }
+
+  async function confirmVisionExtraction() {
+    if (!selected) return;
+    setConfirmingVisionReview(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/knowledge/sources/${selected.id}/confirm-extraction`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rawText: reviewDraftText }),
+        },
+      );
+      const payload = (await response.json()) as {
+        source?: KnowledgeSourceDetail;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!response.ok || !payload.source) {
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+        );
+      }
+      setSelected(payload.source);
+      syncReviewDraftFromSource(payload.source);
+      setSources((current) =>
+        current.map((item) =>
+          item.id === payload.source!.id
+            ? { ...item, status: payload.source!.status, updatedAt: payload.source!.updatedAt }
+            : item,
+        ),
+      );
+      setSuccessToast(t("knowledge.ingest.visionReviewConfirmed"));
+    } catch (caught) {
+      setError(
+        caught instanceof Error ? caught.message : t("knowledge.ingest.failure"),
+      );
+    } finally {
+      setConfirmingVisionReview(false);
     }
   }
 
@@ -554,10 +609,20 @@ export function KnowledgeIngestClient({
         rawText: selected.rawText,
       })
     : false;
+  const visionReviewConfirmed = selected
+    ? visionExtractionReviewConfirmed(selected.extractionMetadata)
+    : false;
+  const visionOrganizeBlocked = selected
+    ? sourceBlocksOrganizeForVisionReview({
+        extractionMethod: selected.extractionMethod,
+        extractionMetadata: selected.extractionMetadata,
+        rawText: selected.rawText,
+      })
+    : false;
   const canOrganizeSelected =
     Boolean(selected?.rawText) &&
     !selectedArchived &&
-    !visionHumanReviewRequired &&
+    !visionOrganizeBlocked &&
     selected?.status !== "converted" &&
     selected?.status !== "organizing";
 
@@ -1038,9 +1103,38 @@ export function KnowledgeIngestClient({
                   </div>
                 ) : null}
                 {selected.rawText ? (
-                  <pre className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text">
-                    {selected.rawText}
-                  </pre>
+                  visionHumanReviewRequired && !visionReviewConfirmed ? (
+                    <div className="mt-4 space-y-3" data-vision-review-editor="true">
+                      <label className="block text-sm font-medium crm-text">
+                        {t("knowledge.ingest.visionReviewExtractedText")}
+                        <textarea
+                          value={reviewDraftText}
+                          onChange={(event) => setReviewDraftText(event.target.value)}
+                          className="mt-2 min-h-48 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6"
+                          maxLength={100_000}
+                          data-vision-review-textarea="true"
+                        />
+                      </label>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={confirmingVisionReview || !reviewDraftText.trim()}
+                        data-confirm-vision-review="true"
+                        onClick={() => void confirmVisionExtraction()}
+                      >
+                        {confirmingVisionReview
+                          ? t("knowledge.ingest.confirmingVisionReview")
+                          : t("knowledge.ingest.confirmVisionReview")}
+                      </Button>
+                    </div>
+                  ) : (
+                    <pre
+                      className="mt-4 max-h-72 overflow-auto whitespace-pre-wrap break-words rounded-xl bg-slate-50 p-4 text-sm leading-6 crm-text"
+                      data-vision-extracted-text="true"
+                    >
+                      {selected.rawText}
+                    </pre>
+                  )
                 ) : selected.status === "extracting" || retryingExtraction ? (
                   <div
                     className="mt-4 flex items-center gap-2 text-sm text-slate-700"
@@ -1101,12 +1195,20 @@ export function KnowledgeIngestClient({
                           : "neutral"
                     }
                   />
-                  {visionHumanReviewRequired ? (
+                  {visionOrganizeBlocked ? (
                     <p
                       className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"
                       data-organize-blocked-human-review="true"
                     >
                       {t("knowledge.ingest.organizeBlockedHumanReview")}
+                    </p>
+                  ) : null}
+                  {visionHumanReviewRequired && visionReviewConfirmed ? (
+                    <p
+                      className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm leading-6 text-emerald-900"
+                      data-vision-review-confirmed="true"
+                    >
+                      {t("knowledge.ingest.visionReviewConfirmedNotice")}
                     </p>
                   ) : null}
                   {canOrganizeSelected && (

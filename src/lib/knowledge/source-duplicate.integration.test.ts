@@ -191,7 +191,7 @@ describe("Knowledge source exact duplicate detection", () => {
     assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
   });
 
-  it("blocks different binaries that extract to the same normalized text", async () => {
+  it("does not block different file binaries that extract to the same normalized text", async () => {
     const sharedText = "Shared extracted body";
     await createKnowledgePasteSource(
       contributorContext(),
@@ -200,27 +200,20 @@ describe("Knowledge source exact duplicate detection", () => {
       db,
     );
     const docx = await buildTestDocxBytes({ paragraphs: [sharedText] });
-    await assert.rejects(
-      () =>
-        createKnowledgeFileSource(
-          contributorContext(),
-          fileFrom(
-            docx,
-            "same-text.docx",
-            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          ),
-          META,
-          db,
-          storage,
-        ),
-      (error: unknown) => {
-        assert.ok(error instanceof KnowledgeServiceError);
-        assert.equal(error.errorCode, KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE);
-        return true;
-      },
+    const fileSource = await createKnowledgeFileSource(
+      contributorContext(),
+      fileFrom(
+        docx,
+        "same-text.docx",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+      META,
+      db,
+      storage,
     );
-    assert.equal((await db.select().from(schema.knowledgeSources)).length, 1);
-    assert.equal(storagePutCount, 0);
+    assert.equal(fileSource.status, "ready");
+    assert.equal((await db.select().from(schema.knowledgeSources)).length, 2);
+    assert.equal(storagePutCount, 1);
     assert.equal(storageDeleteCount, 0);
   });
 

@@ -133,6 +133,18 @@ export function validateOrganizerEvidenceGrounding(
   return { ok: true, unsupportedTerms: [], requiresHumanReview: false, reason: null };
 }
 
+/** Synthetic mobile screenshot fixture — Chase Private Client (not Turkey/HK). */
+export const CHASE_PRIVATE_CLIENT_FIXTURE_TEXT = `Chase Private Client
+大通私人银行账户
+身份证
+护照
+美国地址银行对账单
+KYC
+激活款
+ACH
+wire transfer
+Zelle`;
+
 /** Synthetic fixture representing Turkey investment promo + HK incorporation (no HSBC). */
 export const TURKEY_HK_INCORPORATION_FIXTURE_TEXT = `土耳其投資入籍計劃宣傳展示
 最低投資金額 40 萬美元

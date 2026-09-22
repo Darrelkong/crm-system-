@@ -20,10 +20,11 @@ import {
 } from "@/lib/knowledge/vision-extraction-metadata";
 import { extractKnowledgeSourceText } from "@/lib/knowledge/source-extraction";
 import {
-  assertNoBinaryDuplicate,
-  assertNoTextDuplicate,
+  assertNoBinaryFileDuplicate,
+  assertNoPasteTextDuplicate,
   type KnowledgeSourceDuplicateKind,
 } from "@/lib/knowledge/source-duplicate";
+import { sourceRequiresVisionHumanReview } from "@/lib/knowledge/knowledge-vision-integrity";
 import type { KnowledgeSourceExtractionResult } from "@/lib/knowledge/source-extraction";
 import { normalizeKnowledgeSourceText } from "@/lib/knowledge/source-text-normalization";
 import {
@@ -628,7 +629,7 @@ export async function createKnowledgePasteSource(
   requireContributor(context);
   const values = validateKnowledgePasteText(input);
   try {
-    await assertNoTextDuplicate(values.rawText, undefined, db);
+    await assertNoPasteTextDuplicate(values.rawText, undefined, db);
   } catch (error) {
     await auditDuplicateBlockedIfNeeded(context, meta, error, {
       duplicateKind: "text",
@@ -698,7 +699,7 @@ export async function createKnowledgeFileSource(
   const contentHash = await sha256Hex(bytes);
 
   try {
-    await assertNoBinaryDuplicate(contentHash, db);
+    await assertNoBinaryFileDuplicate(contentHash, db);
   } catch (error) {
     await auditDuplicateBlockedIfNeeded(context, meta, error, {
       attemptedFilename: metadata.filename,
@@ -723,18 +724,6 @@ export async function createKnowledgeFileSource(
             KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
             "来源文字提取失败",
           );
-  }
-
-  if (extracted) {
-    try {
-      await assertNoTextDuplicate(extracted.text, undefined, db);
-    } catch (error) {
-      await auditDuplicateBlockedIfNeeded(context, meta, error, {
-        attemptedFilename: metadata.filename,
-        duplicateKind: "text",
-      }, db);
-      throw error;
-    }
   }
 
   const id = crypto.randomUUID();
@@ -1305,24 +1294,6 @@ export async function retryKnowledgeSourceExtraction(
   }
 
   if (extracted) {
-    try {
-      await assertNoTextDuplicate(extracted.text, sourceId, db);
-    } catch (error) {
-      const failureAt = new Date().toISOString();
-      await db
-        .update(schema.knowledgeSources)
-        .set({
-          status: "failed",
-          failureCode:
-            error instanceof KnowledgeServiceError
-              ? error.errorCode
-              : KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
-          updatedAt: failureAt,
-        })
-        .where(eq(schema.knowledgeSources.id, sourceId));
-      throw error;
-    }
-
     const successAt = new Date().toISOString();
     await db
       .update(schema.knowledgeSources)
@@ -1370,6 +1341,106 @@ export async function retryKnowledgeSourceExtraction(
     })
     .where(eq(schema.knowledgeSources.id, sourceId));
   throw extractionFailure ?? sourceError(failureCode, "来源文字提取失败");
+}
+
+export async function confirmKnowledgeVisionExtraction(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  input: { rawText?: unknown },
+  meta: KnowledgeSourceMeta,
+  db: Database = getDb(),
+): Promise<KnowledgeSourceDetail> {
+  const source = await getSourceRow(context, sourceId, db);
+  if (!canManageKnowledgeSource(context, source)) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ACCESS_DENIED,
+      "来源访问权限不足",
+      403,
+    );
+  }
+  if (source.archivedAt) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ALREADY_ARCHIVED,
+      "此来源已封存",
+      409,
+    );
+  }
+  if (
+    !sourceRequiresVisionHumanReview({
+      extractionMethod: source.extractionMethod,
+      extractionMetadata: parseVisionExtractionMetadata(
+        source.extractionMetadataJson,
+      ),
+      rawText: source.rawText,
+    })
+  ) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+      "此来源不需要视觉人工确认",
+      400,
+    );
+  }
+  const nextText =
+    typeof input.rawText === "string"
+      ? normalizeKnowledgeSourceText(input.rawText)
+      : normalizeKnowledgeSourceText(source.rawText ?? "");
+  if (!nextText) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_FAILED,
+      "无法可靠读取来源",
+      400,
+    );
+  }
+  if (nextText.length > KNOWLEDGE_SOURCE_TEXT_MAX_CHARS) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_TOO_LARGE,
+      "提取后的文字超过允许长度",
+      400,
+    );
+  }
+
+  const metadata = parseVisionExtractionMetadata(source.extractionMetadataJson);
+  if (!metadata) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
+      "来源提取元数据无效",
+      400,
+    );
+  }
+  const confirmedAt = new Date().toISOString();
+  const updatedMetadata = {
+    ...metadata,
+    humanReviewConfirmedAt: confirmedAt,
+    humanReviewConfirmedByUserId: context.user.id,
+  };
+
+  await db
+    .update(schema.knowledgeSources)
+    .set({
+      rawText: nextText,
+      extractionMetadataJson: serializeVisionExtractionMetadata(updatedMetadata),
+      updatedAt: confirmedAt,
+      processedAt: source.processedAt ?? confirmedAt,
+    })
+    .where(eq(schema.knowledgeSources.id, sourceId));
+
+  await writeKnowledgeAudit(
+    {
+      userId: context.user.id,
+      action: "knowledge_source_vision_review_confirmed",
+      entityType: "knowledge_source",
+      entityId: sourceId,
+      ...meta,
+      metadata: {
+        sourceType: source.sourceType,
+        extractionMethod: source.extractionMethod,
+        confirmedAt,
+      },
+    },
+    db,
+  );
+
+  return getKnowledgeSource(context, sourceId, db);
 }
 
 export function isKnowledgeSourceOwner(

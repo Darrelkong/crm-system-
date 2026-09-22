@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
   KNOWN_HALLUCINATION_BANKING_TEMPLATE,
   TURKEY_HK_INCORPORATION_FIXTURE_TEXT,
   validateOrganizerEvidenceGrounding,
@@ -8,6 +9,7 @@ import {
 import {
   assessVisionExtractionIntegrity,
   detectHighRiskVisionFacts,
+  sourceBlocksOrganizeForVisionReview,
   sourceRequiresVisionHumanReview,
   VISION_INTEGRITY_WARNING_CODES,
 } from "@/lib/knowledge/knowledge-vision-integrity";
@@ -88,6 +90,34 @@ describe("knowledge vision integrity", () => {
     assert.ok(facts.includes("money_amount"));
     assert.ok(facts.includes("processing_time"));
     assert.ok(!facts.includes("汇丰香港"));
+  });
+
+  it("blocks organize until vision review is confirmed", () => {
+    const metadata = buildVisionExtractionMetadata({
+      quality: "medium",
+      warnings: [],
+    });
+    assert.equal(
+      sourceBlocksOrganizeForVisionReview({
+        extractionMethod: "vision",
+        extractionMetadata: metadata,
+        rawText: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+      }),
+      true,
+    );
+    const confirmed = {
+      ...metadata,
+      humanReviewConfirmedAt: "2026-09-22T00:00:00.000Z",
+      humanReviewConfirmedByUserId: "user-1",
+    };
+    assert.equal(
+      sourceBlocksOrganizeForVisionReview({
+        extractionMethod: "vision",
+        extractionMetadata: confirmed,
+        rawText: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+      }),
+      false,
+    );
   });
 
   it("requires human review for all generative vision extractions", async () => {

@@ -212,3 +212,18 @@ export function sourceRequiresVisionHumanReview(input: {
   });
   return assessment.requiresHumanReview;
 }
+
+export function visionExtractionReviewConfirmed(
+  metadata: KnowledgeVisionExtractionMetadata | null,
+): boolean {
+  return Boolean(metadata?.humanReviewConfirmedAt);
+}
+
+export function sourceBlocksOrganizeForVisionReview(input: {
+  extractionMethod: string | null;
+  extractionMetadata: KnowledgeVisionExtractionMetadata | null;
+  rawText: string | null;
+}): boolean {
+  if (!sourceRequiresVisionHumanReview(input)) return false;
+  return !visionExtractionReviewConfirmed(input.extractionMetadata);
+}

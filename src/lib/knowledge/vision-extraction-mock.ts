@@ -1,5 +1,9 @@
 import { createHash } from "node:crypto";
-import { TURKEY_HK_INCORPORATION_FIXTURE_TEXT } from "@/lib/knowledge/knowledge-evidence-grounding";
+import {
+  CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+  TURKEY_HK_INCORPORATION_FIXTURE_TEXT,
+} from "@/lib/knowledge/knowledge-evidence-grounding";
+import { GENERIC_VISION_EXTRACTION_PLACEHOLDER } from "@/lib/knowledge/source-duplicate";
 import type { KnowledgeVisionExtractResult } from "@/lib/knowledge/vision-types";
 
 const MOCK_VISION_MODEL = "mock-knowledge-vision-v1";
@@ -45,6 +49,18 @@ export function mockKnowledgeVisionExtract(input: {
   ) {
     return {
       text: TURKEY_HK_INCORPORATION_FIXTURE_TEXT,
+      quality: "high",
+      warnings: [],
+      model: MOCK_VISION_MODEL,
+    };
+  }
+  if (
+    lowerName.includes("chase-private") ||
+    lowerName.includes("chase_private") ||
+    lowerName.includes("img_6838")
+  ) {
+    return {
+      text: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
       quality: "high",
       warnings: [],
       model: MOCK_VISION_MODEL,
@@ -114,7 +130,7 @@ export function mockKnowledgeVisionExtract(input: {
   }
 
   return {
-    text: "[无法可靠读取来源 — 需要人工确认]",
+    text: `${GENERIC_VISION_EXTRACTION_PLACEHOLDER}\n[fixture:${hash.slice(0, 12)}]`,
     quality: "low",
     warnings: [
       {

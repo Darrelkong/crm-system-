@@ -3431,7 +3431,13 @@ const en = {
       imageVisionHumanReviewBody:
         "This image text came from generative vision transcription. The system will not treat it as high-confidence fact automatically. Compare the extracted text below with the original image before organizing.",
       organizeBlockedHumanReview:
-        "Image extraction has not passed manual review yet, so automatic organization is blocked. Review the extracted text against the original source first.",
+        "Image extraction has not passed manual review yet, so automatic organization is blocked. Review the extracted text above and confirm it before organizing.",
+      visionReviewExtractedText: "Extracted text (editable)",
+      confirmVisionReview: "Confirm extracted text",
+      confirmingVisionReview: "Confirming…",
+      visionReviewConfirmed: "Extracted text confirmed",
+      visionReviewConfirmedNotice:
+        "Extracted text has been manually confirmed. You can continue with AI organization.",
       imageVisionFailed: "Unable to read image content",
       imageTooLarge: "Image file is too large",
       imagePrivacyReminder:

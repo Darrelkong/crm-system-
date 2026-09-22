@@ -136,6 +136,20 @@ describe("Knowledge vision mock extraction", () => {
     assert.equal(result.extractionMetadata?.quality, "low");
   });
 
+  it("transcribes Chase Private Client fixture without Turkey/HK contamination", async () => {
+    const result = await extractKnowledgeSourceText({
+      bytes: buildTestPngBytes(),
+      filename: "chase-private-client-screenshot.png",
+      mimeType: "image/png",
+    });
+    assert.match(result.text, /Chase Private Client/);
+    assert.match(result.text, /大通私人银行账户/);
+    assert.match(result.text, /Zelle/);
+    assert.doesNotMatch(result.text, /土耳其/);
+    assert.doesNotMatch(result.text, /汇丰/);
+    assert.equal(result.extractionMetadata?.integrityTrace?.requiresHumanReview, true);
+  });
+
   it("transcribes Turkey/HK incorporation fixture without HSBC content", async () => {
     const result = await extractKnowledgeSourceText({
       bytes: buildTestJpegBytes(),

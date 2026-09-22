@@ -35,6 +35,10 @@ import {
   assessVisionExtractionReliability,
   validateOrganizerEvidenceGrounding,
 } from "@/lib/knowledge/knowledge-evidence-grounding";
+import {
+  isGenerativeVisionExtraction,
+  sourceBlocksOrganizeForVisionReview,
+} from "@/lib/knowledge/knowledge-vision-integrity";
 
 export const KNOWLEDGE_AI_INPUT_MAX_CHARS = 60_000;
 
@@ -108,13 +112,34 @@ export async function organizeKnowledgeSource(
       "来源文字超过 AI 整理的安全长度限制，请先分割来源",
     );
   }
+  if (
+    sourceBlocksOrganizeForVisionReview({
+      extractionMethod: source.extractionMethod,
+      extractionMetadata: source.extractionMetadata,
+      rawText: source.rawText,
+    })
+  ) {
+    throw organizerError(
+      KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
+      "图片提取尚未通过人工确认，请先核对并确认转录内容后再整理",
+    );
+  }
   const extractionReliability = assessVisionExtractionReliability({
     rawText: source.rawText,
     extractionMetadata: source.extractionMetadata,
     extractionMethod: source.extractionMethod,
     extractionModel: source.extractionModel,
   });
-  if (!extractionReliability.ok || extractionReliability.requiresHumanReview) {
+  if (
+    !isGenerativeVisionExtraction(source.extractionMethod) &&
+    (!extractionReliability.ok || extractionReliability.requiresHumanReview)
+  ) {
+    throw organizerError(
+      KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
+      "无法可靠读取来源，需要人工确认后再整理",
+    );
+  }
+  if (!extractionReliability.ok) {
     throw organizerError(
       KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
       "无法可靠读取来源，需要人工确认后再整理",

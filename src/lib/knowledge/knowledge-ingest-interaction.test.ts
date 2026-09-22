@@ -40,7 +40,9 @@ describe("knowledge ingest interaction", () => {
     assert.match(ingest, /sourceRequiresVisionHumanReview/);
     assert.match(ingest, /data-vision-human-review-required/);
     assert.match(ingest, /data-organize-blocked-human-review/);
-    assert.match(ingest, /!visionHumanReviewRequired/);
+    assert.match(ingest, /!visionOrganizeBlocked/);
+    assert.match(ingest, /data-confirm-vision-review/);
+    assert.match(ingest, /data-vision-review-textarea/);
   });
 
   it("handles failed, ready, and organized source clicks through loadSource", () => {

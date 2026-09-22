@@ -34,6 +34,8 @@ export type KnowledgeVisionExtractionMetadata = {
   warnings: KnowledgeVisionMetadataWarning[];
   pages: KnowledgeVisionPageMetadata[];
   integrityTrace?: KnowledgeVisionIntegrityTrace;
+  humanReviewConfirmedAt?: string | null;
+  humanReviewConfirmedByUserId?: string | null;
 };
 
 const METADATA_WARNING_MAX = 20;

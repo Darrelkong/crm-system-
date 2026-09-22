@@ -3228,7 +3228,12 @@ const zhHans: Messages = {
       imageVisionHumanReviewBody:
         "此图片来自生成式视觉转录，系统不会自动将其作为高置信度事实。请对照原始图片核对下方提取文字，确认无误后再整理。",
       organizeBlockedHumanReview:
-        "图片提取尚未通过人工确认，暂不可自动整理。请先核对上方提取内容与原始来源。",
+        "图片提取尚未通过人工确认，暂不可自动整理。请先核对上方提取文字，并点击确认后再整理。",
+      visionReviewExtractedText: "提取文字（可编辑）",
+      confirmVisionReview: "确认提取内容",
+      confirmingVisionReview: "正在确认…",
+      visionReviewConfirmed: "已确认提取内容",
+      visionReviewConfirmedNotice: "提取内容已人工确认，可继续 AI 整理。",
       imageVisionFailed: "图片内容无法读取",
       imageTooLarge: "图片文件过大",
       imagePrivacyReminder:
