@@ -112,7 +112,10 @@ describe("knowledge duplicate policy primitives", () => {
     assert.match(chase.text, /Zelle/);
     const metadata = buildVisionExtractionMetadata({
       quality: chase.quality,
-      warnings: chase.warnings,
+      warnings: chase.warnings.map((warning) => ({
+        code: warning.code,
+        message: warning.message ?? undefined,
+      })),
     });
     assert.equal(
       sourceBlocksOrganizeForVisionReview({
