@@ -7,6 +7,7 @@ import { isKnowledgeImageFilename } from "@/lib/knowledge/source-image-validatio
 import {
   normalizeKnowledgeSourceText,
 } from "@/lib/knowledge/source-text-normalization";
+import { buildDuplicateNoticeFromSource } from "@/lib/knowledge/source-duplicate-resolution";
 import type { KnowledgeSource } from "../../../drizzle/schema/knowledge-sources";
 
 export type KnowledgeSourceDuplicateSummary = {
@@ -16,6 +17,10 @@ export type KnowledgeSourceDuplicateSummary = {
   status: KnowledgeSource["status"];
   lifecycle: "active" | "archived";
   createdAt: string;
+  case?: import("@/lib/knowledge/source-duplicate-resolution").DuplicateResolutionCase;
+  canReprocess?: boolean;
+  canContinueReview?: boolean;
+  requiresReprocessConfirmation?: boolean;
 };
 
 export type KnowledgeSourceDuplicateKind = "binary" | "text";
@@ -76,14 +81,7 @@ function duplicateError(
 }
 
 function toDuplicateSummary(source: KnowledgeSource): KnowledgeSourceDuplicateSummary {
-  return {
-    id: source.id,
-    sourceTitle: source.sourceTitle,
-    originalFilename: source.originalFilename,
-    status: source.status,
-    lifecycle: source.archivedAt ? "archived" : "active",
-    createdAt: source.createdAt,
-  };
+  return buildDuplicateNoticeFromSource(source);
 }
 
 export async function findKnowledgeSourceByContentHash(

@@ -13,10 +13,18 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
     const actor = await requireKnowledgeAccess(request);
+    const body = (await request.json().catch(() => ({}))) as {
+      confirmReplaceCompleted?: unknown;
+    };
     const source = await retryKnowledgeSourceExtraction(
       actor,
       id,
       getRequestMeta(request),
+      undefined,
+      undefined,
+      {
+        confirmReplaceCompleted: body.confirmReplaceCompleted === true,
+      },
     );
     return Response.json({ source });
   } catch (error) {

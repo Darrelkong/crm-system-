@@ -24,6 +24,7 @@ import {
   assertNoPasteTextDuplicate,
   type KnowledgeSourceDuplicateKind,
 } from "@/lib/knowledge/source-duplicate";
+import { assessKnowledgeDuplicateResolution } from "@/lib/knowledge/source-duplicate-resolution";
 import {
   hasSubstantiveSourceEvidence,
   isNonEvidenceExtractionText,
@@ -1195,15 +1196,18 @@ export function isRetryableVisionImageSource(
     | "storageKey"
     | "originalFilename"
     | "archivedAt"
+    | "extractionMethod"
+    | "extractionMetadataJson"
+    | "rawText"
+    | "linkedArticleId"
   >,
 ): boolean {
-  if (source.archivedAt) return false;
-  if (source.status !== "failed") return false;
-  if (source.sourceType !== "file") return false;
-  if (!source.storageKey) return false;
-  if (!source.originalFilename) return false;
-  return isKnowledgeImageFilename(source.originalFilename);
+  return assessKnowledgeDuplicateResolution(source).canReprocess;
 }
+
+export type ReprocessKnowledgeVisionOptions = {
+  confirmReplaceCompleted?: boolean;
+};
 
 export async function retryKnowledgeSourceExtraction(
   context: KnowledgeSessionContext,
@@ -1211,6 +1215,7 @@ export async function retryKnowledgeSourceExtraction(
   meta: KnowledgeSourceMeta,
   db: Database = getDb(),
   storage: KnowledgeSourceStorage = getKnowledgeSourceStorage(),
+  options: ReprocessKnowledgeVisionOptions = {},
 ): Promise<KnowledgeSourceDetail> {
   const source = await requireManageableKnowledgeSource(
     context,
@@ -1219,14 +1224,28 @@ export async function retryKnowledgeSourceExtraction(
     "来源重新读取权限不足",
   );
   assertSourceNotArchived(source);
-  if (!isRetryableVisionImageSource(source)) {
+  const resolution = assessKnowledgeDuplicateResolution(source);
+  if (!resolution.canReprocess) {
     throw sourceError(
       KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
       "此来源目前无法重新读取图片",
       409,
     );
   }
+  if (
+    resolution.requiresReprocessConfirmation &&
+    !options.confirmReplaceCompleted
+  ) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.REPROCESS_CONFIRMATION_REQUIRED,
+      "此来源已完成处理，重新读取需要明确确认",
+      409,
+    );
+  }
 
+  const previousMetadata = parseVisionExtractionMetadata(
+    source.extractionMetadataJson,
+  );
   const claimTime = new Date().toISOString();
   const claimResult = await db
     .update(schema.knowledgeSources)
@@ -1234,7 +1253,7 @@ export async function retryKnowledgeSourceExtraction(
     .where(
       and(
         eq(schema.knowledgeSources.id, sourceId),
-        eq(schema.knowledgeSources.status, "failed"),
+        inArray(schema.knowledgeSources.status, ["failed", "ready", "organized"]),
       ),
     );
   if (claimResult.meta.changes !== 1) {
@@ -1248,13 +1267,20 @@ export async function retryKnowledgeSourceExtraction(
   await writeKnowledgeAudit(
     {
       userId: context.user.id,
-      action: "knowledge_source_extraction_retried",
+      action: "knowledge_source_extraction_reprocess_started",
       entityType: "knowledge_source",
       entityId: sourceId,
       ...meta,
       metadata: {
         sourceType: source.sourceType,
         originalFilename: source.originalFilename,
+        previousStatus: source.status,
+        previousExtractionModel: source.extractionModel,
+        previousExtractionMetadataVersion:
+          previousMetadata?.schemaVersion ?? null,
+        previousHumanReviewConfirmedAt:
+          previousMetadata?.humanReviewConfirmedAt ?? null,
+        confirmReplaceCompleted: Boolean(options.confirmReplaceCompleted),
       },
     },
     db,
@@ -1299,14 +1325,22 @@ export async function retryKnowledgeSourceExtraction(
 
   if (extracted) {
     const successAt = new Date().toISOString();
+    const metadata = extracted.extractionMetadata
+      ? {
+          ...extracted.extractionMetadata,
+          humanReviewConfirmedAt: null,
+          humanReviewConfirmedByUserId: null,
+          humanEvidenceManuallySupplied: false,
+        }
+      : null;
     await db
       .update(schema.knowledgeSources)
       .set({
         rawText: extracted.text,
         extractionMethod: extracted.extractionMethod ?? "vision",
         extractionModel: extracted.extractionModel ?? null,
-        extractionMetadataJson: extracted.extractionMetadata
-          ? serializeVisionExtractionMetadata(extracted.extractionMetadata)
+        extractionMetadataJson: metadata
+          ? serializeVisionExtractionMetadata(metadata)
           : null,
         pageCount: extracted.pageCount ?? 1,
         status: "ready",
@@ -1322,11 +1356,22 @@ export async function retryKnowledgeSourceExtraction(
         entityType: "knowledge_source",
         entityId: sourceId,
         ...meta,
-        metadata: buildExtractionAuditMetadata(extracted, {
-          sourceType: source.sourceType,
-          status: "ready",
-          retry: true,
-        }),
+        metadata: buildExtractionAuditMetadata(
+          {
+            ...extracted,
+            extractionMetadata: metadata,
+          },
+          {
+            sourceType: source.sourceType,
+            status: "ready",
+            retry: true,
+            reprocess: true,
+            previousStatus: source.status,
+            previousExtractionModel: source.extractionModel,
+            previousHumanReviewConfirmedAt:
+              previousMetadata?.humanReviewConfirmedAt ?? null,
+          },
+        ),
       },
       db,
     );

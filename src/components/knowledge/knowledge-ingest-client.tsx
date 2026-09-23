@@ -42,33 +42,13 @@ import {
   visionExtractionAdvisoryKey,
 } from "@/lib/knowledge/knowledge-ingest-upload-ui";
 import { hasSubstantiveSourceEvidence } from "@/lib/knowledge/knowledge-extraction-usability";
+import type { KnowledgeSourceDuplicateNotice } from "@/lib/knowledge/source-duplicate-resolution";
 import {
   isVisionExtractionUsable,
   sourceBlocksOrganizeForVisionReview,
   sourceRequiresVisionHumanReview,
   visionExtractionReviewConfirmed,
 } from "@/lib/knowledge/knowledge-vision-integrity";
-
-type KnowledgeSourceDuplicateNotice = {
-  id: string;
-  sourceTitle: string | null;
-  originalFilename: string | null;
-  status: KnowledgeSourceListItem["status"];
-  lifecycle: "active" | "archived";
-};
-
-function isFailedVisionDuplicateNotice(
-  notice: KnowledgeSourceDuplicateNotice,
-): boolean {
-  return (
-    notice.lifecycle === "active" &&
-    notice.status === "failed" &&
-    Boolean(
-      notice.originalFilename &&
-        isKnowledgeImageFilename(notice.originalFilename),
-    )
-  );
-}
 
 function canRetryVisionExtraction(source: KnowledgeSourceDetail): boolean {
   const unusableVision =
@@ -200,6 +180,75 @@ export function KnowledgeIngestClient({
       notice.sourceTitle ??
       t("knowledge.ingest.sourcePreview")
     );
+  }
+
+  function duplicateNoticeTitle(notice: KnowledgeSourceDuplicateNotice): string {
+    if (notice.lifecycle === "archived") {
+      return t("knowledge.ingest.duplicateDetected");
+    }
+    switch (notice.case) {
+      case "failed_extraction":
+        return t("knowledge.ingest.duplicateFailedDetected");
+      case "unusable":
+      case "awaiting_review":
+      case "completed":
+        return t("knowledge.ingest.duplicateSameSourceDetected");
+      default:
+        return t("knowledge.ingest.duplicateDetected");
+    }
+  }
+
+  function duplicateNoticeMessage(notice: KnowledgeSourceDuplicateNotice): string {
+    const label = duplicateLabel(notice);
+    if (notice.lifecycle === "archived") {
+      return t("knowledge.ingest.duplicateArchivedMessage", { label });
+    }
+    switch (notice.case) {
+      case "failed_extraction":
+        return t("knowledge.ingest.duplicateFailedMessage", { label });
+      case "unusable":
+        return t("knowledge.ingest.duplicateUnusableMessage", { label });
+      case "awaiting_review":
+        return t("knowledge.ingest.duplicateAwaitingReviewMessage", { label });
+      case "completed":
+        return t("knowledge.ingest.duplicateCompletedMessage");
+      default:
+        return t("knowledge.ingest.duplicateActiveMessage", { label });
+    }
+  }
+
+  async function reprocessDuplicateSource(
+    notice: KnowledgeSourceDuplicateNotice,
+    options?: { confirmReplaceCompleted?: boolean },
+  ) {
+    setDuplicateNotice(null);
+    setRetryingExtraction(true);
+    setBusy(true);
+    setError(null);
+    setHighlightedSourceId(notice.id);
+    if (notice.lifecycle === "archived") {
+      if (lifecycle !== "archived") {
+        switchLifecycle("archived");
+      }
+    } else if (lifecycle !== "active") {
+      switchLifecycle("active");
+    }
+    try {
+      await loadSource(notice.id);
+      await retryImageExtraction(notice.id, options);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
+    }
+  }
+
+  function handleReprocessDuplicate(notice: KnowledgeSourceDuplicateNotice) {
+    if (notice.requiresReprocessConfirmation) {
+      const confirmed = window.confirm(t("knowledge.ingest.reprocessCompletedConfirm"));
+      if (!confirmed) return;
+      void reprocessDuplicateSource(notice, { confirmReplaceCompleted: true });
+      return;
+    }
+    void reprocessDuplicateSource(notice);
   }
 
   function extractionFailureMessage(failureCode: string | null): string {
@@ -444,7 +493,10 @@ export function KnowledgeIngestClient({
     }
   }
 
-  async function retryImageExtraction(sourceId?: string) {
+  async function retryImageExtraction(
+    sourceId?: string,
+    options?: { confirmReplaceCompleted?: boolean },
+  ) {
     const targetId = sourceId ?? selected?.id;
     if (!targetId) return;
     setRetryingExtraction(true);
@@ -453,7 +505,13 @@ export function KnowledgeIngestClient({
     try {
       const response = await fetch(
         `/api/knowledge/sources/${targetId}/retry-extraction`,
-        { method: "POST" },
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            confirmReplaceCompleted: options?.confirmReplaceCompleted === true,
+          }),
+        },
       );
       const payload = (await response.json()) as {
         source?: KnowledgeSourceDetail;
@@ -814,34 +872,47 @@ export function KnowledgeIngestClient({
                     <div
                       className="rounded-2xl border border-amber-200 bg-amber-50 p-4"
                       data-duplicate-notice="true"
-                      data-duplicate-kind={
-                        isFailedVisionDuplicateNotice(duplicateNotice)
-                          ? "failed-vision"
-                          : duplicateNotice.lifecycle
-                      }
+                      data-duplicate-case={duplicateNotice.case ?? "unknown"}
+                      data-duplicate-kind={duplicateNotice.lifecycle}
                     >
                       <h3 className="text-sm font-semibold text-amber-950">
-                        {isFailedVisionDuplicateNotice(duplicateNotice)
-                          ? t("knowledge.ingest.duplicateFailedDetected")
-                          : t("knowledge.ingest.duplicateDetected")}
+                        {duplicateNoticeTitle(duplicateNotice)}
                       </h3>
                       <p className="mt-2 text-sm text-amber-900">
-                        {duplicateNotice.lifecycle === "archived"
-                          ? t("knowledge.ingest.duplicateArchivedMessage", {
-                              label: duplicateLabel(duplicateNotice),
-                            })
-                          : isFailedVisionDuplicateNotice(duplicateNotice)
-                            ? t("knowledge.ingest.duplicateFailedMessage", {
-                                label: duplicateLabel(duplicateNotice),
-                              })
-                            : t("knowledge.ingest.duplicateActiveMessage", {
-                                label: duplicateLabel(duplicateNotice),
-                              })}
+                        {duplicateNoticeMessage(duplicateNotice)}
                       </p>
                       <div className="mt-4 flex flex-wrap gap-3">
+                        {duplicateNotice.canContinueReview && (
+                          <Button
+                            type="button"
+                            variant="primary"
+                            data-duplicate-continue-review="true"
+                            onClick={() =>
+                              void openDuplicateSource(
+                                duplicateNotice.id,
+                                duplicateNotice.lifecycle,
+                              )
+                            }
+                          >
+                            {t("knowledge.ingest.continueHumanReview")}
+                          </Button>
+                        )}
+                        {duplicateNotice.canReprocess && (
+                          <Button
+                            type="button"
+                            disabled={busy || retryingExtraction}
+                            data-reprocess-existing-source="true"
+                            onClick={() => handleReprocessDuplicate(duplicateNotice)}
+                          >
+                            {retryingExtraction
+                              ? t("knowledge.ingest.retryingImageExtraction")
+                              : t("knowledge.ingest.reprocessExistingSource")}
+                          </Button>
+                        )}
                         <Button
                           type="button"
                           variant="secondary"
+                          data-view-existing-source="true"
                           onClick={() =>
                             void openDuplicateSource(
                               duplicateNotice.id,
@@ -851,28 +922,10 @@ export function KnowledgeIngestClient({
                         >
                           {duplicateNotice.lifecycle === "archived"
                             ? t("knowledge.ingest.goToArchivedSources")
-                            : isFailedVisionDuplicateNotice(duplicateNotice)
+                            : duplicateNotice.case === "failed_extraction"
                               ? t("knowledge.ingest.viewFailedSource")
                               : t("knowledge.ingest.viewExistingSource")}
                         </Button>
-                        {isFailedVisionDuplicateNotice(duplicateNotice) && (
-                          <Button
-                            type="button"
-                            disabled={busy || retryingExtraction}
-                            data-retry-image-extraction="true"
-                            onClick={() => {
-                              setDuplicateNotice(null);
-                              void openDuplicateSource(
-                                duplicateNotice.id,
-                                duplicateNotice.lifecycle,
-                              ).then(() => void retryImageExtraction(duplicateNotice.id));
-                            }}
-                          >
-                            {retryingExtraction
-                              ? t("knowledge.ingest.retryingImageExtraction")
-                              : t("knowledge.ingest.retryImageExtraction")}
-                          </Button>
-                        )}
                       </div>
                     </div>
                   )}

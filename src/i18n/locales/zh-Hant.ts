@@ -3275,10 +3275,20 @@ const zhHant: Messages = {
       extractionReady: "可整理",
       extractionFailed: "提取失敗",
       duplicateDetected: "偵測到重複資料",
+      duplicateSameSourceDetected: "偵測到相同來源",
       duplicateFailedDetected: "偵測到相同檔案",
       duplicateActiveMessage: "「{{label}}」已存在於有效來源中。",
+      duplicateUnusableMessage:
+        "「{{label}}」已存在，但目前的提取結果尚未完成。",
+      duplicateAwaitingReviewMessage:
+        "「{{label}}」已存在，正在等待人工確認。",
+      duplicateCompletedMessage: "此來源已經存在並完成處理。",
       duplicateFailedMessage:
         "「{{label}}」先前讀取失敗，原始檔案已安全保留。",
+      reprocessExistingSource: "重新讀取此來源",
+      continueHumanReview: "繼續人工確認",
+      reprocessCompletedConfirm:
+        "此來源已完成處理。重新讀取將清除先前的人工確認並更新提取結果，是否繼續？",
       duplicateArchivedMessage:
         "「{{label}}」已存在於已封存來源中，可前往已封存來源恢復原資料。",
       duplicateExistingActive: "有效來源中的現有資料",

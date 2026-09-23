@@ -3479,11 +3479,22 @@ const en = {
       extractionReady: "Ready to organize",
       extractionFailed: "Extraction failed",
       duplicateDetected: "Duplicate source detected",
+      duplicateSameSourceDetected: "Same source detected",
       duplicateFailedDetected: "Same file detected",
       duplicateActiveMessage:
         "\"{{label}}\" already exists in active sources.",
+      duplicateUnusableMessage:
+        "\"{{label}}\" already exists, but extraction is not complete yet.",
+      duplicateAwaitingReviewMessage:
+        "\"{{label}}\" already exists and is waiting for manual review.",
+      duplicateCompletedMessage:
+        "This source already exists and has been fully processed.",
       duplicateFailedMessage:
         "\"{{label}}\" failed to read earlier. The original file is safely retained.",
+      reprocessExistingSource: "Re-read this source",
+      continueHumanReview: "Continue manual review",
+      reprocessCompletedConfirm:
+        "This source was already processed. Re-reading will clear prior manual confirmation and replace extraction. Continue?",
       duplicateArchivedMessage:
         "\"{{label}}\" already exists in archived sources. Restore the existing source instead of uploading a copy.",
       duplicateExistingActive: "Existing active source",

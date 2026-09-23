@@ -3275,10 +3275,20 @@ const zhHans: Messages = {
       extractionReady: "可整理",
       extractionFailed: "提取失败",
       duplicateDetected: "检测到重复资料",
+      duplicateSameSourceDetected: "侦测到相同来源",
       duplicateFailedDetected: "检测到相同文件",
       duplicateActiveMessage: "「{{label}}」已存在于有效来源中。",
+      duplicateUnusableMessage:
+        "「{{label}}」已存在，但目前的提取结果尚未完成。",
+      duplicateAwaitingReviewMessage:
+        "「{{label}}」已存在，正在等待人工确认。",
+      duplicateCompletedMessage: "此来源已经存在并完成处理。",
       duplicateFailedMessage:
         "「{{label}}」先前读取失败，原始文件已安全保留。",
+      reprocessExistingSource: "重新读取此来源",
+      continueHumanReview: "继续人工确认",
+      reprocessCompletedConfirm:
+        "此来源已完成处理。重新读取将清除先前的人工确认并更新提取结果，是否继续？",
       duplicateArchivedMessage:
         "「{{label}}」已存在于已封存来源中，可前往已封存来源恢复原资料。",
       duplicateExistingActive: "有效来源中的现有资料",
