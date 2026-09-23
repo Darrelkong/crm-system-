@@ -49,6 +49,8 @@ import {
   sourceRequiresVisionHumanReview,
   visionExtractionReviewConfirmed,
 } from "@/lib/knowledge/knowledge-vision-integrity";
+import { KnowledgeSmartIngestAnalysisSection } from "@/components/knowledge/knowledge-smart-ingest-analysis-section";
+import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
 
 function canRetryVisionExtraction(source: KnowledgeSourceDetail): boolean {
   const unusableVision =
@@ -341,6 +343,17 @@ export function KnowledgeIngestClient({
     setSelected(null);
     setSaved(false);
     setError(null);
+  }
+
+  function syncSourceAnalysisStatus(analysisStatus: KnowledgeSourceAnalysisStatus) {
+    setSelected((current) =>
+      current ? { ...current, analysisStatus } : current,
+    );
+    setSources((current) =>
+      current.map((item) =>
+        item.id === selected?.id ? { ...item, analysisStatus } : item,
+      ),
+    );
   }
 
   function scrollDetailIntoView() {
@@ -1278,10 +1291,17 @@ export function KnowledgeIngestClient({
                 )}
               </Card>
 
+              {!selectedArchived && selected.sourceType === "paste" && (
+                <KnowledgeSmartIngestAnalysisSection
+                  source={selected}
+                  onAnalysisStatusChange={syncSourceAnalysisStatus}
+                />
+              )}
+
               {!selectedArchived && selected.status !== "converted" && (
                 <Card className="p-4" data-ingest-step="organize">
                   <KnowledgeIngestStepHeader
-                    step={2}
+                    step={3}
                     title={t("knowledge.ingest.stepOrganize")}
                     status={
                       organizationReady

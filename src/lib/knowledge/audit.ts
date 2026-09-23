@@ -17,6 +17,8 @@ export type KnowledgeAuditAction =
   | "knowledge_source_created"
   | "knowledge_source_uploaded"
   | "knowledge_source_extracted"
+  | "knowledge_source_analysis_started"
+  | "knowledge_source_segment_reviewed"
   | "knowledge_source_extraction_retried"
   | "knowledge_source_extraction_reprocess_started"
   | "knowledge_source_vision_review_confirmed"

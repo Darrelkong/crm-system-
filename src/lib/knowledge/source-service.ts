@@ -24,6 +24,7 @@ import {
   type KnowledgeSourceDuplicateKind,
 } from "@/lib/knowledge/source-duplicate";
 import { assessKnowledgeDuplicateResolution } from "@/lib/knowledge/source-duplicate-resolution";
+import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
 import {
   hasSubstantiveSourceEvidence,
   isNonEvidenceExtractionText,
@@ -107,6 +108,7 @@ export type KnowledgeSourceListItem = {
   mimeType: string | null;
   sizeBytes: number | null;
   status: KnowledgeSourceStatus;
+  analysisStatus: KnowledgeSourceAnalysisStatus;
   failureCode: string | null;
   linkedArticleId: string | null;
   createdByUserId: string;
@@ -443,6 +445,7 @@ function toListItem(source: KnowledgeSource): KnowledgeSourceListItem {
     mimeType: source.mimeType,
     sizeBytes: source.sizeBytes,
     status: source.status,
+    analysisStatus: source.analysisStatus,
     failureCode: source.failureCode,
     linkedArticleId: source.linkedArticleId,
     createdByUserId: source.createdByUserId,

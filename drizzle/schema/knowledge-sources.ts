@@ -24,6 +24,17 @@ export const KNOWLEDGE_SOURCE_STATUSES = [
 export type KnowledgeSourceStatus =
   (typeof KNOWLEDGE_SOURCE_STATUSES)[number];
 
+export const KNOWLEDGE_SOURCE_ANALYSIS_STATUSES = [
+  "none",
+  "pending",
+  "processing",
+  "ready_for_review",
+  "failed",
+] as const;
+
+export type KnowledgeSourceAnalysisStatus =
+  (typeof KNOWLEDGE_SOURCE_ANALYSIS_STATUSES)[number];
+
 export const knowledgeSources = sqliteTable(
   "knowledge_sources",
   {
@@ -60,6 +71,11 @@ export const knowledgeSources = sqliteTable(
     archivedByUserId: text("archived_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    analysisStatus: text("analysis_status", {
+      enum: KNOWLEDGE_SOURCE_ANALYSIS_STATUSES,
+    })
+      .notNull()
+      .default("none"),
   },
   (table) => [
     index("idx_knowledge_sources_creator_updated").on(
@@ -95,6 +111,14 @@ export const knowledgeSources = sqliteTable(
     check(
       "knowledge_sources_storage_or_text",
       sql`${table.sourceType} <> 'file' OR ${table.storageKey} IS NOT NULL`,
+    ),
+    check(
+      "knowledge_sources_analysis_status_allowed",
+      sql`${table.analysisStatus} IN ('none', 'pending', 'processing', 'ready_for_review', 'failed')`,
+    ),
+    index("idx_knowledge_sources_analysis_status").on(
+      table.analysisStatus,
+      table.updatedAt,
     ),
   ],
 );

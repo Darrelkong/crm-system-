@@ -244,6 +244,7 @@ describe("Knowledge vision extraction retry", () => {
       processedAt: null,
       failureCode: KNOWLEDGE_ERROR_CODES.IMAGE_INVALID,
       linkedArticleId: null,
+      analysisStatus: "none",
     });
     await assert.rejects(
       () =>

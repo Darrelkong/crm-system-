@@ -1,0 +1,322 @@
+"use client";
+
+import { useCallback, useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
+import { useTranslation } from "@/i18n/provider";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
+import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
+import {
+  getKnowledgeErrorMessage,
+  resolveKnowledgeApiError,
+} from "@/lib/knowledge/error-messages";
+import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
+
+type AnalysisSegment = {
+  id: string;
+  segmentIndex: number;
+  titleHint: string;
+  evidenceText: string;
+  evidenceStart: number;
+  evidenceEnd: number;
+  status: "proposed" | "rejected" | "superseded";
+  createdAt: string;
+};
+
+type AnalysisRun = {
+  id: string;
+  status: "pending" | "processing" | "completed" | "failed" | "cancelled";
+  segments: AnalysisSegment[];
+  failureMessage: string | null;
+};
+
+const EXCERPT_CHARS = 280;
+
+export function KnowledgeSmartIngestAnalysisSection({
+  source,
+  onAnalysisStatusChange,
+}: {
+  source: KnowledgeSourceDetail;
+  onAnalysisStatusChange: (status: KnowledgeSourceAnalysisStatus) => void;
+}) {
+  const { t } = useTranslation();
+  const [analyzing, setAnalyzing] = useState(false);
+  const [run, setRun] = useState<AnalysisRun | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const isPaste = source.sourceType === "paste";
+  const activeSegments =
+    run?.segments.filter((segment) => segment.status !== "superseded") ?? [];
+
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => stopPolling(), [stopPolling]);
+
+  const pollRun = useCallback(
+    async (sourceId: string, runId: string) => {
+      const response = await fetch(
+        `/api/knowledge/sources/${sourceId}/analysis-runs/${runId}`,
+        { cache: "no-store" },
+      );
+      const payload = (await response.json()) as {
+        run?: AnalysisRun;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!response.ok || !payload.run) {
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.ingest.analysisFailed"),
+        );
+      }
+      setRun(payload.run);
+      if (payload.run.status === "completed") {
+        stopPolling();
+        setAnalyzing(false);
+        onAnalysisStatusChange("ready_for_review");
+      } else if (payload.run.status === "failed") {
+        stopPolling();
+        setAnalyzing(false);
+        onAnalysisStatusChange("failed");
+        setError(payload.run.failureMessage ?? t("knowledge.ingest.analysisFailed"));
+      }
+    },
+    [onAnalysisStatusChange, stopPolling, t],
+  );
+
+  async function startAnalysis() {
+    if (!isPaste) return;
+    setError(null);
+    setAnalyzing(true);
+    onAnalysisStatusChange("pending");
+    try {
+      const response = await fetch(`/api/knowledge/sources/${source.id}/analyze`, {
+        method: "POST",
+      });
+      const payload = (await response.json()) as {
+        runId?: string;
+        status?: string;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!response.ok || !payload.runId) {
+        throw new Error(
+          resolveKnowledgeApiError(t, payload, "knowledge.ingest.analysisFailed"),
+        );
+      }
+      setRun({
+        id: payload.runId,
+        status: "pending",
+        segments: [],
+        failureMessage: null,
+      });
+      onAnalysisStatusChange("processing");
+      stopPolling();
+      pollRef.current = setInterval(() => {
+        void pollRun(source.id, payload.runId!).catch((caught) => {
+          stopPolling();
+          setAnalyzing(false);
+          setError(
+            caught instanceof Error
+              ? caught.message
+              : t("knowledge.ingest.analysisFailed"),
+          );
+        });
+      }, 800);
+      void pollRun(source.id, payload.runId);
+    } catch (caught) {
+      setAnalyzing(false);
+      onAnalysisStatusChange("failed");
+      setError(
+        caught instanceof Error ? caught.message : t("knowledge.ingest.analysisFailed"),
+      );
+    }
+  }
+
+  async function updateSegmentStatus(segmentId: string, status: "proposed" | "rejected") {
+    const response = await fetch(
+      `/api/knowledge/sources/${source.id}/segments/${segmentId}`,
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      },
+    );
+    const payload = (await response.json()) as {
+      segment?: AnalysisSegment;
+      error?: string;
+      errorCode?: string;
+    };
+    if (!response.ok || !payload.segment) {
+      setError(
+        resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+      );
+      return;
+    }
+    setRun((current) =>
+      current
+        ? {
+            ...current,
+            segments: current.segments.map((segment) =>
+              segment.id === segmentId ? payload.segment! : segment,
+            ),
+          }
+        : current,
+    );
+  }
+
+  if (!isPaste) {
+    return null;
+  }
+
+  const showReview =
+    run?.status === "completed" && activeSegments.length > 0;
+  const reviewTitle =
+    activeSegments.length === 1
+      ? t("knowledge.ingest.analysisSingleTopic")
+      : t("knowledge.ingest.analysisTopicsFound", {
+          count: String(activeSegments.length),
+        });
+
+  return (
+    <Card className="p-4" data-ingest-step="analyze">
+      <KnowledgeIngestStepHeader
+        step={1}
+        title={t("knowledge.ingest.analyzeContent")}
+        status={
+          analyzing
+            ? t("knowledge.ingest.analyzingContent")
+            : showReview
+              ? reviewTitle
+              : undefined
+        }
+        tone={
+          analyzing
+            ? "processing"
+            : showReview
+              ? "success"
+              : "neutral"
+        }
+      />
+      <div className="mt-4 flex flex-wrap gap-3">
+        <Button
+          type="button"
+          data-analyze-content-button="true"
+          disabled={analyzing || !source.rawText?.trim()}
+          onClick={() => void startAnalysis()}
+        >
+          {analyzing ? (
+            <>
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+              {t("knowledge.ingest.analyzingContent")}
+            </>
+          ) : run?.status === "completed"
+            ? t("knowledge.ingest.analysisRetry")
+            : t("knowledge.ingest.analyzeContent")}
+        </Button>
+      </div>
+      {error ? (
+        <p className="mt-3 text-sm text-rose-700" data-analysis-error="true">
+          {error}
+        </p>
+      ) : null}
+      {showReview ? (
+        <ul className="mt-4 space-y-3" data-segment-review-list="true">
+          {activeSegments.map((segment) => {
+            const isExpanded = expanded[segment.id] ?? false;
+            const excerpt =
+              segment.evidenceText.length > EXCERPT_CHARS && !isExpanded
+                ? `${segment.evidenceText.slice(0, EXCERPT_CHARS)}…`
+                : segment.evidenceText;
+            return (
+              <li
+                key={segment.id}
+                className="rounded-xl border border-slate-200 bg-white p-4"
+                data-segment-card="true"
+                data-segment-status={segment.status}
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      {t("knowledge.ingest.segmentNumber", {
+                        index: String(segment.segmentIndex + 1),
+                      })}
+                    </p>
+                    <p className="mt-1 text-base font-semibold crm-text">
+                      {segment.titleHint}
+                    </p>
+                    <p className="mt-1 text-xs crm-text-secondary">
+                      {segment.evidenceStart}–{segment.evidenceEnd}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={segment.status === "proposed" ? "primary" : "secondary"}
+                      disabled={segment.status === "proposed"}
+                      onClick={() => void updateSegmentStatus(segment.id, "proposed")}
+                    >
+                      {t("knowledge.ingest.segmentKeep")}
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      disabled={segment.status === "rejected"}
+                      onClick={() => void updateSegmentStatus(segment.id, "rejected")}
+                    >
+                      {t("knowledge.ingest.segmentReject")}
+                    </Button>
+                  </div>
+                </div>
+                <p className="mt-3 text-xs font-medium crm-text-secondary">
+                  {t("knowledge.ingest.segmentExcerpt")}
+                </p>
+                <pre
+                  className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 crm-text"
+                  data-segment-evidence="true"
+                >
+                  {excerpt}
+                </pre>
+                {segment.evidenceText.length > EXCERPT_CHARS ? (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 min-h-9 px-0 text-blue-700"
+                    onClick={() =>
+                      setExpanded((current) => ({
+                        ...current,
+                        [segment.id]: !isExpanded,
+                      }))
+                    }
+                  >
+                    {isExpanded ? (
+                      <>
+                        <ChevronUp className="mr-1 h-4 w-4" aria-hidden="true" />
+                        {t("knowledge.ingest.segmentCollapse")}
+                      </>
+                    ) : (
+                      <>
+                        <ChevronDown className="mr-1 h-4 w-4" aria-hidden="true" />
+                        {t("knowledge.ingest.segmentViewFull")}
+                      </>
+                    )}
+                  </Button>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </Card>
+  );
+}

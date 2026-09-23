@@ -7,6 +7,8 @@ export * from "./knowledge-categories";
 export * from "./knowledge-articles";
 export * from "./knowledge-article-versions";
 export * from "./knowledge-sources";
+export * from "./knowledge-source-analysis-runs";
+export * from "./knowledge-source-segments";
 export * from "./knowledge-ai-organization-runs";
 export * from "./knowledge-ai-comparison-runs";
 export * from "./knowledge-review-requests";

@@ -21,6 +21,7 @@ function source(
     mimeType: "text/plain",
     sizeBytes: 1,
     status: "ready",
+    analysisStatus: "none",
     failureCode: null,
     linkedArticleId: null,
     createdByUserId: "user-1",

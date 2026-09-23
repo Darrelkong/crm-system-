@@ -71,6 +71,7 @@ describe("Knowledge comparison migration — disposable D1", () => {
       linkedArticleId: null,
       archivedAt: null,
       archivedByUserId: null,
+      analysisStatus: "none",
     });
     await db.insert(schema.knowledgeAiOrganizationRuns).values({
       id: orgRunId,
