@@ -51,6 +51,8 @@ import {
   applyBusinessIdentityToOrganizerOutput,
   serializeKnowledgePasteBusinessIdentityJson,
 } from "@/lib/knowledge/knowledge-paste-business-identity";
+import { buildMockKnowledgeOrganizationOutput } from "@/lib/knowledge/knowledge-mock-organizer";
+import { finalizeKnowledgeOrganizerArticleOutput } from "@/lib/knowledge/knowledge-organizer-article-quality";
 import {
   assertSourceLevelOrganizeAllowed,
   loadSmartIngestSourceScope,
@@ -66,43 +68,7 @@ function organizerError(code: string, message: string, status = 400) {
 function mockOrganization(
   source: Pick<KnowledgeSourceDetail, "sourceTitle" | "rawText">,
 ): KnowledgeAiOrganizationOutput {
-  const text = source.rawText?.trim() ?? "";
-  const firstLine = text.split(/\r?\n/).find((line) => line.trim())?.trim() ?? "";
-  const title =
-    source.sourceTitle?.trim() ||
-    firstLine.replace(/^#+\s*/, "").slice(0, 200) ||
-    "Knowledge 来源整理草稿";
-  const summaryLines = text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .slice(0, 3);
-  const body = text;
-  const completeness = assessOrganizerOutputCompleteness(source.rawText ?? "", {
-    title,
-    summary: summaryLines.join(" "),
-    body,
-    suggestedCategory: null,
-    warnings: [],
-  });
-  const warnings = completeness.requiresHumanReview
-    ? [
-        completeness.humanReviewWarning ?? "需要人工确认",
-        ...completeness.missingCriticalAnchors.map(
-          (anchor) => `缺少重要事实：${anchor}`,
-        ),
-        ...completeness.missingGeneralAnchors.map(
-          (anchor) => `缺少说明内容：${anchor.slice(0, 80)}`,
-        ),
-      ]
-    : [];
-  return {
-    title,
-    summary: summaryLines.join("\n").slice(0, 400),
-    body,
-    suggestedCategory: null,
-    warnings: warnings.length > 0 ? warnings : ["資訊不足 / 需要人工補充"],
-  };
+  return buildMockKnowledgeOrganizationOutput(source);
 }
 
 function failureCodeFor(error: unknown): string {
@@ -308,18 +274,22 @@ export async function organizeKnowledgeSource(
         output,
       );
       if (completeness.requiresHumanReview) {
+        const specificWarnings = [
+          ...(completeness.humanReviewWarning &&
+          !completeness.missingCriticalAnchors.length &&
+          !completeness.missingGeneralAnchors.length
+            ? [completeness.humanReviewWarning]
+            : []),
+          ...completeness.missingCriticalAnchors.map(
+            (anchor) => `缺少重要事实：${anchor}`,
+          ),
+          ...completeness.missingGeneralAnchors.map(
+            (anchor) => `缺少说明内容：${anchor.slice(0, 80)}`,
+          ),
+        ];
         output = {
           ...output,
-          warnings: [
-            completeness.humanReviewWarning ?? "需要人工确认",
-            ...completeness.missingCriticalAnchors.map(
-              (anchor) => `缺少重要事实：${anchor}`,
-            ),
-            ...completeness.missingGeneralAnchors.map(
-              (anchor) => `缺少说明内容：${anchor.slice(0, 80)}`,
-            ),
-            ...output.warnings,
-          ],
+          warnings: [...specificWarnings, ...output.warnings],
         };
       }
     }
@@ -328,7 +298,7 @@ export async function organizeKnowledgeSource(
       organizationEvidenceText,
       output,
     );
-    output = identityApplied.output;
+    output = finalizeKnowledgeOrganizerArticleOutput(identityApplied.output);
 
     const completedAt = new Date().toISOString();
     await db.batch([

@@ -41,15 +41,25 @@ async function main() {
   };
 
   const now = new Date().toISOString();
-  const category = await createKnowledgeCategory(
-    adminContext,
-    {
-      name: "P2C-A2 Preview",
-      description: "Synthetic comparison preview category",
-    },
-    META,
-    db,
-  );
+  const previewCategoryName = "P2C-A2 Preview";
+  const existingCategory = (
+    await db
+      .select()
+      .from(schema.knowledgeCategories)
+      .where(eq(schema.knowledgeCategories.name, previewCategoryName))
+      .limit(1)
+  )[0];
+  const category =
+    existingCategory ??
+    (await createKnowledgeCategory(
+      adminContext,
+      {
+        name: previewCategoryName,
+        description: "Synthetic comparison preview category",
+      },
+      META,
+      db,
+    ));
 
   const articleA = await createKnowledgeArticle(
     adminContext,

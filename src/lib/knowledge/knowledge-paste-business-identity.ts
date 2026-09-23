@@ -209,6 +209,15 @@ export function assessOrganizerIdentityConsistency(input: {
   return { consistent: true, conflictingMarkers: [] };
 }
 
+function canonicalizeTitleIncludesIdentity(
+  organizerTitle: string,
+  identityTitle: string,
+): boolean {
+  const compactOrganizer = organizerTitle.replace(/\s+/g, "");
+  const compactIdentity = identityTitle.replace(/\s+/g, "");
+  return compactOrganizer.includes(compactIdentity);
+}
+
 export function applyBusinessIdentityToOrganizerOutput(
   rawText: string,
   output: KnowledgeAiOrganizationOutput,
@@ -220,9 +229,14 @@ export function applyBusinessIdentityToOrganizerOutput(
   let nextOutput: KnowledgeAiOrganizationOutput = { ...output };
 
   if (identity.signal !== "unknown") {
+    const organizerTitle = nextOutput.title?.trim() ?? "";
+    const keepOrganizerTitle =
+      organizerTitle.length > identity.title.length + 4 &&
+      (organizerTitle.includes(identity.title) ||
+        canonicalizeTitleIncludesIdentity(organizerTitle, identity.title));
     nextOutput = {
       ...nextOutput,
-      title: identity.title,
+      title: keepOrganizerTitle ? organizerTitle : identity.title,
       suggestedCategory:
         identity.requestedProjectCode
           ? getRequestedProjectItem(identity.requestedProjectCode)?.canonicalZhHans ??

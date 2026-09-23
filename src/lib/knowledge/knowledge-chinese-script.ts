@@ -14,3 +14,9 @@ export function normalizeForKnowledgeFactComparison(value: string): string {
   const simplified = toSimplifiedChineseForComparison(normalized);
   return simplified.replace(/\s+/g, "").toLowerCase();
 }
+
+/** Simplified Chinese for organized Knowledge article fields (title/summary/body). */
+export function canonicalizeKnowledgeArticleText(text: string): string {
+  const normalized = normalizeKnowledgeSourceText(text).normalize("NFKC");
+  return toSimplifiedChineseForComparison(normalized);
+}

@@ -13,7 +13,8 @@ describe("Knowledge Package 3 AI organizer contract", () => {
     const prompt = buildKnowledgeOrganizerSystemPrompt("zh-Hant");
     assert.match(prompt, /Only organize information contained in the supplied source/);
     assert.match(prompt, /Do not add facts, policies, prices/);
-    assert.match(prompt, /資訊不足 \/ 需要人工補充/);
+    assert.match(prompt, /Never use generic warnings/i);
+    assert.match(prompt, /one sentence/i);
     const userPrompt = buildKnowledgeOrganizerUserPrompt({
       sourceTitle: "合成来源",
       sourceType: "paste",
