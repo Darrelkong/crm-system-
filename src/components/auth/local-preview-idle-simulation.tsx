@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 export function LocalPreviewIdleSimulation() {
   return (
     <form
-      className="fixed bottom-4 left-4 z-50"
+      className="fixed bottom-4 left-4 z-40"
       method="post"
       action="/local-preview/auth/simulate-idle-expiry"
     >
