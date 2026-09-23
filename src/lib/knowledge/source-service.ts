@@ -8,7 +8,6 @@ import {
   KNOWLEDGE_SOURCE_TEXT_MAX_CHARS,
 } from "@/lib/knowledge/constants";
 import {
-  isKnowledgeImageFilename,
   JPEG_MIME_TYPES,
   knowledgeImageMimeForExtension,
   PNG_MIME_TYPES,

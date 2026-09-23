@@ -1,3 +1,26 @@
+import { readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const testFixturesDir = dirname(fileURLToPath(import.meta.url));
+const previewIngestDir = join(process.cwd(), "preview-fixtures/knowledge-ingest");
+
+function toArrayBuffer(bytes: Buffer): ArrayBuffer {
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+}
+
+export function loadKnowledgeTestFixtureBytes(filename: string): ArrayBuffer {
+  return toArrayBuffer(readFileSync(join(testFixturesDir, filename)));
+}
+
+export function loadKnowledgePreviewIngestFixtureBytes(filename: string): ArrayBuffer {
+  const resolved = join(previewIngestDir, filename);
+  if (!resolved.startsWith(previewIngestDir)) {
+    throw new Error("Invalid Knowledge preview ingest fixture path");
+  }
+  return toArrayBuffer(readFileSync(resolved));
+}
+
 /** 1x1 PNG (valid magic bytes). */
 export function buildTestPngBytes(): ArrayBuffer {
   const base64 =

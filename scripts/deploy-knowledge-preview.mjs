@@ -14,6 +14,11 @@ const PREVIEW_BUCKET = "crm-knowledge-sources-preview";
 const PREVIEW_HOSTNAME = "knowledge-preview.echfronthk.com";
 const PREVIEW_ACCESS_TEAM_DOMAIN = "https://echfronthk.cloudflareaccess.com";
 const PRODUCTION_DATABASE_ID = "03633dd2-c058-42de-9355-f5450eab7202";
+const ALLOWED_DEPLOY_BRANCHES = new Set([
+  "feat/knowledge-human-acceptance-preview",
+  "fix/knowledge-dedupe-image-extraction",
+]);
+const PREVIEW_AI_SERVICE = "crm-ai";
 const PRODUCTION_NAMES = new Set([
   "crm-system",
   "crm-db",
@@ -51,7 +56,7 @@ export function validateKnowledgePreviewConfig({
   head,
   status,
 } = {}) {
-  if (branch !== "feat/knowledge-human-acceptance-preview") {
+  if (!branch || !ALLOWED_DEPLOY_BRANCHES.has(branch)) {
     fail(`wrong branch (${branch ?? "unknown"})`);
   }
   if (status) fail("worktree is not clean");
@@ -110,8 +115,14 @@ export function validateKnowledgePreviewConfig({
       fail(`production resource reference detected: ${productionName}`);
     }
   }
+  const services = config.services ?? [];
+  const aiBinding = services.find((service) => service.binding === "AI_SERVICE");
+  if (!aiBinding || aiBinding.service !== PREVIEW_AI_SERVICE) {
+    fail(`AI_SERVICE must bind to ${PREVIEW_AI_SERVICE} for real vision staging`);
+  }
+
   if (
-    config.vars?.CRM_ALLOW_MOCK_AI !== "1" ||
+    config.vars?.CRM_ALLOW_MOCK_AI !== "0" ||
     config.vars?.CF_ACCESS_TEAM_DOMAIN !== PREVIEW_ACCESS_TEAM_DOMAIN ||
     typeof config.vars?.CF_ACCESS_AUD !== "string" ||
     config.vars.CF_ACCESS_AUD.trim() === "" ||
@@ -120,7 +131,7 @@ export function validateKnowledgePreviewConfig({
     config.vars?.MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED !== "false" ||
     config.vars?.MAIL_LARGE_ATTACHMENT_SEND_ENABLED !== "false"
   ) {
-    fail("mock AI or mail side-effect safeguards are missing");
+    fail("real-AI staging or mail side-effect safeguards are missing");
   }
   return true;
 }

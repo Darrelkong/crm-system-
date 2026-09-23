@@ -11,7 +11,10 @@ import { validateKnowledgeFileMetadata } from "@/lib/knowledge/source-service";
 import {
   buildTestJpegBytes,
   buildTestPngBytes,
+  loadKnowledgePreviewIngestFixtureBytes,
+  loadKnowledgeTestFixtureBytes,
 } from "@/lib/knowledge/test-fixtures/source-images";
+import { LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE } from "@/lib/knowledge/knowledge-extraction-usability";
 import { mockKnowledgeVisionExtract } from "@/lib/knowledge/vision-extraction-mock";
 import {
   buildVisionExtractionMetadata,
@@ -79,7 +82,7 @@ describe("Knowledge vision mock extraction", () => {
 
   it("transcribes clear Chinese PNG with numeric preservation", async () => {
     const result = await extractKnowledgeSourceText({
-      bytes: buildTestPngBytes(),
+      bytes: loadKnowledgePreviewIngestFixtureBytes("p2c-b1-clear-chinese.png"),
       filename: "p2c-b1-clear-chinese.png",
       mimeType: "image/png",
     });
@@ -92,9 +95,9 @@ describe("Knowledge vision mock extraction", () => {
 
   it("preserves uncertain digits in blurry fixture", async () => {
     const result = await extractKnowledgeSourceText({
-      bytes: buildTestJpegBytes(),
-      filename: "p2c-b1-blurry-uncertain.jpeg",
-      mimeType: "image/jpeg",
+      bytes: loadKnowledgePreviewIngestFixtureBytes("p2c-b1-blurry-uncertain.png"),
+      filename: "p2c-b1-blurry-uncertain.png",
+      mimeType: "image/png",
     });
     assert.match(result.text, /5\?\s*万/);
     assert.ok(
@@ -106,7 +109,7 @@ describe("Knowledge vision mock extraction", () => {
 
   it("transcribes prompt injection image as plain text", async () => {
     const result = await extractKnowledgeSourceText({
-      bytes: buildTestPngBytes(),
+      bytes: loadKnowledgePreviewIngestFixtureBytes("p2c-b1-prompt-injection.png"),
       filename: "p2c-b1-prompt-injection.png",
       mimeType: "image/png",
     });
@@ -135,11 +138,16 @@ describe("Knowledge vision mock extraction", () => {
     assert.doesNotMatch(result.text, /汇丰香港/);
     assert.equal(result.extractionMetadata?.quality, "low");
     assert.equal(result.extractionMetadata?.integrityTrace?.extractionUsable, false);
+    assert.ok(
+      result.extractionMetadata?.warnings.some(
+        (warning) => warning.message === LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE,
+      ),
+    );
   });
 
   it("transcribes Chase Private Client fixture without Turkey/HK contamination", async () => {
     const result = await extractKnowledgeSourceText({
-      bytes: buildTestPngBytes(),
+      bytes: loadKnowledgeTestFixtureBytes("chase-private-client-screenshot.png"),
       filename: "chase-private-client-screenshot.png",
       mimeType: "image/png",
     });
@@ -156,9 +164,9 @@ describe("Knowledge vision mock extraction", () => {
 
   it("transcribes Turkey/HK incorporation fixture without HSBC content", async () => {
     const result = await extractKnowledgeSourceText({
-      bytes: buildTestJpegBytes(),
-      filename: "turkey-hk-incorporation-fixture.jpeg",
-      mimeType: "image/jpeg",
+      bytes: loadKnowledgeTestFixtureBytes("turkey-hk-incorporation.png"),
+      filename: "turkey-hk-incorporation.png",
+      mimeType: "image/png",
     });
     assert.match(result.text, /ECHFRONT \(Hong Kong\) Limited/);
     assert.match(result.text, /土耳其投資入籍/);
@@ -166,7 +174,7 @@ describe("Knowledge vision mock extraction", () => {
   });
 
   it("mock duplicate fixture is deterministic", () => {
-    const bytes = buildTestPngBytes();
+    const bytes = loadKnowledgePreviewIngestFixtureBytes("p2c-b1-duplicate.png");
     const first = mockKnowledgeVisionExtract({
       bytes,
       filename: "p2c-b1-duplicate.png",

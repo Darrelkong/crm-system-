@@ -21,7 +21,7 @@ import {
   createMemoryKnowledgeSourceStorage,
   type KnowledgeSourceStorage,
 } from "@/lib/knowledge/source-storage";
-import { buildTestPngBytes } from "@/lib/knowledge/test-fixtures/source-images";
+import { loadKnowledgePreviewIngestFixtureBytes } from "@/lib/knowledge/test-fixtures/source-images";
 
 const META = { ipAddress: null, userAgent: "knowledge-extraction-retry-test" };
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -157,7 +157,7 @@ describe("Knowledge vision extraction retry", () => {
   });
 
   async function createFailedVisionSource(filename = "p2c-b1-table.png") {
-    const bytes = buildTestPngBytes();
+    const bytes = loadKnowledgePreviewIngestFixtureBytes(filename);
     const source = await createKnowledgeFileSource(
       contributorContext(),
       fileFrom(bytes, filename, "image/png"),

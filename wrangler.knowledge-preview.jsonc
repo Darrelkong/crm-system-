@@ -27,6 +27,10 @@
     {
       "binding": "WORKER_SELF_REFERENCE",
       "service": "crm-system-knowledge-preview"
+    },
+    {
+      "binding": "AI_SERVICE",
+      "service": "crm-ai"
     }
   ],
   "d1_databases": [
@@ -44,7 +48,7 @@
     }
   ],
   "vars": {
-    "CRM_ALLOW_MOCK_AI": "1",
+    "CRM_ALLOW_MOCK_AI": "0",
     "CF_ACCESS_TEAM_DOMAIN": "https://echfronthk.cloudflareaccess.com",
     "CF_ACCESS_AUD": "d27bcc4a7d9eb513a24670e977ffde9a27d84916debcc6d447b6ef92b19ab272",
     "KNOWLEDGE_AI_DAILY_LIMIT": "20",

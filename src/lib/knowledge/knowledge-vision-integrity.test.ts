@@ -123,7 +123,9 @@ describe("knowledge vision integrity", () => {
   it("requires human review for all generative vision extractions", async () => {
     process.env.CRM_ALLOW_MOCK_AI = "1";
     const result = await extractKnowledgeSourceText({
-      bytes: (await import("@/lib/knowledge/test-fixtures/source-images")).buildTestPngBytes(),
+      bytes: (
+        await import("@/lib/knowledge/test-fixtures/source-images")
+      ).loadKnowledgePreviewIngestFixtureBytes("p2c-b1-clear-chinese.png"),
       filename: "p2c-b1-clear-chinese.png",
       mimeType: "image/png",
     });

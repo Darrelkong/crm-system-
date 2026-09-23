@@ -34,9 +34,10 @@ import {
   type KnowledgeSourceStorage,
 } from "@/lib/knowledge/source-storage";
 import { buildVisionExtractionMetadata } from "@/lib/knowledge/vision-extraction-metadata";
+import { LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE } from "@/lib/knowledge/knowledge-extraction-usability";
 import { mockKnowledgeVisionExtract } from "@/lib/knowledge/vision-extraction-mock";
 import {
-  buildTestPngBytes,
+  loadKnowledgeTestFixtureBytes,
   buildUniqueTestPngBytes,
 } from "@/lib/knowledge/test-fixtures/source-images";
 import { normalizeKnowledgeSourceText } from "@/lib/knowledge/source-text-normalization";
@@ -91,7 +92,7 @@ describe("knowledge duplicate policy primitives", () => {
     assert.doesNotMatch(TURKEY_HK_INCORPORATION_FIXTURE_TEXT, /Chase Private Client/);
   });
 
-  it("mock default fallback text is unique per file bytes", () => {
+  it("mock default fallback does not vary by filename for unmatched bytes", () => {
     const first = mockKnowledgeVisionExtract({
       bytes: buildUniqueTestPngBytes(1),
       filename: "IMG_6819.jpeg",
@@ -100,12 +101,13 @@ describe("knowledge duplicate policy primitives", () => {
       bytes: buildUniqueTestPngBytes(2),
       filename: "IMG_6838.png",
     });
-    assert.notEqual(normalizeKnowledgeSourceText(first.text), normalizeKnowledgeSourceText(second.text));
+    assert.equal(first.text, LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE);
+    assert.equal(second.text, LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE);
   });
 
   it("clear screenshot can require review without being unreadable", () => {
     const chase = mockKnowledgeVisionExtract({
-      bytes: buildTestPngBytes(),
+      bytes: loadKnowledgeTestFixtureBytes("chase-private-client-screenshot.png"),
       filename: "chase-private-client-screenshot.png",
     });
     assert.match(chase.text, /Chase Private Client/);
@@ -169,14 +171,22 @@ describe("knowledge duplicate policy integration", () => {
     }
     const turkey = await createKnowledgeFileSource(
       contributorContext(),
-      fileFrom(buildUniqueTestPngBytes(11), "turkey-hk-incorporation.png", "image/png"),
+      fileFrom(
+        loadKnowledgeTestFixtureBytes("turkey-hk-incorporation.png"),
+        "turkey-hk-incorporation.png",
+        "image/png",
+      ),
       META,
       db,
       storage,
     );
     const chase = await createKnowledgeFileSource(
       contributorContext(),
-      fileFrom(buildUniqueTestPngBytes(12), "IMG_6838.png", "image/png"),
+      fileFrom(
+        loadKnowledgeTestFixtureBytes("chase-private-client-screenshot.png"),
+        "IMG_6838.png",
+        "image/png",
+      ),
       META,
       db,
       storage,
@@ -184,7 +194,8 @@ describe("knowledge duplicate policy integration", () => {
     assert.equal(turkey.status, "ready");
     assert.equal(chase.status, "ready");
     assert.notEqual(turkey.id, chase.id);
-    assert.notEqual(turkey.rawText, chase.rawText);
+    assert.match(turkey.rawText ?? "", /土耳其/);
+    assert.match(chase.rawText ?? "", /Chase Private Client/);
   });
 
   it("B: two different failed-extraction placeholder images are not duplicates", async (t) => {
@@ -335,23 +346,25 @@ describe("knowledge duplicate policy integration", () => {
       t.skip("D1 harness not available");
       return;
     }
+    const turkeyBytes = loadKnowledgeTestFixtureBytes("turkey-hk-incorporation.png");
+    const chaseBytes = loadKnowledgeTestFixtureBytes("chase-private-client-screenshot.png");
     const turkey = await createKnowledgeFileSource(
       contributorContext(),
-      fileFrom(buildUniqueTestPngBytes(71), "turkey-hk-incorporation.png", "image/png"),
+      fileFrom(turkeyBytes, "turkey-hk-incorporation.png", "image/png"),
       META,
       db,
       storage,
     );
     const chase = await createKnowledgeFileSource(
       contributorContext(),
-      fileFrom(buildUniqueTestPngBytes(72), "chase-private-client-screenshot.png", "image/png"),
+      fileFrom(chaseBytes, "chase-private-client-screenshot.png", "image/png"),
       META,
       db,
       storage,
     );
     assert.match(turkey.rawText ?? "", /土耳其/);
     assert.match(chase.rawText ?? "", /Chase Private Client/);
-    assert.notEqual(fileContentHash(buildUniqueTestPngBytes(71)), fileContentHash(buildUniqueTestPngBytes(72)));
+    assert.notEqual(fileContentHash(turkeyBytes), fileContentHash(chaseBytes));
   });
 
   it("I: organizer remains blocked until vision review confirmation", async (t) => {
@@ -361,7 +374,11 @@ describe("knowledge duplicate policy integration", () => {
     }
     const source = await createKnowledgeFileSource(
       contributorContext(),
-      fileFrom(buildUniqueTestPngBytes(81), "chase-private-client-screenshot.png", "image/png"),
+      fileFrom(
+        loadKnowledgeTestFixtureBytes("chase-private-client-screenshot.png"),
+        "chase-private-client-screenshot.png",
+        "image/png",
+      ),
       META,
       db,
       storage,

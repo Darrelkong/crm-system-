@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { afterEach, describe, it } from "node:test";
 import { allowMockDeepInsightGeneration } from "@/lib/ai/providers/mock-constants";
 import { extractKnowledgeVisionImage } from "@/lib/knowledge/vision-extraction-provider";
-import { buildTestPngBytes } from "@/lib/knowledge/test-fixtures/source-images";
+import { loadKnowledgePreviewIngestFixtureBytes } from "@/lib/knowledge/test-fixtures/source-images";
 
 const organizerPath = new URL("../knowledge/ai-organizer-service.ts", import.meta.url);
 const comparisonPath = new URL("../knowledge/comparison-service.ts", import.meta.url);
@@ -36,7 +36,7 @@ describe("preview mock gating", () => {
     delete process.env.CRM_ALLOW_TEST_DB_BIND;
     process.env.CRM_ALLOW_MOCK_AI = "1";
     const result = await extractKnowledgeVisionImage({
-      bytes: buildTestPngBytes(),
+      bytes: loadKnowledgePreviewIngestFixtureBytes("p2c-b1-table.png"),
       filename: "p2c-b1-table.png",
       mimeType: "image/png",
     });

@@ -26,7 +26,7 @@ import {
   buildTestDocxBytes,
   buildTestTextPdfBytes,
 } from "@/lib/knowledge/test-fixtures/source-documents";
-import { buildTestPngBytes } from "@/lib/knowledge/test-fixtures/source-images";
+import { loadKnowledgePreviewIngestFixtureBytes } from "@/lib/knowledge/test-fixtures/source-images";
 
 const META = { ipAddress: null, userAgent: "knowledge-duplicate-test" };
 let db: ReturnType<typeof drizzle<typeof schema>>;
@@ -311,7 +311,7 @@ describe("Knowledge source exact duplicate detection", () => {
 
   it("reports failed vision image duplicates without active-source wording", async () => {
     process.env.CRM_ALLOW_MOCK_AI = "1";
-    const bytes = buildTestPngBytes();
+    const bytes = loadKnowledgePreviewIngestFixtureBytes("p2c-b1-table.png");
     const first = await createKnowledgeFileSource(
       contributorContext(),
       fileFrom(bytes, "p2c-b1-table.png", "image/png"),

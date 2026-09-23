@@ -8,7 +8,7 @@ const config = JSON.parse(
 );
 const validInput = {
   config,
-  branch: "feat/knowledge-human-acceptance-preview",
+  branch: "fix/knowledge-dedupe-image-extraction",
   head: "db64ea13e16ca3358d4383e11248854048e4b2cf",
   status: "",
 };

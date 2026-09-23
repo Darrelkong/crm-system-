@@ -20,7 +20,7 @@ import {
   type KnowledgeSourceStorage,
 } from "@/lib/knowledge/source-storage";
 import {
-  buildTestPngBytes,
+  loadKnowledgePreviewIngestFixtureBytes,
   buildUniqueTestPngBytes,
 } from "@/lib/knowledge/test-fixtures/source-images";
 
@@ -131,7 +131,7 @@ describe("Knowledge vision image ingest integration", () => {
       t.skip("D1 harness not available");
       return;
     }
-    const bytes = buildTestPngBytes();
+    const bytes = loadKnowledgePreviewIngestFixtureBytes("p2c-b1-clear-chinese.png");
     const source = await createKnowledgeFileSource(
       contributorContext(),
       fileFrom(bytes, "p2c-b1-clear-chinese.png", "image/png"),
