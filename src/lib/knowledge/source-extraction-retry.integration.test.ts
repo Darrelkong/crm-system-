@@ -352,7 +352,12 @@ describe("Knowledge vision extraction retry", () => {
     );
     assert.equal(retried.status, "ready");
     assert.equal(retried.extractionMetadata?.quality, "medium");
-    assert.equal(retried.extractionMetadata?.warnings.length, 2);
+    const warningCodes = new Set(
+      retried.extractionMetadata?.warnings.map((warning) => warning.code) ?? [],
+    );
+    assert.ok(warningCodes.has("BLURRY_IMAGE"));
+    assert.ok(warningCodes.has("UNREADABLE_NUMBER"));
+    assert.ok((retried.extractionMetadata?.warnings.length ?? 0) >= 2);
     const detail = await getKnowledgeSource(contributorContext(), sourceId, db);
     assert.equal(detail.id, sourceId);
   });

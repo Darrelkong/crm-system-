@@ -1,37 +1,56 @@
 import assert from "node:assert/strict";
-import { before, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
-import { getDb, schema } from "@/lib/db";
+import { drizzle } from "drizzle-orm/d1";
+import * as schema from "../../../drizzle/schema";
+import type { User } from "../../../drizzle/schema/users";
+import { bindTestDatabase } from "@/lib/db";
+import { SEED_IDS } from "@/lib/constants/seed-ids";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import {
   processKnowledgeSourceAnalysisRun,
   startKnowledgeSourceAnalysis,
 } from "@/lib/knowledge/smart-ingest-analysis-service";
 import { createKnowledgePasteSource } from "@/lib/knowledge/source-service";
+
 const META = { ipAddress: "127.0.0.1", userAgent: "test" };
 const d1HarnessReady = Boolean(
   process.env.CRM_TEST_D1_HTTP_URL && process.env.CRM_TEST_D1_HTTP_TOKEN,
 );
 
-function contributorContext(userId: string) {
-  return {
+describe("smart ingest analysis integration", () => {
+  let db: ReturnType<typeof drizzle<typeof schema>>;
+  let disposeProxy: (() => Promise<void>) | undefined;
+  let staffUser: User;
+
+  const contributorContext = () => ({
     sessionId: "test-session",
-    user: { id: userId, role: "staff" },
+    user: staffUser,
     role: "contributor" as const,
     access: { initialized: true, unlocked: true },
-  } as never;
-}
-
-describe("smart ingest analysis integration", () => {
-  let db: ReturnType<typeof getDb>;
-  let userId: string;
+  }) as never;
 
   before(async () => {
     if (!d1HarnessReady) return;
-    db = getDb();
-    userId = (
-      await db.select({ id: schema.users.id }).from(schema.users).limit(1)
-    )[0]?.id!;
-    assert.ok(userId);
+    process.env.CRM_ALLOW_TEST_DB_BIND = "1";
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>();
+    db = drizzle(proxy.env.DB, { schema });
+    disposeProxy = proxy.dispose;
+    bindTestDatabase(db);
+    staffUser = (
+      await db
+        .select()
+        .from(schema.users)
+        .where(eq(schema.users.id, SEED_IDS.staffA))
+        .limit(1)
+    )[0] as User;
+    assert.ok(staffUser?.id);
+  });
+
+  after(async () => {
+    if (!d1HarnessReady) return;
+    bindTestDatabase(null);
+    await disposeProxy?.();
   });
 
   it("H: re-analysis supersedes prior proposed segments", async (t) => {
@@ -41,13 +60,13 @@ describe("smart ingest analysis integration", () => {
     }
     const text = `主题 A\n\n内容 A\n\n---\n\n主题 B\n\n内容 B`;
     const source = await createKnowledgePasteSource(
-      contributorContext(userId),
+      contributorContext(),
       { rawText: text },
       META,
       db,
     );
     const first = await startKnowledgeSourceAnalysis(
-      contributorContext(userId),
+      contributorContext(),
       source.id,
       META,
       db,
@@ -60,7 +79,7 @@ describe("smart ingest analysis integration", () => {
     assert.equal(firstSegments.length, 2);
 
     const second = await startKnowledgeSourceAnalysis(
-      contributorContext(userId),
+      contributorContext(),
       source.id,
       META,
       db,
@@ -97,7 +116,7 @@ describe("smart ingest analysis integration", () => {
       storageKey: "key",
       contentHash: `hash-${sourceId}`,
       status: "ready",
-      createdByUserId: userId,
+      createdByUserId: staffUser.id,
       createdAt: now,
       updatedAt: now,
       processedAt: now,
@@ -108,7 +127,7 @@ describe("smart ingest analysis integration", () => {
     await assert.rejects(
       () =>
         startKnowledgeSourceAnalysis(
-          contributorContext(userId),
+          contributorContext(),
           sourceId,
           META,
           db,
