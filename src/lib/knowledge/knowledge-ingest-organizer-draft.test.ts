@@ -34,6 +34,17 @@ function sourceWithIdentity(
     extractionModel: null,
     extractionMetadata: null,
     pageCount: null,
+    smartIngestScope: {
+      analysisStatus: "none",
+      latestAnalysisRunId: null,
+      segments: [],
+      retainedProposedSegmentCount: 0,
+      activeSegmentCount: 0,
+      blocksSourceLevelOrganize: false,
+      blocksSourceLevelComparison: false,
+      singleSegmentId: null,
+      singleSegmentEvidenceText: null,
+    },
     organization: {
       id: "run-1",
       status: "completed",

@@ -123,6 +123,8 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
   [KNOWLEDGE_ERROR_CODES.AI_NO_SOURCES]: "knowledge.errors.aiNoSources",
   [KNOWLEDGE_ERROR_CODES.AI_CITATION_INVALID]:
     "knowledge.errors.aiCitationInvalid",
+  [KNOWLEDGE_ERROR_CODES.SMART_INGEST_SEGMENT_SCOPE_REQUIRED]:
+    "knowledge.ingest.smartIngestSegmentScopeRequired",
 };
 
 export class KnowledgeApiClientError extends Error {

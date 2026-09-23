@@ -39,6 +39,10 @@ import {
 } from "@/lib/knowledge/audit";
 import { parseKnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
 import type { KnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
+import {
+  loadSmartIngestSourceScope,
+  type SmartIngestSourceScope,
+} from "@/lib/knowledge/smart-ingest-source-scope";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import { hasKnowledgeCapability } from "@/lib/knowledge/role-service";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
@@ -144,6 +148,7 @@ export type KnowledgeSourceDetail = KnowledgeSourceListItem & {
     createdAt: string;
     completedAt: string | null;
   } | null;
+  smartIngestScope: SmartIngestSourceScope;
 };
 
 export type KnowledgeSourceMeta = {
@@ -572,6 +577,11 @@ export async function getKnowledgeSource(
     ),
     pageCount: source.pageCount,
     organization: mapOrganization(await latestOrganization(source.id, db)),
+    smartIngestScope: await loadSmartIngestSourceScope(
+      source.id,
+      source.analysisStatus,
+      db,
+    ),
   };
 }
 

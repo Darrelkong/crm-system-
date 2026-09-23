@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
-import {
-  getKnowledgeErrorMessage,
-  resolveKnowledgeApiError,
-} from "@/lib/knowledge/error-messages";
+import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
+import {
+  deriveSmartIngestSourceScope,
+  type SmartIngestSourceScope,
+} from "@/lib/knowledge/smart-ingest-source-scope";
 
 type AnalysisSegment = {
   id: string;
@@ -33,16 +34,56 @@ type AnalysisRun = {
 
 const EXCERPT_CHARS = 280;
 
+function scopeFromRun(
+  source: KnowledgeSourceDetail,
+  run: AnalysisRun | null,
+): SmartIngestSourceScope {
+  const segments =
+    run?.segments ??
+    source.smartIngestScope.segments.map((segment) => ({
+      ...segment,
+      createdAt: "",
+    }));
+  return deriveSmartIngestSourceScope({
+    analysisStatus: source.analysisStatus,
+    latestAnalysisRunId: run?.id ?? source.smartIngestScope.latestAnalysisRunId,
+    segments,
+  });
+}
+
+function initialRunFromSource(source: KnowledgeSourceDetail): AnalysisRun | null {
+  if (
+    source.analysisStatus !== "ready_for_review" ||
+    !source.smartIngestScope.latestAnalysisRunId ||
+    source.smartIngestScope.segments.length === 0
+  ) {
+    return null;
+  }
+  return {
+    id: source.smartIngestScope.latestAnalysisRunId,
+    status: "completed",
+    failureMessage: null,
+    segments: source.smartIngestScope.segments.map((segment) => ({
+      ...segment,
+      createdAt: "",
+    })),
+  };
+}
+
 export function KnowledgeSmartIngestAnalysisSection({
   source,
   onAnalysisStatusChange,
+  onScopeChange,
 }: {
   source: KnowledgeSourceDetail;
   onAnalysisStatusChange: (status: KnowledgeSourceAnalysisStatus) => void;
+  onScopeChange?: (scope: SmartIngestSourceScope) => void;
 }) {
   const { t } = useTranslation();
   const [analyzing, setAnalyzing] = useState(false);
-  const [run, setRun] = useState<AnalysisRun | null>(null);
+  const [run, setRun] = useState<AnalysisRun | null>(() =>
+    initialRunFromSource(source),
+  );
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -77,6 +118,7 @@ export function KnowledgeSmartIngestAnalysisSection({
         );
       }
       setRun(payload.run);
+      onScopeChange?.(scopeFromRun(source, payload.run));
       if (payload.run.status === "completed") {
         stopPolling();
         setAnalyzing(false);
@@ -88,8 +130,12 @@ export function KnowledgeSmartIngestAnalysisSection({
         setError(payload.run.failureMessage ?? t("knowledge.ingest.analysisFailed"));
       }
     },
-    [onAnalysisStatusChange, stopPolling, t],
+    [onAnalysisStatusChange, onScopeChange, source, stopPolling, t],
   );
+
+  useEffect(() => {
+    onScopeChange?.(scopeFromRun(source, run));
+  }, [onScopeChange, run, source, source.analysisStatus]);
 
   async function startAnalysis() {
     if (!isPaste) return;
@@ -160,24 +206,28 @@ export function KnowledgeSmartIngestAnalysisSection({
       );
       return;
     }
-    setRun((current) =>
-      current
-        ? {
-            ...current,
-            segments: current.segments.map((segment) =>
-              segment.id === segmentId ? payload.segment! : segment,
-            ),
-          }
-        : current,
-    );
+    setRun((current) => {
+      if (!current) return current;
+      const nextRun = {
+        ...current,
+        segments: current.segments.map((segment) =>
+          segment.id === segmentId ? payload.segment! : segment,
+        ),
+      };
+      onScopeChange?.(scopeFromRun(source, nextRun));
+      return nextRun;
+    });
   }
 
   if (!isPaste) {
     return null;
   }
 
+  const retainedProposedSegments =
+    run?.segments.filter((segment) => segment.status === "proposed") ?? [];
   const showReview =
     run?.status === "completed" && activeSegments.length > 0;
+  const showMultiTopicGuidance = retainedProposedSegments.length > 1;
   const reviewTitle =
     activeSegments.length === 1
       ? t("knowledge.ingest.analysisSingleTopic")
@@ -226,6 +276,19 @@ export function KnowledgeSmartIngestAnalysisSection({
         <p className="mt-3 text-sm text-rose-700" data-analysis-error="true">
           {error}
         </p>
+      ) : null}
+      {showMultiTopicGuidance ? (
+        <div
+          className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950"
+          data-smart-ingest-segment-guidance="true"
+        >
+          <p className="font-medium">
+            {t("knowledge.ingest.smartIngestMultiTopicTitle", {
+              count: String(retainedProposedSegments.length),
+            })}
+          </p>
+          <p className="mt-2">{t("knowledge.ingest.smartIngestMultiTopicBody")}</p>
+        </div>
       ) : null}
       {showReview ? (
         <ul className="mt-4 space-y-3" data-segment-review-list="true">

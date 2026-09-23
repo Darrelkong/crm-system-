@@ -46,6 +46,10 @@ import type {
   ComparisonCandidateSnapshot,
   KnowledgeComparisonDetail,
 } from "@/lib/knowledge/comparison-types";
+import {
+  assertSourceLevelComparisonAllowed,
+  loadSmartIngestSourceScope,
+} from "@/lib/knowledge/smart-ingest-source-scope";
 
 export type {
   ComparisonCandidateSnapshot,
@@ -297,6 +301,12 @@ export async function compareKnowledgeSource(
       409,
     );
   }
+  const smartIngestScope = await loadSmartIngestSourceScope(
+    sourceId,
+    source.analysisStatus,
+    db,
+  );
+  assertSourceLevelComparisonAllowed(smartIngestScope);
   const organizationRun = await latestCompletedOrganization(sourceId, db);
   if (
     !organizationRun ||

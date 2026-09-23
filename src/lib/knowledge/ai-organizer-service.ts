@@ -48,6 +48,11 @@ import {
   applyBusinessIdentityToOrganizerOutput,
   serializeKnowledgePasteBusinessIdentityJson,
 } from "@/lib/knowledge/knowledge-paste-business-identity";
+import {
+  assertSourceLevelOrganizeAllowed,
+  loadSmartIngestSourceScope,
+  resolveOrganizerEvidenceText,
+} from "@/lib/knowledge/smart-ingest-source-scope";
 
 export const KNOWLEDGE_AI_INPUT_MAX_CHARS = 60_000;
 
@@ -133,22 +138,31 @@ export async function organizeKnowledgeSource(
   db: Database = getDb(),
 ): Promise<KnowledgeSourceDetail> {
   const source = await getKnowledgeSource(context, sourceId, db);
-  if (!source.rawText) {
+  const smartIngestScope = await loadSmartIngestSourceScope(
+    sourceId,
+    source.analysisStatus,
+    db,
+  );
+  assertSourceLevelOrganizeAllowed(smartIngestScope);
+  const organizationEvidenceText = source.rawText
+    ? resolveOrganizerEvidenceText(source.rawText, smartIngestScope)
+    : null;
+  if (!organizationEvidenceText) {
     throw organizerError(
       KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_UNAVAILABLE,
       "此来源没有可整理的文字内容",
     );
   }
   if (
-    isNonEvidenceExtractionText(source.rawText) ||
-    !hasSubstantiveSourceEvidence(source.rawText)
+    isNonEvidenceExtractionText(organizationEvidenceText) ||
+    !hasSubstantiveSourceEvidence(organizationEvidenceText)
   ) {
     throw organizerError(
       KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
       "来源文字不可用，无法作为 Knowledge 证据整理",
     );
   }
-  if (source.rawText.length > KNOWLEDGE_AI_INPUT_MAX_CHARS) {
+  if (organizationEvidenceText.length > KNOWLEDGE_AI_INPUT_MAX_CHARS) {
     throw organizerError(
       KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
       "来源文字超过 AI 整理的安全长度限制，请先分割来源",
@@ -158,7 +172,7 @@ export async function organizeKnowledgeSource(
     sourceBlocksOrganizeForVisionReview({
       extractionMethod: source.extractionMethod,
       extractionMetadata: source.extractionMetadata,
-      rawText: source.rawText,
+      rawText: organizationEvidenceText,
     })
   ) {
     throw organizerError(
@@ -167,7 +181,7 @@ export async function organizeKnowledgeSource(
     );
   }
   const extractionReliability = assessVisionExtractionReliability({
-    rawText: source.rawText,
+    rawText: organizationEvidenceText,
     extractionMetadata: source.extractionMetadata,
     extractionMethod: source.extractionMethod,
     extractionModel: source.extractionModel,
@@ -249,7 +263,10 @@ export async function organizeKnowledgeSource(
     if (allowMockDeepInsightGeneration()) {
       provider = "mock";
       model = "mock-knowledge-organizer-v1";
-      output = mockOrganization(source);
+      output = mockOrganization({
+        sourceTitle: source.sourceTitle,
+        rawText: organizationEvidenceText,
+      });
     } else {
       const settings = await getEffectiveAiSettings(db);
       provider = KNOWLEDGE_CLOUDFLARE_AI_PROVIDER;
@@ -262,7 +279,7 @@ export async function organizeKnowledgeSource(
         userPrompt: buildKnowledgeOrganizerUserPrompt({
           sourceTitle: source.sourceTitle,
           sourceType: source.sourceType,
-          text: source.rawText!,
+          text: organizationEvidenceText,
         }),
       });
       const parsed = parseKnowledgeAiOrganizationOutput(rawOutput);
@@ -273,7 +290,10 @@ export async function organizeKnowledgeSource(
         );
       }
       output = parsed.data;
-      const grounding = validateOrganizerEvidenceGrounding(source.rawText!, output);
+      const grounding = validateOrganizerEvidenceGrounding(
+        organizationEvidenceText,
+        output,
+      );
       if (!grounding.ok) {
         throw organizerError(
           KNOWLEDGE_ERROR_CODES.ORGANIZATION_UNGROUNDED,
@@ -281,7 +301,7 @@ export async function organizeKnowledgeSource(
         );
       }
       const completeness = assessOrganizerOutputCompleteness(
-        source.rawText!,
+        organizationEvidenceText,
         output,
       );
       if (completeness.requiresHumanReview) {
@@ -302,7 +322,7 @@ export async function organizeKnowledgeSource(
     }
 
     const identityApplied = applyBusinessIdentityToOrganizerOutput(
-      source.rawText!,
+      organizationEvidenceText,
       output,
     );
     output = identityApplied.output;

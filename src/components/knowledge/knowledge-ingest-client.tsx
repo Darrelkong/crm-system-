@@ -158,6 +158,9 @@ export function KnowledgeIngestClient({
     null,
   );
   const [autoCompareSignal, setAutoCompareSignal] = useState(0);
+  const [smartIngestScopeLive, setSmartIngestScopeLive] = useState<
+    KnowledgeSourceDetail["smartIngestScope"] | null
+  >(null);
   const organizerFormRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
@@ -379,6 +382,7 @@ export function KnowledgeIngestClient({
     setError(null);
     manualRequestedProjectOverrideRef.current = false;
     manualCategoryOverrideRef.current = false;
+    setSmartIngestScopeLive(null);
     clearOrganizerDraftFields();
   }
 
@@ -439,8 +443,13 @@ export function KnowledgeIngestClient({
         );
       }
       setSelected(payload.source);
+      setSmartIngestScopeLive(payload.source.smartIngestScope);
       syncReviewDraftFromSource(payload.source);
-      applyOrganization(payload.source);
+      if (payload.source.smartIngestScope.blocksSourceLevelOrganize) {
+        clearOrganizerDraftFields();
+      } else {
+        applyOrganization(payload.source);
+      }
       setSaved(false);
       scrollDetailIntoView();
     } catch (caught) {
@@ -666,8 +675,13 @@ export function KnowledgeIngestClient({
         throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSelected(payload.source);
+      setSmartIngestScopeLive(payload.source.smartIngestScope);
       manualRequestedProjectOverrideRef.current = false;
-      applyOrganization(payload.source);
+      if (payload.source.smartIngestScope.blocksSourceLevelOrganize) {
+        clearOrganizerDraftFields();
+      } else {
+        applyOrganization(payload.source);
+      }
       setSources((current) =>
         current.map((source) =>
           source.id === payload.source!.id ? payload.source! : source,
@@ -726,7 +740,12 @@ export function KnowledgeIngestClient({
   const canIngest =
     role === "contributor" ||
     role === "knowledge_admin";
-  const organizationReady = selected?.organization?.status === "completed";
+  const smartIngestScope =
+    smartIngestScopeLive ?? selected?.smartIngestScope ?? null;
+  const blocksSourceLevelPipeline =
+    smartIngestScope?.blocksSourceLevelOrganize === true;
+  const organizationReady =
+    selected?.organization?.status === "completed" && !blocksSourceLevelPipeline;
   const isArchivedView = lifecycle === "archived";
   const selectedArchived = Boolean(selected?.archivedAt);
   const inDetailMode = Boolean(selected);
@@ -762,6 +781,7 @@ export function KnowledgeIngestClient({
     Boolean(selected?.rawText) &&
     !selectedArchived &&
     !visionOrganizeBlocked &&
+    !blocksSourceLevelPipeline &&
     selected?.status !== "converted" &&
     selected?.status !== "organizing";
 
@@ -1346,8 +1366,10 @@ export function KnowledgeIngestClient({
 
               {!selectedArchived && selected.sourceType === "paste" && (
                 <KnowledgeSmartIngestAnalysisSection
+                  key={`${selected.id}:${selected.analysisStatus}:${selected.smartIngestScope.latestAnalysisRunId ?? "none"}`}
                   source={selected}
                   onAnalysisStatusChange={syncSourceAnalysisStatus}
+                  onScopeChange={setSmartIngestScopeLive}
                 />
               )}
 
@@ -1371,6 +1393,23 @@ export function KnowledgeIngestClient({
                           : "neutral"
                     }
                   />
+                  {blocksSourceLevelPipeline ? (
+                    <div
+                      className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950"
+                      data-smart-ingest-multi-topic-block="true"
+                    >
+                      <p className="font-medium">
+                        {t("knowledge.ingest.smartIngestMultiTopicTitle", {
+                          count: String(
+                            smartIngestScope?.retainedProposedSegmentCount ?? 0,
+                          ),
+                        })}
+                      </p>
+                      <p className="mt-2">
+                        {t("knowledge.ingest.smartIngestMultiTopicBody")}
+                      </p>
+                    </div>
+                  ) : null}
                   {visionOrganizeBlocked ? (
                     <p
                       className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm leading-6 text-amber-900"
