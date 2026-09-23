@@ -1,7 +1,10 @@
 import type { KnowledgeAiOrganizationOutput } from "@/lib/knowledge/ai-organizer-schema";
 import {
-  extractHighValueFactAnchors,
-  highValueAnchorsMissingFromOutput,
+  criticalFactAnchorsMissingFromOutput,
+  extractGeneralContentAnchors,
+  generalContentAnchorsMissingFromOutput,
+  ORGANIZER_GENERAL_CONTENT_MIN_SEGMENTS,
+  ORGANIZER_GENERAL_CONTENT_MISSING_RATIO,
 } from "@/lib/knowledge/knowledge-extraction-usability";
 import {
   assessVisionExtractionIntegrity,
@@ -137,37 +140,63 @@ export function validateOrganizerEvidenceGrounding(
   return { ok: true, unsupportedTerms: [], requiresHumanReview: false, reason: null };
 }
 
+export const ORGANIZER_CRITICAL_FACT_HUMAN_REVIEW_WARNING =
+  "检测到原始资料中的重要事实未完整保留，请人工核对。";
+
 export type OrganizerCompletenessAssessment = {
   ok: boolean;
   requiresHumanReview: boolean;
   missingAnchors: string[];
+  missingCriticalAnchors: string[];
+  missingGeneralAnchors: string[];
+  humanReviewWarning: string | null;
 };
 
 export function assessOrganizerOutputCompleteness(
   sourceText: string,
   output: KnowledgeAiOrganizationOutput,
 ): OrganizerCompletenessAssessment {
-  const anchors = extractHighValueFactAnchors(sourceText);
-  if (anchors.length < 3) {
-    return { ok: true, requiresHumanReview: false, missingAnchors: [] };
-  }
   const generated = [output.title, output.summary ?? "", output.body].join("\n");
-  const missingAnchors = highValueAnchorsMissingFromOutput(sourceText, generated);
-  if (missingAnchors.length === 0) {
-    return { ok: true, requiresHumanReview: false, missingAnchors: [] };
-  }
-  const missingRatio = missingAnchors.length / anchors.length;
-  if (missingRatio >= 0.34) {
+  const missingCritical = criticalFactAnchorsMissingFromOutput(sourceText, generated);
+  if (missingCritical.length > 0) {
     return {
-      ok: false,
+      ok: true,
       requiresHumanReview: true,
-      missingAnchors,
+      missingAnchors: missingCritical,
+      missingCriticalAnchors: missingCritical,
+      missingGeneralAnchors: [],
+      humanReviewWarning: ORGANIZER_CRITICAL_FACT_HUMAN_REVIEW_WARNING,
     };
   }
+
+  const allGeneral = extractGeneralContentAnchors(sourceText);
+  const missingGeneral = generalContentAnchorsMissingFromOutput(
+    sourceText,
+    generated,
+  );
+  const missingGeneralRatio =
+    allGeneral.length > 0 ? missingGeneral.length / allGeneral.length : 0;
+  if (
+    allGeneral.length >= ORGANIZER_GENERAL_CONTENT_MIN_SEGMENTS &&
+    missingGeneralRatio >= ORGANIZER_GENERAL_CONTENT_MISSING_RATIO
+  ) {
+    return {
+      ok: true,
+      requiresHumanReview: true,
+      missingAnchors: missingGeneral,
+      missingCriticalAnchors: [],
+      missingGeneralAnchors: missingGeneral,
+      humanReviewWarning: "部分说明性内容未保留，请人工核对。",
+    };
+  }
+
   return {
     ok: true,
-    requiresHumanReview: true,
-    missingAnchors,
+    requiresHumanReview: false,
+    missingAnchors: [],
+    missingCriticalAnchors: [],
+    missingGeneralAnchors: [],
+    humanReviewWarning: null,
   };
 }
 

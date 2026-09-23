@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import { CHASE_PRIVATE_CLIENT_FIXTURE_TEXT } from "@/lib/knowledge/knowledge-evidence-grounding";
 import {
   assessOrganizerOutputCompleteness,
+  ORGANIZER_CRITICAL_FACT_HUMAN_REVIEW_WARNING,
 } from "@/lib/knowledge/knowledge-evidence-grounding";
 import {
   assessVisionExtractionUsability,
@@ -82,7 +83,7 @@ describe("knowledge extraction usability", () => {
     }
   });
 
-  it("G: organizer retains high-value numeric facts", () => {
+  it("A: all critical facts retained → completeness passes", () => {
     const completeness = assessOrganizerOutputCompleteness(
       CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
       {
@@ -94,21 +95,105 @@ describe("knowledge extraction usability", () => {
       },
     );
     assert.equal(completeness.ok, true);
-    assert.equal(completeness.missingAnchors.length, 0);
+    assert.equal(completeness.requiresHumanReview, false);
+    assert.equal(completeness.missingCriticalAnchors.length, 0);
   });
 
-  it("H: organizer drops material facts triggers review", () => {
+  it("B: one amount missing → human review required", () => {
+    const body = CHASE_PRIVATE_CLIENT_FIXTURE_TEXT.replace(/25 万美元/g, "");
     const completeness = assessOrganizerOutputCompleteness(
       CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
       {
-        title: "Chase",
-        summary: "keywords only",
-        body: "Chase Private Client\n身份证\n护照",
+        title: "Chase Private Client",
+        summary: "summary",
+        body,
         suggestedCategory: null,
         warnings: [],
       },
     );
-    assert.equal(completeness.ok, false);
-    assert.ok(completeness.missingAnchors.length > 0);
+    assert.equal(completeness.ok, true);
+    assert.equal(completeness.requiresHumanReview, true);
+    assert.equal(
+      completeness.humanReviewWarning,
+      ORGANIZER_CRITICAL_FACT_HUMAN_REVIEW_WARNING,
+    );
+    assert.ok(completeness.missingCriticalAnchors.some((a) => a.includes("25")));
+  });
+
+  it("C: one deadline missing → human review required", () => {
+    const body = CHASE_PRIVATE_CLIENT_FIXTURE_TEXT.replace(/60 天内/g, "近期");
+    const completeness = assessOrganizerOutputCompleteness(
+      CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+      {
+        title: "Chase Private Client",
+        summary: "summary",
+        body,
+        suggestedCategory: null,
+        warnings: [],
+      },
+    );
+    assert.equal(completeness.requiresHumanReview, true);
+    assert.ok(
+      completeness.missingCriticalAnchors.some((anchor) => anchor.includes("60")),
+    );
+  });
+
+  it("D: one required document missing → human review required", () => {
+    const completeness = assessOrganizerOutputCompleteness(
+      CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+      {
+        title: "Chase Private Client",
+        summary: "summary",
+        body: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT.replace(/护照[^\n]*\n?/u, ""),
+        suggestedCategory: null,
+        warnings: [],
+      },
+    );
+    assert.equal(completeness.requiresHumanReview, true);
+    assert.ok(completeness.missingCriticalAnchors.includes("护照"));
+  });
+
+  it("E: descriptive wording paraphrased → allowed", () => {
+    const source = `${CHASE_PRIVATE_CLIENT_FIXTURE_TEXT}\n本页仅提供开户流程的背景说明，便于客户理解整体安排，不构成额外业务承诺。`;
+    const completeness = assessOrganizerOutputCompleteness(source, {
+      title: "Chase Private Client",
+      summary: "开户资料与限额说明",
+      body: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+      suggestedCategory: null,
+      warnings: [],
+    });
+    assert.equal(completeness.requiresHumanReview, false);
+    assert.equal(completeness.missingCriticalAnchors.length, 0);
+  });
+
+  it("Chase regression: full-anchor organizer body passes", () => {
+    const required = [
+      "Chase Private Client",
+      "60 天",
+      "15W",
+      "ACH",
+      "10 万美元",
+      "25 万美元",
+      "Zelle",
+      "15,000",
+      "40,000",
+    ];
+    const completeness = assessOrganizerOutputCompleteness(
+      CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+      {
+        title: "Chase Private Client",
+        summary: "summary",
+        body: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+        suggestedCategory: null,
+        warnings: [],
+      },
+    );
+    assert.equal(completeness.requiresHumanReview, false);
+    for (const anchor of required) {
+      assert.ok(
+        !completeness.missingCriticalAnchors.includes(anchor),
+        `expected anchor retained: ${anchor}`,
+      );
+    }
   });
 });

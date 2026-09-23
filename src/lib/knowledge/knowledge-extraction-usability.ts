@@ -100,53 +100,141 @@ export function assessVisionExtractionUsability(rawText: string): KnowledgeExtra
   };
 }
 
-const HIGH_VALUE_ANCHOR_PATTERNS: RegExp[] = [
-  /\d+\s*[wW万萬]/u,
-  /\d+\s*天/u,
-  /\d{1,3}(?:,\d{3})+/u,
-  /\d+(?:\.\d+)?\s*%/u,
-  /(?:USD|美元|美金|港币|港幣)/iu,
-  /ACH/i,
-  /Zelle/i,
-  /KYC/i,
-  /护照|護照/u,
-  /身份证|身份證/u,
+export const ORGANIZER_GENERAL_CONTENT_MISSING_RATIO = 0.34;
+export const ORGANIZER_GENERAL_CONTENT_MIN_SEGMENTS = 4;
+
+export type CriticalFactCategory =
+  | "money_amount"
+  | "percentage"
+  | "date_deadline"
+  | "transaction_limit"
+  | "eligibility_threshold"
+  | "bank_or_company"
+  | "jurisdiction"
+  | "required_document"
+  | "payment_channel"
+  | "structured_requirement";
+
+const CRITICAL_REGEXES: RegExp[] = [
+  /\d{1,3}(?:,\d{3})+(?:\s*(?:美元|美金))?/giu,
+  /\d+(?:\.\d+)?\s*%/giu,
+  /\d+\s*[wW](?:\s*(?:美金|美元))?/giu,
+  /\d+\s*(?:万|萬)\s*(?:美元|美金|港币|港幣)?/giu,
+  /\d+\s*(?:天|日)(?:\s*内|\s*內)?/giu,
+  /\d+\s*[-–—]\s*\d+\s*(?:周|週|个月|個月|天|日)/giu,
 ];
 
-export function extractHighValueFactAnchors(text: string): string[] {
+const CRITICAL_LITERALS: Array<{ value: string; category: CriticalFactCategory }> = [
+  { value: "Chase Private Client", category: "bank_or_company" },
+  { value: "大通私人银行账户", category: "bank_or_company" },
+  { value: "ACH", category: "payment_channel" },
+  { value: "Zelle", category: "payment_channel" },
+  { value: "KYC", category: "structured_requirement" },
+  { value: "ECHFRONT", category: "bank_or_company" },
+  { value: "Turkey", category: "jurisdiction" },
+  { value: "土耳其", category: "jurisdiction" },
+  { value: "Hong Kong", category: "jurisdiction" },
+  { value: "香港", category: "jurisdiction" },
+];
+
+function collectRegexMatches(text: string, pattern: RegExp): string[] {
+  const flags = pattern.flags.includes("g") ? pattern.flags : `${pattern.flags}g`;
+  const regex = new RegExp(pattern.source, flags);
+  const matches: string[] = [];
+  for (const match of text.matchAll(regex)) {
+    if (match[0]?.trim()) matches.push(match[0].trim());
+  }
+  return matches;
+}
+
+function normalizeCompact(value: string): string {
+  return normalizeKnowledgeSourceText(value).replace(/\s+/g, "").toLowerCase();
+}
+
+export function organizerOutputContainsFact(outputText: string, anchor: string): boolean {
+  const outputCompact = normalizeCompact(outputText);
+  const anchorCompact = normalizeCompact(anchor);
+  if (!anchorCompact) return true;
+  if (outputCompact.includes(anchorCompact)) return true;
+  if (/^\d+[wW]/.test(anchor)) {
+    const digits = anchor.match(/\d+/)?.[0];
+    return Boolean(digits && new RegExp(`${digits}\\s*[wW]`, "i").test(outputText));
+  }
+  if (anchorCompact.includes("天") && /\d+/.test(anchorCompact)) {
+    const digits = anchor.match(/\d+/)?.[0];
+    return Boolean(digits && new RegExp(`${digits}\\s*天`, "u").test(outputText));
+  }
+  return false;
+}
+
+export function extractCriticalFactAnchors(text: string): string[] {
   const anchors: string[] = [];
-  for (const pattern of HIGH_VALUE_ANCHOR_PATTERNS) {
-    const match = text.match(pattern);
-    if (match?.[0]) anchors.push(match[0]);
+  for (const pattern of CRITICAL_REGEXES) {
+    anchors.push(...collectRegexMatches(text, pattern));
   }
-  const explicit = [
-    "15W",
-    "60 天",
-    "60天",
-    "10 万美元",
-    "10万美元",
-    "25 万美元",
-    "25万美元",
-    "15,000",
-    "40,000",
-    "Chase Private Client",
-    "大通私人银行账户",
-  ];
-  for (const term of explicit) {
-    if (text.includes(term)) anchors.push(term);
+  for (const literal of CRITICAL_LITERALS) {
+    if (text.includes(literal.value)) anchors.push(literal.value);
   }
-  return [...new Set(anchors)];
+  if (/(身份证|身份證)/u.test(text)) anchors.push("身份证");
+  if (/(护照|護照)/u.test(text)) anchors.push("护照");
+  if (/银行对账单|銀行對帳單/u.test(text)) anchors.push("银行对账单");
+  return [...new Set(anchors.map((anchor) => anchor.trim()).filter(Boolean))];
+}
+
+export function extractGeneralContentAnchors(text: string): string[] {
+  const lines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length >= 18);
+  const general: string[] = [];
+  for (const line of lines) {
+    if (/^[一二三四五六七八九十]+、/u.test(line)) continue;
+    if (extractCriticalFactAnchors(line).length > 0) continue;
+    general.push(line);
+  }
+  return [...new Set(general)];
+}
+
+/** @deprecated Prefer extractCriticalFactAnchors for organizer policy. */
+export function extractHighValueFactAnchors(text: string): string[] {
+  return extractCriticalFactAnchors(text);
 }
 
 export function highValueAnchorsMissingFromOutput(
   sourceText: string,
   outputText: string,
 ): string[] {
-  const anchors = extractHighValueFactAnchors(sourceText);
+  const anchors = extractCriticalFactAnchors(sourceText);
   if (anchors.length === 0) return [];
-  const normalizedOutput = normalizeKnowledgeSourceText(outputText).replace(/\s+/g, "");
-  return anchors.filter((anchor) => {
-    const compact = anchor.replace(/\s+/g, "");
-    return !normalizedOutput.includes(compact);
-  });
+  return anchors.filter((anchor) => !organizerOutputContainsFact(outputText, anchor));
+}
+
+export function criticalFactAnchorsMissingFromOutput(
+  sourceText: string,
+  outputText: string,
+): string[] {
+  return highValueAnchorsMissingFromOutput(sourceText, outputText);
+}
+
+export function generalContentAnchorsMissingFromOutput(
+  sourceText: string,
+  outputText: string,
+): string[] {
+  const anchors = extractGeneralContentAnchors(sourceText);
+  return anchors.filter((anchor) => !generalContentPresentInOutput(outputText, anchor));
+}
+
+function generalContentPresentInOutput(outputText: string, segment: string): boolean {
+  const normalizedOutput = normalizeKnowledgeSourceText(outputText);
+  const normalizedSegment = normalizeKnowledgeSourceText(segment);
+  if (normalizedOutput.includes(normalizedSegment)) return true;
+  const words = normalizedSegment
+    .split(/\s+/)
+    .map((word) => word.trim())
+    .filter((word) => word.length >= 4);
+  if (words.length === 0) {
+    return normalizedOutput.includes(normalizedSegment.slice(0, 12));
+  }
+  const matched = words.filter((word) => normalizedOutput.includes(word)).length;
+  return matched / words.length >= 0.5;
 }

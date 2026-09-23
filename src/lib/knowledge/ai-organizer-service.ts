@@ -74,7 +74,15 @@ function mockOrganization(
     warnings: [],
   });
   const warnings = completeness.requiresHumanReview
-    ? ["需要人工确认", ...completeness.missingAnchors.map((a) => `缺少来源事实：${a}`)]
+    ? [
+        completeness.humanReviewWarning ?? "需要人工确认",
+        ...completeness.missingCriticalAnchors.map(
+          (anchor) => `缺少重要事实：${anchor}`,
+        ),
+        ...completeness.missingGeneralAnchors.map(
+          (anchor) => `缺少说明内容：${anchor.slice(0, 80)}`,
+        ),
+      ]
     : [];
   return {
     title,
@@ -271,13 +279,16 @@ export async function organizeKnowledgeSource(
         source.rawText!,
         output,
       );
-      if (!completeness.ok) {
+      if (completeness.requiresHumanReview) {
         output = {
           ...output,
           warnings: [
-            "需要人工确认",
-            ...completeness.missingAnchors.map(
-              (anchor) => `整理结果缺少来源事实：${anchor}`,
+            completeness.humanReviewWarning ?? "需要人工确认",
+            ...completeness.missingCriticalAnchors.map(
+              (anchor) => `缺少重要事实：${anchor}`,
+            ),
+            ...completeness.missingGeneralAnchors.map(
+              (anchor) => `缺少说明内容：${anchor.slice(0, 80)}`,
             ),
             ...output.warnings,
           ],
