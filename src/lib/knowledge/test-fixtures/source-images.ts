@@ -6,7 +6,9 @@ const testFixturesDir = dirname(fileURLToPath(import.meta.url));
 const previewIngestDir = join(process.cwd(), "preview-fixtures/knowledge-ingest");
 
 function toArrayBuffer(bytes: Buffer): ArrayBuffer {
-  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  const copy = new Uint8Array(bytes.byteLength);
+  copy.set(bytes);
+  return copy.buffer;
 }
 
 export function loadKnowledgeTestFixtureBytes(filename: string): ArrayBuffer {
