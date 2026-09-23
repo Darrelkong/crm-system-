@@ -23,6 +23,11 @@ export type SmartIngestSourceScope = {
   analysisStatus: KnowledgeSourceAnalysisStatus;
   latestAnalysisRunId: string | null;
   segments: SmartIngestSegmentSnapshot[];
+  /** Segments awaiting explicit human confirmation. */
+  unconfirmedProposedCount: number;
+  confirmedSegmentCount: number;
+  rejectedSegmentCount: number;
+  /** @deprecated Use unconfirmedProposedCount — kept for callers during transition */
   retainedProposedSegmentCount: number;
   /** Non-superseded segments from the latest completed analysis run. */
   activeSegmentCount: number;
@@ -32,10 +37,17 @@ export type SmartIngestSourceScope = {
   singleSegmentEvidenceText: string | null;
 };
 
-export function countRetainedProposedSegments(
+export function countUnconfirmedProposedSegments(
   segments: readonly { status: KnowledgeSourceSegmentStatus }[],
 ): number {
   return segments.filter((segment) => segment.status === "proposed").length;
+}
+
+/** @deprecated Use countUnconfirmedProposedSegments */
+export function countRetainedProposedSegments(
+  segments: readonly { status: KnowledgeSourceSegmentStatus }[],
+): number {
+  return countUnconfirmedProposedSegments(segments);
 }
 
 export function countActiveAnalysisSegments(
@@ -44,25 +56,42 @@ export function countActiveAnalysisSegments(
   return segments.filter((segment) => segment.status !== "superseded").length;
 }
 
+function pickSingleSegmentEvidenceSegment(
+  segments: readonly SmartIngestSegmentSnapshot[],
+): SmartIngestSegmentSnapshot | null {
+  const active = segments.filter((segment) => segment.status !== "superseded");
+  if (active.length !== 1) return null;
+  const only = active[0]!;
+  if (only.status === "rejected") return null;
+  return only;
+}
+
 export function deriveSmartIngestSourceScope(input: {
   analysisStatus: KnowledgeSourceAnalysisStatus;
   latestAnalysisRunId: string | null;
   segments: readonly SmartIngestSegmentSnapshot[];
 }): SmartIngestSourceScope {
-  const retained = input.segments.filter((segment) => segment.status === "proposed");
-  const retainedProposedSegmentCount = retained.length;
+  const unconfirmedProposedCount = countUnconfirmedProposedSegments(input.segments);
+  const confirmedSegmentCount = input.segments.filter(
+    (segment) => segment.status === "confirmed",
+  ).length;
+  const rejectedSegmentCount = input.segments.filter(
+    (segment) => segment.status === "rejected",
+  ).length;
   const activeSegmentCount = countActiveAnalysisSegments(input.segments);
   const inReview = input.analysisStatus === "ready_for_review";
-  const blocksSourceLevelOrganize =
-    inReview && retainedProposedSegmentCount > 1;
+  const blocksSourceLevelOrganize = inReview && activeSegmentCount > 1;
   const blocksSourceLevelComparison = blocksSourceLevelOrganize;
-  const single = retained.length === 1 ? retained[0]! : null;
+  const single = pickSingleSegmentEvidenceSegment(input.segments);
 
   return {
     analysisStatus: input.analysisStatus,
     latestAnalysisRunId: input.latestAnalysisRunId,
     segments: [...input.segments],
-    retainedProposedSegmentCount,
+    unconfirmedProposedCount,
+    confirmedSegmentCount,
+    rejectedSegmentCount,
+    retainedProposedSegmentCount: unconfirmedProposedCount,
     activeSegmentCount,
     blocksSourceLevelOrganize,
     blocksSourceLevelComparison,
@@ -130,7 +159,10 @@ export function assertSourceLevelOrganizeAllowed(scope: SmartIngestSourceScope):
   if (!scope.blocksSourceLevelOrganize) {
     if (
       scope.analysisStatus === "ready_for_review" &&
-      scope.retainedProposedSegmentCount === 0
+      scope.activeSegmentCount > 0 &&
+      scope.confirmedSegmentCount === 0 &&
+      scope.unconfirmedProposedCount === 0 &&
+      scope.rejectedSegmentCount === scope.activeSegmentCount
     ) {
       throw new KnowledgeServiceError(
         KNOWLEDGE_ERROR_CODES.SMART_INGEST_SEGMENT_SCOPE_REQUIRED,

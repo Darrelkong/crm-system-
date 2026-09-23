@@ -27,17 +27,17 @@ describe("knowledge ingest UX state repair", () => {
   const analysis = readFileSync(analysisPath, "utf8");
 
   it("A: new paste submit closes drawer, selects source, and scrolls detail", () => {
+    assert.match(ingest, /completePasteSourceTransition/);
     assert.match(ingest, /setCreateFormOpen\(false\)/);
-    assert.match(ingest, /setSelected\(createdSource\)/);
-    assert.match(ingest, /scrollDetailIntoView\(\)/);
+    assert.match(ingest, /await loadSource\(sourceId\)/);
     assert.match(ingest, /tab === "paste"/);
-    assert.match(ingest, /submittingPaste/);
+    assert.match(ingest, /creatingSourceBusy/);
   });
 
   it("B/C: exact duplicate paste auto-opens existing source without new row", () => {
     assert.match(ingest, /SOURCE_DUPLICATE/);
     assert.match(ingest, /pasteDuplicateOpenedExisting/);
-    assert.match(ingest, /openDuplicateSource\(\s*payload\.duplicate\.id/);
+    assert.match(ingest, /completePasteSourceTransition\(\s*payload\.duplicate\.id/);
     assert.match(ingest, /tab === "paste"/);
   });
 

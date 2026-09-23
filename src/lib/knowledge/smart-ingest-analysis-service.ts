@@ -111,14 +111,18 @@ async function findActiveAnalysisRun(sourceId: string, db: Database) {
   )[0] ?? null;
 }
 
-async function supersedeProposedSegments(sourceId: string, db: Database) {
+async function supersedeSegmentsForReanalysis(sourceId: string, db: Database) {
   await db
     .update(schema.knowledgeSourceSegments)
     .set({ status: "superseded" })
     .where(
       and(
         eq(schema.knowledgeSourceSegments.sourceId, sourceId),
-        eq(schema.knowledgeSourceSegments.status, "proposed"),
+        inArray(schema.knowledgeSourceSegments.status, [
+          "proposed",
+          "confirmed",
+          "rejected",
+        ]),
       ),
     );
 }
@@ -144,7 +148,7 @@ export async function startKnowledgeSourceAnalysis(
   const now = new Date().toISOString();
   const runId = crypto.randomUUID();
 
-  await supersedeProposedSegments(sourceId, db);
+  await supersedeSegmentsForReanalysis(sourceId, db);
 
   await db.batch([
     db.insert(schema.knowledgeSourceAnalysisRuns).values({
@@ -368,7 +372,7 @@ export async function updateKnowledgeSourceSegmentStatus(
   context: KnowledgeSessionContext,
   sourceId: string,
   segmentId: string,
-  status: "proposed" | "rejected",
+  status: "proposed" | "confirmed" | "rejected",
   meta: KnowledgeSourceMeta,
   db: Database = getDb(),
 ): Promise<KnowledgeSourceSegmentDetail> {

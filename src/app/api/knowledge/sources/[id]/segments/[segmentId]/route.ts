@@ -15,7 +15,11 @@ export async function PATCH(
     const session = await requireKnowledgeAccess(request);
     const { id: sourceId, segmentId } = await context.params;
     const body = (await request.json()) as { status?: string };
-    if (body.status !== "proposed" && body.status !== "rejected") {
+    if (
+      body.status !== "proposed" &&
+      body.status !== "confirmed" &&
+      body.status !== "rejected"
+    ) {
       return Response.json({ error: "Invalid segment status" }, { status: 400 });
     }
     const meta = getRequestMeta(request);

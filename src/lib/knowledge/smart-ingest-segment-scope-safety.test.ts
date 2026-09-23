@@ -10,7 +10,7 @@ import {
 } from "@/lib/knowledge/smart-ingest-source-scope";
 
 describe("smart ingest segment scope safety", () => {
-  it("G: rejected and superseded segments are not retained", () => {
+  it("G: rejected and superseded segments are not unconfirmed proposed", () => {
     const segments = [
       {
         id: "a",
@@ -46,11 +46,13 @@ describe("smart ingest segment scope safety", () => {
       latestAnalysisRunId: "run-1",
       segments,
     });
-    assert.equal(scope.retainedProposedSegmentCount, 1);
-    assert.equal(scope.blocksSourceLevelOrganize, false);
+    assert.equal(scope.unconfirmedProposedCount, 1);
+    assert.equal(scope.rejectedSegmentCount, 1);
+    assert.equal(scope.activeSegmentCount, 2);
+    assert.equal(scope.blocksSourceLevelOrganize, true);
   });
 
-  it("A/C: three retained proposed segments block source-level organize", () => {
+  it("A/C: three active segments block source-level organize", () => {
     const scope = deriveSmartIngestSourceScope({
       analysisStatus: "ready_for_review",
       latestAnalysisRunId: "run-1",
@@ -84,7 +86,7 @@ describe("smart ingest segment scope safety", () => {
         },
       ],
     });
-    assert.equal(scope.retainedProposedSegmentCount, 3);
+    assert.equal(scope.unconfirmedProposedCount, 3);
     assert.equal(scope.blocksSourceLevelOrganize, true);
     assert.equal(scope.blocksSourceLevelComparison, true);
     assert.throws(
@@ -98,6 +100,25 @@ describe("smart ingest segment scope safety", () => {
         return true;
       },
     );
+  });
+
+  it("K: three confirmed segments still block source-level organize", () => {
+    const scope = deriveSmartIngestSourceScope({
+      analysisStatus: "ready_for_review",
+      latestAnalysisRunId: "run-1",
+      segments: ["HSBC", "BOC", "Chase"].map((label, index) => ({
+        id: String(index),
+        segmentIndex: index,
+        titleHint: label,
+        evidenceText: label,
+        evidenceStart: index,
+        evidenceEnd: index + 1,
+        status: "confirmed" as const,
+      })),
+    });
+    assert.equal(scope.confirmedSegmentCount, 3);
+    assert.equal(scope.unconfirmedProposedCount, 0);
+    assert.equal(scope.blocksSourceLevelOrganize, true);
   });
 
   it("F: single retained segment uses segment evidence for organizer input", () => {

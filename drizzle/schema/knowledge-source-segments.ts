@@ -5,6 +5,7 @@ import { knowledgeSourceAnalysisRuns } from "./knowledge-source-analysis-runs";
 
 export const KNOWLEDGE_SOURCE_SEGMENT_STATUSES = [
   "proposed",
+  "confirmed",
   "rejected",
   "superseded",
 ] as const;
@@ -40,7 +41,7 @@ export const knowledgeSourceSegments = sqliteTable(
     index("idx_knowledge_source_segments_run").on(table.analysisRunId),
     check(
       "knowledge_source_segments_status_allowed",
-      sql`${table.status} IN ('proposed', 'rejected', 'superseded')`,
+      sql`${table.status} IN ('proposed', 'confirmed', 'rejected', 'superseded')`,
     ),
     check(
       "knowledge_source_segments_index_nonnegative",

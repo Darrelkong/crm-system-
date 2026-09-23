@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { AlertCircle, ChevronLeft, FileText, Loader2, Upload } from "lucide-react";
@@ -143,6 +144,8 @@ export function KnowledgeIngestClient({
   const manualCategoryOverrideRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [creatingSource, setCreatingSource] = useState(false);
+  const createSubmitLockRef = useRef(false);
   const [uploadPhase, setUploadPhase] = useState<
     "idle" | "uploading" | "reading"
   >("idle");
@@ -465,8 +468,23 @@ export function KnowledgeIngestClient({
     }
   }
 
+  async function completePasteSourceTransition(sourceId: string, toastKey: string) {
+    flushSync(() => {
+      setCreateFormOpen(false);
+      setSourceTitle("");
+      setRawText("");
+      setDuplicateNotice(null);
+    });
+    await loadSource(sourceId);
+    setHighlightedSourceId(sourceId);
+    setSuccessToast(t(toastKey));
+  }
+
   async function createSource(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (createSubmitLockRef.current) return;
+    createSubmitLockRef.current = true;
+    setCreatingSource(true);
     setBusy(true);
     setError(null);
     setDuplicateNotice(null);
@@ -504,14 +522,16 @@ export function KnowledgeIngestClient({
         payload.duplicate
       ) {
         if (tab === "paste") {
-          setSourceTitle("");
-          setRawText("");
-          setCreateFormOpen(false);
-          setDuplicateNotice(null);
-          setSuccessToast(t("knowledge.ingest.pasteDuplicateOpenedExisting"));
-          await openDuplicateSource(
+          if (payload.duplicate.lifecycle === "archived") {
+            if (lifecycle !== "archived") {
+              switchLifecycle("archived");
+            }
+          } else if (lifecycle !== "active") {
+            switchLifecycle("active");
+          }
+          await completePasteSourceTransition(
             payload.duplicate.id,
-            payload.duplicate.lifecycle,
+            "knowledge.ingest.pasteDuplicateOpenedExisting",
           );
           return;
         }
@@ -540,17 +560,16 @@ export function KnowledgeIngestClient({
         manualRequestedProjectOverrideRef.current = false;
         manualCategoryOverrideRef.current = false;
         clearOrganizerDraftFields();
-        setSmartIngestScopeLive(createdSource.smartIngestScope);
-        setSelected(createdSource);
-        syncReviewDraftFromSource(createdSource);
-        setCreateFormOpen(false);
-        setHighlightedSourceId(createdSource.id);
-        setSuccessToast(t("knowledge.ingest.sourceCreatedSuccess"));
-        scrollDetailIntoView();
+        await completePasteSourceTransition(
+          createdSource.id,
+          "knowledge.ingest.sourceEstablished",
+        );
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
     } finally {
+      createSubmitLockRef.current = false;
+      setCreatingSource(false);
       setBusy(false);
       setUploadPhase("idle");
     }
@@ -1063,13 +1082,17 @@ export function KnowledgeIngestClient({
               )}
               <Button
                 type="submit"
-                disabled={busy || (tab === "file" && !file)}
+                disabled={
+                  creatingSource ||
+                  busy ||
+                  (tab === "file" && !file)
+                }
                 className="w-full sm:w-auto"
+                data-create-source-submit="true"
+                aria-busy={creatingSource}
               >
-                {busy
-                  ? tab === "paste"
-                    ? t("knowledge.ingest.submittingPaste")
-                    : t("knowledge.ingest.creatingSource")
+                {creatingSource
+                  ? t("knowledge.ingest.creatingSourceBusy")
                   : t("knowledge.ingest.createSource")}
               </Button>
             </form>
@@ -1726,6 +1749,9 @@ export function KnowledgeIngestClient({
           </Card>
           </div>
           )}
+          </>
+          )}
+
           <KnowledgeMobileSheet
             open={createFormOpen && isMobileViewport}
             title={t("knowledge.ingest.newSourceAction")}
@@ -1736,8 +1762,6 @@ export function KnowledgeIngestClient({
               {createSourceForm}
             </div>
           </KnowledgeMobileSheet>
-          </>
-          )}
 
           {error && (
             <p role="alert" className="rounded-xl bg-red-50 p-4 text-sm text-red-700">

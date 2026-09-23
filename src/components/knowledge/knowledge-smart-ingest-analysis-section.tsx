@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/card";
 import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
@@ -22,7 +23,7 @@ type AnalysisSegment = {
   evidenceText: string;
   evidenceStart: number;
   evidenceEnd: number;
-  status: "proposed" | "rejected" | "superseded";
+  status: "proposed" | "confirmed" | "rejected" | "superseded";
   createdAt: string;
 };
 
@@ -89,6 +90,7 @@ export function KnowledgeSmartIngestAnalysisSection({
   );
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [segmentBusy, setSegmentBusy] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isPaste = source.sourceType === "paste";
@@ -192,48 +194,109 @@ export function KnowledgeSmartIngestAnalysisSection({
     }
   }
 
-  async function updateSegmentStatus(segmentId: string, status: "proposed" | "rejected") {
-    const response = await fetch(
-      `/api/knowledge/sources/${source.id}/segments/${segmentId}`,
-      {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status }),
-      },
-    );
-    const payload = (await response.json()) as {
-      segment?: AnalysisSegment;
-      error?: string;
-      errorCode?: string;
-    };
-    if (!response.ok || !payload.segment) {
-      setError(
-        resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+  async function updateSegmentStatus(
+    segmentId: string,
+    status: "proposed" | "confirmed" | "rejected",
+  ) {
+    setSegmentBusy(true);
+    setError(null);
+    try {
+      const response = await fetch(
+        `/api/knowledge/sources/${source.id}/segments/${segmentId}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status }),
+        },
       );
-      return;
-    }
-    setRun((current) => {
-      if (!current) return current;
-      const nextRun = {
-        ...current,
-        segments: current.segments.map((segment) =>
-          segment.id === segmentId ? payload.segment! : segment,
-        ),
+      const payload = (await response.json()) as {
+        segment?: AnalysisSegment;
+        error?: string;
+        errorCode?: string;
       };
-      onScopeChange?.(scopeFromRun(source, nextRun));
-      return nextRun;
-    });
+      if (!response.ok || !payload.segment) {
+        setError(
+          resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+        );
+        return null;
+      }
+      setRun((current) => {
+        if (!current) return current;
+        const nextRun = {
+          ...current,
+          segments: current.segments.map((segment) =>
+            segment.id === segmentId ? payload.segment! : segment,
+          ),
+        };
+        onScopeChange?.(scopeFromRun(source, nextRun));
+        return nextRun;
+      });
+      return payload.segment;
+    } finally {
+      setSegmentBusy(false);
+    }
+  }
+
+  async function confirmAllProposedSegments() {
+    const proposedIds =
+      run?.segments
+        .filter((segment) => segment.status === "proposed")
+        .map((segment) => segment.id) ?? [];
+    if (proposedIds.length === 0) return;
+    setSegmentBusy(true);
+    setError(null);
+    try {
+      for (const segmentId of proposedIds) {
+        const response = await fetch(
+          `/api/knowledge/sources/${source.id}/segments/${segmentId}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "confirmed" }),
+          },
+        );
+        const payload = (await response.json()) as {
+          segment?: AnalysisSegment;
+          error?: string;
+          errorCode?: string;
+        };
+        if (!response.ok || !payload.segment) {
+          setError(
+            resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+          );
+          break;
+        }
+        setRun((current) => {
+          if (!current) return current;
+          const nextRun = {
+            ...current,
+            segments: current.segments.map((segment) =>
+              segment.id === segmentId ? payload.segment! : segment,
+            ),
+          };
+          onScopeChange?.(scopeFromRun(source, nextRun));
+          return nextRun;
+        });
+      }
+    } finally {
+      setSegmentBusy(false);
+    }
   }
 
   if (!isPaste) {
     return null;
   }
 
-  const retainedProposedSegments =
+  const proposedSegments =
     run?.segments.filter((segment) => segment.status === "proposed") ?? [];
+  const confirmedSegments =
+    run?.segments.filter((segment) => segment.status === "confirmed") ?? [];
+  const rejectedSegments =
+    run?.segments.filter((segment) => segment.status === "rejected") ?? [];
   const showReview =
     run?.status === "completed" && activeSegments.length > 0;
-  const showMultiTopicGuidance = retainedProposedSegments.length > 1;
+  const showMultiTopicGuidance = activeSegments.length > 1;
+  const showConfirmAll = proposedSegments.length >= 2;
   const reviewTitle =
     activeSegments.length === 1
       ? t("knowledge.ingest.analysisSingleTopic")
@@ -290,13 +353,51 @@ export function KnowledgeSmartIngestAnalysisSection({
         >
           <p className="font-medium">
             {t("knowledge.ingest.smartIngestMultiTopicTitle", {
-              count: String(retainedProposedSegments.length),
+              count: String(activeSegments.length),
             })}
           </p>
           <p className="mt-2">{t("knowledge.ingest.smartIngestMultiTopicBody")}</p>
         </div>
       ) : null}
       {showReview ? (
+        <>
+          <div
+            className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm crm-text"
+            data-segment-review-summary="true"
+          >
+            <p>
+              {t("knowledge.ingest.segmentReviewTopicsDetected", {
+                count: String(activeSegments.length),
+              })}
+            </p>
+            <p className="mt-1">
+              {t("knowledge.ingest.segmentReviewConfirmedCount", {
+                count: String(confirmedSegments.length),
+              })}
+              {" · "}
+              {t("knowledge.ingest.segmentReviewUnconfirmedCount", {
+                count: String(proposedSegments.length),
+              })}
+              {" · "}
+              {t("knowledge.ingest.segmentReviewRejectedCount", {
+                count: String(rejectedSegments.length),
+              })}
+            </p>
+          </div>
+          {showConfirmAll ? (
+            <div className="mt-3">
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                disabled={segmentBusy}
+                data-segment-confirm-all="true"
+                onClick={() => void confirmAllProposedSegments()}
+              >
+                {t("knowledge.ingest.segmentConfirmAll")}
+              </Button>
+            </div>
+          ) : null}
         <ul className="mt-4 space-y-3" data-segment-review-list="true">
           {activeSegments.map((segment) => {
             const isExpanded = expanded[segment.id] ?? false;
@@ -307,7 +408,14 @@ export function KnowledgeSmartIngestAnalysisSection({
             return (
               <li
                 key={segment.id}
-                className="rounded-xl border border-slate-200 bg-white p-4"
+                className={cn(
+                  "rounded-xl border bg-white p-4",
+                  segment.status === "confirmed"
+                    ? "border-emerald-200 ring-1 ring-emerald-100"
+                    : segment.status === "rejected"
+                      ? "border-slate-200 opacity-80"
+                      : "border-slate-200",
+                )}
                 data-segment-card="true"
                 data-segment-status={segment.status}
               >
@@ -329,20 +437,40 @@ export function KnowledgeSmartIngestAnalysisSection({
                     <Button
                       type="button"
                       size="sm"
-                      variant={segment.status === "proposed" ? "primary" : "secondary"}
-                      disabled={segment.status === "proposed"}
-                      onClick={() => void updateSegmentStatus(segment.id, "proposed")}
+                      variant={
+                        segment.status === "confirmed" ? "secondary" : "primary"
+                      }
+                      disabled={
+                        segmentBusy ||
+                        segment.status === "confirmed" ||
+                        segment.status === "superseded"
+                      }
+                      data-segment-keep-button="true"
+                      onClick={() =>
+                        void updateSegmentStatus(segment.id, "confirmed")
+                      }
                     >
-                      {t("knowledge.ingest.segmentKeep")}
+                      {segment.status === "confirmed"
+                        ? t("knowledge.ingest.segmentKept")
+                        : t("knowledge.ingest.segmentKeep")}
                     </Button>
                     <Button
                       type="button"
                       size="sm"
                       variant="secondary"
-                      disabled={segment.status === "rejected"}
-                      onClick={() => void updateSegmentStatus(segment.id, "rejected")}
+                      disabled={
+                        segmentBusy ||
+                        segment.status === "rejected" ||
+                        segment.status === "superseded"
+                      }
+                      data-segment-reject-button="true"
+                      onClick={() =>
+                        void updateSegmentStatus(segment.id, "rejected")
+                      }
                     >
-                      {t("knowledge.ingest.segmentReject")}
+                      {segment.status === "rejected"
+                        ? t("knowledge.ingest.segmentRejected")
+                        : t("knowledge.ingest.segmentReject")}
                     </Button>
                   </div>
                 </div>
@@ -385,6 +513,7 @@ export function KnowledgeSmartIngestAnalysisSection({
             );
           })}
         </ul>
+        </>
       ) : null}
     </Card>
   );
