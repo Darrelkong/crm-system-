@@ -11,7 +11,11 @@ import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
 
 function buildMockOrganizerBody(rawText: string): string {
   const canonical = canonicalizeKnowledgeArticleText(rawText);
-  if (canonical.includes("Chase Private Client") || canonical.includes("大通私人")) {
+  if (
+    canonical.includes("Chase Private Client") &&
+    canonical.includes("资料要求") &&
+    canonical.includes("资金")
+  ) {
     return CHASE_PRIVATE_CLIENT_FIXTURE_TEXT;
   }
   return canonical;

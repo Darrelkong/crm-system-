@@ -298,7 +298,9 @@ export async function organizeKnowledgeSource(
       organizationEvidenceText,
       output,
     );
-    output = finalizeKnowledgeOrganizerArticleOutput(identityApplied.output);
+    output = finalizeKnowledgeOrganizerArticleOutput(identityApplied.output, {
+      sourceEvidence: organizationEvidenceText,
+    });
 
     const completedAt = new Date().toISOString();
     await db.batch([

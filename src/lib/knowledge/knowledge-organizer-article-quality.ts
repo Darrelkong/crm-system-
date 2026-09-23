@@ -40,6 +40,7 @@ export function validateKnowledgeArticleSummary(input: {
   summary: string | null;
   title: string;
   body: string;
+  sourceEvidence?: string | null;
 }): KnowledgeSummaryValidation {
   const reasons: string[] = [];
   const summary = input.summary?.trim() ?? "";
@@ -53,8 +54,14 @@ export function validateKnowledgeArticleSummary(input: {
   if (/^\d+[.、．)\s]/u.test(summary)) {
     reasons.push("numbered_list");
   }
+  if (/^[-*#]\s/u.test(summary)) {
+    reasons.push("bullet_marker");
+  }
   if (/^[一二三四五六七八九十]+、/u.test(summary)) {
     reasons.push("section_heading");
+  }
+  if (/^[^\n]{0,40}[：:]\s*$/u.test(summary)) {
+    reasons.push("heading_only");
   }
   const titleNorm = normalizedComparable(input.title);
   const summaryNorm = normalizedComparable(summary);
@@ -67,6 +74,16 @@ export function validateKnowledgeArticleSummary(input: {
     summaryNorm.length >= Math.min(24, bodyNorm.length * 0.35)
   ) {
     reasons.push("body_prefix");
+  }
+  const evidenceNorm = input.sourceEvidence
+    ? normalizedComparable(input.sourceEvidence)
+    : "";
+  if (
+    evidenceNorm &&
+    evidenceNorm.startsWith(summaryNorm) &&
+    summaryNorm.length >= Math.min(24, evidenceNorm.length * 0.35)
+  ) {
+    reasons.push("source_prefix");
   }
   if (summary.length > 160) {
     reasons.push("excessive_length");
@@ -96,9 +113,7 @@ export function buildDeterministicKnowledgeSummary(input: {
       160,
     );
   }
-  const brand = title.includes("Chase")
-    ? "Chase Private Client"
-    : title.split(/\s+/).slice(0, 2).join(" ") || title;
+  const brand = title.split(/\s+/).slice(0, 3).join(" ").trim() || title;
   const topicPhrase = topics.join("、");
   if (/资料要求|資金|资金|限额|流动/u.test(body)) {
     return `${brand}开户与运营要求涵盖${topicPhrase}等要点，具体材料、激活资金与交易额度以正文为准。`.slice(
@@ -133,6 +148,7 @@ export function canonicalizeKnowledgeOrganizerOutput(
 
 export function finalizeKnowledgeOrganizerArticleOutput(
   output: KnowledgeAiOrganizationOutput,
+  options?: { sourceEvidence?: string | null },
 ): KnowledgeAiOrganizationOutput {
   let next = canonicalizeKnowledgeOrganizerOutput(output);
   const warnings = sanitizeOrganizerWarnings(next.warnings);
@@ -141,6 +157,7 @@ export function finalizeKnowledgeOrganizerArticleOutput(
     summary: next.summary,
     title: next.title,
     body: next.body,
+    sourceEvidence: options?.sourceEvidence ?? null,
   });
   if (!summaryCheck.valid) {
     const repaired = buildDeterministicKnowledgeSummary({
@@ -152,6 +169,7 @@ export function finalizeKnowledgeOrganizerArticleOutput(
           summary: repaired,
           title: next.title,
           body: next.body,
+          sourceEvidence: options?.sourceEvidence ?? null,
         })
       : { valid: false, reasons: ["repair_failed"] };
     if (repaired && repairedCheck.valid) {

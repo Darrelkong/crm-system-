@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { buildKnowledgeOrganizerSystemPrompt } from "@/lib/knowledge/ai-organizer-prompt";
 import { buildMockKnowledgeOrganizationOutput } from "@/lib/knowledge/knowledge-mock-organizer";
@@ -119,5 +121,47 @@ describe("knowledge article quality hotfix", () => {
     const prompt = buildKnowledgeOrganizerSystemPrompt("zh-Hans");
     assert.match(prompt, /one sentence/i);
     assert.match(prompt, /Never use generic warnings/i);
+  });
+
+  it("C/F: rejects source-evidence prefix and empty summary", () => {
+    const source = TRADITIONAL_CHASE;
+    assert.equal(
+      validateKnowledgeArticleSummary({
+        summary: source.slice(0, 48),
+        title: "Chase Private Client 开户资料与资金流动要求",
+        body: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+        sourceEvidence: source,
+      }).valid,
+      false,
+    );
+    assert.equal(
+      validateKnowledgeArticleSummary({
+        summary: "",
+        title: "t",
+        body: "body",
+      }).valid,
+      false,
+    );
+  });
+
+  it("Chase structural summary contract from mock organizer", () => {
+    const output = buildMockKnowledgeOrganizationOutput({
+      sourceTitle: null,
+      rawText: CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
+    });
+    assert.ok(output.summary);
+    assert.match(output.summary!, /Chase Private Client/u);
+    assert.match(output.summary!, /开户|资料|要求|额度/u);
+    assert.doesNotMatch(output.summary!, /^\s*一、/u);
+    assert.doesNotMatch(output.summary!, /身份證/u);
+  });
+
+  it("U: preview seed script reuses existing P2C-A2 Preview category", () => {
+    const seed = readFileSync(
+      join(process.cwd(), "scripts/seed-knowledge-comparison-preview.mjs"),
+      "utf8",
+    );
+    assert.match(seed, /existingCategory/);
+    assert.match(seed, /P2C-A2 Preview/);
   });
 });
