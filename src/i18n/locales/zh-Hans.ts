@@ -3216,6 +3216,13 @@ const zhHans: Messages = {
       createSource: "建立原始来源",
       analyzeContent: "分析内容",
       analyzingContent: "正在分析内容…",
+      submittingPaste: "正在提交…",
+      pasteDuplicateOpenedExisting: "相同内容已存在，已打开已有来源。",
+      smartIngestSegmentScopeRequired:
+        "已识别多个独立主题，请先确认主题后分别整理。",
+      smartIngestMultiTopicTitle: "已识别多个独立主题",
+      smartIngestMultiTopicBody:
+        "请先确认需要保留的主题。后续将按主题分别整理，不会混合不同业务资料。",
       analysisTopicsFound: "已识别 {{count}} 个内容主题",
       analysisSingleTopic: "未发现多个独立主题",
       analysisRetry: "重新分析",

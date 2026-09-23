@@ -3418,6 +3418,14 @@ const en = {
       createSource: "Create raw source",
       analyzeContent: "Analyze content",
       analyzingContent: "Analyzing content…",
+      submittingPaste: "Submitting…",
+      pasteDuplicateOpenedExisting:
+        "This exact content already exists. Opened the existing source.",
+      smartIngestSegmentScopeRequired:
+        "Multiple independent topics were detected. Confirm the topics before organizing them separately.",
+      smartIngestMultiTopicTitle: "Multiple independent topics detected",
+      smartIngestMultiTopicBody:
+        "Confirm which topics to keep first. Each topic will be organized separately so different business materials are not mixed.",
       analysisTopicsFound: "{{count}} content topics identified",
       analysisSingleTopic: "No separate topics detected",
       analysisRetry: "Analyze again",

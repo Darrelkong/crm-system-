@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
@@ -74,10 +75,12 @@ export function KnowledgeSmartIngestAnalysisSection({
   source,
   onAnalysisStatusChange,
   onScopeChange,
+  onAnalysisComplete,
 }: {
   source: KnowledgeSourceDetail;
   onAnalysisStatusChange: (status: KnowledgeSourceAnalysisStatus) => void;
   onScopeChange?: (scope: SmartIngestSourceScope) => void;
+  onAnalysisComplete?: () => void | Promise<void>;
 }) {
   const { t } = useTranslation();
   const [analyzing, setAnalyzing] = useState(false);
@@ -123,6 +126,7 @@ export function KnowledgeSmartIngestAnalysisSection({
         stopPolling();
         setAnalyzing(false);
         onAnalysisStatusChange("ready_for_review");
+        void onAnalysisComplete?.();
       } else if (payload.run.status === "failed") {
         stopPolling();
         setAnalyzing(false);
@@ -130,7 +134,7 @@ export function KnowledgeSmartIngestAnalysisSection({
         setError(payload.run.failureMessage ?? t("knowledge.ingest.analysisFailed"));
       }
     },
-    [onAnalysisStatusChange, onScopeChange, source, stopPolling, t],
+    [onAnalysisComplete, onAnalysisStatusChange, onScopeChange, source, stopPolling, t],
   );
 
   useEffect(() => {
@@ -139,8 +143,10 @@ export function KnowledgeSmartIngestAnalysisSection({
 
   async function startAnalysis() {
     if (!isPaste) return;
-    setError(null);
-    setAnalyzing(true);
+    flushSync(() => {
+      setError(null);
+      setAnalyzing(true);
+    });
     onAnalysisStatusChange("pending");
     try {
       const response = await fetch(`/api/knowledge/sources/${source.id}/analyze`, {

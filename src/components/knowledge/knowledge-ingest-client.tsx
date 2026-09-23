@@ -162,6 +162,7 @@ export function KnowledgeIngestClient({
     KnowledgeSourceDetail["smartIngestScope"] | null
   >(null);
   const organizerFormRef = useRef<HTMLFormElement>(null);
+  const analyzeSectionRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!highlightedSourceId) return;
@@ -502,6 +503,18 @@ export function KnowledgeIngestClient({
         payload.errorCode === KNOWLEDGE_ERROR_CODES.SOURCE_DUPLICATE &&
         payload.duplicate
       ) {
+        if (tab === "paste") {
+          setSourceTitle("");
+          setRawText("");
+          setCreateFormOpen(false);
+          setDuplicateNotice(null);
+          setSuccessToast(t("knowledge.ingest.pasteDuplicateOpenedExisting"));
+          await openDuplicateSource(
+            payload.duplicate.id,
+            payload.duplicate.lifecycle,
+          );
+          return;
+        }
         setDuplicateNotice(payload.duplicate);
         setSelected(null);
         return;
@@ -527,8 +540,13 @@ export function KnowledgeIngestClient({
         manualRequestedProjectOverrideRef.current = false;
         manualCategoryOverrideRef.current = false;
         clearOrganizerDraftFields();
+        setSmartIngestScopeLive(createdSource.smartIngestScope);
         setSelected(createdSource);
         syncReviewDraftFromSource(createdSource);
+        setCreateFormOpen(false);
+        setHighlightedSourceId(createdSource.id);
+        setSuccessToast(t("knowledge.ingest.sourceCreatedSuccess"));
+        scrollDetailIntoView();
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
@@ -650,6 +668,7 @@ export function KnowledgeIngestClient({
 
   async function organize() {
     if (!selected) return;
+    const previousStatus = selected.status;
     setBusy(true);
     setError(null);
     const preserveKnowledgeCategory = manualCategoryOverrideRef.current;
@@ -672,6 +691,21 @@ export function KnowledgeIngestClient({
         errorCode?: string;
       };
       if (!response.ok || !payload.source) {
+        if (
+          payload.errorCode ===
+          KNOWLEDGE_ERROR_CODES.SMART_INGEST_SEGMENT_SCOPE_REQUIRED
+        ) {
+          setSelected((current) =>
+            current ? { ...current, status: previousStatus } : current,
+          );
+          await loadSource(selected.id);
+          setError(getKnowledgeErrorMessage(t, payload.errorCode));
+          analyzeSectionRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+          return;
+        }
         throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSelected(payload.source);
@@ -691,10 +725,20 @@ export function KnowledgeIngestClient({
         setAutoCompareSignal((current) => current + 1);
       }
     } catch (caught) {
+      setSelected((current) =>
+        current && current.status === "organizing"
+          ? { ...current, status: previousStatus }
+          : current,
+      );
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
     } finally {
       setBusy(false);
     }
+  }
+
+  async function handleAnalysisComplete() {
+    if (!selected?.id) return;
+    await loadSource(selected.id);
   }
 
   async function saveDraft(event: React.FormEvent<HTMLFormElement>) {
@@ -1023,7 +1067,9 @@ export function KnowledgeIngestClient({
                 className="w-full sm:w-auto"
               >
                 {busy
-                  ? t("knowledge.ingest.creatingSource")
+                  ? tab === "paste"
+                    ? t("knowledge.ingest.submittingPaste")
+                    : t("knowledge.ingest.creatingSource")
                   : t("knowledge.ingest.createSource")}
               </Button>
             </form>
@@ -1365,12 +1411,15 @@ export function KnowledgeIngestClient({
               </Card>
 
               {!selectedArchived && selected.sourceType === "paste" && (
-                <KnowledgeSmartIngestAnalysisSection
-                  key={`${selected.id}:${selected.analysisStatus}:${selected.smartIngestScope.latestAnalysisRunId ?? "none"}`}
-                  source={selected}
-                  onAnalysisStatusChange={syncSourceAnalysisStatus}
-                  onScopeChange={setSmartIngestScopeLive}
-                />
+                <div ref={analyzeSectionRef}>
+                  <KnowledgeSmartIngestAnalysisSection
+                    key={selected.id}
+                    source={selected}
+                    onAnalysisStatusChange={syncSourceAnalysisStatus}
+                    onScopeChange={setSmartIngestScopeLive}
+                    onAnalysisComplete={handleAnalysisComplete}
+                  />
+                </div>
               )}
 
               {!selectedArchived && selected.status !== "converted" && (

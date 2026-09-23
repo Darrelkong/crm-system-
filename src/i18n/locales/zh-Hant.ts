@@ -3216,6 +3216,13 @@ const zhHant: Messages = {
       createSource: "建立原始來源",
       analyzeContent: "分析內容",
       analyzingContent: "正在分析內容…",
+      submittingPaste: "正在提交…",
+      pasteDuplicateOpenedExisting: "相同內容已存在，已開啟已有來源。",
+      smartIngestSegmentScopeRequired:
+        "已識別多個獨立主題，請先確認主題後分別整理。",
+      smartIngestMultiTopicTitle: "已識別多個獨立主題",
+      smartIngestMultiTopicBody:
+        "請先確認需要保留的主題。後續將按主題分別整理，不會混合不同業務資料。",
       analysisTopicsFound: "已識別 {{count}} 個內容主題",
       analysisSingleTopic: "未發現多個獨立主題",
       analysisRetry: "重新分析",
