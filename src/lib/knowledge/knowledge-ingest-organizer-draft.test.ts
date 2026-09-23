@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   buildOrganizerDraftFromOrganization,
+  resolveOrganizerKnowledgeCategoryId,
   resolveOrganizerRequestedProjectCode,
 } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
@@ -51,38 +52,37 @@ function sourceWithIdentity(
   };
 }
 
+const chaseIdentity = {
+  title: "Chase Private Client",
+  countryGroupCode: "united_states" as const,
+  countryLabelZhHans: "美国",
+  requestedProjectCode: "us_bank_account",
+  categoryMatch: "confident" as const,
+  signal: "chase_us_banking" as const,
+  confidence: 5,
+  identityConsistent: true,
+};
+
 describe("knowledge ingest organizer draft", () => {
-  it("H: manual requested project override is preserved", () => {
+  it("E: manual CRM business override does not modify Knowledge category", () => {
     const code = resolveOrganizerRequestedProjectCode({
-      identity: {
-        title: "Chase Private Client",
-        countryGroupCode: "united_states",
-        countryLabelZhHans: "美国",
-        requestedProjectCode: "us_bank_account",
-        categoryMatch: "confident",
-        signal: "chase_us_banking",
-        confidence: 5,
-        identityConsistent: true,
-      },
+      identity: chaseIdentity,
       manualCode: "hk_bank_account",
       manualOverride: true,
     });
     assert.equal(code, "hk_bank_account");
+    assert.equal(
+      resolveOrganizerKnowledgeCategoryId({
+        manualCategoryId: "cat-sop",
+        manualCategoryOverride: true,
+      }),
+      "cat-sop",
+    );
   });
 
-  it("F: confident identity auto-selects mapped knowledge category id", () => {
+  it("C: matching Knowledge category name does not auto-select categoryId", () => {
     const draft = buildOrganizerDraftFromOrganization(
-      sourceWithIdentity({
-        title: "Chase Private Client",
-        countryGroupCode: "united_states",
-        countryLabelZhHans: "美国",
-        requestedProjectCode: "us_bank_account",
-        categoryMatch: "confident",
-        signal: "chase_us_banking",
-        confidence: 5,
-        identityConsistent: true,
-      }),
-      [{ id: "cat-us", name: "美国银行账户", isActive: true }],
+      sourceWithIdentity(chaseIdentity),
       {
         manualRequestedProjectCode: null,
         manualRequestedProjectOverride: false,
@@ -91,6 +91,49 @@ describe("knowledge ingest organizer draft", () => {
       },
     );
     assert.equal(draft.requestedProjectCode, "us_bank_account");
-    assert.equal(draft.categoryId, "cat-us");
+    assert.equal(draft.categoryId, "");
+  });
+
+  it("D: manual Knowledge category preserved when applying organization", () => {
+    const draft = buildOrganizerDraftFromOrganization(
+      sourceWithIdentity({
+        ...chaseIdentity,
+        requestedProjectCode: "hk_bank_account",
+        signal: "hsbc_hk_banking",
+        title: "香港汇丰银行账户",
+      }),
+      {
+        manualRequestedProjectCode: null,
+        manualRequestedProjectOverride: false,
+        manualCategoryId: "cat-sop",
+        manualCategoryOverride: true,
+      },
+    );
+    assert.equal(draft.requestedProjectCode, "hk_bank_account");
+    assert.equal(draft.categoryId, "cat-sop");
+  });
+
+  it("H: no-match CRM identity does not invent Knowledge category", () => {
+    const draft = buildOrganizerDraftFromOrganization(
+      sourceWithIdentity({
+        title: "Unknown",
+        countryGroupCode: "other",
+        countryLabelZhHans: "其他",
+        requestedProjectCode: null,
+        categoryMatch: "no_match",
+        signal: "unknown",
+        confidence: 0,
+        identityConsistent: true,
+      }),
+      {
+        manualRequestedProjectCode: null,
+        manualRequestedProjectOverride: false,
+        manualCategoryId: null,
+        manualCategoryOverride: false,
+      },
+    );
+    assert.equal(draft.requestedProjectCode, null);
+    assert.equal(draft.categoryId, "");
+    assert.equal(draft.categoryNotice, "no_match");
   });
 });

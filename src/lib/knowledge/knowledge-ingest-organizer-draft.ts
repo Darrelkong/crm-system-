@@ -1,6 +1,4 @@
 import type { KnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
-import { resolveKnowledgeCategoryIdForRequestedProject } from "@/lib/knowledge/knowledge-category-from-requested-project";
-import type { KnowledgeCategoryListItemLike } from "@/lib/knowledge/knowledge-category-from-requested-project";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
 import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
 
@@ -43,9 +41,23 @@ export function resolveOrganizerRequestedProjectCode(input: {
   return input.identity?.requestedProjectCode ?? input.manualCode;
 }
 
+/**
+ * Knowledge library category (`categoryId`) is independent from CRM
+ * `requested_project_code`. Future default mappings must use explicit config,
+ * not display-name equality.
+ */
+export function resolveOrganizerKnowledgeCategoryId(input: {
+  manualCategoryId: string | null;
+  manualCategoryOverride: boolean;
+}): string {
+  if (input.manualCategoryOverride && input.manualCategoryId) {
+    return input.manualCategoryId;
+  }
+  return "";
+}
+
 export function buildOrganizerDraftFromOrganization(
   source: KnowledgeSourceDetail,
-  categories: readonly KnowledgeCategoryListItemLike[],
   options: {
     manualRequestedProjectCode: string | null;
     manualRequestedProjectOverride: boolean;
@@ -65,10 +77,6 @@ export function buildOrganizerDraftFromOrganization(
     manualOverride: options.manualRequestedProjectOverride,
   });
   const item = getRequestedProjectItem(requestedProjectCode);
-  const mappedCategoryId = resolveKnowledgeCategoryIdForRequestedProject(
-    categories,
-    requestedProjectCode,
-  );
 
   let categoryNotice: OrganizerDraftFields["categoryNotice"] = "none";
   if (identity?.categoryMatch === "needs_confirmation") {
@@ -77,18 +85,16 @@ export function buildOrganizerDraftFromOrganization(
     categoryNotice = "no_match";
   }
 
-  const categoryId =
-    options.manualCategoryOverride && options.manualCategoryId
-      ? options.manualCategoryId
-      : mappedCategoryId ?? "";
-
   return {
     title: organization.proposedTitle ?? "",
     summary: organization.proposedSummary ?? "",
     body: organization.proposedBody ?? "",
     requestedProjectCode,
     requestedProjectName: item?.canonicalZhHans ?? "",
-    categoryId,
+    categoryId: resolveOrganizerKnowledgeCategoryId({
+      manualCategoryId: options.manualCategoryId,
+      manualCategoryOverride: options.manualCategoryOverride,
+    }),
     categoryNotice,
   };
 }

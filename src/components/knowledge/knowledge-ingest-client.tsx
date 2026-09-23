@@ -53,7 +53,6 @@ import { KnowledgeSmartIngestAnalysisSection } from "@/components/knowledge/know
 import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
 import { RequestedProjectSelector } from "@/components/customers/requested-project-selector";
 import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
-import { resolveKnowledgeCategoryIdForRequestedProject } from "@/lib/knowledge/knowledge-category-from-requested-project";
 import {
   buildOrganizerDraftFromOrganization,
   emptyOrganizerDraft,
@@ -292,12 +291,14 @@ export function KnowledgeIngestClient({
     }
   }
 
-  function clearOrganizerDraftFields() {
+  function clearOrganizerDraftFields(options?: { preserveKnowledgeCategory?: boolean }) {
     const empty = emptyOrganizerDraft();
     setTitle(empty.title);
     setSummary(empty.summary);
     setBody(empty.body);
-    setCategoryId(empty.categoryId);
+    if (!options?.preserveKnowledgeCategory) {
+      setCategoryId(empty.categoryId);
+    }
     setRequestedProjectCode(empty.requestedProjectCode);
     setRequestedProjectName(empty.requestedProjectName);
     setCategoryNotice(empty.categoryNotice);
@@ -309,7 +310,7 @@ export function KnowledgeIngestClient({
       clearOrganizerDraftFields();
       return;
     }
-    const draft = buildOrganizerDraftFromOrganization(source, initialCategories, {
+    const draft = buildOrganizerDraftFromOrganization(source, {
       manualRequestedProjectCode: requestedProjectCode,
       manualRequestedProjectOverride: manualRequestedProjectOverrideRef.current,
       manualCategoryId: categoryId,
@@ -642,9 +643,12 @@ export function KnowledgeIngestClient({
     if (!selected) return;
     setBusy(true);
     setError(null);
+    const preserveKnowledgeCategory = manualCategoryOverrideRef.current;
     manualRequestedProjectOverrideRef.current = false;
-    manualCategoryOverrideRef.current = false;
-    clearOrganizerDraftFields();
+    if (!preserveKnowledgeCategory) {
+      manualCategoryOverrideRef.current = false;
+    }
+    clearOrganizerDraftFields({ preserveKnowledgeCategory });
     setSelected((current) =>
       current ? { ...current, status: "organizing" } : current,
     );
@@ -663,7 +667,6 @@ export function KnowledgeIngestClient({
       }
       setSelected(payload.source);
       manualRequestedProjectOverrideRef.current = false;
-      manualCategoryOverrideRef.current = false;
       applyOrganization(payload.source);
       setSources((current) =>
         current.map((source) =>
@@ -1522,14 +1525,6 @@ export function KnowledgeIngestClient({
                           const item = getRequestedProjectItem(code);
                           setRequestedProjectCode(code);
                           setRequestedProjectName(item?.canonicalZhHans ?? "");
-                          const mapped = resolveKnowledgeCategoryIdForRequestedProject(
-                            initialCategories,
-                            code,
-                          );
-                          if (mapped) {
-                            manualCategoryOverrideRef.current = false;
-                            setCategoryId(mapped);
-                          }
                           setCategoryNotice("none");
                         }}
                       />
@@ -1545,7 +1540,7 @@ export function KnowledgeIngestClient({
                       ) : null}
                     </div>
                     <label className="block text-sm font-medium crm-text">
-                      {t("knowledge.ingest.category")}
+                      {t("knowledge.ingest.knowledgeLibraryCategory")}
                       <select
                         required
                         value={categoryId}

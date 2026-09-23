@@ -6,8 +6,6 @@ import {
   assessOrganizerIdentityConsistency,
   deriveKnowledgePasteBusinessIdentity,
 } from "@/lib/knowledge/knowledge-paste-business-identity";
-import { resolveKnowledgeCategoryIdForRequestedProject } from "@/lib/knowledge/knowledge-category-from-requested-project";
-
 const HSBC_FIXTURE = `香港汇丰银行账户
 
 一、资料要求
@@ -54,25 +52,6 @@ describe("knowledge paste business identity", () => {
     assert.match(applied.output.body, /25 万美元/);
     assert.match(applied.output.body, /15,000/);
     assert.match(applied.output.body, /40,000/);
-  });
-
-  it("F: confident match resolves knowledge category id by CRM canonical name", () => {
-    const id = resolveKnowledgeCategoryIdForRequestedProject(
-      [
-        { id: "cat-us", name: "美国银行账户", isActive: true },
-        { id: "cat-hk", name: "香港银行账户", isActive: true },
-      ],
-      "us_bank_account",
-    );
-    assert.equal(id, "cat-us");
-  });
-
-  it("G: no match does not invent a knowledge category id", () => {
-    const id = resolveKnowledgeCategoryIdForRequestedProject(
-      [{ id: "cat-other", name: "其他分类", isActive: true }],
-      "us_bank_account",
-    );
-    assert.equal(id, null);
   });
 
   it("I: contradictory title vs Chase body is inconsistent", () => {
