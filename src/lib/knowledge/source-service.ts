@@ -24,6 +24,10 @@ import {
   assertNoPasteTextDuplicate,
   type KnowledgeSourceDuplicateKind,
 } from "@/lib/knowledge/source-duplicate";
+import {
+  hasSubstantiveSourceEvidence,
+  isNonEvidenceExtractionText,
+} from "@/lib/knowledge/knowledge-extraction-usability";
 import { sourceRequiresVisionHumanReview } from "@/lib/knowledge/knowledge-vision-integrity";
 import type { KnowledgeSourceExtractionResult } from "@/lib/knowledge/source-extraction";
 import { normalizeKnowledgeSourceText } from "@/lib/knowledge/source-text-normalization";
@@ -1391,6 +1395,16 @@ export async function confirmKnowledgeVisionExtraction(
       400,
     );
   }
+  if (
+    isNonEvidenceExtractionText(nextText) ||
+    !hasSubstantiveSourceEvidence(nextText)
+  ) {
+    throw sourceError(
+      KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
+      "无法将失败占位内容确认为来源证据，请手动补充真实文字后再确认",
+      400,
+    );
+  }
   if (nextText.length > KNOWLEDGE_SOURCE_TEXT_MAX_CHARS) {
     throw sourceError(
       KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_TOO_LARGE,
@@ -1408,10 +1422,23 @@ export async function confirmKnowledgeVisionExtraction(
     );
   }
   const confirmedAt = new Date().toISOString();
+  const priorText = normalizeKnowledgeSourceText(source.rawText ?? "");
+  const manuallySupplied =
+    metadata.integrityTrace?.extractionUsable === false ||
+    priorText !== nextText ||
+    Boolean(metadata.humanEvidenceManuallySupplied);
   const updatedMetadata = {
     ...metadata,
     humanReviewConfirmedAt: confirmedAt,
     humanReviewConfirmedByUserId: context.user.id,
+    humanEvidenceManuallySupplied: manuallySupplied,
+    integrityTrace: metadata.integrityTrace
+      ? {
+          ...metadata.integrityTrace,
+          extractionUsable: true,
+          requiresHumanReview: false,
+        }
+      : metadata.integrityTrace,
   };
 
   await db

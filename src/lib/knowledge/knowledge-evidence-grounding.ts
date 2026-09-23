@@ -1,5 +1,9 @@
 import type { KnowledgeAiOrganizationOutput } from "@/lib/knowledge/ai-organizer-schema";
 import {
+  extractHighValueFactAnchors,
+  highValueAnchorsMissingFromOutput,
+} from "@/lib/knowledge/knowledge-extraction-usability";
+import {
   assessVisionExtractionIntegrity,
   isGenerativeVisionExtraction,
 } from "@/lib/knowledge/knowledge-vision-integrity";
@@ -133,17 +137,57 @@ export function validateOrganizerEvidenceGrounding(
   return { ok: true, unsupportedTerms: [], requiresHumanReview: false, reason: null };
 }
 
+export type OrganizerCompletenessAssessment = {
+  ok: boolean;
+  requiresHumanReview: boolean;
+  missingAnchors: string[];
+};
+
+export function assessOrganizerOutputCompleteness(
+  sourceText: string,
+  output: KnowledgeAiOrganizationOutput,
+): OrganizerCompletenessAssessment {
+  const anchors = extractHighValueFactAnchors(sourceText);
+  if (anchors.length < 3) {
+    return { ok: true, requiresHumanReview: false, missingAnchors: [] };
+  }
+  const generated = [output.title, output.summary ?? "", output.body].join("\n");
+  const missingAnchors = highValueAnchorsMissingFromOutput(sourceText, generated);
+  if (missingAnchors.length === 0) {
+    return { ok: true, requiresHumanReview: false, missingAnchors: [] };
+  }
+  const missingRatio = missingAnchors.length / anchors.length;
+  if (missingRatio >= 0.34) {
+    return {
+      ok: false,
+      requiresHumanReview: true,
+      missingAnchors,
+    };
+  }
+  return {
+    ok: true,
+    requiresHumanReview: true,
+    missingAnchors,
+  };
+}
+
 /** Synthetic mobile screenshot fixture — Chase Private Client (not Turkey/HK). */
 export const CHASE_PRIVATE_CLIENT_FIXTURE_TEXT = `Chase Private Client
 大通私人银行账户
-身份证
-护照
-美国地址银行对账单
-KYC
-激活款
-ACH
-wire transfer
-Zelle`;
+
+一、资料要求
+
+1. 身份证（正反面）
+2. 护照（相关页面，四角清晰，1:1 扫描件）
+3. 包含美国地址的银行对账单（60 天内）
+4. KYC 个人信息填写
+5. 激活款 15W 美金，下户后一个月内达到
+
+二、资金流动限制
+
+1. ACH 日转账额度：10 万美元
+2. 在线电汇日额度：25 万美元
+3. Zelle：每日上限 15,000 美元 / 每月上限 40,000 美元`;
 
 /** Synthetic fixture representing Turkey investment promo + HK incorporation (no HSBC). */
 export const TURKEY_HK_INCORPORATION_FIXTURE_TEXT = `土耳其投資入籍計劃宣傳展示

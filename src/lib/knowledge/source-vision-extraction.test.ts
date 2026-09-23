@@ -131,9 +131,10 @@ describe("Knowledge vision mock extraction", () => {
       filename: "IMG_6819.jpeg",
       mimeType: "image/jpeg",
     });
+    assert.equal(result.text, "");
     assert.doesNotMatch(result.text, /汇丰香港/);
-    assert.match(result.text, /需要人工确认/);
     assert.equal(result.extractionMetadata?.quality, "low");
+    assert.equal(result.extractionMetadata?.integrityTrace?.extractionUsable, false);
   });
 
   it("transcribes Chase Private Client fixture without Turkey/HK contamination", async () => {
@@ -145,6 +146,9 @@ describe("Knowledge vision mock extraction", () => {
     assert.match(result.text, /Chase Private Client/);
     assert.match(result.text, /大通私人银行账户/);
     assert.match(result.text, /Zelle/);
+    assert.match(result.text, /15W/);
+    assert.match(result.text, /60 天/);
+    assert.match(result.text, /10 万美元/);
     assert.doesNotMatch(result.text, /土耳其/);
     assert.doesNotMatch(result.text, /汇丰/);
     assert.equal(result.extractionMetadata?.integrityTrace?.requiresHumanReview, true);

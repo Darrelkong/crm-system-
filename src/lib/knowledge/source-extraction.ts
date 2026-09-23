@@ -193,6 +193,18 @@ async function extractVisionImageText(input: {
     extractionModel: vision.model,
   });
   metadata = applyVisionIntegrityToMetadata(metadata, integrity);
+  const usability = metadata.integrityTrace?.extractionUsable;
+  if (usability === false) {
+    return {
+      text: "",
+      format: "image",
+      warnings: [],
+      extractionMethod: "vision",
+      extractionModel: vision.model,
+      extractionMetadata: metadata,
+      pageCount: 1,
+    };
+  }
   const reliability = assessVisionExtractionReliability({
     rawText: vision.text,
     extractionMetadata: metadata,

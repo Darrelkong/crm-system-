@@ -3425,6 +3425,11 @@ const en = {
       readingFileContent: "Reading file content…",
       readingImageContent: "Reading image content…",
       imageVisionComplete: "Image content read successfully",
+      imageVisionUnusableTitle: "Could not read text from this image",
+      imageVisionUnusableBody:
+        "Local preview does not run full vision on arbitrary real-world images. Retry extraction or type source text manually below before confirming.",
+      imageVisionManualSupplement: "Add source text manually",
+      imageVisionPreviewMockNotice: "Local preview did not run real vision recognition",
       imageVisionReview:
         "Image read with {{count}} item(s) needing manual review",
       imageVisionHumanReviewTitle: "Manual review required",

@@ -8,6 +8,7 @@ import {
   sourceContainsTerm,
   type KnowledgeEvidenceGroundingResult,
 } from "@/lib/knowledge/knowledge-evidence-grounding";
+import { assessVisionExtractionUsability } from "@/lib/knowledge/knowledge-extraction-usability";
 
 export const VISION_INTEGRITY_WARNING_CODES = {
   GENERATIVE_VISION: "GENERATIVE_VISION",
@@ -15,6 +16,7 @@ export const VISION_INTEGRITY_WARNING_CODES = {
   KNOWN_HALLUCINATION_PATTERN: "KNOWN_HALLUCINATION_PATTERN",
   MODEL_QUALITY_DOWNGRADED: "MODEL_QUALITY_DOWNGRADED",
   HUMAN_REVIEW_REQUIRED: "HUMAN_REVIEW_REQUIRED",
+  EXTRACTION_UNUSABLE: "EXTRACTION_UNUSABLE",
 } as const;
 
 const BANK_MARKERS = ["汇丰香港", "汇丰", "渣打", "滙豐香港", "滙豐"];
@@ -96,8 +98,12 @@ export function assessVisionExtractionIntegrity(input: {
   const { effectiveQuality, downgraded } = downgradeVisionModelQuality(
     modelReportedQuality,
   );
+  const usability = assessVisionExtractionUsability(trimmed);
   const highRiskFacts = detectHighRiskVisionFacts(trimmed);
   const reasons: string[] = [VISION_INTEGRITY_WARNING_CODES.GENERATIVE_VISION];
+  if (!usability.usable) {
+    reasons.push(VISION_INTEGRITY_WARNING_CODES.EXTRACTION_UNUSABLE);
+  }
 
   if (downgraded) {
     reasons.push(VISION_INTEGRITY_WARNING_CODES.MODEL_QUALITY_DOWNGRADED);
@@ -128,11 +134,12 @@ export function assessVisionExtractionIntegrity(input: {
     modelReportedQuality,
     effectiveQuality,
     requiresHumanReview: true,
+    extractionUsable: usability.usable,
     reasons: unique(reasons),
     highRiskFacts,
   };
 
-  if (!trimmed) {
+  if (!trimmed || !usability.usable) {
     return {
       ok: false,
       unsupportedTerms,
@@ -172,6 +179,8 @@ export function applyVisionIntegrityToMetadata(
     [VISION_INTEGRITY_WARNING_CODES.KNOWN_HALLUCINATION_PATTERN]:
       "检测到已知高风险银行模板，需人工确认",
     [VISION_INTEGRITY_WARNING_CODES.HUMAN_REVIEW_REQUIRED]: "需要人工确认",
+    [VISION_INTEGRITY_WARNING_CODES.EXTRACTION_UNUSABLE]:
+      "未能形成可用来源文字，请重新读取或手动补充",
   };
 
   const integrityWarnings = trace.reasons.map((code) => ({
@@ -224,6 +233,26 @@ export function sourceBlocksOrganizeForVisionReview(input: {
   extractionMetadata: KnowledgeVisionExtractionMetadata | null;
   rawText: string | null;
 }): boolean {
+  if (
+    isGenerativeVisionExtraction(input.extractionMethod) &&
+    input.extractionMetadata?.integrityTrace?.extractionUsable === false
+  ) {
+    return true;
+  }
   if (!sourceRequiresVisionHumanReview(input)) return false;
   return !visionExtractionReviewConfirmed(input.extractionMetadata);
+}
+
+export function isVisionExtractionUsable(input: {
+  extractionMethod: string | null;
+  extractionMetadata: KnowledgeVisionExtractionMetadata | null;
+  rawText: string | null;
+}): boolean {
+  if (!isGenerativeVisionExtraction(input.extractionMethod)) {
+    return Boolean(input.rawText?.trim());
+  }
+  if (input.extractionMetadata?.integrityTrace?.extractionUsable === false) {
+    return false;
+  }
+  return assessVisionExtractionUsability(input.rawText ?? "").usable;
 }

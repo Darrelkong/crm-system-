@@ -32,9 +32,14 @@ import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import {
+  assessOrganizerOutputCompleteness,
   assessVisionExtractionReliability,
   validateOrganizerEvidenceGrounding,
 } from "@/lib/knowledge/knowledge-evidence-grounding";
+import {
+  hasSubstantiveSourceEvidence,
+  isNonEvidenceExtractionText,
+} from "@/lib/knowledge/knowledge-extraction-usability";
 import {
   isGenerativeVisionExtraction,
   sourceBlocksOrganizeForVisionReview,
@@ -55,12 +60,28 @@ function mockOrganization(
     source.sourceTitle?.trim() ||
     firstLine.replace(/^#+\s*/, "").slice(0, 200) ||
     "Knowledge 来源整理草稿";
+  const summaryLines = text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .slice(0, 3);
+  const body = text;
+  const completeness = assessOrganizerOutputCompleteness(source.rawText ?? "", {
+    title,
+    summary: summaryLines.join(" "),
+    body,
+    suggestedCategory: null,
+    warnings: [],
+  });
+  const warnings = completeness.requiresHumanReview
+    ? ["需要人工确认", ...completeness.missingAnchors.map((a) => `缺少来源事实：${a}`)]
+    : [];
   return {
     title,
-    summary: text.slice(0, 400),
-    body: text,
+    summary: summaryLines.join("\n").slice(0, 400),
+    body,
     suggestedCategory: null,
-    warnings: ["資訊不足 / 需要人工補充"],
+    warnings: warnings.length > 0 ? warnings : ["資訊不足 / 需要人工補充"],
   };
 }
 
@@ -104,6 +125,15 @@ export async function organizeKnowledgeSource(
     throw organizerError(
       KNOWLEDGE_ERROR_CODES.TEXT_EXTRACTION_UNAVAILABLE,
       "此来源没有可整理的文字内容",
+    );
+  }
+  if (
+    isNonEvidenceExtractionText(source.rawText) ||
+    !hasSubstantiveSourceEvidence(source.rawText)
+  ) {
+    throw organizerError(
+      KNOWLEDGE_ERROR_CODES.EXTRACTION_NEEDS_REVIEW,
+      "来源文字不可用，无法作为 Knowledge 证据整理",
     );
   }
   if (source.rawText.length > KNOWLEDGE_AI_INPUT_MAX_CHARS) {
@@ -236,6 +266,22 @@ export async function organizeKnowledgeSource(
           KNOWLEDGE_ERROR_CODES.ORGANIZATION_UNGROUNDED,
           "AI 整理结果包含来源中不存在的事实，需要人工确认",
         );
+      }
+      const completeness = assessOrganizerOutputCompleteness(
+        source.rawText!,
+        output,
+      );
+      if (!completeness.ok) {
+        output = {
+          ...output,
+          warnings: [
+            "需要人工确认",
+            ...completeness.missingAnchors.map(
+              (anchor) => `整理结果缺少来源事实：${anchor}`,
+            ),
+            ...output.warnings,
+          ],
+        };
       }
     }
 

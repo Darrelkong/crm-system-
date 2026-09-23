@@ -3223,6 +3223,11 @@ const zhHans: Messages = {
       readingFileContent: "正在读取文件内容…",
       readingImageContent: "正在读取图片内容…",
       imageVisionComplete: "图片内容读取完成",
+      imageVisionUnusableTitle: "未成功读取图片文字",
+      imageVisionUnusableBody:
+        "本地预览不会对任意真实图片执行完整视觉识别。请重新读取，或在下方手动补充来源文字后再确认。",
+      imageVisionManualSupplement: "手动补充文字",
+      imageVisionPreviewMockNotice: "本地预览未执行真实视觉识别",
       imageVisionReview: "图片已读取，但有 {{count}} 项需要人工确认",
       imageVisionHumanReviewTitle: "需要人工确认",
       imageVisionHumanReviewBody:

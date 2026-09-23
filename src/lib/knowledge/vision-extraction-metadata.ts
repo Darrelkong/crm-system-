@@ -21,6 +21,7 @@ export type KnowledgeVisionIntegrityTrace = {
   modelReportedQuality: KnowledgeVisionExtractionQuality;
   effectiveQuality: KnowledgeVisionExtractionQuality;
   requiresHumanReview: boolean;
+  extractionUsable: boolean;
   reasons: string[];
   highRiskFacts: string[];
 };
@@ -36,6 +37,7 @@ export type KnowledgeVisionExtractionMetadata = {
   integrityTrace?: KnowledgeVisionIntegrityTrace;
   humanReviewConfirmedAt?: string | null;
   humanReviewConfirmedByUserId?: string | null;
+  humanEvidenceManuallySupplied?: boolean;
 };
 
 const METADATA_WARNING_MAX = 20;

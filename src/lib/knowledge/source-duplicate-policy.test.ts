@@ -326,7 +326,8 @@ describe("knowledge duplicate policy integration", () => {
       storage,
     );
     assert.equal(file.status, "ready");
-    assert.match(file.rawText ?? "", /fixture:/);
+    assert.equal(file.rawText ?? "", "");
+    assert.equal(file.extractionMetadata?.integrityTrace?.extractionUsable, false);
   });
 
   it("G: chase fixture is not duplicate of turkey fixture", async (t) => {

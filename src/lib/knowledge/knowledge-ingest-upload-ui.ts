@@ -55,10 +55,16 @@ export function visionExtractionAdvisoryKey(
   metadata: {
     quality: "high" | "medium" | "low";
     warnings: Array<{ code: string; message?: string }>;
-    integrityTrace?: { requiresHumanReview: boolean } | null;
+    integrityTrace?: {
+      requiresHumanReview: boolean;
+      extractionUsable?: boolean;
+    } | null;
   } | null,
-): "complete" | "review" | null {
+): "complete" | "review" | "unusable" | null {
   if (!metadata) return null;
+  if (metadata.integrityTrace?.extractionUsable === false) {
+    return "unusable";
+  }
   if (metadata.integrityTrace?.requiresHumanReview) {
     return "review";
   }

@@ -3,7 +3,7 @@ import {
   CHASE_PRIVATE_CLIENT_FIXTURE_TEXT,
   TURKEY_HK_INCORPORATION_FIXTURE_TEXT,
 } from "@/lib/knowledge/knowledge-evidence-grounding";
-import { GENERIC_VISION_EXTRACTION_PLACEHOLDER } from "@/lib/knowledge/source-duplicate";
+import { LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE } from "@/lib/knowledge/knowledge-extraction-usability";
 import type { KnowledgeVisionExtractResult } from "@/lib/knowledge/vision-types";
 
 const MOCK_VISION_MODEL = "mock-knowledge-vision-v1";
@@ -130,12 +130,12 @@ export function mockKnowledgeVisionExtract(input: {
   }
 
   return {
-    text: `${GENERIC_VISION_EXTRACTION_PLACEHOLDER}\n[fixture:${hash.slice(0, 12)}]`,
+    text: LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE,
     quality: "low",
     warnings: [
       {
-        code: "OTHER",
-        message: "测试环境未匹配到专用图片样本，请勿生成虚构内容",
+        code: "UNREADABLE_TEXT",
+        message: LOCAL_PREVIEW_MOCK_NO_VISION_MESSAGE,
       },
     ],
     model: MOCK_VISION_MODEL,

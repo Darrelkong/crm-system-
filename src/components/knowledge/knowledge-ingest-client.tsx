@@ -41,7 +41,9 @@ import {
   isScannedPdfFailure,
   visionExtractionAdvisoryKey,
 } from "@/lib/knowledge/knowledge-ingest-upload-ui";
+import { hasSubstantiveSourceEvidence } from "@/lib/knowledge/knowledge-extraction-usability";
 import {
+  isVisionExtractionUsable,
   sourceBlocksOrganizeForVisionReview,
   sourceRequiresVisionHumanReview,
   visionExtractionReviewConfirmed,
@@ -69,9 +71,12 @@ function isFailedVisionDuplicateNotice(
 }
 
 function canRetryVisionExtraction(source: KnowledgeSourceDetail): boolean {
+  const unusableVision =
+    source.extractionMethod === "vision" &&
+    source.extractionMetadata?.integrityTrace?.extractionUsable === false;
   return (
     !source.archivedAt &&
-    source.status === "failed" &&
+    (source.status === "failed" || (source.status === "ready" && unusableVision)) &&
     source.sourceType === "file" &&
     Boolean(source.storageKey) &&
     Boolean(
@@ -619,6 +624,16 @@ export function KnowledgeIngestClient({
         rawText: selected.rawText,
       })
     : false;
+  const visionExtractionUsable = selected
+    ? isVisionExtractionUsable({
+        extractionMethod: selected.extractionMethod,
+        extractionMetadata: selected.extractionMetadata,
+        rawText: selected.rawText,
+      })
+    : true;
+  const canConfirmVisionReview =
+    Boolean(reviewDraftText.trim()) &&
+    hasSubstantiveSourceEvidence(reviewDraftText);
   const canOrganizeSelected =
     Boolean(selected?.rawText) &&
     !selectedArchived &&
@@ -1073,6 +1088,21 @@ export function KnowledgeIngestClient({
                 ) : null}
                 {selected.extractionMetadata &&
                 visionExtractionAdvisoryKey(selected.extractionMetadata) ===
+                  "unusable" ? (
+                  <div
+                    className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4"
+                    data-vision-advisory="unusable"
+                  >
+                    <p className="text-sm font-medium text-rose-950">
+                      {t("knowledge.ingest.imageVisionUnusableTitle")}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-rose-900">
+                      {t("knowledge.ingest.imageVisionUnusableBody")}
+                    </p>
+                  </div>
+                ) : null}
+                {selected.extractionMetadata &&
+                visionExtractionAdvisoryKey(selected.extractionMetadata) ===
                   "review" ? (
                   <div
                     className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4"
@@ -1102,23 +1132,43 @@ export function KnowledgeIngestClient({
                     ) : null}
                   </div>
                 ) : null}
-                {selected.rawText ? (
+                {selected.rawText || (visionHumanReviewRequired && !visionExtractionUsable) ? (
                   visionHumanReviewRequired && !visionReviewConfirmed ? (
                     <div className="mt-4 space-y-3" data-vision-review-editor="true">
                       <label className="block text-sm font-medium crm-text">
-                        {t("knowledge.ingest.visionReviewExtractedText")}
+                        {visionExtractionUsable
+                          ? t("knowledge.ingest.visionReviewExtractedText")
+                          : t("knowledge.ingest.imageVisionManualSupplement")}
                         <textarea
                           value={reviewDraftText}
                           onChange={(event) => setReviewDraftText(event.target.value)}
                           className="mt-2 min-h-48 w-full rounded-xl border border-slate-200 bg-white p-3 text-sm leading-6"
                           maxLength={100_000}
                           data-vision-review-textarea="true"
+                          placeholder={
+                            visionExtractionUsable
+                              ? undefined
+                              : t("knowledge.ingest.imageVisionPreviewMockNotice")
+                          }
                         />
                       </label>
+                      {canRetryVisionExtraction(selected) && (
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          disabled={busy || retryingExtraction}
+                          data-retry-image-extraction="true"
+                          onClick={() => void retryImageExtraction()}
+                        >
+                          {retryingExtraction
+                            ? t("knowledge.ingest.retryingImageExtraction")
+                            : t("knowledge.ingest.retryImageExtraction")}
+                        </Button>
+                      )}
                       <Button
                         type="button"
                         variant="secondary"
-                        disabled={confirmingVisionReview || !reviewDraftText.trim()}
+                        disabled={confirmingVisionReview || !canConfirmVisionReview}
                         data-confirm-vision-review="true"
                         onClick={() => void confirmVisionExtraction()}
                       >
