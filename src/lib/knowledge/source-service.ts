@@ -37,6 +37,8 @@ import {
   type KnowledgeAuditInput,
   writeKnowledgeAudit,
 } from "@/lib/knowledge/audit";
+import { parseKnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
+import type { KnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import { hasKnowledgeCapability } from "@/lib/knowledge/role-service";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
@@ -136,6 +138,7 @@ export type KnowledgeSourceDetail = KnowledgeSourceListItem & {
     proposedSummary: string | null;
     proposedBody: string | null;
     proposedCategory: string | null;
+    businessIdentity: KnowledgePasteBusinessIdentityJson | null;
     warnings: string[];
     failureCode: string | null;
     createdAt: string;
@@ -516,6 +519,9 @@ function mapOrganization(
     proposedSummary: run.proposedSummary,
     proposedBody: run.proposedBody,
     proposedCategory: run.proposedCategory,
+    businessIdentity: parseKnowledgePasteBusinessIdentityJson(
+      run.businessIdentityJson,
+    ),
     warnings,
     failureCode: run.failureCode,
     createdAt: run.createdAt,

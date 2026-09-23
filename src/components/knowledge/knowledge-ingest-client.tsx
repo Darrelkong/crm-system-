@@ -51,6 +51,13 @@ import {
 } from "@/lib/knowledge/knowledge-vision-integrity";
 import { KnowledgeSmartIngestAnalysisSection } from "@/components/knowledge/knowledge-smart-ingest-analysis-section";
 import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
+import { RequestedProjectSelector } from "@/components/customers/requested-project-selector";
+import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
+import { resolveKnowledgeCategoryIdForRequestedProject } from "@/lib/knowledge/knowledge-category-from-requested-project";
+import {
+  buildOrganizerDraftFromOrganization,
+  emptyOrganizerDraft,
+} from "@/lib/knowledge/knowledge-ingest-organizer-draft";
 
 function canRetryVisionExtraction(source: KnowledgeSourceDetail): boolean {
   const unusableVision =
@@ -101,7 +108,7 @@ export function KnowledgeIngestClient({
   userId: string;
   previewFixturesEnabled?: boolean;
 }) {
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const router = useRouter();
   const [tab, setTab] = useState<"paste" | "file">("paste");
   const [sourceTitle, setSourceTitle] = useState("");
@@ -126,6 +133,15 @@ export function KnowledgeIngestClient({
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
   const [categoryId, setCategoryId] = useState("");
+  const [requestedProjectCode, setRequestedProjectCode] = useState<string | null>(
+    null,
+  );
+  const [requestedProjectName, setRequestedProjectName] = useState("");
+  const [categoryNotice, setCategoryNotice] = useState<
+    "none" | "needs_confirmation" | "no_match"
+  >("none");
+  const manualRequestedProjectOverrideRef = useRef(false);
+  const manualCategoryOverrideRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [uploadPhase, setUploadPhase] = useState<
@@ -276,19 +292,36 @@ export function KnowledgeIngestClient({
     }
   }
 
+  function clearOrganizerDraftFields() {
+    const empty = emptyOrganizerDraft();
+    setTitle(empty.title);
+    setSummary(empty.summary);
+    setBody(empty.body);
+    setCategoryId(empty.categoryId);
+    setRequestedProjectCode(empty.requestedProjectCode);
+    setRequestedProjectName(empty.requestedProjectName);
+    setCategoryNotice(empty.categoryNotice);
+  }
+
   function applyOrganization(source: KnowledgeSourceDetail) {
     const organization = source.organization;
-    if (!organization || organization.status !== "completed") return;
-    setTitle(organization.proposedTitle ?? "");
-    setSummary(organization.proposedSummary ?? "");
-    setBody(organization.proposedBody ?? "");
-    const suggested = organization.proposedCategory?.toLocaleLowerCase();
-    const match = initialCategories.find(
-      (category) =>
-        category.name.toLocaleLowerCase() === suggested ||
-        category.slug.toLocaleLowerCase() === suggested,
-    );
-    setCategoryId(match?.id ?? "");
+    if (!organization || organization.status !== "completed") {
+      clearOrganizerDraftFields();
+      return;
+    }
+    const draft = buildOrganizerDraftFromOrganization(source, initialCategories, {
+      manualRequestedProjectCode: requestedProjectCode,
+      manualRequestedProjectOverride: manualRequestedProjectOverrideRef.current,
+      manualCategoryId: categoryId,
+      manualCategoryOverride: manualCategoryOverrideRef.current,
+    });
+    setTitle(draft.title);
+    setSummary(draft.summary);
+    setBody(draft.body);
+    setRequestedProjectCode(draft.requestedProjectCode);
+    setRequestedProjectName(draft.requestedProjectName);
+    setCategoryId(draft.categoryId);
+    setCategoryNotice(draft.categoryNotice);
   }
 
   const loadSourcesForLifecycle = useCallback(
@@ -343,6 +376,9 @@ export function KnowledgeIngestClient({
     setSelected(null);
     setSaved(false);
     setError(null);
+    manualRequestedProjectOverrideRef.current = false;
+    manualCategoryOverrideRef.current = false;
+    clearOrganizerDraftFields();
   }
 
   function syncSourceAnalysisStatus(analysisStatus: KnowledgeSourceAnalysisStatus) {
@@ -383,6 +419,9 @@ export function KnowledgeIngestClient({
     setError(null);
     setCreateFormOpen(false);
     setLoadingSourceId(sourceId);
+    manualRequestedProjectOverrideRef.current = false;
+    manualCategoryOverrideRef.current = false;
+    clearOrganizerDraftFields();
     try {
       const response = await fetch(`/api/knowledge/sources/${sourceId}`, {
         cache: "no-store",
@@ -475,6 +514,9 @@ export function KnowledgeIngestClient({
             ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
         });
       } else {
+        manualRequestedProjectOverrideRef.current = false;
+        manualCategoryOverrideRef.current = false;
+        clearOrganizerDraftFields();
         setSelected(createdSource);
         syncReviewDraftFromSource(createdSource);
       }
@@ -600,6 +642,12 @@ export function KnowledgeIngestClient({
     if (!selected) return;
     setBusy(true);
     setError(null);
+    manualRequestedProjectOverrideRef.current = false;
+    manualCategoryOverrideRef.current = false;
+    clearOrganizerDraftFields();
+    setSelected((current) =>
+      current ? { ...current, status: "organizing" } : current,
+    );
     try {
       const response = await fetch(
         `/api/knowledge/sources/${selected.id}/organize`,
@@ -614,6 +662,8 @@ export function KnowledgeIngestClient({
         throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"));
       }
       setSelected(payload.source);
+      manualRequestedProjectOverrideRef.current = false;
+      manualCategoryOverrideRef.current = false;
       applyOrganization(payload.source);
       setSources((current) =>
         current.map((source) =>
@@ -1453,12 +1503,56 @@ export function KnowledgeIngestClient({
                         className="mt-1 min-h-64 w-full rounded-xl border border-slate-200 bg-white p-3"
                       />
                     </label>
+                    <div className="space-y-2">
+                      <p className="text-sm font-medium crm-text">
+                        {t("knowledge.ingest.businessCategory")}
+                      </p>
+                      <RequestedProjectSelector
+                        locale={locale}
+                        valueCode={requestedProjectCode}
+                        valueName={requestedProjectName}
+                        placeholder={t("knowledge.ingest.businessCategoryPlaceholder")}
+                        selectServiceTitle={t("customers.requestedProjectSelectService")}
+                        selectCountryTitle={t("customers.requestedProjectSelectCountry")}
+                        searchPlaceholder={t("customers.requestedProjectSearchPlaceholder")}
+                        backLabel={t("common.back")}
+                        closeLabel={t("common.close")}
+                        onSelect={({ code }) => {
+                          manualRequestedProjectOverrideRef.current = true;
+                          const item = getRequestedProjectItem(code);
+                          setRequestedProjectCode(code);
+                          setRequestedProjectName(item?.canonicalZhHans ?? "");
+                          const mapped = resolveKnowledgeCategoryIdForRequestedProject(
+                            initialCategories,
+                            code,
+                          );
+                          if (mapped) {
+                            manualCategoryOverrideRef.current = false;
+                            setCategoryId(mapped);
+                          }
+                          setCategoryNotice("none");
+                        }}
+                      />
+                      {categoryNotice === "needs_confirmation" ? (
+                        <p className="text-sm text-amber-800" data-category-notice="needs_confirmation">
+                          {t("knowledge.ingest.businessCategoryNeedsConfirmation")}
+                        </p>
+                      ) : null}
+                      {categoryNotice === "no_match" ? (
+                        <p className="text-sm text-amber-800" data-category-notice="no_match">
+                          {t("knowledge.ingest.businessCategoryNoMatch")}
+                        </p>
+                      ) : null}
+                    </div>
                     <label className="block text-sm font-medium crm-text">
                       {t("knowledge.ingest.category")}
                       <select
                         required
                         value={categoryId}
-                        onChange={(event) => setCategoryId(event.target.value)}
+                        onChange={(event) => {
+                          manualCategoryOverrideRef.current = true;
+                          setCategoryId(event.target.value);
+                        }}
                         className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
                       >
                         <option value="">{t("knowledge.ingest.noCategory")}</option>

@@ -44,6 +44,10 @@ import {
   isGenerativeVisionExtraction,
   sourceBlocksOrganizeForVisionReview,
 } from "@/lib/knowledge/knowledge-vision-integrity";
+import {
+  applyBusinessIdentityToOrganizerOutput,
+  serializeKnowledgePasteBusinessIdentityJson,
+} from "@/lib/knowledge/knowledge-paste-business-identity";
 
 export const KNOWLEDGE_AI_INPUT_MAX_CHARS = 60_000;
 
@@ -206,6 +210,7 @@ export async function organizeKnowledgeSource(
       proposedSummary: null,
       proposedBody: null,
       proposedCategory: null,
+      businessIdentityJson: null,
       warningsJson: null,
       createdAt: now,
       completedAt: null,
@@ -296,6 +301,12 @@ export async function organizeKnowledgeSource(
       }
     }
 
+    const identityApplied = applyBusinessIdentityToOrganizerOutput(
+      source.rawText!,
+      output,
+    );
+    output = identityApplied.output;
+
     const completedAt = new Date().toISOString();
     await db.batch([
       db
@@ -308,6 +319,9 @@ export async function organizeKnowledgeSource(
           proposedSummary: output.summary,
           proposedBody: output.body,
           proposedCategory: output.suggestedCategory,
+          businessIdentityJson: serializeKnowledgePasteBusinessIdentityJson(
+            identityApplied.identity,
+          ),
           warningsJson: JSON.stringify(output.warnings),
           completedAt,
           failureCode: null,

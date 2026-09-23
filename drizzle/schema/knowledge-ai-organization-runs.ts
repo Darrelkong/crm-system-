@@ -37,6 +37,7 @@ export const knowledgeAiOrganizationRuns = sqliteTable(
     proposedSummary: text("proposed_summary"),
     proposedBody: text("proposed_body"),
     proposedCategory: text("proposed_category"),
+    businessIdentityJson: text("business_identity_json"),
     warningsJson: text("warnings_json"),
     createdAt: text("created_at").notNull(),
     completedAt: text("completed_at"),
