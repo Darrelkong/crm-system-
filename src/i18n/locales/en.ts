@@ -3541,6 +3541,15 @@ const en = {
       summary: "Summary",
       body: "Body",
       category: "Category",
+      businessCategory: "Related Business (AI detected)",
+      businessCategoryPlaceholder: "Select related business (optional)",
+      businessCategoryNeedsConfirmation:
+        "Please confirm whether the AI-detected related business is correct.",
+      businessCategoryNoMatch:
+        "Could not detect a related business from the source. Select one manually.",
+      knowledgeLibraryCategory: "Knowledge Category",
+      knowledgeCategoryRequiredBeforeDraft:
+        "Select a Knowledge category before saving the draft.",
       saveDraft: "Save as draft",
       savingDraft: "Saving draft…",
       savedDraft: "Draft saved",

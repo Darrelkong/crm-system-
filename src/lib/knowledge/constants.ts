@@ -6,6 +6,13 @@ export const KNOWLEDGE_SOURCE_IMAGE_MAX_BYTES = 10 * 1024 * 1024;
 export const KNOWLEDGE_SOURCE_TEXT_MAX_CHARS = 100_000;
 
 export const KNOWLEDGE_POLICY_ID = "singleton" as const;
+
+/** Canonical locale for organized Knowledge article title/summary/body (independent of CRM UI locale). */
+export const KNOWLEDGE_ARTICLE_CONTENT_LOCALE = "zh-Hans" as const;
+
+export function knowledgeOrganizerContentLanguage(): string {
+  return KNOWLEDGE_ARTICLE_CONTENT_LOCALE;
+}
 export const KNOWLEDGE_MAX_FAILED_ATTEMPTS = 5;
 export const KNOWLEDGE_LOCK_DURATION_MS = 15 * 60 * 1000;
 

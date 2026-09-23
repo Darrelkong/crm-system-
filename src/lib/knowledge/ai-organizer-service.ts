@@ -8,7 +8,10 @@ import {
   KNOWLEDGE_CLOUDFLARE_AI_PROVIDER,
 } from "@/lib/knowledge/cloudflare-knowledge-ai";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
-import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
+import {
+  KNOWLEDGE_ARTICLE_CONTENT_LOCALE,
+  KNOWLEDGE_ERROR_CODES,
+} from "@/lib/knowledge/constants";
 import {
   buildKnowledgeOrganizerSystemPrompt,
   buildKnowledgeOrganizerUserPrompt,
@@ -268,13 +271,13 @@ export async function organizeKnowledgeSource(
         rawText: organizationEvidenceText,
       });
     } else {
-      const settings = await getEffectiveAiSettings(db);
+      await getEffectiveAiSettings(db);
       provider = KNOWLEDGE_CLOUDFLARE_AI_PROVIDER;
       model = KNOWLEDGE_CLOUDFLARE_AI_MODEL;
       const rawOutput = await callKnowledgeOrganizationProvider({
-        locale: settings.aiAnalysisLanguage,
+        locale: KNOWLEDGE_ARTICLE_CONTENT_LOCALE,
         systemPrompt: buildKnowledgeOrganizerSystemPrompt(
-          settings.aiAnalysisLanguage,
+          KNOWLEDGE_ARTICLE_CONTENT_LOCALE,
         ),
         userPrompt: buildKnowledgeOrganizerUserPrompt({
           sourceTitle: source.sourceTitle,

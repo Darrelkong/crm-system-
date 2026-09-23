@@ -1,3 +1,4 @@
+import { normalizeForKnowledgeFactComparison } from "@/lib/knowledge/knowledge-chinese-script";
 import { normalizeKnowledgeSourceText } from "@/lib/knowledge/source-text-normalization";
 import {
   GENERIC_VISION_EXTRACTION_PLACEHOLDER,
@@ -147,13 +148,9 @@ function collectRegexMatches(text: string, pattern: RegExp): string[] {
   return matches;
 }
 
-function normalizeCompact(value: string): string {
-  return normalizeKnowledgeSourceText(value).replace(/\s+/g, "").toLowerCase();
-}
-
 export function organizerOutputContainsFact(outputText: string, anchor: string): boolean {
-  const outputCompact = normalizeCompact(outputText);
-  const anchorCompact = normalizeCompact(anchor);
+  const outputCompact = normalizeForKnowledgeFactComparison(outputText);
+  const anchorCompact = normalizeForKnowledgeFactComparison(anchor);
   if (!anchorCompact) return true;
   if (outputCompact.includes(anchorCompact)) return true;
   if (/^\d+[wW]/.test(anchor)) {

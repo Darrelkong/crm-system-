@@ -763,6 +763,10 @@ export function KnowledgeIngestClient({
   async function saveDraft(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!selected) return;
+    if (!categoryId) {
+      setError(t("knowledge.ingest.knowledgeCategoryRequiredBeforeDraft"));
+      return;
+    }
     setBusy(true);
     setError(null);
     setSaved(false);
