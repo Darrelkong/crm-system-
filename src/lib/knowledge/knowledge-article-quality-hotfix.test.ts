@@ -153,7 +153,8 @@ describe("knowledge article quality hotfix", () => {
     });
     assert.ok(output.summary);
     assert.match(output.summary!, /Chase Private Client/u);
-    assert.match(output.summary!, /开户|资料|要求|额度/u);
+    assert.match(output.summary!, /护照|身份证|ACH|Zelle/u);
+    assert.doesNotMatch(output.summary!, /以正文为准/u);
     assert.doesNotMatch(output.summary!, /^\s*一、/u);
     assert.doesNotMatch(output.summary!, /身份證/u);
   });

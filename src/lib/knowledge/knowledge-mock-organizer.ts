@@ -31,8 +31,8 @@ export function buildMockKnowledgeOrganizationOutput(
   const body = buildMockOrganizerBody(rawText);
   const title = buildMockOrganizerTitle(body, source.sourceTitle);
   const summary =
-    buildDeterministicKnowledgeSummary({ title, body }) ??
-    "该来源内容已整理为知识条目，具体材料与限额以正文为准。";
+    buildDeterministicKnowledgeSummary({ title, body, sourceEvidence: rawText }) ??
+    null;
 
   const completeness = assessOrganizerOutputCompleteness(rawText, {
     title,
