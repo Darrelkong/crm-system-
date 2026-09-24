@@ -1,5 +1,4 @@
 import type { KnowledgeAiOrganizationOutput } from "@/lib/knowledge/ai-organizer-schema";
-import { CHASE_PRIVATE_CLIENT_FIXTURE_TEXT } from "@/lib/knowledge/knowledge-evidence-grounding";
 import { assessOrganizerOutputCompleteness } from "@/lib/knowledge/knowledge-evidence-grounding";
 import {
   buildDeterministicKnowledgeSummary,
@@ -10,15 +9,7 @@ import { canonicalizeKnowledgeArticleText } from "@/lib/knowledge/knowledge-chin
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
 
 function buildMockOrganizerBody(rawText: string): string {
-  const canonical = canonicalizeKnowledgeArticleText(rawText);
-  if (
-    canonical.includes("Chase Private Client") &&
-    canonical.includes("资料要求") &&
-    canonical.includes("资金")
-  ) {
-    return CHASE_PRIVATE_CLIENT_FIXTURE_TEXT;
-  }
-  return canonical;
+  return canonicalizeKnowledgeArticleText(rawText);
 }
 
 function buildMockOrganizerTitle(body: string, sourceTitle: string | null): string {
@@ -73,5 +64,6 @@ export function buildMockKnowledgeOrganizationOutput(
       suggestedCategory: null,
       warnings,
     }),
+    { sourceEvidence: rawText },
   );
 }

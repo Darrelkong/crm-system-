@@ -3,6 +3,10 @@ import {
   canonicalizeKnowledgeArticleText,
   normalizeForKnowledgeFactComparison,
 } from "@/lib/knowledge/knowledge-chinese-script";
+import {
+  assessOrganizerFactFidelity,
+  buildEvidenceGroundedSummaryFromAnchors,
+} from "@/lib/knowledge/knowledge-organizer-fact-fidelity";
 
 export const KNOWLEDGE_SUMMARY_INVALID_WARNING =
   "摘要未能形成有效的一句话概括，请人工确认。";
@@ -97,9 +101,27 @@ export function validateKnowledgeArticleSummary(input: {
 export function buildDeterministicKnowledgeSummary(input: {
   title: string;
   body: string;
+  sourceEvidence?: string | null;
 }): string | null {
   const title = canonicalizeKnowledgeArticleText(input.title).trim();
   const body = canonicalizeKnowledgeArticleText(input.body);
+  const sourceEvidence = input.sourceEvidence?.trim() ?? "";
+  if (sourceEvidence) {
+    const evidenceSummary = buildEvidenceGroundedSummaryFromAnchors({
+      title,
+      body,
+      sourceEvidence,
+    });
+    if (evidenceSummary) {
+      const evidenceCheck = validateKnowledgeArticleSummary({
+        summary: evidenceSummary,
+        title,
+        body,
+        sourceEvidence,
+      });
+      if (evidenceCheck.valid) return evidenceSummary;
+    }
+  }
   const sectionHeaders = [
     ...body.matchAll(/^[一二三四五六七八九十]+、\s*([^\n]+)/gmu),
   ].map((match) => match[1]?.trim() ?? "");
@@ -152,17 +174,24 @@ export function finalizeKnowledgeOrganizerArticleOutput(
 ): KnowledgeAiOrganizationOutput {
   let next = canonicalizeKnowledgeOrganizerOutput(output);
   const warnings = sanitizeOrganizerWarnings(next.warnings);
+  const sourceEvidence = options?.sourceEvidence?.trim() ?? "";
+
+  if (sourceEvidence) {
+    const fidelity = assessOrganizerFactFidelity(sourceEvidence, next);
+    warnings.push(...fidelity.warnings);
+  }
 
   const summaryCheck = validateKnowledgeArticleSummary({
     summary: next.summary,
     title: next.title,
     body: next.body,
-    sourceEvidence: options?.sourceEvidence ?? null,
+    sourceEvidence: sourceEvidence || null,
   });
   if (!summaryCheck.valid) {
     const repaired = buildDeterministicKnowledgeSummary({
       title: next.title,
       body: next.body,
+      sourceEvidence: sourceEvidence || null,
     });
     const repairedCheck = repaired
       ? validateKnowledgeArticleSummary({

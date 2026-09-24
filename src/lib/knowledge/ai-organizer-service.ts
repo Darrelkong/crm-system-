@@ -53,6 +53,7 @@ import {
 } from "@/lib/knowledge/knowledge-paste-business-identity";
 import { buildMockKnowledgeOrganizationOutput } from "@/lib/knowledge/knowledge-mock-organizer";
 import { finalizeKnowledgeOrganizerArticleOutput } from "@/lib/knowledge/knowledge-organizer-article-quality";
+import { validateOrganizerFactFidelity } from "@/lib/knowledge/knowledge-organizer-fact-fidelity";
 import {
   assertSourceLevelOrganizeAllowed,
   loadSmartIngestSourceScope,
@@ -267,6 +268,16 @@ export async function organizeKnowledgeSource(
         throw organizerError(
           KNOWLEDGE_ERROR_CODES.ORGANIZATION_UNGROUNDED,
           "AI 整理结果包含来源中不存在的事实，需要人工确认",
+        );
+      }
+      const factFidelity = validateOrganizerFactFidelity(
+        organizationEvidenceText,
+        output,
+      );
+      if (!factFidelity.ok) {
+        throw organizerError(
+          KNOWLEDGE_ERROR_CODES.ORGANIZATION_UNGROUNDED,
+          "AI 整理结果包含来源未支持的具体要求，需要人工确认",
         );
       }
       const completeness = assessOrganizerOutputCompleteness(

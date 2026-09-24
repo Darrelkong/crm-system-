@@ -31,6 +31,8 @@ describe("knowledge article quality hotfix", () => {
       sourceTitle: "[PROD-SMOKE] Chase",
       rawText: TRADITIONAL_CHASE,
     });
+    assert.doesNotMatch(output.body, /四角清晰/u);
+    assert.doesNotMatch(output.body, /1:1/u);
     assert.ok(output.summary);
     assert.doesNotMatch(output.summary!, /\n/u);
     assert.doesNotMatch(output.summary!, /^\d+[.、]/u);
