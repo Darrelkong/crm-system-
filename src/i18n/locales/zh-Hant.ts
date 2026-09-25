@@ -3399,6 +3399,8 @@ const zhHant: Messages = {
       smartIngestCandidateSaving: "儲存中…",
       smartIngestCandidateSavedAsDraft: "已儲存為草稿",
       smartIngestCandidateOpenDraft: "打開草稿",
+      smartIngestCandidateOpenDraftUnavailable:
+        "草稿連結暫不可用，請重新整理來源頁後再試。",
       smartIngestCandidateConvertFailed: "儲存草稿失敗，請重試。",
       smartIngestCandidateCategoryRequired: "請先選擇知識庫分類",
       smartIngestCandidateCategoryReady: "已選擇知識庫分類",

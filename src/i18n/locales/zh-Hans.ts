@@ -3399,6 +3399,8 @@ const zhHans: Messages = {
       smartIngestCandidateSaving: "保存中…",
       smartIngestCandidateSavedAsDraft: "已保存为草稿",
       smartIngestCandidateOpenDraft: "打开草稿",
+      smartIngestCandidateOpenDraftUnavailable:
+        "草稿链接暂不可用，请刷新来源页后重试。",
       smartIngestCandidateConvertFailed: "保存草稿失败，请重试。",
       smartIngestCandidateCategoryRequired: "请先选择知识库分类",
       smartIngestCandidateCategoryReady: "已选择知识库分类",

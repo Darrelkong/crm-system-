@@ -39,7 +39,11 @@ export async function POST(request: Request, context: RouteContext) {
       getRequestMeta(request),
       getDb(),
     );
-    return Response.json({ article });
+    return Response.json({
+      article,
+      draftArticleId: article.id,
+      candidateId,
+    });
   } catch (error) {
     return knowledgeErrorResponse(error);
   }

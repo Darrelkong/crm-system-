@@ -1,20 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
 import type { KnowledgeComparisonDetail } from "@/lib/knowledge/comparison-types";
-import type { OrganizerDraftFields } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
-import { isUsableCandidateOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-organizer-draft-usability";
 import {
   comparisonMatchesOrganizerDraft,
   normalizeComparedOrganizerDraft,
 } from "@/lib/knowledge/knowledge-candidate-comparison-draft";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
+import {
+  candidateShowsConvertedWithoutDraftId,
+  knowledgeArticleDetailPath,
+  resolveCandidateDraftArticleId,
+} from "@/lib/knowledge/knowledge-article-paths";
 
 type CandidateDraftState = {
   title: string;
@@ -103,7 +105,8 @@ export function KnowledgeSmartIngestCandidateWorkflow({
   }).length;
 
   const savedCount = activeCandidates.filter(
-    (candidate) => savedArticleIds[candidate.id] || candidate.draftArticleId,
+    (candidate) =>
+      resolveCandidateDraftArticleId(candidate, savedArticleIds) != null,
   ).length;
 
   async function runCompare(candidateId: string) {
@@ -176,6 +179,7 @@ export function KnowledgeSmartIngestCandidateWorkflow({
       );
       const payload = (await response.json()) as {
         article?: { id: string };
+        draftArticleId?: string;
         error?: string;
         errorCode?: string;
       };
@@ -188,9 +192,11 @@ export function KnowledgeSmartIngestCandidateWorkflow({
           ),
         );
       }
+      const draftArticleId =
+        payload.draftArticleId?.trim() || payload.article.id;
       setSavedArticleIds((current) => ({
         ...current,
-        [candidate.id]: payload.article!.id,
+        [candidate.id]: draftArticleId,
       }));
     } catch (caught) {
       setErrors((current) => ({
@@ -321,8 +327,15 @@ export function KnowledgeSmartIngestCandidateWorkflow({
                 comparison.comparison,
                 draftSnapshot,
               );
-            const savedId =
-              savedArticleIds[candidate.id] ?? candidate.draftArticleId;
+            const savedId = resolveCandidateDraftArticleId(
+              candidate,
+              savedArticleIds,
+            );
+            const openDraftHref = savedId
+              ? knowledgeArticleDetailPath(savedId)
+              : null;
+            const convertedWithoutDraftId =
+              !savedId && candidateShowsConvertedWithoutDraftId(candidate);
             const canConvert =
               organized &&
               comparisonFresh &&
@@ -343,18 +356,28 @@ export function KnowledgeSmartIngestCandidateWorkflow({
                     : t("knowledge.ingest.smartIngestCandidateCategoryRequired")}
                 </p>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {savedId ? (
+                  {savedId && openDraftHref ? (
                     <>
                       <span className="text-xs font-medium text-emerald-700">
                         {t("knowledge.ingest.smartIngestCandidateSavedAsDraft")}
                       </span>
-                      <Link
-                        href={`/knowledge/articles/${savedId}`}
-                        className="text-xs font-medium text-blue-700 underline"
+                      <a
+                        href={openDraftHref}
+                        className="secondary-button inline-flex min-h-11 items-center rounded-xl px-3 py-2 text-sm font-medium"
+                        data-candidate-open-draft-link="true"
+                        data-candidate-open-draft-article-id={savedId}
+                        data-candidate-open-draft-candidate-id={candidate.id}
                       >
                         {t("knowledge.ingest.smartIngestCandidateOpenDraft")}
-                      </Link>
+                      </a>
                     </>
+                  ) : convertedWithoutDraftId ? (
+                    <p
+                      className="text-xs text-amber-800"
+                      data-candidate-open-draft-unavailable="true"
+                    >
+                      {t("knowledge.ingest.smartIngestCandidateOpenDraftUnavailable")}
+                    </p>
                   ) : (
                     <Button
                       type="button"

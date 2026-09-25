@@ -3611,6 +3611,8 @@ const en = {
       smartIngestCandidateSaving: "Saving…",
       smartIngestCandidateSavedAsDraft: "Saved as draft",
       smartIngestCandidateOpenDraft: "Open draft",
+      smartIngestCandidateOpenDraftUnavailable:
+        "Draft link is unavailable. Refresh this source or contact support.",
       smartIngestCandidateConvertFailed: "Could not save draft. Please try again.",
       smartIngestCandidateCategoryRequired: "Select a knowledge category first",
       smartIngestCandidateCategoryReady: "Knowledge category selected",
