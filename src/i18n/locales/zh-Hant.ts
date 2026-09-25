@@ -3223,6 +3223,20 @@ const zhHant: Messages = {
       smartIngestMultiTopicTitle: "已識別多個獨立主題",
       smartIngestMultiTopicBody:
         "請先確認需要保留的主題。後續將按主題分別整理，不會混合不同業務資料。",
+      smartIngestCandidatesSectionTitle: "待處理主題",
+      smartIngestCandidatesContinuation:
+        "已識別並保留 {{count}} 個獨立主題。每個主題將分別整理為獨立知識內容。",
+      smartIngestCandidatesGeneratedCount: "已生成 {{count}} 個待處理主題",
+      smartIngestCandidatesPreparing: "正在準備主題…",
+      smartIngestCandidatesLoadFailed: "無法載入主題列表，請重試。",
+      smartIngestCandidatesRetry: "重試",
+      smartIngestCandidatesCountMismatch: "主題數量與保留結果不一致，請重試載入。",
+      smartIngestCandidatePending: "待處理",
+      smartIngestCandidateReady: "可繼續",
+      smartIngestCandidateEvidencePreview: "原始內容預覽",
+      smartIngestCandidateSeparateArticleHint:
+        "此主題將單獨整理為一條知識內容，不會與其他主題混合。",
+      smartIngestCandidateNextStep: "下一步：獨立整理",
       analysisTopicsFound: "已識別 {{count}} 個內容主題",
       analysisSingleTopic: "未發現多個獨立主題",
       analysisRetry: "重新分析",

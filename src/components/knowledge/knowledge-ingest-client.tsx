@@ -1569,16 +1569,34 @@ export function KnowledgeIngestClient({
                       className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950"
                       data-smart-ingest-multi-topic-block="true"
                     >
-                      <p className="font-medium">
-                        {t("knowledge.ingest.smartIngestMultiTopicTitle", {
-                          count: String(
-                            smartIngestScope?.retainedProposedSegmentCount ?? 0,
-                          ),
-                        })}
-                      </p>
-                      <p className="mt-2">
-                        {t("knowledge.ingest.smartIngestMultiTopicBody")}
-                      </p>
+                      {(smartIngestScope?.unconfirmedProposedCount ?? 0) === 0 &&
+                      (smartIngestScope?.confirmedSegmentCount ?? 0) > 0 ? (
+                        <>
+                          <p className="font-medium">
+                            {t("knowledge.ingest.smartIngestCandidatesContinuation", {
+                              count: String(
+                                smartIngestScope?.confirmedSegmentCount ?? 0,
+                              ),
+                            })}
+                          </p>
+                          <p className="mt-2 text-sky-900">
+                            {t("knowledge.ingest.smartIngestCandidateSeparateArticleHint")}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">
+                            {t("knowledge.ingest.smartIngestMultiTopicTitle", {
+                              count: String(
+                                smartIngestScope?.activeSegmentCount ?? 0,
+                              ),
+                            })}
+                          </p>
+                          <p className="mt-2">
+                            {t("knowledge.ingest.smartIngestMultiTopicBody")}
+                          </p>
+                        </>
+                      )}
                     </div>
                   ) : null}
                   {visionOrganizeBlocked ? (

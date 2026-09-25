@@ -3426,6 +3426,21 @@ const en = {
       smartIngestMultiTopicTitle: "Multiple independent topics detected",
       smartIngestMultiTopicBody:
         "Confirm which topics to keep first. Each topic will be organized separately so different business materials are not mixed.",
+      smartIngestCandidatesSectionTitle: "Topics to process",
+      smartIngestCandidatesContinuation:
+        "{{count}} separate topics were kept. Each topic will become its own Knowledge article.",
+      smartIngestCandidatesGeneratedCount: "{{count}} topics ready to process",
+      smartIngestCandidatesPreparing: "Preparing topics…",
+      smartIngestCandidatesLoadFailed: "Could not load topics. Please try again.",
+      smartIngestCandidatesRetry: "Retry",
+      smartIngestCandidatesCountMismatch:
+        "Topic count does not match your review. Try reloading.",
+      smartIngestCandidatePending: "Pending",
+      smartIngestCandidateReady: "Ready",
+      smartIngestCandidateEvidencePreview: "Source preview",
+      smartIngestCandidateSeparateArticleHint:
+        "This topic will be organized as a separate Knowledge article.",
+      smartIngestCandidateNextStep: "Next: organize separately",
       analysisTopicsFound: "{{count}} content topics identified",
       analysisSingleTopic: "No separate topics detected",
       analysisRetry: "Analyze again",

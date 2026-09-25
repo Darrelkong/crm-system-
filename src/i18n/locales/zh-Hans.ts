@@ -3223,6 +3223,20 @@ const zhHans: Messages = {
       smartIngestMultiTopicTitle: "已识别多个独立主题",
       smartIngestMultiTopicBody:
         "请先确认需要保留的主题。后续将按主题分别整理，不会混合不同业务资料。",
+      smartIngestCandidatesSectionTitle: "待处理主题",
+      smartIngestCandidatesContinuation:
+        "已识别并保留 {{count}} 个独立主题。每个主题将分别整理为独立知识内容。",
+      smartIngestCandidatesGeneratedCount: "已生成 {{count}} 个待处理主题",
+      smartIngestCandidatesPreparing: "正在准备主题…",
+      smartIngestCandidatesLoadFailed: "无法加载主题列表，请重试。",
+      smartIngestCandidatesRetry: "重试",
+      smartIngestCandidatesCountMismatch: "主题数量与保留结果不一致，请重试加载。",
+      smartIngestCandidatePending: "待处理",
+      smartIngestCandidateReady: "可继续",
+      smartIngestCandidateEvidencePreview: "原始内容预览",
+      smartIngestCandidateSeparateArticleHint:
+        "此主题将单独整理为一条知识内容，不会与其他主题混合。",
+      smartIngestCandidateNextStep: "下一步：独立整理",
       analysisTopicsFound: "已识别 {{count}} 个内容主题",
       analysisSingleTopic: "未发现多个独立主题",
       analysisRetry: "重新分析",
