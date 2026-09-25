@@ -19,6 +19,7 @@ export type OrganizerCategoryResolutionSource =
 export type OrganizerCategoryAiSuggestion = {
   categoryId: string;
   categoryName: string;
+  requiresConfirmation: boolean;
 };
 
 export type OrganizerDraftFields = {
@@ -32,6 +33,9 @@ export type OrganizerDraftFields = {
   categoryResolutionSource: OrganizerCategoryResolutionSource;
   categoryResolutionStatus: KnowledgeCategoryResolutionStatus | null;
   categoryAiSuggestion: OrganizerCategoryAiSuggestion | null;
+  suggestedCategoryId: string | null;
+  suggestedCategoryName: string | null;
+  categoryAiRequiresConfirmation: boolean;
   categorySelectionRequired: boolean;
 };
 
@@ -47,6 +51,9 @@ export function emptyOrganizerDraft(): OrganizerDraftFields {
     categoryResolutionSource: null,
     categoryResolutionStatus: null,
     categoryAiSuggestion: null,
+    suggestedCategoryId: null,
+    suggestedCategoryName: null,
+    categoryAiRequiresConfirmation: false,
     categorySelectionRequired: false,
   };
 }
@@ -140,6 +147,9 @@ export async function buildOrganizerDraftFromOrganization(
   let categoryResolutionSource: OrganizerCategoryResolutionSource = null;
   let categoryResolutionStatus: KnowledgeCategoryResolutionStatus | null = null;
   let categoryAiSuggestion: OrganizerCategoryAiSuggestion | null = null;
+  let suggestedCategoryId: string | null = null;
+  let suggestedCategoryName: string | null = null;
+  let categoryAiRequiresConfirmation = false;
   let categorySelectionRequired = false;
 
   if (options.manualCategoryOverride) {
@@ -180,11 +190,14 @@ export async function buildOrganizerDraftFromOrganization(
     ) {
       categoryResolutionSource = "ai_suggestion";
       if (aiResult.requiresConfirmation) {
+        categoryAiRequiresConfirmation = true;
+        suggestedCategoryId = aiResult.categoryId;
+        suggestedCategoryName = aiResult.categoryName;
         categoryAiSuggestion = {
           categoryId: aiResult.categoryId,
           categoryName: aiResult.categoryName,
+          requiresConfirmation: true,
         };
-        categorySelectionRequired = true;
       } else {
         aiPrefillCategoryId = aiResult.categoryId;
       }
@@ -220,6 +233,9 @@ export async function buildOrganizerDraftFromOrganization(
     categoryResolutionSource,
     categoryResolutionStatus,
     categoryAiSuggestion,
+    suggestedCategoryId,
+    suggestedCategoryName,
+    categoryAiRequiresConfirmation,
     categorySelectionRequired,
   };
 }

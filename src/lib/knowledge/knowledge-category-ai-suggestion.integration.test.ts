@@ -277,8 +277,10 @@ describe("knowledge category AI fallback (2C)", () => {
       }),
     );
     assert.equal(draft.categoryId, "");
-    assert.equal(draft.categoryAiSuggestion?.categoryId, category.id);
-    assert.equal(draft.categorySelectionRequired, true);
+    assert.equal(draft.suggestedCategoryId, category.id);
+    assert.equal(draft.categoryAiRequiresConfirmation, true);
+    assert.equal(draft.categoryAiSuggestion?.requiresConfirmation, true);
+    assert.equal(draft.categorySelectionRequired, false);
   });
 
   it("H: AI error leaves organizer draft usable", async () => {

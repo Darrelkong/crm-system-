@@ -149,6 +149,14 @@ export function KnowledgeIngestClient({
   const [categorySelectionRequired, setCategorySelectionRequired] = useState(
     false,
   );
+  const [categoryAiRequiresConfirmation, setCategoryAiRequiresConfirmation] =
+    useState(false);
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(
+    null,
+  );
+  const [suggestedCategoryName, setSuggestedCategoryName] = useState<
+    string | null
+  >(null);
   const manualRequestedProjectOverrideRef = useRef(false);
   const manualCategoryOverrideRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -314,20 +322,28 @@ export function KnowledgeIngestClient({
     setBody(empty.body);
     if (!options?.preserveKnowledgeCategory) {
       setCategoryId(empty.categoryId);
+      setCategoryResolutionSource(empty.categoryResolutionSource);
+      setCategoryAiSuggestion(empty.categoryAiSuggestion);
+      setSuggestedCategoryId(empty.suggestedCategoryId);
+      setSuggestedCategoryName(empty.suggestedCategoryName);
+      setCategoryAiRequiresConfirmation(empty.categoryAiRequiresConfirmation);
+      setCategorySelectionRequired(empty.categorySelectionRequired);
     }
     setRequestedProjectCode(empty.requestedProjectCode);
     setRequestedProjectName(empty.requestedProjectName);
     setCategoryNotice(empty.categoryNotice);
-    setCategoryResolutionSource(empty.categoryResolutionSource);
-    setCategoryAiSuggestion(empty.categoryAiSuggestion);
-    setCategorySelectionRequired(empty.categorySelectionRequired);
   }
 
   function adoptCategorySuggestion() {
-    if (!categoryAiSuggestion) return;
+    const nextCategoryId =
+      suggestedCategoryId ?? categoryAiSuggestion?.categoryId ?? null;
+    if (!nextCategoryId) return;
     manualCategoryOverrideRef.current = true;
-    setCategoryId(categoryAiSuggestion.categoryId);
+    setCategoryId(nextCategoryId);
     setCategoryAiSuggestion(null);
+    setSuggestedCategoryId(null);
+    setSuggestedCategoryName(null);
+    setCategoryAiRequiresConfirmation(false);
     setCategoryResolutionSource("manual");
     setCategorySelectionRequired(false);
   }
@@ -342,6 +358,9 @@ export function KnowledgeIngestClient({
     setCategoryNotice(draft.categoryNotice);
     setCategoryResolutionSource(draft.categoryResolutionSource);
     setCategoryAiSuggestion(draft.categoryAiSuggestion);
+    setSuggestedCategoryId(draft.suggestedCategoryId);
+    setSuggestedCategoryName(draft.suggestedCategoryName);
+    setCategoryAiRequiresConfirmation(draft.categoryAiRequiresConfirmation);
     setCategorySelectionRequired(draft.categorySelectionRequired);
   }
 
@@ -835,7 +854,7 @@ export function KnowledgeIngestClient({
     if (!selected) return;
     if (!categoryId) {
       setError(
-        categoryAiSuggestion
+        categoryAiRequiresConfirmation || categoryAiSuggestion
           ? t("knowledge.ingest.categoryAiConfirmRequired")
           : t("knowledge.ingest.knowledgeCategoryRequiredBeforeDraft"),
       );
@@ -890,7 +909,9 @@ export function KnowledgeIngestClient({
   const isArchivedView = lifecycle === "archived";
   const selectedArchived = Boolean(selected?.archivedAt);
   const inDetailMode = Boolean(selected);
-  const organizerWarnings = selected?.organization?.warnings ?? [];
+  const organizerWarnings = [
+    ...new Set(selected?.organization?.warnings ?? []),
+  ];
   const visionHumanReviewRequired = selected
     ? sourceRequiresVisionHumanReview({
         extractionMethod: selected.extractionMethod,
@@ -1744,50 +1765,105 @@ export function KnowledgeIngestClient({
                         </p>
                       ) : null}
                     </div>
-                    <div className="space-y-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium crm-text">
-                          {t("knowledge.ingest.knowledgeLibraryCategory")}
-                        </p>
-                        {categoryResolutionSource === "explicit_mapping" ? (
-                          <Badge variant="accent" className="text-xs">
-                            {t("knowledge.ingest.categoryAutoMatched")}
-                          </Badge>
-                        ) : null}
-                        {categoryResolutionSource === "ai_suggestion" && categoryId ? (
-                          <Badge variant="accent" className="text-xs">
-                            {t("knowledge.ingest.categoryAiSuggested")}
-                          </Badge>
-                        ) : null}
-                        {categoryResolutionSource === "manual" && categoryId ? (
-                          <Badge variant="default" className="text-xs">
-                            {t("knowledge.ingest.categoryManualSelected")}
-                          </Badge>
-                        ) : null}
-                        {categorySelectionRequired && !categoryId ? (
-                          <Badge variant="warning" className="text-xs">
-                            {t("knowledge.ingest.categorySelectionRequired")}
-                          </Badge>
-                        ) : null}
-                      </div>
-                      {categoryAiSuggestion && !categoryId ? (
-                        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
-                          <span>
-                            {initialCategories.find(
-                              (category) =>
-                                category.id === categoryAiSuggestion.categoryId,
-                            )?.name ?? categoryAiSuggestion.categoryName}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={adoptCategorySuggestion}
-                          >
-                            {t("knowledge.ingest.adoptCategorySuggestion")}
-                          </Button>
-                        </div>
-                      ) : null}
+                    <div className="space-y-2" data-knowledge-category-field="true">
+                      <p className="text-sm font-medium crm-text">
+                        {t("knowledge.ingest.knowledgeLibraryCategory")}
+                      </p>
+                      {(() => {
+                        const pendingAiConfirmation =
+                          categoryAiRequiresConfirmation &&
+                          !categoryId &&
+                          Boolean(suggestedCategoryId ?? categoryAiSuggestion);
+                        const displayCategoryName =
+                          categoryId
+                            ? initialCategories.find(
+                                (category) => category.id === categoryId,
+                              )?.name ?? ""
+                            : suggestedCategoryName ??
+                              categoryAiSuggestion?.categoryName ??
+                              "";
+                        const showAiSuggestedBadge =
+                          categoryResolutionSource === "ai_suggestion" ||
+                          pendingAiConfirmation;
+                        const showSelectionRequiredBadge =
+                          categorySelectionRequired &&
+                          !categoryId &&
+                          !pendingAiConfirmation;
+                        return (
+                          <>
+                            {displayCategoryName &&
+                            (categoryId || pendingAiConfirmation) ? (
+                              <div
+                                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+                                data-knowledge-category-display="true"
+                              >
+                                <span>{displayCategoryName}</span>
+                                {showAiSuggestedBadge ? (
+                                  <Badge
+                                    variant="accent"
+                                    className="text-xs"
+                                    data-category-state-badge="ai_suggestion"
+                                  >
+                                    {t("knowledge.ingest.categoryAiSuggested")}
+                                  </Badge>
+                                ) : null}
+                                {pendingAiConfirmation ? (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    data-adopt-category-suggestion="true"
+                                    onClick={adoptCategorySuggestion}
+                                  >
+                                    {t("knowledge.ingest.adoptCategorySuggestion")}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {categoryResolutionSource === "explicit_mapping" ? (
+                                <Badge
+                                  variant="accent"
+                                  className="text-xs"
+                                  data-category-state-badge="explicit_mapping"
+                                >
+                                  {t("knowledge.ingest.categoryAutoMatched")}
+                                </Badge>
+                              ) : null}
+                              {categoryResolutionSource === "manual" &&
+                              categoryId ? (
+                                <Badge
+                                  variant="default"
+                                  className="text-xs"
+                                  data-category-state-badge="manual"
+                                >
+                                  {t("knowledge.ingest.categoryManualSelected")}
+                                </Badge>
+                              ) : null}
+                              {showAiSuggestedBadge &&
+                              categoryId &&
+                              !displayCategoryName ? (
+                                <Badge
+                                  variant="accent"
+                                  className="text-xs"
+                                  data-category-state-badge="ai_suggestion"
+                                >
+                                  {t("knowledge.ingest.categoryAiSuggested")}
+                                </Badge>
+                              ) : null}
+                              {showSelectionRequiredBadge ? (
+                                <Badge
+                                  variant="warning"
+                                  className="text-xs"
+                                  data-category-state-badge="selection_required"
+                                >
+                                  {t("knowledge.ingest.categorySelectionRequired")}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </>
+                        );
+                      })()}
                       <select
                         required
                         value={categoryId}
@@ -1796,6 +1872,9 @@ export function KnowledgeIngestClient({
                           setCategoryId(event.target.value);
                           setCategoryResolutionSource("manual");
                           setCategoryAiSuggestion(null);
+                          setSuggestedCategoryId(null);
+                          setSuggestedCategoryName(null);
+                          setCategoryAiRequiresConfirmation(false);
                           setCategorySelectionRequired(false);
                         }}
                         className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
