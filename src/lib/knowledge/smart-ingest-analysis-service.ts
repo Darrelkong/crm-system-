@@ -20,6 +20,10 @@ import {
   segmentKnowledgePasteTextDeterministic,
 } from "@/lib/knowledge/smart-ingest-deterministic-segmentation";
 import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
+import {
+  maybeMaterializeKnowledgeSegmentCandidates,
+  supersedeKnowledgeSegmentCandidatesForReanalysis,
+} from "@/lib/knowledge/knowledge-segment-candidate-service";
 
 function analysisError(code: string, message: string, status = 400): KnowledgeServiceError {
   return new KnowledgeServiceError(code, message, status);
@@ -177,6 +181,8 @@ export async function startKnowledgeSourceAnalysis(
       metadata: { sourceId, status: "pending" },
     }),
   ]);
+
+  await supersedeKnowledgeSegmentCandidatesForReanalysis(sourceId, runId, db);
 
   return { runId, status: "pending" };
 }
@@ -421,6 +427,8 @@ export async function updateKnowledgeSourceSegmentStatus(
       .where(eq(schema.knowledgeSourceSegments.id, segmentId))
       .limit(1)
   )[0]!;
+  await maybeMaterializeKnowledgeSegmentCandidates(context, sourceId, db);
+
   return {
     id: updated.id,
     segmentIndex: updated.segmentIndex,
