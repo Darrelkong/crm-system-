@@ -3237,6 +3237,17 @@ const zhHant: Messages = {
       smartIngestCandidateSeparateArticleHint:
         "此主題將單獨整理為一條知識內容，不會與其他主題混合。",
       smartIngestCandidateNextStep: "下一步：獨立整理",
+      smartIngestCandidateOrganizeIndependently: "AI 獨立整理",
+      smartIngestCandidateOrganizing: "整理中…",
+      smartIngestCandidateOrganized: "已整理",
+      smartIngestCandidateOrganizeFailed: "整理失敗，請重試。",
+      smartIngestCandidateReorganize: "重新整理",
+      smartIngestCategoryAfterOrganize: "待整理後建議",
+      smartIngestCandidateOrganizedOutput: "整理結果",
+      smartIngestCandidateCompareNextStep: "下一步：知識比較",
+      smartIngestStepIndependentOrganize: "獨立整理",
+      smartIngestStepIndependentOrganizeBody:
+        "請在上方每個主題卡片中使用「AI 獨立整理」，分別完成業務識別與內容整理。",
       analysisTopicsFound: "已識別 {{count}} 個內容主題",
       analysisSingleTopic: "未發現多個獨立主題",
       analysisRetry: "重新分析",

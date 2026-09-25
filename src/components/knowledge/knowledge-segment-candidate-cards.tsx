@@ -2,9 +2,9 @@
 
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { cn } from "@/lib/cn";
+import type { KnowledgeCategoryListItem } from "@/lib/knowledge/core-service";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
+import { KnowledgeSegmentCandidateCard } from "@/components/knowledge/knowledge-segment-candidate-card";
 
 const PREVIEW_MAX_LINES = 3;
 const PREVIEW_MAX_CHARS = 240;
@@ -19,27 +19,26 @@ export function evidencePreviewForCandidate(text: string): string {
   return `${compact.slice(0, PREVIEW_MAX_CHARS)}…`;
 }
 
-function candidateStatusLabelKey(
-  status: KnowledgeSegmentCandidateDetail["status"],
-): string {
-  if (status === "ready") {
-    return "knowledge.ingest.smartIngestCandidateReady";
-  }
-  return "knowledge.ingest.smartIngestCandidatePending";
-}
-
 export function KnowledgeSegmentCandidateCards({
+  sourceId,
   candidates,
+  categories,
+  locale,
   loading,
   error,
   countMismatch,
   onRetry,
+  onCandidateUpdated,
 }: {
+  sourceId: string;
   candidates: KnowledgeSegmentCandidateDetail[];
+  categories: KnowledgeCategoryListItem[];
+  locale: "zh-Hans" | "zh-Hant" | "en";
   loading: boolean;
   error: string | null;
   countMismatch: boolean;
   onRetry: () => void;
+  onCandidateUpdated: () => void;
 }) {
   const { t } = useTranslation();
 
@@ -107,45 +106,13 @@ export function KnowledgeSegmentCandidateCards({
       <ul className="space-y-3">
         {candidates.map((candidate) => (
           <li key={candidate.id}>
-            <Card
-              className={cn("p-4", "border-slate-200 bg-white")}
-              data-candidate-card="true"
-              data-candidate-id={candidate.id}
-              data-candidate-segment-index={String(candidate.segmentIndex)}
-            >
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
-                {t("knowledge.ingest.segmentNumber", {
-                  index: String(candidate.segmentIndex + 1),
-                })}
-              </p>
-              <p className="mt-1 text-base font-semibold crm-text">
-                {candidate.segmentTitleHint}
-              </p>
-              <p
-                className="mt-2 text-xs font-medium text-slate-600"
-                data-candidate-status-label="true"
-              >
-                {t(candidateStatusLabelKey(candidate.status))}
-              </p>
-              <p className="mt-3 text-xs font-medium crm-text-secondary">
-                {t("knowledge.ingest.smartIngestCandidateEvidencePreview")}
-              </p>
-              <pre
-                className="mt-1 whitespace-pre-wrap break-words text-sm leading-6 crm-text"
-                data-candidate-evidence-preview="true"
-              >
-                {evidencePreviewForCandidate(candidate.segmentEvidenceText)}
-              </pre>
-              <p className="mt-3 text-xs crm-text-secondary">
-                {t("knowledge.ingest.smartIngestCandidateSeparateArticleHint")}
-              </p>
-              <p
-                className="mt-2 text-xs text-slate-500"
-                data-candidate-next-step="true"
-              >
-                {t("knowledge.ingest.smartIngestCandidateNextStep")}
-              </p>
-            </Card>
+            <KnowledgeSegmentCandidateCard
+              sourceId={sourceId}
+              candidate={candidate}
+              categories={categories}
+              locale={locale}
+              onUpdated={onCandidateUpdated}
+            />
           </li>
         ))}
       </ul>

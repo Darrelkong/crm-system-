@@ -10,6 +10,9 @@ import {
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import type { KnowledgeSourceSegmentCandidate } from "../../../drizzle/schema/knowledge-source-segment-candidates";
 import type { KnowledgeSourceSegmentStatus } from "../../../drizzle/schema/knowledge-source-segments";
+import type { KnowledgeAiRunStatus } from "../../../drizzle/schema/knowledge-ai-organization-runs";
+import { latestCandidateOrganization } from "@/lib/knowledge/knowledge-organization-run-queries";
+import { applyCandidateBusinessFromEvidence } from "@/lib/knowledge/knowledge-segment-candidate-classification";
 
 function candidateError(
   code: string,
@@ -38,6 +41,9 @@ export type KnowledgeSegmentCandidateDetail = {
   segmentTitleHint: string;
   segmentEvidenceText: string;
   segmentStatus: KnowledgeSourceSegmentStatus;
+  organizationStatus: KnowledgeAiRunStatus | null;
+  organizationFailureCode: string | null;
+  organizationCompleted: boolean;
 };
 
 function mapCandidateRow(
@@ -47,6 +53,10 @@ function mapCandidateRow(
     evidenceText: string;
     status: KnowledgeSourceSegmentStatus;
   },
+  organization: {
+    status: KnowledgeAiRunStatus | null;
+    failureCode: string | null;
+  } = { status: null, failureCode: null },
 ): KnowledgeSegmentCandidateDetail {
   return {
     id: row.id,
@@ -67,6 +77,9 @@ function mapCandidateRow(
     segmentTitleHint: segment.titleHint,
     segmentEvidenceText: segment.evidenceText,
     segmentStatus: segment.status,
+    organizationStatus: organization.status,
+    organizationFailureCode: organization.failureCode,
+    organizationCompleted: organization.status === "completed",
   };
 }
 
@@ -175,8 +188,9 @@ export async function materializeKnowledgeSegmentCandidatesForSource(
     if (existing) {
       continue;
     }
+    const candidateId = crypto.randomUUID();
     await db.insert(schema.knowledgeSourceSegmentCandidates).values({
-      id: crypto.randomUUID(),
+      id: candidateId,
       sourceId,
       segmentId: segment.id,
       analysisRunId: run.id,
@@ -193,6 +207,18 @@ export async function materializeKnowledgeSegmentCandidatesForSource(
       supersededAt: null,
       supersededByAnalysisRunId: null,
     });
+    const inserted = (
+      await db
+        .select()
+        .from(schema.knowledgeSourceSegmentCandidates)
+        .where(eq(schema.knowledgeSourceSegmentCandidates.id, candidateId))
+        .limit(1)
+    )[0]!;
+    await applyCandidateBusinessFromEvidence(
+      inserted,
+      segment.evidenceText,
+      db,
+    );
   }
 
   return listKnowledgeSegmentCandidates(context, sourceId, db);
@@ -265,5 +291,25 @@ export async function listKnowledgeSegmentCandidates(
     )
     .orderBy(schema.knowledgeSourceSegmentCandidates.segmentIndex);
 
-  return rows.map((row) => mapCandidateRow(row.candidate, row.segment));
+  const mapped: KnowledgeSegmentCandidateDetail[] = [];
+  for (const row of rows) {
+    const orgRun = await latestCandidateOrganization(row.candidate.id, db);
+    mapped.push(
+      mapCandidateRow(row.candidate, row.segment, {
+        status: orgRun?.status ?? null,
+        failureCode: orgRun?.failureCode ?? null,
+      }),
+    );
+  }
+  return mapped;
+}
+
+export async function getKnowledgeSegmentCandidate(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  candidateId: string,
+  db: Database = getDb(),
+): Promise<KnowledgeSegmentCandidateDetail | null> {
+  const list = await listKnowledgeSegmentCandidates(context, sourceId, db);
+  return list.find((row) => row.id === candidateId) ?? null;
 }

@@ -9,6 +9,7 @@ import { cn } from "@/lib/cn";
 import { Card } from "@/components/ui/card";
 import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
+import type { KnowledgeCategoryListItem } from "@/lib/knowledge/core-service";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/knowledge-sources";
 import {
@@ -76,11 +77,15 @@ function initialRunFromSource(source: KnowledgeSourceDetail): AnalysisRun | null
 
 export function KnowledgeSmartIngestAnalysisSection({
   source,
+  categories,
+  locale,
   onAnalysisStatusChange,
   onScopeChange,
   onAnalysisComplete,
 }: {
   source: KnowledgeSourceDetail;
+  categories: KnowledgeCategoryListItem[];
+  locale: "zh-Hans" | "zh-Hant" | "en";
   onAnalysisStatusChange: (status: KnowledgeSourceAnalysisStatus) => void;
   onScopeChange?: (scope: SmartIngestSourceScope) => void;
   onAnalysisComplete?: () => void | Promise<void>;
@@ -525,11 +530,17 @@ export function KnowledgeSmartIngestAnalysisSection({
           ) : null}
           {segmentReviewComplete ? (
             <KnowledgeSegmentCandidateCards
+              sourceId={source.id}
               candidates={candidates}
+              categories={categories}
+              locale={locale}
               loading={candidatesLoading}
               error={candidatesError}
               countMismatch={candidateCountMismatch}
               onRetry={() => void refreshCandidates(confirmedSegments.length)}
+              onCandidateUpdated={() =>
+                void refreshCandidates(confirmedSegments.length)
+              }
             />
           ) : null}
         {showSegmentDetailList ? (

@@ -37,8 +37,11 @@ import {
   type KnowledgeAuditInput,
   writeKnowledgeAudit,
 } from "@/lib/knowledge/audit";
-import { parseKnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
 import type { KnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
+import {
+  latestSourceLevelOrganization,
+  mapOrganizationRun,
+} from "@/lib/knowledge/knowledge-organization-run-queries";
 import {
   loadSmartIngestSourceScope,
   type SmartIngestSourceScope,
@@ -486,54 +489,6 @@ async function getSourceRow(
   return source;
 }
 
-async function latestOrganization(
-  sourceId: string,
-  db: Database,
-): Promise<KnowledgeAiOrganizationRun | null> {
-  return (
-    await db
-      .select()
-      .from(schema.knowledgeAiOrganizationRuns)
-      .where(eq(schema.knowledgeAiOrganizationRuns.sourceId, sourceId))
-      .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt))
-      .limit(1)
-  )[0] ?? null;
-}
-
-function mapOrganization(
-  run: KnowledgeAiOrganizationRun | null,
-): KnowledgeSourceDetail["organization"] {
-  if (!run) return null;
-  let warnings: string[] = [];
-  if (run.warningsJson) {
-    try {
-      const parsed = JSON.parse(run.warningsJson) as unknown;
-      if (Array.isArray(parsed)) {
-        warnings = parsed.filter((value): value is string => typeof value === "string");
-      }
-    } catch {
-      warnings = [];
-    }
-  }
-  return {
-    id: run.id,
-    status: run.status,
-    provider: run.provider,
-    model: run.model,
-    proposedTitle: run.proposedTitle,
-    proposedSummary: run.proposedSummary,
-    proposedBody: run.proposedBody,
-    proposedCategory: run.proposedCategory,
-    businessIdentity: parseKnowledgePasteBusinessIdentityJson(
-      run.businessIdentityJson,
-    ),
-    warnings,
-    failureCode: run.failureCode,
-    createdAt: run.createdAt,
-    completedAt: run.completedAt,
-  };
-}
-
 export async function listKnowledgeSources(
   context: KnowledgeSessionContext,
   options: { lifecycle?: KnowledgeSourceLifecycle } = {},
@@ -576,7 +531,9 @@ export async function getKnowledgeSource(
       source.extractionMetadataJson,
     ),
     pageCount: source.pageCount,
-    organization: mapOrganization(await latestOrganization(source.id, db)),
+    organization: mapOrganizationRun(
+      await latestSourceLevelOrganization(source.id, db),
+    ),
     smartIngestScope: await loadSmartIngestSourceScope(
       source.id,
       source.analysisStatus,
@@ -1174,7 +1131,7 @@ export async function convertKnowledgeSourceToDraft(
       409,
     );
   }
-  const run = await latestOrganization(sourceId, db);
+  const run = await latestSourceLevelOrganization(sourceId, db);
   if (
     !run ||
     run.status !== "completed" ||

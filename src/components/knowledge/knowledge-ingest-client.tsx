@@ -1537,6 +1537,8 @@ export function KnowledgeIngestClient({
                   <KnowledgeSmartIngestAnalysisSection
                     key={selected.id}
                     source={selected}
+                    categories={initialCategories}
+                    locale={locale}
                     onAnalysisStatusChange={syncSourceAnalysisStatus}
                     onScopeChange={setSmartIngestScopeLive}
                     onAnalysisComplete={handleAnalysisComplete}
@@ -1548,7 +1550,12 @@ export function KnowledgeIngestClient({
                 <Card className="p-4" data-ingest-step="organize">
                   <KnowledgeIngestStepHeader
                     step={3}
-                    title={t("knowledge.ingest.stepOrganize")}
+                    title={
+                      blocksSourceLevelPipeline &&
+                      (smartIngestScope?.confirmedSegmentCount ?? 0) > 0
+                        ? t("knowledge.ingest.smartIngestStepIndependentOrganize")
+                        : t("knowledge.ingest.stepOrganize")
+                    }
                     status={
                       organizationReady
                         ? t("knowledge.ingest.statusCompleted")
@@ -1573,14 +1580,10 @@ export function KnowledgeIngestClient({
                       (smartIngestScope?.confirmedSegmentCount ?? 0) > 0 ? (
                         <>
                           <p className="font-medium">
-                            {t("knowledge.ingest.smartIngestCandidatesContinuation", {
-                              count: String(
-                                smartIngestScope?.confirmedSegmentCount ?? 0,
-                              ),
-                            })}
+                            {t("knowledge.ingest.smartIngestStepIndependentOrganize")}
                           </p>
                           <p className="mt-2 text-sky-900">
-                            {t("knowledge.ingest.smartIngestCandidateSeparateArticleHint")}
+                            {t("knowledge.ingest.smartIngestStepIndependentOrganizeBody")}
                           </p>
                         </>
                       ) : (

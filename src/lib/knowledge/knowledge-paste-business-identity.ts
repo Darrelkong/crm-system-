@@ -16,7 +16,7 @@ export type KnowledgePasteBusinessIdentity = {
   countryLabelZhHans: string;
   requestedProjectCode: string | null;
   categoryMatch: KnowledgePasteCategoryMatch;
-  signal: "chase_us_banking" | "hsbc_hk_banking" | "unknown";
+  signal: "chase_us_banking" | "hsbc_hk_banking" | "hk_private_banking" | "unknown";
   confidence: number;
 };
 
@@ -63,6 +63,16 @@ function scoreHsbcHkBanking(text: string): number {
   return score;
 }
 
+function scoreHkPrivateBanking(text: string): number {
+  let score = 0;
+  if (/中国银行.*香港|中國銀行.*香港/.test(text)) score += 5;
+  if (/香港私人银行|香港私人銀行/.test(text) && !/汇丰|滙豐|\bhsbc\b/i.test(text)) {
+    score += 4;
+  }
+  if (/中银香港|中銀香港/.test(text)) score += 4;
+  return score;
+}
+
 type IdentityCandidate = KnowledgePasteBusinessIdentity & { score: number };
 
 function buildCandidate(
@@ -92,6 +102,7 @@ export function deriveKnowledgePasteBusinessIdentity(
   const text = rawText.trim();
   const chaseScore = scoreChaseUsBanking(text);
   const hsbcScore = scoreHsbcHkBanking(text);
+  const hkPrivateScore = scoreHkPrivateBanking(text);
 
   const candidates: IdentityCandidate[] = [];
   if (chaseScore > 0) {
@@ -122,6 +133,20 @@ export function deriveKnowledgePasteBusinessIdentity(
       buildCandidate(
         "hsbc_hk_banking",
         hsbcScore,
+        title,
+        "hong_kong",
+        "hk_bank_account",
+      ),
+    );
+  }
+  if (hkPrivateScore > 0) {
+    const line = firstMeaningfulLine(text).replace(/^#+\s*/, "").slice(0, 200);
+    const title =
+      line.length > 0 ? line : "香港私人银行账户";
+    candidates.push(
+      buildCandidate(
+        "hk_private_banking",
+        hkPrivateScore,
         title,
         "hong_kong",
         "hk_bank_account",

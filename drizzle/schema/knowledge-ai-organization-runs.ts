@@ -8,6 +8,7 @@ import {
 import { sql } from "drizzle-orm";
 import { users } from "./users";
 import { knowledgeSources } from "./knowledge-sources";
+import { knowledgeSourceSegmentCandidates } from "./knowledge-source-segment-candidates";
 
 export const KNOWLEDGE_AI_RUN_STATUSES = [
   "pending",
@@ -25,6 +26,10 @@ export const knowledgeAiOrganizationRuns = sqliteTable(
     sourceId: text("source_id")
       .notNull()
       .references(() => knowledgeSources.id, { onDelete: "restrict" }),
+    candidateId: text("candidate_id").references(
+      () => knowledgeSourceSegmentCandidates.id,
+      { onDelete: "restrict" },
+    ),
     requestedByUserId: text("requested_by_user_id")
       .notNull()
       .references(() => users.id, { onDelete: "restrict" }),
@@ -48,13 +53,24 @@ export const knowledgeAiOrganizationRuns = sqliteTable(
       table.sourceId,
       table.createdAt,
     ),
+    index("idx_knowledge_ai_runs_candidate_created").on(
+      table.candidateId,
+      table.createdAt,
+    ),
     index("idx_knowledge_ai_runs_requester_created").on(
       table.requestedByUserId,
       table.createdAt,
     ),
-    uniqueIndex("uq_knowledge_ai_runs_active_source")
+    uniqueIndex("uq_knowledge_ai_runs_active_source_legacy")
       .on(table.sourceId)
-      .where(sql`${table.status} IN ('pending', 'processing')`),
+      .where(
+        sql`${table.candidateId} IS NULL AND ${table.status} IN ('pending', 'processing')`,
+      ),
+    uniqueIndex("uq_knowledge_ai_runs_active_candidate")
+      .on(table.candidateId)
+      .where(
+        sql`${table.candidateId} IS NOT NULL AND ${table.status} IN ('pending', 'processing')`,
+      ),
     check(
       "knowledge_ai_runs_status_allowed",
       sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`,

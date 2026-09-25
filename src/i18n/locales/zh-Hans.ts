@@ -3237,6 +3237,17 @@ const zhHans: Messages = {
       smartIngestCandidateSeparateArticleHint:
         "此主题将单独整理为一条知识内容，不会与其他主题混合。",
       smartIngestCandidateNextStep: "下一步：独立整理",
+      smartIngestCandidateOrganizeIndependently: "AI独立整理",
+      smartIngestCandidateOrganizing: "整理中…",
+      smartIngestCandidateOrganized: "已整理",
+      smartIngestCandidateOrganizeFailed: "整理失败，请重试。",
+      smartIngestCandidateReorganize: "重新整理",
+      smartIngestCategoryAfterOrganize: "待整理后建议",
+      smartIngestCandidateOrganizedOutput: "整理结果",
+      smartIngestCandidateCompareNextStep: "下一步：知识比较",
+      smartIngestStepIndependentOrganize: "独立整理",
+      smartIngestStepIndependentOrganizeBody:
+        "请在上方每个主题卡片中使用「AI独立整理」，分别完成业务识别与内容整理。",
       analysisTopicsFound: "已识别 {{count}} 个内容主题",
       analysisSingleTopic: "未发现多个独立主题",
       analysisRetry: "重新分析",

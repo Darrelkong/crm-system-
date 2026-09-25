@@ -3441,6 +3441,17 @@ const en = {
       smartIngestCandidateSeparateArticleHint:
         "This topic will be organized as a separate Knowledge article.",
       smartIngestCandidateNextStep: "Next: organize separately",
+      smartIngestCandidateOrganizeIndependently: "Organize independently",
+      smartIngestCandidateOrganizing: "Organizing…",
+      smartIngestCandidateOrganized: "Organized",
+      smartIngestCandidateOrganizeFailed: "Organization failed. Please try again.",
+      smartIngestCandidateReorganize: "Re-organize",
+      smartIngestCategoryAfterOrganize: "Suggestion after organize",
+      smartIngestCandidateOrganizedOutput: "Organized output",
+      smartIngestCandidateCompareNextStep: "Next: knowledge compare",
+      smartIngestStepIndependentOrganize: "Organize per topic",
+      smartIngestStepIndependentOrganizeBody:
+        "Use “Organize independently” on each topic card above to identify the business and organize content separately.",
       analysisTopicsFound: "{{count}} content topics identified",
       analysisSingleTopic: "No separate topics detected",
       analysisRetry: "Analyze again",

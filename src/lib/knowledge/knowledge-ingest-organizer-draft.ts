@@ -117,12 +117,16 @@ export async function buildOrganizerDraftFromOrganization(
   },
   db?: Database,
   deps?: OrganizerDraftBuildDeps,
+  flags?: { bypassSourceLevelOrganizeBlock?: boolean },
 ): Promise<OrganizerDraftFields> {
   const organization = source.organization;
   if (!organization || organization.status !== "completed") {
     return emptyOrganizerDraft();
   }
-  if (source.smartIngestScope.blocksSourceLevelOrganize) {
+  if (
+    source.smartIngestScope.blocksSourceLevelOrganize &&
+    !flags?.bypassSourceLevelOrganizeBlock
+  ) {
     return emptyOrganizerDraft();
   }
 
