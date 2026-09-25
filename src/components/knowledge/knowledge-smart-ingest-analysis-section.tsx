@@ -18,6 +18,12 @@ import {
 } from "@/lib/knowledge/smart-ingest-source-scope";
 import { KnowledgeSegmentCandidateCards } from "@/components/knowledge/knowledge-segment-candidate-cards";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
+import {
+  buildCandidateLineageKey,
+  confirmedSegmentCountFromScope,
+  resolveStableAnalysisRunId,
+  shouldResetCandidateLineage,
+} from "@/lib/knowledge/knowledge-smart-ingest-candidate-lineage";
 
 type AnalysisSegment = {
   id: string;
@@ -106,7 +112,12 @@ export function KnowledgeSmartIngestAnalysisSection({
   const [candidateCountMismatch, setCandidateCountMismatch] = useState(false);
   const materializeAttemptedRef = useRef(false);
   const candidatesRef = useRef<KnowledgeSegmentCandidateDetail[]>([]);
+  const candidateLineageKeyRef = useRef<string | null>(null);
+  const candidatesEverLoadedRef = useRef(false);
+  const [candidatesEverLoaded, setCandidatesEverLoaded] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stableAnalysisRunId = resolveStableAnalysisRunId(source, run);
+  const confirmedSegmentCount = confirmedSegmentCountFromScope(source, run);
 
   useEffect(() => {
     candidatesRef.current = candidates;
@@ -126,12 +137,60 @@ export function KnowledgeSmartIngestAnalysisSection({
   useEffect(() => () => stopPolling(), [stopPolling]);
 
   useEffect(() => {
+    if (!stableAnalysisRunId) {
+      return;
+    }
+    const nextLineageKey = buildCandidateLineageKey(
+      source.id,
+      stableAnalysisRunId,
+    );
+    if (!shouldResetCandidateLineage(candidateLineageKeyRef.current, nextLineageKey)) {
+      candidateLineageKeyRef.current = nextLineageKey;
+      return;
+    }
+    candidateLineageKeyRef.current = nextLineageKey;
     materializeAttemptedRef.current = false;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset candidate UI when analysis run changes
+    candidatesEverLoadedRef.current = false;
+    setCandidatesEverLoaded(false);
     setCandidates([]);
     setCandidatesError(null);
     setCandidateCountMismatch(false);
-  }, [source.id, run?.id]);
+  }, [source.id, stableAnalysisRunId]);
+
+  useEffect(() => {
+    if (
+      analyzing ||
+      run?.status === "pending" ||
+      run?.status === "processing" ||
+      !stableAnalysisRunId ||
+      source.smartIngestScope.latestAnalysisRunId !== stableAnalysisRunId ||
+      source.analysisStatus !== "ready_for_review" ||
+      source.smartIngestScope.segments.length === 0
+    ) {
+      return;
+    }
+    if (run?.status === "completed" && run.id === stableAnalysisRunId) {
+      return;
+    }
+    setRun({
+      id: stableAnalysisRunId,
+      status: "completed",
+      failureMessage: null,
+      segments: source.smartIngestScope.segments.map((segment) => ({
+        ...segment,
+        createdAt: "",
+      })),
+    });
+  }, [
+    analyzing,
+    run?.id,
+    run?.status,
+    source.analysisStatus,
+    source.id,
+    source.smartIngestScope.latestAnalysisRunId,
+    source.smartIngestScope.segments,
+    stableAnalysisRunId,
+  ]);
 
   const refreshCandidates = useCallback(
     async (
@@ -142,8 +201,11 @@ export function KnowledgeSmartIngestAnalysisSection({
         setCandidates([]);
         return;
       }
-      const initialLoad = candidatesRef.current.length === 0;
-      if (!options.silent || initialLoad) {
+      const showInitialPreparing =
+        !options.silent &&
+        candidatesRef.current.length === 0 &&
+        !candidatesEverLoadedRef.current;
+      if (showInitialPreparing) {
         setCandidatesLoading(true);
       }
       setCandidatesError(null);
@@ -187,6 +249,10 @@ export function KnowledgeSmartIngestAnalysisSection({
         }
         list.sort((a, b) => a.segmentIndex - b.segmentIndex);
         setCandidates(list);
+        if (list.length > 0) {
+          candidatesEverLoadedRef.current = true;
+          setCandidatesEverLoaded(true);
+        }
         if (list.length !== confirmedCount) {
           setCandidateCountMismatch(true);
         }
@@ -241,18 +307,12 @@ export function KnowledgeSmartIngestAnalysisSection({
   }, [onScopeChange, run, source, source.analysisStatus]);
 
   useEffect(() => {
-    if (!run || run.status !== "completed") return;
-    const active = run.segments.filter(
-      (segment) => segment.status !== "superseded",
-    );
-    const confirmedCount = active.filter(
-      (segment) => segment.status === "confirmed",
-    ).length;
-    if (confirmedCount > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- load candidates when any segment is confirmed
-      void refreshCandidates(confirmedCount);
-    }
-  }, [refreshCandidates, run]);
+    if (!stableAnalysisRunId || confirmedSegmentCount === 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- bounded load when lineage or confirmed count changes
+    void refreshCandidates(confirmedSegmentCount, {
+      silent: candidatesEverLoadedRef.current,
+    });
+  }, [confirmedSegmentCount, refreshCandidates, stableAnalysisRunId]);
 
   async function startAnalysis() {
     if (!isPaste) return;
@@ -416,7 +476,9 @@ export function KnowledgeSmartIngestAnalysisSection({
   const rejectedSegments =
     run?.segments.filter((segment) => segment.status === "rejected") ?? [];
   const showReview =
-    run?.status === "completed" && activeSegments.length > 0;
+    Boolean(stableAnalysisRunId) &&
+    activeSegments.length > 0 &&
+    (run?.status === "completed" || source.analysisStatus === "ready_for_review");
   const segmentReviewComplete =
     showReview && proposedSegments.length === 0 && confirmedSegments.length > 0;
   const showMultiTopicGuidance =
@@ -434,7 +496,10 @@ export function KnowledgeSmartIngestAnalysisSection({
     segmentsForReviewList.length > 0 &&
     !(segmentReviewComplete && candidates.length > 0);
   const showCandidateSection =
-    showReview && (confirmedSegments.length > 0 || candidates.length > 0);
+    Boolean(stableAnalysisRunId) &&
+    (confirmedSegments.length > 0 ||
+      candidates.length > 0 ||
+      candidatesEverLoaded);
   const reviewTitle =
     activeSegments.length === 1
       ? t("knowledge.ingest.analysisSingleTopic")

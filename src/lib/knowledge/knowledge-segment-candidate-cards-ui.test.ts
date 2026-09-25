@@ -101,7 +101,8 @@ describe("knowledge segment candidate partial review + refresh stability (2E-4B)
   });
 
   it("loads candidates on mount when confirmedCount > 0 without waiting for proposed zero", () => {
-    assert.match(analysis, /if \(confirmedCount > 0\)/);
+    assert.match(analysis, /confirmedSegmentCount === 0/);
+    assert.match(analysis, /stableAnalysisRunId/);
     assert.doesNotMatch(analysis, /proposedRemaining === 0 && confirmedCount > 0/);
   });
 
@@ -125,7 +126,19 @@ describe("knowledge segment candidate partial review + refresh stability (2E-4B)
 
   it("uses stable materialize attempt ref keyed by source and analysis run", () => {
     assert.match(analysis, /materializeAttemptedRef/);
-    assert.match(analysis, /\[source\.id, run\?\.id\]/);
+    assert.match(analysis, /stableAnalysisRunId/);
+    assert.doesNotMatch(analysis, /\[source\.id, run\?\.id\]/);
+  });
+
+  it("preserves candidate lineage across transient null run state", () => {
+    assert.match(analysis, /resolveStableAnalysisRunId/);
+    assert.match(analysis, /shouldResetCandidateLineage/);
+    assert.match(analysis, /candidatesEverLoadedRef/);
+  });
+
+  it("does not bind candidate refresh effect to mutable run object identity", () => {
+    assert.match(analysis, /\[confirmedSegmentCount, refreshCandidates, stableAnalysisRunId\]/);
+    assert.doesNotMatch(analysis, /\[refreshCandidates, run\]/);
   });
 
   it("incremental preparing copy is localized", () => {
