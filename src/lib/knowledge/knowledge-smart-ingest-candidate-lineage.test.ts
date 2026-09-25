@@ -4,6 +4,7 @@ import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
 import {
   buildCandidateLineageKey,
   confirmedSegmentCountFromScope,
+  resolveSmartIngestDisplayRun,
   resolveStableAnalysisRunId,
   shouldResetCandidateLineage,
 } from "@/lib/knowledge/knowledge-smart-ingest-candidate-lineage";
@@ -83,6 +84,18 @@ describe("knowledge smart ingest candidate lineage (2E-4C)", () => {
       ),
       true,
     );
+  });
+
+  it("derives completed display run from source scope when local run is transiently null", () => {
+    const source = {
+      analysisStatus: "ready_for_review" as const,
+      ...sourceScope("run-a", [{ status: "confirmed" }, { status: "proposed" }]),
+    };
+    const display = resolveSmartIngestDisplayRun(source, null, false);
+    assert.equal(display?.id, "run-a");
+    assert.equal(display?.status, "completed");
+    assert.equal(display?.segments.length, 2);
+    assert.equal(display?.segments[0]?.status, "confirmed");
   });
 
   it("counts confirmed segments from completed run or source scope", () => {

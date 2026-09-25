@@ -19,7 +19,7 @@ import {
   materializeDeterministicSegments,
   segmentKnowledgePasteTextDeterministic,
 } from "@/lib/knowledge/smart-ingest-deterministic-segmentation";
-import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
+import { buildKnowledgeAuditInsert } from "@/lib/knowledge/audit";
 import { sourceHasConvertedSegmentCandidates } from "@/lib/knowledge/knowledge-segment-candidate-convert-service";
 import {
   maybeMaterializeKnowledgeSegmentCandidates,

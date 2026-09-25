@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
@@ -25,6 +25,7 @@ import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-
 import {
   buildCandidateLineageKey,
   confirmedSegmentCountFromScope,
+  resolveSmartIngestDisplayRun,
   resolveStableAnalysisRunId,
   shouldResetCandidateLineage,
 } from "@/lib/knowledge/knowledge-smart-ingest-candidate-lineage";
@@ -124,7 +125,14 @@ export function KnowledgeSmartIngestAnalysisSection({
   >({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableAnalysisRunId = resolveStableAnalysisRunId(source, run);
-  const confirmedSegmentCount = confirmedSegmentCountFromScope(source, run);
+  const displayRun = useMemo(
+    () => resolveSmartIngestDisplayRun(source, run, analyzing),
+    [analyzing, run, source],
+  );
+  const confirmedSegmentCount = confirmedSegmentCountFromScope(
+    source,
+    displayRun,
+  );
 
   useEffect(() => {
     candidatesRef.current = candidates;
@@ -132,7 +140,8 @@ export function KnowledgeSmartIngestAnalysisSection({
 
   const isPaste = source.sourceType === "paste";
   const activeSegments =
-    run?.segments.filter((segment) => segment.status !== "superseded") ?? [];
+    displayRun?.segments.filter((segment) => segment.status !== "superseded") ??
+    [];
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {
@@ -163,41 +172,6 @@ export function KnowledgeSmartIngestAnalysisSection({
     setCandidatesError(null);
     setCandidateCountMismatch(false);
   }, [source.id, stableAnalysisRunId]);
-
-  useEffect(() => {
-    if (
-      analyzing ||
-      run?.status === "pending" ||
-      run?.status === "processing" ||
-      !stableAnalysisRunId ||
-      source.smartIngestScope.latestAnalysisRunId !== stableAnalysisRunId ||
-      source.analysisStatus !== "ready_for_review" ||
-      source.smartIngestScope.segments.length === 0
-    ) {
-      return;
-    }
-    if (run?.status === "completed" && run.id === stableAnalysisRunId) {
-      return;
-    }
-    setRun({
-      id: stableAnalysisRunId,
-      status: "completed",
-      failureMessage: null,
-      segments: source.smartIngestScope.segments.map((segment) => ({
-        ...segment,
-        createdAt: "",
-      })),
-    });
-  }, [
-    analyzing,
-    run?.id,
-    run?.status,
-    source.analysisStatus,
-    source.id,
-    source.smartIngestScope.latestAnalysisRunId,
-    source.smartIngestScope.segments,
-    stableAnalysisRunId,
-  ]);
 
   const refreshCandidates = useCallback(
     async (
@@ -310,12 +284,11 @@ export function KnowledgeSmartIngestAnalysisSection({
   );
 
   useEffect(() => {
-    onScopeChange?.(scopeFromRun(source, run));
-  }, [onScopeChange, run, source, source.analysisStatus]);
+    onScopeChange?.(scopeFromRun(source, displayRun));
+  }, [displayRun, onScopeChange, source]);
 
   useEffect(() => {
     if (!stableAnalysisRunId || confirmedSegmentCount === 0) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- bounded load when lineage or confirmed count changes
     void refreshCandidates(confirmedSegmentCount, {
       silent: candidatesEverLoadedRef.current,
     });
@@ -477,15 +450,17 @@ export function KnowledgeSmartIngestAnalysisSection({
   }
 
   const proposedSegments =
-    run?.segments.filter((segment) => segment.status === "proposed") ?? [];
+    displayRun?.segments.filter((segment) => segment.status === "proposed") ?? [];
   const confirmedSegments =
-    run?.segments.filter((segment) => segment.status === "confirmed") ?? [];
+    displayRun?.segments.filter((segment) => segment.status === "confirmed") ??
+    [];
   const rejectedSegments =
-    run?.segments.filter((segment) => segment.status === "rejected") ?? [];
+    displayRun?.segments.filter((segment) => segment.status === "rejected") ?? [];
   const showReview =
     Boolean(stableAnalysisRunId) &&
     activeSegments.length > 0 &&
-    (run?.status === "completed" || source.analysisStatus === "ready_for_review");
+    (displayRun?.status === "completed" ||
+      source.analysisStatus === "ready_for_review");
   const segmentReviewComplete =
     showReview && proposedSegments.length === 0 && confirmedSegments.length > 0;
   const showMultiTopicGuidance =
@@ -546,7 +521,7 @@ export function KnowledgeSmartIngestAnalysisSection({
               <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
               {t("knowledge.ingest.analyzingContent")}
             </>
-          ) : run?.status === "completed"
+          ) : displayRun?.status === "completed"
             ? t("knowledge.ingest.analysisRetry")
             : t("knowledge.ingest.analyzeContent")}
         </Button>
