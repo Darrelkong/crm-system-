@@ -4,6 +4,7 @@ export * from "./knowledge-access-policy";
 export * from "./knowledge-session-unlocks";
 export * from "./knowledge-user-roles";
 export * from "./knowledge-categories";
+export * from "./knowledge-business-category-mappings";
 export * from "./knowledge-articles";
 export * from "./knowledge-article-versions";
 export * from "./knowledge-sources";
