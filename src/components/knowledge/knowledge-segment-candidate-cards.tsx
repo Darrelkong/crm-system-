@@ -42,7 +42,7 @@ export function KnowledgeSegmentCandidateCards({
 }) {
   const { t } = useTranslation();
 
-  if (loading) {
+  if (loading && candidates.length === 0) {
     return (
       <div
         className="mt-4 rounded-xl border border-slate-200 bg-white p-4 text-sm crm-text-secondary"
@@ -53,7 +53,7 @@ export function KnowledgeSegmentCandidateCards({
     );
   }
 
-  if (error) {
+  if (error && candidates.length === 0) {
     return (
       <div
         className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
@@ -80,6 +80,14 @@ export function KnowledgeSegmentCandidateCards({
 
   return (
     <div className="mt-4 space-y-3" data-candidate-cards-section="true">
+      {loading ? (
+        <p
+          className="text-xs crm-text-secondary"
+          data-candidate-cards-background-refresh="true"
+        >
+          {t("knowledge.ingest.smartIngestCandidatesIncrementalPreparing")}
+        </p>
+      ) : null}
       <div className="space-y-1">
         <p className="text-sm font-semibold crm-text">
           {t("knowledge.ingest.smartIngestCandidatesSectionTitle")}

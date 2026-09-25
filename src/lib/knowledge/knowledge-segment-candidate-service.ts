@@ -170,11 +170,10 @@ export async function materializeKnowledgeSegmentCandidatesForSource(
   }
 
   const segments = await loadSegmentsForRun(run.id, db);
-  if (!segmentReviewCompleteForRun(segments)) {
+  const confirmed = segments.filter((segment) => segment.status === "confirmed");
+  if (confirmed.length === 0) {
     return listKnowledgeSegmentCandidates(context, sourceId, db);
   }
-
-  const confirmed = segments.filter((segment) => segment.status === "confirmed");
   const now = new Date().toISOString();
 
   for (const segment of confirmed) {
@@ -231,8 +230,6 @@ export async function maybeMaterializeKnowledgeSegmentCandidates(
 ): Promise<void> {
   const run = await getLatestCompletedAnalysisRun(sourceId, db);
   if (!run) return;
-  const segments = await loadSegmentsForRun(run.id, db);
-  if (!segmentReviewCompleteForRun(segments)) return;
   await materializeKnowledgeSegmentCandidatesForSource(context, sourceId, db);
 }
 

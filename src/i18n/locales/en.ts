@@ -3431,6 +3431,7 @@ const en = {
         "{{count}} separate topics were kept. Each topic will become its own Knowledge article.",
       smartIngestCandidatesGeneratedCount: "{{count}} topics ready to process",
       smartIngestCandidatesPreparing: "Preparing topics…",
+      smartIngestCandidatesIncrementalPreparing: "Adding newly kept topics…",
       smartIngestCandidatesLoadFailed: "Could not load topics. Please try again.",
       smartIngestCandidatesRetry: "Retry",
       smartIngestCandidatesCountMismatch:

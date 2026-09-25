@@ -3228,6 +3228,7 @@ const zhHant: Messages = {
         "已識別並保留 {{count}} 個獨立主題。每個主題將分別整理為獨立知識內容。",
       smartIngestCandidatesGeneratedCount: "已生成 {{count}} 個待處理主題",
       smartIngestCandidatesPreparing: "正在準備主題…",
+      smartIngestCandidatesIncrementalPreparing: "正在新增已保留主題…",
       smartIngestCandidatesLoadFailed: "無法載入主題列表，請重試。",
       smartIngestCandidatesRetry: "重試",
       smartIngestCandidatesCountMismatch: "主題數量與保留結果不一致，請重試載入。",

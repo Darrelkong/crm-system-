@@ -105,7 +105,12 @@ export function KnowledgeSmartIngestAnalysisSection({
   const [candidatesError, setCandidatesError] = useState<string | null>(null);
   const [candidateCountMismatch, setCandidateCountMismatch] = useState(false);
   const materializeAttemptedRef = useRef(false);
+  const candidatesRef = useRef<KnowledgeSegmentCandidateDetail[]>([]);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    candidatesRef.current = candidates;
+  }, [candidates]);
 
   const isPaste = source.sourceType === "paste";
   const activeSegments =
@@ -129,12 +134,18 @@ export function KnowledgeSmartIngestAnalysisSection({
   }, [source.id, run?.id]);
 
   const refreshCandidates = useCallback(
-    async (confirmedCount: number) => {
+    async (
+      confirmedCount: number,
+      options: { silent?: boolean } = {},
+    ) => {
       if (confirmedCount === 0) {
         setCandidates([]);
         return;
       }
-      setCandidatesLoading(true);
+      const initialLoad = candidatesRef.current.length === 0;
+      if (!options.silent || initialLoad) {
+        setCandidatesLoading(true);
+      }
       setCandidatesError(null);
       setCandidateCountMismatch(false);
       try {
@@ -180,7 +191,6 @@ export function KnowledgeSmartIngestAnalysisSection({
           setCandidateCountMismatch(true);
         }
       } catch (caught) {
-        setCandidates([]);
         setCandidatesError(
           caught instanceof Error
             ? caught.message
@@ -235,14 +245,11 @@ export function KnowledgeSmartIngestAnalysisSection({
     const active = run.segments.filter(
       (segment) => segment.status !== "superseded",
     );
-    const proposedRemaining = active.filter(
-      (segment) => segment.status === "proposed",
-    ).length;
     const confirmedCount = active.filter(
       (segment) => segment.status === "confirmed",
     ).length;
-    if (proposedRemaining === 0 && confirmedCount > 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- load candidates after review completes on mount
+    if (confirmedCount > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- load candidates when any segment is confirmed
       void refreshCandidates(confirmedCount);
     }
   }, [refreshCandidates, run]);
@@ -334,13 +341,10 @@ export function KnowledgeSmartIngestAnalysisSection({
         const active = nextSegments.filter(
           (segment) => segment.status !== "superseded",
         );
-        const proposedRemaining = active.filter(
-          (segment) => segment.status === "proposed",
-        ).length;
         const confirmedCount = active.filter(
           (segment) => segment.status === "confirmed",
         ).length;
-        if (proposedRemaining === 0 && confirmedCount > 0) {
+        if (status === "confirmed" && confirmedCount > 0) {
           void refreshCandidates(confirmedCount);
         }
         return nextRun;
@@ -418,8 +422,19 @@ export function KnowledgeSmartIngestAnalysisSection({
   const showMultiTopicGuidance =
     activeSegments.length > 1 && proposedSegments.length > 0;
   const showConfirmAll = proposedSegments.length >= 2;
+  const candidateSegmentIds = new Set(candidates.map((candidate) => candidate.segmentId));
+  const segmentsForReviewList = activeSegments.filter(
+    (segment) =>
+      segment.status === "proposed" ||
+      segment.status === "rejected" ||
+      (segment.status === "confirmed" && !candidateSegmentIds.has(segment.id)),
+  );
   const showSegmentDetailList =
-    showReview && !(segmentReviewComplete && candidates.length > 0);
+    showReview &&
+    segmentsForReviewList.length > 0 &&
+    !(segmentReviewComplete && candidates.length > 0);
+  const showCandidateSection =
+    showReview && (confirmedSegments.length > 0 || candidates.length > 0);
   const reviewTitle =
     activeSegments.length === 1
       ? t("knowledge.ingest.analysisSingleTopic")
@@ -506,10 +521,14 @@ export function KnowledgeSmartIngestAnalysisSection({
                 count: String(rejectedSegments.length),
               })}
             </p>
-            {segmentReviewComplete ? (
+            {candidates.length > 0 || confirmedSegments.length > 0 ? (
               <p className="mt-2 text-xs crm-text-secondary">
                 {t("knowledge.ingest.smartIngestCandidatesGeneratedCount", {
-                  count: String(confirmedSegments.length),
+                  count: String(
+                    candidates.length > 0
+                      ? candidates.length
+                      : confirmedSegments.length,
+                  ),
                 })}
               </p>
             ) : null}
@@ -528,24 +547,9 @@ export function KnowledgeSmartIngestAnalysisSection({
               </Button>
             </div>
           ) : null}
-          {segmentReviewComplete ? (
-            <KnowledgeSegmentCandidateCards
-              sourceId={source.id}
-              candidates={candidates}
-              categories={categories}
-              locale={locale}
-              loading={candidatesLoading}
-              error={candidatesError}
-              countMismatch={candidateCountMismatch}
-              onRetry={() => void refreshCandidates(confirmedSegments.length)}
-              onCandidateUpdated={() =>
-                void refreshCandidates(confirmedSegments.length)
-              }
-            />
-          ) : null}
         {showSegmentDetailList ? (
         <ul className="mt-4 space-y-3" data-segment-review-list="true">
-          {activeSegments.map((segment) => {
+          {segmentsForReviewList.map((segment) => {
             const isExpanded = expanded[segment.id] ?? false;
             const excerpt =
               segment.evidenceText.length > EXCERPT_CHARS && !isExpanded
@@ -660,6 +664,23 @@ export function KnowledgeSmartIngestAnalysisSection({
           })}
         </ul>
         ) : null}
+          {showCandidateSection ? (
+            <KnowledgeSegmentCandidateCards
+              sourceId={source.id}
+              candidates={candidates}
+              categories={categories}
+              locale={locale}
+              loading={candidatesLoading}
+              error={candidatesError}
+              countMismatch={candidateCountMismatch}
+              onRetry={() => void refreshCandidates(confirmedSegments.length)}
+              onCandidateUpdated={() =>
+                void refreshCandidates(confirmedSegments.length, {
+                  silent: true,
+                })
+              }
+            />
+          ) : null}
         </>
       ) : null}
     </Card>

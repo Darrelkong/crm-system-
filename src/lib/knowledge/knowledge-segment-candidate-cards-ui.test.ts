@@ -90,3 +90,52 @@ describe("knowledge segment candidate cards UI (2E-2)", () => {
     assert.doesNotMatch(cards, /<table/);
   });
 });
+
+describe("knowledge segment candidate partial review + refresh stability (2E-4B)", () => {
+  it("shows candidates when any segment is confirmed, not only after full review", () => {
+    assert.match(analysis, /showCandidateSection/);
+    assert.doesNotMatch(
+      analysis,
+      /segmentReviewComplete\s*\?\s*\(\s*<KnowledgeSegmentCandidateCards/,
+    );
+  });
+
+  it("loads candidates on mount when confirmedCount > 0 without waiting for proposed zero", () => {
+    assert.match(analysis, /if \(confirmedCount > 0\)/);
+    assert.doesNotMatch(analysis, /proposedRemaining === 0 && confirmedCount > 0/);
+  });
+
+  it("hides confirmed segments that already have candidate cards from review list", () => {
+    assert.match(analysis, /segmentsForReviewList/);
+    assert.match(analysis, /candidateSegmentIds/);
+  });
+
+  it("preserves candidate cards during background refresh", () => {
+    assert.match(cards, /loading && candidates\.length === 0/);
+    assert.match(cards, /data-candidate-cards-background-refresh/);
+  });
+
+  it("organizer draft hydration does not notify parent list", () => {
+    const loadDraftBlock = candidateCard.slice(
+      candidateCard.indexOf("const loadDraft"),
+      candidateCard.indexOf("useEffect(() => {", candidateCard.indexOf("const loadDraft")),
+    );
+    assert.doesNotMatch(loadDraftBlock, /onUpdated\(\)/);
+  });
+
+  it("uses stable materialize attempt ref keyed by source and analysis run", () => {
+    assert.match(analysis, /materializeAttemptedRef/);
+    assert.match(analysis, /\[source\.id, run\?\.id\]/);
+  });
+
+  it("incremental preparing copy is localized", () => {
+    assert.equal(
+      zhHans.knowledge.ingest.smartIngestCandidatesIncrementalPreparing,
+      "正在新增已保留主题…",
+    );
+    assert.equal(
+      en.knowledge.ingest.smartIngestCandidatesIncrementalPreparing,
+      "Adding newly kept topics…",
+    );
+  });
+});

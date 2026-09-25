@@ -103,7 +103,6 @@ export function KnowledgeSegmentCandidateCard({
           t("knowledge.ingest.smartIngestCandidateOrganizeFailed"),
         );
       }
-      onUpdated();
       return payload.draft;
     } catch (caught) {
       setDraftHydrationError(
@@ -115,7 +114,7 @@ export function KnowledgeSegmentCandidateCard({
     } finally {
       setDraftHydrating(false);
     }
-  }, [candidate.id, candidate.organizationCompleted, onUpdated, sourceId, t]);
+  }, [candidate.id, candidate.organizationCompleted, sourceId, t]);
 
   useEffect(() => {
     hydrationAttemptedRef.current = false;
@@ -137,7 +136,6 @@ export function KnowledgeSegmentCandidateCard({
       return;
     }
     hydrationAttemptedRef.current = true;
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted organizer draft on mount/reload
     void loadDraft();
   }, [
     candidate.organizationCompleted,
