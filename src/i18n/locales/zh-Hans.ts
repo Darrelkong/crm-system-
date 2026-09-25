@@ -3344,6 +3344,7 @@ const zhHans: Messages = {
       savingDraft: "保存草稿中…",
       savedDraft: "草稿已保存",
       noCategory: "请选择分类",
+      categoryAutoMatched: "自动匹配",
       warning: "请逐项审阅结果。AI 不得新增来源没有支持的事实。",
       backToSourceList: "返回来源列表",
       newSourceAction: "＋ 新建来源",

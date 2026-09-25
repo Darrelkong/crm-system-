@@ -3554,6 +3554,7 @@ const en = {
       savingDraft: "Saving draft…",
       savedDraft: "Draft saved",
       noCategory: "Select a category",
+      categoryAutoMatched: "Auto matched",
       warning: "Please review every field. AI must not add unsupported facts.",
       backToSourceList: "Back to source list",
       newSourceAction: "+ New source",

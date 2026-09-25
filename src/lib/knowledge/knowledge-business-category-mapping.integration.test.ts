@@ -14,7 +14,6 @@ import {
   deactivateBusinessCategoryMapping,
   getMappingByRequestedProjectCode,
   resolveKnowledgeCategoryForBusiness,
-  updateBusinessCategoryMapping,
 } from "@/lib/knowledge/knowledge-business-category-mapping-service";
 import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 

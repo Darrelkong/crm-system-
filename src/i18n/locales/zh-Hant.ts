@@ -3344,6 +3344,7 @@ const zhHant: Messages = {
       savingDraft: "儲存草稿中…",
       savedDraft: "草稿已儲存",
       noCategory: "請選擇分類",
+      categoryAutoMatched: "自動匹配",
       warning: "請逐項審閱結果。AI 不得新增來源沒有支持的事實。",
       backToSourceList: "返回來源列表",
       newSourceAction: "＋ 新建來源",
