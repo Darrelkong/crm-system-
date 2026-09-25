@@ -6,6 +6,8 @@ export const KNOWLEDGE_CLOUDFLARE_AI_PROVIDER = "cloudflare_workers_ai";
 export const KNOWLEDGE_ORGANIZE_SCHEMA_VERSION = "knowledge-organize-v1";
 export const KNOWLEDGE_QA_SCHEMA_VERSION = "knowledge-qa-v1";
 export const KNOWLEDGE_COMPARE_SCHEMA_VERSION = "knowledge-compare-v1";
+export const KNOWLEDGE_CATEGORY_SUGGEST_SCHEMA_VERSION =
+  "knowledge-category-suggest-v1";
 export const KNOWLEDGE_VISION_EXTRACT_SCHEMA_VERSION =
   "knowledge-vision-extract-v1";
 export const KNOWLEDGE_VISION_CLOUDFLARE_AI_MODEL =
@@ -136,6 +138,24 @@ export async function callKnowledgeVisionExtractCloudflareAi(input: {
       mimeType: input.mimeType,
       imageBase64: input.imageBase64,
       byteSize: input.byteSize,
+    },
+    input.aiService,
+  );
+}
+
+export async function callKnowledgeCategorySuggestCloudflareAi(input: {
+  locale: AiAnalysisLanguage;
+  systemPrompt: string;
+  userPrompt: string;
+  aiService?: CloudflareEnv["AI_SERVICE"];
+}): Promise<KnowledgeCloudflareAiCallResult> {
+  return callKnowledgeCloudflareAi(
+    {
+      task: "knowledge_category_suggest",
+      schemaVersion: KNOWLEDGE_CATEGORY_SUGGEST_SCHEMA_VERSION,
+      locale: input.locale,
+      systemPrompt: input.systemPrompt,
+      userPrompt: input.userPrompt,
     },
     input.aiService,
   );

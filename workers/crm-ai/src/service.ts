@@ -22,9 +22,11 @@ import {
   STAFF_TODAY_ACTIONS_MODEL,
 } from "./models";
 import {
+  runKnowledgeCategorySuggest,
   runKnowledgeCompare,
   runKnowledgeOrganize,
   runKnowledgeQa,
+  validateKnowledgeCategorySuggestRequest,
   validateKnowledgeCompareRequest,
   validateKnowledgeOrganizeRequest,
   validateKnowledgeQaRequest,
@@ -70,6 +72,7 @@ import type {
   CrmAiAdminBriefRequest,
   CrmAiEnv,
   CrmAiHandleResult,
+  CrmAiKnowledgeCategorySuggestRequest,
   CrmAiKnowledgeCompareRequest,
   CrmAiKnowledgeOrganizeRequest,
   CrmAiKnowledgeQaRequest,
@@ -77,6 +80,7 @@ import type {
   CrmAiRequest,
   CrmAiStaffActionsRequest,
   HealthProbeOutput,
+  KnowledgeCategorySuggestOutput,
   KnowledgeCompareOutput,
   KnowledgeOrganizeOutput,
   KnowledgeQaOutput,
@@ -627,7 +631,8 @@ async function runKnowledgeTaskWithRetries<T>(
     | "knowledge_organize"
     | "knowledge_qa"
     | "knowledge_compare"
-    | "knowledge_vision_extract",
+    | "knowledge_vision_extract"
+    | "knowledge_category_suggest",
   model: string,
   totalDeadlineMs: number,
   attemptRunner: (remainingMs: number) => Promise<AiServiceResult<T>>,
@@ -762,6 +767,27 @@ export async function runKnowledgeVisionExtractTask(
   );
 }
 
+export async function runKnowledgeCategorySuggestTask(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeCategorySuggestRequest,
+): Promise<AiServiceResult<KnowledgeCategorySuggestOutput>> {
+  const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  return runKnowledgeTaskWithRetries(
+    "knowledge_category_suggest",
+    KNOWLEDGE_MODEL,
+    totalDeadlineMs,
+    (remainingMs) =>
+      runKnowledgeCategorySuggest(
+        env,
+        request,
+        (model, task, schemaVersion, payload, timeoutMs) =>
+          invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
+        parseJsonValue,
+        remainingMs,
+      ),
+  );
+}
+
 export async function runKnowledgeCompareTask(
   env: CrmAiEnv,
   request: CrmAiKnowledgeCompareRequest,
@@ -810,6 +836,9 @@ export async function handleCrmAiRequest(
   }
   if (request.task === "knowledge_vision_extract") {
     return runKnowledgeVisionExtractTask(env, request);
+  }
+  if (request.task === "knowledge_category_suggest") {
+    return runKnowledgeCategorySuggestTask(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -874,6 +903,11 @@ export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
   const compareRequest = validateKnowledgeCompareRequest(record);
   if (compareRequest) {
     return compareRequest;
+  }
+
+  const categorySuggestRequest = validateKnowledgeCategorySuggestRequest(record);
+  if (categorySuggestRequest) {
+    return categorySuggestRequest;
   }
 
   const visionRequest = validateKnowledgeVisionExtractRequest(record);

@@ -3555,6 +3555,12 @@ const en = {
       savedDraft: "Draft saved",
       noCategory: "Select a category",
       categoryAutoMatched: "Auto matched",
+      categoryAiSuggested: "AI suggested",
+      categoryManualSelected: "Manual selection",
+      categorySelectionRequired: "Selection required",
+      adoptCategorySuggestion: "Use suggestion",
+      categoryAiConfirmRequired:
+        "Adopt the AI-suggested category or choose one manually before saving.",
       warning: "Please review every field. AI must not add unsupported facts.",
       backToSourceList: "Back to source list",
       newSourceAction: "+ New source",

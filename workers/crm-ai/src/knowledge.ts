@@ -9,14 +9,19 @@ import {
   KNOWLEDGE_QA_MAX_TOKENS,
   KNOWLEDGE_QA_PROMPT_VERSION,
   KNOWLEDGE_QA_TEMPERATURE,
+  KNOWLEDGE_CATEGORY_SUGGEST_MAX_TOKENS,
+  KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION,
+  KNOWLEDGE_CATEGORY_SUGGEST_TEMPERATURE,
 } from "./models";
 import type {
   AiServiceError,
   AiServiceResult,
+  CrmAiKnowledgeCategorySuggestRequest,
   CrmAiKnowledgeCompareRequest,
   CrmAiKnowledgeOrganizeRequest,
   CrmAiKnowledgeQaRequest,
   CrmAiEnv,
+  KnowledgeCategorySuggestOutput,
   KnowledgeCompareOutput,
   KnowledgeOrganizeOutput,
   KnowledgeQaOutput,
@@ -63,6 +68,20 @@ export const KNOWLEDGE_COMPARE_JSON_SCHEMA = {
     conflicts: { type: "array", items: { type: "object" } },
     uncertainties: { type: "array", items: { type: "object" } },
     suggestedUpdates: { type: "array", items: { type: "object" } },
+  },
+} as const;
+
+export const KNOWLEDGE_CATEGORY_SUGGEST_JSON_SCHEMA = {
+  type: "object",
+  additionalProperties: false,
+  required: ["categoryId", "confidenceBand"],
+  properties: {
+    categoryId: { type: ["string", "null"] },
+    confidenceBand: {
+      type: "string",
+      enum: ["high", "medium", "low"],
+    },
+    reason: { type: "string" },
   },
 } as const;
 
@@ -139,6 +158,25 @@ export function validateKnowledgeCompareRequest(
   return {
     task: "knowledge_compare",
     schemaVersion: KNOWLEDGE_COMPARE_PROMPT_VERSION,
+    locale,
+    systemPrompt: prompts.systemPrompt,
+    userPrompt: prompts.userPrompt,
+  };
+}
+
+export function validateKnowledgeCategorySuggestRequest(
+  body: Record<string, unknown>,
+): CrmAiKnowledgeCategorySuggestRequest | null {
+  if (body.task !== "knowledge_category_suggest") return null;
+  if (body.schemaVersion !== KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION) {
+    return null;
+  }
+  const locale = validateKnowledgeLocale(body.locale);
+  const prompts = validatePromptPair(body.systemPrompt, body.userPrompt);
+  if (!locale || !prompts) return null;
+  return {
+    task: "knowledge_category_suggest",
+    schemaVersion: KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION,
     locale,
     systemPrompt: prompts.systemPrompt,
     userPrompt: prompts.userPrompt,
@@ -522,6 +560,69 @@ export async function runKnowledgeQa(
   );
   const structured = parseJsonValue(extractStructuredPayload(raw));
   const validated = structured ? validateQaOutput(structured) : null;
+  if (!validated) {
+    return { ok: false, error: "invalid_output" };
+  }
+  return { ok: true, data: validated, model: KNOWLEDGE_MODEL };
+}
+
+function validateCategorySuggestOutput(
+  value: unknown,
+): KnowledgeCategorySuggestOutput | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const confidenceBand = record.confidenceBand;
+  if (
+    confidenceBand !== "high" &&
+    confidenceBand !== "medium" &&
+    confidenceBand !== "low"
+  ) {
+    return null;
+  }
+  const categoryId =
+    record.categoryId === null
+      ? null
+      : typeof record.categoryId === "string"
+        ? record.categoryId.trim()
+        : null;
+  if (categoryId !== null && !categoryId) return null;
+  const reason =
+    typeof record.reason === "string" ? record.reason.trim() : undefined;
+  return {
+    categoryId,
+    confidenceBand,
+    reason: reason || undefined,
+  };
+}
+
+export async function runKnowledgeCategorySuggest(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeCategorySuggestRequest,
+  invokeModel: (
+    model: string,
+    task: "knowledge_category_suggest",
+    schemaVersion: string,
+    payload: Record<string, unknown>,
+    timeoutMs: number,
+  ) => Promise<unknown>,
+  parseJsonValue: (value: unknown) => unknown | null,
+  timeoutMs: number,
+): Promise<AiServiceResult<KnowledgeCategorySuggestOutput>> {
+  const raw = await invokeModel(
+    KNOWLEDGE_MODEL,
+    "knowledge_category_suggest",
+    request.schemaVersion,
+    buildKnowledgePayload(
+      request.systemPrompt,
+      request.userPrompt,
+      KNOWLEDGE_CATEGORY_SUGGEST_JSON_SCHEMA,
+      KNOWLEDGE_CATEGORY_SUGGEST_TEMPERATURE,
+      KNOWLEDGE_CATEGORY_SUGGEST_MAX_TOKENS,
+    ),
+    timeoutMs,
+  );
+  const structured = parseJsonValue(extractStructuredPayload(raw));
+  const validated = structured ? validateCategorySuggestOutput(structured) : null;
   if (!validated) {
     return { ok: false, error: "invalid_output" };
   }

@@ -143,6 +143,12 @@ export function KnowledgeIngestClient({
   const [categoryResolutionSource, setCategoryResolutionSource] = useState<
     OrganizerDraftFields["categoryResolutionSource"]
   >(null);
+  const [categoryAiSuggestion, setCategoryAiSuggestion] = useState<
+    OrganizerDraftFields["categoryAiSuggestion"]
+  >(null);
+  const [categorySelectionRequired, setCategorySelectionRequired] = useState(
+    false,
+  );
   const manualRequestedProjectOverrideRef = useRef(false);
   const manualCategoryOverrideRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -313,6 +319,17 @@ export function KnowledgeIngestClient({
     setRequestedProjectName(empty.requestedProjectName);
     setCategoryNotice(empty.categoryNotice);
     setCategoryResolutionSource(empty.categoryResolutionSource);
+    setCategoryAiSuggestion(empty.categoryAiSuggestion);
+    setCategorySelectionRequired(empty.categorySelectionRequired);
+  }
+
+  function adoptCategorySuggestion() {
+    if (!categoryAiSuggestion) return;
+    manualCategoryOverrideRef.current = true;
+    setCategoryId(categoryAiSuggestion.categoryId);
+    setCategoryAiSuggestion(null);
+    setCategoryResolutionSource("manual");
+    setCategorySelectionRequired(false);
   }
 
   function applyOrganizerDraft(draft: OrganizerDraftFields) {
@@ -324,6 +341,8 @@ export function KnowledgeIngestClient({
     setCategoryId(draft.categoryId);
     setCategoryNotice(draft.categoryNotice);
     setCategoryResolutionSource(draft.categoryResolutionSource);
+    setCategoryAiSuggestion(draft.categoryAiSuggestion);
+    setCategorySelectionRequired(draft.categorySelectionRequired);
   }
 
   async function fetchOrganizerDraft(
@@ -815,7 +834,11 @@ export function KnowledgeIngestClient({
     event.preventDefault();
     if (!selected) return;
     if (!categoryId) {
-      setError(t("knowledge.ingest.knowledgeCategoryRequiredBeforeDraft"));
+      setError(
+        categoryAiSuggestion
+          ? t("knowledge.ingest.categoryAiConfirmRequired")
+          : t("knowledge.ingest.knowledgeCategoryRequiredBeforeDraft"),
+      );
       return;
     }
     setBusy(true);
@@ -1731,7 +1754,40 @@ export function KnowledgeIngestClient({
                             {t("knowledge.ingest.categoryAutoMatched")}
                           </Badge>
                         ) : null}
+                        {categoryResolutionSource === "ai_suggestion" && categoryId ? (
+                          <Badge variant="accent" className="text-xs">
+                            {t("knowledge.ingest.categoryAiSuggested")}
+                          </Badge>
+                        ) : null}
+                        {categoryResolutionSource === "manual" && categoryId ? (
+                          <Badge variant="default" className="text-xs">
+                            {t("knowledge.ingest.categoryManualSelected")}
+                          </Badge>
+                        ) : null}
+                        {categorySelectionRequired && !categoryId ? (
+                          <Badge variant="warning" className="text-xs">
+                            {t("knowledge.ingest.categorySelectionRequired")}
+                          </Badge>
+                        ) : null}
                       </div>
+                      {categoryAiSuggestion && !categoryId ? (
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-slate-700">
+                          <span>
+                            {initialCategories.find(
+                              (category) =>
+                                category.id === categoryAiSuggestion.categoryId,
+                            )?.name ?? categoryAiSuggestion.categoryName}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={adoptCategorySuggestion}
+                          >
+                            {t("knowledge.ingest.adoptCategorySuggestion")}
+                          </Button>
+                        </div>
+                      ) : null}
                       <select
                         required
                         value={categoryId}
@@ -1739,6 +1795,8 @@ export function KnowledgeIngestClient({
                           manualCategoryOverrideRef.current = true;
                           setCategoryId(event.target.value);
                           setCategoryResolutionSource("manual");
+                          setCategoryAiSuggestion(null);
+                          setCategorySelectionRequired(false);
                         }}
                         className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
                       >

@@ -150,6 +150,14 @@ describe("knowledge ingest organizer draft", () => {
         manualCategoryId: null,
         manualCategoryOverride: false,
       },
+      undefined,
+      {
+        suggestCategory: async () => ({
+          status: "insufficient_confidence",
+          resolutionSource: null,
+          requiresConfirmation: false,
+        }),
+      },
     );
     assert.equal(draft.requestedProjectCode, null);
     assert.equal(draft.categoryId, "");

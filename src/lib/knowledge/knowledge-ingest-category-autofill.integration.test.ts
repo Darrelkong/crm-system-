@@ -13,6 +13,7 @@ import {
 } from "@/lib/knowledge/knowledge-business-category-mapping-service";
 import {
   buildOrganizerDraftFromOrganization,
+  type OrganizerDraftBuildDeps,
   resolveOrganizerKnowledgeCategoryId,
 } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
@@ -29,6 +30,14 @@ const adminContext = () => ({
   sessionId: "category-autofill-admin-session",
   role: "knowledge_admin" as const,
 });
+
+const noAiCategorySuggest: OrganizerDraftBuildDeps = {
+  suggestCategory: async () => ({
+    status: "insufficient_confidence",
+    resolutionSource: null,
+    requiresConfirmation: false,
+  }),
+};
 
 const chaseIdentity = {
   title: "Chase Private Client",
@@ -160,6 +169,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: true,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "cat-manual");
     assert.equal(draft.categoryResolutionSource, "manual");
@@ -189,6 +199,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, category.id);
     assert.equal(draft.categoryResolutionSource, "explicit_mapping");
@@ -205,6 +216,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "");
     assert.equal(draft.categoryResolutionSource, null);
@@ -236,6 +248,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "");
     assert.equal(draft.categoryResolutionStatus, "inactive_mapping");
@@ -269,6 +282,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "");
     assert.equal(draft.categoryResolutionStatus, "inactive_category");
@@ -284,6 +298,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "");
     assert.equal(draft.categoryResolutionStatus, "invalid_business");
@@ -305,6 +320,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "");
     assert.equal(draft.categoryResolutionSource, null);
@@ -348,6 +364,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.requestedProjectCode, "hk_bank_account");
     assert.equal(draft.categoryId, hkCategory.id);
@@ -378,6 +395,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: true,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "cat-manual");
     assert.equal(draft.categoryResolutionSource, "manual");
@@ -407,6 +425,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(mapped.categoryId, category.id);
     const unmapped = await buildOrganizerDraftFromOrganization(
@@ -418,6 +437,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(unmapped.categoryId, "");
     assert.equal(unmapped.categoryResolutionStatus, "unmapped");
@@ -447,6 +467,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: true,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "cat-manual");
   });
@@ -475,6 +496,7 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, category.id);
     assert.equal(draft.categoryResolutionSource, "explicit_mapping");
@@ -527,12 +549,13 @@ describe("knowledge ingest category autofill (2B)", () => {
         manualCategoryOverride: false,
       },
       db,
+      noAiCategorySuggest,
     );
     assert.equal(draft.categoryId, "");
     assert.equal(draft.title, "");
   });
 
-  it("P: resolver uses explicit mapping only (no AI in draft builder)", async () => {
+  it("P: explicit mapping path does not invoke organizer AI", async () => {
     const { readFile } = await import("node:fs/promises");
     const { fileURLToPath } = await import("node:url");
     const draftPath = fileURLToPath(
@@ -540,6 +563,7 @@ describe("knowledge ingest category autofill (2B)", () => {
     );
     const source = await readFile(draftPath, "utf8");
     assert.match(source, /resolveKnowledgeCategoryForBusiness/);
+    assert.match(source, /suggestKnowledgeCategoryForOrganizer/);
     assert.doesNotMatch(source, /organizeKnowledge|ai-organizer-service|openai|gemma/i);
   });
 });
