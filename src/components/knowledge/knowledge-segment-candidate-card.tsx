@@ -36,12 +36,19 @@ export function KnowledgeSegmentCandidateCard({
   categories,
   locale,
   onUpdated,
+  onDraftStateChange,
 }: {
   sourceId: string;
   candidate: KnowledgeSegmentCandidateDetail;
   categories: KnowledgeCategoryListItem[];
   locale: "zh-Hans" | "zh-Hant" | "en";
   onUpdated: () => void;
+  onDraftStateChange?: (state: {
+    title: string;
+    summary: string;
+    body: string;
+    organized: boolean;
+  }) => void;
 }) {
   const { t } = useTranslation();
   const [organizing, setOrganizing] = useState(false);
@@ -192,6 +199,16 @@ export function KnowledgeSegmentCandidateCard({
   }
 
   const organized = isUsableCandidateOrganizerDraft(draft);
+  const converted = Boolean(candidate.draftArticleId);
+
+  useEffect(() => {
+    onDraftStateChange?.({
+      title,
+      summary,
+      body,
+      organized,
+    });
+  }, [body, onDraftStateChange, organized, summary, title]);
 
   const categoryName =
     categories.find(
@@ -339,7 +356,7 @@ export function KnowledgeSegmentCandidateCard({
         <Button
           type="button"
           size="sm"
-          disabled={organizing || draftHydrating}
+          disabled={organizing || draftHydrating || converted}
           data-candidate-organize-button="true"
           onClick={() => void organizeCandidate()}
         >
@@ -447,9 +464,6 @@ export function KnowledgeSegmentCandidateCard({
                   {t("knowledge.ingest.categorySelectionRequired")}
                 </p>
               ) : null}
-              <p className="text-xs crm-text-secondary">
-                {t("knowledge.ingest.smartIngestCandidateCompareNextStep")}
-              </p>
             </div>
           ) : null}
         </div>

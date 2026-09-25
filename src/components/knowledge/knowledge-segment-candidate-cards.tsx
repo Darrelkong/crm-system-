@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import type { KnowledgeCategoryListItem } from "@/lib/knowledge/core-service";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
 import { KnowledgeSegmentCandidateCard } from "@/components/knowledge/knowledge-segment-candidate-card";
+import { KnowledgeIngestStepHeader } from "@/components/knowledge/knowledge-ingest-step-header";
+import type { CandidateDraftState } from "@/components/knowledge/knowledge-smart-ingest-candidate-workflow";
 
 const PREVIEW_MAX_LINES = 3;
 const PREVIEW_MAX_CHARS = 240;
@@ -29,6 +31,7 @@ export function KnowledgeSegmentCandidateCards({
   countMismatch,
   onRetry,
   onCandidateUpdated,
+  onCandidateDraftStateChange,
 }: {
   sourceId: string;
   candidates: KnowledgeSegmentCandidateDetail[];
@@ -39,6 +42,10 @@ export function KnowledgeSegmentCandidateCards({
   countMismatch: boolean;
   onRetry: () => void;
   onCandidateUpdated: () => void;
+  onCandidateDraftStateChange?: (
+    candidateId: string,
+    state: CandidateDraftState,
+  ) => void;
 }) {
   const { t } = useTranslation();
 
@@ -88,7 +95,11 @@ export function KnowledgeSegmentCandidateCards({
           {t("knowledge.ingest.smartIngestCandidatesIncrementalPreparing")}
         </p>
       ) : null}
-      <div className="space-y-1">
+      <KnowledgeIngestStepHeader
+        step={3}
+        title={t("knowledge.ingest.smartIngestStepOrganize")}
+      />
+      <div className="mt-3 space-y-1">
         <p className="text-sm font-semibold crm-text">
           {t("knowledge.ingest.smartIngestCandidatesSectionTitle")}
         </p>
@@ -120,6 +131,9 @@ export function KnowledgeSegmentCandidateCards({
               categories={categories}
               locale={locale}
               onUpdated={onCandidateUpdated}
+              onDraftStateChange={(state) =>
+                onCandidateDraftStateChange?.(candidate.id, state)
+              }
             />
           </li>
         ))}

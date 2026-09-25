@@ -59,6 +59,7 @@ describe("Knowledge comparison UI boundary", () => {
     const detail: KnowledgeComparisonDetail = {
       id: "run-1",
       sourceId: "source-1",
+      candidateId: null,
       organizationRunId: "org-1",
       status: "completed",
       relationship: "update_existing",

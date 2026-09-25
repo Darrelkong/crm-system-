@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { allowMockDeepInsightGeneration } from "@/lib/ai/providers/factory";
@@ -25,8 +25,15 @@ import {
 } from "@/lib/knowledge/ai-comparison-provider";
 import {
   retrieveComparisonCandidates,
+  retrieveComparisonCandidatesForSegment,
   type ComparisonCandidate,
 } from "@/lib/knowledge/comparison-candidate-retrieval";
+import { normalizeComparedOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-comparison-draft";
+import {
+  getKnowledgeSegmentCandidate,
+} from "@/lib/knowledge/knowledge-segment-candidate-service";
+import { latestCandidateOrganization } from "@/lib/knowledge/knowledge-organization-run-queries";
+import { hasUsableComparedOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-comparison-draft";
 import { redactKnowledgeComparisonForActor } from "@/lib/knowledge/comparison-visibility";
 import {
   requireManageableKnowledgeSource,
@@ -74,7 +81,7 @@ function failureCodeFor(error: unknown): string {
   return KNOWLEDGE_ERROR_CODES.AI_COMPARISON_FAILED;
 }
 
-async function getActiveComparisonRun(sourceId: string, db: Database) {
+async function getActiveSourceComparisonRun(sourceId: string, db: Database) {
   return (
     await db
       .select()
@@ -82,6 +89,7 @@ async function getActiveComparisonRun(sourceId: string, db: Database) {
       .where(
         and(
           eq(schema.knowledgeAiComparisonRuns.sourceId, sourceId),
+          isNull(schema.knowledgeAiComparisonRuns.candidateId),
           inArray(schema.knowledgeAiComparisonRuns.status, [
             "pending",
             "processing",
@@ -110,7 +118,7 @@ async function latestCompletedOrganization(
   return runs[0] ?? null;
 }
 
-async function latestComparison(
+async function latestSourceComparison(
   sourceId: string,
   db: Database,
 ): Promise<KnowledgeAiComparisonRun | null> {
@@ -118,7 +126,12 @@ async function latestComparison(
     await db
       .select()
       .from(schema.knowledgeAiComparisonRuns)
-      .where(eq(schema.knowledgeAiComparisonRuns.sourceId, sourceId))
+      .where(
+        and(
+          eq(schema.knowledgeAiComparisonRuns.sourceId, sourceId),
+          isNull(schema.knowledgeAiComparisonRuns.candidateId),
+        ),
+      )
       .orderBy(desc(schema.knowledgeAiComparisonRuns.createdAt))
       .limit(1)
   )[0] ?? null;
@@ -170,12 +183,13 @@ function parseStoredComparison(
   }
 }
 
-function mapComparisonRun(
+export function mapComparisonRun(
   run: KnowledgeAiComparisonRun,
 ): KnowledgeComparisonDetail {
   return {
     id: run.id,
     sourceId: run.sourceId,
+    candidateId: run.candidateId,
     organizationRunId: run.organizationRunId,
     status: run.status,
     relationship: run.relationship,
@@ -256,7 +270,7 @@ export async function getLatestKnowledgeComparison(
   db: Database = getDb(),
 ): Promise<KnowledgeComparisonDetail | null> {
   await requireViewableKnowledgeSource(context, sourceId, db);
-  const run = await latestComparison(sourceId, db);
+  const run = await latestSourceComparison(sourceId, db);
   if (!run) return null;
   return redactKnowledgeComparisonForActor(
     context,
@@ -319,7 +333,7 @@ export async function compareKnowledgeSource(
       409,
     );
   }
-  if (await getActiveComparisonRun(sourceId, db)) {
+  if (await getActiveSourceComparisonRun(sourceId, db)) {
     throw comparisonError(
       KNOWLEDGE_ERROR_CODES.AI_COMPARISON_RUN_CONFLICT,
       "此来源已有进行中的 AI 比对",
@@ -342,6 +356,111 @@ export async function compareKnowledgeSource(
       db,
     ));
 
+  return executeKnowledgeComparison({
+    context,
+    sourceId,
+    candidateId: null,
+    organizationRun,
+    organizedContent: {
+      title: organizationRun.proposedTitle!,
+      summary: organizationRun.proposedSummary,
+      body: organizationRun.proposedBody!,
+    },
+    candidates,
+    meta,
+    db,
+    providerCall: dependencies.providerCall,
+  });
+}
+
+async function getActiveCandidateComparisonRun(
+  candidateId: string,
+  db: Database,
+) {
+  return (
+    await db
+      .select()
+      .from(schema.knowledgeAiComparisonRuns)
+      .where(
+        and(
+          eq(schema.knowledgeAiComparisonRuns.candidateId, candidateId),
+          inArray(schema.knowledgeAiComparisonRuns.status, [
+            "pending",
+            "processing",
+          ]),
+        ),
+      )
+      .limit(1)
+  )[0] ?? null;
+}
+
+export async function latestCandidateComparison(
+  candidateId: string,
+  db: Database = getDb(),
+): Promise<KnowledgeAiComparisonRun | null> {
+  return (
+    await db
+      .select()
+      .from(schema.knowledgeAiComparisonRuns)
+      .where(eq(schema.knowledgeAiComparisonRuns.candidateId, candidateId))
+      .orderBy(desc(schema.knowledgeAiComparisonRuns.createdAt))
+      .limit(1)
+  )[0] ?? null;
+}
+
+export async function getLatestKnowledgeSegmentCandidateComparison(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  candidateId: string,
+  db: Database = getDb(),
+): Promise<KnowledgeComparisonDetail | null> {
+  await requireViewableKnowledgeSource(context, sourceId, db);
+  const run = await latestCandidateComparison(candidateId, db);
+  if (!run || run.sourceId !== sourceId) return null;
+  return redactKnowledgeComparisonForActor(
+    context,
+    mapComparisonRun(run),
+    db,
+  );
+}
+
+type ExecuteKnowledgeComparisonInput = {
+  context: KnowledgeSessionContext;
+  sourceId: string;
+  candidateId: string | null;
+  organizationRun: KnowledgeAiOrganizationRun;
+  organizedContent: {
+    title: string;
+    summary: string | null;
+    body: string;
+  };
+  comparedOrganizerDraft?: {
+    title: string;
+    summary: string;
+    body: string;
+  };
+  candidates: ComparisonCandidate[];
+  meta: KnowledgeSourceMeta;
+  db: Database;
+  providerCall?: KnowledgeComparisonProviderCall;
+};
+
+async function executeKnowledgeComparison(
+  input: ExecuteKnowledgeComparisonInput,
+): Promise<KnowledgeComparisonDetail> {
+  const {
+    context,
+    sourceId,
+    candidateId,
+    organizationRun,
+    organizedContent,
+    comparedOrganizerDraft,
+    candidates,
+    meta,
+    db,
+    providerCall,
+  } = input;
+
   const now = new Date().toISOString();
   const runId = crypto.randomUUID();
   const snapshot = toCandidateSnapshot(candidates);
@@ -350,6 +469,7 @@ export async function compareKnowledgeSource(
     await db.insert(schema.knowledgeAiComparisonRuns).values({
       id: runId,
       sourceId,
+      candidateId,
       organizationRunId: organizationRun.id,
       requestedByUserId: context.user.id,
       status: "pending",
@@ -392,7 +512,12 @@ export async function compareKnowledgeSource(
   );
 
   if (candidates.length === 0) {
-    const comparison = emptyNoMatchComparisonResult();
+    const comparison: KnowledgeComparisonStoredResult = {
+      ...emptyNoMatchComparisonResult(),
+      ...(comparedOrganizerDraft
+        ? { comparedOrganizerDraft }
+        : {}),
+    };
     const completedAt = new Date().toISOString();
     await db.batch([
       db
@@ -451,9 +576,9 @@ export async function compareKnowledgeSource(
     const promptBudget = buildKnowledgeComparisonPromptBudget(
       settings.aiAnalysisLanguage,
       {
-        organizedTitle: organizationRun.proposedTitle!,
-        organizedSummary: organizationRun.proposedSummary,
-        organizedBody: organizationRun.proposedBody!,
+        organizedTitle: organizedContent.title,
+        organizedSummary: organizedContent.summary,
+        organizedBody: organizedContent.body,
         candidates,
       },
     );
@@ -463,10 +588,10 @@ export async function compareKnowledgeSource(
     );
 
     let output: KnowledgeAiComparisonOutput;
-    if (dependencies.providerCall) {
+    if (providerCall) {
       provider = "test";
       model = "test-knowledge-compare";
-      const rawOutput = await dependencies.providerCall({
+      const rawOutput = await providerCall({
         locale: settings.aiAnalysisLanguage,
         systemPrompt: promptBudget.systemPrompt,
         userPrompt: promptBudget.userPrompt,
@@ -483,7 +608,7 @@ export async function compareKnowledgeSource(
       provider = "mock";
       model = "mock-knowledge-compare-v1";
       output = shouldUseKnowledgeComparisonPreviewMock(
-        organizationRun.proposedBody!,
+        organizedContent.body,
         promptCandidates,
       )
         ? buildKnowledgeComparisonPreviewMock(promptCandidates)
@@ -518,6 +643,7 @@ export async function compareKnowledgeSource(
       uncertainties: output.uncertainties,
       suggestedUpdates: output.suggestedUpdates,
       degradationLevel: promptBudget.degradationLevel,
+      ...(comparedOrganizerDraft ? { comparedOrganizerDraft } : {}),
     };
     const completedAt = new Date().toISOString();
     await db.batch([
@@ -602,4 +728,105 @@ export async function compareKnowledgeSource(
       .limit(1)
   )[0];
   return mapComparisonRun(run!);
+}
+
+export async function compareKnowledgeSegmentCandidate(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  candidateId: string,
+  draftInput: { title: string; summary: string; body: string },
+  meta: KnowledgeSourceMeta,
+  db: Database = getDb(),
+  dependencies: {
+    providerCall?: KnowledgeComparisonProviderCall;
+    candidates?: ComparisonCandidate[];
+  } = {},
+): Promise<KnowledgeComparisonDetail> {
+  const source = await requireManageableKnowledgeSource(
+    context,
+    sourceId,
+    db,
+    "来源比对权限不足",
+  );
+  if (source.archivedAt) {
+    throw comparisonError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_ARCHIVED,
+      "已归档来源无法比对",
+      409,
+    );
+  }
+  const candidate = await getKnowledgeSegmentCandidate(
+    context,
+    sourceId,
+    candidateId,
+    db,
+  );
+  if (!candidate || candidate.status === "superseded") {
+    throw comparisonError(
+      KNOWLEDGE_ERROR_CODES.SOURCE_NOT_FOUND,
+      "主题候选不存在",
+      404,
+    );
+  }
+  const draft = normalizeComparedOrganizerDraft(draftInput);
+  if (!hasUsableComparedOrganizerDraft(draft)) {
+    throw comparisonError(
+      KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_REQUIRED,
+      "请先完成独立整理",
+      409,
+    );
+  }
+  const organizationRun = await latestCandidateOrganization(candidateId, db);
+  if (
+    !organizationRun ||
+    organizationRun.status !== "completed" ||
+    organizationRun.candidateId !== candidateId
+  ) {
+    throw comparisonError(
+      KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_REQUIRED,
+      "没有可供比对的 AI 整理结果",
+      409,
+    );
+  }
+  if (await getActiveCandidateComparisonRun(candidateId, db)) {
+    throw comparisonError(
+      KNOWLEDGE_ERROR_CODES.AI_COMPARISON_RUN_CONFLICT,
+      "此主题已有进行中的 AI 比对",
+      409,
+    );
+  }
+
+  const categoryName = organizationRun.proposedCategory ?? null;
+
+  const candidates =
+    dependencies.candidates ??
+    (await retrieveComparisonCandidatesForSegment(
+      context,
+      {
+        segmentTitleHint: candidate.segmentTitleHint,
+        evidenceText: candidate.segmentEvidenceText,
+        proposedTitle: draft.title,
+        proposedSummary: draft.summary,
+        proposedCategory: categoryName,
+        proposedBody: draft.body,
+      },
+      db,
+    ));
+
+  return executeKnowledgeComparison({
+    context,
+    sourceId,
+    candidateId,
+    organizationRun,
+    organizedContent: {
+      title: draft.title,
+      summary: draft.summary,
+      body: draft.body,
+    },
+    comparedOrganizerDraft: draft,
+    candidates,
+    meta,
+    db,
+    providerCall: dependencies.providerCall,
+  });
 }

@@ -79,6 +79,11 @@ export type KnowledgeComparisonStoredResult = {
   uncertainties: KnowledgeComparisonDiffItem[];
   suggestedUpdates: KnowledgeComparisonSuggestedUpdate[];
   degradationLevel?: string | null;
+  comparedOrganizerDraft?: {
+    title: string;
+    summary: string;
+    body: string;
+  };
 };
 
 export function emptyNoMatchComparisonResult(): KnowledgeComparisonStoredResult {

@@ -17,6 +17,10 @@ import {
   type SmartIngestSourceScope,
 } from "@/lib/knowledge/smart-ingest-source-scope";
 import { KnowledgeSegmentCandidateCards } from "@/components/knowledge/knowledge-segment-candidate-cards";
+import {
+  KnowledgeSmartIngestCandidateWorkflow,
+  type CandidateDraftState,
+} from "@/components/knowledge/knowledge-smart-ingest-candidate-workflow";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
 import {
   buildCandidateLineageKey,
@@ -115,6 +119,9 @@ export function KnowledgeSmartIngestAnalysisSection({
   const candidateLineageKeyRef = useRef<string | null>(null);
   const candidatesEverLoadedRef = useRef(false);
   const [candidatesEverLoaded, setCandidatesEverLoaded] = useState(false);
+  const [candidateDrafts, setCandidateDrafts] = useState<
+    Record<string, CandidateDraftState>
+  >({});
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableAnalysisRunId = resolveStableAnalysisRunId(source, run);
   const confirmedSegmentCount = confirmedSegmentCountFromScope(source, run);
@@ -564,6 +571,12 @@ export function KnowledgeSmartIngestAnalysisSection({
       ) : null}
       {showReview ? (
         <>
+          <div className="mt-4">
+            <KnowledgeIngestStepHeader
+              step={2}
+              title={t("knowledge.ingest.smartIngestStepConfirmTopics")}
+            />
+          </div>
           <div
             className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm crm-text"
             data-segment-review-summary="true"
@@ -744,6 +757,19 @@ export function KnowledgeSmartIngestAnalysisSection({
                   silent: true,
                 })
               }
+              onCandidateDraftStateChange={(candidateId, state) => {
+                setCandidateDrafts((current) => ({
+                  ...current,
+                  [candidateId]: state,
+                }));
+              }}
+            />
+          ) : null}
+          {showCandidateSection && candidates.length > 0 ? (
+            <KnowledgeSmartIngestCandidateWorkflow
+              sourceId={source.id}
+              candidates={candidates}
+              draftByCandidateId={candidateDrafts}
             />
           ) : null}
         </>

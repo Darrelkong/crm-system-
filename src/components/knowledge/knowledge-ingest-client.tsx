@@ -1672,7 +1672,7 @@ export function KnowledgeIngestClient({
                 </Card>
               )}
 
-              {organizationReady && !selectedArchived && (
+              {organizationReady && !selectedArchived && !blocksSourceLevelPipeline && (
                 <Card className="p-4" data-ingest-step="comparison">
                   <KnowledgeIngestStepHeader
                     step={3}
@@ -1697,7 +1697,7 @@ export function KnowledgeIngestClient({
                 </Card>
               )}
 
-              {organizationReady && !selectedArchived && (
+              {organizationReady && !selectedArchived && !blocksSourceLevelPipeline && (
                 <Card className="p-4" data-ingest-step="draft">
                   <KnowledgeIngestStepHeader
                     step={4}

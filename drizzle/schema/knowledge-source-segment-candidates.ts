@@ -12,6 +12,7 @@ import { knowledgeCategories } from "./knowledge-categories";
 import { knowledgeSources } from "./knowledge-sources";
 import { knowledgeSourceSegments } from "./knowledge-source-segments";
 import { knowledgeSourceAnalysisRuns } from "./knowledge-source-analysis-runs";
+import { knowledgeArticles } from "./knowledge-articles";
 
 export const KNOWLEDGE_SEGMENT_CANDIDATE_STATUSES = [
   "pending",
@@ -67,6 +68,10 @@ export const knowledgeSourceSegmentCandidates = sqliteTable(
       () => knowledgeSourceAnalysisRuns.id,
       { onDelete: "restrict" },
     ),
+    draftArticleId: text("draft_article_id").references(() => knowledgeArticles.id, {
+      onDelete: "restrict",
+    }),
+    convertedAt: text("converted_at"),
   },
   (table) => [
     uniqueIndex("uq_knowledge_source_segment_candidates_segment").on(
@@ -78,6 +83,9 @@ export const knowledgeSourceSegmentCandidates = sqliteTable(
     ),
     index("idx_knowledge_source_segment_candidates_analysis_run").on(
       table.analysisRunId,
+    ),
+    index("idx_knowledge_source_segment_candidates_draft_article").on(
+      table.draftArticleId,
     ),
     check(
       "knowledge_source_segment_candidates_status_allowed",

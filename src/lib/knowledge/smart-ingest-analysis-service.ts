@@ -20,6 +20,7 @@ import {
   segmentKnowledgePasteTextDeterministic,
 } from "@/lib/knowledge/smart-ingest-deterministic-segmentation";
 import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
+import { sourceHasConvertedSegmentCandidates } from "@/lib/knowledge/knowledge-segment-candidate-convert-service";
 import {
   maybeMaterializeKnowledgeSegmentCandidates,
   supersedeKnowledgeSegmentCandidatesForReanalysis,
@@ -139,6 +140,14 @@ export async function startKnowledgeSourceAnalysis(
 ): Promise<{ runId: string; status: "pending" }> {
   const source = await getSourceForAnalysis(context, sourceId, db);
   assertPasteSourceForSmartIngest(source);
+
+  if (await sourceHasConvertedSegmentCandidates(sourceId, db)) {
+    throw analysisError(
+      KNOWLEDGE_ERROR_CODES.CANDIDATE_REANALYSIS_BLOCKED,
+      "已有主题保存为知识草稿，无法重新分析此来源",
+      409,
+    );
+  }
 
   const active = await findActiveAnalysisRun(sourceId, db);
   if (active) {

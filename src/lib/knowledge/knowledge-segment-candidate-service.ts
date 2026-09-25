@@ -44,6 +44,8 @@ export type KnowledgeSegmentCandidateDetail = {
   organizationStatus: KnowledgeAiRunStatus | null;
   organizationFailureCode: string | null;
   organizationCompleted: boolean;
+  draftArticleId: string | null;
+  convertedAt: string | null;
 };
 
 function mapCandidateRow(
@@ -80,6 +82,8 @@ function mapCandidateRow(
     organizationStatus: organization.status,
     organizationFailureCode: organization.failureCode,
     organizationCompleted: organization.status === "completed",
+    draftArticleId: row.draftArticleId,
+    convertedAt: row.convertedAt,
   };
 }
 

@@ -10,6 +10,7 @@ import {
 import { sql } from "drizzle-orm";
 import { users } from "./users";
 import { knowledgeSources } from "./knowledge-sources";
+import { knowledgeSourceSegmentCandidates } from "./knowledge-source-segment-candidates";
 import { knowledgeAiOrganizationRuns } from "./knowledge-ai-organization-runs";
 import { knowledgeArticles } from "./knowledge-articles";
 import { knowledgeArticleVersions } from "./knowledge-article-versions";
@@ -39,6 +40,10 @@ export const knowledgeAiComparisonRuns = sqliteTable(
     sourceId: text("source_id")
       .notNull()
       .references(() => knowledgeSources.id, { onDelete: "restrict" }),
+    candidateId: text("candidate_id").references(
+      () => knowledgeSourceSegmentCandidates.id,
+      { onDelete: "restrict" },
+    ),
     organizationRunId: text("organization_run_id")
       .notNull()
       .references(() => knowledgeAiOrganizationRuns.id, { onDelete: "restrict" }),
@@ -78,9 +83,20 @@ export const knowledgeAiComparisonRuns = sqliteTable(
     index("idx_knowledge_ai_comparison_runs_organization_run").on(
       table.organizationRunId,
     ),
-    uniqueIndex("uq_knowledge_ai_comparison_runs_active_source")
+    index("idx_knowledge_ai_comparison_runs_candidate_created").on(
+      table.candidateId,
+      table.createdAt,
+    ),
+    uniqueIndex("uq_knowledge_ai_comparison_runs_active_source_legacy")
       .on(table.sourceId)
-      .where(sql`${table.status} IN ('pending', 'processing')`),
+      .where(
+        sql`${table.status} IN ('pending', 'processing') AND ${table.candidateId} IS NULL`,
+      ),
+    uniqueIndex("uq_knowledge_ai_comparison_runs_active_candidate")
+      .on(table.candidateId)
+      .where(
+        sql`${table.status} IN ('pending', 'processing') AND ${table.candidateId} IS NOT NULL`,
+      ),
     check(
       "knowledge_ai_comparison_runs_status_allowed",
       sql`${table.status} IN ('pending', 'processing', 'completed', 'failed')`,
