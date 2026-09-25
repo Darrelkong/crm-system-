@@ -1,6 +1,9 @@
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
-import { buildCandidateOrganizerDraft } from "@/lib/knowledge/knowledge-segment-candidate-organizer-draft";
+import {
+  buildCandidateOrganizerDraft,
+  buildCandidateOrganizerDraftPayload,
+} from "@/lib/knowledge/knowledge-segment-candidate-organizer-draft";
 import { syncCandidateCategoryFromOrganizerDraft } from "@/lib/knowledge/knowledge-segment-candidate-draft-sync";
 import {
   getActiveSegmentCandidate,
@@ -101,7 +104,7 @@ export async function POST(request: Request, context: RouteContext) {
       );
     }
 
-    const draft = await buildCandidateOrganizerDraft(
+    const payload = await buildCandidateOrganizerDraftPayload(
       actor,
       sourceId,
       candidate,
@@ -114,7 +117,11 @@ export async function POST(request: Request, context: RouteContext) {
       db,
     );
 
-    await syncCandidateCategoryFromOrganizerDraft(candidate, draft, db);
+    await syncCandidateCategoryFromOrganizerDraft(
+      candidate,
+      payload.draft,
+      db,
+    );
     const refreshed = await getActiveSegmentCandidate(
       actor,
       sourceId,
@@ -122,7 +129,12 @@ export async function POST(request: Request, context: RouteContext) {
       db,
     );
 
-    return Response.json({ draft, candidate: refreshed });
+    return Response.json({
+      draft: payload.draft,
+      organizationRunId: payload.organizationRunId,
+      organizationUsable: payload.organizationUsable,
+      candidate: refreshed,
+    });
   } catch (error) {
     return knowledgeErrorResponse(error);
   }

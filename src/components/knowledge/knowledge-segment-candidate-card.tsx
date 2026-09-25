@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslation } from "@/i18n/provider";
 import { Button } from "@/components/ui/button";
@@ -9,10 +9,26 @@ import { Card } from "@/components/ui/card";
 import type { KnowledgeCategoryListItem } from "@/lib/knowledge/core-service";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
 import type { OrganizerDraftFields } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
+import { isUsableCandidateOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-organizer-draft-usability";
 import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
 import { RequestedProjectSelector } from "@/components/customers/requested-project-selector";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
 import { evidencePreviewForCandidate } from "@/components/knowledge/knowledge-segment-candidate-cards";
+
+function applyDraftFields(
+  draft: OrganizerDraftFields,
+  setters: {
+    setTitle: (value: string) => void;
+    setSummary: (value: string) => void;
+    setBody: (value: string) => void;
+    setDraft: (value: OrganizerDraftFields) => void;
+  },
+) {
+  setters.setDraft(draft);
+  setters.setTitle(draft.title);
+  setters.setSummary(draft.summary);
+  setters.setBody(draft.body);
+}
 
 export function KnowledgeSegmentCandidateCard({
   sourceId,
@@ -30,59 +46,40 @@ export function KnowledgeSegmentCandidateCard({
   const { t } = useTranslation();
   const [organizing, setOrganizing] = useState(false);
   const [organizeError, setOrganizeError] = useState<string | null>(null);
+  const [draftHydrating, setDraftHydrating] = useState(false);
+  const [draftHydrationError, setDraftHydrationError] = useState<string | null>(
+    null,
+  );
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState<OrganizerDraftFields | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
+  const hydrationAttemptedRef = useRef(false);
 
   const businessLabel =
     getRequestedProjectItem(candidate.requestedProjectCode)?.canonicalZhHans ??
     t("knowledge.ingest.businessCategoryPlaceholder");
 
   const loadDraft = useCallback(async () => {
-    const response = await fetch(
-      `/api/knowledge/sources/${sourceId}/candidates/${candidate.id}/organizer-draft`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      },
-    );
-    const payload = (await response.json()) as {
-      draft?: OrganizerDraftFields;
-      error?: string;
-      errorCode?: string;
-    };
-    if (!response.ok || !payload.draft) {
-      throw new Error(
-        resolveKnowledgeApiError(
-          t,
-          payload,
-          "knowledge.ingest.smartIngestCandidateOrganizeFailed",
-        ),
-      );
-    }
-    setDraft(payload.draft);
-    if (payload.draft.title) setTitle(payload.draft.title);
-    if (payload.draft.summary) setSummary(payload.draft.summary);
-    if (payload.draft.body) setBody(payload.draft.body);
-    onUpdated();
-  }, [candidate.id, onUpdated, sourceId, t]);
-
-  async function organizeCandidate() {
-    setOrganizing(true);
-    setOrganizeError(null);
+    setDraftHydrating(true);
+    setDraftHydrationError(null);
     try {
       const response = await fetch(
-        `/api/knowledge/sources/${sourceId}/candidates/${candidate.id}/organize`,
-        { method: "POST" },
+        `/api/knowledge/sources/${sourceId}/candidates/${candidate.id}/organizer-draft`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({}),
+        },
       );
       const payload = (await response.json()) as {
+        draft?: OrganizerDraftFields;
+        organizationUsable?: boolean;
         error?: string;
         errorCode?: string;
       };
-      if (!response.ok) {
+      if (!response.ok || !payload.draft) {
         throw new Error(
           resolveKnowledgeApiError(
             t,
@@ -91,7 +88,99 @@ export function KnowledgeSegmentCandidateCard({
           ),
         );
       }
-      await loadDraft();
+      applyDraftFields(payload.draft, {
+        setTitle,
+        setSummary,
+        setBody,
+        setDraft,
+      });
+      if (
+        candidate.organizationCompleted &&
+        payload.organizationUsable === false &&
+        !isUsableCandidateOrganizerDraft(payload.draft)
+      ) {
+        setDraftHydrationError(
+          t("knowledge.ingest.smartIngestCandidateOrganizeFailed"),
+        );
+      }
+      onUpdated();
+      return payload.draft;
+    } catch (caught) {
+      setDraftHydrationError(
+        caught instanceof Error
+          ? caught.message
+          : t("knowledge.ingest.smartIngestCandidateOrganizeFailed"),
+      );
+      return null;
+    } finally {
+      setDraftHydrating(false);
+    }
+  }, [candidate.id, candidate.organizationCompleted, onUpdated, sourceId, t]);
+
+  useEffect(() => {
+    hydrationAttemptedRef.current = false;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reset per-candidate editor state
+    setDraft(null);
+    setTitle("");
+    setSummary("");
+    setBody("");
+    setDraftHydrationError(null);
+  }, [candidate.id]);
+
+  useEffect(() => {
+    if (
+      !candidate.organizationCompleted ||
+      isUsableCandidateOrganizerDraft(draft) ||
+      hydrationAttemptedRef.current ||
+      draftHydrating
+    ) {
+      return;
+    }
+    hydrationAttemptedRef.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate persisted organizer draft on mount/reload
+    void loadDraft();
+  }, [
+    candidate.organizationCompleted,
+    candidate.id,
+    draft,
+    draftHydrating,
+    loadDraft,
+  ]);
+
+  async function organizeCandidate() {
+    setOrganizing(true);
+    setOrganizeError(null);
+    setDraftHydrationError(null);
+    try {
+      const response = await fetch(
+        `/api/knowledge/sources/${sourceId}/candidates/${candidate.id}/organize`,
+        { method: "POST" },
+      );
+      const payload = (await response.json()) as {
+        draft?: OrganizerDraftFields;
+        error?: string;
+        errorCode?: string;
+      };
+      if (!response.ok || !payload.draft) {
+        throw new Error(
+          resolveKnowledgeApiError(
+            t,
+            payload,
+            "knowledge.ingest.smartIngestCandidateOrganizeFailed",
+          ),
+        );
+      }
+      if (!isUsableCandidateOrganizerDraft(payload.draft)) {
+        throw new Error(t("knowledge.ingest.smartIngestCandidateOrganizeFailed"));
+      }
+      applyDraftFields(payload.draft, {
+        setTitle,
+        setSummary,
+        setBody,
+        setDraft,
+      });
+      hydrationAttemptedRef.current = true;
+      onUpdated();
       setExpanded(true);
     } catch (caught) {
       setOrganizeError(
@@ -104,8 +193,7 @@ export function KnowledgeSegmentCandidateCard({
     }
   }
 
-  const organized =
-    candidate.organizationCompleted || Boolean(draft?.title && draft?.body);
+  const organized = isUsableCandidateOrganizerDraft(draft);
 
   const categoryName =
     categories.find(
@@ -115,6 +203,14 @@ export function KnowledgeSegmentCandidateCard({
           candidate.knowledgeCategoryId ||
           draft?.suggestedCategoryId),
     )?.name ?? "";
+
+  async function toggleExpanded() {
+    const next = !expanded;
+    setExpanded(next);
+    if (next && candidate.organizationCompleted && !organized && !draftHydrating) {
+      await loadDraft();
+    }
+  }
 
   return (
     <Card
@@ -245,11 +341,11 @@ export function KnowledgeSegmentCandidateCard({
         <Button
           type="button"
           size="sm"
-          disabled={organizing}
+          disabled={organizing || draftHydrating}
           data-candidate-organize-button="true"
           onClick={() => void organizeCandidate()}
         >
-          {organizing
+          {organizing || draftHydrating
             ? t("knowledge.ingest.smartIngestCandidateOrganizing")
             : organized
               ? t("knowledge.ingest.smartIngestCandidateReorganize")
@@ -263,11 +359,40 @@ export function KnowledgeSegmentCandidateCard({
             {t("knowledge.ingest.smartIngestCandidateOrganized")}
           </span>
         ) : null}
+        {candidate.organizationCompleted && draftHydrating ? (
+          <span
+            className="self-center text-xs crm-text-secondary"
+            data-candidate-draft-hydrating="true"
+          >
+            {t("knowledge.ingest.smartIngestCandidatesPreparing")}
+          </span>
+        ) : null}
       </div>
       {organizeError ? (
-        <p className="mt-2 text-sm text-rose-700" data-candidate-organize-error="true">
+        <p
+          className="mt-2 text-sm text-rose-700"
+          data-candidate-organize-error="true"
+        >
           {organizeError}
         </p>
+      ) : null}
+      {draftHydrationError ? (
+        <div className="mt-2" data-candidate-draft-hydration-error="true">
+          <p className="text-sm text-rose-700">{draftHydrationError}</p>
+          <Button
+            type="button"
+            size="sm"
+            variant="secondary"
+            className="mt-2"
+            data-candidate-draft-retry="true"
+            onClick={() => {
+              hydrationAttemptedRef.current = false;
+              void loadDraft();
+            }}
+          >
+            {t("knowledge.ingest.smartIngestCandidatesRetry")}
+          </Button>
+        </div>
       ) : null}
 
       {organized ? (
@@ -275,7 +400,7 @@ export function KnowledgeSegmentCandidateCard({
           <button
             type="button"
             className="flex w-full items-center justify-between text-sm font-medium crm-text"
-            onClick={() => setExpanded((value) => !value)}
+            onClick={() => void toggleExpanded()}
             data-candidate-organized-toggle="true"
           >
             {t("knowledge.ingest.smartIngestCandidateOrganizedOutput")}
@@ -286,29 +411,35 @@ export function KnowledgeSegmentCandidateCard({
             )}
           </button>
           {expanded ? (
-            <div className="mt-3 space-y-2 text-sm" data-candidate-organized-fields="true">
+            <div
+              className="mt-3 space-y-2 text-sm"
+              data-candidate-organized-fields="true"
+            >
               <label className="block font-medium">
                 {t("knowledge.ingest.title")}
                 <input
                   className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2"
-                  value={title || draft?.title || ""}
+                  value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  data-candidate-organized-title="true"
                 />
               </label>
               <label className="block font-medium">
                 {t("knowledge.ingest.summary")}
                 <textarea
                   className="mt-1 min-h-20 w-full rounded-xl border border-slate-200 p-3"
-                  value={summary || draft?.summary || ""}
+                  value={summary}
                   onChange={(e) => setSummary(e.target.value)}
+                  data-candidate-organized-summary="true"
                 />
               </label>
               <label className="block font-medium">
                 {t("knowledge.ingest.body")}
                 <textarea
                   className="mt-1 min-h-32 w-full rounded-xl border border-slate-200 p-3"
-                  value={body || draft?.body || ""}
+                  value={body}
                   onChange={(e) => setBody(e.target.value)}
+                  data-candidate-organized-body="true"
                 />
               </label>
               {(draft?.categorySelectionRequired ||

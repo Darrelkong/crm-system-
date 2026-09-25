@@ -1,5 +1,10 @@
 import { getRequestMeta } from "@/lib/auth/cookies";
 import { organizeKnowledgeSegmentCandidate } from "@/lib/knowledge/knowledge-segment-candidate-organizer-service";
+import { buildCandidateOrganizerDraftPayload } from "@/lib/knowledge/knowledge-segment-candidate-organizer-draft";
+import { getDb } from "@/lib/db";
+import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
+import { KnowledgeServiceError } from "@/lib/knowledge/errors";
+import { isUsableCandidateOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-organizer-draft-usability";
 import {
   knowledgeErrorResponse,
   requireKnowledgeAccess,
@@ -20,8 +25,27 @@ export async function POST(request: Request, context: RouteContext) {
       sourceId,
       candidateId,
       getRequestMeta(request),
+      getDb(),
     );
-    return Response.json({ candidate });
+    const payload = await buildCandidateOrganizerDraftPayload(
+      actor,
+      sourceId,
+      candidate,
+      {},
+      getDb(),
+    );
+    if (!isUsableCandidateOrganizerDraft(payload.draft)) {
+      throw new KnowledgeServiceError(
+        KNOWLEDGE_ERROR_CODES.AI_OUTPUT_INVALID,
+        "AI 整理结果不可用，请重新整理",
+        503,
+      );
+    }
+    return Response.json({
+      candidate,
+      draft: payload.draft,
+      organizationRunId: payload.organizationRunId,
+    });
   } catch (error) {
     return knowledgeErrorResponse(error);
   }

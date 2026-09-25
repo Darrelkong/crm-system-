@@ -316,3 +316,11 @@ export async function getCandidateOrganizationForDraft(
   const run = await latestCandidateOrganization(candidateId, db);
   return mapOrganizationRun(run);
 }
+
+export async function getLatestCandidateOrganizationRunId(
+  candidateId: string,
+  db: Database = getDb(),
+): Promise<string | null> {
+  const run = await latestCandidateOrganization(candidateId, db);
+  return run?.id ?? null;
+}

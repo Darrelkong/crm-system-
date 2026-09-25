@@ -5,7 +5,11 @@ import {
   buildOrganizerDraftFromOrganization,
   type OrganizerDraftFields,
 } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
-import { getCandidateOrganizationForDraft } from "@/lib/knowledge/knowledge-segment-candidate-organizer-service";
+import {
+  getCandidateOrganizationForDraft,
+  getLatestCandidateOrganizationRunId,
+} from "@/lib/knowledge/knowledge-segment-candidate-organizer-service";
+import { isUsableCandidateOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-organizer-draft-usability";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
 
@@ -52,6 +56,42 @@ function syntheticSourceForCandidateDraft(
       singleSegmentId: null,
       singleSegmentEvidenceText: null,
     },
+  };
+}
+
+export type CandidateOrganizerDraftPayload = {
+  draft: OrganizerDraftFields;
+  organizationRunId: string | null;
+  organizationUsable: boolean;
+};
+
+export async function buildCandidateOrganizerDraftPayload(
+  context: KnowledgeSessionContext,
+  sourceId: string,
+  candidate: KnowledgeSegmentCandidateDetail,
+  options: {
+    manualRequestedProjectCode?: string | null;
+    manualRequestedProjectOverride?: boolean;
+    manualCategoryId?: string | null;
+    manualCategoryOverride?: boolean;
+  },
+  db: Database = getDb(),
+): Promise<CandidateOrganizerDraftPayload> {
+  const draft = await buildCandidateOrganizerDraft(
+    context,
+    sourceId,
+    candidate,
+    options,
+    db,
+  );
+  const organizationRunId = await getLatestCandidateOrganizationRunId(
+    candidate.id,
+    db,
+  );
+  return {
+    draft,
+    organizationRunId,
+    organizationUsable: isUsableCandidateOrganizerDraft(draft),
   };
 }
 
