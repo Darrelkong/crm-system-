@@ -16,7 +16,9 @@ import type {
 } from "./types";
 
 const KNOWLEDGE_LOCALES = new Set(["zh-Hant", "zh-Hans", "en"]);
-const VISION_IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png"]);
+function isVisionImageMimeType(value: string): value is CrmAiKnowledgeVisionExtractRequest["mimeType"] {
+  return value === "image/jpeg" || value === "image/png";
+}
 const VISION_TEXT_MAX_CHARS = 100_000;
 const VISION_WARNING_MAX_COUNT = 20;
 const VISION_WARNING_MESSAGE_MAX_CHARS = 300;
@@ -68,7 +70,7 @@ export function validateKnowledgeVisionExtractRequest(
       : null;
   if (
     !locale ||
-    !VISION_IMAGE_MIME_TYPES.has(mimeType) ||
+    !isVisionImageMimeType(mimeType) ||
     !imageBase64 ||
     imageBase64.length > KNOWLEDGE_VISION_IMAGE_MAX_BASE64_CHARS ||
     byteSize === null ||

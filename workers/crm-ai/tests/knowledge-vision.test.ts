@@ -21,6 +21,31 @@ describe("knowledge vision extract task", () => {
     assert.equal(request?.mimeType, "image/png");
   });
 
+  for (const [input, expected] of [
+    ["image/jpeg", "image/jpeg"], ["image/png", "image/png"],
+    ["IMAGE/JPEG", "image/jpeg"], ["Image/PNG", "image/png"],
+  ] as const) {
+    it(`accepts and narrows ${input} to ${expected}`, () => {
+      const request = validateKnowledgeVisionExtractRequest({
+        task: "knowledge_vision_extract",
+        schemaVersion: KNOWLEDGE_VISION_EXTRACT_PROMPT_VERSION,
+        locale: "zh-Hant", mimeType: input, imageBase64: "aGVsbG8=", byteSize: 5,
+      });
+      assert.ok(request);
+      const supported: "image/jpeg" | "image/png" = request.mimeType;
+      assert.equal(supported, expected);
+    });
+  }
+
+  it("preserves rejection of unsupported and non-string MIME values", () => {
+    for (const mimeType of ["image/webp", "image/gif", "image/jpg", " image/png", "image/png; charset=utf-8", "", null, 1]) {
+      assert.equal(validateKnowledgeVisionExtractRequest({
+        task: "knowledge_vision_extract", schemaVersion: KNOWLEDGE_VISION_EXTRACT_PROMPT_VERSION,
+        locale: "zh-Hant", mimeType, imageBase64: "aGVsbG8=", byteSize: 5,
+      }), null);
+    }
+  });
+
   it("rejects invalid mime type", () => {
     assert.equal(
       validateKnowledgeVisionExtractRequest({

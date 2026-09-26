@@ -486,6 +486,85 @@ describe("1B-A candidate release blocker remediation on isolated D1", () => {
     assert.equal((await db.select().from(schema.knowledgeAiComparisonRuns))[0]!.status, "failed");
     assert.equal((await db.select().from(schema.auditLogs).where(eq(schema.auditLogs.action, "knowledge_comparison_completed"))).length, 0);
   });
+  it("B1R delayed provider-result comparison loses to a newer organization and retry succeeds", async () => {
+    const f = await fixture(THREE);
+    const candidate = f.candidates[0]!;
+    await updateCandidateManualClassification(actor(), f.source.id, candidate.id, { knowledgeCategoryId: f.categoryId }, db);
+    await organizeKnowledgeSegmentCandidate(actor(), f.source.id, candidate.id, META, db);
+    const organizationA = (await latestCandidateOrganization(candidate.id, db))!;
+    const entered = deferred(); const release = deferred(); let providerCalls = 0;
+    const providerResult = { relationship: "new_article", matchedCandidateKey: null,
+      matchConfidence: 0.9, newFacts: [], changedFacts: [], conflicts: [], uncertainties: [], suggestedUpdates: [] };
+    const retrieval = [{ candidateKey: "C1", articleId: crypto.randomUUID(), articleVersionId: crypto.randomUUID(),
+      versionNumber: 1, title: "Synthetic comparison reference", summary: null, categoryName: "Local",
+      visibility: "team" as const, bodyExcerpt: "Synthetic published reference for comparison",
+      bodyExcerptStart: 0, bodyExcerptEnd: 44, preRank: 1, preScore: 5, postRank: 1, postScore: 10, combinedScore: 15 }];
+    const pending = compareKnowledgeSegmentCandidate(actor(), f.source.id, candidate.id,
+      { ...DRAFT, organizationRunId: organizationA.id }, META, db, {
+        candidates: retrieval,
+        providerCall: async () => { providerCalls++; entered.resolve(); await release.promise; return providerResult; },
+      }).then(() => null, (error: unknown) => error);
+    await entered.promise;
+    await organizeKnowledgeSegmentCandidate(actor(), f.source.id, candidate.id, META, db);
+    const organizationB = (await latestCandidateOrganization(candidate.id, db))!;
+    assert.notEqual(organizationB.id, organizationA.id);
+    const candidatesBefore = await db.select().from(schema.knowledgeSourceSegmentCandidates);
+    const sourcesBefore = await db.select().from(schema.knowledgeSources);
+    const organizationsBefore = await db.select().from(schema.knowledgeAiOrganizationRuns);
+    release.resolve();
+    assert.ok(await pending instanceof KnowledgeServiceError);
+    assert.equal(providerCalls, 1);
+    const runs = await db.select().from(schema.knowledgeAiComparisonRuns);
+    assert.equal(runs.length, 1); assert.equal(runs[0]!.status, "failed");
+    assert.equal(runs[0]!.organizationRunId, organizationA.id);
+    assert.equal(runs[0]!.comparisonJson, null);
+    assert.deepEqual(await db.select().from(schema.knowledgeSourceSegmentCandidates), candidatesBefore);
+    assert.deepEqual(await db.select().from(schema.knowledgeSources), sourcesBefore);
+    assert.deepEqual(await db.select().from(schema.knowledgeAiOrganizationRuns), organizationsBefore);
+    await denied(() => convert(f), 409); assert.deepEqual(await counts(), zero);
+    await compareKnowledgeSegmentCandidate(actor(), f.source.id, candidate.id,
+      { ...DRAFT, organizationRunId: organizationB.id }, META, db, {
+        candidates: retrieval, providerCall: async () => { providerCalls++; return providerResult; },
+      });
+    assert.equal(providerCalls, 2);
+    const retry = (await db.select().from(schema.knowledgeAiComparisonRuns)).find(r => r.organizationRunId === organizationB.id)!;
+    assert.equal(retry.status, "completed");
+    const article = await convert(f);
+    assert.equal((await convert(f)).id, article.id); assert.deepEqual(await counts(), one);
+    assert.deepEqual((await db.select().from(schema.knowledgeSourceSegmentCandidates)).filter(c => c.id !== candidate.id),
+      candidatesBefore.filter(c => c.id !== candidate.id));
+  });
+
+  it("B1R confirmed → rejected → confirmed preserves lineage and allows a fresh comparison/conversion", async () => {
+    const f = await fixture(); await prepare(f);
+    await updateKnowledgeSourceSegmentStatus(actor(), f.source.id, f.segments[0]!.id, "rejected", META, db);
+    await denied(() => convert(f), 409);
+    await updateKnowledgeSourceSegmentStatus(actor(), f.source.id, f.segments[0]!.id, "confirmed", META, db);
+    const restored = await listKnowledgeSegmentCandidates(actor(), f.source.id, db);
+    assert.equal(restored.length, 1); assert.equal(restored[0]!.id, f.candidates[0]!.id);
+    await prepare(f); await convert(f); assert.deepEqual(await counts(), one);
+  });
+
+  it("B1R segment rejection wins before the conversion batch", async () => {
+    const f = await fixture(); await prepare(f);
+    const paused = batchHook(async queries => {
+      if (hasSql(queries, 'insert into "knowledge_articles"'))
+        await updateKnowledgeSourceSegmentStatus(actor(), f.source.id, f.segments[0]!.id, "rejected", META, db);
+    });
+    await denied(() => convert(f, paused), 409); assert.deepEqual(await counts(), zero);
+  });
+
+  it("B1R conversion wins before a delayed segment-review mutation", async () => {
+    const f = await fixture(); await prepare(f);
+    const paused = batchHook(async queries => {
+      if (hasSql(queries, 'update "knowledge_source_segments"')) await convert(f);
+    });
+    const before = await db.select().from(schema.knowledgeSourceSegments);
+    await denied(() => updateKnowledgeSourceSegmentStatus(actor(), f.source.id, f.segments[0]!.id, "rejected", META, paused), 409);
+    assert.deepEqual(await db.select().from(schema.knowledgeSourceSegments), before);
+    assert.deepEqual(await counts(), one);
+  });
+
   it("candidate comparison rejects another candidate's completed organization", async () => {
     const f = await fixture(THREE);
     for (const candidate of f.candidates.slice(0, 2)) await organizeKnowledgeSegmentCandidate(actor(), f.source.id, candidate.id, META, db);
@@ -597,14 +676,32 @@ describe("1B-A candidate release blocker remediation on isolated D1", () => {
   it("one source → three candidates → three Articles → stable correct Open Draft IDs", async () => {
     const f = await fixture(THREE); assert.equal(f.candidates.length, 3);
     const ids: string[] = [];
-    for (let i = 0; i < 3; i++) { await prepare(f, i); ids.push((await convert(f, db, i)).id); }
+    assert.equal(new Set(f.candidates.map(candidate => candidate.id)).size, 3);
+    const organizationIds: string[] = [];
+    for (let i = 0; i < 3; i++) {
+      const prepared = await prepare(f, i); organizationIds.push(prepared.organization.id);
+      ids.push((await convert(f, db, i)).id);
+    }
+    assert.equal(new Set(organizationIds).size, 3);
     assert.equal(new Set(ids).size, 3);
     assert.deepEqual(await counts(), { articles: 3, versions: 3, audits: 3, links: 3 });
     const refreshed = await listKnowledgeSegmentCandidates(actor(), f.source.id, db);
     for (let i = 0; i < refreshed.length; i++) {
       const id = resolveCandidateDraftArticleId(refreshed[i]!, {});
       assert.equal(id, ids[i]); assert.equal(knowledgeArticleDetailPath(id!), `/knowledge/articles/${ids[i]}`);
+      const candidate = refreshed[i]!;
+      assert.equal(candidate.segmentId, f.candidates[i]!.segmentId);
+      assert.equal(candidate.analysisRunId, f.candidates[i]!.analysisRunId);
+      assert.equal((await latestCandidateOrganization(candidate.id, db))!.id, organizationIds[i]);
+      const comparisons = await db.select().from(schema.knowledgeAiComparisonRuns)
+        .where(eq(schema.knowledgeAiComparisonRuns.candidateId, candidate.id));
+      assert.equal(comparisons.length, 1);
+      assert.equal(comparisons[0]!.organizationRunId, organizationIds[i]);
+      assert.equal(comparisons[0]!.sourceId, f.source.id);
+      assert.equal((await convert(f, db, i)).id, id);
     }
+    assert.deepEqual(await counts(), { articles: 3, versions: 3, audits: 3, links: 3 });
+    assert.deepEqual((await listKnowledgeSegmentCandidates(actor(), f.source.id, db)).map(c => c.draftArticleId), ids);
     assert.equal((await db.select().from(schema.knowledgeSources))[0]!.linkedArticleId, null);
   });
   it("parallel materialization keeps one candidate per segment", async () => {

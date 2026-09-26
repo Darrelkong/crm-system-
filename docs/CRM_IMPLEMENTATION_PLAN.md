@@ -38,6 +38,16 @@ Local implementation and validation evidence is recorded in [module status](CRM_
 
 **Retain for 1B-B:** Direct delayed provider-result comparison-completion race testing. The existing commit-time predicate remains unchanged; the earlier no-match race test does not cover that provider-result execution path. Do not expand this closure into full validation.
 
+## 1B-B1c local validation closure — 2026-09-26
+
+**1B-A and 1B-B1a APPROVED / CLOSED; 1B-B1 LOCAL VALIDATION COMPLETE, pending Chat final diff review.** Current local checkpoint remains `09971eafc4590d45fb20e9df613728451cedf27f`; the B1R validation additions and B1c narrow MIME type predicate, source-only Worker typecheck and status notes remain uncommitted. This supersedes the earlier pending-local-validation statements, while preserving historical findings.
+
+[Final local evidence](CRM_MODULE_STATUS.md#1b-b1c-final-local-validation-closure--2026-09-26) retains accepted 436 static and 246 D1 passes, adds source-restore 14 and source-vision-ingest 3 passes, and records successful crm-ai contracts/Vision, production-source semantic typecheck, Wrangler dry-run, Next.js/OpenNext builds, main-app TypeScript and changed-file checks. The deferred provider-result completion race was directly exercised in B1R; it is no longer an unexecuted local item.
+
+The repeatable crm-ai source gate is `npm run crm-ai:typecheck` **and** production-config Wrangler dry-run **and** relevant behavior/contract tests. Full Worker development-tree tsc still reports 14 pre-existing non-production errors (tests 3 / remote-dev scripts 11 / production source 0 / tooling-config 0): **P3 CRM-AI TYPECHECK MAINTENANCE DEBT**, separately scoped future work. Broad package test aggregation remains P3 maintenance; explicit release-suite execution supplies current evidence, and omitted scripts must not be mistaken for executed coverage.
+
+**NEXT: CHAT FINAL B1 REVIEW → separately authorized 1B-B2 isolated remote Preview, browser and real-AI validation → separate Production release approval.** No commit/push is authorized by this record. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**; known Production migration baseline is still 0084–0086 applied / 0087–0090 pending, without new remote verification. All four required migrations must precede new crm-system deployment under the runbook and explicit release authorization. Production mock/test flags must both be off at the later preflight.
+
 ## P0 — confirmed correctness/security blockers
 
 0E established no new P0 at its earlier scope. **1A subsequently confirmed P0-1: candidate PATCH mutated before action/source authorization.** The authorized 1B-A diff corrects the order and uses a single guarded update; denied/invalid requests are checked against complete before/after candidate rows in isolated D1 tests. This is a local remediation awaiting review, not a claim that Production was affected or repaired. See [security correction](CRM_SECURITY_AND_PERMISSIONS.md#1b-a-candidate-mutation-correction--2026-09-26).

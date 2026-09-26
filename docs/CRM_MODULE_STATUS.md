@@ -228,6 +228,54 @@ Validation: focused error/static/catalog tests **51 PASS**; the exact original 8
 
 **Only the error-mapping/static-test blocker is closed. 1B-B1 full validation remains incomplete.** No D1 suite, migration, build, remote Preview, real AI or Production operation was performed in this correction. One local commit is authorized, with no push. Next: **CHAT REVIEW → RESUME 1B-B1 FROM THE STOPPED VALIDATION GATE**. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**; the dated Production baseline remains 0084–0086 applied / 0087–0090 pending, without new verification.
 
+## 1B-B1c final local validation closure — 2026-09-26
+
+**1B-B1 LOCAL VALIDATION COMPLETE — READY FOR CHAT FINAL B1 REVIEW.** Validation is based on local HEAD `09971eafc4590d45fb20e9df613728451cedf27f`, following approved 1B-A checkpoint `08b8312f44d63054d33df61ceb00604ebd948a33`. The validation additions, narrow MIME type correction and source-type tooling remain **uncommitted** for Chat review. This supersedes the earlier incomplete-local-validation status; it does not grant Preview or Production authorization.
+
+The only runtime-source edit is a type predicate in `workers/crm-ai/src/knowledge-vision.ts`, backed by the same JPEG/PNG acceptance check after lowercase normalization. No MIME behavior, prompt, authorization, binding, schema or migration changes. Tests cover JPEG, PNG, mixed-case normalization, unsupported/non-string values and the returned literal union. Existing `src/env.d.ts` supplies `Ai`; no dependency or binding declaration was added.
+
+The permanent crm-ai release source gate is **all three**: `npm run crm-ai:typecheck` (new `workers/crm-ai/tsconfig.build.json`, extending canonical options and including deployed source plus existing ambient declarations), production-config Wrangler **dry-run**, and relevant behavior/contract tests. Bundling alone is not semantic type validation. The source-only config excludes tests/scripts explicitly; the full development-tree failures are recorded below rather than hidden.
+
+| Local evidence | Result / scope |
+| --- | --- |
+| Accepted B1a 86-file pure/static batch | **436 PASS / 0 FAIL**, retained without unnecessary repetition |
+| Accepted B1R D1 regression | **246 PASS / 0 FAIL**, retained: provider-result completion race, populated 0086→0090 upgrade, concurrency/rollback/recovery, lifecycle/manual matrices, three-candidate/three-Article and legacy isolation |
+| Remaining source-restore D1 suite | **14 PASS / 0 FAIL**, fresh isolated local persistence |
+| Remaining source-vision-ingest D1 suite | **3 PASS / 0 FAIL**, fresh isolated local persistence; synthetic objects and injected AI |
+| Combined relevant D1 evidence | **263 PASS / 0 FAIL** across the retained and two completed suites; the accepted 246 were not rerun |
+| Focused category contract / Vision / deadline tests | **29 PASS / 0 FAIL**; final relocated caller/Worker contract rerun **9 PASS / 0 FAIL**, included in 29 |
+| Canonical `npm run crm-ai:test` | **60 PASS / 0 FAIL**; overlaps the focused Vision suites and must not be added to 29 as an independent total |
+| `npm run crm-ai:typecheck` | **PASS**, zero production-source diagnostics |
+| Installed Wrangler production-config dry-run | **PASS**, local bundle only, no upload/deploy |
+| Canonical OpenNext production build | **PASS**, including internal `npm run build` / Next.js production build and OpenNext Worker bundle |
+| Main-app `tsc --noEmit --incremental false --pretty false` | **PASS**, including the relocated cross-app contract test |
+| Changed TypeScript ESLint / `git diff --check` | **PASS**; no locale changes required |
+
+Reproduction commands (all local, installed dependencies only):
+
+```sh
+npm run crm-ai:typecheck
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false ./node_modules/.bin/wrangler deploy --dry-run --config workers/crm-ai/wrangler.jsonc --outdir /tmp/crm-b1c-worker-build
+NODE_ENV=test node --import tsx --test --test-concurrency=1 workers/crm-ai/tests/knowledge-category-suggest.test.ts workers/crm-ai/tests/knowledge-vision.test.ts workers/crm-ai/tests/knowledge-vision-deadline.test.ts src/lib/knowledge/knowledge-category-local-contract.test.ts
+npm run crm-ai:test
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs src/lib/knowledge/source-restore.integration.test.ts
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs src/lib/knowledge/source-vision-ingest.integration.test.ts
+NEXT_PUBLIC_MAIL_READ_SOURCE=production NEXT_TELEMETRY_DISABLED=1 WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true ./node_modules/.bin/opennextjs-cloudflare build
+./node_modules/.bin/tsc --noEmit --incremental false --pretty false
+./node_modules/.bin/eslint workers/crm-ai/src/knowledge-vision.ts workers/crm-ai/tests/knowledge-vision.test.ts src/lib/knowledge/knowledge-category-local-contract.test.ts src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts
+git diff --check
+```
+
+The existing cross-app contract test was retained and moved from `workers/crm-ai/tests/knowledge-category-local-contract.test.ts` to `src/lib/knowledge/knowledge-category-local-contract.test.ts`, where application aliases/bindings have their canonical type environment. It imports the actual Worker entry for the injected in-memory service bridge and existing ambient types. Its nine cases retain Worker parsing versus caller UUID/active-category membership responsibilities. An initial triple-slash-reference ESLint failure in that test harness was corrected by this entry import; the final nine-case rerun and ESLint pass. No real AI request occurs.
+
+**P3 CRM-AI TYPECHECK MAINTENANCE DEBT:** `tsc --project workers/crm-ai/tsconfig.json --noEmit --pretty false` still fails with **14 pre-existing diagnostics**: production source **0**, tests **3**, remote/development scripts **11**, tooling/config **0**. All 14 match the pre-fix full-tree diagnostic record. Test errors are union-output property narrowing in `tests/admin-brief.test.ts` (1), `tests/service.test.ts` (1), `tests/staff-actions.test.ts` (1); those runtime tests pass. Script errors are `scripts/admin-brief-remote.ts` (2), `scripts/benchmark-remote.ts` (2), `scripts/staff-actions-remote.ts` (6: union properties/implicit parameters), `scripts/vision-benchmark-b12-remote.ts` (1: `Ai.toMarkdown`). These files are outside the deployed source gate; remote scripts were not executed. Do not report full-tree tsc PASS or silently broaden this release into their repair.
+
+Build generated local ignored `.next` / `.open-next` artifacts; tracked-file hashes were unchanged by the build, including regenerated locale catalogs. Existing middleware/compatibility-date advisories are not build failures. Final boundary review found no change to Knowledge authorization, Customer/Mail/Team Member access, R2 lifecycle, Production config, or AI prompt/classification behavior; no secret value was introduced. No Production, Cloudflare API, remote Preview, real AI, Mail send, deployment, commit, push, schema/migration change or website access occurred.
+
+Logs are local ephemeral evidence: `/tmp/crm-b1c-source-tsc-final.log`, `/tmp/crm-b1c-worker-build.log`, `/tmp/crm-b1c-focused.log`, `/tmp/crm-b1c-contract-final.log`, `/tmp/crm-b1c-crm-ai-tests.log`, `/tmp/crm-b1c-source-restore.log`, `/tmp/crm-b1c-source-vision.log`, `/tmp/crm-b1c-production-build.log`, `/tmp/crm-b1c-app-tsc-final.log`, `/tmp/crm-b1c-eslint-final.log`, `/tmp/crm-b1c-full-worker-tsc.log`.
+
+**NEXT: CHAT FINAL B1 DIFF REVIEW → separately authorized 1B-B2 isolated Preview/browser/real-AI validation → separate Production release gate.** Production flags `CRM_ALLOW_TEST_DB_BIND` and `CRM_ALLOW_MOCK_AI` must both be off at later release preflight. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**. Historical Production migrations remain 0084–0086 applied / 0087–0090 pending; this local gate did not reconfirm or change Production.
+
 ## Dated Production evidence snapshot
 
 0D verified the intended Cloudflare account, Production `crm-db` identity, deployed Workers, main Worker bindings and listed bucket names. 0D-C executed only `SELECT id, name, applied_at FROM d1_migrations ORDER BY id ASC;` against the verified remote database/config. Result: 86 rows, latest 0086, no later migration, `changes=0`, `changed_db=false`, `rows_written=0`.
