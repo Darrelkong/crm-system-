@@ -188,6 +188,8 @@ export type CrmAiRequest =
 
 export type CrmAiEnv = {
   AI: Ai;
+  /** Explicit Preview-only opt-in; unset preserves the Production gateway. */
+  CRM_AI_GATEWAY_MODE?: "direct";
   CRM_AI_TIMEOUT_MS?: string;
   CRM_AI_VISION_TIMEOUT_MS?: string;
 };

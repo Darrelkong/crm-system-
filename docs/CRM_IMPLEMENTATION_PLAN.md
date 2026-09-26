@@ -218,3 +218,9 @@ Unconfirmed capabilities remain **HISTORICAL PROPOSAL — NOT CURRENTLY APPROVED
 ## Review and promotion rule
 
 Record which dimension an owner instruction confirms: product direction, implementation scope or release authorization. 0F-B confirms named product rules/directions and authorizes documentation corrections only. Record date, permitted actions and acceptance criteria before promoting another dimension. Execution results must reference a SHA and environment. Production action always needs target-specific authorization. Do not infer consent from priority, elapsed time, an old phase plan or the word CURRENT in a document header.
+
+## 1B-B2R approval and execution boundary — 2026-09-26
+
+Owner-approved B1 is closed at feature checkpoint `a11822fd60f5ba1123b996e9d58b74542304f329`. B2R permits only the named isolated Preview D1 `crm-db-si2-preview`, R2 `crm-knowledge-si2-preview`, AI Worker `crm-ai-si2-preview`, and CRM Worker `crm-system-knowledge-preview`; old Preview and Production resources are preserved. See the updated deployment runbook for strict bindings, exact-SHA deployment and migration verification. One logical Preview-isolation commit and non-force feature push are authorized by the current owner request, not by this document.
+
+Infrastructure, migrations and synthetic service/real-AI checks may proceed without browser login. Browser controls, Open Draft, reload and browser permission/stale-state acceptance remain **DEFERRED — HUMAN ACCESS REQUIRED**. No Access change or authentication workaround is authorized. Record actual remote evidence separately; configuration alone does not establish deployed isolation or B2 PASS. Next: complete isolated infrastructure/service evidence → human browser acceptance → separate Production preflight/approval. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**.

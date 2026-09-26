@@ -111,9 +111,11 @@ type GatewayOptions = {
 };
 
 function gatewayOptions(
+  env: CrmAiEnv,
   task: SystemAiTask,
   schemaVersion: string,
-): GatewayOptions {
+): GatewayOptions | undefined {
+  if (env.CRM_AI_GATEWAY_MODE === "direct") return undefined;
   return {
     gateway: {
       id: AI_GATEWAY_ID,
@@ -243,7 +245,7 @@ async function invokeModel(
   timeoutMs: number,
 ): Promise<unknown> {
   return runWithResponseDeadline(timeoutMs, () =>
-    env.AI.run(model, payload, gatewayOptions(task, schemaVersion)),
+    env.AI.run(model, payload, gatewayOptions(env, task, schemaVersion)),
   );
 }
 
