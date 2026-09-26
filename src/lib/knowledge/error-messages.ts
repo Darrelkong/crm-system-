@@ -123,6 +123,16 @@ export const KNOWLEDGE_ERROR_I18N_KEYS: Record<string, string> = {
   [KNOWLEDGE_ERROR_CODES.AI_NO_SOURCES]: "knowledge.errors.aiNoSources",
   [KNOWLEDGE_ERROR_CODES.AI_CITATION_INVALID]:
     "knowledge.errors.aiCitationInvalid",
+  [KNOWLEDGE_ERROR_CODES.REPROCESS_CONFIRMATION_REQUIRED]: "knowledge.errors.reprocessConfirmationRequired",
+  [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_REQUIRED]: "knowledge.errors.aiComparisonRequired",
+  [KNOWLEDGE_ERROR_CODES.AI_COMPARISON_STALE]: "knowledge.errors.aiComparisonStale",
+  [KNOWLEDGE_ERROR_CODES.CANDIDATE_REANALYSIS_BLOCKED]: "knowledge.errors.candidateReanalysisBlocked",
+  [KNOWLEDGE_ERROR_CODES.ANALYSIS_EMPTY_SOURCE]: "knowledge.errors.analysisEmptySource",
+  [KNOWLEDGE_ERROR_CODES.ANALYSIS_UNSUPPORTED_SOURCE_TYPE]: "knowledge.errors.analysisUnsupportedSourceType",
+  [KNOWLEDGE_ERROR_CODES.ANALYSIS_ALREADY_RUNNING]: "knowledge.errors.analysisAlreadyRunning",
+  [KNOWLEDGE_ERROR_CODES.ANALYSIS_SEGMENTATION_FAILED]: "knowledge.errors.analysisSegmentationFailed",
+  [KNOWLEDGE_ERROR_CODES.ANALYSIS_RUN_NOT_FOUND]: "knowledge.errors.analysisRunNotFound",
+  [KNOWLEDGE_ERROR_CODES.ANALYSIS_SEGMENT_NOT_FOUND]: "knowledge.errors.analysisSegmentNotFound",
   [KNOWLEDGE_ERROR_CODES.SMART_INGEST_SEGMENT_SCOPE_REQUIRED]:
     "knowledge.ingest.smartIngestSegmentScopeRequired",
 };
@@ -138,7 +148,7 @@ export function getKnowledgeErrorMessage(
   t: KnowledgeTranslate,
   errorCode?: string | null,
 ): string {
-  if (errorCode && KNOWLEDGE_ERROR_I18N_KEYS[errorCode]) {
+  if (errorCode && Object.hasOwn(KNOWLEDGE_ERROR_I18N_KEYS, errorCode)) {
     return t(KNOWLEDGE_ERROR_I18N_KEYS[errorCode]);
   }
   return t("knowledge.errors.generic");
@@ -149,7 +159,7 @@ export function resolveKnowledgeApiError(
   payload: KnowledgeApiErrorPayload,
   fallbackKey = "knowledge.errors.generic",
 ): string {
-  if (payload.errorCode) {
+  if (payload.errorCode && Object.hasOwn(KNOWLEDGE_ERROR_I18N_KEYS, payload.errorCode)) {
     return getKnowledgeErrorMessage(t, payload.errorCode);
   }
   return t(fallbackKey);

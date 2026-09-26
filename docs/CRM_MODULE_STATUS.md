@@ -218,6 +218,16 @@ git diff --check
 
 **Retained for 1B-B:** Direct provider-result late comparison-completion race testing (the same commit-time predicate is unchanged); browser/Preview validation including actual reset interactions. No browser/build/remote Preview/real AI/Mail send/Production access or Cloudflare change occurred. No schema/migration change, including no 0091. Main remains at `a481689ad3854b85dfa6073c9aa495453659fb58`; 1A is not relabeled PASS. **Smart Ingest 2 remains NOT PRODUCTION DEPLOYED.** The earlier 1B-A uncommitted-state descriptions and 1B-A2 export are historical evidence, superseded for current category-clear semantics by this closure.
 
+## 1B-B1a error-mapping closure — 2026-09-26
+
+The first 1B-B1 pure/static batch stopped at **425 PASS / 7 FAIL**. The separately authorized narrow correction verified 84 defined Knowledge error codes, 74 previously mapped and 10 missing. All 84 now resolve to canonical non-generic messages in English, Simplified Chinese and Traditional Chinese. Unknown/missing codes use a caller-supplied localized fallback (default generic); raw server error text is never rendered. No API code/status, business logic, schema or migration changed.
+
+The other six failures were classified individually: raw `payload.error` matching `payload.errorCode` was a **TEST REGEX FALSE POSITIVE**; file-picker loading expression, old AI label, extracted organizer mock gate and legacy duplicate marker were **STALE / BRITTLE TESTS**; the removed reanalysis helper assertion was **EXPECTED BEHAVIOR CHANGED BY APPROVED 1B-A REMEDIATION**, which now supersedes segments inside the guarded batch. Corrections check the actual current gate, message branch or mutation scope without altering those runtime paths.
+
+Validation: focused error/static/catalog tests **51 PASS**; the exact original 86-file list **436 PASS / 0 FAIL** (432 original tests plus four focused regressions; focused results are included, not added again). `tsc --noEmit --incremental false --pretty false` passed. Changed-file ESLint passed with zero errors and one pre-existing unused `sheetBlock` warning in `knowledge-ingest-human-review-ux.test.ts`; `git diff --check` passed. Logs: `/tmp/crm-b1a-focused.log`, `/tmp/crm-b1a-static.log`, `/tmp/crm-b1a-typecheck.log`, `/tmp/crm-b1a-eslint.log`. The exact original command is retained in `/tmp/crm-b1-unit-command.json`.
+
+**Only the error-mapping/static-test blocker is closed. 1B-B1 full validation remains incomplete.** No D1 suite, migration, build, remote Preview, real AI or Production operation was performed in this correction. One local commit is authorized, with no push. Next: **CHAT REVIEW → RESUME 1B-B1 FROM THE STOPPED VALIDATION GATE**. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**; the dated Production baseline remains 0084–0086 applied / 0087–0090 pending, without new verification.
+
 ## Dated Production evidence snapshot
 
 0D verified the intended Cloudflare account, Production `crm-db` identity, deployed Workers, main Worker bindings and listed bucket names. 0D-C executed only `SELECT id, name, applied_at FROM d1_migrations ORDER BY id ASC;` against the verified remote database/config. Result: 86 rows, latest 0086, no later migration, `changes=0`, `changed_db=false`, `rows_written=0`.

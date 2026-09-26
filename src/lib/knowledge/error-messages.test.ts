@@ -39,6 +39,8 @@ const tHant = (key: string) => {
   return String(value);
 };
 
+const rawErrorProperty = /\bpayload\s*(?:\.\s*error\b|\[\s*["\x27]error["\x27]\s*\])/;
+
 const CLIENT_FILES = [
   "src/components/knowledge/knowledge-access-form.tsx",
   "src/components/knowledge/knowledge-ingest-client.tsx",
@@ -59,6 +61,46 @@ describe("Knowledge error message localization", () => {
         KNOWLEDGE_ERROR_I18N_KEYS[code],
         `missing i18n mapping for ${code}`,
       );
+    }
+  });
+
+  it("resolves every defined code canonically in all supported catalogs", () => {
+    for (const translate of [tEn, tHans, tHant]) {
+      for (const code of Object.values(KNOWLEDGE_ERROR_CODES)) {
+        const key = KNOWLEDGE_ERROR_I18N_KEYS[code]!;
+        const message = translate(key);
+        assert.ok(message && message !== "undefined", `${code}: missing locale value`);
+        assert.notEqual(message, translate("knowledge.errors.generic"));
+        assert.equal(getKnowledgeErrorMessage(translate, code), message);
+        assert.equal(resolveKnowledgeApiError(translate, {
+          errorCode: code, error: "unsafe internal server detail",
+        }, "knowledge.errors.sourceInvalid"), message);
+      }
+    }
+  });
+
+  it("explains blocked reanalysis and stale comparison instead of generic failure", () => {
+    assert.match(getKnowledgeErrorMessage(tEn, KNOWLEDGE_ERROR_CODES.CANDIDATE_REANALYSIS_BLOCKED), /saved.*draft.*cannot be analyzed again/);
+    assert.match(getKnowledgeErrorMessage(tEn, KNOWLEDGE_ERROR_CODES.AI_COMPARISON_STALE), /out of date.*compare again/);
+  });
+
+  it("uses only safe localized fallbacks for unknown or missing API codes", () => {
+    for (const translate of [tEn, tHans, tHant]) {
+      for (const code of [undefined, "", "UNKNOWN_CODE", "__proto__", "constructor", "toString"]) {
+        const payload = { errorCode: code, error: "unsafe internal server detail" };
+        assert.equal(getKnowledgeErrorMessage(translate, code), translate("knowledge.errors.generic"));
+        assert.equal(resolveKnowledgeApiError(translate, payload), translate("knowledge.errors.generic"));
+        assert.equal(resolveKnowledgeApiError(translate, payload, "knowledge.errors.sourceInvalid"), translate("knowledge.errors.sourceInvalid"));
+      }
+    }
+  });
+
+  it("raw-error property guard distinguishes error from errorCode", () => {
+    for (const source of ["setError(payload.error)", "payload . error", 'payload["error"]', "payload['error']"]) {
+      assert.match(source, rawErrorProperty);
+    }
+    for (const source of ["payload.errorCode", "payload.errorDetails", 'payload["errorCode"]']) {
+      assert.doesNotMatch(source, rawErrorProperty);
     }
   });
 
@@ -219,7 +261,7 @@ describe("Knowledge error message localization", () => {
       );
       assert.doesNotMatch(
         source,
-        /payload\.error/,
+        rawErrorProperty,
         `${file} must not render payload.error directly`,
       );
     }
