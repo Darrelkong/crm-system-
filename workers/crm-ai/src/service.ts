@@ -637,7 +637,7 @@ async function runKnowledgeTaskWithRetries<T>(
     | "knowledge_category_suggest",
   model: string,
   totalDeadlineMs: number,
-  attemptRunner: (remainingMs: number) => Promise<AiServiceResult<T>>,
+  attemptRunner: (remainingMs: number, attempt: number) => Promise<AiServiceResult<T>>,
 ): Promise<AiServiceResult<T>> {
   const startedAt = Date.now();
   let lastError: AiServiceError = "internal_error";
@@ -651,7 +651,7 @@ async function runKnowledgeTaskWithRetries<T>(
     }
 
     try {
-      const result = await attemptRunner(remainingMs);
+      const result = await attemptRunner(remainingMs, attempt + 1);
       if (
         !result.ok &&
         result.error === "invalid_output" &&
@@ -799,7 +799,7 @@ export async function runKnowledgeCompareTask(
     "knowledge_compare",
     KNOWLEDGE_MODEL,
     totalDeadlineMs,
-    (remainingMs) =>
+    (remainingMs, attempt) =>
       runKnowledgeCompare(
         env,
         request,
@@ -807,6 +807,7 @@ export async function runKnowledgeCompareTask(
           invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
         parseJsonValue,
         remainingMs,
+        attempt,
       ),
   );
 }

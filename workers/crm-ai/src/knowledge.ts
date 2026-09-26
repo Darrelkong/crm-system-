@@ -1,3 +1,4 @@
+import { KNOWLEDGE_COMPARE_JSON_SCHEMA } from "./knowledge-comparison-schema";
 import {
   KNOWLEDGE_MODEL,
   KNOWLEDGE_COMPARE_MAX_TOKENS,
@@ -40,36 +41,7 @@ export const KNOWLEDGE_ORGANIZATION_JSON_SCHEMA = {
   },
 } as const;
 
-export const KNOWLEDGE_COMPARE_JSON_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "relationship",
-    "matchedCandidateKey",
-    "matchConfidence",
-    "newFacts",
-    "changedFacts",
-    "conflicts",
-    "uncertainties",
-    "suggestedUpdates",
-  ],
-  properties: {
-    relationship: {
-      type: "string",
-      enum: ["update_existing", "new_article", "ambiguous"],
-    },
-    matchedCandidateKey: {
-      type: ["string", "null"],
-      enum: ["C1", "C2", "C3", null],
-    },
-    matchConfidence: { type: "number" },
-    newFacts: { type: "array", items: { type: "object" } },
-    changedFacts: { type: "array", items: { type: "object" } },
-    conflicts: { type: "array", items: { type: "object" } },
-    uncertainties: { type: "array", items: { type: "object" } },
-    suggestedUpdates: { type: "array", items: { type: "object" } },
-  },
-} as const;
+export { KNOWLEDGE_COMPARE_JSON_SCHEMA } from "./knowledge-comparison-schema";
 
 export const KNOWLEDGE_CATEGORY_SUGGEST_JSON_SCHEMA = {
   type: "object",
@@ -249,8 +221,17 @@ function validateOrganizeOutput(value: unknown): KnowledgeOrganizeOutput | null 
   };
 }
 
+function exactObject(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+}
+const diffKeys = ["id", "topic", "existingValue", "incomingValue", "explanation", "confidence", "sourceExcerpt", "existingExcerpt"];
+const updateKeys = ["topic", "suggestion", "rationale", "confidence"];
+const compareKeys = ["relationship", "matchedCandidateKey", "matchConfidence", "newFacts", "changedFacts", "conflicts", "uncertainties", "suggestedUpdates"];
+
 function validateDiffItem(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
+  if (!exactObject(value, diffKeys)) return false;
+  if (["existingValue", "incomingValue", "sourceExcerpt", "existingExcerpt"].some(key => value[key] !== null && typeof value[key] !== "string")) return false;
   const record = value as Record<string, unknown>;
   const id = typeof record.id === "string" ? record.id.trim() : "";
   const topic = typeof record.topic === "string" ? record.topic.trim() : "";
@@ -306,7 +287,7 @@ function validateDiffItem(value: unknown): boolean {
 }
 
 function validateSuggestedUpdate(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
+  if (!exactObject(value, updateKeys)) return false;
   const record = value as Record<string, unknown>;
   const topic = typeof record.topic === "string" ? record.topic.trim() : "";
   const suggestion =
@@ -330,8 +311,9 @@ function validateSuggestedUpdate(value: unknown): boolean {
   );
 }
 
-function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
-  if (!value || typeof value !== "object") return null;
+export function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
+  if (!exactObject(value, compareKeys)) return null;
+  if (value.matchedCandidateKey !== null && typeof value.matchedCandidateKey !== "string") return null;
   const record = value as Record<string, unknown>;
   const relationship = record.relationship;
   const matchedCandidateKey =
@@ -369,6 +351,7 @@ function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
   }
   if (
     typeof matchConfidence !== "number" ||
+    !Number.isFinite(matchConfidence) ||
     matchConfidence < 0 ||
     matchConfidence > 1 ||
     !newFacts ||
@@ -401,6 +384,17 @@ function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
     suggestedUpdates:
       suggestedUpdates as KnowledgeCompareOutput["suggestedUpdates"],
   };
+}
+
+export function comparisonValidationReason(value: unknown): string | null {
+  if (validateCompareOutput(value)) return null;
+  if (!exactObject(value, compareKeys)) return "invalid_top_level_shape";
+  for (const key of ["newFacts", "changedFacts", "conflicts", "uncertainties"]) {
+    if (Array.isArray(value[key]) && value[key].some(item => !validateDiffItem(item))) return "invalid_diff_item_shape";
+  }
+  if (Array.isArray(value.suggestedUpdates) && value.suggestedUpdates.some(item => !validateSuggestedUpdate(item))) return "invalid_suggested_update_shape";
+  if (value.relationship === "update_existing" && value.matchedCandidateKey === null) return "invalid_relationship_match";
+  return "invalid_top_level_shape";
 }
 
 function validateQaOutput(value: unknown): KnowledgeQaOutput | null {
@@ -510,6 +504,7 @@ export async function runKnowledgeCompare(
   ) => Promise<unknown>,
   parseJsonValue: (value: unknown) => unknown | null,
   timeoutMs: number,
+  attempt = 1,
 ): Promise<AiServiceResult<KnowledgeCompareOutput>> {
   const raw = await invokeModel(
     KNOWLEDGE_MODEL,
@@ -527,6 +522,13 @@ export async function runKnowledgeCompare(
   const structured = parseJsonValue(extractStructuredPayload(raw));
   const validated = structured ? validateCompareOutput(structured) : null;
   if (!validated) {
+    const record = structured && typeof structured === "object" ? structured as Record<string, unknown> : {};
+    console.warn("knowledge_compare_validation", {
+      task: "knowledge_compare", attempt,
+      reason: structured === null ? "parse_failed" : comparisonValidationReason(structured),
+      responseType: Array.isArray(structured) ? "array" : typeof structured,
+      arrayCounts: Object.fromEntries(["newFacts", "changedFacts", "conflicts", "uncertainties", "suggestedUpdates"].map(key => [key, Array.isArray(record[key]) ? record[key].length : null])),
+    });
     return { ok: false, error: "invalid_output" };
   }
   return { ok: true, data: validated, model: KNOWLEDGE_MODEL };
