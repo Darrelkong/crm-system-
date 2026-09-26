@@ -1,4 +1,5 @@
-import { eq } from "drizzle-orm";
+import { candidateConflict, currentCandidateCondition, requireCurrentCandidate } from "@/lib/knowledge/knowledge-candidate-guards";
+import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
@@ -12,7 +13,7 @@ import {
   latestCandidateOrganization,
   mapOrganizationRun,
 } from "@/lib/knowledge/knowledge-organization-run-queries";
-import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
+import { buildKnowledgeAuditInsert, buildKnowledgeAuditInsertWhere } from "@/lib/knowledge/audit";
 import {
   canManageKnowledgeSource,
   getKnowledgeSource,
@@ -43,6 +44,7 @@ export async function getActiveSegmentCandidate(
   candidateId: string,
   db: Database = getDb(),
 ) {
+  await requireCurrentCandidate(context, sourceId, candidateId, db);
   const candidates = await listKnowledgeSegmentCandidates(context, sourceId, db);
   const candidate = candidates.find((row) => row.id === candidateId);
   if (!candidate) {
@@ -115,6 +117,7 @@ export async function organizeKnowledgeSegmentCandidate(
   candidateId: string,
   meta: KnowledgeSourceMeta,
   db: Database = getDb(),
+  dependencies: { execute?: typeof executeKnowledgeOrganizationOnEvidence } = {},
 ): Promise<KnowledgeSegmentCandidateDetail> {
   const source = await getKnowledgeSource(context, sourceId, db);
   const sourceRow = (
@@ -170,44 +173,26 @@ export async function organizeKnowledgeSegmentCandidate(
 
   const now = new Date().toISOString();
   const runId = crypto.randomUUID();
+  const identity = { id: candidateId, sourceId, analysisRunId: candidate.analysisRunId };
+  const runExists = sql`EXISTS (SELECT 1 FROM knowledge_ai_organization_runs WHERE id = ${runId})`;
   try {
-    await db.insert(schema.knowledgeAiOrganizationRuns).values({
-      id: runId,
-      sourceId,
-      candidateId,
-      requestedByUserId: context.user.id,
-      status: "pending",
-      provider: null,
-      model: null,
-      proposedTitle: null,
-      proposedSummary: null,
-      proposedBody: null,
-      proposedCategory: null,
-      businessIdentityJson: null,
-      warningsJson: null,
-      createdAt: now,
-      completedAt: null,
-      failureCode: null,
-    });
+    await db.batch([
+      db.insert(schema.knowledgeAiOrganizationRuns).select(sql`
+        SELECT ${runId}, ${sourceId}, ${candidateId}, ${context.user.id}, 'pending',
+          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, ${now}, NULL, NULL
+        WHERE ${currentCandidateCondition(identity, context)}
+      `),
+      buildKnowledgeAuditInsertWhere(db, {
+        userId: context.user.id, action: "knowledge_ai_organization_started",
+        entityType: "knowledge_ai_organization_run", entityId: runId, ...meta,
+        metadata: { sourceId, candidateId, status: "pending" },
+      }, runExists),
+    ]);
   } catch {
-    throw candidateOrganizerError(
-      KNOWLEDGE_ERROR_CODES.AI_RUN_CONFLICT,
-      "此主题已有进行中的 AI 整理",
-      409,
-    );
+    throw candidateOrganizerError(KNOWLEDGE_ERROR_CODES.AI_RUN_CONFLICT, "此主题已有进行中的 AI 整理", 409);
   }
-
-  await writeKnowledgeAudit(
-    {
-      userId: context.user.id,
-      action: "knowledge_ai_organization_started",
-      entityType: "knowledge_ai_organization_run",
-      entityId: runId,
-      ...meta,
-      metadata: { sourceId, candidateId, status: "pending" },
-    },
-    db,
-  );
+  if (!(await db.select().from(schema.knowledgeAiOrganizationRuns)
+    .where(eq(schema.knowledgeAiOrganizationRuns.id, runId)).limit(1))[0]) throw candidateConflict();
 
   let provider = "unknown";
   let model = "unknown";
@@ -217,7 +202,7 @@ export async function organizeKnowledgeSegmentCandidate(
       .set({ status: "processing" })
       .where(eq(schema.knowledgeAiOrganizationRuns.id, runId));
 
-    const executed = await executeKnowledgeOrganizationOnEvidence(
+    const executed = await (dependencies.execute ?? executeKnowledgeOrganizationOnEvidence)(
       {
         sourceTitle: candidate.segmentTitleHint,
         sourceType: source.sourceType,
@@ -246,15 +231,20 @@ export async function organizeKnowledgeSegmentCandidate(
           completedAt,
           failureCode: null,
         })
-        .where(eq(schema.knowledgeAiOrganizationRuns.id, runId)),
+        .where(and(eq(schema.knowledgeAiOrganizationRuns.id, runId),
+          eq(schema.knowledgeAiOrganizationRuns.status, "processing"),
+          currentCandidateCondition(identity, context))),
       db
         .update(schema.knowledgeSourceSegmentCandidates)
         .set({
           status: "ready",
-          updatedAt: completedAt,
+          updatedAt: sql`CASE WHEN updated_at >= ${completedAt}
+            THEN strftime('%Y-%m-%dT%H:%M:%fZ', updated_at, '+0.001 seconds') ELSE ${completedAt} END`,
         })
-        .where(eq(schema.knowledgeSourceSegmentCandidates.id, candidateId)),
-      buildKnowledgeAuditInsert(db, {
+        .where(and(eq(schema.knowledgeSourceSegmentCandidates.id, candidateId),
+          currentCandidateCondition(identity, context),
+          sql`EXISTS (SELECT 1 FROM knowledge_ai_organization_runs WHERE id = ${runId} AND status = 'completed')`)),
+      buildKnowledgeAuditInsertWhere(db, {
         userId: context.user.id,
         action: "knowledge_ai_organization_completed",
         entityType: "knowledge_ai_organization_run",
@@ -268,8 +258,11 @@ export async function organizeKnowledgeSegmentCandidate(
           provider,
           model,
         },
-      }),
+      }, sql`EXISTS (SELECT 1 FROM knowledge_ai_organization_runs WHERE id = ${runId} AND status = 'completed')`),
     ]);
+    const completed = (await db.select().from(schema.knowledgeAiOrganizationRuns)
+      .where(eq(schema.knowledgeAiOrganizationRuns.id, runId)).limit(1))[0];
+    if (completed?.status !== "completed") throw candidateConflict();
   } catch (error) {
     const failureCode = organizationFailureCodeFor(error);
     const failureAt = new Date().toISOString();
@@ -314,6 +307,7 @@ export async function getCandidateOrganizationForDraft(
 ) {
   await getActiveSegmentCandidate(context, sourceId, candidateId, db);
   const run = await latestCandidateOrganization(candidateId, db);
+  if (run && run.sourceId !== sourceId) throw candidateConflict();
   return mapOrganizationRun(run);
 }
 

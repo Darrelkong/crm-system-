@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
@@ -19,11 +19,10 @@ import {
   materializeDeterministicSegments,
   segmentKnowledgePasteTextDeterministic,
 } from "@/lib/knowledge/smart-ingest-deterministic-segmentation";
-import { buildKnowledgeAuditInsert } from "@/lib/knowledge/audit";
+import { buildKnowledgeAuditInsertWhere } from "@/lib/knowledge/audit";
 import { sourceHasConvertedSegmentCandidates } from "@/lib/knowledge/knowledge-segment-candidate-convert-service";
 import {
   maybeMaterializeKnowledgeSegmentCandidates,
-  supersedeKnowledgeSegmentCandidatesForReanalysis,
 } from "@/lib/knowledge/knowledge-segment-candidate-service";
 
 function analysisError(code: string, message: string, status = 400): KnowledgeServiceError {
@@ -116,22 +115,6 @@ async function findActiveAnalysisRun(sourceId: string, db: Database) {
   )[0] ?? null;
 }
 
-async function supersedeSegmentsForReanalysis(sourceId: string, db: Database) {
-  await db
-    .update(schema.knowledgeSourceSegments)
-    .set({ status: "superseded" })
-    .where(
-      and(
-        eq(schema.knowledgeSourceSegments.sourceId, sourceId),
-        inArray(schema.knowledgeSourceSegments.status, [
-          "proposed",
-          "confirmed",
-          "rejected",
-        ]),
-      ),
-    );
-}
-
 export async function startKnowledgeSourceAnalysis(
   context: KnowledgeSessionContext,
   sourceId: string,
@@ -161,37 +144,40 @@ export async function startKnowledgeSourceAnalysis(
   const now = new Date().toISOString();
   const runId = crypto.randomUUID();
 
-  await supersedeSegmentsForReanalysis(sourceId, db);
-
+  const created = sql`EXISTS (SELECT 1 FROM knowledge_source_analysis_runs WHERE id = ${runId})`;
   await db.batch([
-    db.insert(schema.knowledgeSourceAnalysisRuns).values({
-      id: runId,
-      sourceId,
-      requestedByUserId: context.user.id,
-      status: "pending",
-      schemaVersion: KNOWLEDGE_SOURCE_ANALYSIS_SCHEMA_VERSION,
-      segmentationMode: KNOWLEDGE_SOURCE_ANALYSIS_SEGMENTATION_MODE,
-      failureCode: null,
-      failureMessage: null,
-      createdAt: now,
-      startedAt: null,
-      completedAt: null,
-    }),
-    db
-      .update(schema.knowledgeSources)
-      .set({ analysisStatus: "pending", updatedAt: now })
-      .where(eq(schema.knowledgeSources.id, sourceId)),
-    buildKnowledgeAuditInsert(db, {
-      userId: context.user.id,
-      action: "knowledge_source_analysis_started",
-      entityType: "knowledge_source_analysis_run",
-      entityId: runId,
-      ...meta,
+    db.insert(schema.knowledgeSourceAnalysisRuns).select(sql`
+      SELECT ${runId}, ${sourceId}, ${context.user.id}, 'pending',
+        ${KNOWLEDGE_SOURCE_ANALYSIS_SCHEMA_VERSION}, ${KNOWLEDGE_SOURCE_ANALYSIS_SEGMENTATION_MODE},
+        NULL, NULL, ${now}, NULL, NULL
+      WHERE EXISTS (SELECT 1 FROM knowledge_sources s WHERE s.id = ${sourceId}
+        AND s.archived_at IS NULL AND s.source_type = 'paste'
+        AND (${context.role === "knowledge_admin" ? 1 : 0} = 1 OR s.created_by_user_id = ${context.user.id}))
+      AND NOT EXISTS (SELECT 1 FROM knowledge_source_segment_candidates
+        WHERE source_id = ${sourceId} AND draft_article_id IS NOT NULL)
+      AND NOT EXISTS (SELECT 1 FROM knowledge_source_analysis_runs
+        WHERE source_id = ${sourceId} AND status IN ('pending', 'processing'))
+    `),
+    db.update(schema.knowledgeSourceSegments).set({ status: "superseded" })
+      .where(and(eq(schema.knowledgeSourceSegments.sourceId, sourceId),
+        inArray(schema.knowledgeSourceSegments.status, ["proposed", "confirmed", "rejected"]), created)),
+    db.update(schema.knowledgeSourceSegmentCandidates).set({
+      status: "superseded", supersededAt: now, supersededByAnalysisRunId: runId, updatedAt: now,
+    }).where(and(eq(schema.knowledgeSourceSegmentCandidates.sourceId, sourceId),
+      inArray(schema.knowledgeSourceSegmentCandidates.status, ["pending", "ready"]), created)),
+    db.update(schema.knowledgeSources).set({ analysisStatus: "pending", updatedAt: now })
+      .where(and(eq(schema.knowledgeSources.id, sourceId), created)),
+    buildKnowledgeAuditInsertWhere(db, {
+      userId: context.user.id, action: "knowledge_source_analysis_started",
+      entityType: "knowledge_source_analysis_run", entityId: runId, ...meta,
       metadata: { sourceId, status: "pending" },
-    }),
+    }, created),
   ]);
-
-  await supersedeKnowledgeSegmentCandidatesForReanalysis(sourceId, runId, db);
+  if (!(await db.select().from(schema.knowledgeSourceAnalysisRuns)
+    .where(eq(schema.knowledgeSourceAnalysisRuns.id, runId)).limit(1))[0]) {
+    throw analysisError(KNOWLEDGE_ERROR_CODES.CANDIDATE_REANALYSIS_BLOCKED,
+      "来源状态已变更或已有主题保存为草稿，请刷新后重试", 409);
+  }
 
   return { runId, status: "pending" };
 }
@@ -411,24 +397,35 @@ export async function updateKnowledgeSourceSegmentStatus(
     throw analysisError(KNOWLEDGE_ERROR_CODES.ANALYSIS_SEGMENT_NOT_FOUND, "分段已失效", 409);
   }
   const now = new Date().toISOString();
-  await db.batch([
+  const result = await db.batch([
     db
       .update(schema.knowledgeSourceSegments)
       .set({ status })
-      .where(eq(schema.knowledgeSourceSegments.id, segmentId)),
+      .where(and(eq(schema.knowledgeSourceSegments.id, segmentId),
+        sql`status <> 'superseded'`,
+        sql`analysis_run_id = (SELECT id FROM knowledge_source_analysis_runs
+          WHERE source_id = ${sourceId} ORDER BY created_at DESC, rowid DESC LIMIT 1)`,
+        sql`EXISTS (SELECT 1 FROM knowledge_sources WHERE id = ${sourceId}
+          AND archived_at IS NULL AND analysis_status = 'ready_for_review')`,
+        sql`NOT EXISTS (SELECT 1 FROM knowledge_source_segment_candidates
+          WHERE segment_id = ${segmentId} AND draft_article_id IS NOT NULL)`,
+      )),
     db
       .update(schema.knowledgeSources)
       .set({ updatedAt: now })
-      .where(eq(schema.knowledgeSources.id, source.id)),
-    buildKnowledgeAuditInsert(db, {
+      .where(and(eq(schema.knowledgeSources.id, source.id), sql`changes() = 1`)),
+    buildKnowledgeAuditInsertWhere(db, {
       userId: context.user.id,
       action: "knowledge_source_segment_reviewed",
       entityType: "knowledge_source_segment",
       entityId: segmentId,
       ...meta,
       metadata: { sourceId, status },
-    }),
+    }, sql`changes() = 1`),
   ]);
+  if (result[0].meta.changes !== 1) {
+    throw analysisError(KNOWLEDGE_ERROR_CODES.SOURCE_INVALID, "主题状态已变更，请刷新后重试", 409);
+  }
   const updated = (
     await db
       .select()

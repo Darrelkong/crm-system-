@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
@@ -98,7 +98,7 @@ async function getLatestCompletedAnalysisRun(sourceId: string, db: Database) {
           eq(schema.knowledgeSourceAnalysisRuns.status, "completed"),
         ),
       )
-      .orderBy(desc(schema.knowledgeSourceAnalysisRuns.createdAt))
+      .orderBy(desc(schema.knowledgeSourceAnalysisRuns.createdAt), sql`knowledge_source_analysis_runs.rowid DESC`)
       .limit(1)
   )[0] ?? null;
 }
@@ -117,31 +117,6 @@ export function segmentReviewCompleteForRun(
   const active = segments.filter((segment) => segment.status !== "superseded");
   if (active.length === 0) return false;
   return active.every((segment) => segment.status !== "proposed");
-}
-
-export async function supersedeKnowledgeSegmentCandidatesForReanalysis(
-  sourceId: string,
-  newAnalysisRunId: string,
-  db: Database = getDb(),
-): Promise<void> {
-  const now = new Date().toISOString();
-  await db
-    .update(schema.knowledgeSourceSegmentCandidates)
-    .set({
-      status: "superseded",
-      supersededAt: now,
-      supersededByAnalysisRunId: newAnalysisRunId,
-      updatedAt: now,
-    })
-    .where(
-      and(
-        eq(schema.knowledgeSourceSegmentCandidates.sourceId, sourceId),
-        inArray(schema.knowledgeSourceSegmentCandidates.status, [
-          "pending",
-          "ready",
-        ]),
-      ),
-    );
 }
 
 export async function materializeKnowledgeSegmentCandidatesForSource(
@@ -192,24 +167,19 @@ export async function materializeKnowledgeSegmentCandidatesForSource(
       continue;
     }
     const candidateId = crypto.randomUUID();
-    await db.insert(schema.knowledgeSourceSegmentCandidates).values({
-      id: candidateId,
-      sourceId,
-      segmentId: segment.id,
-      analysisRunId: run.id,
-      segmentIndex: segment.segmentIndex,
-      status: "pending",
-      requestedProjectCode: null,
-      knowledgeCategoryId: null,
-      categoryResolutionSource: null,
-      manualRequestedProjectOverride: false,
-      manualCategoryOverride: false,
-      createdByUserId: context.user.id,
-      createdAt: now,
-      updatedAt: now,
-      supersededAt: null,
-      supersededByAnalysisRunId: null,
-    });
+    await db.insert(schema.knowledgeSourceSegmentCandidates).select(sql`
+      SELECT ${candidateId}, ${sourceId}, ${segment.id}, ${run.id}, ${segment.segmentIndex},
+        'pending', NULL, NULL, NULL, 0, 0, ${context.user.id}, ${now}, ${now}, NULL, NULL, NULL, NULL
+      WHERE EXISTS (SELECT 1 FROM knowledge_source_segments seg
+        JOIN knowledge_sources s ON s.id = seg.source_id
+        JOIN knowledge_source_analysis_runs ar ON ar.id = seg.analysis_run_id
+        WHERE seg.id = ${segment.id} AND seg.status = 'confirmed' AND seg.source_id = ${sourceId}
+          AND seg.analysis_run_id = ${run.id} AND ar.status = 'completed'
+          AND ar.rowid = (SELECT rowid FROM knowledge_source_analysis_runs
+            WHERE source_id = ${sourceId} ORDER BY created_at DESC, rowid DESC LIMIT 1)
+          AND s.archived_at IS NULL AND s.analysis_status = 'ready_for_review'
+          AND s.status IN ('ready', 'organized') AND s.linked_article_id IS NULL)
+    `).onConflictDoNothing({ target: schema.knowledgeSourceSegmentCandidates.segmentId });
     const inserted = (
       await db
         .select()
@@ -217,6 +187,7 @@ export async function materializeKnowledgeSegmentCandidatesForSource(
         .where(eq(schema.knowledgeSourceSegmentCandidates.id, candidateId))
         .limit(1)
     )[0]!;
+    if (!inserted) continue;
     await applyCandidateBusinessFromEvidence(
       inserted,
       segment.evidenceText,

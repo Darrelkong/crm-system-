@@ -1,3 +1,4 @@
+import { updateCandidateManualClassification } from "@/lib/knowledge/knowledge-segment-candidate-classification";
 import assert from "node:assert/strict";
 import { after, afterEach, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
@@ -17,6 +18,7 @@ import {
   listKnowledgeSegmentCandidates,
   materializeKnowledgeSegmentCandidatesForSource,
 } from "@/lib/knowledge/knowledge-segment-candidate-service";
+import { latestCandidateOrganization } from "@/lib/knowledge/knowledge-organization-run-queries";
 import { organizeKnowledgeSegmentCandidate } from "@/lib/knowledge/knowledge-segment-candidate-organizer-service";
 import {
   processKnowledgeSourceAnalysisRun,
@@ -136,10 +138,9 @@ describe("knowledge segment candidate compare + convert (2E-5/6)", () => {
       createdAt: now,
       updatedAt: now,
     });
-    await db
-      .update(schema.knowledgeSourceSegmentCandidates)
-      .set({ knowledgeCategoryId: categoryId })
-      .where(eq(schema.knowledgeSourceSegmentCandidates.id, candidate.id));
+    await updateCandidateManualClassification(
+      contributorContext(), source.id, candidate.id, { knowledgeCategoryId: categoryId }, db,
+    );
 
     await organizeKnowledgeSegmentCandidate(
       contributorContext(),
@@ -159,7 +160,7 @@ describe("knowledge segment candidate compare + convert (2E-5/6)", () => {
       contributorContext(),
       source.id,
       candidate.id,
-      draft,
+      { ...draft, organizationRunId: (await latestCandidateOrganization(candidate.id, db))!.id },
       META,
       db,
       {

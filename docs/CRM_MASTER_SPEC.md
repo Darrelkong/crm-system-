@@ -188,6 +188,8 @@ Smart Ingest 2 at this branch is **IMPLEMENTED / HUMAN ACCEPTED / ENGINEERING CL
 
 Each confirmed segment can materialize its own persistent candidate. Business identity and Knowledge Category can be reviewed independently. Priority is human override, then explicit business-category mapping, then eligible AI suggestion; medium/low confidence requires appropriate human handling rather than silent classification.
 
+**1B-A3 OWNER-CONFIRMED PRODUCT RULE — 2026-09-26: Manual Category Clear = Human Override.** Both selecting a category and intentionally clearing it set `manualCategoryOverride = true`; a clear stores `knowledgeCategoryId = null`. Null is not automatic mode. AI, explicit mapping and organizer hydration must preserve this intentionally blank state. Only the explicit **恢复自动分类 / 恢復自動分類 / Restore automatic classification** action sets the category override to false and re-enables current active mapping, then eligible AI, then unresolved/manual handling. The Candidate editor distinguishes automatic, manual selected and manual intentionally blank. No schema change or Production release is implied. See CRM-D024 in [decisions](CRM_DECISIONS.md).
+
 Each candidate organizes and compares its own segment evidence, preserves lineage and can create/open its own draft article. One Source can therefore create multiple Candidate Articles. Reorganization retains an existing draft link and does not silently overwrite the article. Changed organizer content invalidates a stale comparison before conversion.
 
 Sequential repeat conversion can return the existing article. Concurrent conversion/partial-write safety remains a documented risk, not a proven guarantee. See [P1-01](CRM_IMPLEMENTATION_PLAN.md#p1-01--candidate-conversion-concurrency).

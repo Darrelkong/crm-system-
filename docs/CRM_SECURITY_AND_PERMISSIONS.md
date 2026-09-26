@@ -138,6 +138,18 @@ AI suggestions never supersede an explicit human category/business override. Can
 
 Only permitted published comparison candidates are exposed. Stale organizer comparison blocks conversion. Grounding/fact checks do not make unsupported generation impossible; human evidence review remains required. Production Mock AI stays off. Smart Ingest 2 candidate/mapping permissions exist in feature code but its Production migrations/deployment remain pending.
 
+### 1B-A candidate mutation correction — 2026-09-26
+
+1A confirmed a P0 defect: candidate PATCH called ID-only update helpers before source/manage/lifecycle authorization. The authorized 1B-A local remediation moves the action into a service that checks source authority and current confirmed lineage, validates all business/category fields, and commits one conditional update. Session and Knowledge unlock remain enforced by `requireKnowledgeAccess` in the HTTP route. CRM Admin still does not automatically become Knowledge Admin.
+
+Viewer, reviewer, non-owner contributor, wrong-source, superseded/old-lineage, archived, unconfirmed and invalid-input requests must produce zero candidate writes. The HTTP adapter returns the committed snapshot after success; a later unrelated state change must not turn that successful PATCH into a post-write denial. Candidate manual mutation is blocked after conversion.
+
+Automatic business/category writes must match the captured candidate revision and manual-override state at commit. They cannot reset a newer human override. Category activity and explicit mapping priority are checked in committing SQL; unresolved/medium/low/error results cannot silently retain an older automatic category. Candidate organization/comparison/conversion also enforce current lineage at commit. See [1B-A local test evidence](CRM_MODULE_STATUS.md#1b-a-local-remediation-evidence).
+
+These are local source corrections, pending Chat review and full validation. They are not Production verification or release authorization.
+
+**1B-A3 closure — 2026-09-26:** The owner confirms that an intentionally blank category is a human override. Manual category writes, including null, set the flag true; only the explicit Candidate PATCH reset action sets it false. Reset uses the same authorization/current-lineage/revision guards and cannot be combined with a manual category value in one request. Automatic writes must preserve committed manual state, including blank. PATCH tests assert zero candidate business-data mutation; normal authentication session touch/revocation or denied-access audit may still write outside this candidate service. Direct proposed-segment and failed-source PATCH cases complete the earlier test gaps. No Production change or verification is claimed.
+
 ## Mail authorization matrix
 
 Mail distinguishes effective workspace access, persisted provisioning, mailbox read, control-plane grants, approval review and sender identity permission.

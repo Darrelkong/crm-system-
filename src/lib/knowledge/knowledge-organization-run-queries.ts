@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { schema } from "@/lib/db";
 import type { KnowledgeAiOrganizationRun } from "../../../drizzle/schema/knowledge-ai-organization-runs";
@@ -53,7 +53,7 @@ export async function latestSourceLevelOrganization(
           isNull(schema.knowledgeAiOrganizationRuns.candidateId),
         ),
       )
-      .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt))
+      .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt), sql`knowledge_ai_organization_runs.rowid DESC`)
       .limit(1)
   )[0] ?? null;
 }
@@ -67,7 +67,7 @@ export async function latestCandidateOrganization(
       .select()
       .from(schema.knowledgeAiOrganizationRuns)
       .where(eq(schema.knowledgeAiOrganizationRuns.candidateId, candidateId))
-      .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt))
+      .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt), sql`knowledge_ai_organization_runs.rowid DESC`)
       .limit(1)
   )[0] ?? null;
 }

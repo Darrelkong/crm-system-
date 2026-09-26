@@ -26,24 +26,34 @@ Last Human Product Review:
 
 **This document is not permission to implement any item automatically.** It records 0E evidence, 0F-B owner-confirmed product rules/directions and proposed verification/acceptance checks. Priority is an engineering assessment of risk/importance, not implementation authorization. Confirmed product direction, current implementation, permission to change code and permission to release are distinct. Team Member is the preferred product term for internal `staff` roles; code identifiers remain unchanged.
 
-Final documentation review is APPROVED — 2026-09-26. Current 0F-C authorization covers review-status-only finalization, one docs-only commit and the matching feature-branch push. No feature fix, test-suite run, deploy, migration or other GitHub change is authorized by this document. Existing Smart Ingest 2 Human Acceptance and Engineering Closeout remain accepted; its Production release is pending. Evidence shorthand **B** means the feature HEAD in this document header; **M** means its stated main baseline, as defined in the [module register](CRM_MODULE_STATUS.md#evidence-legend).
+Final documentation review is APPROVED — 2026-09-26. The historical 0F-C authorization covered review-status-only finalization, one docs-only commit and the matching feature-branch push. No feature fix, test-suite run, deploy, migration or other GitHub change is authorized by this document. Existing Smart Ingest 2 Human Acceptance and Engineering Closeout remain accepted; its Production release is pending. Evidence shorthand **B** means the feature HEAD in this document header; **M** means its stated main baseline, as defined in the [module register](CRM_MODULE_STATUS.md#evidence-legend).
+
+## 1A / 1B-A release gate update — 2026-09-26
+
+1A completed with **REMEDIATION REQUIRED BEFORE VALIDATION**. The owner separately authorized 1B-A local changes for PATCH authorization, conversion atomicity, lifecycle/freshness races, human override priority, legacy query scope and directly required tests. This authorization does not extend to unrelated backlog, Preview, real AI, Production queries/migrations, deployments, merge or push. The remediation remains an uncommitted diff on `feat/knowledge-smart-ingest-2` based on `86c33c4c5e3a0a8ce91a167ed11407d42d44cd24`.
+
+Local implementation and validation evidence is recorded in [module status](CRM_MODULE_STATUS.md#1b-a-local-remediation-evidence). Next gate: **CHAT REVIEW BEFORE 1B-B FULL VALIDATION**. Existing Human Acceptance / Engineering Closeout remain recorded; Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**. No new migration is introduced.
+
+**1B-A3 superseding closure authorization — 2026-09-26:** Remote Chat review passed with one product clarification and small test completion. The owner resolved manual category clear as a persistent human override and authorized an explicit restore-automatic action in the existing Candidate PATCH/UI, focused local tests, and one local checkpoint commit after tests pass: `fix(knowledge): harden smart ingest release blockers`. This supersedes the earlier uncommitted-worktree description once that checkpoint is created; it does not authorize push, merge, Production work or starting 1B-B. See [closure evidence](CRM_MODULE_STATUS.md#1b-a3-final-closure-evidence).
+
+**Retain for 1B-B:** Direct delayed provider-result comparison-completion race testing. The existing commit-time predicate remains unchanged; the earlier no-match race test does not cover that provider-result execution path. Do not expand this closure into full validation.
 
 ## P0 — confirmed correctness/security blockers
 
-**No new confirmed P0 blocker was established by 0E.** This is a scoped audit outcome, not proof that the system has no critical defects. Candidate conversion concurrency is a source-observed risk, not a reproduced Production incident. A new confirmed critical issue must be described with evidence and brought to the owner; this register does not permit unilateral Production intervention.
+0E established no new P0 at its earlier scope. **1A subsequently confirmed P0-1: candidate PATCH mutated before action/source authorization.** The authorized 1B-A diff corrects the order and uses a single guarded update; denied/invalid requests are checked against complete before/after candidate rows in isolated D1 tests. This is a local remediation awaiting review, not a claim that Production was affected or repaired. See [security correction](CRM_SECURITY_AND_PERMISSIONS.md#1b-a-candidate-mutation-correction--2026-09-26).
 
 ## P1 — approved or release-blocking workflow work
 
-No P1 implementation below has been approved by the owner in 0F-A or 0F-B. Items marked release-review gate require resolution or an explicit risk decision before the relevant release; classification does not authorize a fix. Owner-confirmed rules are recorded as such, while verification/remediation still needs separate scope.
+No P1 implementation below was approved by 0F-A or 0F-B; the later 1B-A authorization is limited to the Smart Ingest 2 release blockers listed above. Items marked release-review gate require resolution or an explicit risk decision before the relevant release; classification does not authorize a fix. Owner-confirmed rules are recorded as such, while verification/remediation still needs separate scope.
 
 ### P1-01 — Candidate conversion concurrency
 
-- **Status:** OPEN — source-observed integrity risk; Smart Ingest 2 release-review item. Sequential idempotency exists; concurrent/failure-path behavior is not established.
-- **Evidence:** [Conversion service](../src/lib/knowledge/knowledge-segment-candidate-convert-service.ts) checks existing linkage, creates an Article and then updates candidate linkage separately. [Integration test](../src/lib/knowledge/knowledge-segment-candidate-compare-convert.integration.test.ts) checks sequential reuse. Source: `d9e94c37fb1af503a116663b8da667db4d7fa6dd` / 0E.
-- **Why it matters:** Two concurrent requests can both see no link and create Articles; a failed subsequent candidate update can leave an orphan. No Production incident was reproduced, and SI2 is not deployed there.
-- **Dependency:** Approved D1-compatible atomicity/idempotency design, candidate/article/audit schema behavior, any required migration and an isolated failure/concurrency test environment.
-- **Human approval state:** **HUMAN APPROVAL REQUIRED** for a fix and for the release risk disposition. Existing feature acceptance is not approval to deploy with an undocumented risk.
-- **Acceptance criteria:** Actual simultaneous/retried/failing requests have a defined single canonical Article outcome or recoverable documented state; no silent orphan/duplicate; preserve segment scope, category/permission checks, fresh comparison, multiple candidates per Source and Open Draft. Record tests and owner risk decision before release.
+- **Status:** LOCAL REMEDIATION IMPLEMENTED — targeted validation evidence recorded; Chat review and 1B-B full validation pending.
+- **Evidence:** [Conversion service](../src/lib/knowledge/knowledge-segment-candidate-convert-service.ts) now conditionally creates Article/version/audit/linkage in a single D1 batch. [Remediation integration tests](../src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts) exercise simultaneous actors, four injected SQL failure boundaries, uncertain commit response, lifecycle races and three distinct candidate Articles.
+- **Why it matters:** The former split-write path at `d9e94c3` could create duplicates/orphans. This was a release blocker, not a reproduced Production incident; SI2 remains undeployed.
+- **Dependency:** Current schema through 0090 suffices; 0087–0090 are unchanged and no 0091 is created. SQL commit conditions protect source/segment/analysis eligibility, classification revision and current organization/comparison.
+- **Human approval state:** 1B-A local remediation/tests explicitly authorized. **CHAT REVIEW REQUIRED** before 1B-B; Production release actions remain separately gated.
+- **Acceptance criteria:** One canonical Article/version 1/create audit/linkage, no partial failure residue, safe replay/recovery, segment isolation, human classification priority and correct multi-Article Open Draft linkage. Broader migration-upgrade, build/browser/real-AI Preview and recovery validation remain outside 1B-A.
 
 ### P1-02 — Backup/restore completeness
 
@@ -83,11 +93,11 @@ No P1 implementation below has been approved by the owner in 0F-A or 0F-B. Items
 
 ### P1-06 — Smart Ingest 2 Production Release Audit
 
-- **Status:** PENDING — release gate, not additional feature acceptance. SI2 is implemented, Human Accepted and Engineering Closeout Accepted; **NOT PRODUCTION DEPLOYED**.
+- **Status:** 1A COMPLETED — REMEDIATION REQUIRED BEFORE VALIDATION. 1B-A local remediation awaits Chat review / 1B-B full validation. Human Acceptance and Engineering Closeout remain recorded; **NOT PRODUCTION DEPLOYED**.
 - **Evidence:** B contains 14 commits after main; 0D-C verified 0084–0086 APPLIED and 0087–0090 PENDING. [Preview guard](../scripts/deploy-knowledge-preview.mjs) does not allow this branch. [Runbook](CRM_DEPLOYMENT_RUNBOOK.md) records main/AI/schema dependencies.
 - **Why it matters:** Main code, candidate schema and the new AI task must be compatible; branch acceptance alone does not supply tested release artifacts or recovery approval.
 - **Dependency:** P1-01 disposition, recovery checkpoint, exact relevant test results, approved Preview/validation scope, migration/index review and exact release SHA.
-- **Human approval state:** **HUMAN APPROVAL REQUIRED** for a release audit beyond this gate, guard changes, merge/push, migrations and each deployment. Neither 0F-A nor 0F-B approves these actions.
+- **Human approval state:** 1A audit and 1B-A local remediation were separately authorized. Guard changes, full/remote validation, merge/push, Production migrations and deployments remain separately gated; 1B-A does not approve them.
 - **Acceptance criteria:** All fourteen runbook gates receive explicit evidence or an owner-approved risk disposition; pending set matches reviewed migrations; permissions/evidence/lineage checks pass in the approved environment; record final main/AI versions and actual migration state after an approved release. Until then keep Production status NO.
 
 ### P1-07 — Follow-up product / implementation drift

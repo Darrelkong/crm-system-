@@ -20,6 +20,7 @@ export async function POST(request: Request, context: RouteContext) {
       title?: string;
       summary?: string;
       body?: string;
+      organizationRunId?: string;
     };
     const comparison = await compareKnowledgeSegmentCandidate(
       actor,
@@ -29,6 +30,7 @@ export async function POST(request: Request, context: RouteContext) {
         title: body.title ?? "",
         summary: body.summary ?? "",
         body: body.body ?? "",
+        organizationRunId: body.organizationRunId,
       },
       getRequestMeta(request),
       getDb(),

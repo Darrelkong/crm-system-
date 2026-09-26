@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { KNOWLEDGE_ERROR_CODES } from "@/lib/knowledge/constants";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import {
@@ -9,8 +10,8 @@ import {
   getActiveSegmentCandidate,
 } from "@/lib/knowledge/knowledge-segment-candidate-organizer-service";
 import {
-  updateCandidateManualBusiness,
-  updateCandidateManualCategory,
+  updateCandidateManualClassification,
+  parseCandidateManualUpdate,
 } from "@/lib/knowledge/knowledge-segment-candidate-classification";
 import { getDb } from "@/lib/db";
 import {
@@ -24,13 +25,14 @@ type RouteContext = {
   params: Promise<{ id: string; candidateId: string }>;
 };
 
-type OrganizerDraftRequestBody = {
-  manualRequestedProjectCode?: string | null;
-  manualRequestedProjectOverride?: boolean;
-  manualCategoryId?: string | null;
-  manualCategoryOverride?: boolean;
-  adoptCategorySuggestion?: boolean;
-};
+const requestSchema = z.object({
+  manualRequestedProjectCode: z.string().nullable().optional(),
+  manualRequestedProjectOverride: z.boolean().optional(),
+  manualCategoryId: z.string().nullable().optional(),
+  manualCategoryOverride: z.boolean().optional(),
+  adoptCategorySuggestion: z.boolean().optional(),
+}).strict();
+type OrganizerDraftRequestBody = z.infer<typeof requestSchema>;
 
 export async function POST(request: Request, context: RouteContext) {
   try {
@@ -39,7 +41,7 @@ export async function POST(request: Request, context: RouteContext) {
     const db = getDb();
     let body: OrganizerDraftRequestBody = {};
     try {
-      body = (await request.json()) as OrganizerDraftRequestBody;
+      body = requestSchema.parse(await request.json());
     } catch {
       throw new KnowledgeServiceError(
         KNOWLEDGE_ERROR_CODES.SOURCE_INVALID,
@@ -55,52 +57,17 @@ export async function POST(request: Request, context: RouteContext) {
       db,
     );
 
-    if (body.manualRequestedProjectOverride === true) {
-      await updateCandidateManualBusiness(
-        candidateId,
-        body.manualRequestedProjectCode ?? null,
-        db,
-      );
-      candidate = await getActiveSegmentCandidate(
-        actor,
-        sourceId,
-        candidateId,
-        db,
-      );
-    }
-
+    const manual: { requestedProjectCode?: string | null; knowledgeCategoryId?: string | null } = {};
+    if (body.manualRequestedProjectOverride === true) manual.requestedProjectCode = body.manualRequestedProjectCode ?? null;
+    if (body.manualCategoryOverride === true) manual.knowledgeCategoryId = body.manualCategoryId ?? null;
+    if (Object.keys(manual).length) parseCandidateManualUpdate(manual);
     if (body.adoptCategorySuggestion === true) {
-      const preview = await buildCandidateOrganizerDraft(
-        actor,
-        sourceId,
-        candidate,
-        {},
-        db,
-      );
-      if (preview.suggestedCategoryId) {
-        await updateCandidateManualCategory(
-          candidateId,
-          preview.suggestedCategoryId,
-          db,
-        );
-        candidate = await getActiveSegmentCandidate(
-          actor,
-          sourceId,
-          candidateId,
-          db,
-        );
-      }
-    } else if (body.manualCategoryOverride === true) {
-      await updateCandidateManualCategory(
-        candidateId,
-        body.manualCategoryId ?? null,
-        db,
-      );
-      candidate = await getActiveSegmentCandidate(
-        actor,
-        sourceId,
-        candidateId,
-        db,
+      const preview = await buildCandidateOrganizerDraft(actor, sourceId, candidate, body, db);
+      if (preview.suggestedCategoryId) manual.knowledgeCategoryId = preview.suggestedCategoryId;
+    }
+    if (Object.keys(manual).length) {
+      candidate = await updateCandidateManualClassification(
+        actor, sourceId, candidateId, manual, db, candidate.updatedAt,
       );
     }
 
@@ -121,6 +88,7 @@ export async function POST(request: Request, context: RouteContext) {
       candidate,
       payload.draft,
       db,
+      payload.organizationRunId,
     );
     const refreshed = await getActiveSegmentCandidate(
       actor,

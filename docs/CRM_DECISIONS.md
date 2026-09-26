@@ -111,7 +111,7 @@ Current code/schema/tests outrank old proposals. Tests cited here establish inte
 - **Decision ID:** CRM-D008.
 - **Status:** SI2 IMPLEMENTED / HUMAN ACCEPTED / ENGINEERING CLOSEOUT ACCEPTED; NOT PRODUCTION DEPLOYED.
 - **Decision:** Each candidate owns its draft Article link. A Source can produce multiple Candidate Articles; source-level legacy linkage is not the candidate conversion lock. Reorganization preserves existing draft linkage, and Open Draft uses the canonical Article route.
-- **Reason:** Candidate persistence and Article linkage represent independent confirmed topics. Historical rationale requires Human confirmation. Atomic concurrent conversion remains a separate unresolved risk.
+- **Reason:** Candidate persistence and Article linkage represent independent confirmed topics. Historical rationale requires Human confirmation. 1A classified atomic concurrent conversion as blocking; the owner-authorized 1B-A local diff addresses it without a new migration, pending Chat review and full validation.
 - **Evidence:** [0090](../drizzle/migrations/0090_knowledge_candidate_compare_convert.sql), [conversion](../src/lib/knowledge/knowledge-segment-candidate-convert-service.ts), [navigation tests](../src/lib/knowledge/knowledge-candidate-open-draft-navigation.test.ts), [P1-01](CRM_IMPLEMENTATION_PLAN.md#p1-01--candidate-conversion-concurrency).
 - **Affected modules:** Smart Ingest candidates, Knowledge Article creation/navigation.
 - **Supersedes / superseded by:** Single source-level Article linkage is superseded for SI2 candidates, retained for the legacy source path; none recorded later.
@@ -269,6 +269,25 @@ Current code/schema/tests outrank old proposals. Tests cited here establish inte
 - **Evidence:** Owner 0F-B section 6; [Dashboard specification](CRM_MASTER_SPEC.md#i-dashboard--reports).
 - **Affected modules:** Dashboard trends and period selector.
 - **Supersedes / superseded by:** Adds the previously unspecified product default; no later decision recorded and no runtime implementation claim added.
+
+## CRM-D023 — Smart Ingest 2 local release-blocker remediation
+
+- **Date:** 2026-09-26.
+- **Status:** 1B-A LOCAL ENGINEERING CHANGE; Chat review before 1B-B; NOT PRODUCTION DEPLOYED.
+- **Authority:** Owner's explicit 1B-A remediation request, following 1A's **REMEDIATION REQUIRED BEFORE VALIDATION** outcome.
+- **Decision:** Use existing D1 batch/conditional SQL on schema 0090 for one canonical candidate Article, with Article/version/audit/linkage committed together. Do not create an Article before a separate linkage CAS. Guard candidate lifecycle, current analysis/organization/comparison and human classification at commit. PATCH validates and authorizes the complete action before any candidate write. Legacy source queries exclude candidate runs.
+- **Evidence:** [Architecture](CRM_ARCHITECTURE.md), [security correction](CRM_SECURITY_AND_PERMISSIONS.md), [local validation ledger](CRM_MODULE_STATUS.md#1b-a-local-remediation-evidence), [remediation tests](../src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts).
+- **Limits:** No changes to migrations 0087–0090, no 0091, no automatic duplicate cleanup, no remote Preview/real AI/Production work, no merge/push. This records an engineering choice within authorized scope, not new product behavior or release permission.
+
+## CRM-D024 — Manual Category Clear = Human Override
+
+- **Date:** 2026-09-26.
+- **Authority:** Explicit owner decision in 1B-A3 following remote Chat review: PASS WITH ONE PRODUCT CLARIFICATION + SMALL TEST COMPLETION.
+- **Decision:** A manually selected or manually cleared Knowledge Category has `manualCategoryOverride = true`. Intentional blank stores null and remains authoritative over mapping, AI and hydration. Only **恢复自动分类 / Restore automatic classification** explicitly sets the flag false. Priority is HUMAN MANUAL STATE (including blank) → active explicit mapping → eligible AI → unresolved/manual.
+- **Implementation:** Reuse Candidate PATCH and its single guarded classification UPDATE. Reject an ambiguous reset plus manual category value. Reset resolves the current valid mapping; normal AI/confidence rules may operate afterward. Candidate UI uses the three existing locales to explain automatic, manual selected and manual blank, without a card redesign. Schema stays at 0090.
+- **Supersedes:** Earlier `Boolean(knowledgeCategoryId)` behavior and 1B-A2 review's documented clear-means-automatic caveat. The earlier review export is historical and is not rewritten.
+- **Validation/approval boundary:** Focused local closure tests and one local checkpoint commit are authorized. No push, 1B-B execution, migration, Cloudflare or Production action is authorized. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**; 1A is not relabeled PASS.
+- **Evidence:** [Master specification](CRM_MASTER_SPEC.md), [classification service](../src/lib/knowledge/knowledge-segment-candidate-classification.ts), [closure results](CRM_MODULE_STATUS.md#1b-a3-final-closure-evidence).
 
 ## Recording future decisions
 

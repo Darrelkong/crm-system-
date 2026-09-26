@@ -48,6 +48,7 @@ export function KnowledgeSegmentCandidateCard({
     summary: string;
     body: string;
     organized: boolean;
+    organizationRunId: string | null;
   }) => void;
 }) {
   const { t } = useTranslation();
@@ -59,9 +60,12 @@ export function KnowledgeSegmentCandidateCard({
   );
   const [expanded, setExpanded] = useState(false);
   const [draft, setDraft] = useState<OrganizerDraftFields | null>(null);
+  const [organizationRunId, setOrganizationRunId] = useState<string | null>(null);
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
   const [body, setBody] = useState("");
+  const [categorySaving, setCategorySaving] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
   const hydrationAttemptedRef = useRef(false);
 
   const businessLabel =
@@ -82,6 +86,7 @@ export function KnowledgeSegmentCandidateCard({
       );
       const payload = (await response.json()) as {
         draft?: OrganizerDraftFields;
+        organizationRunId?: string | null;
         organizationUsable?: boolean;
         error?: string;
         errorCode?: string;
@@ -95,6 +100,7 @@ export function KnowledgeSegmentCandidateCard({
           ),
         );
       }
+      setOrganizationRunId(payload.organizationRunId ?? null);
       applyDraftFields(payload.draft, {
         setTitle,
         setSummary,
@@ -127,6 +133,7 @@ export function KnowledgeSegmentCandidateCard({
     hydrationAttemptedRef.current = false;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reset per-candidate editor state
     setDraft(null);
+    setOrganizationRunId(null);
     setTitle("");
     setSummary("");
     setBody("");
@@ -163,6 +170,7 @@ export function KnowledgeSegmentCandidateCard({
       );
       const payload = (await response.json()) as {
         draft?: OrganizerDraftFields;
+        organizationRunId?: string | null;
         error?: string;
         errorCode?: string;
       };
@@ -178,6 +186,7 @@ export function KnowledgeSegmentCandidateCard({
       if (!isUsableCandidateOrganizerDraft(payload.draft)) {
         throw new Error(t("knowledge.ingest.smartIngestCandidateOrganizeFailed"));
       }
+      setOrganizationRunId(payload.organizationRunId ?? null);
       applyDraftFields(payload.draft, {
         setTitle,
         setSummary,
@@ -207,17 +216,56 @@ export function KnowledgeSegmentCandidateCard({
       summary,
       body,
       organized,
+      organizationRunId,
     });
-  }, [body, onDraftStateChange, organized, summary, title]);
+  }, [body, onDraftStateChange, organized, organizationRunId, summary, title]);
 
   const categoryName =
     categories.find(
       (c) =>
         c.id ===
-        (draft?.categoryId ||
+        (candidate.manualCategoryOverride ? candidate.knowledgeCategoryId : draft?.categoryId ||
           candidate.knowledgeCategoryId ||
           draft?.suggestedCategoryId),
     )?.name ?? "";
+
+  async function updateCategory(input: { knowledgeCategoryId: string | null } | { restoreAutomaticClassification: true }) {
+    setCategorySaving(true);
+    setCategoryError(null);
+    let committed = false;
+    try {
+      const response = await fetch(`/api/knowledge/sources/${sourceId}/candidates/${candidate.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(resolveKnowledgeApiError(t, payload, "knowledge.ingest.candidateCategoryUpdateFailed"));
+      committed = true;
+      // Refresh classification after reset without replacing the user's edited text.
+      if ("restoreAutomaticClassification" in input && candidate.organizationCompleted) {
+        const hydration = await fetch(`/api/knowledge/sources/${sourceId}/candidates/${candidate.id}/organizer-draft`, {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}),
+        });
+        const refreshed = await hydration.json();
+        if (!hydration.ok) throw new Error(resolveKnowledgeApiError(t, refreshed, "knowledge.ingest.candidateCategoryUpdateFailed"));
+        setDraft((previous) => previous && ({ ...refreshed.draft, title: previous.title, summary: previous.summary, body: previous.body }));
+      } else {
+        setDraft((previous) => previous && ({ ...previous,
+          categoryId: payload.candidate.knowledgeCategoryId ?? "",
+          categoryResolutionSource: payload.candidate.categoryResolutionSource,
+          suggestedCategoryId: null, suggestedCategoryName: null,
+          categoryAiSuggestion: null, categoryAiRequiresConfirmation: false,
+          categorySelectionRequired: !payload.candidate.knowledgeCategoryId,
+        }));
+      }
+    } catch (error) {
+      setCategoryError(error instanceof Error ? error.message : t("knowledge.ingest.candidateCategoryUpdateFailed"));
+    } finally {
+      if (committed) onUpdated();
+      setCategorySaving(false);
+    }
+  }
 
   async function toggleExpanded() {
     const next = !expanded;
@@ -273,17 +321,22 @@ export function KnowledgeSegmentCandidateCard({
         <p className="font-medium crm-text">
           {t("knowledge.ingest.knowledgeLibraryCategory")}
         </p>
-        {candidate.categoryResolutionSource === "explicit_mapping" ? (
+        <p className="text-xs crm-text-secondary" data-candidate-category-mode={candidate.manualCategoryOverride ? (candidate.knowledgeCategoryId ? "manual" : "manual_blank") : "automatic"}>
+          {t(candidate.manualCategoryOverride
+            ? candidate.knowledgeCategoryId ? "knowledge.ingest.candidateCategoryManual" : "knowledge.ingest.candidateCategoryManualBlank"
+            : "knowledge.ingest.candidateCategoryAutomatic")}
+        </p>
+        {!candidate.manualCategoryOverride && candidate.categoryResolutionSource === "explicit_mapping" ? (
           <Badge variant="accent" data-category-state-badge="explicit_mapping">
             {t("knowledge.ingest.categoryAutoMatched")}
           </Badge>
         ) : null}
-        {draft?.categoryResolutionSource === "ai_suggestion" ? (
+        {!candidate.manualCategoryOverride && draft?.categoryResolutionSource === "ai_suggestion" ? (
           <Badge variant="accent" data-category-state-badge="ai_suggestion">
             {t("knowledge.ingest.categoryAiSuggested")}
           </Badge>
         ) : null}
-        {!candidate.knowledgeCategoryId &&
+        {!candidate.manualCategoryOverride && !candidate.knowledgeCategoryId &&
         !draft?.categoryId &&
         !organized &&
         candidate.categoryResolutionSource !== "explicit_mapping" ? (
@@ -296,19 +349,11 @@ export function KnowledgeSegmentCandidateCard({
         ) : null}
         <select
           className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm"
+          disabled={categorySaving || converted}
+          aria-label={t("knowledge.ingest.knowledgeLibraryCategory")}
           value={candidate.knowledgeCategoryId ?? ""}
           onChange={(event) => {
-            const value = event.target.value;
-            void fetch(
-              `/api/knowledge/sources/${sourceId}/candidates/${candidate.id}`,
-              {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  knowledgeCategoryId: value || null,
-                }),
-              },
-            ).then(() => onUpdated());
+            void updateCategory({ knowledgeCategoryId: event.target.value || null });
           }}
         >
           <option value="">{t("knowledge.ingest.noCategory")}</option>
@@ -320,7 +365,16 @@ export function KnowledgeSegmentCandidateCard({
               </option>
             ))}
         </select>
-        {draft?.categoryAiRequiresConfirmation && draft.suggestedCategoryId ? (
+        {candidate.manualCategoryOverride ? (
+          <Button type="button" size="sm" variant="secondary"
+            disabled={categorySaving || converted}
+            data-restore-automatic-classification="true"
+            onClick={() => void updateCategory({ restoreAutomaticClassification: true })}>
+            {t("knowledge.ingest.restoreAutomaticClassification")}
+          </Button>
+        ) : null}
+        {categoryError ? <p role="alert" className="text-xs text-rose-700">{categoryError}</p> : null}
+        {!candidate.manualCategoryOverride && draft?.categoryAiRequiresConfirmation && draft.suggestedCategoryId ? (
           <Button
             type="button"
             size="sm"

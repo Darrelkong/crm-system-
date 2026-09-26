@@ -78,6 +78,18 @@ const chaseIdentity = {
 };
 
 describe("knowledge ingest organizer draft", () => {
+  it("intentional manual blank outranks both explicit mapping and AI", () => {
+    assert.equal(resolveOrganizerKnowledgeCategoryId({
+      manualCategoryId: null, manualCategoryOverride: true,
+      explicitMappingCategoryId: "mapped", aiPrefillCategoryId: "suggested",
+    }), "");
+  });
+  it("an explicit human-cleared business identity cannot fall back to AI identity", () => {
+    assert.equal(resolveOrganizerRequestedProjectCode({
+      identity: chaseIdentity, manualCode: null, manualOverride: true,
+    }), null);
+  });
+
   it("E: manual CRM business override does not modify Knowledge category", () => {
     const code = resolveOrganizerRequestedProjectCode({
       identity: chaseIdentity,

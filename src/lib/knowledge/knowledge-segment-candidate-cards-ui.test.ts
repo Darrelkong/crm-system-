@@ -26,6 +26,22 @@ const ingest = readFileSync(
 );
 
 describe("knowledge segment candidate cards UI (2E-2)", () => {
+  it("distinguishes manual blank from automatic and exposes an explicit PATCH reset in all locales", () => {
+    for (const catalog of [zhHans, zhHant, en]) {
+      const labels = catalog.knowledge.ingest;
+      assert.equal(new Set([labels.candidateCategoryAutomatic, labels.candidateCategoryManual,
+        labels.candidateCategoryManualBlank]).size, 3);
+      assert.ok(labels.restoreAutomaticClassification);
+      assert.ok(labels.candidateCategoryUpdateFailed);
+    }
+    assert.equal(zhHans.knowledge.ingest.restoreAutomaticClassification, "恢复自动分类");
+    assert.equal(en.knowledge.ingest.restoreAutomaticClassification, "Restore automatic classification");
+    assert.match(candidateCard, /data-candidate-category-mode/);
+    assert.match(candidateCard, /data-restore-automatic-classification/);
+    assert.match(candidateCard, /updateCategory\(\{ restoreAutomaticClassification: true \}\)/);
+    assert.match(candidateCard, /updateCategory\(\{ knowledgeCategoryId: event.target.value \|\| null \}\)/);
+    assert.match(candidateCard, /candidate.manualCategoryOverride \? candidate.knowledgeCategoryId/);
+  });
   it("loads candidates via GET API only", () => {
     assert.match(analysis, /\/api\/knowledge\/sources\/\$\{source\.id\}\/candidates/);
     assert.doesNotMatch(cards, /knowledgeSourceSegmentCandidates/);

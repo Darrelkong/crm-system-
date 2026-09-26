@@ -34,6 +34,7 @@ User-facing **Team Member / 团队成员 / 團隊成員** maps to the internal `
 - **M** = owner-supplied Production main baseline `a481689ad3854b85dfa6073c9aa495453659fb58`; locally verified main ref. Code membership in M is not independently a runtime source-SHA attestation.
 - **D** = 0D authentication and 0D-B read-only resource/version verification, plus 0D-C's single approved migration-metadata SELECT, observed 2026-09-26.
 - **E** = 0E source/schema/test/document audit. **E did not rerun application tests** or perform Production business-data smoke checks.
+- **R** = 1B-A local remediation on the uncommitted worktree based on `86c33c4c5e3a0a8ce91a167ed11407d42d44cd24`, verified 2026-09-26. Targeted local test results below supersede NR only for their stated coverage. R is not Production or full release validation.
 - **NR** under latest test result = **NOT RERUN in 0E/0F-A/0F-B; exact latest execution log/results were not imported**. This does not mean failing tests, and it does not assert a pass.
 - **LIKELY (M)** under deployment = source is in the supplied main baseline and compatible infrastructure exists; per-module deployed runtime behavior was not independently proved.
 - **Historical scope only** under human acceptance = a dated release/completion record exists, not blanket acceptance of all present behavior.
@@ -60,7 +61,7 @@ Tests listed as existing are coverage locations, not a comprehensive count or pr
 | Knowledge Organizer | YES; candidate mode adds B-only work | YES | NR | SI2 candidate mode owner-accepted; older scope not fully imported | Source mode LIKELY (M); SI2 candidate mode NO | Existing schema/AI infrastructure only | IMPLEMENTED; split deployment status | Grounding checks are bounded heuristics; pending candidate schema | B/M; [execution](../src/lib/knowledge/knowledge-organization-execution.ts), [candidate service](../src/lib/knowledge/knowledge-segment-candidate-organizer-service.ts) |
 | Knowledge Compare | YES; candidate mode adds B-only work | YES | NR | SI2 candidate mode owner-accepted; older scope not fully imported | Source mode LIKELY (M); SI2 candidate mode NO | Existing migration metadata only | IMPLEMENTED; split deployment status | Fingerprint covers title/summary/body, not every classification/reference field | B/M; [comparison](../src/lib/knowledge/comparison-service.ts), [draft fingerprint](../src/lib/knowledge/knowledge-candidate-comparison-draft.ts) |
 | Smart Ingest 1 | YES | YES | NR | Prior takeover acceptance context; full artifact not imported | LIKELY (M); schema YES | **0084–0086 APPLIED**; no fresh workflow smoke | IMPLEMENTED; schema verified | Migration evidence alone does not certify all UI behavior | B/M; [0084](../drizzle/migrations/0084_knowledge_smart_ingest_analysis.sql), [0086](../drizzle/migrations/0086_knowledge_segment_confirmed_status.sql), D/E |
-| Smart Ingest 2 | **YES** | **YES** | NR; Engineering Closeout owner-confirmed, not a test log | **YES — owner confirmed** | **NO** | **NO — 0087–0090 PENDING** | **IMPLEMENTED / HUMAN ACCEPTED / ENGINEERING CLOSEOUT ACCEPTED / NOT PRODUCTION DEPLOYED** | Conversion concurrency risk; Production Release Audit PENDING; preview branch guard mismatch | B; [candidate services](../src/lib/knowledge/knowledge-segment-candidate-service.ts), [compare/convert test](../src/lib/knowledge/knowledge-segment-candidate-compare-convert.integration.test.ts), D/E + 0F-A owner baseline |
+| Smart Ingest 2 | **YES; 1B-A + 1B-A3 local checkpoint** | **YES** | 1B-A3: 88/88 isolated D1 + 48/48 pure/static/i18n; earlier R results retained below; full validation NOT RUN | **YES — owner confirmed baseline; 1B-A Chat review passed with clarification/test completion, addressed in 1B-A3** | **NO** | **NO — 0087–0090 PENDING** | **1B-A CLOSED / CHAT REVIEW BEFORE 1B-B / NOT PRODUCTION DEPLOYED** | 1A remains REMEDIATION REQUIRED BEFORE VALIDATION; 1B-B/release gates pending; preview branch guard mismatch unchanged | B/D/E/R; [remediation tests](../src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts), [local evidence](#1b-a-local-remediation-evidence) |
 | crm-ai | YES; new category task in B | YES | NR | Task-specific scope only; SI2 owner acceptance | Existing Worker YES; new SI2 task NO | Existing Worker version/binding verified; task behavior not probed | DEPLOYED BASE + UNDEPLOYED EXTENSION | Package test script omits category-suggest test; real-AI acceptance not rerun | B/M; [AI service](../workers/crm-ai/src/service.ts), [AI tests](../workers/crm-ai/tests), D/E |
 | Backup/Recovery | PARTIAL | YES, subset/export/helper checks | NR | Full recovery acceptance UNKNOWN | Backup Worker YES; branch export code parity UNKNOWN | Worker version only; **restore NOT proven** | **PARTIAL; RECOVERY UNPROVEN** | JSON covers 26 tables, no Mail/Knowledge/object bytes; no demonstrated full restore | B; [backup list](../src/lib/backup/constants.ts), [export](../src/lib/backup/export-data.ts), [safe local helper](../scripts/local-d1-safe-backup.mjs), D/E |
 | Preview | YES, several distinct modes | YES, guard/local tests | NR | Historical limited scope only | NOT Production; current Preview deployment state not refreshed | Isolated D1/R2 identities/config; live route/tunnel not verified | AVAILABLE WITH SCOPE LIMITS | SI2 branch not allowed by deploy guard; shared live AI; prototype Mail; local configs can reference Production names | B/M; [preview guard](../scripts/deploy-knowledge-preview.mjs), [config](../wrangler.knowledge-preview.jsonc), E |
@@ -88,14 +89,134 @@ Tests listed as existing are coverage locations, not a comprehensive count or pr
 | Code Implemented | YES at B. |
 | Human Accepted | YES, explicitly supplied by the owner in 0F-A. |
 | Engineering Closeout | YES, explicitly supplied by the owner in 0F-A. |
-| Latest exact test execution | NOT IMPORTED; no new test execution in 0E/0F-A/0F-B. |
+| Latest exact test execution | 1B-A3: focused closure results below; earlier R retained historically; no tests ran in 0E/0F-A/0F-B. |
 | GitHub feature backup | Exact B pushed/verified in authorized 0B; no push in 0F-A. |
 | Production Deployed | **NO**. |
 | Migrations 0087–0090 | **PENDING**, 0D-C metadata evidence. |
-| Production Release Audit | **PENDING**. |
-| Permission to merge/deploy/migrate | **NOT GRANTED by 0F-A or 0F-B**. |
+| Production Release Audit | **1A: REMEDIATION REQUIRED BEFORE VALIDATION**. 1B-A local fixes do not change this to PASSED. |
+| Permission to merge/deploy/migrate | **NOT GRANTED by 1B-A**; local remediation/testing only. |
 
-The 14 commits after M cover candidate foundations, category mapping/suggestion/override, persistent cards, independent organization/hydration, incremental materialization, lineage stability, compare/convert, Open Draft and closeout. Their collective acceptance does not imply individually imported test reports or per-step signed acceptance. Candidate conversion concurrency remains an open release-review item; it does not erase the owner's stated acceptance.
+The 14 implementation commits after M cover candidate foundations, category mapping/suggestion/override, persistent cards, independent organization/hydration, incremental materialization, lineage stability, compare/convert, Open Draft and closeout. Their collective acceptance does not imply individually imported test reports or per-step signed acceptance. The subsequent 0F-C documentation commit is the 1B-A starting HEAD. 1B-A corrects conversion concurrency locally with the evidence below; Chat review and full validation remain outstanding. The owner's baseline acceptance is preserved separately.
+
+## 1B-A local remediation evidence
+
+Observed 2026-09-26 on `feat/knowledge-smart-ingest-2`, starting and ending HEAD `86c33c4c5e3a0a8ce91a167ed11407d42d44cd24`. The starting worktree was clean; remediation is an uncommitted diff. No schema/migration change was needed; schema history remains through 0090. No commit, push, merge, Production query/migration/deploy, Cloudflare modification, real AI call or Mail send occurred. The Global Website repository was not accessed. The 0D Production snapshot was not refreshed.
+
+The [50-case remediation suite](../src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts) covers denied/malformed PATCH zero-write behavior; two callers held at a pre-commit synchronization barrier; Article/version/audit/linkage failure injection and post-commit response loss; both conversion-versus-reanalysis orderings; late organizer completion after supersession, confirmation withdrawal, archive or ineligible state; comparison completion and current organization freshness; delayed AI/mapping versus manual classification; inactive mapping/category and high-to-medium/low/error autofill; legacy/candidate scope isolation; and one Source producing three actual Articles with stable Open Draft IDs. HTTP adapter tests inject the authorization result; they are not a full Next.js/session/unlock browser acceptance run.
+
+Atomic conversion uses a D1 batch: a conditional Article `INSERT … SELECT` rechecks current actor/lineage/confirmed segment/source/category/organization/comparison/revision/unlinked state. Version 1, create audit and candidate linkage depend on that request's inserted Article ID in the same transaction. A loser creates nothing and reads canonical linkage; an uncertain post-commit response also recovers through linkage. No historical Articles are deleted. Reanalysis claims its new run and supersedes segments/candidates in one guarded batch; completion and classification writes recheck current state at commit. Automatic classification uses a revision/manual-flag/business guard and live mapping/category eligibility without resetting human override flags.
+
+Final local results (deduplicated latest successful execution per test file):
+
+| Validation | Result | Scope / provenance |
+| --- | --- | --- |
+| New remediation D1 suite | **50/50 PASS** | `/tmp/crm-1ba-remediation-final.log` |
+| Ten existing D1 suites | **61/61 PASS** | `/tmp/crm-1ba-d1.log`, with corrected compare/convert rerun in `/tmp/crm-1ba-compare-convert-rerun.log` |
+| 21 pure/static test files | **114/114 PASS** | Original run 113/113 in `/tmp/crm-1ba-unit.log`; organizer draft file expanded from four to five tests and reran 5/5 in `/tmp/crm-1ba-organizer-unit-final.log` |
+| App TypeScript | **PASS** | Installed `tsc --noEmit --incremental false --pretty false`; no emitted artifacts |
+| Changed TypeScript ESLint / diff whitespace | **PASS** | Installed ESLint, no autofix; `git diff --check` |
+| Full browser acceptance / remote Preview / build / real AI / crm-ai suite | **NOT RUN** | Outside 1B-A scope; crm-ai source unchanged |
+
+The first existing compare/convert regression run had one failed fixture: it directly assigned a category without recording manual override, so organization could correctly clear the automatic category. The fixture now uses the real manual-classification service; both tests passed on rerun. An initial test typecheck referenced an unavailable `D1Database` ambient type; the test adapter cast was corrected and final app typecheck passed. No unresolved targeted test failure remains. The counts above are not a single full-suite acceptance run.
+
+Exact targeted test commands, run from this repository with existing dependencies:
+
+```sh
+NODE_ENV=test node --import tsx --test --test-concurrency=1 \
+  src/lib/knowledge/knowledge-candidate-comparison-draft.test.ts \
+  src/lib/knowledge/knowledge-candidate-open-draft-navigation.test.ts \
+  src/lib/knowledge/knowledge-candidate-organizer-draft-usability.test.ts \
+  src/lib/knowledge/knowledge-comparison-orchestration.test.ts \
+  src/lib/knowledge/knowledge-comparison-ui.test.ts \
+  src/lib/knowledge/knowledge-ingest-category-ui-state.test.ts \
+  src/lib/knowledge/knowledge-ingest-organizer-draft.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-cards-ui.test.ts \
+  src/lib/knowledge/knowledge-smart-ingest-candidate-lineage.test.ts \
+  src/lib/knowledge/knowledge-smart-ingest-candidate-refresh-lifecycle.test.ts \
+  src/lib/knowledge/knowledge-evidence-grounding.test.ts \
+  src/lib/knowledge/knowledge-organizer-fact-fidelity.test.ts \
+  src/lib/knowledge/knowledge-language-taxonomy-hotfix.test.ts \
+  src/lib/knowledge/knowledge-paste-business-identity.test.ts \
+  src/lib/knowledge/smart-ingest-segment-scope-safety.test.ts \
+  src/lib/knowledge/smart-ingest-authorization.test.ts \
+  src/lib/knowledge/ai-organizer.test.ts \
+  src/lib/knowledge/ai-comparison-schema.test.ts \
+  src/lib/knowledge/article-permissions.test.ts \
+  src/lib/knowledge/role-service.test.ts \
+  src/lib/knowledge/smart-ingest-analysis-service.test.ts
+
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true \
+CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-compare-convert.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-organizer.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-organizer-hydration.integration.test.ts \
+  src/lib/knowledge/knowledge-ingest-category-autofill.integration.test.ts \
+  src/lib/knowledge/smart-ingest-analysis.integration.test.ts \
+  src/lib/knowledge/smart-ingest-segment-scope-safety.integration.test.ts \
+  src/lib/knowledge/comparison-service.integration.test.ts \
+  src/lib/knowledge/ingest-service.integration.test.ts \
+  src/lib/knowledge/review-publish.integration.test.ts
+
+# Corrected fixture and final added regression cases: same isolated harness.
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true \
+CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-segment-candidate-compare-convert.integration.test.ts
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true \
+CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts
+NODE_ENV=test node --import tsx --test \
+  src/lib/knowledge/knowledge-ingest-organizer-draft.test.ts
+./node_modules/.bin/tsc --noEmit --incremental false --pretty false
+git diff --check
+```
+
+The D1 harness was inspected before execution: migrations/seeds run only with `--local` in a fresh temporary persist directory per file; the test gateway uses localhost and the same directory, then is stopped and cleaned up. Mock/injected AI is used. There is no Production or remote Preview test data. These results resolve the named 1B-A blockers locally, not unrelated backlog or release gates. **NEXT: CHAT REVIEW BEFORE 1B-B FULL VALIDATION. Smart Ingest 2 remains NOT PRODUCTION DEPLOYED.**
+
+## 1B-A3 final closure evidence
+
+**2026-09-26 — 1B-A CLOSED; CHAT REVIEW → 1B-B FULL RELEASE VALIDATION.** The owner's remote review passed with one product clarification and small test completion. The complete remediation is frozen in one local checkpoint commit named `fix(knowledge): harden smart ingest release blockers`, directly after base `86c33c4c5e3a0a8ce91a167ed11407d42d44cd24` on `feat/knowledge-smart-ingest-2`. This entry is included in that checkpoint; its SHA is obtained from Git, avoiding a self-referential SHA in its own content. No push/merge or 1B-B execution is authorized by this record.
+
+The confirmed rule is **Manual Category Clear = Human Override**: selection and null both set `manualCategoryOverride=true`, with resolution source `manual`. An explicit `restoreAutomaticClassification: true` Candidate PATCH is the only category reset; it clears the manual flag, advances the revision and resolves the current active mapping in the same guarded update. Without mapping, normal high/medium/low/error AI rules resume. Organizer hydration cannot bypass committed manual state with a false request flag. The editor distinguishes automatic/manual/manual-blank in Simplified Chinese, Traditional Chinese and English, with an explicit restore action; it preserves edited title/summary/body during category refresh. See CRM-D024 and the master specification.
+
+The remediation suite grows from 50 to **63 tests**, adding 13 cases: select/clear, delayed AI, delayed mapping/evidence, fresh hydration/business change preserving blank, explicit reset with mapping, four no-mapping confidence/fallback cases, conflicting reset payload, unauthorized reset, and direct proposed/failed-source PATCH denials. Race/denial tests compare the complete candidate row, including classification/manual/revision fields. This asserts **zero candidate business-data mutation**, not zero authentication/session/audit writes across the entire request.
+
+| Validation in 1B-A3 | Actual result |
+| --- | --- |
+| Candidate remediation D1 suite | **63/63 PASS**; final rerun after correcting test fixture types |
+| Candidate organizer D1 suite | **6/6 PASS** |
+| Candidate organizer hydration D1 suite | **3/3 PASS** |
+| Category autofill D1 suite | **16/16 PASS** |
+| Six pure/static/i18n files below | **48/48 PASS** |
+| App `tsc --noEmit --incremental false --pretty false` | **PASS** |
+| Changed-file ESLint (26 TypeScript files) / `git diff --check` | **PASS** |
+
+Total for this gate: **136 passing tests (88 D1 + 48 pure/static/i18n)**, deduplicated across reruns. Initial typecheck found two test-fixture types (detail DTO versus persisted row, and null versus optional AI category); both were corrected before final validation/commit. These are scoped local results, not full 1B-B acceptance. Logs: `/tmp/crm-1ba3-d1.log`, `/tmp/crm-1ba3-remediation-final.log`, `/tmp/crm-1ba3-unit.log`, `/tmp/crm-1ba3-tsc-final.log`.
+
+Actual commands (existing installed dependencies; isolated local D1 harness only):
+
+```sh
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-organizer.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-organizer-hydration.integration.test.ts \
+  src/lib/knowledge/knowledge-ingest-category-autofill.integration.test.ts
+WRANGLER_SEND_METRICS=false WRANGLER_WRITE_LOGS=false npm_config_offline=true CRM_TEST_TIMEOUT_MS=240000 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts
+NODE_ENV=test node --import tsx --test --test-concurrency=1 \
+  src/lib/knowledge/knowledge-ingest-organizer-draft.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-cards-ui.test.ts \
+  src/lib/knowledge/knowledge-ingest-category-ui-state.test.ts \
+  src/lib/knowledge/knowledge-candidate-organizer-draft-usability.test.ts \
+  src/lib/knowledge/knowledge-language-taxonomy-hotfix.test.ts \
+  src/i18n/locales/catalog-parity.test.ts
+./node_modules/.bin/tsc --noEmit --incremental false --pretty false
+# Installed ESLint was invoked with the 26 changed .ts/.tsx paths; no --fix.
+git diff --check
+```
+
+**Retained for 1B-B:** Direct provider-result late comparison-completion race testing (the same commit-time predicate is unchanged); browser/Preview validation including actual reset interactions. No browser/build/remote Preview/real AI/Mail send/Production access or Cloudflare change occurred. No schema/migration change, including no 0091. Main remains at `a481689ad3854b85dfa6073c9aa495453659fb58`; 1A is not relabeled PASS. **Smart Ingest 2 remains NOT PRODUCTION DEPLOYED.** The earlier 1B-A uncommitted-state descriptions and 1B-A2 export are historical evidence, superseded for current category-clear semantics by this closure.
 
 ## Dated Production evidence snapshot
 

@@ -1,4 +1,5 @@
-import { and, desc, eq, inArray, isNull } from "drizzle-orm";
+import { candidateConflict, currentCandidateCondition, currentCandidateOrganizationCondition, requireCurrentCandidate } from "@/lib/knowledge/knowledge-candidate-guards";
+import { and, desc, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import { allowMockDeepInsightGeneration } from "@/lib/ai/providers/factory";
@@ -40,7 +41,7 @@ import {
   requireViewableKnowledgeSource,
   type KnowledgeSourceMeta,
 } from "@/lib/knowledge/source-service";
-import { buildKnowledgeAuditInsert, writeKnowledgeAudit } from "@/lib/knowledge/audit";
+import { buildKnowledgeAuditInsert, buildKnowledgeAuditInsertWhere, writeKnowledgeAudit } from "@/lib/knowledge/audit";
 import { KnowledgeServiceError } from "@/lib/knowledge/errors";
 import type { KnowledgeSessionContext } from "@/lib/permissions/knowledge";
 import type { KnowledgeAiComparisonRun } from "../../../drizzle/schema/knowledge-ai-comparison-runs";
@@ -110,6 +111,7 @@ async function latestCompletedOrganization(
     .where(
       and(
         eq(schema.knowledgeAiOrganizationRuns.sourceId, sourceId),
+        isNull(schema.knowledgeAiOrganizationRuns.candidateId),
         eq(schema.knowledgeAiOrganizationRuns.status, "completed"),
       ),
     )
@@ -132,7 +134,7 @@ async function latestSourceComparison(
           isNull(schema.knowledgeAiComparisonRuns.candidateId),
         ),
       )
-      .orderBy(desc(schema.knowledgeAiComparisonRuns.createdAt))
+      .orderBy(desc(schema.knowledgeAiComparisonRuns.createdAt), sql`knowledge_ai_comparison_runs.rowid DESC`)
       .limit(1)
   )[0] ?? null;
 }
@@ -403,7 +405,7 @@ export async function latestCandidateComparison(
       .select()
       .from(schema.knowledgeAiComparisonRuns)
       .where(eq(schema.knowledgeAiComparisonRuns.candidateId, candidateId))
-      .orderBy(desc(schema.knowledgeAiComparisonRuns.createdAt))
+      .orderBy(desc(schema.knowledgeAiComparisonRuns.createdAt), sql`knowledge_ai_comparison_runs.rowid DESC`)
       .limit(1)
   )[0] ?? null;
 }
@@ -443,6 +445,7 @@ type ExecuteKnowledgeComparisonInput = {
   meta: KnowledgeSourceMeta;
   db: Database;
   providerCall?: KnowledgeComparisonProviderCall;
+  commitCondition?: SQL;
 };
 
 async function executeKnowledgeComparison(
@@ -464,29 +467,17 @@ async function executeKnowledgeComparison(
   const now = new Date().toISOString();
   const runId = crypto.randomUUID();
   const snapshot = toCandidateSnapshot(candidates);
+  const commitCondition = input.commitCondition ?? sql`1 = 1`;
+  const completedCondition = sql`EXISTS (SELECT 1 FROM knowledge_ai_comparison_runs
+    WHERE id = ${runId} AND status = 'completed')`;
 
   try {
-    await db.insert(schema.knowledgeAiComparisonRuns).values({
-      id: runId,
-      sourceId,
-      candidateId,
-      organizationRunId: organizationRun.id,
-      requestedByUserId: context.user.id,
-      status: "pending",
-      relationship: null,
-      matchedArticleId: null,
-      matchedArticleVersionId: null,
-      matchedVersionNumber: null,
-      matchConfidence: null,
-      candidateSnapshotJson: JSON.stringify(snapshot),
-      comparisonJson: null,
-      degradationLevel: null,
-      provider: null,
-      model: null,
-      failureCode: null,
-      createdAt: now,
-      completedAt: null,
-    });
+    await db.insert(schema.knowledgeAiComparisonRuns).select(sql`
+      SELECT ${runId}, ${sourceId}, ${candidateId}, ${organizationRun.id}, ${context.user.id},
+        'pending', NULL, NULL, NULL, NULL, NULL, ${JSON.stringify(snapshot)},
+        NULL, NULL, NULL, NULL, NULL, ${now}, NULL
+      WHERE ${commitCondition}
+    `);
   } catch {
     throw comparisonError(
       KNOWLEDGE_ERROR_CODES.AI_COMPARISON_RUN_CONFLICT,
@@ -494,6 +485,9 @@ async function executeKnowledgeComparison(
       409,
     );
   }
+
+  if (!(await db.select().from(schema.knowledgeAiComparisonRuns)
+    .where(eq(schema.knowledgeAiComparisonRuns.id, runId)).limit(1))[0]) throw candidateConflict();
 
   await writeKnowledgeAudit(
     {
@@ -536,8 +530,8 @@ async function executeKnowledgeComparison(
           completedAt,
           failureCode: null,
         })
-        .where(eq(schema.knowledgeAiComparisonRuns.id, runId)),
-      buildKnowledgeAuditInsert(db, {
+        .where(and(eq(schema.knowledgeAiComparisonRuns.id, runId), commitCondition)),
+      buildKnowledgeAuditInsertWhere(db, {
         userId: context.user.id,
         action: "knowledge_comparison_completed",
         entityType: "knowledge_ai_comparison_run",
@@ -552,7 +546,7 @@ async function executeKnowledgeComparison(
           candidateCount: 0,
           degradationLevel: null,
         },
-      }),
+      }, completedCondition),
     ]);
     const run = (
       await db
@@ -561,7 +555,13 @@ async function executeKnowledgeComparison(
         .where(eq(schema.knowledgeAiComparisonRuns.id, runId))
         .limit(1)
     )[0];
-    return mapComparisonRun(run!);
+    if (run?.status !== "completed") {
+      await db.update(schema.knowledgeAiComparisonRuns)
+        .set({ status: "failed", failureCode: KNOWLEDGE_ERROR_CODES.AI_COMPARISON_STALE, completedAt })
+        .where(eq(schema.knowledgeAiComparisonRuns.id, runId));
+      throw candidateConflict();
+    }
+    return mapComparisonRun(run);
   }
 
   let provider = "unknown";
@@ -666,8 +666,8 @@ async function executeKnowledgeComparison(
           completedAt,
           failureCode: null,
         })
-        .where(eq(schema.knowledgeAiComparisonRuns.id, runId)),
-      buildKnowledgeAuditInsert(db, {
+        .where(and(eq(schema.knowledgeAiComparisonRuns.id, runId), commitCondition)),
+      buildKnowledgeAuditInsertWhere(db, {
         userId: context.user.id,
         action: "knowledge_comparison_completed",
         entityType: "knowledge_ai_comparison_run",
@@ -682,8 +682,11 @@ async function executeKnowledgeComparison(
           candidateCount: promptCandidates.length,
           degradationLevel: promptBudget.degradationLevel,
         },
-      }),
+      }, completedCondition),
     ]);
+    const completed = (await db.select().from(schema.knowledgeAiComparisonRuns)
+      .where(eq(schema.knowledgeAiComparisonRuns.id, runId)).limit(1))[0];
+    if (completed?.status !== "completed") throw candidateConflict();
   } catch (error) {
     const failureCode = failureCodeFor(error);
     const failureAt = new Date().toISOString();
@@ -734,7 +737,7 @@ export async function compareKnowledgeSegmentCandidate(
   context: KnowledgeSessionContext,
   sourceId: string,
   candidateId: string,
-  draftInput: { title: string; summary: string; body: string },
+  draftInput: { title: string; summary: string; body: string; organizationRunId?: string | null },
   meta: KnowledgeSourceMeta,
   db: Database = getDb(),
   dependencies: {
@@ -755,6 +758,8 @@ export async function compareKnowledgeSegmentCandidate(
       409,
     );
   }
+  const authoritative = await requireCurrentCandidate(context, sourceId, candidateId, db);
+  if (authoritative.draftArticleId) throw candidateConflict();
   const candidate = await getKnowledgeSegmentCandidate(
     context,
     sourceId,
@@ -780,13 +785,16 @@ export async function compareKnowledgeSegmentCandidate(
   if (
     !organizationRun ||
     organizationRun.status !== "completed" ||
-    organizationRun.candidateId !== candidateId
+    organizationRun.candidateId !== candidateId || organizationRun.sourceId !== sourceId
   ) {
     throw comparisonError(
       KNOWLEDGE_ERROR_CODES.AI_ORGANIZATION_REQUIRED,
       "没有可供比对的 AI 整理结果",
       409,
     );
+  }
+  if (draftInput.organizationRunId !== organizationRun.id) {
+    throw comparisonError(KNOWLEDGE_ERROR_CODES.AI_COMPARISON_STALE, "整理结果已变更，请刷新后重新比较", 409);
   }
   if (await getActiveCandidateComparisonRun(candidateId, db)) {
     throw comparisonError(
@@ -817,6 +825,10 @@ export async function compareKnowledgeSegmentCandidate(
     context,
     sourceId,
     candidateId,
+    commitCondition: and(currentCandidateCondition(authoritative, context),
+      currentCandidateOrganizationCondition(authoritative, organizationRun.id),
+      sql`EXISTS (SELECT 1 FROM knowledge_source_segment_candidates
+        WHERE id = ${candidateId} AND draft_article_id IS NULL)`),
     organizationRun,
     organizedContent: {
       title: draft.title,

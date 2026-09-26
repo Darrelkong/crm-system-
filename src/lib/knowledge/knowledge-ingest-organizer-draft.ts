@@ -63,7 +63,7 @@ export function resolveOrganizerRequestedProjectCode(input: {
   manualCode: string | null;
   manualOverride: boolean;
 }): string | null {
-  if (input.manualOverride && input.manualCode) {
+  if (input.manualOverride) {
     return input.manualCode;
   }
   if (
@@ -85,8 +85,8 @@ export function resolveOrganizerKnowledgeCategoryId(input: {
   explicitMappingCategoryId?: string | null;
   aiPrefillCategoryId?: string | null;
 }): string {
-  if (input.manualCategoryOverride && input.manualCategoryId) {
-    return input.manualCategoryId;
+  if (input.manualCategoryOverride) {
+    return input.manualCategoryId ?? "";
   }
   if (input.explicitMappingCategoryId) {
     return input.explicitMappingCategoryId;
@@ -157,9 +157,7 @@ export async function buildOrganizerDraftFromOrganization(
   let categorySelectionRequired = false;
 
   if (options.manualCategoryOverride) {
-    if (options.manualCategoryId) {
-      categoryResolutionSource = "manual";
-    }
+    categoryResolutionSource = "manual";
   } else if (requestedProjectCode && !options.manualCategoryOverride) {
     const resolution = await resolveKnowledgeCategoryForBusiness(
       requestedProjectCode,

@@ -1,9 +1,11 @@
+import { candidateConflict } from "@/lib/knowledge/knowledge-candidate-guards";
 import type { Database } from "@/lib/db";
 import { getDb } from "@/lib/db";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
 import {
   buildOrganizerDraftFromOrganization,
   type OrganizerDraftFields,
+  type OrganizerDraftBuildDeps,
 } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
 import {
   getCandidateOrganizationForDraft,
@@ -77,6 +79,7 @@ export async function buildCandidateOrganizerDraftPayload(
   },
   db: Database = getDb(),
 ): Promise<CandidateOrganizerDraftPayload> {
+  const expectedRunId = await getLatestCandidateOrganizationRunId(candidate.id, db);
   const draft = await buildCandidateOrganizerDraft(
     context,
     sourceId,
@@ -88,6 +91,7 @@ export async function buildCandidateOrganizerDraftPayload(
     candidate.id,
     db,
   );
+  if (organizationRunId !== expectedRunId) throw candidateConflict();
   return {
     draft,
     organizationRunId,
@@ -106,6 +110,7 @@ export async function buildCandidateOrganizerDraft(
     manualCategoryOverride?: boolean;
   },
   db: Database = getDb(),
+  deps?: OrganizerDraftBuildDeps,
 ): Promise<OrganizerDraftFields> {
   const organization = await getCandidateOrganizationForDraft(
     context,
@@ -144,12 +149,11 @@ export async function buildCandidateOrganizerDraft(
         ? candidate.requestedProjectCode
         : (options.manualRequestedProjectCode ?? candidate.requestedProjectCode);
 
-  const manualCategoryId =
-    options.manualCategoryOverride === true
-      ? (options.manualCategoryId ?? candidate.knowledgeCategoryId)
-      : candidate.manualCategoryOverride
-        ? candidate.knowledgeCategoryId
-        : (options.manualCategoryId ?? candidate.knowledgeCategoryId);
+  // Only the explicit PATCH reset can leave committed manual mode.
+  // A null category is intentional; do not coalesce it to an older selection.
+  const manualCategoryOverride = candidate.manualCategoryOverride || options.manualCategoryOverride === true;
+  const manualCategoryId = options.manualCategoryOverride === true && options.manualCategoryId !== undefined
+    ? options.manualCategoryId : candidate.knowledgeCategoryId;
 
   return buildOrganizerDraftFromOrganization(
     syntheticSourceForCandidateDraft(sourceId, organization),
@@ -159,11 +163,10 @@ export async function buildCandidateOrganizerDraft(
         options.manualRequestedProjectOverride ??
         candidate.manualRequestedProjectOverride,
       manualCategoryId,
-      manualCategoryOverride:
-        options.manualCategoryOverride ?? candidate.manualCategoryOverride,
+      manualCategoryOverride,
     },
     db,
-    undefined,
+    deps,
     { bypassSourceLevelOrganizeBlock: true },
   );
 }

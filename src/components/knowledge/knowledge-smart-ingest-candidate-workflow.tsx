@@ -23,6 +23,7 @@ type CandidateDraftState = {
   summary: string;
   body: string;
   organized: boolean;
+  organizationRunId: string | null;
 };
 
 export function KnowledgeSmartIngestCandidateWorkflow({
@@ -92,6 +93,7 @@ export function KnowledgeSmartIngestCandidateWorkflow({
     return (
       draft?.organized &&
       comparison?.status === "completed" &&
+      comparison.organizationRunId === draft?.organizationRunId &&
       comparison.comparison &&
       comparisonMatchesOrganizerDraft(
         comparison.comparison,
@@ -121,6 +123,7 @@ export function KnowledgeSmartIngestCandidateWorkflow({
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
+            organizationRunId: draft.organizationRunId,
             title: draft.title,
             summary: draft.summary,
             body: draft.body,
@@ -239,20 +242,14 @@ export function KnowledgeSmartIngestCandidateWorkflow({
               : null;
             const comparisonFresh =
               comparison?.status === "completed" &&
+              comparison.organizationRunId === draft?.organizationRunId &&
               comparison.comparison &&
               draftSnapshot &&
               comparisonMatchesOrganizerDraft(
                 comparison.comparison,
                 draftSnapshot,
               );
-            const stale =
-              comparison?.status === "completed" &&
-              draftSnapshot &&
-              comparison.comparison &&
-              !comparisonMatchesOrganizerDraft(
-                comparison.comparison,
-                draftSnapshot,
-              );
+            const stale = comparison?.status === "completed" && !comparisonFresh;
             return (
               <li
                 key={candidate.id}
@@ -321,6 +318,7 @@ export function KnowledgeSmartIngestCandidateWorkflow({
               : null;
             const comparisonFresh =
               comparison?.status === "completed" &&
+              comparison.organizationRunId === draft?.organizationRunId &&
               comparison.comparison &&
               draftSnapshot &&
               comparisonMatchesOrganizerDraft(

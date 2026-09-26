@@ -3436,6 +3436,11 @@ const en = {
       smartIngestCandidatesRetry: "Retry",
       smartIngestCandidatesCountMismatch:
         "Topic count does not match your review. Try reloading.",
+      candidateCategoryAutomatic: "Automatic classification",
+      candidateCategoryManual: "Manual category",
+      candidateCategoryManualBlank: "Manual category — intentionally blank",
+      restoreAutomaticClassification: "Restore automatic classification",
+      candidateCategoryUpdateFailed: "Unable to update the category. Please try again.",
       smartIngestCandidatePending: "Pending",
       smartIngestCandidateReady: "Ready",
       smartIngestCandidateEvidencePreview: "Source preview",
