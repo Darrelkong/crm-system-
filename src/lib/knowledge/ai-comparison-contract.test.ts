@@ -73,10 +73,10 @@ for(const [reason,response] of [
   try{
     const result=await runKnowledgeCompareTask(env(async()=>{calls++;return{response};}),request);
     assert.deepEqual(result,{ok:false,error:"invalid_output"});assert.equal(calls,2);
-    assert.deepEqual(log.mock.calls.map(c=>c.arguments[1].attempt),[1,2]);
-    assert.ok(log.mock.calls.every(c=>c.arguments[1].reason===reason));
+    assert.deepEqual(log.mock.calls.filter(c=>c.arguments[0]==="knowledge_compare_validation").map(c=>c.arguments[1].attempt),[1,2]);
+    assert.ok(log.mock.calls.filter(c=>c.arguments[0]==="knowledge_compare_validation").every(c=>c.arguments[1].reason===reason));
     const text=JSON.stringify(log.mock.calls.map(c=>c.arguments));assert.ok(!text.includes("SENSITIVE_SENTINEL"));assert.ok(!text.includes("Synthetic fact"));
-    for(const call of log.mock.calls)assert.deepEqual(Object.keys(call.arguments[1]).sort(),["arrayCounts","attempt","reason","responseType","task","rawTopLevelKeys","structuredTopLevelKeys","hasResponse","hasChoices","hasChoiceMessage","rawResponseType","contentType","extractedType","parseable"].sort());
+    for(const call of log.mock.calls.filter(c=>c.arguments[0]==="knowledge_compare_validation"))assert.deepEqual(Object.keys(call.arguments[1]).sort(),["arrayCounts","attempt","reason","responseType","task","rawTopLevelKeys","structuredTopLevelKeys","hasResponse","hasChoices","hasChoiceMessage","rawResponseType","contentType","extractedType","parseable"].sort());
   }finally{log.mock.restore();}
 });
 

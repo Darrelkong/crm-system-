@@ -174,6 +174,23 @@ function mapRunFailure(error: unknown): AiServiceError {
   return "internal_error";
 }
 
+/** Internal metadata only; never include provider messages or arbitrary names. */
+export function comparisonFailureDiagnostic(error: unknown) {
+  const code = error && typeof error === "object" && "code" in error &&
+    typeof error.code === "number" && Number.isSafeInteger(error.code) ? error.code : undefined;
+  const mapped = mapRunFailure(error);
+  const timeoutSource = error instanceof ResponseDeadlineError ? "APPLICATION_RESPONSE_DEADLINE"
+    : error instanceof DOMException && error.name === "AbortError" ? "PROVIDER_ABORT"
+    : code === 3007 || code === 3008 ? "PROVIDER_TIMEOUT_CODE"
+    : mapped === "timeout" ? "PROVIDER_TIMEOUT_MESSAGE"
+    : mapped === "model_unavailable" ? "MODEL_UNAVAILABLE"
+    : mapped === "rate_limited" ? "RATE_LIMITED" : "OTHER";
+  const errorClass = error instanceof ResponseDeadlineError ? "ResponseDeadlineError"
+    : error instanceof DOMException ? (error.name === "AbortError" ? "AbortError" : "DOMException")
+    : error instanceof TypeError ? "TypeError" : error instanceof Error ? "Error" : "Unknown";
+  return { timeoutSource, ...(code === undefined ? {} : { providerCode: code }), errorClass };
+}
+
 function extractStructuredPayload(raw: unknown): unknown {
   if (!raw || typeof raw !== "object") return raw;
   const record = raw as Record<string, unknown>;
@@ -796,20 +813,35 @@ export async function runKnowledgeCompareTask(
   request: CrmAiKnowledgeCompareRequest,
 ): Promise<AiServiceResult<KnowledgeCompareOutput>> {
   const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  const model = resolveKnowledgeCompareModel(env.CRM_AI_KNOWLEDGE_COMPARE_MODEL);
+  const startedAt = Date.now();
   return runKnowledgeTaskWithRetries(
-    "knowledge_compare",
-    resolveKnowledgeCompareModel(env.CRM_AI_KNOWLEDGE_COMPARE_MODEL),
-    totalDeadlineMs,
-    (remainingMs, attempt) =>
-      runKnowledgeCompare(
-        env,
-        request,
-        (model, task, schemaVersion, payload, timeoutMs) =>
-          invokeModel(env, model, task, schemaVersion, payload, timeoutMs),
-        parseJsonValue,
-        remainingMs,
-        attempt,
-      ),
+    "knowledge_compare", model, totalDeadlineMs,
+    async (remainingMs, attempt) => {
+      let providerResultObtained = false;
+      const logFailure = (diagnostic: ReturnType<typeof comparisonFailureDiagnostic>) =>
+        console.warn("knowledge_compare_failure", {
+          task: "knowledge_compare", model, attempt,
+          elapsedMs: Date.now() - startedAt, configuredDeadlineMs: totalDeadlineMs,
+          ...diagnostic, providerResultObtained,
+        });
+      try {
+        const result = await runKnowledgeCompare(
+          env, request,
+          async (model, task, schemaVersion, payload, timeoutMs) => {
+            const raw = await invokeModel(env, model, task, schemaVersion, payload, timeoutMs);
+            providerResultObtained = true;
+            return raw;
+          },
+          parseJsonValue, remainingMs, attempt,
+        );
+        if (!result.ok) logFailure({ timeoutSource: "OTHER", errorClass: "InvalidOutput" });
+        return result;
+      } catch (error) {
+        logFailure(comparisonFailureDiagnostic(error));
+        throw error;
+      }
+    },
   );
 }
 
