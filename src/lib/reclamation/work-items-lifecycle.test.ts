@@ -46,6 +46,8 @@ function makeCustomer(
 ): Customer {
   const anchor = daysAgoIso(idleDays, FIXED_NOW);
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id,
     customerCode: null,
     customerName: `[TEST] Work items ${id.slice(-2)}`,

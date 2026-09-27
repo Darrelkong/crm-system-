@@ -50,6 +50,8 @@ function buildCustomer(
   const createdAt = overrides.createdAt ?? daysAgoIso(30, now);
   const { salesStage, ...rest } = overrides;
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id: "test-customer-id",
     customerCode: null,
     customerName: "Test Customer",

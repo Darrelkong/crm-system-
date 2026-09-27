@@ -88,3 +88,4 @@ export * from "./mail-delivery-event-materializations";
 export * from "./mail-company-config";
 export * from "./mail-notification-outbox";
 export * from "./mail-notification-attempts";
+export * from "./customer-rating-history";

@@ -33,6 +33,8 @@ function daysAgoIso(days: number): string {
 function makeCustomer(idleDays: number): Customer {
   const anchor = daysAgoIso(idleDays);
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id: EPISODE_CUSTOMER,
     customerCode: null,
     customerName: "[TEST] Risk episode",

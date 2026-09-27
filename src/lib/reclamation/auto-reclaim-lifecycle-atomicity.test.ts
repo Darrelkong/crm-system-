@@ -58,6 +58,8 @@ function makeReclaimCustomer(
 ): Customer {
   const anchor = daysAgoIso(idleDays, FIXED_NOW);
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id,
     customerCode: null,
     customerName: `[TEST] Auto reclaim atomic ${id.slice(-2)}`,
