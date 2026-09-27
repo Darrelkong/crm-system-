@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { useTranslation } from "@/i18n/provider";
 import type { AiInsightFeedbackRatingCode } from "@/lib/ai/customer-insights/feedback-contract";
 import type { ComponentFeedbackUiTarget } from "@/components/customers/ai-insight-component-feedback";
@@ -64,10 +64,7 @@ export function useAiInsightComponentFeedback({
   insightReady,
 }: UseAiInsightComponentFeedbackArgs) {
   const { t } = useTranslation();
-  const clientRef = useRef<AiInsightComponentFeedbackClient | null>(null);
-
-  if (!clientRef.current) {
-    clientRef.current = new AiInsightComponentFeedbackClient({
+  const [client] = useState(() => new AiInsightComponentFeedbackClient({
       unavailable: t("customers.aiInsightComponentFeedback.unavailable"),
       saveFailed: t("customers.aiInsightComponentFeedback.saveFailed"),
       generationMismatch: t(
@@ -75,10 +72,7 @@ export function useAiInsightComponentFeedback({
       ),
       saved: t("customers.aiInsightComponentFeedback.saved"),
       updated: t("customers.aiInsightComponentFeedback.updated"),
-    });
-  }
-
-  const client = clientRef.current;
+    }));
 
   const snapshot = useSyncExternalStore(
     (onStoreChange) => client.subscribe(onStoreChange),
@@ -88,8 +82,10 @@ export function useAiInsightComponentFeedback({
 
   useEffect(() => {
     return () => {
-      client.dispose();
-      clientRef.current = null;
+      // StrictMode replays effects on the same mounted store. Cancel stale work,
+      // but keep its identity and allow the replayed load to hydrate normally.
+      // useSyncExternalStore owns subscription cleanup.
+      client.cancelPendingRequests();
     };
   }, [client]);
 
