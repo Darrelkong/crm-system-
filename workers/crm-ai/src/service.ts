@@ -14,6 +14,7 @@ import {
   KNOWLEDGE_VISION_TOTAL_DEADLINE_MS,
   resolveAdminBriefDeadlineMs,
   resolveKnowledgeDeadlineMs,
+  resolveKnowledgeCompareDeadlineMs,
   resolveKnowledgeCompareModel,
   resolveKnowledgeVisionDeadlineMs,
   resolveModelForTask,
@@ -812,7 +813,7 @@ export async function runKnowledgeCompareTask(
   env: CrmAiEnv,
   request: CrmAiKnowledgeCompareRequest,
 ): Promise<AiServiceResult<KnowledgeCompareOutput>> {
-  const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
+  const totalDeadlineMs = resolveKnowledgeCompareDeadlineMs(env.CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS);
   const model = resolveKnowledgeCompareModel(env.CRM_AI_KNOWLEDGE_COMPARE_MODEL);
   const startedAt = Date.now();
   return runKnowledgeTaskWithRetries(

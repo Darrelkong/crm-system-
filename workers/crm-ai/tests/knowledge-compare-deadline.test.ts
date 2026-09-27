@@ -31,9 +31,9 @@ for(const [error,source,publicError] of [
 it("real application timer wins before provider result; late settlement creates no duplicate log",async()=>{
   const log=mock.method(console,"warn",()=>{});let settle:(value:unknown)=>void=()=>{};
   try {
-    const env:CrmAiEnv={CRM_AI_TIMEOUT_MS:"150",AI:{run:()=>new Promise(resolve=>{settle=resolve;})} as unknown as Ai};
+    const env:CrmAiEnv={CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS:"1000",AI:{run:()=>new Promise(resolve=>{settle=resolve;})} as unknown as Ai};
     assert.deepEqual(await runKnowledgeCompareTask(env,request),{ok:false,error:"timeout"});
-    const d=log.mock.calls[0].arguments[1];assert.equal(d.timeoutSource,"APPLICATION_RESPONSE_DEADLINE");assert.equal(d.providerResultObtained,false);assert.equal(d.configuredDeadlineMs,150);assert.ok(d.elapsedMs>=140);
+    const d=log.mock.calls[0].arguments[1];assert.equal(d.timeoutSource,"APPLICATION_RESPONSE_DEADLINE");assert.equal(d.providerResultObtained,false);assert.equal(d.configuredDeadlineMs,1000);assert.ok(d.elapsedMs>=900);
     settle({response:"PRIVATE_LATE_RESPONSE"});await Promise.resolve();assert.equal(log.mock.calls.length,1);
   }finally{log.mock.restore();}
 });
@@ -47,4 +47,43 @@ it("provider output validation failure reports that a result was obtained",async
 it("arbitrary error names and nonfinite codes cannot leak into diagnostics",()=>{
   const e=Object.assign(new Error("PRIVATE_MESSAGE"),{name:"PRIVATE_NAME",code:Infinity});
   assert.deepEqual(comparisonFailureDiagnostic(e),{timeoutSource:"OTHER",errorClass:"Error"});
+});
+
+it("comparison deadline parsing is bounded and defaults independently of shared configuration", async () => {
+  const { resolveKnowledgeCompareDeadlineMs } = await import("../src/models");
+  for (const raw of [undefined, "", " ", "invalid", "NaN", "Infinity", "-1", "0", "1e999"]) {
+    assert.equal(resolveKnowledgeCompareDeadlineMs(raw), 20000);
+  }
+  for (const [raw, expected] of [["60000",60000],["90000",60000],["1",1000],["1500.7",1501],[" 30000 ",30000]] as const) {
+    assert.equal(resolveKnowledgeCompareDeadlineMs(raw),expected);
+  }
+  const log=mock.method(console,"warn",()=>{});
+  try {
+    for (const override of [undefined,"60000"]) {
+      await runKnowledgeCompareTask({CRM_AI_TIMEOUT_MS:"50",CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS:override,AI:{run:async()=>{throw new ResponseDeadlineError();}} as unknown as Ai},request);
+      assert.equal(log.mock.calls.at(-1)?.arguments[1].configuredDeadlineMs,override?60000:20000);
+    }
+  } finally {log.mock.restore();}
+});
+
+it("comparison override does not change organizer/category/QA/Vision response timers",async()=>{
+  const { handleCrmAiRequest }=await import("../src/service");
+  const timers:number[]=[];const original=setTimeout;
+  const timer=mock.method(globalThis,"setTimeout",(...args:Parameters<typeof setTimeout>)=>{timers.push(Number(args[1]));return original(...args);});
+  try {
+    for(const [task,schemaVersion,output] of [
+      ["knowledge_organize","knowledge-organize-v1",{title:"Synthetic",summary:null,body:"Evidence",suggestedCategory:null,warnings:[]}],
+      ["knowledge_qa","knowledge-qa-v1",{answer:"Synthetic",citationIds:[],insufficientInformation:true}],
+      ["knowledge_category_suggest","knowledge-category-suggest-v1",{categoryId:null,confidenceBand:"low"}],
+    ] as const){
+      timers.length=0;
+      const env:CrmAiEnv={CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS:"60000",AI:{run:async()=>({response:output})} as unknown as Ai};
+      assert.equal((await handleCrmAiRequest(env,{...request,task,schemaVersion})).ok,true);
+      assert.ok(timers.length>0);assert.ok(timers.every(ms=>ms>19000&&ms<=20000));
+    }
+    timers.length=0;
+    const env:CrmAiEnv={CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS:"1000",AI:{run:async()=>({response:"Synthetic transcription"})} as unknown as Ai};
+    assert.equal((await handleCrmAiRequest(env,{task:"knowledge_vision_extract",schemaVersion:"knowledge-vision-extract-v1",locale:"en",mimeType:"image/png",imageBase64:"aGVsbG8=",byteSize:5})).ok,true);
+    assert.ok(timers.some(ms=>ms>59000&&ms<=60000));
+  }finally{timer.mock.restore();}
 });

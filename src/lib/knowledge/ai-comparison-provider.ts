@@ -36,10 +36,10 @@ export async function callKnowledgeComparisonProvider(input: {
   systemPrompt: string;
   userPrompt: string;
   aiService?: CloudflareEnv["AI_SERVICE"];
-}): Promise<unknown> {
+}): Promise<{ data: unknown; model: string }> {
   const result = await callKnowledgeCompareCloudflareAi(input);
   if (!result.ok) {
     mapCloudflareFailure(result);
   }
-  return result.data;
+  return { data: result.data, model: result.model };
 }

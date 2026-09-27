@@ -9,5 +9,5 @@
   "routes": [],
   "observability": { "enabled": true },
   "ai": { "binding": "AI" },
-  "vars": { "CRM_AI_GATEWAY_MODE": "direct", "CRM_AI_KNOWLEDGE_COMPARE_MODEL": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b" }
+  "vars": { "CRM_AI_GATEWAY_MODE": "direct", "CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS": "60000", "CRM_AI_KNOWLEDGE_COMPARE_MODEL": "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b" }
 }

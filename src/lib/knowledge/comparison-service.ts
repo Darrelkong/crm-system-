@@ -5,7 +5,6 @@ import { getDb, schema } from "@/lib/db";
 import { allowMockDeepInsightGeneration } from "@/lib/ai/providers/factory";
 import { AiProviderError } from "@/lib/ai/customer-insights/errors";
 import {
-  KNOWLEDGE_CLOUDFLARE_AI_MODEL,
   KNOWLEDGE_CLOUDFLARE_AI_PROVIDER,
 } from "@/lib/knowledge/cloudflare-knowledge-ai";
 import { getEffectiveAiSettings } from "@/lib/settings/ai-effective";
@@ -615,13 +614,13 @@ async function executeKnowledgeComparison(
         : mockComparisonOutput(promptCandidates);
     } else {
       provider = KNOWLEDGE_CLOUDFLARE_AI_PROVIDER;
-      model = KNOWLEDGE_CLOUDFLARE_AI_MODEL;
-      const rawOutput = await callKnowledgeComparisonProvider({
+      const providerResult = await callKnowledgeComparisonProvider({
         locale: settings.aiAnalysisLanguage,
         systemPrompt: promptBudget.systemPrompt,
         userPrompt: promptBudget.userPrompt,
       });
-      const parsed = parseKnowledgeAiComparisonOutput(rawOutput);
+      model = providerResult.model;
+      const parsed = parseKnowledgeAiComparisonOutput(providerResult.data);
       if (!parsed.success) {
         throw comparisonError(
           KNOWLEDGE_ERROR_CODES.AI_COMPARISON_OUTPUT_INVALID,

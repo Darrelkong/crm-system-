@@ -192,6 +192,8 @@ export type CrmAiEnv = {
   CRM_AI_GATEWAY_MODE?: "direct";
   /** Allowlisted comparison-only override; unset preserves Qwen. */
   CRM_AI_KNOWLEDGE_COMPARE_MODEL?: string;
+  /** Comparison-only response budget, default 20s, bounded to at most 60s. */
+  CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS?: string;
   CRM_AI_TIMEOUT_MS?: string;
   CRM_AI_VISION_TIMEOUT_MS?: string;
 };

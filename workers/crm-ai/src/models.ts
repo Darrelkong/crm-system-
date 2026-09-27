@@ -118,6 +118,14 @@ export function resolveKnowledgeDeadlineMs(raw: string | undefined): number {
   return Math.min(20_000, Math.max(15_000, rounded));
 }
 
+/** Comparison-only total response budget; independent of shared/vision settings. */
+export function resolveKnowledgeCompareDeadlineMs(raw: string | undefined): number {
+  if (!raw?.trim()) return KNOWLEDGE_TOTAL_DEADLINE_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return KNOWLEDGE_TOTAL_DEADLINE_MS;
+  return Math.min(60_000, Math.max(1_000, Math.round(parsed)));
+}
+
 export function resolveKnowledgeVisionDeadlineMs(
   raw: string | undefined,
 ): number {
