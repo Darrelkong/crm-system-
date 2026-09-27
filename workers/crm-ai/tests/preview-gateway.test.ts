@@ -35,7 +35,7 @@ it("Preview AI config exposes only Workers AI and approved Preview variables", (
   assert.equal(config.name, "crm-ai-si2-preview");
   assert.equal(config.account_id, "809c05c9f500268e973938fd641eee39");
   assert.deepEqual(config.ai, { binding: "AI" });
-  assert.deepEqual(config.vars, { CRM_AI_GATEWAY_MODE: "direct", CRM_AI_KNOWLEDGE_COMPARE_MODEL: "@cf/zai-org/glm-4.7-flash" });
+  assert.deepEqual(config.vars, { CRM_AI_GATEWAY_MODE: "direct", CRM_AI_KNOWLEDGE_COMPARE_MODEL: "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b" });
   assert.equal(config.workers_dev, false);
   assert.equal(config.preview_urls, false);
   assert.deepEqual(config.routes, []);

@@ -100,3 +100,21 @@ it("GLM documented completion envelope passes the same Worker, app adapter and Z
   const result=await callKnowledgeCompareCloudflareAi({...request,aiService});assert.equal(result.ok,true);
   if(result.ok)assertAll(result.data,true);
 });
+
+it("DeepSeek uses the unchanged canonical schema and strict Worker/app contract",async()=>{
+  const workerEnv:CrmAiEnv={CRM_AI_KNOWLEDGE_COMPARE_MODEL:"@cf/deepseek-ai/deepseek-r1-distill-qwen-32b",AI:{run:async(model:string,payload:{response_format:{json_schema:unknown}})=>{
+    assert.equal(model,"@cf/deepseek-ai/deepseek-r1-distill-qwen-32b");
+    assert.deepEqual(payload.response_format.json_schema,KNOWLEDGE_COMPARE_JSON_SCHEMA);
+    return {response:valid()};
+  }} as unknown as Ai};
+  const aiService={fetch:async()=>Response.json(await runKnowledgeCompareTask(workerEnv,request))} as unknown as CloudflareEnv["AI_SERVICE"];
+  const result=await callKnowledgeCompareCloudflareAi({...request,aiService});assert.equal(result.ok,true);if(result.ok)assertAll(result.data,true);
+});
+it("DeepSeek invalid relationship/match is rejected without weakening Worker or app",async()=>{
+  const log=mock.method(console,"warn",()=>{});const invalid={...valid(),matchedCandidateKey:null};
+  try {
+    assertAll(invalid,false);
+    const result=await runKnowledgeCompareTask({...env(async()=>({response:invalid})),CRM_AI_KNOWLEDGE_COMPARE_MODEL:"@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"},request);
+    assert.deepEqual(result,{ok:false,error:"invalid_output"});
+  } finally {log.mock.restore();}
+});

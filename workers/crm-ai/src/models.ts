@@ -48,10 +48,12 @@ export const KNOWLEDGE_COMPARE_PROMPT_VERSION = "knowledge-compare-v1";
 export const KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION =
   "knowledge-category-suggest-v1";
 export const KNOWLEDGE_MODEL = MODEL_QWEN;
+export const KNOWLEDGE_COMPARE_DEEPSEEK_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b";
 export const KNOWLEDGE_COMPARE_GLM_MODEL = "@cf/zai-org/glm-4.7-flash";
 /** Only comparison may opt in. Unset/unknown configuration preserves Qwen. */
 export function resolveKnowledgeCompareModel(override: string | undefined): string {
-  return override === KNOWLEDGE_COMPARE_GLM_MODEL ? KNOWLEDGE_COMPARE_GLM_MODEL : KNOWLEDGE_MODEL;
+  return override === KNOWLEDGE_COMPARE_GLM_MODEL || override === KNOWLEDGE_COMPARE_DEEPSEEK_MODEL
+    ? override : KNOWLEDGE_MODEL;
 }
 export const KNOWLEDGE_ORGANIZE_TEMPERATURE = 0.2;
 export const KNOWLEDGE_QA_TEMPERATURE = 0.2;
