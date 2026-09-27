@@ -49,7 +49,7 @@ AI Organize button.
 
 ## Local evidence
 
-Commands:
+Historical F3/F3A commands (the failing typecheck script was removed in F3B below):
 
 ```sh
 NODE_ENV=test node --import tsx --test src/lib/ai/follow-up-organize/*.test.ts src/app/api/ai/follow-up-organize/*.test.ts src/i18n/locales/phase4c-parity.test.ts src/i18n/locales/catalog-parity.test.ts
@@ -76,7 +76,7 @@ git diff --check
 - Production-source crm-ai typecheck is NOT passing: baseline
   `workers/crm-ai/src/knowledge-vision.ts:83` has TS2322 (`string` to JPEG/PNG union).
   No F3 production-source diagnostic was reported. The main baseline lacked the
-  script; this branch adds a source-only config using existing env.d.ts/compiler
+  script; F3 initially added a source-only config using existing env.d.ts/compiler
   settings and installed types. F3A explicitly leaves the unrelated Vision file unchanged.
 
 Initial catalog tests ran alongside locale generation and saw stale generated
@@ -120,3 +120,37 @@ A future release needs
 the compatible crm-ai task deployed before the CRM caller; deployment requires
 separate authorization. There is no schema/backfill requirement. Real Workers AI
 language/fluency acceptance remains separate from mocked contract evidence.
+
+## F3B release-quality cleanup — 2026-09-27
+
+Removed only the new `crm-ai:typecheck` npm script and
+`workers/crm-ai/tsconfig.build.json`, so this branch does not introduce a known-failing
+canonical command. The F3A differential evidence above remains valid historical
+evidence. Knowledge Vision and all Basic Organize runtime/test code are unchanged;
+the Basic Organize test remains included in `crm-ai:test`. No SI2 fixes imported.
+
+Local bundle check (installed Wrangler 4.136.1):
+
+```sh
+WRANGLER_SEND_METRICS=false ./node_modules/.bin/wrangler deploy --dry-run --config workers/crm-ai/wrangler.jsonc --outdir /tmp/crm-f3b-worker-bundle --metafile /tmp/crm-f3b-worker-bundle/meta.json
+```
+
+PASS: 73.45 KiB / gzip 15.04 KiB; dry-run exited without uploading or deploying.
+The esbuild metadata has 15 inputs: 14 crm-ai source modules and the shared
+`src/lib/ai/follow-up-organize/fluency-contract.ts`. There are zero final external
+imports. The bundle contains the task dispatcher and fact guard; no Next.js,
+OpenNext, server-only or Customer Insight module enters this Worker bundle.
+No config, binding, secret or remote resource changed.
+
+Rechecked the existing contracts: basic mode returns through AI_SERVICE before
+external-provider resolution; only selected text/locale plus task/version travel
+to the Worker; one invocation per click; permissions precede invocation; original
+and proposal remain separate; stale proposals cannot apply; factual token guards
+remain active. The customer route reads its existing permission metadata locally
+to authorize the request, but sends no customer profile/history to AI.
+
+F3B validation: app/route/catalog 50 PASS, Worker 73 PASS; main TypeScript,
+changed-file ESLint (zero errors, four baseline warnings), Next.js production
+build, Wrangler dry-run and `git diff --check` PASS. The baseline Worker semantic
+diagnostic was not rerun or repaired in F3B. Remaining remote acceptance:
+**REAL WORKERS AI QUALITY VALIDATION**. Nothing has been deployed.
