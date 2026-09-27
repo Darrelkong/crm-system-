@@ -4569,6 +4569,17 @@ const zhHant: Messages = {
     task: "任務",
     approval: "審批",
   },
+  customerRating: {
+    title: "客戶評級",
+    adjust: "調整評級",
+    choose: "請選擇評級",
+    clear: "清除評級 → 未評級",
+    reason: "調整原因（至少5個字）",
+    confirm: "確認本次調整",
+    correctionNotice: "這是人工評級修正，不計作跟進，不會重置客戶回收時間。",
+    validation: "請選擇評級並填寫至少5個字的原因。",
+    stale: "評級已被更新。已保留您的選擇和原因，請核對目前評級，再次點擊確認。",
+  },
   followUps: {
     currentRating: "目前客戶評級（僅供參考）",
     unrated: "未評級",

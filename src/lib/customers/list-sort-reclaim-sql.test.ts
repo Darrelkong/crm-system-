@@ -1,8 +1,9 @@
+import { buildCustomerListOrderBy } from "./list-sort";
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { inArray, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
+import { getTestD1PlatformProxy as getPlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
@@ -280,35 +281,10 @@ describe("reclaim_soonest SQL ordering", () => {
   });
 
   it("EXPLAIN QUERY PLAN for default customer list ORDER BY stays bounded", async () => {
-    const plan = await db.run(
-      sql`EXPLAIN QUERY PLAN
-        SELECT id FROM customers
-        WHERE status = 'active'
-        ORDER BY
-          is_pinned DESC,
-          pinned_at DESC,
-          CASE WHEN (
-            status = 'active'
-            AND owner_id IS NOT NULL
-            AND status != 'public_pool'
-            AND COALESCE(is_pinned, 0) = 0
-            AND sales_stage NOT IN ('closed_won', 'converted', 'paid', 'on_hold')
-            AND NOT EXISTS (
-              SELECT 1 FROM customer_assignees
-              WHERE customer_assignees.customer_id = customers.id
-                AND customer_assignees.role = 'collaborator'
-            )
-            AND (
-              CAST((julianday('2026-08-07') - julianday(date(datetime(COALESCE(reclamation_cycle_started_at, last_valid_follow_up_at, created_at), '+8 hours')))) AS INTEGER) >= ${RECLAIM_DAYS}
-              OR (
-                CAST((julianday('2026-08-07') - julianday(date(datetime(COALESCE(reclamation_cycle_started_at, last_valid_follow_up_at, created_at), '+8 hours')))) AS INTEGER) < ${RECLAIM_DAYS}
-                AND (${RECLAIM_DAYS} - CAST((julianday('2026-08-07') - julianday(date(datetime(COALESCE(reclamation_cycle_started_at, last_valid_follow_up_at, created_at), '+8 hours')))) AS INTEGER)) <= 16
-              )
-            )
-          ) THEN 0 ELSE 1 END ASC
-        LIMIT 40`,
-    );
-    void plan;
-    assert.ok(true);
+    const query = db.select({ id: schema.customers.id }).from(schema.customers)
+      .where(sql`${schema.customers.status} = 'active'`)
+      .orderBy(...buildCustomerListOrderBy(FIXED_NOW, RECLAIM_DAYS, 3)).limit(40);
+    const plan = await db.all(sql`EXPLAIN QUERY PLAN ${query.getSQL()}`);
+    assert.ok(plan.length > 0);
   });
 });

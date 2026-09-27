@@ -4,14 +4,14 @@ import { describe, it } from "node:test";
 import { buildCustomerListOrderBy } from "@/lib/customers/list-sort";
 
 describe("customer list sort regression with countdown", () => {
-  it("keeps the existing pinned-then-follow-up order builder without reclaim days", () => {
+  it("keeps the existing rating-then-pin-then-follow-up order builder without reclaim days", () => {
     const orderBy = buildCustomerListOrderBy();
-    assert.equal(orderBy.length, 6);
+    assert.equal(orderBy.length, 8);
   });
 
-  it("adds hidden near-release risk clauses when automaticReclaimDays is set", () => {
+  it("adds operational warning clauses when automaticReclaimDays is set", () => {
     const orderBy = buildCustomerListOrderBy(new Date(), 45);
-    assert.equal(orderBy.length, 9);
+    assert.equal(orderBy.length, 11);
   });
 
   it("does not sort by reclamation countdown fields in list queries", () => {

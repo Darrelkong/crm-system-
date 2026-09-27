@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
+import { getTestD1PlatformProxy as getPlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import * as schema from "../../../drizzle/schema";
 import type { Customer } from "../../../drizzle/schema/customers";
 import { SEED_IDS } from "@/lib/constants/seed-ids";

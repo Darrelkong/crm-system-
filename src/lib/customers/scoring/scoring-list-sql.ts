@@ -160,9 +160,12 @@ function buildRuntimeBaseCandidates(
   db: Database,
   baseWhere: SQL | undefined,
   options: RuntimeScoringListInternalOptions,
+  maskUnownedRating: boolean,
 ) {
   const orderBy = resolveCustomerListOrderBy({
     now: options.now,
+    maskUnownedRating,
+    reclaimWarningDaysBefore: options.settings.reclaimWarningDaysBefore,
     sortMode: options.sortMode,
     automaticReclaimDays:
       options.automaticReclaimDays ?? options.settings.automaticReclaimDays,
@@ -198,7 +201,7 @@ function buildRuntimeScoringPageQuery(
     options.searchQuery,
     options.now,
   );
-  const baseCandidates = buildRuntimeBaseCandidates(db, baseWhere, options);
+  const baseCandidates = buildRuntimeBaseCandidates(db, baseWhere, options, user.role !== "admin");
   const scoringWhere = requireScoringWhere(
     scoringFilter,
     options.settings,
@@ -237,7 +240,7 @@ function buildRuntimeScoringCountQuery(
     options.searchQuery,
     options.now,
   );
-  const baseCandidates = buildRuntimeBaseCandidates(db, baseWhere, options);
+  const baseCandidates = buildRuntimeBaseCandidates(db, baseWhere, options, user.role !== "admin");
   const scoringWhere = requireScoringWhere(
     scoringFilter,
     options.settings,
@@ -422,6 +425,7 @@ export async function listCustomerIdsMatchingScoringFilter(
   const whereClause = combineCustomerListWhere(baseWhere, scoringWhere);
   const orderBy = resolveCustomerListOrderBy({
     now,
+    reclaimWarningDaysBefore: options.settings.reclaimWarningDaysBefore,
     sortMode: options.sortMode,
     automaticReclaimDays:
       options.automaticReclaimDays ?? options.settings.automaticReclaimDays,
@@ -494,6 +498,7 @@ export async function explainScoringFilterQueryPlan(
     .orderBy(
       ...resolveCustomerListOrderBy({
         now,
+        reclaimWarningDaysBefore: options.settings.reclaimWarningDaysBefore,
         sortMode: options.sortMode,
         automaticReclaimDays:
           options.automaticReclaimDays ?? options.settings.automaticReclaimDays,

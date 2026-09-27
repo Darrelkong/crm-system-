@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { CustomerRatingBadge } from "@/components/customers/customer-rating-badge";
 import Link from "next/link";
 import { CompletenessBadge } from "@/components/customers/customer-scores-cards";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
@@ -57,9 +58,11 @@ export function PublicPoolClient({
   const showRowClaim = shouldShowRowClaimButton(isAdmin);
   const showActions = shouldShowActionsColumn(isAdmin);
 
-  useEffect(() => {
+  const [previousItems, setPreviousItems] = useState(initialItems);
+  if (previousItems !== initialItems) {
+    setPreviousItems(initialItems);
     setItems(initialItems);
-  }, [initialItems]);
+  }
 
   function formatPoolDate(value: string | null | undefined): string {
     return formatPublicPoolDateCell(value, formatHongKongDateTime);
@@ -233,6 +236,7 @@ export function PublicPoolClient({
                           {c.maskedName}
                         </span>
                       )}
+                      {adminView && isAdminPublicPoolCustomerView(c) && <CustomerRatingBadge rating={c.customerRating} unratedLabel={t("followUps.unrated")} title={t("customerRating.title")} />}
                       {c.isMasked && (
                         <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700">
                           {t("publicPool.masked")}

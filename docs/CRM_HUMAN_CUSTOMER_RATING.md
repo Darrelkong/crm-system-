@@ -1,11 +1,12 @@
-# Human customer rating — F4B foundation / F4C workflow
+# Human customer rating — F4B foundation / F4C workflow / F4D UX
 
 Owner-approved contract, 2026-09-27. Branch `feat/human-customer-rating` starts
 at reviewed F1 `146f50f266adbe028ab029c3f6047f794b94e26d`, whose main ancestor is
 `a481689ad3854b85dfa6073c9aa495453659fb58`. No F2/F3/SI2 source is included.
 F4B adds schema and domain planning. F4C adds the follow-up rating form, atomic
-human-rating persistence and correction API foundation. Sorting, card badges,
-timeline rating rendering, AI UX cleanup and Production release remain out of scope.
+human-rating persistence and correction API foundation. F4D adds rating display,
+manual correction UI and permission-aware SQL sorting. Timeline rating rendering,
+AI UX cleanup and Production release remain out of scope.
 The current CRM takeover docs were read in the SI2 checkout; they are not copied
 into this independent branch. This document is the current F4 contract/status.
 
@@ -274,3 +275,103 @@ warnings/errors); npm run build PASS (Next.js 16.2.9; existing middleware
 convention deprecation warning only); git diff --check PASS. Final deduplicated
 executed coverage: **197 PASS / 0 FAIL**, comprising 162 unit/render/static and
 35 local D1 tests. No browser interaction is claimed by these render tests.
+
+
+## F4D daily rating UX, sorting and Public Pool boundary — 2026-09-27
+
+`CustomerRatingBadge` is shared by desktop/mobile normal lists, customer detail,
+and Admin Public Pool. NULL is a neutral Unrated badge. Rating and reclamation
+countdown remain separate; existing HeatBadge/AI panels are intentionally retained
+for F4E. No rating filter was added.
+
+Full customer projections carry rating/revision; masked and archived-basic
+projections omit them. Team Member pre-claim Pool projections omit rating,
+revision and history. Their ordering does not consume rating. Admin Pool orders
+in D1 by S/A/B/D/NULL, poolEnteredAt ASC, id ASC. Random claim projections,
+candidate ordering, quota and cooldown logic are unchanged. Unowned masked
+assignee rows in normal lists also use a constant unrated SQL key, preventing
+indirect rating disclosure through position.
+
+The detail correction panel reuses the F4C endpoint without changing write
+semantics. It offers explicit S/A/B/D or Clear→Unrated, requires a trimmed reason
+of five characters, and explains that correction is not a follow-up and cannot
+reset reclamation timing. Public Pool, archived, deleted, masked and unauthorized
+relationships have no correction control. Synchronous in-flight protection and
+one UUID per unchanged logical body support response-loss retry. Stale 409
+refreshes the authorized rating/revision, retains the choice/reason, and requires
+another explicit confirmation; no automatic retry occurs. An older canonical
+receipt cannot regress a newer local rating revision. Public Pool prop refresh
+now uses conditional render-time state synchronization instead of the old
+setState-in-effect pattern; claim behavior is unchanged.
+
+Normal list/search and scoring-filter query paths order BEFORE LIMIT/OFFSET:
+operational warning urgency, rating rank, pin/pinnedAt DESC, existing follow-up
+bucket, nextFollowUpAt, lastValidFollowUpAt, createdAt, id. Warning urgency uses
+effective automaticReclaimDays and reclaimWarningDaysBefore, HK calendar-day
+idle calculation, existing eligibility/collaboration exemptions and grace:
+1. eligible due without grace;
+2. reached reclaim point with active grace, earliest expiry first;
+3. eligible upcoming within the configured warning window, least days first;
+4. other customers.
+Rating breaks equal urgency, then pin and existing follow-up keys. S has no
+new exemption. The former hidden 16-day default-sort helper was removed. The
+informational countdown window and reclaim engine are unchanged. The in-memory
+comparator shares equivalent warning keys and binary string/id tie-breaking.
+
+### F4D validation evidence
+
+All D1 execution uses localhost, --local and isolated disposable persistence;
+no Production or remote data is used. Exact final suite groups:
+
+- Unit/render/static: 258 tests in rating domain/workflow-ui/ux; list-sort,
+  architecture, countdown, operational warning, legacy reclaim and list rows;
+  Pool projection/random-claim request; customer permission; reclamation
+  eligibility/cycle/countdown/days/grace; follow-up validation/single-flight.
+- Additional UI/locale batch: 70 tests (7 rating UX tests repeated plus 63 locale
+  parity and existing Public Pool random-claim/quick-entry UI contracts).
+- D1 runner: sorting.integration (6), queries-list (5), rating workflow (27),
+  F1 create-idempotency (8), random-claim-db (14), random-claim-service-db (9),
+  legacy reclaim SQL (6). Commands use
+  `WRANGLER_SEND_METRICS=false node scripts/test-mail-d1-serial.mjs <files>`.
+- F4B migration suite: `WRANGLER_SEND_METRICS=false node --import tsx --test
+  --test-concurrency=1 src/lib/customers/rating/migration-0091.integration.test.ts`.
+  **7 PASS**: A/B/C schema and data preservation, B/C equivalence, constraints,
+  history uniqueness and hard-purge lifecycle; FK/quick_check all passed.
+- UI evidence is SSR badge rendering, production client-state helper tests and
+  desktop/mobile wiring contracts, not interactive browser acceptance.
+- First broad test glob accidentally included a D1 file without the local
+  gateway: it failed closed before DB access. That file was rerun through the
+  isolated runner. An obsolete import assertion was updated for the canonical
+  rating-sort module. Old Pool query tests depended on shared seed customers;
+  they now create synthetic fixtures through the isolated gateway. A performance
+  fixture numeric ID prefix needed INTEGER casting because the SQLite binding
+  otherwise generated `1000.0`; corrected fixture passed. No failed runtime
+  assertion was suppressed.
+
+Synthetic measured local query times (one bounded sample; not a Production SLA):
+
+| Customers | Normal | Warning-priority | Admin Pool |
+| --- | --- | --- | --- |
+| 1,000 | 9.45 ms | 9.90 ms | 16.89 ms |
+| 10,000 | 12.67 ms | 29.08 ms | 47.81 ms |
+
+These final timings use full customer rows: 40 normal/warning rows and all
+200/2,000 Admin Pool rows, matching the existing runtime query shape.
+
+EXPLAIN uses a customer scan for the owner/assignee OR query, existing indexed
+assignee/approval lookups, and a temporary ORDER BY B-tree. Admin Pool uses
+idx_customers_status plus a temporary sort. Current evidence does not justify
+an index migration; no standalone rating index or 0092 was added. Public Pool
+still loads its existing full list server-side; no new pagination redesign.
+
+No persistence/schema/migration, rating history timeline, AI/Gemini, Mail,
+F2/F3/SI2, Production or remote migration changes. Local validation does not
+constitute Production release approval.
+
+
+Final F4D gates: **403 deduplicated PASS / 0 FAIL** (321 unit/render/static,
+75 local D1 workflow/query tests, 7 migration tests). TypeScript noEmit PASS;
+changed-file ESLint PASS with zero errors and two pre-existing unused `_total`
+warnings in scoring-list-sql.ts; npm run build PASS (Next.js 16.2.9, existing
+middleware deprecation warning); git diff --check PASS. Production remains
+unchanged and undeployed. No index migration is recommended by this local evidence.

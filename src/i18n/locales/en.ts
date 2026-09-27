@@ -4857,6 +4857,17 @@ const en = {
     task: "Task",
     approval: "Approval",
   },
+  customerRating: {
+    title: "Customer rating",
+    adjust: "Adjust rating",
+    choose: "Choose a rating",
+    clear: "Clear rating → Unrated",
+    reason: "Reason (at least 5 characters)",
+    confirm: "Confirm this adjustment",
+    correctionNotice: "This is a manual rating correction, not a follow-up. It will not reset customer reclamation timing.",
+    validation: "Choose a rating and enter a reason of at least 5 characters.",
+    stale: "The rating changed. Your selection and reason are preserved. Review the current rating and confirm again.",
+  },
   followUps: {
     currentRating: "Current customer rating (reference only)",
     unrated: "Unrated",

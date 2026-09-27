@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Customer } from "../../../drizzle/schema/customers";
 import { buildCustomerListOrderBy, compareCustomersForList } from "@/lib/customers/list-sort";
-import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim-primitives";
+
 import {
   compareCustomersForListWithNearReleaseRisk,
   getNearReleaseRiskSortKey,
@@ -76,308 +76,40 @@ function makeCustomer(
   } as Customer;
 }
 
-function sortWithRisk(customers: Customer[], collaborativeFlags?: Map<string, boolean>) {
-  return [...customers].sort((a, b) =>
-    compareCustomersForListWithNearReleaseRisk(
-      a,
-      b,
-      RECLAIM_DAYS,
-      NOW,
-      collaborativeFlags,
-    ),
-  );
-}
-
-function sortDefaultOnly(customers: Customer[]) {
-  return [...customers].sort((a, b) => compareCustomersForList(a, b, NOW));
-}
-
-describe("near-release hidden priority (<=16 days)", () => {
-  it("exposes the 16-day risk window constant", () => {
-    assert.equal(NEAR_RELEASE_RISK_DAYS, 16);
+// F4D replaces the former hidden 16-day/pin-first rule with configured warning priority.
+const compare = (a: Customer, b: Customer, days = 3, collaborative = new Map<string, boolean>()) =>
+  compareCustomersForListWithNearReleaseRisk(a, b, RECLAIM_DAYS, NOW, collaborative, days);
+const row = (id: string, remaining: number, extra: Partial<Customer> = {}) => makeCustomer({ id, customerName: id,
+  reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - remaining), ...extra });
+describe("operational reclaim warning priority", () => {
+  it("adds rating/id keys and configured warning order only with reclaim settings", () => {
+    assert.equal(buildCustomerListOrderBy(NOW).length, 8);
+    assert.equal(buildCustomerListOrderBy(NOW, RECLAIM_DAYS, 3).length, 11);
   });
-
-  it("adds risk ORDER BY clauses only when automaticReclaimDays is provided", () => {
-    assert.equal(buildCustomerListOrderBy(NOW).length, 6);
-    assert.equal(buildCustomerListOrderBy(NOW, RECLAIM_DAYS).length, 9);
+  it("uses configured boundary; broad visible countdown alone does not beat normal S", () => {
+    const s = row("normal", 35, { customerRating: "S" });
+    assert.ok(compare(row("warning", 3, { customerRating: "D" }), s) < 0);
+    assert.ok(compare(row("visible", 4, { customerRating: "D" }), s) > 0);
+    assert.equal(getNearReleaseRiskSortKey(row("visible", 4), RECLAIM_DAYS, NOW, { warningDaysBefore: 3 }).riskBucket, 1);
   });
-
-  it("prioritizes 16-day over 17-day customers", () => {
-    const sixteen = makeCustomer({
-      id: "d16",
-      customerName: "16d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 16),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 16),
-    });
-    const seventeen = makeCustomer({
-      id: "d17",
-      customerName: "17d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 17),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 17),
-    });
-
-    assert.equal(
-      getNearReleaseRiskSortKey(sixteen, RECLAIM_DAYS, NOW).riskBucket,
-      0,
-    );
-    assert.equal(
-      getNearReleaseRiskSortKey(seventeen, RECLAIM_DAYS, NOW).riskBucket,
-      1,
-    );
-    assert.ok(
-      compareCustomersForListWithNearReleaseRisk(
-        sixteen,
-        seventeen,
-        RECLAIM_DAYS,
-        NOW,
-      ) < 0,
-    );
+  it("due then grace expiry then upcoming urgency then rating; warning beats pinned normal", () => {
+    const due = row("due", 0), grace = row("grace", -2, { reclaimRuleGraceUntil: "2026-08-07T00:00:00.000Z" });
+    const later = { ...grace, id: "later", reclaimRuleGraceUntil: "2026-08-08T00:00:00.000Z" };
+    assert.ok(compare(due, grace) < 0); assert.ok(compare(grace, later) < 0);
+    assert.ok(compare(later, row("one", 1)) < 0);
+    assert.ok(compare(row("oneD", 1, { customerRating: "D" }), row("twoS", 2, { customerRating: "S" })) < 0);
+    assert.ok(compare(row("twoS", 2, { customerRating: "S" }), row("twoA", 2, { customerRating: "A" })) < 0);
+    assert.ok(compare(due, row("pin", 30, { isPinned: 1, customerRating: "S" })) < 0);
   });
-
-  it("orders due → grace → countdown ascending within risk window", () => {
-    const due = makeCustomer({
-      id: "due",
-      customerName: "Due",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS),
-    });
-    const grace = makeCustomer({
-      id: "grace",
-      customerName: "Grace",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS + 2),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS + 2),
-      reclaimRuleGraceUntil: new Date(
-        NOW.getTime() + 2 * 60 * 60 * 1000,
-      ).toISOString(),
-    });
-    const oneDay = makeCustomer({
-      id: "d1",
-      customerName: "1d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 1),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 1),
-    });
-    const sixteen = makeCustomer({
-      id: "d16",
-      customerName: "16d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 16),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 16),
-    });
-    const seventeen = makeCustomer({
-      id: "d17",
-      customerName: "17d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 17),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 17),
-    });
-
-    const sorted = sortWithRisk([seventeen, sixteen, oneDay, grace, due]);
-    assert.deepEqual(
-      sorted.map((c) => c.id),
-      ["due", "grace", "d1", "d16", "d17"],
-    );
+  it("rating outranks pin; same-rating pin and existing follow-up buckets remain", () => {
+    assert.ok(compare(row("a", 30, { customerRating: "A" }), row("b", 30, { customerRating: "B", isPinned: 1 })) < 0);
+    assert.ok(compare(row("pin", 30, { customerRating: "A", isPinned: 1 }), row("plain", 30, { customerRating: "A" })) < 0);
+    assert.ok(compareCustomersForList(row("overdue", 30, { nextFollowUpAt: daysAgoIso(1) }), row("future", 30, { nextFollowUpAt: "2027-01-01" }), NOW) < 0);
   });
-
-  it("keeps pinned customers above near-release risk customers", () => {
-    const pinned = makeCustomer({
-      id: "pin",
-      customerName: "Pinned",
-      isPinned: 1,
-      pinnedAt: daysAgoIso(1),
-      lastValidFollowUpAt: daysAgoIso(5),
-      reclamationCycleStartedAt: daysAgoIso(5),
-    });
-    const oneDay = makeCustomer({
-      id: "d1",
-      customerName: "1d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 1),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 1),
-    });
-
-    assert.ok(
-      compareCustomersForListWithNearReleaseRisk(
-        pinned,
-        oneDay,
-        RECLAIM_DAYS,
-        NOW,
-      ) < 0,
-    );
-  });
-
-  it("uses default list order as tie-break for same remaining days", () => {
-    const overdue = makeCustomer({
-      id: "overdue",
-      customerName: "Overdue",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 8),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 8),
-      nextFollowUpAt: daysAgoIso(1),
-    });
-    const plain = makeCustomer({
-      id: "plain",
-      customerName: "Plain",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 8),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 8),
-      nextFollowUpAt: null,
-    });
-
-    assert.ok(
-      compareCustomersForListWithNearReleaseRisk(
-        overdue,
-        plain,
-        RECLAIM_DAYS,
-        NOW,
-      ) < 0,
-    );
-  });
-
-  it("does not reorder >=17-day or ineligible customers by remaining days", () => {
-    const seventeen = makeCustomer({
-      id: "d17",
-      customerName: "17d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 17),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 17),
-      nextFollowUpAt: daysAgoIso(1),
-    });
-    const twentyNine = makeCustomer({
-      id: "d29",
-      customerName: "29d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 29),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 29),
-      nextFollowUpAt: null,
-    });
-    const noCountdown = makeCustomer({
-      id: "plain",
-      customerName: "Plain",
-      lastValidFollowUpAt: daysAgoIso(5),
-      reclamationCycleStartedAt: daysAgoIso(5),
-      nextFollowUpAt: null,
-    });
-
-    const withRisk = sortWithRisk([twentyNine, noCountdown, seventeen]);
-    const withoutRisk = sortDefaultOnly([twentyNine, noCountdown, seventeen]);
-
-    assert.deepEqual(
-      withRisk.map((c) => c.id),
-      withoutRisk.map((c) => c.id),
-    );
-  });
-
-  it("matches legacy default ordering when every customer is >=17 days or ineligible", () => {
-    const customers = [
-      makeCustomer({
-        id: "d17",
-        customerName: "17d",
-        lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 17),
-        reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 17),
-        nextFollowUpAt: daysAgoIso(2),
-      }),
-      makeCustomer({
-        id: "d20",
-        customerName: "20d",
-        lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 20),
-        reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 20),
-      }),
-      makeCustomer({
-        id: "d29",
-        customerName: "29d",
-        lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 29),
-        reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 29),
-        nextFollowUpAt: daysAgoIso(1),
-      }),
-      makeCustomer({
-        id: "plain",
-        customerName: "Plain",
-        lastValidFollowUpAt: daysAgoIso(5),
-        reclamationCycleStartedAt: daysAgoIso(5),
-      }),
-      makeCustomer({
-        id: "pinned",
-        customerName: "Pinned",
-        isPinned: 1,
-        pinnedAt: daysAgoIso(1),
-        lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 20),
-        reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 20),
-      }),
-    ];
-
-    const withRisk = sortWithRisk(customers);
-    const withoutRisk = sortDefaultOnly(customers);
-
-    assert.deepEqual(
-      withRisk.map((c) => c.id),
-      withoutRisk.map((c) => c.id),
-    );
-  });
-
-  it("excludes collaborator, public pool, and ineligible stages from risk priority", () => {
-    const collaborative = new Map([["collab", true]]);
-    const eligibleEight = makeCustomer({
-      id: "ok8",
-      customerName: "OK 8d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 8),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 8),
-    });
-    const collabEight = makeCustomer({
-      id: "collab",
-      customerName: "Collab 8d",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 8),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 8),
-    });
-    const poolEight = makeCustomer({
-      id: "pool",
-      customerName: "Pool 8d",
-      status: "public_pool",
-      ownerId: null,
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 8),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 8),
-    });
-    const closedWonEight = makeCustomer({
-      id: "won",
-      customerName: "Won 8d",
-      salesStage: "closed_won",
-      lastValidFollowUpAt: daysAgoIso(RECLAIM_DAYS - 8),
-      reclamationCycleStartedAt: daysAgoIso(RECLAIM_DAYS - 8),
-    });
-
-    assert.equal(
-      getNearReleaseRiskSortKey(collabEight, RECLAIM_DAYS, NOW, {
-        isCollaborative: true,
-      }).riskBucket,
-      1,
-    );
-    assert.equal(
-      getNearReleaseRiskSortKey(poolEight, RECLAIM_DAYS, NOW).riskBucket,
-      1,
-    );
-    assert.equal(
-      getNearReleaseRiskSortKey(closedWonEight, RECLAIM_DAYS, NOW).riskBucket,
-      1,
-    );
-
-    const sorted = sortWithRisk(
-      [collabEight, poolEight, closedWonEight, eligibleEight],
-      collaborative,
-    );
-    assert.equal(sorted[0]?.id, "ok8");
-  });
-
-  it("supports shorter automaticReclaimDays settings", () => {
-    const reclaimDays = 14;
-    const one = makeCustomer({
-      id: "d1",
-      customerName: "1d left on 14",
-      lastValidFollowUpAt: daysAgoIso(13),
-      reclamationCycleStartedAt: daysAgoIso(13),
-    });
-    const two = makeCustomer({
-      id: "d2",
-      customerName: "2d left on 14",
-      lastValidFollowUpAt: daysAgoIso(12),
-      reclamationCycleStartedAt: daysAgoIso(12),
-    });
-
-    assert.equal(getNearReleaseRiskSortKey(one, reclaimDays, NOW).riskBucket, 0);
-    assert.equal(getNearReleaseRiskSortKey(two, reclaimDays, NOW).riskBucket, 0);
-    assert.ok(
-      compareCustomersForListWithNearReleaseRisk(one, two, reclaimDays, NOW) < 0,
-    );
+  it("collaborator, pool, pinned and excluded-stage customers retain eligibility exemptions", () => {
+    for (const extra of [{ status: "public_pool" }, { ownerId: null }, { salesStage: "paid" }, { salesStage: "on_hold" }, { salesStage: "converted" }, { salesStage: "closed_won" }, { isPinned: 1 }] as Partial<Customer>[]) {
+      assert.ok(compare(row("excluded", 0, { ...extra, customerRating: "D" }), row("normal", 35, { customerRating: "S" })) > 0);
+    }
+    assert.ok(compare(row("collab", 0, { customerRating: "D" }), row("normal", 35, { customerRating: "S" }), 3, new Map([["collab", true]])) > 0);
   });
 });

@@ -1,3 +1,4 @@
+import type { CustomerRatingValue } from "@/lib/customers/rating/domain";
 import {
   isCustomerAssignee,
   isCustomerAssigneeFromRecords,
@@ -84,6 +85,8 @@ export type CustomerView = {
   isArchived?: boolean;
   isPinned: boolean;
   pinnedAt?: string | null;
+  customerRating?: CustomerRatingValue;
+  customerRatingRevision?: number;
   // Sensitive — only present when accessLevel = "full"
   phoneCountryCode?: string | null;
   phone?: string | null;
@@ -544,6 +547,8 @@ export function maskCustomerForStaff(customer: Customer): CustomerView {
 
 export function toCustomerFullView(customer: Customer): CustomerView {
   return {
+    customerRating: customer.customerRating,
+    customerRatingRevision: customer.customerRatingRevision,
     id: customer.id,
     customerCode: customer.customerCode,
     customerName: customer.customerName,

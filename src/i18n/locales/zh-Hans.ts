@@ -4569,6 +4569,17 @@ const zhHans: Messages = {
     task: "任务",
     approval: "审批",
   },
+  customerRating: {
+    title: "客户评级",
+    adjust: "调整评级",
+    choose: "请选择评级",
+    clear: "清除评级 → 未评级",
+    reason: "调整原因（至少5个字）",
+    confirm: "确认本次调整",
+    correctionNotice: "这是人工评级修正，不计作跟进，不会重置客户回收时间。",
+    validation: "请选择评级并填写至少5个字的原因。",
+    stale: "评级已被更新。已保留您的选择和原因，请核对当前评级，再次点击确认。",
+  },
   followUps: {
     currentRating: "当前客户评级（仅供参考）",
     unrated: "未评级",

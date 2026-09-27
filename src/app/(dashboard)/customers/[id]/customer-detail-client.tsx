@@ -15,6 +15,8 @@ import { CustomerTimelineView } from "@/components/customers/customer-timeline-v
 import { CustomerAiInsightPanel } from "@/components/customers/customer-ai-insight-panel";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/card";
+import type { CustomerRatingValue } from "@/lib/customers/rating/domain";
+import { CustomerRatingPanel } from "@/components/customers/customer-rating-panel";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { HeatReasonPart } from "@/lib/customers/scoring/heat";
@@ -43,6 +45,9 @@ type FollowUpRow = {
 };
 
 export type CustomerDetailView = {
+  customerRating?: CustomerRatingValue;
+  customerRatingRevision?: number;
+  canCorrectRating?: boolean;
   id: string;
   customerCode?: string | null;
   customerName: string;
@@ -274,6 +279,9 @@ export function CustomerDetailClient({
                 </div>
               )}
             </div>
+            {view.accessLevel === "full" && !view.isMasked && view.customerRating !== undefined && view.customerRatingRevision !== undefined &&
+              <CustomerRatingPanel customerId={id} rating={view.customerRating} revision={view.customerRatingRevision}
+                canCorrect={!!view.canCorrectRating && view.status !== "public_pool" && !view.isArchived} />}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <Badge>{status(view.status)}</Badge>
               {view.isMasked && !view.isArchived && (

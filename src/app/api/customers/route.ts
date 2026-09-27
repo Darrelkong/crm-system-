@@ -58,6 +58,7 @@ export async function GET(request: Request) {
     const listQueryOptions = {
       sortMode,
       automaticReclaimDays: settings.automaticReclaimDays,
+      reclaimWarningDaysBefore: settings.reclaimWarningDaysBefore,
     };
 
     if (hasScoringFilter) {

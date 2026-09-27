@@ -1,3 +1,4 @@
+import type { CustomerRatingValue } from "@/lib/customers/rating/domain";
 import type { Database } from "@/lib/db";
 import type { HeatLevel } from "@/lib/customers/scoring/types";
 import type { CustomerWithScores } from "@/lib/customers/scoring/service";
@@ -14,6 +15,7 @@ export type ViewerRelationship =
   "owner" | "collaborator" | "public_pool" | "admin";
 
 export type CustomerListRowData = {
+  customerRating?: CustomerRatingValue;
   id: string;
   customerCode?: string | null;
   customerName: string;
@@ -52,6 +54,7 @@ export function toCustomerListRow(
   },
 ): CustomerListRowData {
   return {
+    ...(customer.accessLevel === "full" && !customer.isMasked ? { customerRating: customer.customerRating ?? null } : {}),
     id: customer.id,
     customerCode: customer.customerCode,
     customerName: customer.customerName,
