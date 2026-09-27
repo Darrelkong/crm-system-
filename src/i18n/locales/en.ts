@@ -4858,6 +4858,14 @@ const en = {
     approval: "Approval",
   },
   followUps: {
+    currentRating: "Current customer rating (reference only)",
+    unrated: "Unrated",
+    confirmRating: "Customer rating (human confirmation)",
+    chooseRating: "Choose S / A / B / D",
+    ratingPreserved: "This outcome will not change the customer rating",
+    ratingStale: "The customer rating changed. Your notes are preserved; please choose a rating again.",
+    ratingRevisionRequired: "Refresh the customer rating and try again",
+
     addFollowUp: "Add Follow-up",
     addFollowUpDescription: "Record this client interaction",
     addFollowUpFor: "Add a follow-up record for {{name}}",

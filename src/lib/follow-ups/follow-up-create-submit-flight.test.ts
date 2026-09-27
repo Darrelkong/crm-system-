@@ -32,6 +32,8 @@ function validBody() {
   return {
     channel: "phone",
     outcome: "contact_made",
+    customerRating: "A",
+    expectedCustomerRatingRevision: 0,
     summary: "这是一段足够长的跟进摘要内容",
     customerIntent: "客户希望了解产品报价方案",
     nextFollowUpAt: next,
@@ -57,6 +59,8 @@ async function submitFollowUpLikeForm(options: {
       outcome: String(options.body.outcome ?? ""),
       summary: String(options.body.summary ?? ""),
       customerIntent: String(options.body.customerIntent ?? ""),
+      customerRating: options.body.customerRating,
+      expectedCustomerRatingRevision: options.body.expectedCustomerRatingRevision,
       nextFollowUpAt: (options.body.nextFollowUpAt as string) || null,
       nextAction: (options.body.nextAction as string) || null,
     },

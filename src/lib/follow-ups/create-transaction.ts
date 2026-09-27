@@ -1,3 +1,4 @@
+import { ratingStatements, type RatingWrite } from "@/lib/customers/rating/persistence";
 import { and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { schema, type Database } from "@/lib/db";
@@ -5,6 +6,7 @@ import type { Customer } from "../../../drizzle/schema/customers";
 import { buildReclamationCycleResetFields, getReclamationCycleStartedAt } from "@/lib/reclamation/cycle";
 /** The strict primary-key insert is first: a replay rolls back the entire losing batch. */
 export async function commitFollowUpCreate(db: Database, input: {
+    rating?: RatingWrite;
     row: typeof schema.followUps.$inferInsert;
     customer: Customer;
     confirmed: boolean;
@@ -22,6 +24,7 @@ export async function commitFollowUpCreate(db: Database, input: {
         ...BatchItem<"sqlite">[]
     ] = [
         db.insert(schema.followUps).values(row),
+        ...(input.rating ? ratingStatements(db, input.rating) : []),
         db.update(schema.customers).set({
             lastFollowUpAt: row.followUpTime, updatedAt: now, updatedBy: row.userId,
             ...(valid ? { lastValidFollowUpAt: row.followUpTime, ...buildReclamationCycleResetFields(row.followUpTime) } : {}),

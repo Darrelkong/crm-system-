@@ -10,6 +10,9 @@ export type ValidationFieldError = {
 };
 
 const ERROR_CODE_TO_KEY: Record<string, string> = {
+  CUSTOMER_RATING_REQUIRED: "followUps.chooseRating",
+  CUSTOMER_RATING_REVISION_REQUIRED: "followUps.ratingRevisionRequired",
+  CUSTOMER_RATING_STALE: "followUps.ratingStale",
   CUSTOMER_NOT_FOUND: "errors.customerNotFound",
   VALIDATION_FAILED: "errors.validationFailed",
   DUPLICATE_CUSTOMER: "errors.duplicateCustomer",

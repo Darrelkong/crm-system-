@@ -1,3 +1,5 @@
+import { RATING_REQUIRED_OUTCOMES, type CustomerRating } from "@/lib/customers/rating/domain";
+import { authorizedRatingCustomer, ratingConflict } from "@/lib/customers/rating/persistence";
 import { and, eq } from "drizzle-orm";
 import { getDb, schema } from "@/lib/db";
 import { assertCanAddFollowUp, PermissionError, resolveCustomerAccessOptions, } from "@/lib/permissions/customers";
@@ -48,6 +50,8 @@ export async function createCustomerFollowUp(request: Request, id: string, user:
         channel: typeof body.channel === "string" ? body.channel : "",
         outcome: typeof body.outcome === "string" ? body.outcome : "",
         summary: typeof body.summary === "string" ? body.summary : "",
+        customerRating: body.customerRating,
+        expectedCustomerRatingRevision: body.expectedCustomerRatingRevision,
         customerIntent: typeof body.customerIntent === "string" ? body.customerIntent : null,
         nextFollowUpAt: typeof body.nextFollowUpAt === "string" ? body.nextFollowUpAt : null,
         nextAction: typeof body.nextAction === "string" ? body.nextAction : null,
@@ -57,11 +61,16 @@ export async function createCustomerFollowUp(request: Request, id: string, user:
         return Response.json({ error: "提交标识无效，请重新打开表单", errorCode: "VALIDATION_FAILED" }, { status: 400 });
     }
     const followUpId = submissionId.toLowerCase();
+    const requiresRating = RATING_REQUIRED_OUTCOMES.includes(input.outcome as FollowUpOutcome);
     const recover = async (): Promise<Response | null> => {
         const row = (await db.select().from(schema.followUps).where(eq(schema.followUps.id, followUpId)).limit(1))[0];
         if (!row)
             return null;
-        const matches = row.customerId === id && row.userId === user.id &&
+        const event = (await db.select().from(schema.customerRatingHistory).where(eq(schema.customerRatingHistory.followUpId, followUpId)).limit(1))[0];
+        const ratingMatches = requiresRating ? !!event && event.actorUserId === user.id && event.customerId === id
+            && event.action === "follow_up_confirmed" && event.ratingAfter === input.customerRating
+            && event.revisionBefore === input.expectedCustomerRatingRevision : !event;
+        const matches = ratingMatches && row.customerId === id && row.userId === user.id &&
             row.channel === input.channel && row.outcome === input.outcome && row.summary === input.summary.trim() &&
             row.customerIntent === (input.customerIntent?.trim() || null) && row.nextAction === (input.nextAction?.trim() || null) &&
             row.nextFollowUpAt === normalizeNextFollowUpAt(input.nextFollowUpAt) &&
@@ -72,7 +81,9 @@ export async function createCustomerFollowUp(request: Request, id: string, user:
         if (!audit)
             throw new Error("Follow-up receipt unavailable");
         const metadata = JSON.parse(audit.metadata ?? "{}");
-        return Response.json({ ok: true, id: row.id, isValidFollowUp: row.isValidFollowUp === 1,
+        return Response.json({ ok: true, id: row.id, followUpId: row.id,
+            ...(event ? { customerRating: event.ratingAfter, customerRatingRevision: event.revisionAfter } : {}),
+            ratingEventId: event?.id ?? null, isValidFollowUp: row.isValidFollowUp === 1,
             taskId: typeof metadata.taskId === "string" ? metadata.taskId : null }, { status: 201 });
     };
     const canonical = await recover();
@@ -90,6 +101,11 @@ export async function createCustomerFollowUp(request: Request, id: string, user:
             metadata: { fieldErrors },
         });
         return Response.json({ error: "输入校验失败", errorCode: "VALIDATION_FAILED", fieldErrors }, { status: 400 });
+    }
+    if (requiresRating) {
+        await authorizedRatingCustomer(db, id, user);
+        const stale = await ratingConflict(db, id, user, input.expectedCustomerRatingRevision as number);
+        if (stale) return (await recover()) ?? stale;
     }
     const confirmDuplicateFollowUp = body.confirmDuplicateFollowUp === true ||
         body.confirmDuplicateFollowUp === "true";
@@ -142,7 +158,11 @@ export async function createCustomerFollowUp(request: Request, id: string, user:
         }, { status: 403 });
     }
     try {
-        await commitFollowUpCreate(db, { customer, confirmed: confirmDuplicateFollowUp, ipAddress, userAgent, row: {
+        await commitFollowUpCreate(db, { rating: requiresRating ? {
+                eventId: crypto.randomUUID(), customerId: id, followUpId, actor: user,
+                rating: input.customerRating as CustomerRating, expectedRevision: input.expectedCustomerRatingRevision as number,
+                action: "follow_up_confirmed", reason: null, now, ipAddress, userAgent,
+            } : undefined, customer, confirmed: confirmDuplicateFollowUp, ipAddress, userAgent, row: {
                 id: followUpId,
                 customerId: id,
                 userId: user.id,
@@ -163,6 +183,10 @@ export async function createCustomerFollowUp(request: Request, id: string, user:
         const committed = await recover();
         if (committed)
             return committed;
+        if (requiresRating) {
+            const stale = await ratingConflict(db, id, user, input.expectedCustomerRatingRevision as number);
+            if (stale) return (await recover()) ?? stale;
+        }
         throw error;
     }
     if (isValid === 1 && customer.ownerId === user.id) {

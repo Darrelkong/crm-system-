@@ -1,3 +1,4 @@
+import { FOLLOW_UP_RATING_POLICY, isCustomerRating } from "@/lib/customers/rating/domain";
 import { isFollowUpChannel } from "@/lib/constants/follow-up-channels";
 import { isFollowUpOutcome } from "@/lib/constants/follow-up-outcomes";
 
@@ -7,6 +8,8 @@ export type FollowUpInput = {
   outcome?: string;
   summary?: string;
   customerIntent?: string | null;
+  customerRating?: unknown;
+  expectedCustomerRatingRevision?: unknown;
   nextFollowUpAt?: string | null;
   nextAction?: string | null;
 };
@@ -97,13 +100,11 @@ export function validateFollowUpInput(
     });
   }
 
-  const customerIntent = input.customerIntent?.trim() ?? "";
-  if (!customerIntent) {
-    errors.push({
-      field: "customerIntent",
-      message: "请填写客户意向",
-      code: "CUSTOMER_INTENT_REQUIRED",
-    });
+  if (input.outcome && isFollowUpOutcome(input.outcome) && FOLLOW_UP_RATING_POLICY[input.outcome] === "required") {
+    if (!isCustomerRating(input.customerRating)) errors.push({ field: "customerRating", message: "请主动选择本次客户评级", code: "CUSTOMER_RATING_REQUIRED" });
+    const revision = input.expectedCustomerRatingRevision;
+    if (typeof revision !== "number" || !Number.isSafeInteger(revision) || revision < 0 || revision >= Number.MAX_SAFE_INTEGER)
+      errors.push({ field: "customerRating", message: "请刷新客户评级后重试", code: "CUSTOMER_RATING_REVISION_REQUIRED" });
   }
 
   if (input.followUpTime && !isValidIsoDate(input.followUpTime)) {

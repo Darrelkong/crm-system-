@@ -16,6 +16,8 @@ function atOffsetMinutes(minutes: number): string {
 const validBase = {
   channel: "phone",
   outcome: "contact_made",
+  customerRating: "A",
+  expectedCustomerRatingRevision: 0,
   summary: "这是一段足够长的跟进摘要内容",
   customerIntent: "客户希望了解产品报价方案",
   nextFollowUpAt: atOffsetMinutes(MIN_NEXT_FOLLOW_UP_LEAD_MINUTES),
@@ -131,14 +133,12 @@ describe("validateFollowUpInput nextFollowUpAt", () => {
 });
 
 describe("validateFollowUpInput customerIntent", () => {
-  it("rejects empty customerIntent", () => {
+  it("accepts empty legacy customerIntent", () => {
     const errors = validateFollowUpInput(
       { ...validBase, customerIntent: "   " },
       { now: fixedNow },
     );
-    assert.deepEqual(fieldCodes(errors, "customerIntent"), [
-      "CUSTOMER_INTENT_REQUIRED",
-    ]);
+    assert.deepEqual(fieldCodes(errors, "customerIntent"), []);
   });
 
   it("accepts non-empty customerIntent", () => {

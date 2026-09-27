@@ -4570,6 +4570,14 @@ const zhHant: Messages = {
     approval: "審批",
   },
   followUps: {
+    currentRating: "目前客戶評級（僅供參考）",
+    unrated: "未評級",
+    confirmRating: "客戶評級（本次人工確認）",
+    chooseRating: "請主動選擇 S / A / B / D",
+    ratingPreserved: "本次結果不會修改客戶評級",
+    ratingStale: "客戶評級已更改。跟進內容已保留，請重新選擇評級。",
+    ratingRevisionRequired: "請重新載入客戶評級後重試",
+
     addFollowUp: "新增跟進",
     addFollowUpDescription: "記錄本次客戶跟進情況",
     addFollowUpFor: "為客戶 {{name}} 新增跟進記錄",

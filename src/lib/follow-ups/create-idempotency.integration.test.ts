@@ -24,7 +24,14 @@ before(async () => {
     await db.insert(schema.customers).values({ id: customerId, customerName: "SYNTHETIC F1", customerType: "individual", source: "other", requestedProjectName: "Synthetic", ownerId: admin.id, status: "active", salesStage: "contacted", createdBy: admin.id, updatedBy: admin.id, createdAt: now, updatedAt: now });
 });
 after(async () => { bindTestDatabase(null); await dispose?.(); });
-const post = (submissionId: string, body: Record<string, unknown> = {}) => createCustomerFollowUp(new Request('http://localhost/api/customers/' + customerId + '/follow-ups', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, submissionId, ...body }) }), customerId, admin);
+const revisions = new Map<string, number>();
+const post = async (submissionId: string, body: Record<string, unknown> = {}) => {
+    if (!revisions.has(submissionId)) {
+        const current = (await db.select().from(schema.customers).where(eq(schema.customers.id, customerId)))[0];
+        revisions.set(submissionId, current.customerRatingRevision);
+    }
+    return createCustomerFollowUp(new Request('http://localhost/api/customers/' + customerId + '/follow-ups', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ...input, submissionId, customerRating: 'A', expectedCustomerRatingRevision: revisions.get(submissionId), ...body }) }), customerId, admin);
+};
 it("same logical submission recovers one canonical follow-up after response loss", async () => {
     const submissionId = crypto.randomUUID();
     const first = await post(submissionId);

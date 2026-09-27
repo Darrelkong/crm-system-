@@ -1,10 +1,11 @@
-# Human customer rating — F4B foundation
+# Human customer rating — F4B foundation / F4C workflow
 
 Owner-approved contract, 2026-09-27. Branch `feat/human-customer-rating` starts
 at reviewed F1 `146f50f266adbe028ab029c3f6047f794b94e26d`, whose main ancestor is
 `a481689ad3854b85dfa6073c9aa495453659fb58`. No F2/F3/SI2 source is included.
-This branch adds schema and pure domain planning only. No rating UI, API writes,
-follow-up rating persistence, sorting, AI changes or Production release.
+F4B adds schema and domain planning. F4C adds the follow-up rating form, atomic
+human-rating persistence and correction API foundation. Sorting, card badges,
+timeline rating rendering, AI UX cleanup and Production release remain out of scope.
 The current CRM takeover docs were read in the SI2 checkout; they are not copied
 into this independent branch. This document is the current F4 contract/status.
 
@@ -39,9 +40,9 @@ S does not exempt a customer from reclamation or change timing. Existing
 eligibility rules remain in force.
 
 `follow_ups.customer_intent` remains unchanged in schema/history and is never a
-rating carrier. A later workflow gate removes its new-form UI and required
-validation, accepts optional legacy client values and preserves old values.
-F4B does not make those UI/validation changes.
+rating carrier. F4C removes its new-form UI and required validation, accepts
+optional legacy client values (trimmed; absent becomes NULL), and preserves old
+values and Customer Insight history behavior.
 
 ## Schema and history
 
@@ -66,7 +67,8 @@ The non-null follow_up_id has a partial UNIQUE index; history retrieval uses
 (customer_id, recorded_at, id). Rating state follows committed revision/actual
 human submission order, never followUpTime. A backdated follow-up submitted
 today can establish today's new rating. The caller must supply the committed
-snapshot and later enforce CAS; these pure functions are not a concurrency gate.
+snapshot and enforce CAS; these pure functions are not a concurrency gate. F4C
+adds the transaction-safe CAS mechanism described below.
 
 Foreign-key lifecycle:
 
@@ -74,13 +76,13 @@ Foreign-key lifecycle:
   also removes that customer's history; soft archive retains it.
 - follow_up_id ON DELETE SET NULL: deleting an individual follow-up retains the
   human rating event. For this reason a confirmed event with a NULL link remains
-  structurally valid. The future write service must require a matching customer/
+  structurally valid. F4C links the real matching customer/
   follow-up at creation; a CHECK cannot distinguish deletion from initial insert.
 - actor_user_id NOT NULL / ON DELETE RESTRICT: preserve attributable actor;
   this does not add or authorize a new user-deletion workflow.
 
 History CHECK constraints do not by themselves synchronize customer current
-rating/revision. Future F4 workflow must write them atomically in the F1 batch.
+rating/revision. F4C writes them atomically in the F1 batch.
 Follow-up permission/lifecycle guards remain mandatory; planners grant no access.
 Public Pool rating modification is forbidden for every actor while status is
 public_pool. Admin may later read retained ratings. Team Member pre-claim masked
@@ -184,3 +186,91 @@ harness failures above are not hidden or counted as passes. No Production or
 remote D1 access, migration, deployment, AI call or change to SI2/F2/F3 occurred.
 F4B foundation is complete locally; UI, persistence/CAS integration, sorting,
 full workflow acceptance and release approval remain later gates.
+
+
+## F4C workflow and atomic persistence — 2026-09-27
+
+F4C extends F1 without another lock or idempotency table. The single shared new
+follow-up form shows current rating as reference; selection starts empty and
+clears on outcome changes. Preserve outcomes hide the selector. A stale 409
+retains every unsaved follow-up field, refreshes the authorized rating/revision
+reference, clears the choice and requires a new human selection. All three CRM
+locales include the new messages. Customer creation is unchanged.
+
+Required follow-up requests carry `customerRating` and
+`expectedCustomerRatingRevision` (safe nonnegative integer with room for +1).
+Canonical recovery checks the original follow-up body and linked history
+actor/customer/ratingAfter/revisionBefore BEFORE rejecting a stale revision.
+A response-loss retry returns the original event's rating/revision, even after
+later human decisions; clients must not interpret an older receipt as the latest
+customer snapshot. Altered logical submissions return 409. Preserve outcomes
+ignore selector/revision payloads and write no rating event. Their receipt has
+ratingEventId NULL and omits a fresh rating snapshot, avoiding a new disclosure
+if the customer relationship changes while a preserve request is in flight.
+
+`ratingStatements` is included in ONE D1 batch alongside the F1 strict follow-up
+INSERT, operational updates, task effects and final follow_up.created receipt.
+The history customer_id scalar subquery requires the expected committed revision
+and eligible customer/actor relationship. A mismatch produces NULL and violates
+the existing NOT NULL constraint: an actual SQL failure rolls back the entire
+batch. Zero-row UPDATE is not used as a rollback signal. History rating_before
+is read inside that same transaction, recorded_at is actual submission time,
+and revision ordering is independent of backdated followUpTime. No new migration.
+
+POST `/api/customers/[id]/rating` uses authenticated CRM access and the existing
+owner/assignee/Admin follow-up permission model. Public Pool (including Admin),
+archived and deleted customers cannot be rated. Pending-create restrictions
+remain. Correction takes `submissionId`, nullable `rating`, `expectedRevision`,
+and trimmed `reason` of at least five characters. History.id is its canonical
+idempotency identity; matching actor/customer/rating/reason/revision/action
+recovers the original event before stale rejection. NULL→NULL rejects;
+same-rating confirmation increments revision. No correction UI is introduced.
+
+Correction batches write ONLY history, customer rating/revision and one audit.
+They do not touch updatedAt/updatedBy, follow-up timestamps, reclaim cycle/grace,
+reclamation completion, follow-ups or tasks. Rating audit actions are:
+`customer.rating.confirmed_follow_up`, `customer.rating.corrected`,
+`customer.rating.cleared`. Metadata contains IDs, ratings and revisions only;
+no follow-up text or correction reason is copied into audit. Structured history
+is authoritative. Commit-time relationship checks prevent a revoked owner or
+assignee from writing, and stale responses reauthorize before exposing current
+rating/revision. Public Pool masked projections remain unchanged and omit both.
+
+### F4C local validation evidence
+
+- Unit/UI/permissions/reclamation/locale batch: **162 PASS / 0 FAIL**:
+  `node --import tsx --test src/lib/customers/rating/domain.test.ts src/lib/customers/rating/workflow-ui.test.tsx src/lib/follow-ups/validation.test.ts src/lib/follow-ups/duplicate-content.test.ts src/lib/follow-ups/follow-up-create-submit-flight.test.ts src/lib/follow-ups/first-contact-gate-ui.test.ts src/lib/permissions/customer-sensitive-fields.test.ts src/lib/permissions/customers-assignees.test.ts src/lib/permissions/public-pool-detail.test.ts src/lib/reclamation/cycle.test.ts src/lib/reclamation/days.test.ts src/lib/reclamation/grace-period.test.ts src/lib/reclamation/reclamation.test.ts src/i18n/locales/catalog-parity.test.ts`.
+- Isolated local D1: **27 rating workflow + 8 F1 = 35 PASS / 0 FAIL**:
+  `WRANGLER_SEND_METRICS=false node scripts/test-mail-d1-serial.mjs src/lib/customers/rating/workflow.integration.test.ts src/lib/follow-ups/create-idempotency.integration.test.ts`.
+  The new workflow suite was rerun after final correction replay ordering and
+  mixed follow-up/correction race and unowned-assignee coverage; final 27/27 passed. Runner uses
+  localhost, --local and disposable temporary persistence, including local 0091.
+- Direct D1 coverage: all eight required outcomes × all four ratings, missing
+  rating/revision rejection; three preserve outcomes including NULL; same-rating
+  and backdated confirmation; independent not_interested/awaiting_* reclaim
+  behavior; two different follow-up IDs, two correction IDs and mixed paths
+  racing one revision; same-ID races; response loss/later-revision replay;
+  altered body/actor/customer conflicts; history/rating audit/final follow-up
+  audit rollback; manual clear; short reason/invalid values; permission and
+  commit-time ownership revocation; correction operational-state isolation.
+- UI evidence: rendered native selector, empty initial selection, current A only
+  as reference, explicit A selection, preserve-state hiding, outcome/stale state
+  transitions retaining notes, authenticated route wiring. Desktop/mobile share
+  the same fluid component (390/1280 wrapper render contracts); this is local
+  render/state verification, not a claim of interactive browser acceptance.
+- Initial unit run: four old single-flight form fixtures omitted the newly
+  required rating/revision fields and failed validation before POST. Fixtures
+  were updated to the approved contract; original lock/retry assertions remain.
+- Final TypeScript, changed-file ESLint, canonical Next.js production build and
+  git diff --check results are recorded after completion below.
+
+No Production access, remote migration, deployment, AI call, schema change,
+F2/F3/SI2 change or main merge. 0091 remains a future authorized release
+prerequisite. F4D/F4E sorting, card badges, timeline rating and AI UX work remain
+unimplemented. No production-ready/released claim is made by local validation.
+
+Final F4C local gates: TypeScript noEmit PASS; changed-file ESLint PASS (zero
+warnings/errors); npm run build PASS (Next.js 16.2.9; existing middleware
+convention deprecation warning only); git diff --check PASS. Final deduplicated
+executed coverage: **197 PASS / 0 FAIL**, comprising 162 unit/render/static and
+35 local D1 tests. No browser interaction is claimed by these render tests.

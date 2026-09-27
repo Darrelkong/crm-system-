@@ -1,5 +1,8 @@
 "use client";
 
+import { isCustomerRatingValue, type CustomerRatingValue } from "@/lib/customers/rating/domain";
+import { changeFollowUpField, refreshRatingReference, requiresRatingSelection } from "@/lib/customers/rating/form-state";
+import { FollowUpRatingFields } from "@/components/follow-ups/follow-up-rating-fields";
 import Link from "next/link";
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -29,11 +32,15 @@ export function NewFollowUpForm({
   customerName,
   nameStatus,
   firstContactGateActive = false,
+  customerRating,
+  customerRatingRevision,
 }: {
   customerId: string;
   customerName: string;
   nameStatus?: string;
   firstContactGateActive?: boolean;
+  customerRating: CustomerRatingValue;
+  customerRatingRevision: number;
 }) {
   const router = useRouter();
   const { t, followUpChannel, followUpOutcome } = useCustomerLabels();
@@ -49,19 +56,20 @@ export function NewFollowUpForm({
   const [serverError, setServerError] = useState<string | null>(null);
   const [duplicateConfirmOpen, setDuplicateConfirmOpen] = useState(false);
 
+  const [ratingReference, setRatingReference] = useState({ customerRating, customerRatingRevision });
   const minNextFollowUpAt = getMinNextFollowUpDatetimeLocal();
 
   const [form, setForm] = useState({
     channel: "" as FollowUpChannel | "",
     outcome: "" as FollowUpOutcome | "",
     summary: "",
-    customerIntent: "",
+    customerRating: "",
     nextFollowUpAt: "",
     nextAction: "",
   });
 
   function set(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => changeFollowUpField(prev, field, value));
     setFieldErrors((prev) => {
       const next = { ...prev };
       delete next[field];
@@ -83,7 +91,8 @@ export function NewFollowUpForm({
       channel: form.channel,
       outcome: form.outcome,
       summary: form.summary,
-      customerIntent: form.customerIntent,
+      customerRating: form.customerRating,
+      expectedCustomerRatingRevision: ratingReference.customerRatingRevision,
       nextFollowUpAt: form.nextFollowUpAt
         ? new Date(form.nextFollowUpAt).toISOString()
         : null,
@@ -104,7 +113,8 @@ export function NewFollowUpForm({
       channel: form.channel,
       outcome: form.outcome,
       summary: form.summary,
-      customerIntent: form.customerIntent.trim(),
+      ...(requiresRatingSelection(form.outcome) ? { customerRating: form.customerRating,
+        expectedCustomerRatingRevision: ratingReference.customerRatingRevision } : {}),
       nextFollowUpAt: nextFollowUpAtIso,
       nextAction: form.nextAction,
       ...(confirmDuplicateFollowUp ? { confirmDuplicateFollowUp: true } : {}),
@@ -136,6 +146,8 @@ export function NewFollowUpForm({
         error?: string;
         errorCode?: string;
         requiresConfirm?: boolean;
+        customerRating?: unknown;
+        customerRatingRevision?: number;
         fieldErrors?: ValidationFieldError[];
       };
 
@@ -143,6 +155,21 @@ export function NewFollowUpForm({
         submitFlightRef.current.complete();
         setDuplicateConfirmOpen(false);
         router.push(`/customers/${customerId}`);
+        return;
+      }
+
+      if (res.status === 409 && data.errorCode === "CUSTOMER_RATING_STALE") {
+        if (isCustomerRatingValue(data.customerRating) && typeof data.customerRatingRevision === "number"
+          && Number.isSafeInteger(data.customerRatingRevision) && data.customerRatingRevision >= 0) {
+          const refreshed = refreshRatingReference(form, data.customerRating, data.customerRatingRevision);
+          setForm(refreshed.form);
+          setRatingReference(refreshed.reference);
+        } else {
+          setForm((previous) => ({ ...previous, customerRating: "" }));
+        }
+        setDuplicateConfirmOpen(false);
+        setServerError(t("followUps.ratingStale"));
+        unlockSubmitFlight();
         return;
       }
 
@@ -306,21 +333,9 @@ export function NewFollowUpForm({
           )}
         </Field>
 
-        <Field>
-          <Label htmlFor="customerIntent">
-            {t("followUps.customerIntent")}{" "}
-            <span className="text-red-500">*</span>
-          </Label>
-          <Input
-            id="customerIntent"
-            value={form.customerIntent}
-            onChange={(e) => set("customerIntent", e.target.value)}
-            placeholder={t("followUps.customerIntentPlaceholder")}
-          />
-          {fieldErrors.customerIntent && (
-            <p className="mt-1 text-xs text-red-600">{fieldErrors.customerIntent}</p>
-          )}
-        </Field>
+        <FollowUpRatingFields currentRating={ratingReference.customerRating} outcome={form.outcome}
+          selectedRating={form.customerRating} onChange={(rating) => set("customerRating", rating)}
+          error={fieldErrors.customerRating} t={t} />
 
         <Field>
           <Label htmlFor="nextFollowUpAt">
