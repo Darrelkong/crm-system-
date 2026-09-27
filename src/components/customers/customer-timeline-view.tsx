@@ -203,6 +203,12 @@ export function CustomerTimelineView({
                   )}
                 </p>
               )}
+              {item.type === "follow_up" && !item.sensitive && item.nextAction?.trim() && (
+                <div className={`mt-2 min-w-0 text-sm ${cd.label}`} data-testid="timeline-next-action">
+                  <p className="text-xs font-medium">{t("followUps.nextAction")}</p>
+                  <p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{item.nextAction}</p>
+                </div>
+              )}
               {item.descriptionText && (
                 <p className={`mt-1 whitespace-pre-line text-sm ${cd.value}`}>
                   {item.descriptionText}

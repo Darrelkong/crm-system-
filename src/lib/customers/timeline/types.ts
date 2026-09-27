@@ -14,6 +14,8 @@ export type TimelineItem = {
   descriptionParams?: Record<string, string>;
   /** Raw system message (e.g. auto-reclaim warnings with rule snapshot). */
   descriptionText?: string;
+  /** Canonical saved follow-up action; omitted for masked visibility. */
+  nextAction?: string | null;
   actorName: string;
   actorIsSystem?: boolean;
   occurredAt: string;

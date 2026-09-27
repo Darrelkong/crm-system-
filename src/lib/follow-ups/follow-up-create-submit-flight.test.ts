@@ -519,7 +519,7 @@ describe("follow-up create submit single-flight", () => {
     });
     assert.equal(url, "/api/customers/cust-xyz/follow-ups");
     assert.equal(method, "POST");
-    assert.deepEqual(payload, body);
+    assert.deepEqual(payload, { ...body, submissionId: flight.submissionId() });
   });
 });
 
@@ -560,4 +560,30 @@ describe("follow-up create form single-flight wiring", () => {
     assert.doesNotMatch(formSource, /debounce/);
     assert.doesNotMatch(formSource, /Toast|toast/);
   });
+});
+
+it("ten rapid attempts use one POST and one stable identity across a lost-response retry", async () => {
+  const flight = createFollowUpSubmitFlight();
+  const sent: Record<string, unknown>[] = [];
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    sent.push(JSON.parse(String(init?.body)));
+    await delay(5);
+    throw new Error("lost response");
+  };
+  await Promise.all(Array.from({ length: 10 }, () => postFollowUpCreateOnce({
+    flight, customerId: "c1", body: validBody(), fetchImpl,
+  })));
+  assert.equal(sent.length, 1);
+  assert.match(String(sent[0].submissionId), /^[0-9a-f-]{36}$/);
+  await postFollowUpCreateOnce({
+    flight, customerId: "c1", body: { ...validBody(), confirmDuplicateFollowUp: true }, fetchImpl,
+  });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1].submissionId, sent[0].submissionId);
+  flight.complete();
+  flight.release();
+  assert.equal(flight.isLocked(), true);
+  assert.equal((await postFollowUpCreateOnce({ flight, customerId: "c1", body: validBody(), fetchImpl })).status, "blocked");
+  assert.equal(sent.length, 2);
+  assert.notEqual(createFollowUpSubmitFlight().submissionId(), flight.submissionId());
 });

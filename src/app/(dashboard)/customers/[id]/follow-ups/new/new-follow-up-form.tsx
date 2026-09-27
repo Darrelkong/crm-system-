@@ -72,7 +72,7 @@ export function NewFollowUpForm({
 
   function unlockSubmitFlight(): void {
     submitFlightRef.current.release();
-    setSubmitting(false);
+    setSubmitting(submitFlightRef.current.isLocked());
   }
 
   async function submitFollowUp(confirmDuplicateFollowUp = false) {
@@ -140,6 +140,7 @@ export function NewFollowUpForm({
       };
 
       if (res.ok) {
+        submitFlightRef.current.complete();
         setDuplicateConfirmOpen(false);
         router.push(`/customers/${customerId}`);
         return;
@@ -187,6 +188,7 @@ export function NewFollowUpForm({
 
   return (
     <form onSubmit={handleSubmit} noValidate className="max-w-2xl">
+      <fieldset disabled={submitting} className="min-w-0">
       <p className="mb-4 text-sm text-[#6B7890]">
         {t("followUps.addFollowUpFor", { name: displayName })}
       </p>
@@ -367,6 +369,7 @@ export function NewFollowUpForm({
           {t("common.cancel")}
         </Button>
       </div>
+      </fieldset>
     </form>
   );
 }

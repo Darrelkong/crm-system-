@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { after, before, describe, it } from "node:test";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import * as schema from "../../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase, getDb } from "@/lib/db";
@@ -53,12 +53,38 @@ describe("timeline Phase 2B2 equivalence", () => {
 
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy<{ DB: unknown }>({
+    const proxy = await getTestD1PlatformProxy<{ DB: unknown }>({
       configPath: "wrangler.jsonc",
     });
     const db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
+    // The disposable serial harness seeds users, not customer history.
+    // Preserve the legacy pre-seeded local mode; only populate the isolated fixture.
+    if (process.env.CRM_TEST_D1_HTTP_URL) {
+      const now = "2026-01-01T00:00:00.000Z";
+      await db.insert(schema.customers).values({
+        id: SEED_IDS.customerStaffA, customerName: "Synthetic F1 timeline",
+        customerType: "individual", source: "other", requestedProjectName: "Synthetic",
+        ownerId: SEED_IDS.staffA, status: "active", salesStage: "contacted",
+        createdBy: SEED_IDS.admin, updatedBy: SEED_IDS.admin, createdAt: now, updatedAt: now,
+      });
+      await db.insert(schema.followUps).values({
+        id: crypto.randomUUID(), customerId: SEED_IDS.customerStaffA, userId: SEED_IDS.staffA,
+        followUpTime: now, channel: "phone", outcome: "contact_made", summary: "Synthetic summary",
+        nextAction: "Synthetic saved next action", content: "Synthetic summary", createdAt: now,
+      });
+      const taskId = crypto.randomUUID();
+      await db.insert(schema.tasks).values({
+        id: taskId, customerId: SEED_IDS.customerStaffA, assignedTo: SEED_IDS.staffA,
+        createdBy: SEED_IDS.staffB, title: "Synthetic follow-up", type: "follow_up",
+        status: "open", createdAt: now, updatedAt: now,
+      });
+      await db.insert(schema.auditLogs).values({
+        id: crypto.randomUUID(), userId: SEED_IDS.staffB, action: "task.created",
+        entityType: "task", entityId: taskId, createdAt: now,
+      });
+    }
   });
 
   after(async () => {

@@ -379,6 +379,7 @@ function buildFollowUpItem(
       validity,
       ...(masked ? {} : { summary: row.summary ? `: ${row.summary}` : "" }),
     },
+    ...(masked ? {} : { nextAction: row.nextAction }),
     actorName: actor.name,
     actorIsSystem: actor.isSystem,
     occurredAt: row.followUpTime,
