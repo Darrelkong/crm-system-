@@ -30,12 +30,12 @@ describe("Preview gateway isolation", () => {
 });
 
 
-it("Preview AI config exposes only Workers AI and the direct-mode variable", () => {
+it("Preview AI config exposes only Workers AI and approved Preview variables", () => {
   const config = JSON.parse(readFileSync(new URL("../wrangler.si2-preview.jsonc", import.meta.url), "utf8"));
   assert.equal(config.name, "crm-ai-si2-preview");
   assert.equal(config.account_id, "809c05c9f500268e973938fd641eee39");
   assert.deepEqual(config.ai, { binding: "AI" });
-  assert.deepEqual(config.vars, { CRM_AI_GATEWAY_MODE: "direct" });
+  assert.deepEqual(config.vars, { CRM_AI_GATEWAY_MODE: "direct", CRM_AI_KNOWLEDGE_COMPARE_MODEL: "@cf/zai-org/glm-4.7-flash" });
   assert.equal(config.workers_dev, false);
   assert.equal(config.preview_urls, false);
   assert.deepEqual(config.routes, []);
@@ -43,4 +43,5 @@ it("Preview AI config exposes only Workers AI and the direct-mode variable", () 
   assert.ok(Object.keys(config).every(key => allowed.has(key)));
   const production = JSON.parse(readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8"));
   assert.equal(production.vars?.CRM_AI_GATEWAY_MODE, undefined);
+  assert.equal(production.vars?.CRM_AI_KNOWLEDGE_COMPARE_MODEL, undefined);
 });

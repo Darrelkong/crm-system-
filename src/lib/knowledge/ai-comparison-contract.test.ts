@@ -76,6 +76,27 @@ for(const [reason,response] of [
     assert.deepEqual(log.mock.calls.map(c=>c.arguments[1].attempt),[1,2]);
     assert.ok(log.mock.calls.every(c=>c.arguments[1].reason===reason));
     const text=JSON.stringify(log.mock.calls.map(c=>c.arguments));assert.ok(!text.includes("SENSITIVE_SENTINEL"));assert.ok(!text.includes("Synthetic fact"));
-    for(const call of log.mock.calls)assert.deepEqual(Object.keys(call.arguments[1]).sort(),["arrayCounts","attempt","reason","responseType","task"].sort());
+    for(const call of log.mock.calls)assert.deepEqual(Object.keys(call.arguments[1]).sort(),["arrayCounts","attempt","reason","responseType","task","rawTopLevelKeys","structuredTopLevelKeys","hasResponse","hasChoices","hasChoiceMessage","rawResponseType","contentType","extractedType","parseable"].sort());
   }finally{log.mock.restore();}
+});
+
+it("shape diagnostics expose keys and types, never response, reasoning or prompt values", async () => {
+  const log=mock.method(console,"warn",()=>{});
+  try {
+    const result=await runKnowledgeCompareTask(env(async()=>({
+      id:"SENSITIVE_ID",object:"chat.completion",choices:[{message:{content:"SENSITIVE_CONTENT",reasoning_content:"SENSITIVE_REASONING"}}],
+    })),request);
+    assert.equal(result.ok,false);
+    const shape=log.mock.calls[0].arguments[1];
+    assert.deepEqual(shape.rawTopLevelKeys,["id","object","choices"]);
+    assert.equal(shape.hasResponse,false);assert.equal(shape.hasChoices,true);assert.equal(shape.hasChoiceMessage,true);assert.equal(shape.contentType,"string");
+    assert.ok(!JSON.stringify(log.mock.calls.map(c=>c.arguments)).includes("SENSITIVE_"));
+  } finally {log.mock.restore();}
+});
+
+it("GLM documented completion envelope passes the same Worker, app adapter and Zod contract",async()=>{
+  const workerEnv:CrmAiEnv={CRM_AI_KNOWLEDGE_COMPARE_MODEL:"@cf/zai-org/glm-4.7-flash",AI:{run:async()=>({choices:[{message:{content:JSON.stringify(valid())}}]})} as unknown as Ai};
+  const aiService={fetch:async()=>Response.json(await runKnowledgeCompareTask(workerEnv,request))} as unknown as CloudflareEnv["AI_SERVICE"];
+  const result=await callKnowledgeCompareCloudflareAi({...request,aiService});assert.equal(result.ok,true);
+  if(result.ok)assertAll(result.data,true);
 });

@@ -1,6 +1,8 @@
 import { KNOWLEDGE_COMPARE_JSON_SCHEMA } from "./knowledge-comparison-schema";
 import {
   KNOWLEDGE_MODEL,
+  KNOWLEDGE_COMPARE_GLM_MODEL,
+  resolveKnowledgeCompareModel,
   KNOWLEDGE_COMPARE_MAX_TOKENS,
   KNOWLEDGE_COMPARE_PROMPT_VERSION,
   KNOWLEDGE_COMPARE_TEMPERATURE,
@@ -458,6 +460,41 @@ function extractStructuredPayload(raw: unknown): unknown {
   return raw;
 }
 
+/** GLM uses the documented chat-completion envelope. Never inspect reasoning
+ * or search arbitrary object keys for a plausible result. Qwen stays unchanged. */
+export function extractComparisonPayload(raw: unknown, model: string): unknown {
+  if (model === KNOWLEDGE_COMPARE_GLM_MODEL && raw && typeof raw === "object") {
+    const record = raw as Record<string, unknown>;
+    if ("choices" in record) {
+      if (!Array.isArray(record.choices) || record.choices.length !== 1) return null;
+      const choice = record.choices[0];
+      if (!choice || typeof choice !== "object") return null;
+      const message = (choice as Record<string, unknown>).message;
+      if (!message || typeof message !== "object") return null;
+      const content = (message as Record<string, unknown>).content;
+      return typeof content === "string" ? content : null;
+    }
+  }
+  return extractStructuredPayload(raw);
+}
+
+/** Shape-only diagnostics: no field values or model text. */
+export function comparisonResponseShape(raw: unknown, extracted: unknown, structured: unknown) {
+  const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const type = (value: unknown) => value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
+  const keys = (value: unknown) => Object.keys(record(value)).filter(key => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key)).slice(0, 32);
+  const r = record(raw);
+  const choice = Array.isArray(r.choices) ? record(r.choices[0]) : {};
+  const message = record(choice.message);
+  return {
+    rawTopLevelKeys: keys(raw), structuredTopLevelKeys: keys(structured),
+    hasResponse: Object.hasOwn(r, "response"), hasChoices: Object.hasOwn(r, "choices"),
+    hasChoiceMessage: Object.hasOwn(choice, "message"),
+    rawResponseType: type(r.response), contentType: type(message.content),
+    extractedType: type(extracted), parseable: structured !== null,
+  };
+}
+
 export async function runKnowledgeOrganize(
   env: CrmAiEnv,
   request: CrmAiKnowledgeOrganizeRequest,
@@ -506,32 +543,39 @@ export async function runKnowledgeCompare(
   timeoutMs: number,
   attempt = 1,
 ): Promise<AiServiceResult<KnowledgeCompareOutput>> {
+  const model = resolveKnowledgeCompareModel(env.CRM_AI_KNOWLEDGE_COMPARE_MODEL);
+  const payload = buildKnowledgePayload(request.systemPrompt, request.userPrompt,
+    KNOWLEDGE_COMPARE_JSON_SCHEMA, KNOWLEDGE_COMPARE_TEMPERATURE, KNOWLEDGE_COMPARE_MAX_TOKENS);
+  if (model === KNOWLEDGE_COMPARE_GLM_MODEL) {
+    // GLM's documented OpenAI-compatible input uses a named schema wrapper.
+    payload.response_format = { type: "json_schema", json_schema: {
+      name: "knowledge_compare", strict: true, schema: KNOWLEDGE_COMPARE_JSON_SCHEMA,
+    } };
+    // Documented GLM control; preserve the existing completion-token budget.
+    payload.chat_template_kwargs = { enable_thinking: false };
+  }
   const raw = await invokeModel(
-    KNOWLEDGE_MODEL,
+    model,
     "knowledge_compare",
     request.schemaVersion,
-    buildKnowledgePayload(
-      request.systemPrompt,
-      request.userPrompt,
-      KNOWLEDGE_COMPARE_JSON_SCHEMA,
-      KNOWLEDGE_COMPARE_TEMPERATURE,
-      KNOWLEDGE_COMPARE_MAX_TOKENS,
-    ),
+    payload,
     timeoutMs,
   );
-  const structured = parseJsonValue(extractStructuredPayload(raw));
+  const extracted = extractComparisonPayload(raw, model);
+  const structured = parseJsonValue(extracted);
   const validated = structured ? validateCompareOutput(structured) : null;
   if (!validated) {
     const record = structured && typeof structured === "object" ? structured as Record<string, unknown> : {};
     console.warn("knowledge_compare_validation", {
       task: "knowledge_compare", attempt,
+      ...comparisonResponseShape(raw, extracted, structured),
       reason: structured === null ? "parse_failed" : comparisonValidationReason(structured),
       responseType: Array.isArray(structured) ? "array" : typeof structured,
       arrayCounts: Object.fromEntries(["newFacts", "changedFacts", "conflicts", "uncertainties", "suggestedUpdates"].map(key => [key, Array.isArray(record[key]) ? record[key].length : null])),
     });
     return { ok: false, error: "invalid_output" };
   }
-  return { ok: true, data: validated, model: KNOWLEDGE_MODEL };
+  return { ok: true, data: validated, model };
 }
 
 export async function runKnowledgeQa(

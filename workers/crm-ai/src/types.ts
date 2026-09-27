@@ -190,6 +190,8 @@ export type CrmAiEnv = {
   AI: Ai;
   /** Explicit Preview-only opt-in; unset preserves the Production gateway. */
   CRM_AI_GATEWAY_MODE?: "direct";
+  /** Allowlisted comparison-only override; unset preserves Qwen. */
+  CRM_AI_KNOWLEDGE_COMPARE_MODEL?: string;
   CRM_AI_TIMEOUT_MS?: string;
   CRM_AI_VISION_TIMEOUT_MS?: string;
 };
