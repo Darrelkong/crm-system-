@@ -3,6 +3,7 @@ export const FOLLOW_UP_ORGANIZE_SOURCE_AI = "external_ai" as const;
 export const FOLLOW_UP_ORGANIZE_SOURCE_MOCK = "mock" as const;
 
 export type FollowUpOrganizeSource =
+  | "cloudflare_ai"
   | typeof FOLLOW_UP_ORGANIZE_SOURCE_BASIC
   | typeof FOLLOW_UP_ORGANIZE_SOURCE_AI
   | typeof FOLLOW_UP_ORGANIZE_SOURCE_MOCK;

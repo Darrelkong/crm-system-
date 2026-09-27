@@ -1,4 +1,6 @@
+import type { BasicFluencyRequest } from "../../../src/lib/ai/follow-up-organize/fluency-contract";
 export type SystemAiTask =
+  | "basic_text_organize"
   | "health_probe"
   | "structured_probe"
   | "admin_management_brief"
@@ -162,6 +164,7 @@ export type KnowledgeCompareOutput = {
 };
 
 export type CrmAiRequest =
+  | BasicFluencyRequest
   | CrmAiProbeRequest
   | CrmAiAdminBriefRequest
   | CrmAiStaffActionsRequest
@@ -177,6 +180,7 @@ export type CrmAiEnv = {
 };
 
 export type CrmAiHandleResult =
+  | AiServiceResult<{ text: string }>
   | AiServiceResult<HealthProbeOutput>
   | AiServiceResult<AdminBriefOutput>
   | AiServiceResult<StaffTodayActionsOutput>

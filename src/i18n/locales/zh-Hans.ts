@@ -4596,6 +4596,9 @@ const zhHans: Messages = {
     firstContactGateCta: "前往完成首次联系",
   },
   followUpOrganize: {
+    sourceCloudflare: 'Cloudflare AI 基础整理',
+    basicCloudflareHint: '仅发送当前文字润色，请核对建议后再采用；不消耗客户智能分析额度。',
+    basicFailure: '暂时无法安全整理此文字。原文未更改，可手动编辑或重试。',
     basicButton: "基础整理",
     aiButton: "AI 智能整理",
     basicHint: "不消耗 AI 次数",

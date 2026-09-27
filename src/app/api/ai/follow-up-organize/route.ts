@@ -1,3 +1,5 @@
+import { BasicOrganizeError } from "@/lib/ai/follow-up-organize/cloudflare-basic";
+
 export const dynamic = "force-dynamic";
 
 import { requireAuth, authErrorResponse } from "@/lib/permissions/auth";
@@ -119,15 +121,23 @@ export async function POST(request: Request) {
       const result = await organizeFollowUpForUser(db, user, {
         mode: body.mode,
         text: body.text,
+        locale: body.locale,
         reservationKey,
         customer: null,
       });
+      if (body.mode === "basic") return Response.json({ result });
       const availability = await getFollowUpOrganizeAvailability(db, user);
       return Response.json({ result, availability });
     } catch (error) {
+      if (error instanceof BasicOrganizeError) {
+        return Response.json({ errorCode: error.code }, { status: 503 });
+      }
       const status = organizeErrorStatus(error);
       if (status !== null) {
         const code = organizeErrorCode(error);
+        if (body.mode === "basic") {
+          return Response.json({ errorCode: code }, { status });
+        }
         const availability = await getFollowUpOrganizeAvailability(db, user);
         return Response.json(
           {
