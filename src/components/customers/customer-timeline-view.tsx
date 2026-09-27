@@ -1,5 +1,6 @@
 "use client";
 
+import { CustomerTimelineRating } from "./customer-timeline-rating";
 import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type { TimelineItem } from "@/lib/customers/timeline/types";
@@ -119,7 +120,7 @@ export function CustomerTimelineView({
     if (item.metadata.category === "system") {
       return t("customers.timelineSystem");
     }
-    return timelineType(item.type);
+    return item.type === "rating" ? t("customerRating.title") : timelineType(item.type);
   }
 
   function actorLabel(item: TimelineItem): string {
@@ -127,6 +128,8 @@ export function CustomerTimelineView({
     if (!item.actorName) return t("timelineMessages.unknownActor");
     return item.actorName;
   }
+
+  const visibleItems = accessLevel === "full" ? items : items.filter(item => item.type !== "rating");
 
   return (
     <Card className="mt-6">
@@ -141,11 +144,11 @@ export function CustomerTimelineView({
         )}
       </div>
 
-      {items.length === 0 ? (
+      {visibleItems.length === 0 ? (
         <p className={`text-sm ${cd.muted}`}>{t("customers.timelineNoRecords")}</p>
       ) : (
         <div className="max-h-[32rem] space-y-3 overflow-y-auto pr-1">
-          {items.map((item) => (
+          {visibleItems.map((item) => (
             <div
               key={item.id}
               className={
@@ -208,6 +211,9 @@ export function CustomerTimelineView({
                   <p className="text-xs font-medium">{t("followUps.nextAction")}</p>
                   <p className="mt-1 whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{item.nextAction}</p>
                 </div>
+              )}
+              {accessLevel === "full" && !item.sensitive && item.rating && (
+                <CustomerTimelineRating rating={item.rating} t={t} linked={item.type === "follow_up"} />
               )}
               {item.descriptionText && (
                 <p className={`mt-1 whitespace-pre-line text-sm ${cd.value}`}>

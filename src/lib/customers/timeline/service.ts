@@ -14,7 +14,7 @@ import {
   SENSITIVE_FIELD_NAMES,
   TASK_TIMELINE_AUDIT_ACTIONS,
 } from "./constants";
-import type { TimelineItem, TimelineResponse } from "./types";
+import type { TimelineItem, TimelineResponse, TimelineRating } from "./types";
 import { formatHongKongDateTime } from "@/lib/timezone";
 
 type Visibility = "full" | "masked";
@@ -78,6 +78,25 @@ export async function loadTaskAuditsForCustomer(
     .orderBy(desc(schema.auditLogs.createdAt));
 
   return rows.map((row) => row.audit);
+}
+
+/** One customer-scoped history query; joined actor avoids N+1 and extra UNION terms. */
+export function ratingHistoryQuery(db: Database, customerId: string) {
+  const h = schema.customerRatingHistory;
+  return db.select({ history: h, actorName: schema.users.displayName })
+    .from(h)
+    .leftJoin(schema.users, eq(h.actorUserId, schema.users.id))
+    .where(eq(h.customerId, customerId))
+    .orderBy(desc(h.recordedAt), desc(h.id));
+}
+
+function ratingSnapshot(row: Awaited<ReturnType<typeof ratingHistoryQuery>>[number]): TimelineRating {
+  const h = row.history;
+  return {
+    eventId: h.id, ratingBefore: h.ratingBefore, ratingAfter: h.ratingAfter,
+    ratingAction: h.action, ratingRecordedAt: h.recordedAt, ratingReason: h.reason,
+    actorName: row.actorName ?? "", followUpUnavailable: h.action === "follow_up_confirmed" && h.followUpId === null,
+  };
 }
 
 function isMaskedTimeline(accessLevel: ReturnType<typeof getCustomerAccessLevel>): boolean {
@@ -201,6 +220,8 @@ function buildAuditItem(
   actorMap: Map<string, string>,
   visibility: Visibility,
 ): TimelineItem | null {
+  // Human rating decisions have one authoritative structured Timeline representation.
+  if (row.action.startsWith("customer.rating.")) return null;
   const isCustomerAudit = CUSTOMER_TIMELINE_AUDIT_ACTIONS.has(row.action);
   const isTaskAudit = TASK_TIMELINE_AUDIT_ACTIONS.has(row.action);
   if (!isCustomerAudit && !isTaskAudit) {
@@ -520,6 +541,7 @@ export async function getCustomerTimeline(
     approvals,
     taskAudits,
     actorMap,
+    ratingHistory,
   ] = await Promise.all([
     db
       .select()
@@ -549,6 +571,7 @@ export async function getCustomerTimeline(
       .orderBy(desc(schema.approvals.createdAt)),
     loadTaskAuditsForCustomer(db, customerId),
     loadActorNamesForCustomer(db, customerId, customer.createdBy),
+    visibility === "full" ? ratingHistoryQuery(db, customerId) : Promise.resolve([]),
   ]);
 
   const resolvedFollowUps = followUps ?? [];
@@ -601,6 +624,7 @@ export async function getCustomerTimeline(
   }
 
   for (const row of fieldChanges) {
+    if (row.fieldName === "customer_rating" || row.fieldName === "customer_rating_revision") continue;
     items.push(buildFieldChangeItem(row, actorMap, visibility));
   }
 
@@ -630,8 +654,28 @@ export async function getCustomerTimeline(
     items.push(...filtered);
   }
 
+  const linkedRatings = new Map(ratingHistory
+    .filter(row => row.history.action === "follow_up_confirmed" && row.history.followUpId !== null)
+    .map(row => [row.history.followUpId!, row]));
+  const attachedRatingIds = new Set<string>();
   for (const row of resolvedFollowUps) {
-    items.push(buildFollowUpItem(row, actorMap, visibility));
+    const item = buildFollowUpItem(row, actorMap, visibility);
+    const linked = linkedRatings.get(row.id);
+    if (linked && visibility === "full") {
+      item.rating = ratingSnapshot(linked);
+      attachedRatingIds.add(linked.history.id);
+    }
+    items.push(item);
+  }
+  for (const row of ratingHistory) {
+    if (attachedRatingIds.has(row.history.id)) continue;
+    const rating = ratingSnapshot(row);
+    items.push({
+      id: `rating-${rating.eventId}`, type: "rating",
+      titleKey: `customerRating.${rating.ratingAction === "manual_clear" ? "historyClear" : rating.ratingAction === "manual_correction" ? "historyCorrection" : "historyConfirmation"}`,
+      rating, actorName: rating.actorName, occurredAt: rating.ratingRecordedAt,
+      metadata: { category: "rating" }, sensitive: false,
+    });
   }
 
   for (const row of approvals) {

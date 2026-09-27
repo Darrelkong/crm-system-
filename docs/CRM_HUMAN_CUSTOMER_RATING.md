@@ -1,12 +1,13 @@
-# Human customer rating — F4B foundation / F4C workflow / F4D UX
+# Human customer rating — F4B foundation / F4C workflow / F4D–F4E UX
 
 Owner-approved contract, 2026-09-27. Branch `feat/human-customer-rating` starts
 at reviewed F1 `146f50f266adbe028ab029c3f6047f794b94e26d`, whose main ancestor is
 `a481689ad3854b85dfa6073c9aa495453659fb58`. No F2/F3/SI2 source is included.
 F4B adds schema and domain planning. F4C adds the follow-up rating form, atomic
 human-rating persistence and correction API foundation. F4D adds rating display,
-manual correction UI and permission-aware SQL sorting. Timeline rating rendering,
-AI UX cleanup and Production release remain out of scope.
+manual correction UI and permission-aware SQL sorting. F4E adds structured rating
+history to Timeline and makes legacy Heat/AI intent secondary. Production release
+remains out of scope.
 The current CRM takeover docs were read in the SI2 checkout; they are not copied
 into this independent branch. This document is the current F4 contract/status.
 
@@ -375,3 +376,105 @@ changed-file ESLint PASS with zero errors and two pre-existing unused `_total`
 warnings in scoring-list-sql.ts; npm run build PASS (Next.js 16.2.9, existing
 middleware deprecation warning); git diff --check PASS. Production remains
 unchanged and undeployed. No index migration is recommended by this local evidence.
+
+
+## F4E structured Timeline and legacy presentation — 2026-09-27
+
+`customer_rating_history` is the sole source of Timeline rating snapshots.
+A linked follow_up_confirmed event attaches typed before/after/action/recordedAt
+metadata to its actual follow-up item, after the saved Next Action block. The
+follow-up retains followUpTime chronology. Every linked rating displays its own
+actual confirmation recordedAt and human actor, including backdated follow-ups.
+Same-rating confirmation explicitly says consciously maintained. No current
+customer rating, AI intent, customerIntent or audit JSON reconstructs history.
+
+Manual correction/clear are standalone events ordered by recordedAt, with
+before/after, actor and reason. A confirmed history row whose follow_up_id became
+NULL remains a standalone event with an unavailable-follow-up notice; no deleted
+content is invented. Legacy/preserve follow-ups without an event gain no rating
+block. Rating business audits and rating field-change rows are excluded from
+Timeline presentation to avoid duplicate decisions; audit storage is untouched.
+
+FULL visibility loads one customer-ID-scoped indexed history query with a users
+join for actor names, in the existing parallel stage. There is no per-event query,
+new actor UNION branch or global history scan. All matching history is retained;
+no arbitrary row cap silently hides old decisions. Masked Public Pool access is
+denied before querying; archived-basic does not query history at all and receives
+no rating event/reason. The renderer also excludes rating blocks/standalone events
+for non-full access. Existing actor discovery remains within its tested 4+3 UNION
+term grouping. The existing customer/recordedAt/id index supports history retrieval.
+
+Human rating remains primary on desktop/mobile customer cards and detail. Heat
+badges were removed from daily lists and the Heat card/reasons were removed from
+CustomerScoresCards; Completeness remains in a single-card layout. Backend Heat
+calculations, fields and compatibility helper exports remain unchanged. Reclaim
+countdown, overdue indicators, task state and operational Basic Analysis remain.
+
+The AI panel keeps intentLevel, intentScore and riskFlags in a closed, neutral
+AI Reference section, with an always-visible AI-generated-reference notice that
+AI does not modify S/A/B/D. Basic Analysis explicitly says system guidance does
+not affect rating. Gemini generation/provider/prompt, stored AI/phase2 data,
+confidence and feedback behavior remain unchanged. The existing GET subscription
+now starts in a cancellable microtask instead of setting loading state directly
+inside effect setup; no timer, extra request or AI invocation was introduced.
+This resolves the pre-existing set-state-in-effect diagnostic in the touched panel.
+
+Dashboard highChurnRiskClients/myHighChurnRisk and the high_churn_risk display label
+now say priority follow-up in all three locales. The metric still means the same
+existing overdue/idle/reclaim-proximity conditions; no counts or algorithms were
+changed. Old heat=high_churn_risk links, parser keys and hidden form parameters
+remain valid. Legacy scoring constants with old wording have no live label consumer;
+phase2 customer-progress-risk text remains AI analysis, not human rating. No rating
+filter or rating-completeness dashboard was added.
+
+### F4E validation ledger
+
+Final deduplicated coverage: **437 PASS / 0 FAIL**:
+
+- 301 domain/workflow UI/F4D UI/sort/projection/permission/reclamation/follow-up/
+  scoring/basic-analysis/Timeline-constant tests.
+- 62 rendered Timeline/AI-reference/Completeness, existing Next Action, phase2,
+  AI feedback, dashboard-link/semantics and locale catalog tests. Actual components
+  are rendered using esbuild/React SSR with only the locale hook substituted;
+  this does not claim interactive browser acceptance.
+- 18 local Timeline tests: 8 new history/privacy/performance tests, 5 existing
+  parallel-loading/equivalence tests and 5 actor-name compound-SELECT regressions.
+- 44 local F4/F1 regressions: 27 workflow, 8 F1 idempotency, 6 F4D sorting/privacy/
+  performance and 3 history lifecycle tests.
+- 5 existing dashboard drilldown D1 tests, now using the disposable gateway with
+  synthetic non-empty customer/follow-up fixtures.
+- 7 F4B migration tests: populated A/B/C orders, schema equivalence, constraints,
+  FK/quick_check and lifecycle preservation. No repository migration was changed.
+
+Commands use `node --import tsx --test <unit/render files>`;
+`WRANGLER_SEND_METRICS=false node scripts/test-mail-d1-serial.mjs <D1 files>`;
+and `WRANGLER_SEND_METRICS=false node --import tsx --test --test-concurrency=1
+src/lib/customers/rating/migration-0091.integration.test.ts`. D1 suites use only
+localhost/--local/disposable persistence. New suites are
+`src/lib/customers/timeline/rating-history.integration.test.ts` and
+`src/components/customers/rating-history-ux.test.ts`.
+
+Measured full Timeline load with synthetic rating history:
+
+| Rating events | Local duration | Total queries | History queries |
+| --- | --- | --- | --- |
+| 0 | 8.54 ms | 8 | 1 |
+| 10 | 10.14 ms | 8 | 1 |
+| 100 | 9.80 ms | 8 | 1 |
+
+EXPLAIN: idx_customer_rating_history_customer_recorded customer_id lookup plus
+users primary-key LEFT JOIN. No N+1 or added UNION terms; no new index evidence.
+These are bounded local measurements, not a Production performance guarantee.
+
+Initial regression evidence: three old scoring tests assumed five days crossed
+the warning threshold, while current effective defaults do not. Their fixture
+ages now use reclaimWarningThresholdDays; original assertions and runtime counts
+remain unchanged. A new test's public_pool string literal needed explicit literal
+typing. Both were corrected and rerun. Baseline ESLint confirmed the old AI-panel
+effect diagnostic before the cancellation-safe subscription adjustment above.
+
+Final gates: main TypeScript noEmit PASS; changed-file ESLint PASS (zero errors,
+two existing unused-variable warnings in scoring/service.test.ts); npm run build
+PASS (existing Next middleware deprecation warning); git diff --check PASS.
+No new migration/index, rating write/CAS/sort change, Production access/deployment,
+remote migration, AI call, Gemini change, F2/F3/SI2 change or main merge.

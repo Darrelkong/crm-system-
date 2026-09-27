@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
+import { getTestD1PlatformProxy as getPlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import * as schema from "../../../drizzle/schema";
 import { bindTestDatabase } from "@/lib/db";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
@@ -69,6 +69,16 @@ describe("dashboard drill-down metric consistency DB", () => {
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     disposeProxy = proxy.dispose;
+    // Disposable harness seeds users only; exercise non-empty dashboard counts.
+    const now = new Date().toISOString();
+    for (const ownerId of [staffA.id, staffB.id]) {
+      const id = crypto.randomUUID();
+      await db.insert(schema.customers).values({ id, customerName: "Synthetic drilldown", source: "other", ownerId,
+        createdBy: admin.id, createdAt: now, updatedAt: now, customerRating: "A" });
+      await db.insert(schema.followUps).values({ id: crypto.randomUUID(), customerId: id, userId: ownerId,
+        followUpTime: now, channel: "phone", outcome: "replied", summary: "Synthetic follow-up", content: "Synthetic follow-up",
+        isValidFollowUp: 1, createdAt: now });
+    }
   });
 
   after(async () => {

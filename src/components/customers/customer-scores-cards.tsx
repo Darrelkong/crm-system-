@@ -2,7 +2,6 @@
 
 import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
-import { formatHeatReasons } from "@/i18n/resolve-api-error";
 import {
   HEAT_LEVEL_BADGE_CLASS,
 } from "@/lib/customers/scoring/constants";
@@ -55,20 +54,7 @@ export function CustomerScoresCards({
   const { t, completenessField } = useCustomerLabels();
 
   return (
-    <div className="mt-6 grid gap-4 sm:grid-cols-2">
-      <Card>
-        <h3 className={cd.subsectionTitle}>{t("customers.heatLevel")}</h3>
-        <div className="mt-2">
-          <HeatBadge level={scores.heatLevel} />
-        </div>
-        {scores.heatReasonKeys && scores.heatReasonKeys.length > 0 && (
-          <p className={`mt-2 text-sm ${cd.muted}`}>
-            {formatHeatReasons(t, scores.heatReasonKeys)}
-          </p>
-        )}
-        <p className={`mt-3 text-xs ${cd.muted}`}>{t("customers.heatDescription")}</p>
-      </Card>
-
+    <div className="mt-6">
       <Card>
         <h3 className={cd.subsectionTitle}>{t("customers.completeness")}</h3>
         <p className={`mt-2 text-2xl font-semibold ${cd.strongValue}`}>
