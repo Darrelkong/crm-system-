@@ -38,24 +38,48 @@ const TOKEN_PATTERNS = [
 function tokens(text: string, pattern: RegExp): string[] {
   return (text.match(pattern) ?? []).map(x => x.replace(/[.,;!?]+$/, ""));
 }
-export function preservesBasicFluencyFacts(input: string, output: string): boolean {
-  if (output.length < input.trim().length * 0.65 || output.length > input.length * 2 + 80) return false;
-  if (TOKEN_PATTERNS.some(p => JSON.stringify(tokens(input, p)) !== JSON.stringify(tokens(output, p)))) return false;
+export type BasicFluencyRejectionReason =
+  | "PROVIDER_EMPTY_RESPONSE" | "PROVIDER_NON_STOP_FINISH" | "PROVIDER_ENVELOPE_UNSUPPORTED"
+  | "JSON_PARSE_FAILED" | "OUTPUT_OBJECT_SHAPE_INVALID" | "OUTPUT_TEXT_EMPTY"
+  | "OUTPUT_TOO_LONG" | "OUTPUT_FORBIDDEN_MARKUP" | "FACT_TOKEN_MISMATCH"
+  | "LANGUAGE_SCRIPT_MISMATCH" | "LENGTH_RATIO_REJECTED" | "OTHER_VALIDATION_REJECT";
+type Rejection = { accepted: false; reason: BasicFluencyRejectionReason;
+  tokenPatternIndex?: number; inputTokenCount?: number; outputTokenCount?: number };
+
+function diagnoseBasicFluencyFacts(input: string, output: string): Rejection | null {
+  if (output.length < input.trim().length * 0.65 || output.length > input.length * 2 + 80) return { accepted: false, reason: "LENGTH_RATIO_REJECTED" };
+  for (const [index, pattern] of TOKEN_PATTERNS.entries()) {
+    const before = tokens(input, pattern), after = tokens(output, pattern);
+    if (JSON.stringify(before) !== JSON.stringify(after)) return {
+      accepted: false, reason: "FACT_TOKEN_MISMATCH", tokenPatternIndex: index,
+      inputTokenCount: before.length, outputTokenCount: after.length,
+    };
+  }
   // Catch obvious whole-script translation without converting the user's text.
   const hans = /[这说开账户资料齐会预计联络进]/g;
   const hant = /[這說開賬戶資料齊會預計聯絡進]/g;
   const simplified = (input.match(hans) ?? []).filter(c => !/[料]/.test(c)).length;
   const traditional = (input.match(hant) ?? []).filter(c => !/[料]/.test(c)).length;
-  if (simplified > 0 && traditional === 0 && (output.match(hant) ?? []).some(c => c !== "料")) return false;
-  if (traditional > 0 && simplified === 0 && (output.match(hans) ?? []).some(c => c !== "料")) return false;
-  if (!/[\p{Script=Han}]/u.test(input) && /[\p{Script=Han}]/u.test(output)) return false;
-  return true;
+  if (simplified > 0 && traditional === 0 && (output.match(hant) ?? []).some(c => c !== "料")) return { accepted: false, reason: "LANGUAGE_SCRIPT_MISMATCH" };
+  if (traditional > 0 && simplified === 0 && (output.match(hans) ?? []).some(c => c !== "料")) return { accepted: false, reason: "LANGUAGE_SCRIPT_MISMATCH" };
+  if (!/[\p{Script=Han}]/u.test(input) && /[\p{Script=Han}]/u.test(output)) return { accepted: false, reason: "LANGUAGE_SCRIPT_MISMATCH" };
+  return null;
+}
+export function preservesBasicFluencyFacts(input: string, output: string): boolean {
+  return diagnoseBasicFluencyFacts(input, output) === null;
+}
+export function diagnoseBasicFluencyOutput(value: unknown, original: string):
+  { accepted: true; data: { text: string } } | Rejection {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return { accepted: false, reason: "OUTPUT_OBJECT_SHAPE_INVALID" };
+  const r = value as Record<string, unknown>;
+  if (Object.keys(r).length !== 1 || typeof r.text !== "string") return { accepted: false, reason: "OUTPUT_OBJECT_SHAPE_INVALID" };
+  const text = r.text.trim();
+  if (!text) return { accepted: false, reason: "OUTPUT_TEXT_EMPTY" };
+  if (text.length > BASIC_FLUENCY_MAX_OUTPUT) return { accepted: false, reason: "OUTPUT_TOO_LONG" };
+  if (/<\/?think\b|```/i.test(text)) return { accepted: false, reason: "OUTPUT_FORBIDDEN_MARKUP" };
+  return diagnoseBasicFluencyFacts(original, text) ?? { accepted: true, data: { text } };
 }
 export function parseBasicFluencyOutput(value: unknown, original: string): { text: string } | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const r = value as Record<string, unknown>;
-  if (Object.keys(r).length !== 1 || typeof r.text !== "string") return null;
-  const text = r.text.trim();
-  if (!text || text.length > BASIC_FLUENCY_MAX_OUTPUT || /<\/?think\b|```/i.test(text)) return null;
-  return preservesBasicFluencyFacts(original, text) ? { text } : null;
+  const result = diagnoseBasicFluencyOutput(value, original);
+  return result.accepted ? result.data : null;
 }

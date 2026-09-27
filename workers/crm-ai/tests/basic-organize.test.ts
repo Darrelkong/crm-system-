@@ -77,3 +77,54 @@ it("rejects broad context, model override, invalid locale/length before AI",asyn
     assert.equal(parseCrmAiRequestBody(bad),null);
   }
 });
+
+it("classifies rejection reasons without exposing provider/user values", async () => {
+  const fixtures: Array<[unknown, string, string]> = [
+    [null, "Client may contact us", "PROVIDER_EMPTY_RESPONSE"],
+    [{choices:[{finish_reason:"length",message:{content:"PRIVATE_PROVIDER_CONTENT"}}]}, "Client may contact us", "PROVIDER_NON_STOP_FINISH"],
+    [{unknown:"PRIVATE_PROVIDER_CONTENT"}, "Client may contact us", "PROVIDER_ENVELOPE_UNSUPPORTED"],
+    [{response:"PRIVATE_NOT_JSON"}, "Client may contact us", "JSON_PARSE_FAILED"],
+    [{response:{text:123}}, "Client may contact us", "OUTPUT_OBJECT_SHAPE_INVALID"],
+    [{response:{text:" "}}, "Client may contact us", "OUTPUT_TEXT_EMPTY"],
+    [{response:{text:"x".repeat(3001)}}, "Client may contact us", "OUTPUT_TOO_LONG"],
+    [{response:{text:"<think>PRIVATE_REASONING</think>"}}, "Client may contact us", "OUTPUT_FORBIDDEN_MARKUP"],
+    [{response:{text:"Client will contact us"}}, "Client may contact us", "FACT_TOKEN_MISMATCH"],
+    [{response:{text:"客户想开账户。"}}, "客戶想開賬戶", "LANGUAGE_SCRIPT_MISMATCH"],
+    [{response:{text:"ok"}}, "Client may contact us", "LENGTH_RATIO_REJECTED"],
+  ];
+  for (const [raw,input,reason] of fixtures) {
+    const logs: unknown[][]=[];
+    const spy=mock.method(console,"warn",(...args:unknown[])=>{logs.push(args);});
+    try {
+      const result=await handleCrmAiRequest({AI:{run:async()=>raw}},request(input,"en"));
+      assert.deepEqual(result,{ok:false,error:"invalid_output"});
+      assert.equal(logs.length,1);assert.equal(logs[0][0],"basic_text_organize_rejected");
+      const metadata=JSON.parse(String(logs[0][1]));
+      assert.equal(metadata.rejectionReason,reason);
+      assert.equal(metadata.model,BASIC_ORGANIZE_MODEL);
+      assert.equal(metadata.inputCharacterLength,input.length);
+      assert.equal(typeof metadata.durationMs,"number");
+      assert.ok(Object.keys(metadata).every(k=>["task","model","locale","rejectionReason","finishReason","providerResponseType","providerEnvelopeType","outputCharacterLength","inputCharacterLength","durationMs","tokenPatternIndex","inputTokenCount","outputTokenCount"].includes(k)));
+      assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_|Client may|客户|客戶/);
+      if(reason==="FACT_TOKEN_MISMATCH") {
+        assert.equal(metadata.tokenPatternIndex,8);assert.equal(metadata.inputTokenCount,1);assert.equal(metadata.outputTokenCount,0);
+      }
+    } finally {spy.mock.restore();}
+  }
+});
+it("redacts arbitrary finish reasons and keeps the HTTP error body unchanged",async()=>{
+  const {default:worker}=await import("../src/index");
+  const logs:unknown[][]=[];const spy=mock.method(console,"warn",(...args:unknown[])=>{logs.push(args);});
+  try {
+    const response=await worker.fetch(new Request("https://local/",{method:"POST",body:JSON.stringify(request("Client may contact us","en"))}),{AI:{run:async()=>({choices:[{finish_reason:"PRIVATE_REASONING",message:{content:"PRIVATE_OUTPUT"}}]})}});
+    assert.equal(response.status,503);assert.deepEqual(await response.json(),{ok:false,error:"invalid_output"});
+    const meta=JSON.parse(String(logs[0][1]));assert.equal(meta.finishReason,"other");assert.equal(meta.providerEnvelopeType,"choices");
+    assert.doesNotMatch(JSON.stringify(logs),/PRIVATE_/);
+  } finally {spy.mock.restore();}
+});
+it("valid output remains identical and emits no rejection log",async()=>{
+  const spy=mock.method(console,"warn",()=>{throw new Error("Unexpected rejection log");});
+  try {
+    assert.deepEqual(await handleCrmAiRequest({AI:{run:async()=>({response:{text:"Client may contact us."}})}},request("Client may contact us","en")),{ok:true,data:{text:"Client may contact us."},model:BASIC_ORGANIZE_MODEL});
+  } finally {spy.mock.restore();}
+});

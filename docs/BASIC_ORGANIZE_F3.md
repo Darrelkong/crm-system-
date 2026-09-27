@@ -154,3 +154,28 @@ changed-file ESLint (zero errors, four baseline warnings), Next.js production
 build, Wrangler dry-run and `git diff --check` PASS. The baseline Worker semantic
 diagnostic was not rerun or repaired in F3B. Remaining remote acceptance:
 **REAL WORKERS AI QUALITY VALIDATION**. Nothing has been deployed.
+
+## F3D rejection diagnostics — local gate
+
+Adds safe internal rejection reasons for `basic_text_organize` only: empty provider
+response, unsupported envelope, non-stop finish, JSON parse, object shape, empty
+text, output length, forbidden markup, factual tokens, script and length ratio.
+The existing ordered predicates are preserved. The boolean/parser API delegates
+ to the diagnostic helper; accepted output and public `{ok:false,error:"invalid_output"}`
+remain unchanged. No prompt, model, schema, token/deadline limit or retry change.
+
+Rejected requests log only task/model/locale, fixed reason/envelope/type labels,
+allowlisted finish reason (unrecognized values become `other`), character counts,
+duration, and optional token-pattern index/counts. Never log text, matched tokens,
+prompts, reasoning, provider errors or arbitrary provider keys. Token pattern
+index 8 denotes the existing uncertainty/negation/condition pattern; counts alone
+cannot identify which token changed. API consumers receive no internal reason.
+
+Local validation: 76 Worker tests and 46 app/route tests pass. New tests exercise
+all emitted rejection categories, safe HTTP behavior, metadata key allowlisting,
+untrusted finish-reason redaction and unchanged valid responses. A disposable
+old/new contract differential checked 296 input/output/shape combinations with
+identical acceptance results. An initial mock-cleanup API error in new tests was
+corrected; no runtime safety rule changed. Main TypeScript, changed-file ESLint,
+Next.js build, Wrangler dry-run and diff check pass. Remote Case 4 reproduction is
+separate evidence; maximum two authorized requests, no quality remediation here.
