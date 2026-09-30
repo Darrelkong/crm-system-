@@ -1,3 +1,5 @@
+import { runBasicOrganize } from "./basic-organize";
+import { parseBasicFluencyRequest } from "../../../src/lib/ai/follow-up-organize/fluency-contract";
 import {
   AI_GATEWAY_ID,
   ADMIN_MANAGEMENT_BRIEF_MAX_RETRIES,
@@ -850,6 +852,17 @@ export async function handleCrmAiRequest(
   env: CrmAiEnv,
   request: CrmAiRequest,
 ): Promise<CrmAiHandleResult> {
+  if (request.task === "basic_text_organize") {
+    const parsed = parseBasicFluencyRequest(request);
+    if (!parsed) return { ok: false, error: "invalid_output" };
+    try {
+      return await runBasicOrganize(parsed, (model, task, version, payload, timeout) =>
+        invokeModel(env, model, task, version, payload, timeout));
+    } catch (error) {
+      // Never log the exception: provider messages can contain user text.
+      return { ok: false, error: mapRunFailure(error) };
+    }
+  }
   if (request.task === "health_probe") {
     return runHealthProbe(env, request.model);
   }
@@ -883,6 +896,8 @@ export async function handleCrmAiRequest(
 export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
   if (!body || typeof body !== "object") return null;
   const record = body as Record<string, unknown>;
+
+  if (record.task === "basic_text_organize") return parseBasicFluencyRequest(body);
 
   if (record.task === "admin_management_brief") {
     if (record.schemaVersion !== ADMIN_MANAGEMENT_BRIEF_PROMPT_VERSION) {

@@ -20,7 +20,7 @@ export const FOLLOW_UP_ORGANIZE_FORBIDDEN_RESPONSE_KEYS = [
 
 export type FollowUpOrganizeApiSuccessBody = {
   result: FollowUpOrganizationResult;
-  availability: FollowUpOrganizeAvailability;
+  availability?: FollowUpOrganizeAvailability;
 };
 
 export function assertFollowUpOrganizeResponseSafe(
@@ -31,9 +31,11 @@ export function assertFollowUpOrganizeResponseSafe(
   for (const key of FOLLOW_UP_ORGANIZE_FORBIDDEN_RESPONSE_KEYS) {
     if (key in record) return false;
   }
-  if (!("result" in record) || !("availability" in record)) return false;
+  if (!("result" in record)) return false;
   const result = record.result as Record<string, unknown> | null;
   if (!result || typeof result !== "object") return false;
+  // Basic fluency is independent of Customer Insight provider/quota settings.
+  if (result.source !== "cloudflare_ai" && !("availability" in record)) return false;
   for (const key of FOLLOW_UP_ORGANIZE_FORBIDDEN_RESPONSE_KEYS) {
     if (key in result) return false;
   }

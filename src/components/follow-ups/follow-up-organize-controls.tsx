@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ModalOverlay, ModalPanel } from "@/components/ui/modal";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
-import { organizeFollowUpTextBasic } from "@/lib/ai/follow-up-organize/basic";
+import { useTranslation } from "@/i18n/provider";
 import type {
   FollowUpOrganizationResult,
   FollowUpOrganizeAvailability,
@@ -36,12 +36,20 @@ function availabilityMessageKey(
   }
 }
 
-export function FollowUpOrganizeControls({
+export function FollowUpOrganizeControls(props: Props) {
+  // A different form/customer owns a fresh proposal; late responses cannot cross it.
+  return <FollowUpOrganizeForm key={props.customerId ?? "draft"} {...props} />;
+}
+
+function FollowUpOrganizeForm({
   value,
   onApply,
   customerId,
 }: Props) {
   const { t } = useCustomerLabels();
+  const { locale } = useTranslation();
+  const submissionLocked = useRef(false);
+  const requestGeneration = useRef(0);
   const [availability, setAvailability] =
     useState<FollowUpOrganizeAvailability | null>(null);
   const [loadingMode, setLoadingMode] = useState<"basic" | "ai" | null>(null);
@@ -66,9 +74,7 @@ export function FollowUpOrganizeControls({
 
   useEffect(() => {
     let cancelled = false;
-    setPreview(null);
-    setPreviewSourceText(null);
-    setError(null);
+    requestGeneration.current += 1;
 
     const endpoint = customerId
       ? `/api/customers/${customerId}/follow-ups/organize`
@@ -91,10 +97,16 @@ export function FollowUpOrganizeControls({
 
     return () => {
       cancelled = true;
+      requestGeneration.current += 1;
     };
   }, [customerId]);
 
   async function runOrganize(mode: "basic" | "ai") {
+    if (submissionLocked.current) return;
+    submissionLocked.current = true;
+    const generation = requestGeneration.current;
+    setPreview(null);
+    setPreviewSourceText(null);
     setError(null);
     setLastMode(mode);
     setLoadingMode(mode);
@@ -102,20 +114,6 @@ export function FollowUpOrganizeControls({
     const sourceText = value;
 
     try {
-      if (mode === "basic") {
-        const result = organizeFollowUpTextBasic(sourceText);
-        if (
-          !result.organizedText &&
-          result.warnings.some((w) => w.code === "INPUT_EMPTY")
-        ) {
-          setError(t("followUpOrganize.warnings.inputEmpty"));
-          return;
-        }
-        setPreviewSourceText(sourceText);
-        setPreview(result);
-        return;
-      }
-
       const endpoint = customerId
         ? `/api/customers/${customerId}/follow-ups/organize`
         : `/api/ai/follow-up-organize`;
@@ -128,7 +126,7 @@ export function FollowUpOrganizeControls({
           "Content-Type": "application/json",
           "Idempotency-Key": reservationKey,
         },
-        body: JSON.stringify({ mode: "ai", text: sourceText }),
+        body: JSON.stringify({ mode, text: sourceText, locale }),
       });
       const data = (await response.json()) as {
         result?: FollowUpOrganizationResult;
@@ -136,11 +134,14 @@ export function FollowUpOrganizeControls({
         error?: string;
         errorCode?: string;
       };
+      if (generation !== requestGeneration.current) return;
       if (data.availability) {
         setAvailability(data.availability);
       }
       if (!response.ok || !data.result) {
-        if (data.errorCode === "AI_STAFF_RESERVATION_CONFLICT") {
+        if (mode === "basic") {
+          setError(t("followUpOrganize.basicFailure"));
+        } else if (data.errorCode === "AI_STAFF_RESERVATION_CONFLICT") {
           setError(t("followUpOrganize.errors.idempotencyConflict"));
         } else {
           setError(
@@ -156,8 +157,10 @@ export function FollowUpOrganizeControls({
       setPreviewSourceText(sourceText);
       setPreview(data.result);
     } catch {
+      if (generation !== requestGeneration.current) return;
       setError(t("followUpOrganize.errors.network"));
     } finally {
+      submissionLocked.current = false;
       inFlightKeyRef.current = null;
       setLoadingMode(null);
     }
@@ -185,7 +188,9 @@ export function FollowUpOrganizeControls({
   }
 
   const sourceLabel =
-    preview?.source === "external_ai"
+    preview?.source === "cloudflare_ai"
+      ? t("followUpOrganize.sourceCloudflare")
+      : preview?.source === "external_ai"
       ? t("followUpOrganize.sourceAi")
       : preview?.source === "mock"
         ? t("followUpOrganize.sourceMock")
@@ -225,6 +230,8 @@ export function FollowUpOrganizeControls({
           </span>
         ) : null}
       </div>
+
+      <p className="text-xs text-[#6B7890]">{t("followUpOrganize.basicCloudflareHint")}</p>
 
       {availability && !availability.canUseAi && (
         <p className="text-xs text-[#6B7890]">
@@ -276,7 +283,7 @@ export function FollowUpOrganizeControls({
               </div>
             </div>
 
-            <div className="mt-4">
+            {preview.source !== "cloudflare_ai" && <div className="mt-4">
               <p className="text-xs font-medium text-slate-500">
                 {t("followUpOrganize.extractedInformation")}
               </p>
@@ -321,6 +328,8 @@ export function FollowUpOrganizeControls({
               </ul>
             </div>
 
+            }
+
             {preview.warnings.length > 0 && (
               <ul className="mt-3 space-y-1 text-xs text-amber-700 dark:text-amber-300">
                 {preview.warnings.map((w) => (
@@ -347,6 +356,7 @@ export function FollowUpOrganizeControls({
               </button>
               <button
                 type="button"
+                disabled={loadingMode !== null}
                 onClick={() => void runOrganize(lastMode)}
                 className="rounded-md border border-slate-200 px-3 py-1.5 text-sm dark:border-slate-600"
               >

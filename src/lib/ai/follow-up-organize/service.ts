@@ -1,3 +1,5 @@
+import { organizeBasicWithCloudflare, type BasicAiService } from "./cloudflare-basic";
+import { BASIC_FLUENCY_MAX_INPUT } from "./fluency-contract";
 import type { Database } from "@/lib/db";
 import type { User } from "../../../../drizzle/schema/users";
 import type { Customer } from "../../../../drizzle/schema/customers";
@@ -76,7 +78,7 @@ function validateOrganizeText(text: unknown, mode: unknown): {
   if (typeof text !== "string") {
     throw new FollowUpOrganizeValidationError("INPUT_EMPTY", "請輸入跟進文字");
   }
-  if (text.length > FOLLOW_UP_ORGANIZE_MAX_LENGTH) {
+  if (text.length > (mode === "basic" ? BASIC_FLUENCY_MAX_INPUT : FOLLOW_UP_ORGANIZE_MAX_LENGTH)) {
     throw new FollowUpOrganizeValidationError(
       "INPUT_TOO_LONG",
       "跟進文字過長",
@@ -136,16 +138,18 @@ export async function organizeFollowUpForUser(
   input: {
     mode: unknown;
     text: unknown;
+    locale?: unknown;
     reservationKey?: string;
     customer?: Customer | null;
   },
+  dependencies: { basicAiService?: BasicAiService } = {},
 ): Promise<FollowUpOrganizationResult> {
   const { text, mode } = validateOrganizeText(input.text, input.mode);
   const now = new Date();
   const generatedAt = now.toISOString();
 
   if (mode === "basic") {
-    return organizeFollowUpTextBasic(text, { nowIso: generatedAt });
+    return organizeBasicWithCloudflare(text, input.locale, generatedAt, dependencies.basicAiService);
   }
 
   const settings = await getEffectiveAiSettings(db);

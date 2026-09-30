@@ -5009,6 +5009,9 @@ const en = {
     firstContactGateCta: "Go to first contact",
   },
   followUpOrganize: {
+    sourceCloudflare: 'Cloudflare AI fluency',
+    basicCloudflareHint: 'Only this text is sent for fluency editing. Review the proposal before using it; no customer analysis quota is used.',
+    basicFailure: 'Unable to safely organize this text. Your original is unchanged; edit manually or try again.',
     basicButton: "Basic cleanup",
     aiButton: "AI organize",
     basicHint: "Does not use AI quota",

@@ -12,6 +12,11 @@ import {
 } from "@/lib/ai/follow-up-organize/prompt";
 
 describe("follow-up organize response safety", () => {
+  it("allows basic fluency without external-provider availability, retaining leak checks", () => {
+    assert.equal(assertFollowUpOrganizeResponseSafe({ result: { source: "cloudflare_ai" } }), true);
+    assert.equal(assertFollowUpOrganizeResponseSafe({ result: { source: "external_ai" } }), false);
+    assert.equal(assertFollowUpOrganizeResponseSafe({ result: { source: "cloudflare_ai", rawResponse: "unsafe" } }), false);
+  });
   it("rejects bodies that leak sensitive keys", () => {
     assert.equal(
       assertFollowUpOrganizeResponseSafe({

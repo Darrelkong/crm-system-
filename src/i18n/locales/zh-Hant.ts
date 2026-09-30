@@ -4719,6 +4719,9 @@ const zhHant: Messages = {
     firstContactGateCta: "前往完成首次聯繫",
   },
   followUpOrganize: {
+    sourceCloudflare: 'Cloudflare AI 基礎整理',
+    basicCloudflareHint: '僅傳送目前文字潤飾，請核對建議後再採用；不消耗客戶智能分析額度。',
+    basicFailure: '暫時無法安全整理此文字。原文未更改，可手動編輯或重試。',
     basicButton: "基礎整理",
     aiButton: "AI 智能整理",
     basicHint: "不消耗 AI 次數",

@@ -15,7 +15,7 @@ const staff = {
 } as User;
 
 describe("organizeFollowUpForUser basic path", () => {
-  it("runs basic mode without touching DB/provider", async () => {
+  it("runs basic mode through the isolated binding without DB/Gemini", async () => {
     const result = await organizeFollowUpForUser(
       {} as Database,
       staff,
@@ -23,8 +23,14 @@ describe("organizeFollowUpForUser basic path", () => {
         mode: "basic",
         text: "  客戶說有興趣\n\n\n下一步發送資料  ",
       },
+      { basicAiService: { fetch: async (_url, init) => {
+        const body = JSON.parse(String(init.body));
+        assert.deepEqual(Object.keys(body).sort(), ["locale", "schemaVersion", "task", "text"]);
+        assert.equal(body.task, "basic_text_organize");
+        return Response.json({ok:true, data:{text:"客戶說有興趣。下一步發送資料。"}});
+      } } },
     );
-    assert.equal(result.source, "basic_rules");
+    assert.equal(result.source, "cloudflare_ai");
     assert.ok(result.organizedText.includes("客戶說有興趣"));
     assert.equal(result.organizedText.includes("\n\n\n"), false);
   });
