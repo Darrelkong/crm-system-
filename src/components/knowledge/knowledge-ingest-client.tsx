@@ -55,8 +55,8 @@ import type { KnowledgeSourceAnalysisStatus } from "../../../drizzle/schema/know
 import { RequestedProjectSelector } from "@/components/customers/requested-project-selector";
 import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
 import {
-  buildOrganizerDraftFromOrganization,
   emptyOrganizerDraft,
+  type OrganizerDraftFields,
 } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
 
 function canRetryVisionExtraction(source: KnowledgeSourceDetail): boolean {
@@ -140,6 +140,23 @@ export function KnowledgeIngestClient({
   const [categoryNotice, setCategoryNotice] = useState<
     "none" | "needs_confirmation" | "no_match"
   >("none");
+  const [categoryResolutionSource, setCategoryResolutionSource] = useState<
+    OrganizerDraftFields["categoryResolutionSource"]
+  >(null);
+  const [categoryAiSuggestion, setCategoryAiSuggestion] = useState<
+    OrganizerDraftFields["categoryAiSuggestion"]
+  >(null);
+  const [categorySelectionRequired, setCategorySelectionRequired] = useState(
+    false,
+  );
+  const [categoryAiRequiresConfirmation, setCategoryAiRequiresConfirmation] =
+    useState(false);
+  const [suggestedCategoryId, setSuggestedCategoryId] = useState<string | null>(
+    null,
+  );
+  const [suggestedCategoryName, setSuggestedCategoryName] = useState<
+    string | null
+  >(null);
   const manualRequestedProjectOverrideRef = useRef(false);
   const manualCategoryOverrideRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
@@ -305,24 +322,33 @@ export function KnowledgeIngestClient({
     setBody(empty.body);
     if (!options?.preserveKnowledgeCategory) {
       setCategoryId(empty.categoryId);
+      setCategoryResolutionSource(empty.categoryResolutionSource);
+      setCategoryAiSuggestion(empty.categoryAiSuggestion);
+      setSuggestedCategoryId(empty.suggestedCategoryId);
+      setSuggestedCategoryName(empty.suggestedCategoryName);
+      setCategoryAiRequiresConfirmation(empty.categoryAiRequiresConfirmation);
+      setCategorySelectionRequired(empty.categorySelectionRequired);
     }
     setRequestedProjectCode(empty.requestedProjectCode);
     setRequestedProjectName(empty.requestedProjectName);
     setCategoryNotice(empty.categoryNotice);
   }
 
-  function applyOrganization(source: KnowledgeSourceDetail) {
-    const organization = source.organization;
-    if (!organization || organization.status !== "completed") {
-      clearOrganizerDraftFields();
-      return;
-    }
-    const draft = buildOrganizerDraftFromOrganization(source, {
-      manualRequestedProjectCode: requestedProjectCode,
-      manualRequestedProjectOverride: manualRequestedProjectOverrideRef.current,
-      manualCategoryId: categoryId,
-      manualCategoryOverride: manualCategoryOverrideRef.current,
-    });
+  function adoptCategorySuggestion() {
+    const nextCategoryId =
+      suggestedCategoryId ?? categoryAiSuggestion?.categoryId ?? null;
+    if (!nextCategoryId) return;
+    manualCategoryOverrideRef.current = true;
+    setCategoryId(nextCategoryId);
+    setCategoryAiSuggestion(null);
+    setSuggestedCategoryId(null);
+    setSuggestedCategoryName(null);
+    setCategoryAiRequiresConfirmation(false);
+    setCategoryResolutionSource("manual");
+    setCategorySelectionRequired(false);
+  }
+
+  function applyOrganizerDraft(draft: OrganizerDraftFields) {
     setTitle(draft.title);
     setSummary(draft.summary);
     setBody(draft.body);
@@ -330,6 +356,69 @@ export function KnowledgeIngestClient({
     setRequestedProjectName(draft.requestedProjectName);
     setCategoryId(draft.categoryId);
     setCategoryNotice(draft.categoryNotice);
+    setCategoryResolutionSource(draft.categoryResolutionSource);
+    setCategoryAiSuggestion(draft.categoryAiSuggestion);
+    setSuggestedCategoryId(draft.suggestedCategoryId);
+    setSuggestedCategoryName(draft.suggestedCategoryName);
+    setCategoryAiRequiresConfirmation(draft.categoryAiRequiresConfirmation);
+    setCategorySelectionRequired(draft.categorySelectionRequired);
+  }
+
+  async function fetchOrganizerDraft(
+    source: KnowledgeSourceDetail,
+    overrides?: {
+      manualRequestedProjectCode?: string | null;
+      manualRequestedProjectOverride?: boolean;
+      manualCategoryId?: string | null;
+      manualCategoryOverride?: boolean;
+    },
+  ): Promise<OrganizerDraftFields | null> {
+    const organization = source.organization;
+    if (!organization || organization.status !== "completed") {
+      clearOrganizerDraftFields();
+      return null;
+    }
+    if (source.smartIngestScope.blocksSourceLevelOrganize) {
+      clearOrganizerDraftFields();
+      return null;
+    }
+    const response = await fetch(
+      `/api/knowledge/sources/${source.id}/organizer-draft`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          manualRequestedProjectCode:
+            overrides?.manualRequestedProjectCode ?? requestedProjectCode,
+          manualRequestedProjectOverride:
+            overrides?.manualRequestedProjectOverride ??
+            manualRequestedProjectOverrideRef.current,
+          manualCategoryId:
+            overrides?.manualCategoryId ?? (categoryId ? categoryId : null),
+          manualCategoryOverride:
+            overrides?.manualCategoryOverride ??
+            manualCategoryOverrideRef.current,
+        }),
+      },
+    );
+    const payload = (await response.json()) as {
+      draft?: OrganizerDraftFields;
+      error?: string;
+      errorCode?: string;
+    };
+    if (!response.ok || !payload.draft) {
+      throw new Error(
+        resolveKnowledgeApiError(t, payload, "knowledge.ingest.failure"),
+      );
+    }
+    return payload.draft;
+  }
+
+  async function applyOrganization(source: KnowledgeSourceDetail) {
+    const draft = await fetchOrganizerDraft(source);
+    if (draft) {
+      applyOrganizerDraft(draft);
+    }
   }
 
   const loadSourcesForLifecycle = useCallback(
@@ -452,7 +541,7 @@ export function KnowledgeIngestClient({
       if (payload.source.smartIngestScope.blocksSourceLevelOrganize) {
         clearOrganizerDraftFields();
       } else {
-        applyOrganization(payload.source);
+        await applyOrganization(payload.source);
       }
       setSaved(false);
       scrollDetailIntoView();
@@ -633,7 +722,7 @@ export function KnowledgeIngestClient({
         ),
       );
       if (selected?.id === payload.source.id) {
-        applyOrganization(payload.source);
+        await applyOrganization(payload.source);
       }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : t("knowledge.ingest.failure"));
@@ -733,7 +822,7 @@ export function KnowledgeIngestClient({
       if (payload.source.smartIngestScope.blocksSourceLevelOrganize) {
         clearOrganizerDraftFields();
       } else {
-        applyOrganization(payload.source);
+        await applyOrganization(payload.source);
       }
       setSources((current) =>
         current.map((source) =>
@@ -764,7 +853,11 @@ export function KnowledgeIngestClient({
     event.preventDefault();
     if (!selected) return;
     if (!categoryId) {
-      setError(t("knowledge.ingest.knowledgeCategoryRequiredBeforeDraft"));
+      setError(
+        categoryAiRequiresConfirmation || categoryAiSuggestion
+          ? t("knowledge.ingest.categoryAiConfirmRequired")
+          : t("knowledge.ingest.knowledgeCategoryRequiredBeforeDraft"),
+      );
       return;
     }
     setBusy(true);
@@ -816,7 +909,9 @@ export function KnowledgeIngestClient({
   const isArchivedView = lifecycle === "archived";
   const selectedArchived = Boolean(selected?.archivedAt);
   const inDetailMode = Boolean(selected);
-  const organizerWarnings = selected?.organization?.warnings ?? [];
+  const organizerWarnings = [
+    ...new Set(selected?.organization?.warnings ?? []),
+  ];
   const visionHumanReviewRequired = selected
     ? sourceRequiresVisionHumanReview({
         extractionMethod: selected.extractionMethod,
@@ -1442,6 +1537,8 @@ export function KnowledgeIngestClient({
                   <KnowledgeSmartIngestAnalysisSection
                     key={selected.id}
                     source={selected}
+                    categories={initialCategories}
+                    locale={locale}
                     onAnalysisStatusChange={syncSourceAnalysisStatus}
                     onScopeChange={setSmartIngestScopeLive}
                     onAnalysisComplete={handleAnalysisComplete}
@@ -1453,7 +1550,12 @@ export function KnowledgeIngestClient({
                 <Card className="p-4" data-ingest-step="organize">
                   <KnowledgeIngestStepHeader
                     step={3}
-                    title={t("knowledge.ingest.stepOrganize")}
+                    title={
+                      blocksSourceLevelPipeline &&
+                      (smartIngestScope?.confirmedSegmentCount ?? 0) > 0
+                        ? t("knowledge.ingest.smartIngestStepIndependentOrganize")
+                        : t("knowledge.ingest.stepOrganize")
+                    }
                     status={
                       organizationReady
                         ? t("knowledge.ingest.statusCompleted")
@@ -1474,16 +1576,30 @@ export function KnowledgeIngestClient({
                       className="mt-4 rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm leading-6 text-sky-950"
                       data-smart-ingest-multi-topic-block="true"
                     >
-                      <p className="font-medium">
-                        {t("knowledge.ingest.smartIngestMultiTopicTitle", {
-                          count: String(
-                            smartIngestScope?.retainedProposedSegmentCount ?? 0,
-                          ),
-                        })}
-                      </p>
-                      <p className="mt-2">
-                        {t("knowledge.ingest.smartIngestMultiTopicBody")}
-                      </p>
+                      {(smartIngestScope?.unconfirmedProposedCount ?? 0) === 0 &&
+                      (smartIngestScope?.confirmedSegmentCount ?? 0) > 0 ? (
+                        <>
+                          <p className="font-medium">
+                            {t("knowledge.ingest.smartIngestStepIndependentOrganize")}
+                          </p>
+                          <p className="mt-2 text-sky-900">
+                            {t("knowledge.ingest.smartIngestStepIndependentOrganizeBody")}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">
+                            {t("knowledge.ingest.smartIngestMultiTopicTitle", {
+                              count: String(
+                                smartIngestScope?.activeSegmentCount ?? 0,
+                              ),
+                            })}
+                          </p>
+                          <p className="mt-2">
+                            {t("knowledge.ingest.smartIngestMultiTopicBody")}
+                          </p>
+                        </>
+                      )}
                     </div>
                   ) : null}
                   {visionOrganizeBlocked ? (
@@ -1556,7 +1672,7 @@ export function KnowledgeIngestClient({
                 </Card>
               )}
 
-              {organizationReady && !selectedArchived && (
+              {organizationReady && !selectedArchived && !blocksSourceLevelPipeline && (
                 <Card className="p-4" data-ingest-step="comparison">
                   <KnowledgeIngestStepHeader
                     step={3}
@@ -1581,7 +1697,7 @@ export function KnowledgeIngestClient({
                 </Card>
               )}
 
-              {organizationReady && !selectedArchived && (
+              {organizationReady && !selectedArchived && !blocksSourceLevelPipeline && (
                 <Card className="p-4" data-ingest-step="draft">
                   <KnowledgeIngestStepHeader
                     step={4}
@@ -1641,6 +1757,22 @@ export function KnowledgeIngestClient({
                           setRequestedProjectCode(code);
                           setRequestedProjectName(item?.canonicalZhHans ?? "");
                           setCategoryNotice("none");
+                          if (selected?.organization?.status === "completed") {
+                            void fetchOrganizerDraft(selected, {
+                              manualRequestedProjectCode: code,
+                              manualRequestedProjectOverride: true,
+                            })
+                              .then((draft) => {
+                                if (draft) applyOrganizerDraft(draft);
+                              })
+                              .catch((caught) => {
+                                setError(
+                                  caught instanceof Error
+                                    ? caught.message
+                                    : t("knowledge.ingest.failure"),
+                                );
+                              });
+                          }
                         }}
                       />
                       {categoryNotice === "needs_confirmation" ? (
@@ -1654,16 +1786,119 @@ export function KnowledgeIngestClient({
                         </p>
                       ) : null}
                     </div>
-                    <label className="block text-sm font-medium crm-text">
-                      {t("knowledge.ingest.knowledgeLibraryCategory")}
+                    <div className="space-y-2" data-knowledge-category-field="true">
+                      <p className="text-sm font-medium crm-text">
+                        {t("knowledge.ingest.knowledgeLibraryCategory")}
+                      </p>
+                      {(() => {
+                        const pendingAiConfirmation =
+                          categoryAiRequiresConfirmation &&
+                          !categoryId &&
+                          Boolean(suggestedCategoryId ?? categoryAiSuggestion);
+                        const displayCategoryName =
+                          categoryId
+                            ? initialCategories.find(
+                                (category) => category.id === categoryId,
+                              )?.name ?? ""
+                            : suggestedCategoryName ??
+                              categoryAiSuggestion?.categoryName ??
+                              "";
+                        const showAiSuggestedBadge =
+                          categoryResolutionSource === "ai_suggestion" ||
+                          pendingAiConfirmation;
+                        const showSelectionRequiredBadge =
+                          categorySelectionRequired &&
+                          !categoryId &&
+                          !pendingAiConfirmation;
+                        return (
+                          <>
+                            {displayCategoryName &&
+                            (categoryId || pendingAiConfirmation) ? (
+                              <div
+                                className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-800"
+                                data-knowledge-category-display="true"
+                              >
+                                <span>{displayCategoryName}</span>
+                                {showAiSuggestedBadge ? (
+                                  <Badge
+                                    variant="accent"
+                                    className="text-xs"
+                                    data-category-state-badge="ai_suggestion"
+                                  >
+                                    {t("knowledge.ingest.categoryAiSuggested")}
+                                  </Badge>
+                                ) : null}
+                                {pendingAiConfirmation ? (
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    size="sm"
+                                    data-adopt-category-suggestion="true"
+                                    onClick={adoptCategorySuggestion}
+                                  >
+                                    {t("knowledge.ingest.adoptCategorySuggestion")}
+                                  </Button>
+                                ) : null}
+                              </div>
+                            ) : null}
+                            <div className="flex flex-wrap items-center gap-2">
+                              {categoryResolutionSource === "explicit_mapping" ? (
+                                <Badge
+                                  variant="accent"
+                                  className="text-xs"
+                                  data-category-state-badge="explicit_mapping"
+                                >
+                                  {t("knowledge.ingest.categoryAutoMatched")}
+                                </Badge>
+                              ) : null}
+                              {categoryResolutionSource === "manual" &&
+                              categoryId ? (
+                                <Badge
+                                  variant="default"
+                                  className="text-xs"
+                                  data-category-state-badge="manual"
+                                >
+                                  {t("knowledge.ingest.categoryManualSelected")}
+                                </Badge>
+                              ) : null}
+                              {showAiSuggestedBadge &&
+                              categoryId &&
+                              !displayCategoryName ? (
+                                <Badge
+                                  variant="accent"
+                                  className="text-xs"
+                                  data-category-state-badge="ai_suggestion"
+                                >
+                                  {t("knowledge.ingest.categoryAiSuggested")}
+                                </Badge>
+                              ) : null}
+                              {showSelectionRequiredBadge ? (
+                                <Badge
+                                  variant="warning"
+                                  className="text-xs"
+                                  data-category-state-badge="selection_required"
+                                >
+                                  {t("knowledge.ingest.categorySelectionRequired")}
+                                </Badge>
+                              ) : null}
+                            </div>
+                          </>
+                        );
+                      })()}
                       <select
                         required
                         value={categoryId}
                         onChange={(event) => {
                           manualCategoryOverrideRef.current = true;
                           setCategoryId(event.target.value);
+                          setCategoryResolutionSource("manual");
+                          setCategoryAiSuggestion(null);
+                          setSuggestedCategoryId(null);
+                          setSuggestedCategoryName(null);
+                          setCategoryAiRequiresConfirmation(false);
+                          setCategorySelectionRequired(false);
                         }}
-                        className="mt-1 min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
+                        className="min-h-11 w-full rounded-xl border border-slate-200 bg-white px-3"
                       >
                         <option value="">{t("knowledge.ingest.noCategory")}</option>
                         {initialCategories
@@ -1674,7 +1909,7 @@ export function KnowledgeIngestClient({
                             </option>
                           ))}
                       </select>
-                    </label>
+                    </div>
                     <Button
                       type="submit"
                       disabled={busy || selected.status === "converted"}

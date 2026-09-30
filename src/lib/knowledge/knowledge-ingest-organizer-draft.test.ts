@@ -78,6 +78,18 @@ const chaseIdentity = {
 };
 
 describe("knowledge ingest organizer draft", () => {
+  it("intentional manual blank outranks both explicit mapping and AI", () => {
+    assert.equal(resolveOrganizerKnowledgeCategoryId({
+      manualCategoryId: null, manualCategoryOverride: true,
+      explicitMappingCategoryId: "mapped", aiPrefillCategoryId: "suggested",
+    }), "");
+  });
+  it("an explicit human-cleared business identity cannot fall back to AI identity", () => {
+    assert.equal(resolveOrganizerRequestedProjectCode({
+      identity: chaseIdentity, manualCode: null, manualOverride: true,
+    }), null);
+  });
+
   it("E: manual CRM business override does not modify Knowledge category", () => {
     const code = resolveOrganizerRequestedProjectCode({
       identity: chaseIdentity,
@@ -94,22 +106,27 @@ describe("knowledge ingest organizer draft", () => {
     );
   });
 
-  it("C: matching Knowledge category name does not auto-select categoryId", () => {
-    const draft = buildOrganizerDraftFromOrganization(
-      sourceWithIdentity(chaseIdentity),
-      {
-        manualRequestedProjectCode: null,
-        manualRequestedProjectOverride: false,
+  it("C: explicit mapping id is ignored when manual category override is set", () => {
+    assert.equal(
+      resolveOrganizerKnowledgeCategoryId({
+        manualCategoryId: "cat-manual",
+        manualCategoryOverride: true,
+        explicitMappingCategoryId: "cat-auto",
+      }),
+      "cat-manual",
+    );
+    assert.equal(
+      resolveOrganizerKnowledgeCategoryId({
         manualCategoryId: null,
         manualCategoryOverride: false,
-      },
+        explicitMappingCategoryId: null,
+      }),
+      "",
     );
-    assert.equal(draft.requestedProjectCode, "us_bank_account");
-    assert.equal(draft.categoryId, "");
   });
 
-  it("D: manual Knowledge category preserved when applying organization", () => {
-    const draft = buildOrganizerDraftFromOrganization(
+  it("D: manual Knowledge category preserved when applying organization", async () => {
+    const draft = await buildOrganizerDraftFromOrganization(
       sourceWithIdentity({
         ...chaseIdentity,
         requestedProjectCode: "hk_bank_account",
@@ -127,8 +144,8 @@ describe("knowledge ingest organizer draft", () => {
     assert.equal(draft.categoryId, "cat-sop");
   });
 
-  it("H: no-match CRM identity does not invent Knowledge category", () => {
-    const draft = buildOrganizerDraftFromOrganization(
+  it("H: no-match CRM identity does not invent Knowledge category", async () => {
+    const draft = await buildOrganizerDraftFromOrganization(
       sourceWithIdentity({
         title: "Unknown",
         countryGroupCode: "other",
@@ -144,6 +161,14 @@ describe("knowledge ingest organizer draft", () => {
         manualRequestedProjectOverride: false,
         manualCategoryId: null,
         manualCategoryOverride: false,
+      },
+      undefined,
+      {
+        suggestCategory: async () => ({
+          status: "insufficient_confidence",
+          resolutionSource: null,
+          requiresConfirmation: false,
+        }),
       },
     );
     assert.equal(draft.requestedProjectCode, null);

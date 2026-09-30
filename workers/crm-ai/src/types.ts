@@ -6,7 +6,8 @@ export type SystemAiTask =
   | "knowledge_organize"
   | "knowledge_qa"
   | "knowledge_compare"
-  | "knowledge_vision_extract";
+  | "knowledge_vision_extract"
+  | "knowledge_category_suggest";
 
 export type KnowledgeVisionWarningCode =
   | "BLURRY_IMAGE"
@@ -118,6 +119,20 @@ export type CrmAiKnowledgeVisionExtractRequest = {
   byteSize: number;
 };
 
+export type CrmAiKnowledgeCategorySuggestRequest = {
+  task: "knowledge_category_suggest";
+  schemaVersion: string;
+  locale: string;
+  systemPrompt: string;
+  userPrompt: string;
+};
+
+export type KnowledgeCategorySuggestOutput = {
+  categoryId: string | null;
+  confidenceBand: "high" | "medium" | "low";
+  reason?: string;
+};
+
 export type KnowledgeOrganizeOutput = {
   title: string;
   summary: string | null;
@@ -168,10 +183,17 @@ export type CrmAiRequest =
   | CrmAiKnowledgeOrganizeRequest
   | CrmAiKnowledgeQaRequest
   | CrmAiKnowledgeCompareRequest
-  | CrmAiKnowledgeVisionExtractRequest;
+  | CrmAiKnowledgeVisionExtractRequest
+  | CrmAiKnowledgeCategorySuggestRequest;
 
 export type CrmAiEnv = {
   AI: Ai;
+  /** Explicit Preview-only opt-in; unset preserves the Production gateway. */
+  CRM_AI_GATEWAY_MODE?: "direct";
+  /** Allowlisted comparison-only override; unset preserves Qwen. */
+  CRM_AI_KNOWLEDGE_COMPARE_MODEL?: string;
+  /** Comparison-only response budget, default 20s, bounded to at most 60s. */
+  CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS?: string;
   CRM_AI_TIMEOUT_MS?: string;
   CRM_AI_VISION_TIMEOUT_MS?: string;
 };
@@ -183,4 +205,5 @@ export type CrmAiHandleResult =
   | AiServiceResult<KnowledgeOrganizeOutput>
   | AiServiceResult<KnowledgeQaOutput>
   | AiServiceResult<KnowledgeCompareOutput>
-  | AiServiceResult<KnowledgeVisionExtractOutput>;
+  | AiServiceResult<KnowledgeVisionExtractOutput>
+  | AiServiceResult<KnowledgeCategorySuggestOutput>;

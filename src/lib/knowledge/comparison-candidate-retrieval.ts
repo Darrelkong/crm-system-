@@ -41,6 +41,17 @@ function normalizeWhitespace(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
+export function buildSegmentEvidencePreRetrievalQuery(input: {
+  segmentTitleHint: string;
+  evidenceText: string;
+}): string {
+  const title = input.segmentTitleHint.trim();
+  const excerpt = normalizeWhitespace(
+    input.evidenceText.slice(0, KNOWLEDGE_COMPARISON_SOURCE_EXCERPT_MAX_CHARS),
+  );
+  return [title, excerpt].filter(Boolean).join(" ").slice(0, 200);
+}
+
 export function buildSourcePreRetrievalQuery(input: {
   sourceTitle: string | null;
   rawText: string;
@@ -247,6 +258,51 @@ export async function retrieveComparisonCandidates(
   const preQuery = buildSourcePreRetrievalQuery({
     sourceTitle: input.sourceTitle,
     rawText: input.rawText,
+  });
+  const postQuery = buildOrganizerPostRetrievalQuery({
+    proposedTitle: input.proposedTitle,
+    proposedSummary: input.proposedSummary,
+    proposedCategory: input.proposedCategory,
+    proposedBody: input.proposedBody,
+  });
+
+  const preDocuments =
+    preQuery.trim().length > 0
+      ? await retrievePublishedKnowledge(
+          context,
+          preQuery,
+          { limit: KNOWLEDGE_COMPARISON_PRE_RETRIEVAL_LIMIT },
+          db,
+        )
+      : [];
+  const postDocuments =
+    postQuery.trim().length > 0
+      ? await retrievePublishedKnowledge(
+          context,
+          postQuery,
+          { limit: KNOWLEDGE_COMPARISON_POST_RETRIEVAL_LIMIT },
+          db,
+        )
+      : [];
+
+  return mergeComparisonCandidates(preDocuments, postDocuments, postQuery || preQuery);
+}
+
+export async function retrieveComparisonCandidatesForSegment(
+  context: KnowledgeSessionContext,
+  input: {
+    segmentTitleHint: string;
+    evidenceText: string;
+    proposedTitle: string | null;
+    proposedSummary: string | null;
+    proposedCategory: string | null;
+    proposedBody: string | null;
+  },
+  db: Database = getDb(),
+): Promise<ComparisonCandidate[]> {
+  const preQuery = buildSegmentEvidencePreRetrievalQuery({
+    segmentTitleHint: input.segmentTitleHint,
+    evidenceText: input.evidenceText,
   });
   const postQuery = buildOrganizerPostRetrievalQuery({
     proposedTitle: input.proposedTitle,

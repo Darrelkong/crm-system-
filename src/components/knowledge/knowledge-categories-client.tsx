@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { KnowledgeCategoryListItem } from "@/lib/knowledge/core-service";
 import { resolveKnowledgeApiError } from "@/lib/knowledge/error-messages";
+import { KnowledgeBusinessMappingAdmin } from "@/components/knowledge/knowledge-business-mapping-admin";
 
 export function KnowledgeCategoriesClient({
   initialCategories,
@@ -20,6 +21,9 @@ export function KnowledgeCategoriesClient({
   const [categoryName, setCategoryName] = useState("");
   const [categoryDescription, setCategoryDescription] = useState("");
   const [categoryError, setCategoryError] = useState<string | null>(null);
+  const [adminTab, setAdminTab] = useState<"categories" | "businessMapping">(
+    "categories",
+  );
 
   async function reloadCategories() {
     const response = await fetch("/api/knowledge/catalog", {
@@ -96,6 +100,37 @@ export function KnowledgeCategoriesClient({
 
   return (
     <div className="space-y-4">
+      <div
+        className="flex flex-wrap gap-2"
+        role="tablist"
+        data-knowledge-categories-admin-tabs="true"
+      >
+        <Button
+          type="button"
+          size="sm"
+          variant={adminTab === "categories" ? "primary" : "secondary"}
+          onClick={() => setAdminTab("categories")}
+          data-admin-tab="categories"
+        >
+          {t("knowledge.categories.tabCategories")}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant={adminTab === "businessMapping" ? "primary" : "secondary"}
+          onClick={() => setAdminTab("businessMapping")}
+          data-admin-tab="businessMapping"
+        >
+          {t("knowledge.categories.tabBusinessMapping")}
+        </Button>
+      </div>
+
+      {adminTab === "businessMapping" ? (
+        <KnowledgeBusinessMappingAdmin activeCategories={categories} />
+      ) : null}
+
+      {adminTab === "categories" ? (
+      <>
       <Card className="p-3 sm:p-4">
         <h2 className="text-sm font-semibold crm-text">
           {t("knowledge.home.manageCategories")}
@@ -161,6 +196,8 @@ export function KnowledgeCategoriesClient({
           </div>
         ))}
       </div>
+      </>
+      ) : null}
     </div>
   );
 }

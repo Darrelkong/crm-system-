@@ -45,13 +45,24 @@ export const STAFF_TODAY_ACTIONS_TOTAL_DEADLINE_MS = 20_000;
 export const KNOWLEDGE_ORGANIZE_PROMPT_VERSION = "knowledge-organize-v1";
 export const KNOWLEDGE_QA_PROMPT_VERSION = "knowledge-qa-v1";
 export const KNOWLEDGE_COMPARE_PROMPT_VERSION = "knowledge-compare-v1";
+export const KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION =
+  "knowledge-category-suggest-v1";
 export const KNOWLEDGE_MODEL = MODEL_QWEN;
+export const KNOWLEDGE_COMPARE_DEEPSEEK_MODEL = "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b";
+export const KNOWLEDGE_COMPARE_GLM_MODEL = "@cf/zai-org/glm-4.7-flash";
+/** Only comparison may opt in. Unset/unknown configuration preserves Qwen. */
+export function resolveKnowledgeCompareModel(override: string | undefined): string {
+  return override === KNOWLEDGE_COMPARE_GLM_MODEL || override === KNOWLEDGE_COMPARE_DEEPSEEK_MODEL
+    ? override : KNOWLEDGE_MODEL;
+}
 export const KNOWLEDGE_ORGANIZE_TEMPERATURE = 0.2;
 export const KNOWLEDGE_QA_TEMPERATURE = 0.2;
 export const KNOWLEDGE_COMPARE_TEMPERATURE = 0.2;
 export const KNOWLEDGE_ORGANIZE_MAX_TOKENS = 4096;
 export const KNOWLEDGE_QA_MAX_TOKENS = 2048;
 export const KNOWLEDGE_COMPARE_MAX_TOKENS = 3072;
+export const KNOWLEDGE_CATEGORY_SUGGEST_TEMPERATURE = 0.1;
+export const KNOWLEDGE_CATEGORY_SUGGEST_MAX_TOKENS = 512;
 export const KNOWLEDGE_MAX_RETRIES = 1;
 export const KNOWLEDGE_TOTAL_DEADLINE_MS = 20_000;
 
@@ -105,6 +116,14 @@ export function resolveKnowledgeDeadlineMs(raw: string | undefined): number {
     return rounded;
   }
   return Math.min(20_000, Math.max(15_000, rounded));
+}
+
+/** Comparison-only total response budget; independent of shared/vision settings. */
+export function resolveKnowledgeCompareDeadlineMs(raw: string | undefined): number {
+  if (!raw?.trim()) return KNOWLEDGE_TOTAL_DEADLINE_MS;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return KNOWLEDGE_TOTAL_DEADLINE_MS;
+  return Math.min(60_000, Math.max(1_000, Math.round(parsed)));
 }
 
 export function resolveKnowledgeVisionDeadlineMs(

@@ -1,4 +1,5 @@
 import { getDb, schema, type Database } from "@/lib/db";
+import { sql, type SQL } from "drizzle-orm";
 
 export type KnowledgeAuditAction =
   | "knowledge.bootstrap"
@@ -88,4 +89,15 @@ export async function writeKnowledgeAudit(
     metadata: input.metadata ? JSON.stringify(input.metadata) : null,
     createdAt: new Date().toISOString(),
   });
+}
+
+/** Keep conditional state changes and their audit in the same D1 batch. */
+export function buildKnowledgeAuditInsertWhere(db: Database, input: KnowledgeAuditInput, condition: SQL) {
+  return db.insert(schema.auditLogs).select(sql`
+    SELECT ${crypto.randomUUID()}, ${input.userId}, ${input.action},
+      ${input.entityType}, ${input.entityId}, ${input.ipAddress ?? null},
+      ${input.userAgent ?? null}, ${input.metadata ? JSON.stringify(input.metadata) : null},
+      ${new Date().toISOString()}
+    WHERE ${condition}
+  `);
 }

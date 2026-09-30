@@ -56,7 +56,7 @@ export function buildMockKnowledgeOrganizationOutput(
       ]
     : [];
 
-  return finalizeKnowledgeOrganizerArticleOutput(
+  let output = finalizeKnowledgeOrganizerArticleOutput(
     canonicalizeKnowledgeOrganizerOutput({
       title,
       summary,
@@ -66,4 +66,25 @@ export function buildMockKnowledgeOrganizationOutput(
     }),
     { sourceEvidence: rawText },
   );
+  if (!output.summary?.trim()) {
+    const repaired = buildDeterministicKnowledgeSummary({
+      title: output.title,
+      body: output.body,
+      sourceEvidence: rawText,
+    });
+    if (repaired?.trim()) {
+      output = { ...output, summary: repaired };
+    } else {
+      const evidenceLine =
+        rawText
+          .split(/\r?\n/)
+          .map((line) => line.trim())
+          .find((line) => line.length > 0) ?? output.title;
+      output = {
+        ...output,
+        summary: `${evidenceLine}相关办理要求与限制说明。`.slice(0, 160),
+      };
+    }
+  }
+  return output;
 }

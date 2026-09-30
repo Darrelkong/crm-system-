@@ -30,21 +30,21 @@
     },
     {
       "binding": "AI_SERVICE",
-      "service": "crm-ai"
+      "service": "crm-ai-si2-preview"
     }
   ],
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "crm-db-knowledge-preview",
-      "database_id": "14b75c29-3faf-4389-8aa8-48f06fa75355",
+      "database_name": "crm-db-si2-preview",
+      "database_id": "66f0e690-25d1-45d2-aa16-197c5e7f0802",
       "migrations_dir": "drizzle/migrations"
     }
   ],
   "r2_buckets": [
     {
       "binding": "KNOWLEDGE_SOURCES",
-      "bucket_name": "crm-knowledge-sources-preview"
+      "bucket_name": "crm-knowledge-si2-preview"
     }
   ],
   "vars": {
@@ -55,6 +55,9 @@
     "MAIL_NOTIFICATION_TRANSPORT_ENABLED": "false",
     "MAIL_OUTBOUND_TRANSPORT_MODE": "disabled",
     "MAIL_LARGE_ATTACHMENT_RUNTIME_ENABLED": "false",
-    "MAIL_LARGE_ATTACHMENT_SEND_ENABLED": "false"
-  }
+    "MAIL_LARGE_ATTACHMENT_SEND_ENABLED": "false",
+    "CRM_ALLOW_TEST_DB_BIND": "0",
+    "MAIL_NOTIFICATION_VERIFICATION_TRANSPORT_MODE": "disabled"
+  },
+  "account_id": "809c05c9f500268e973938fd641eee39"
 }

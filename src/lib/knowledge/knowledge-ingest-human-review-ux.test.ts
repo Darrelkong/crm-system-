@@ -86,9 +86,12 @@ describe("knowledge ingest human review UX", () => {
       join(root, "src/lib/knowledge/smart-ingest-analysis-service.ts"),
       "utf8",
     );
-    assert.match(service, /supersedeSegmentsForReanalysis/);
-    assert.match(service, /"confirmed"/);
-    assert.match(service, /"rejected"/);
+    // 1B-A moved supersession into the guarded analysis-start batch.
+    const start = service.slice(service.indexOf("export async function startKnowledgeSourceAnalysis"),
+      service.indexOf("export async function", service.indexOf("export async function startKnowledgeSourceAnalysis") + 1));
+    assert.match(start, /await db\.batch\(\[/);
+    assert.match(start, /db\.update\(schema\.knowledgeSourceSegments\)\.set\(\{ status: "superseded" \}\)/);
+    assert.match(start, /inArray\(schema\.knowledgeSourceSegments\.status, \["proposed", "confirmed", "rejected"\]\), created/);
   });
 
   it("M: human review strings exist in locales", () => {

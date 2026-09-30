@@ -58,7 +58,10 @@ export const knowledgeAiComparisonOutputSchema = z
     uncertainties: z.array(diffItemSchema).max(20),
     suggestedUpdates: z.array(suggestedUpdateSchema).max(20),
   })
-  .strict();
+  .strict()
+  .refine(value => value.relationship !== "update_existing" || value.matchedCandidateKey !== null, {
+    message: "update_existing requires a matched candidate", path: ["matchedCandidateKey"],
+  });
 
 export type KnowledgeAiComparisonOutput = z.infer<
   typeof knowledgeAiComparisonOutputSchema
@@ -79,6 +82,11 @@ export type KnowledgeComparisonStoredResult = {
   uncertainties: KnowledgeComparisonDiffItem[];
   suggestedUpdates: KnowledgeComparisonSuggestedUpdate[];
   degradationLevel?: string | null;
+  comparedOrganizerDraft?: {
+    title: string;
+    summary: string;
+    body: string;
+  };
 };
 
 export function emptyNoMatchComparisonResult(): KnowledgeComparisonStoredResult {
@@ -98,33 +106,4 @@ export function parseKnowledgeAiComparisonOutput(value: unknown) {
   return knowledgeAiComparisonOutputSchema.safeParse(value);
 }
 
-export const KNOWLEDGE_AI_COMPARISON_JSON_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  required: [
-    "relationship",
-    "matchedCandidateKey",
-    "matchConfidence",
-    "newFacts",
-    "changedFacts",
-    "conflicts",
-    "uncertainties",
-    "suggestedUpdates",
-  ],
-  properties: {
-    relationship: {
-      type: "string",
-      enum: ["update_existing", "new_article", "ambiguous"],
-    },
-    matchedCandidateKey: {
-      type: ["string", "null"],
-      enum: ["C1", "C2", "C3", null],
-    },
-    matchConfidence: { type: "number" },
-    newFacts: { type: "array", items: { type: "object" } },
-    changedFacts: { type: "array", items: { type: "object" } },
-    conflicts: { type: "array", items: { type: "object" } },
-    uncertainties: { type: "array", items: { type: "object" } },
-    suggestedUpdates: { type: "array", items: { type: "object" } },
-  },
-} as const;
+export { KNOWLEDGE_COMPARE_JSON_SCHEMA as KNOWLEDGE_AI_COMPARISON_JSON_SCHEMA } from "../../../workers/crm-ai/src/knowledge-comparison-schema";

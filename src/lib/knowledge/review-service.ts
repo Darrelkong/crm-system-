@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
 import {
@@ -331,7 +331,8 @@ async function getLinkedSourceContext(
     await db
       .select({ status: schema.knowledgeAiOrganizationRuns.status })
       .from(schema.knowledgeAiOrganizationRuns)
-      .where(eq(schema.knowledgeAiOrganizationRuns.sourceId, source.id))
+      .where(and(eq(schema.knowledgeAiOrganizationRuns.sourceId, source.id),
+        isNull(schema.knowledgeAiOrganizationRuns.candidateId)))
       .orderBy(desc(schema.knowledgeAiOrganizationRuns.createdAt))
       .limit(1)
   )[0];

@@ -1,5 +1,8 @@
+import { KNOWLEDGE_COMPARE_JSON_SCHEMA } from "./knowledge-comparison-schema";
 import {
   KNOWLEDGE_MODEL,
+  KNOWLEDGE_COMPARE_GLM_MODEL,
+  resolveKnowledgeCompareModel,
   KNOWLEDGE_COMPARE_MAX_TOKENS,
   KNOWLEDGE_COMPARE_PROMPT_VERSION,
   KNOWLEDGE_COMPARE_TEMPERATURE,
@@ -9,14 +12,19 @@ import {
   KNOWLEDGE_QA_MAX_TOKENS,
   KNOWLEDGE_QA_PROMPT_VERSION,
   KNOWLEDGE_QA_TEMPERATURE,
+  KNOWLEDGE_CATEGORY_SUGGEST_MAX_TOKENS,
+  KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION,
+  KNOWLEDGE_CATEGORY_SUGGEST_TEMPERATURE,
 } from "./models";
 import type {
   AiServiceError,
   AiServiceResult,
+  CrmAiKnowledgeCategorySuggestRequest,
   CrmAiKnowledgeCompareRequest,
   CrmAiKnowledgeOrganizeRequest,
   CrmAiKnowledgeQaRequest,
   CrmAiEnv,
+  KnowledgeCategorySuggestOutput,
   KnowledgeCompareOutput,
   KnowledgeOrganizeOutput,
   KnowledgeQaOutput,
@@ -35,34 +43,19 @@ export const KNOWLEDGE_ORGANIZATION_JSON_SCHEMA = {
   },
 } as const;
 
-export const KNOWLEDGE_COMPARE_JSON_SCHEMA = {
+export { KNOWLEDGE_COMPARE_JSON_SCHEMA } from "./knowledge-comparison-schema";
+
+export const KNOWLEDGE_CATEGORY_SUGGEST_JSON_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: [
-    "relationship",
-    "matchedCandidateKey",
-    "matchConfidence",
-    "newFacts",
-    "changedFacts",
-    "conflicts",
-    "uncertainties",
-    "suggestedUpdates",
-  ],
+  required: ["categoryId", "confidenceBand"],
   properties: {
-    relationship: {
+    categoryId: { type: ["string", "null"] },
+    confidenceBand: {
       type: "string",
-      enum: ["update_existing", "new_article", "ambiguous"],
+      enum: ["high", "medium", "low"],
     },
-    matchedCandidateKey: {
-      type: ["string", "null"],
-      enum: ["C1", "C2", "C3", null],
-    },
-    matchConfidence: { type: "number" },
-    newFacts: { type: "array", items: { type: "object" } },
-    changedFacts: { type: "array", items: { type: "object" } },
-    conflicts: { type: "array", items: { type: "object" } },
-    uncertainties: { type: "array", items: { type: "object" } },
-    suggestedUpdates: { type: "array", items: { type: "object" } },
+    reason: { type: "string" },
   },
 } as const;
 
@@ -145,6 +138,25 @@ export function validateKnowledgeCompareRequest(
   };
 }
 
+export function validateKnowledgeCategorySuggestRequest(
+  body: Record<string, unknown>,
+): CrmAiKnowledgeCategorySuggestRequest | null {
+  if (body.task !== "knowledge_category_suggest") return null;
+  if (body.schemaVersion !== KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION) {
+    return null;
+  }
+  const locale = validateKnowledgeLocale(body.locale);
+  const prompts = validatePromptPair(body.systemPrompt, body.userPrompt);
+  if (!locale || !prompts) return null;
+  return {
+    task: "knowledge_category_suggest",
+    schemaVersion: KNOWLEDGE_CATEGORY_SUGGEST_PROMPT_VERSION,
+    locale,
+    systemPrompt: prompts.systemPrompt,
+    userPrompt: prompts.userPrompt,
+  };
+}
+
 export function validateKnowledgeQaRequest(
   body: Record<string, unknown>,
 ): CrmAiKnowledgeQaRequest | null {
@@ -211,8 +223,17 @@ function validateOrganizeOutput(value: unknown): KnowledgeOrganizeOutput | null 
   };
 }
 
+function exactObject(value: unknown, keys: readonly string[]): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value) &&
+    Object.keys(value).length === keys.length && keys.every(key => Object.hasOwn(value, key));
+}
+const diffKeys = ["id", "topic", "existingValue", "incomingValue", "explanation", "confidence", "sourceExcerpt", "existingExcerpt"];
+const updateKeys = ["topic", "suggestion", "rationale", "confidence"];
+const compareKeys = ["relationship", "matchedCandidateKey", "matchConfidence", "newFacts", "changedFacts", "conflicts", "uncertainties", "suggestedUpdates"];
+
 function validateDiffItem(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
+  if (!exactObject(value, diffKeys)) return false;
+  if (["existingValue", "incomingValue", "sourceExcerpt", "existingExcerpt"].some(key => value[key] !== null && typeof value[key] !== "string")) return false;
   const record = value as Record<string, unknown>;
   const id = typeof record.id === "string" ? record.id.trim() : "";
   const topic = typeof record.topic === "string" ? record.topic.trim() : "";
@@ -268,7 +289,7 @@ function validateDiffItem(value: unknown): boolean {
 }
 
 function validateSuggestedUpdate(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
+  if (!exactObject(value, updateKeys)) return false;
   const record = value as Record<string, unknown>;
   const topic = typeof record.topic === "string" ? record.topic.trim() : "";
   const suggestion =
@@ -292,8 +313,9 @@ function validateSuggestedUpdate(value: unknown): boolean {
   );
 }
 
-function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
-  if (!value || typeof value !== "object") return null;
+export function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
+  if (!exactObject(value, compareKeys)) return null;
+  if (value.matchedCandidateKey !== null && typeof value.matchedCandidateKey !== "string") return null;
   const record = value as Record<string, unknown>;
   const relationship = record.relationship;
   const matchedCandidateKey =
@@ -331,6 +353,7 @@ function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
   }
   if (
     typeof matchConfidence !== "number" ||
+    !Number.isFinite(matchConfidence) ||
     matchConfidence < 0 ||
     matchConfidence > 1 ||
     !newFacts ||
@@ -363,6 +386,17 @@ function validateCompareOutput(value: unknown): KnowledgeCompareOutput | null {
     suggestedUpdates:
       suggestedUpdates as KnowledgeCompareOutput["suggestedUpdates"],
   };
+}
+
+export function comparisonValidationReason(value: unknown): string | null {
+  if (validateCompareOutput(value)) return null;
+  if (!exactObject(value, compareKeys)) return "invalid_top_level_shape";
+  for (const key of ["newFacts", "changedFacts", "conflicts", "uncertainties"]) {
+    if (Array.isArray(value[key]) && value[key].some(item => !validateDiffItem(item))) return "invalid_diff_item_shape";
+  }
+  if (Array.isArray(value.suggestedUpdates) && value.suggestedUpdates.some(item => !validateSuggestedUpdate(item))) return "invalid_suggested_update_shape";
+  if (value.relationship === "update_existing" && value.matchedCandidateKey === null) return "invalid_relationship_match";
+  return "invalid_top_level_shape";
 }
 
 function validateQaOutput(value: unknown): KnowledgeQaOutput | null {
@@ -426,6 +460,41 @@ function extractStructuredPayload(raw: unknown): unknown {
   return raw;
 }
 
+/** GLM uses the documented chat-completion envelope. Never inspect reasoning
+ * or search arbitrary object keys for a plausible result. Qwen stays unchanged. */
+export function extractComparisonPayload(raw: unknown, model: string): unknown {
+  if (model === KNOWLEDGE_COMPARE_GLM_MODEL && raw && typeof raw === "object") {
+    const record = raw as Record<string, unknown>;
+    if ("choices" in record) {
+      if (!Array.isArray(record.choices) || record.choices.length !== 1) return null;
+      const choice = record.choices[0];
+      if (!choice || typeof choice !== "object") return null;
+      const message = (choice as Record<string, unknown>).message;
+      if (!message || typeof message !== "object") return null;
+      const content = (message as Record<string, unknown>).content;
+      return typeof content === "string" ? content : null;
+    }
+  }
+  return extractStructuredPayload(raw);
+}
+
+/** Shape-only diagnostics: no field values or model text. */
+export function comparisonResponseShape(raw: unknown, extracted: unknown, structured: unknown) {
+  const record = (value: unknown): Record<string, unknown> => value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+  const type = (value: unknown) => value === null ? "null" : Array.isArray(value) ? "array" : typeof value;
+  const keys = (value: unknown) => Object.keys(record(value)).filter(key => /^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(key)).slice(0, 32);
+  const r = record(raw);
+  const choice = Array.isArray(r.choices) ? record(r.choices[0]) : {};
+  const message = record(choice.message);
+  return {
+    rawTopLevelKeys: keys(raw), structuredTopLevelKeys: keys(structured),
+    hasResponse: Object.hasOwn(r, "response"), hasChoices: Object.hasOwn(r, "choices"),
+    hasChoiceMessage: Object.hasOwn(choice, "message"),
+    rawResponseType: type(r.response), contentType: type(message.content),
+    extractedType: type(extracted), parseable: structured !== null,
+  };
+}
+
 export async function runKnowledgeOrganize(
   env: CrmAiEnv,
   request: CrmAiKnowledgeOrganizeRequest,
@@ -472,26 +541,41 @@ export async function runKnowledgeCompare(
   ) => Promise<unknown>,
   parseJsonValue: (value: unknown) => unknown | null,
   timeoutMs: number,
+  attempt = 1,
 ): Promise<AiServiceResult<KnowledgeCompareOutput>> {
+  const model = resolveKnowledgeCompareModel(env.CRM_AI_KNOWLEDGE_COMPARE_MODEL);
+  const payload = buildKnowledgePayload(request.systemPrompt, request.userPrompt,
+    KNOWLEDGE_COMPARE_JSON_SCHEMA, KNOWLEDGE_COMPARE_TEMPERATURE, KNOWLEDGE_COMPARE_MAX_TOKENS);
+  if (model === KNOWLEDGE_COMPARE_GLM_MODEL) {
+    // GLM's documented OpenAI-compatible input uses a named schema wrapper.
+    payload.response_format = { type: "json_schema", json_schema: {
+      name: "knowledge_compare", strict: true, schema: KNOWLEDGE_COMPARE_JSON_SCHEMA,
+    } };
+    // Documented GLM control; preserve the existing completion-token budget.
+    payload.chat_template_kwargs = { enable_thinking: false };
+  }
   const raw = await invokeModel(
-    KNOWLEDGE_MODEL,
+    model,
     "knowledge_compare",
     request.schemaVersion,
-    buildKnowledgePayload(
-      request.systemPrompt,
-      request.userPrompt,
-      KNOWLEDGE_COMPARE_JSON_SCHEMA,
-      KNOWLEDGE_COMPARE_TEMPERATURE,
-      KNOWLEDGE_COMPARE_MAX_TOKENS,
-    ),
+    payload,
     timeoutMs,
   );
-  const structured = parseJsonValue(extractStructuredPayload(raw));
+  const extracted = extractComparisonPayload(raw, model);
+  const structured = parseJsonValue(extracted);
   const validated = structured ? validateCompareOutput(structured) : null;
   if (!validated) {
+    const record = structured && typeof structured === "object" ? structured as Record<string, unknown> : {};
+    console.warn("knowledge_compare_validation", {
+      task: "knowledge_compare", attempt,
+      ...comparisonResponseShape(raw, extracted, structured),
+      reason: structured === null ? "parse_failed" : comparisonValidationReason(structured),
+      responseType: Array.isArray(structured) ? "array" : typeof structured,
+      arrayCounts: Object.fromEntries(["newFacts", "changedFacts", "conflicts", "uncertainties", "suggestedUpdates"].map(key => [key, Array.isArray(record[key]) ? record[key].length : null])),
+    });
     return { ok: false, error: "invalid_output" };
   }
-  return { ok: true, data: validated, model: KNOWLEDGE_MODEL };
+  return { ok: true, data: validated, model };
 }
 
 export async function runKnowledgeQa(
@@ -522,6 +606,69 @@ export async function runKnowledgeQa(
   );
   const structured = parseJsonValue(extractStructuredPayload(raw));
   const validated = structured ? validateQaOutput(structured) : null;
+  if (!validated) {
+    return { ok: false, error: "invalid_output" };
+  }
+  return { ok: true, data: validated, model: KNOWLEDGE_MODEL };
+}
+
+function validateCategorySuggestOutput(
+  value: unknown,
+): KnowledgeCategorySuggestOutput | null {
+  if (!value || typeof value !== "object") return null;
+  const record = value as Record<string, unknown>;
+  const confidenceBand = record.confidenceBand;
+  if (
+    confidenceBand !== "high" &&
+    confidenceBand !== "medium" &&
+    confidenceBand !== "low"
+  ) {
+    return null;
+  }
+  const categoryId =
+    record.categoryId === null
+      ? null
+      : typeof record.categoryId === "string"
+        ? record.categoryId.trim()
+        : null;
+  if (categoryId !== null && !categoryId) return null;
+  const reason =
+    typeof record.reason === "string" ? record.reason.trim() : undefined;
+  return {
+    categoryId,
+    confidenceBand,
+    reason: reason || undefined,
+  };
+}
+
+export async function runKnowledgeCategorySuggest(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeCategorySuggestRequest,
+  invokeModel: (
+    model: string,
+    task: "knowledge_category_suggest",
+    schemaVersion: string,
+    payload: Record<string, unknown>,
+    timeoutMs: number,
+  ) => Promise<unknown>,
+  parseJsonValue: (value: unknown) => unknown | null,
+  timeoutMs: number,
+): Promise<AiServiceResult<KnowledgeCategorySuggestOutput>> {
+  const raw = await invokeModel(
+    KNOWLEDGE_MODEL,
+    "knowledge_category_suggest",
+    request.schemaVersion,
+    buildKnowledgePayload(
+      request.systemPrompt,
+      request.userPrompt,
+      KNOWLEDGE_CATEGORY_SUGGEST_JSON_SCHEMA,
+      KNOWLEDGE_CATEGORY_SUGGEST_TEMPERATURE,
+      KNOWLEDGE_CATEGORY_SUGGEST_MAX_TOKENS,
+    ),
+    timeoutMs,
+  );
+  const structured = parseJsonValue(extractStructuredPayload(raw));
+  const validated = structured ? validateCategorySuggestOutput(structured) : null;
   if (!validated) {
     return { ok: false, error: "invalid_output" };
   }

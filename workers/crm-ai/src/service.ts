@@ -14,6 +14,8 @@ import {
   KNOWLEDGE_VISION_TOTAL_DEADLINE_MS,
   resolveAdminBriefDeadlineMs,
   resolveKnowledgeDeadlineMs,
+  resolveKnowledgeCompareDeadlineMs,
+  resolveKnowledgeCompareModel,
   resolveKnowledgeVisionDeadlineMs,
   resolveModelForTask,
   resolveStaffActionsDeadlineMs,
@@ -22,9 +24,11 @@ import {
   STAFF_TODAY_ACTIONS_MODEL,
 } from "./models";
 import {
+  runKnowledgeCategorySuggest,
   runKnowledgeCompare,
   runKnowledgeOrganize,
   runKnowledgeQa,
+  validateKnowledgeCategorySuggestRequest,
   validateKnowledgeCompareRequest,
   validateKnowledgeOrganizeRequest,
   validateKnowledgeQaRequest,
@@ -70,6 +74,7 @@ import type {
   CrmAiAdminBriefRequest,
   CrmAiEnv,
   CrmAiHandleResult,
+  CrmAiKnowledgeCategorySuggestRequest,
   CrmAiKnowledgeCompareRequest,
   CrmAiKnowledgeOrganizeRequest,
   CrmAiKnowledgeQaRequest,
@@ -77,6 +82,7 @@ import type {
   CrmAiRequest,
   CrmAiStaffActionsRequest,
   HealthProbeOutput,
+  KnowledgeCategorySuggestOutput,
   KnowledgeCompareOutput,
   KnowledgeOrganizeOutput,
   KnowledgeQaOutput,
@@ -107,9 +113,11 @@ type GatewayOptions = {
 };
 
 function gatewayOptions(
+  env: CrmAiEnv,
   task: SystemAiTask,
   schemaVersion: string,
-): GatewayOptions {
+): GatewayOptions | undefined {
+  if (env.CRM_AI_GATEWAY_MODE === "direct") return undefined;
   return {
     gateway: {
       id: AI_GATEWAY_ID,
@@ -165,6 +173,23 @@ function mapRunFailure(error: unknown): AiServiceError {
     return "model_unavailable";
   }
   return "internal_error";
+}
+
+/** Internal metadata only; never include provider messages or arbitrary names. */
+export function comparisonFailureDiagnostic(error: unknown) {
+  const code = error && typeof error === "object" && "code" in error &&
+    typeof error.code === "number" && Number.isSafeInteger(error.code) ? error.code : undefined;
+  const mapped = mapRunFailure(error);
+  const timeoutSource = error instanceof ResponseDeadlineError ? "APPLICATION_RESPONSE_DEADLINE"
+    : error instanceof DOMException && error.name === "AbortError" ? "PROVIDER_ABORT"
+    : code === 3007 || code === 3008 ? "PROVIDER_TIMEOUT_CODE"
+    : mapped === "timeout" ? "PROVIDER_TIMEOUT_MESSAGE"
+    : mapped === "model_unavailable" ? "MODEL_UNAVAILABLE"
+    : mapped === "rate_limited" ? "RATE_LIMITED" : "OTHER";
+  const errorClass = error instanceof ResponseDeadlineError ? "ResponseDeadlineError"
+    : error instanceof DOMException ? (error.name === "AbortError" ? "AbortError" : "DOMException")
+    : error instanceof TypeError ? "TypeError" : error instanceof Error ? "Error" : "Unknown";
+  return { timeoutSource, ...(code === undefined ? {} : { providerCode: code }), errorClass };
 }
 
 function extractStructuredPayload(raw: unknown): unknown {
@@ -239,7 +264,7 @@ async function invokeModel(
   timeoutMs: number,
 ): Promise<unknown> {
   return runWithResponseDeadline(timeoutMs, () =>
-    env.AI.run(model, payload, gatewayOptions(task, schemaVersion)),
+    env.AI.run(model, payload, gatewayOptions(env, task, schemaVersion)),
   );
 }
 
@@ -627,10 +652,11 @@ async function runKnowledgeTaskWithRetries<T>(
     | "knowledge_organize"
     | "knowledge_qa"
     | "knowledge_compare"
-    | "knowledge_vision_extract",
+    | "knowledge_vision_extract"
+    | "knowledge_category_suggest",
   model: string,
   totalDeadlineMs: number,
-  attemptRunner: (remainingMs: number) => Promise<AiServiceResult<T>>,
+  attemptRunner: (remainingMs: number, attempt: number) => Promise<AiServiceResult<T>>,
 ): Promise<AiServiceResult<T>> {
   const startedAt = Date.now();
   let lastError: AiServiceError = "internal_error";
@@ -644,7 +670,7 @@ async function runKnowledgeTaskWithRetries<T>(
     }
 
     try {
-      const result = await attemptRunner(remainingMs);
+      const result = await attemptRunner(remainingMs, attempt + 1);
       if (
         !result.ok &&
         result.error === "invalid_output" &&
@@ -762,17 +788,17 @@ export async function runKnowledgeVisionExtractTask(
   );
 }
 
-export async function runKnowledgeCompareTask(
+export async function runKnowledgeCategorySuggestTask(
   env: CrmAiEnv,
-  request: CrmAiKnowledgeCompareRequest,
-): Promise<AiServiceResult<KnowledgeCompareOutput>> {
+  request: CrmAiKnowledgeCategorySuggestRequest,
+): Promise<AiServiceResult<KnowledgeCategorySuggestOutput>> {
   const totalDeadlineMs = resolveKnowledgeDeadlineMs(env.CRM_AI_TIMEOUT_MS);
   return runKnowledgeTaskWithRetries(
-    "knowledge_compare",
+    "knowledge_category_suggest",
     KNOWLEDGE_MODEL,
     totalDeadlineMs,
     (remainingMs) =>
-      runKnowledgeCompare(
+      runKnowledgeCategorySuggest(
         env,
         request,
         (model, task, schemaVersion, payload, timeoutMs) =>
@@ -780,6 +806,43 @@ export async function runKnowledgeCompareTask(
         parseJsonValue,
         remainingMs,
       ),
+  );
+}
+
+export async function runKnowledgeCompareTask(
+  env: CrmAiEnv,
+  request: CrmAiKnowledgeCompareRequest,
+): Promise<AiServiceResult<KnowledgeCompareOutput>> {
+  const totalDeadlineMs = resolveKnowledgeCompareDeadlineMs(env.CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS);
+  const model = resolveKnowledgeCompareModel(env.CRM_AI_KNOWLEDGE_COMPARE_MODEL);
+  const startedAt = Date.now();
+  return runKnowledgeTaskWithRetries(
+    "knowledge_compare", model, totalDeadlineMs,
+    async (remainingMs, attempt) => {
+      let providerResultObtained = false;
+      const logFailure = (diagnostic: ReturnType<typeof comparisonFailureDiagnostic>) =>
+        console.warn("knowledge_compare_failure", {
+          task: "knowledge_compare", model, attempt,
+          elapsedMs: Date.now() - startedAt, configuredDeadlineMs: totalDeadlineMs,
+          ...diagnostic, providerResultObtained,
+        });
+      try {
+        const result = await runKnowledgeCompare(
+          env, request,
+          async (model, task, schemaVersion, payload, timeoutMs) => {
+            const raw = await invokeModel(env, model, task, schemaVersion, payload, timeoutMs);
+            providerResultObtained = true;
+            return raw;
+          },
+          parseJsonValue, remainingMs, attempt,
+        );
+        if (!result.ok) logFailure({ timeoutSource: "OTHER", errorClass: "InvalidOutput" });
+        return result;
+      } catch (error) {
+        logFailure(comparisonFailureDiagnostic(error));
+        throw error;
+      }
+    },
   );
 }
 
@@ -810,6 +873,9 @@ export async function handleCrmAiRequest(
   }
   if (request.task === "knowledge_vision_extract") {
     return runKnowledgeVisionExtractTask(env, request);
+  }
+  if (request.task === "knowledge_category_suggest") {
+    return runKnowledgeCategorySuggestTask(env, request);
   }
   return { ok: false, error: "internal_error" };
 }
@@ -874,6 +940,11 @@ export function parseCrmAiRequestBody(body: unknown): CrmAiRequest | null {
   const compareRequest = validateKnowledgeCompareRequest(record);
   if (compareRequest) {
     return compareRequest;
+  }
+
+  const categorySuggestRequest = validateKnowledgeCategorySuggestRequest(record);
+  if (categorySuggestRequest) {
+    return categorySuggestRequest;
   }
 
   const visionRequest = validateKnowledgeVisionExtractRequest(record);

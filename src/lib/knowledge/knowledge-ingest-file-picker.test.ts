@@ -51,7 +51,7 @@ describe("Knowledge ingest file upload UI", () => {
   });
 
   it("disables the primary CTA until a file is selected", () => {
-    assert.match(source, /disabled=\{busy \|\| \(tab === "file" && !file\)\}/);
+    assert.match(source, /disabled=\{\s*creatingSource\s*\|\|\s*busy\s*\|\|\s*\(tab === "file" && !file\)\s*\}/);
     assert.match(source, /creatingSource/);
   });
 

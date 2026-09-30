@@ -17,9 +17,16 @@ export type ComparisonCandidateSnapshot = {
   bodyExcerptEnd: number;
 };
 
+export type ComparedOrganizerDraftSnapshot = {
+  title: string;
+  summary: string;
+  body: string;
+};
+
 export type KnowledgeComparisonDetail = {
   id: string;
   sourceId: string;
+  candidateId: string | null;
   organizationRunId: string;
   status: KnowledgeAiComparisonRun["status"];
   relationship: KnowledgeAiComparisonRun["relationship"];

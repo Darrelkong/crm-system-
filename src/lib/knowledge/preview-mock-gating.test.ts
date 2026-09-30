@@ -48,10 +48,12 @@ describe("preview mock gating", () => {
     const organizerSource = readFileSync(organizerPath, "utf8");
     const comparisonSource = readFileSync(comparisonPath, "utf8");
     const visionSource = readFileSync(visionPath, "utf8");
-    assert.match(organizerSource, /allowMockDeepInsightGeneration\(\)/);
+    const executionSource = readFileSync(new URL("./knowledge-organization-execution.ts", import.meta.url), "utf8");
+    assert.match(organizerSource, /await executeKnowledgeOrganizationOnEvidence\(/);
+    assert.match(executionSource, /if \(allowMockDeepInsightGeneration\(\)\)/);
     assert.match(comparisonSource, /allowMockDeepInsightGeneration\(\)/);
     assert.match(visionSource, /allowMockDeepInsightGeneration\(\)/);
-    assert.match(organizerSource, /mock-knowledge-organizer-v1/);
+    assert.match(executionSource, /mock-knowledge-organizer-v1/);
     assert.match(comparisonSource, /mock-knowledge-compare-v1/);
   });
 

@@ -442,6 +442,38 @@ describe("Knowledge comparison service", () => {
     assert.equal(candidates[0]?.articleId, restricted.article.id);
   });
 
+  for (const actualModel of ["@cf/qwen/qwen3-30b-a3b-fp8", "@cf/deepseek-ai/deepseek-r1-distill-qwen-32b"]) {
+    it(`persists actual service model metadata: ${actualModel}`, async () => {
+      await createPublishedArticle({title:"模型记录测试",body:"模型记录测试 phrase",categoryName:`模型 ${actualModel}`});
+      const source=await createOrganizedSource({rawText:`模型记录测试 phrase 更新 ${actualModel}`});
+      const key=Symbol.for("__cloudflare-context__");
+      const previous=Object.getOwnPropertyDescriptor(globalThis,key);
+      const previousMock=process.env.CRM_ALLOW_MOCK_AI;
+      const previousBind=process.env.CRM_ALLOW_TEST_DB_BIND;
+      let calls=0;
+      Object.defineProperty(globalThis,key,{configurable:true,value:{env:{AI_SERVICE:{fetch:async()=>{
+        calls++;return Response.json({ok:true,data:validComparisonOutput(),model:actualModel});
+      }}}}});
+      process.env.CRM_ALLOW_MOCK_AI="0";
+      process.env.CRM_ALLOW_TEST_DB_BIND="0";
+      try {
+        const result=await compareKnowledgeSource(contributorContext(),source.id,META,db);
+        assert.equal(calls,1);assert.equal(result.status,"completed");
+        assert.equal(result.provider,"cloudflare_workers_ai");assert.equal(result.model,actualModel);
+        for(const [key,value] of Object.entries(validComparisonOutput())) {
+          assert.deepEqual(result.comparison?.[key as keyof KnowledgeAiComparisonOutput],value);
+        }
+        const stored=(await db.select().from(schema.knowledgeAiComparisonRuns).where(eq(schema.knowledgeAiComparisonRuns.id,result.id)))[0];
+        assert.equal(stored.model,actualModel);
+        assert.equal((await getLatestKnowledgeComparison(contributorContext(),source.id,db))?.model,actualModel);
+      } finally {
+        if(previous)Object.defineProperty(globalThis,key,previous);else Reflect.deleteProperty(globalThis,key);
+        if(previousMock===undefined)delete process.env.CRM_ALLOW_MOCK_AI;else process.env.CRM_ALLOW_MOCK_AI=previousMock;
+        if(previousBind===undefined)delete process.env.CRM_ALLOW_TEST_DB_BIND;else process.env.CRM_ALLOW_TEST_DB_BIND=previousBind;
+      }
+    });
+  }
+
   it("stores structured comparison output and keeps organizer completed on compare failure", async () => {
     await createPublishedArticle({
       title: "比对成功文章",
@@ -461,6 +493,8 @@ describe("Knowledge comparison service", () => {
       },
     );
     assert.equal(comparison.status, "completed");
+    assert.equal(comparison.provider, "test");
+    assert.equal(comparison.model, "test-knowledge-compare");
     assert.equal(comparison.relationship, "update_existing");
     assert.equal(comparison.comparison?.changedFacts[0]?.incomingValue, "100 万");
     assert.equal(comparison.comparison?.uncertainties[0]?.incomingValue, "可能 50 万，也可能 100 万，以经理确认为准");

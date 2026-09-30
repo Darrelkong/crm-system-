@@ -55,7 +55,9 @@ describe("failed vision duplicate semantics", () => {
     assert.match(source, /viewFailedSource/);
     assert.match(source, /retryImageExtraction/);
     assert.match(source, /data-duplicate-kind/);
-    assert.match(source, /failed-vision/);
+    // Duplicate case and lifecycle are now separate properties.
+    assert.match(source, /case "failed_extraction":\s*return t\("knowledge\.ingest\.duplicateFailedDetected"\)/);
+    assert.match(source, /case "failed_extraction":\s*return t\("knowledge\.ingest\.duplicateFailedMessage", \{ label \}\)/);
     assert.doesNotMatch(
       source,
       /isFailedVisionDuplicateNotice\(duplicateNotice\)[\s\S]{0,200}duplicateActiveMessage/,

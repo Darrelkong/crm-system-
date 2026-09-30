@@ -1,6 +1,26 @@
+import type { Database } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import type { KnowledgePasteBusinessIdentityJson } from "@/lib/knowledge/knowledge-paste-business-identity";
 import type { KnowledgeSourceDetail } from "@/lib/knowledge/source-service";
 import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
+import {
+  type KnowledgeCategoryResolutionStatus,
+  resolveKnowledgeCategoryForBusiness,
+} from "@/lib/knowledge/knowledge-business-category-mapping-service";
+import { suggestKnowledgeCategoryForOrganizer } from "@/lib/knowledge/knowledge-category-ai-suggestion-service";
+import type { KnowledgeCategoryAiSuggestionResult } from "@/lib/knowledge/knowledge-category-ai-suggestion-schema";
+
+export type OrganizerCategoryResolutionSource =
+  | "explicit_mapping"
+  | "ai_suggestion"
+  | "manual"
+  | null;
+
+export type OrganizerCategoryAiSuggestion = {
+  categoryId: string;
+  categoryName: string;
+  requiresConfirmation: boolean;
+};
 
 export type OrganizerDraftFields = {
   title: string;
@@ -10,6 +30,13 @@ export type OrganizerDraftFields = {
   requestedProjectName: string;
   categoryId: string;
   categoryNotice: "none" | "needs_confirmation" | "no_match";
+  categoryResolutionSource: OrganizerCategoryResolutionSource;
+  categoryResolutionStatus: KnowledgeCategoryResolutionStatus | null;
+  categoryAiSuggestion: OrganizerCategoryAiSuggestion | null;
+  suggestedCategoryId: string | null;
+  suggestedCategoryName: string | null;
+  categoryAiRequiresConfirmation: boolean;
+  categorySelectionRequired: boolean;
 };
 
 export function emptyOrganizerDraft(): OrganizerDraftFields {
@@ -21,6 +48,13 @@ export function emptyOrganizerDraft(): OrganizerDraftFields {
     requestedProjectName: "",
     categoryId: "",
     categoryNotice: "none",
+    categoryResolutionSource: null,
+    categoryResolutionStatus: null,
+    categoryAiSuggestion: null,
+    suggestedCategoryId: null,
+    suggestedCategoryName: null,
+    categoryAiRequiresConfirmation: false,
+    categorySelectionRequired: false,
   };
 }
 
@@ -29,7 +63,7 @@ export function resolveOrganizerRequestedProjectCode(input: {
   manualCode: string | null;
   manualOverride: boolean;
 }): string | null {
-  if (input.manualOverride && input.manualCode) {
+  if (input.manualOverride) {
     return input.manualCode;
   }
   if (
@@ -43,20 +77,37 @@ export function resolveOrganizerRequestedProjectCode(input: {
 
 /**
  * Knowledge library category (`categoryId`) is independent from CRM
- * `requested_project_code`. Future default mappings must use explicit config,
- * not display-name equality.
+ * `requested_project_code`. Explicit mapping rows take priority over AI.
  */
 export function resolveOrganizerKnowledgeCategoryId(input: {
   manualCategoryId: string | null;
   manualCategoryOverride: boolean;
+  explicitMappingCategoryId?: string | null;
+  aiPrefillCategoryId?: string | null;
 }): string {
-  if (input.manualCategoryOverride && input.manualCategoryId) {
-    return input.manualCategoryId;
+  if (input.manualCategoryOverride) {
+    return input.manualCategoryId ?? "";
+  }
+  if (input.explicitMappingCategoryId) {
+    return input.explicitMappingCategoryId;
+  }
+  if (input.aiPrefillCategoryId) {
+    return input.aiPrefillCategoryId;
   }
   return "";
 }
 
-export function buildOrganizerDraftFromOrganization(
+export type OrganizerDraftBuildDeps = {
+  suggestCategory?: (context: {
+    requestedProjectCode: string | null;
+    requestedProjectLabel: string;
+    title: string;
+    summary: string;
+    body: string;
+  }) => Promise<KnowledgeCategoryAiSuggestionResult>;
+};
+
+export async function buildOrganizerDraftFromOrganization(
   source: KnowledgeSourceDetail,
   options: {
     manualRequestedProjectCode: string | null;
@@ -64,12 +115,22 @@ export function buildOrganizerDraftFromOrganization(
     manualCategoryId: string | null;
     manualCategoryOverride: boolean;
   },
-): OrganizerDraftFields {
+  db?: Database,
+  deps?: OrganizerDraftBuildDeps,
+  flags?: { bypassSourceLevelOrganizeBlock?: boolean },
+): Promise<OrganizerDraftFields> {
   const organization = source.organization;
   if (!organization || organization.status !== "completed") {
     return emptyOrganizerDraft();
   }
+  if (
+    source.smartIngestScope.blocksSourceLevelOrganize &&
+    !flags?.bypassSourceLevelOrganizeBlock
+  ) {
+    return emptyOrganizerDraft();
+  }
 
+  const resolveDatabase = (): Database => db ?? getDb();
   const identity = organization.businessIdentity;
   const requestedProjectCode = resolveOrganizerRequestedProjectCode({
     identity,
@@ -85,16 +146,98 @@ export function buildOrganizerDraftFromOrganization(
     categoryNotice = "no_match";
   }
 
+  let explicitMappingCategoryId: string | null = null;
+  let aiPrefillCategoryId: string | null = null;
+  let categoryResolutionSource: OrganizerCategoryResolutionSource = null;
+  let categoryResolutionStatus: KnowledgeCategoryResolutionStatus | null = null;
+  let categoryAiSuggestion: OrganizerCategoryAiSuggestion | null = null;
+  let suggestedCategoryId: string | null = null;
+  let suggestedCategoryName: string | null = null;
+  let categoryAiRequiresConfirmation = false;
+  let categorySelectionRequired = false;
+
+  if (options.manualCategoryOverride) {
+    categoryResolutionSource = "manual";
+  } else if (requestedProjectCode && !options.manualCategoryOverride) {
+    const resolution = await resolveKnowledgeCategoryForBusiness(
+      requestedProjectCode,
+      resolveDatabase(),
+    );
+    categoryResolutionStatus = resolution.status;
+    if (resolution.status === "matched" && resolution.categoryId) {
+      explicitMappingCategoryId = resolution.categoryId;
+      categoryResolutionSource = "explicit_mapping";
+    }
+  }
+
+  const title = organization.proposedTitle ?? "";
+  const summary = organization.proposedSummary ?? "";
+  const body = organization.proposedBody ?? "";
+
+  if (!explicitMappingCategoryId && !options.manualCategoryOverride) {
+    const context = {
+      requestedProjectCode,
+      requestedProjectLabel: item?.canonicalZhHans ?? "",
+      title,
+      summary,
+      body,
+    };
+    const aiResult = deps?.suggestCategory
+      ? await deps.suggestCategory(context)
+      : await suggestKnowledgeCategoryForOrganizer(context, resolveDatabase());
+    if (
+      aiResult.status === "suggested" &&
+      aiResult.categoryId &&
+      aiResult.categoryName
+    ) {
+      categoryResolutionSource = "ai_suggestion";
+      if (aiResult.requiresConfirmation) {
+        categoryAiRequiresConfirmation = true;
+        suggestedCategoryId = aiResult.categoryId;
+        suggestedCategoryName = aiResult.categoryName;
+        categoryAiSuggestion = {
+          categoryId: aiResult.categoryId,
+          categoryName: aiResult.categoryName,
+          requiresConfirmation: true,
+        };
+      } else {
+        aiPrefillCategoryId = aiResult.categoryId;
+      }
+    } else if (
+      aiResult.status === "insufficient_confidence" ||
+      aiResult.status === "no_categories" ||
+      aiResult.status === "invalid_output" ||
+      aiResult.status === "error"
+    ) {
+      categorySelectionRequired = true;
+    }
+  }
+
+  const categoryId = resolveOrganizerKnowledgeCategoryId({
+    manualCategoryId: options.manualCategoryId,
+    manualCategoryOverride: options.manualCategoryOverride,
+    explicitMappingCategoryId,
+    aiPrefillCategoryId,
+  });
+
+  if (!categoryId && !categoryAiSuggestion) {
+    categorySelectionRequired = true;
+  }
+
   return {
-    title: organization.proposedTitle ?? "",
-    summary: organization.proposedSummary ?? "",
-    body: organization.proposedBody ?? "",
+    title,
+    summary,
+    body,
     requestedProjectCode,
     requestedProjectName: item?.canonicalZhHans ?? "",
-    categoryId: resolveOrganizerKnowledgeCategoryId({
-      manualCategoryId: options.manualCategoryId,
-      manualCategoryOverride: options.manualCategoryOverride,
-    }),
+    categoryId,
     categoryNotice,
+    categoryResolutionSource,
+    categoryResolutionStatus,
+    categoryAiSuggestion,
+    suggestedCategoryId,
+    suggestedCategoryName,
+    categoryAiRequiresConfirmation,
+    categorySelectionRequired,
   };
 }

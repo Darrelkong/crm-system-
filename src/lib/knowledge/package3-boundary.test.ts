@@ -43,7 +43,9 @@ describe("Knowledge Package 3 boundaries", () => {
       "src/components/knowledge/knowledge-ingest-client.tsx",
       "utf8",
     );
-    assert.match(ui, /aiLabel/);
+    // The step-based editor replaced the old AI label with a draft/comparison hint.
+    assert.match(ui, /knowledge\.ingest\.draftPendingComparisonHint/);
+    assert.match(ui, /onSubmit=\{saveDraft\}/);
     assert.match(ui, /saveDraft/);
     assert.doesNotMatch(ui, /Publish|发布|發佈|approve|批准/);
   });
