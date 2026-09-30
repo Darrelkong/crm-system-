@@ -140,6 +140,7 @@ const ERROR_CODE_TO_KEY: Record<string, string> = {
 };
 
 const FIELD_CODE_TO_KEY: Record<string, string> = {
+  CUSTOMER_RATING_REQUIRED: "followUps.chooseRating",
   CUSTOMER_NAME_REQUIRED: "errors.clientNameRequired",
   INVALID_CUSTOMER_NAME: "errors.invalidCustomerName",
   INVALID_NAME_STATUS: "errors.invalidNameStatus",

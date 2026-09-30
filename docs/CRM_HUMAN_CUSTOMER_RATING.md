@@ -478,3 +478,19 @@ two existing unused-variable warnings in scoring/service.test.ts); npm run build
 PASS (existing Next middleware deprecation warning); git diff --check PASS.
 No new migration/index, rating write/CAS/sort change, Production access/deployment,
 remote migration, AI call, Gemini change, F2/F3/SI2 change or main merge.
+
+## F4I required-rating field localization — 2026-09-30
+
+Added only `CUSTOMER_RATING_REQUIRED → followUps.chooseRating` to the existing
+field-error map. The API-error map already contained it; field resolution had
+fallen back to the validator's Chinese message. Validator rules/codes, locales,
+rating persistence and all other workflows are unchanged.
+
+Focused regression: 40 tests passed (new real validator → field resolver →
+production translator coverage for en/zh-Hans/zh-Hant, unknown fallback,
+existing mappings and adjacent follow-up validation). TypeScript noEmit,
+changed-file ESLint and diff check passed. Local synthetic 390px browser checks
+showed each canonical localized error, no horizontal overflow and blocked saves;
+customer/follow-up/history/task snapshots were identical before and after.
+No completed F4F-R business scenarios were repeated. No Production/Cloudflare
+access or deployment. Only unfinished F4F-R acceptance remains to be resumed.
