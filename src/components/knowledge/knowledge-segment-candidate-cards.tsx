@@ -131,9 +131,7 @@ export function KnowledgeSegmentCandidateCards({
               categories={categories}
               locale={locale}
               onUpdated={onCandidateUpdated}
-              onDraftStateChange={(state) =>
-                onCandidateDraftStateChange?.(candidate.id, state)
-              }
+              onDraftStateChange={onCandidateDraftStateChange}
             />
           </li>
         ))}

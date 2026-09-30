@@ -123,6 +123,26 @@ export function KnowledgeSmartIngestAnalysisSection({
   const [candidateDrafts, setCandidateDrafts] = useState<
     Record<string, CandidateDraftState>
   >({});
+  const handleCandidateDraftStateChange = useCallback(
+    (candidateId: string, state: CandidateDraftState) => {
+      setCandidateDrafts((current) => {
+        const previous = current[candidateId];
+        // StrictMode/remount notifications may repeat the same snapshot.
+        // Preserve state identity unless one of the workflow inputs changed.
+        if (
+          previous?.title === state.title &&
+          previous.summary === state.summary &&
+          previous.body === state.body &&
+          previous.organized === state.organized &&
+          previous.organizationRunId === state.organizationRunId
+        ) {
+          return current;
+        }
+        return { ...current, [candidateId]: state };
+      });
+    },
+    [],
+  );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableAnalysisRunId = resolveStableAnalysisRunId(source, run);
   const displayRun = useMemo(
@@ -732,12 +752,7 @@ export function KnowledgeSmartIngestAnalysisSection({
                   silent: true,
                 })
               }
-              onCandidateDraftStateChange={(candidateId, state) => {
-                setCandidateDrafts((current) => ({
-                  ...current,
-                  [candidateId]: state,
-                }));
-              }}
+              onCandidateDraftStateChange={handleCandidateDraftStateChange}
             />
           ) : null}
           {showCandidateSection && candidates.length > 0 ? (
