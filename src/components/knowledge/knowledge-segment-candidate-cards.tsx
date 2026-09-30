@@ -60,33 +60,31 @@ export function KnowledgeSegmentCandidateCards({
     );
   }
 
-  if (error && candidates.length === 0) {
-    return (
-      <div
-        className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
-        data-candidate-cards-error="true"
+  const loadError = error ? (
+    <div
+      className="mt-4 rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900"
+      data-candidate-cards-error="true"
+    >
+      <p>{error}</p>
+      <Button
+        type="button"
+        size="sm"
+        variant="secondary"
+        className="mt-3"
+        data-candidate-cards-retry="true"
+        onClick={onRetry}
       >
-        <p>{error}</p>
-        <Button
-          type="button"
-          size="sm"
-          variant="secondary"
-          className="mt-3"
-          data-candidate-cards-retry="true"
-          onClick={onRetry}
-        >
-          {t("knowledge.ingest.smartIngestCandidatesRetry")}
-        </Button>
-      </div>
-    );
-  }
+        {t("knowledge.ingest.smartIngestCandidatesRetry")}
+      </Button>
+    </div>
+  ) : null;
 
-  if (candidates.length === 0) {
-    return null;
-  }
+  if (candidates.length === 0 && error) return loadError;
+  if (candidates.length === 0 && !countMismatch) return null;
 
   return (
     <div className="mt-4 space-y-3" data-candidate-cards-section="true">
+      {loadError}
       {loading ? (
         <p
           className="text-xs crm-text-secondary"

@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 const root = process.cwd();
 const bundle = await build({
-  entryPoints: [path.join(root, 'scripts/fixtures/knowledge-candidate-lifecycle.tsx')],
+  entryPoints: [path.join(root, process.env.CONFIRM_REFRESH_TEST === '1' ? 'scripts/fixtures/knowledge-candidate-confirm-refresh.tsx' : 'scripts/fixtures/knowledge-candidate-lifecycle.tsx')],
   bundle: true, write: false, platform: 'browser', jsx: 'automatic',
   define: { 'process.env.NODE_ENV': '"development"' },
   plugins: [{ name: 'observe-real-draft-lifecycle', setup(b) {
