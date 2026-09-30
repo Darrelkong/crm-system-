@@ -413,3 +413,106 @@ B2H introduces `CRM_AI_KNOWLEDGE_COMPARE_TIMEOUT_MS`: default/unset 20,000 ms, i
 Comparison provider now returns data with the actual service-reported model; completed comparison runs persist it instead of a fixed Qwen constant. Injected/mock semantics are retained; historical runs are not rewritten. Local and remote gate outcomes are recorded separately: configuration/code alone does not establish deployment or full B2 acceptance. Browser acceptance remains **DEFERRED — HUMAN ACCESS REQUIRED**; Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**.
 
 B2H local validation before Preview deployment: 106 focused Worker/app comparison, schema, adapter and deadline checks PASS; comparison-service D1 suite 12 PASS plus Candidate compare/convert 2 PASS against disposable localhost persistence. The first new metadata fixtures failed because the local test-bind flag still selected mock AI and two synthetic paste bodies were identical; fixture-only corrections exercised the actual adapter path and unique sources, then all 12 service tests passed. Worker production-source TypeScript, main TypeScript, Preview AI dry-run and diff check passed; changed-file lint had no errors (five pre-existing warnings). These results do not claim the pending remote retest or human browser acceptance.
+
+
+## Integration 1C-B — SI2 candidate draft lifecycle hotfix — 2026-09-30
+
+**Inherited SI2 runtime defect dynamically confirmed.** This isolated hotfix starts exactly at accepted SI2 `b66bb9e0ad90c948a773c914ca18811bac1e83e8` on `fix/knowledge-candidate-draft-lifecycle`. It contains no F1/F2/F3/F4 integration code. The accepted SI2 branch, main, and integration candidate `95d6c5feb4b9255bd2a82316e35b445749a8a3e5` remain unchanged. This record does not complete Integration 1C or authorize a merge/deployment.
+
+Before editing, a local archive of that exact SI2 commit reproduced `Maximum update depth exceeded` when the synthetic contributor's retained, confirmed topic mounted its persistent candidate. The browser stack was candidate-card effect → cards callback → analysis-section `setCandidateDrafts` (baseline lines 214, 135, 736). Only the previously established local dummy-D1 config and a disposable SQLite fixture copy were used; no AI/service/R2 binding or mail transport was enabled. Authentication and Knowledge unlock were normal existing synthetic sessions.
+
+The parent supplied a new callback each render; the list added another inline callback; the child effect depended on that identity and notified on every rerender. The parent always produced a new state object for an unchanged draft. The negative-control mounted regression using the original three SI2 modules also failed without StrictMode, so StrictMode is not the cause.
+
+The narrow fix passes a stable callback through the list, identifies the candidate in the child's notification, and retains the parent's existing state identity when title, summary, body, organized status and organization run ID are equal. Genuine edits still propagate once and remain candidate-scoped. No timers, error suppression, StrictMode disabling, API/schema/migration, category, organizer, evidence, comparison, conversion or AI configuration change is included.
+
+Validation commands (existing installed tools, local only):
+
+```sh
+PORT=3198 node scripts/test-knowledge-candidate-lifecycle.mjs
+# Open the printed loopback URL; the real React composition posts its results.
+NODE_ENV=test node --import tsx --test \
+  src/lib/knowledge/knowledge-segment-candidate-cards-ui.test.ts \
+  src/lib/knowledge/knowledge-smart-ingest-candidate-refresh-lifecycle.test.ts \
+  src/lib/knowledge/knowledge-smart-ingest-candidate-lineage.test.ts \
+  src/lib/knowledge/knowledge-ingest-organizer-draft.test.ts \
+  src/lib/knowledge/knowledge-candidate-organizer-draft-usability.test.ts
+WRANGLER_SEND_METRICS=false CRM_ALLOW_MOCK_AI=1 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-segment-candidate.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-organizer-hydration.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-compare-convert.integration.test.ts \
+  src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts
+./node_modules/.bin/tsc --noEmit --incremental false --pretty false
+./node_modules/.bin/eslint src/components/knowledge/knowledge-segment-candidate-card.tsx \
+  src/components/knowledge/knowledge-segment-candidate-cards.tsx \
+  src/components/knowledge/knowledge-smart-ingest-analysis-section.tsx \
+  scripts/fixtures/knowledge-candidate-lifecycle.tsx scripts/test-knowledge-candidate-lifecycle.mjs
+git diff --check
+```
+
+- Mounted composition: **23 assertions PASS**, including normal + StrictMode, initial parent snapshots, identical rerender, organizer result, real controlled text edit, independent A/B state, stable idle network, and no React errors. Observation-only build instrumentation counts the actual production component's notifications/state identities; no fake lifecycle callback replaces them. Normal: 10 parent renders/5 state identities/5 notifications; StrictMode: 20/5/7. Counts are evidence, not exact-render-count assertions.
+- Existing card/refresh/lineage/draft tests: **36 PASS**.
+- Local D1 suites: **80 PASS** (8 materialization + 3 hydration + 2 compare/convert + 67 remediation). Includes manual override/restore, segment evidence, lifecycle guards, comparison freshness and conversion canonical replay.
+- Main TypeScript, focused ESLint and whitespace checks: **PASS**.
+- Test logs: `/tmp/crm-1cb-focused.log`, `/tmp/crm-1cb-d1.log`, `/tmp/crm-1cb-lifecycle-final.log`, `/tmp/crm-1cb-tsc.log`, `/tmp/crm-1cb-eslint.log`. Baseline screenshot: `/tmp/crm-1cb-baseline.png`.
+
+**NOT Production deployed. No remote AI call, Cloudflare mutation, Mail send or integration merge.** Later integration and unfinished Integration 1C validation require separate authorization.
+
+Browser closeout: the original retained candidate and a newly analyzed/kept two-topic synthetic source mounted without `Maximum update depth exceeded` after the patch. Reloading and reopening the two-topic source preserved both cards, category controls and pending organizer state; opening/closing a business selector remained interactive. The reload/reopen produced two candidate-list GETs and three comparison GETs per candidate during development setup, then no further candidate requests during several minutes of observation (ordinary auth/health polling remained). No draft notification/request storm returned. Screenshot: `/tmp/crm-1cb-fixed.png`.
+
+Separate observation, **not repaired or dynamically attributed by this hotfix**: the fresh two-topic “Keep all” action emitted one `Cannot update KnowledgeIngestClient while rendering KnowledgeSmartIngestAnalysisSection` warning and transiently showed “Topic count does not match your review.” Both cards were persisted, and the banner disappeared on reload. The existing confirmation updater calls `onScopeChange` within `setRun`; those confirmation/refresh bodies are unchanged here. This needs a separately reviewed, narrow confirmation/refresh investigation before treating the entire Knowledge journey as console-clean. It does not reproduce the repaired draft-notification loop. This hotfix's browser result is limited to stable candidate mount, interaction and reload; it is not a full Knowledge or Integration 1C PASS.
+
+## Integration 1C-C — confirmation/refresh lifecycle — 2026-09-30
+
+**Inherited SI2 confirmation lifecycle defect confirmed and narrowly repaired** on `fix/knowledge-candidate-confirm-refresh-lifecycle`, starting exactly from accepted first hotfix `91d3d7271f4beea72857e41430ee283b838ce91a`. This supersedes the unresolved Keep-all observation in 1C-B above; it does not complete Integration 1C, merge a branch, or authorize deployment.
+
+Before source changes, the same isolated localhost runtime (dummy local D1, no remote service/AI/R2 binding, Mail transport disabled) used normal synthetic Team Member login and Knowledge unlock. A fresh two-topic text source → Analyze → Keep all reproduced:
+
+> Cannot update a component (`KnowledgeIngestClient`) while rendering a different component (`KnowledgeSmartIngestAnalysisSection`). To locate the bad setState() call inside `KnowledgeSmartIngestAnalysisSection`, follow the stack trace as described in https://react.dev/link/setstate-in-render
+
+Stack: `knowledge-smart-ingest-analysis-section.tsx:455` (`onScopeChange` inside the `setRun` updater) → section render at line 106 → `knowledge-ingest-client.tsx:1537` → ingest page line 37. No further user action was required. Expected count 2; initially 0 rendered candidates, then 2 with a false count-mismatch banner; SQLite had 2 rows/2 distinct segment IDs. Reload/reopen retained 2 and cleared the banner. Evidence: `/tmp/crm-1cc-baseline.png`, `/tmp/crm-1cc-baseline-dom.txt`.
+
+The original SI2 `b66bb9e0ad90c948a773c914ca18811bac1e83e8` three component files also reproduce the parent-update warning and intermediate refresh in the mounted real-component negative control, without StrictMode. The first-hotfix source reproduces identically. This is **inherited SI2**, not a first-hotfix regression or fixture-only artifact.
+
+Root cause: both single-confirm and Keep-all functional `setRun` updaters contained parent notification side effects; React can evaluate these during render. Keep-all also triggered refreshes for intermediate committed counts through its effect and an explicit final speculative count, while refresh results had no generation guard. A response checked against an older expected count could set mismatch; a later matching response did not explicitly clear it.
+
+Narrow remediation:
+
+- State updaters only calculate state. Existing post-commit scope effect notifies the parent.
+- Candidate reconciliation waits until the confirmation action settles, using the actual committed count (including partial failure). No speculative pre-confirmed-plus-requested count.
+- A refresh sequence invalidates obsolete results across confirmation, source/run changes and unmount. Latest successful results explicitly set/clear mismatch from their final count.
+- Pending materialization is not reported as final mismatch. The existing error UI is retained alongside already-loaded cards, and a genuine zero-result mismatch is not hidden by the empty-list return. Genuine unresolved mismatch and failed confirmation/materialization remain visible. No timer workaround, warning suppression, full-page reload requirement, backend/API/schema/AI or business-rule change.
+
+Validation (local only):
+
+```sh
+CONFIRM_REFRESH_TEST=1 PORT=3198 node scripts/test-knowledge-candidate-lifecycle.mjs
+PORT=3198 node scripts/test-knowledge-candidate-lifecycle.mjs
+# Each runner is opened in the local browser and exits on its posted test result.
+NODE_ENV=test node --import tsx --test \
+  src/lib/knowledge/knowledge-segment-candidate-cards-ui.test.ts \
+  src/lib/knowledge/knowledge-smart-ingest-candidate-refresh-lifecycle.test.ts \
+  src/lib/knowledge/knowledge-smart-ingest-candidate-lineage.test.ts \
+  src/lib/knowledge/knowledge-ingest-organizer-draft.test.ts \
+  src/lib/knowledge/knowledge-candidate-organizer-draft-usability.test.ts
+WRANGLER_SEND_METRICS=false CRM_ALLOW_MOCK_AI=1 node scripts/test-mail-d1-serial.mjs \
+  src/lib/knowledge/knowledge-segment-candidate.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-organizer-hydration.integration.test.ts \
+  src/lib/knowledge/knowledge-segment-candidate-compare-convert.integration.test.ts \
+  src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts
+./node_modules/.bin/tsc --noEmit --incremental false --pretty false
+./node_modules/.bin/eslint src/components/knowledge/knowledge-smart-ingest-analysis-section.tsx \
+  src/components/knowledge/knowledge-segment-candidate-cards.tsx \
+  scripts/fixtures/knowledge-candidate-confirm-refresh.tsx scripts/test-knowledge-candidate-lifecycle.mjs \
+  src/lib/knowledge/knowledge-segment-candidate-cards-ui.test.ts
+git diff --check
+```
+
+- New mounted real composition: **105 assertions PASS**, normal and StrictMode. Covers Analyze, Keep-all, delayed second confirmation, delayed materialization, genuine nonzero/zero-count mismatch, backend failure, refresh failure with an existing card, partial confirmation, reload, bounded idle, and late obsolete refresh after individual confirmation. Parent is a real state owner; production callbacks/updaters/effects are not mocked away.
+- First draft-lifecycle regression: **23 assertions PASS**.
+- Nearby card/refresh/lineage/draft unit tests: **36 PASS**. Two source-shape assertions were updated for the settled-action effect dependency and zero-count guard location; their original behavior remains covered by mounted tests.
+- Disposable D1: **80 PASS** (8 materialization, 3 organizer hydration, 2 compare/convert, 67 remediation). Candidate uniqueness, evidence, manual override/restore, lineage, comparison freshness and canonical conversion remain covered.
+- TypeScript, focused ESLint and diff check: **PASS**.
+- Post-fix fresh browser Analyze/Keep-all: 2 kept → 2 candidates, no false banner, no render-phase/update-depth warning. Both business selectors usable independently. Reload/reopen stable; local SQLite confirms 2 rows/2 distinct segments. One PATCH per topic and one final candidates GET in the fresh confirmation flow; no repeated candidate requests after settling. Development comparison hydration was bounded (two GETs per candidate on initial mount). No real provider invocation. Screenshot: `/tmp/crm-1cc-fixed.png`.
+- Evidence logs: `/tmp/crm-1cc-regression-final.log`, `/tmp/crm-1cc-first-regression.log`, `/tmp/crm-1cc-negative.log`, `/tmp/crm-1cc-original-si2-negative.log`, `/tmp/crm-1cc-focused.log`, `/tmp/crm-1cc-d1.log`, `/tmp/crm-1cc-tsc-final.log`, `/tmp/crm-1cc-eslint-final.log`, `/tmp/crm-1cc-browser.log`.
+
+Accepted SI2, first-hotfix, integration and main refs remain unchanged. Synthetic local source/segment/candidate data was created for reproduction. **NOT Production deployed; no Cloudflare modification or Mail send.** Separately authorized integration and the unfinished Integration 1C gate remain required.

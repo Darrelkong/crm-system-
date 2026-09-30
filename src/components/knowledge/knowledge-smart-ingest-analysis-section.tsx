@@ -116,6 +116,10 @@ export function KnowledgeSmartIngestAnalysisSection({
   const [candidatesError, setCandidatesError] = useState<string | null>(null);
   const [candidateCountMismatch, setCandidateCountMismatch] = useState(false);
   const materializeAttemptedRef = useRef(false);
+  const candidateRefreshSequence = useRef(0);
+  const invalidateCandidateRefresh = useCallback(() => {
+    candidateRefreshSequence.current++;
+  }, []);
   const candidatesRef = useRef<KnowledgeSegmentCandidateDetail[]>([]);
   const candidateLineageKeyRef = useRef<string | null>(null);
   const candidatesEverLoadedRef = useRef(false);
@@ -123,6 +127,26 @@ export function KnowledgeSmartIngestAnalysisSection({
   const [candidateDrafts, setCandidateDrafts] = useState<
     Record<string, CandidateDraftState>
   >({});
+  const handleCandidateDraftStateChange = useCallback(
+    (candidateId: string, state: CandidateDraftState) => {
+      setCandidateDrafts((current) => {
+        const previous = current[candidateId];
+        // StrictMode/remount notifications may repeat the same snapshot.
+        // Preserve state identity unless one of the workflow inputs changed.
+        if (
+          previous?.title === state.title &&
+          previous.summary === state.summary &&
+          previous.body === state.body &&
+          previous.organized === state.organized &&
+          previous.organizationRunId === state.organizationRunId
+        ) {
+          return current;
+        }
+        return { ...current, [candidateId]: state };
+      });
+    },
+    [],
+  );
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stableAnalysisRunId = resolveStableAnalysisRunId(source, run);
   const displayRun = useMemo(
@@ -178,7 +202,12 @@ export function KnowledgeSmartIngestAnalysisSection({
       confirmedCount: number,
       options: { silent?: boolean } = {},
     ) => {
+      const sequence = ++candidateRefreshSequence.current;
+      const isCurrent = () => sequence === candidateRefreshSequence.current;
       if (confirmedCount === 0) {
+        setCandidateCountMismatch(false);
+        setCandidatesError(null);
+        setCandidatesLoading(false);
         setCandidates([]);
         return;
       }
@@ -215,6 +244,7 @@ export function KnowledgeSmartIngestAnalysisSection({
         };
 
         let list = await loadList();
+        if (!isCurrent()) return;
         if (
           list.length < confirmedCount &&
           !materializeAttemptedRef.current
@@ -224,9 +254,15 @@ export function KnowledgeSmartIngestAnalysisSection({
             `/api/knowledge/sources/${source.id}/candidates`,
             { method: "POST" },
           );
-          if (materializeResponse.ok) {
-            list = await loadList();
+          if (!isCurrent()) return;
+          if (!materializeResponse.ok) {
+            const payload = await materializeResponse.json();
+            throw new Error(resolveKnowledgeApiError(
+              t, payload, "knowledge.ingest.smartIngestCandidatesLoadFailed",
+            ));
           }
+          list = await loadList();
+          if (!isCurrent()) return;
         }
         list.sort((a, b) => a.segmentIndex - b.segmentIndex);
         setCandidates(list);
@@ -234,17 +270,16 @@ export function KnowledgeSmartIngestAnalysisSection({
           candidatesEverLoadedRef.current = true;
           setCandidatesEverLoaded(true);
         }
-        if (list.length !== confirmedCount) {
-          setCandidateCountMismatch(true);
-        }
+        setCandidateCountMismatch(list.length !== confirmedCount);
       } catch (caught) {
+        if (!isCurrent()) return;
         setCandidatesError(
           caught instanceof Error
             ? caught.message
             : t("knowledge.ingest.smartIngestCandidatesLoadFailed"),
         );
       } finally {
-        setCandidatesLoading(false);
+        if (isCurrent()) setCandidatesLoading(false);
       }
     },
     [source.id, t],
@@ -288,11 +323,14 @@ export function KnowledgeSmartIngestAnalysisSection({
   }, [displayRun, onScopeChange, source]);
 
   useEffect(() => {
-    if (!stableAnalysisRunId || confirmedSegmentCount === 0) return;
+    // A Keep-all action confirms several segments. Reconcile its committed count
+    // once it settles, not each intermediate count while PATCHes are in flight.
+    if (!stableAnalysisRunId || segmentBusy) return;
     void refreshCandidates(confirmedSegmentCount, {
       silent: candidatesEverLoadedRef.current,
     });
-  }, [confirmedSegmentCount, refreshCandidates, stableAnalysisRunId]);
+    return invalidateCandidateRefresh;
+  }, [confirmedSegmentCount, invalidateCandidateRefresh, refreshCandidates, segmentBusy, stableAnalysisRunId]);
 
   async function startAnalysis() {
     if (!isPaste) return;
@@ -349,6 +387,8 @@ export function KnowledgeSmartIngestAnalysisSection({
     segmentId: string,
     status: "proposed" | "confirmed" | "rejected",
   ) {
+    candidateRefreshSequence.current++;
+    setCandidateCountMismatch(false);
     setSegmentBusy(true);
     setError(null);
     try {
@@ -377,16 +417,6 @@ export function KnowledgeSmartIngestAnalysisSection({
           segment.id === segmentId ? payload.segment! : segment,
         );
         const nextRun = { ...current, segments: nextSegments };
-        onScopeChange?.(scopeFromRun(source, nextRun));
-        const active = nextSegments.filter(
-          (segment) => segment.status !== "superseded",
-        );
-        const confirmedCount = active.filter(
-          (segment) => segment.status === "confirmed",
-        ).length;
-        if (status === "confirmed" && confirmedCount > 0) {
-          void refreshCandidates(confirmedCount);
-        }
         return nextRun;
       });
       return payload.segment;
@@ -401,6 +431,8 @@ export function KnowledgeSmartIngestAnalysisSection({
         .filter((segment) => segment.status === "proposed")
         .map((segment) => segment.id) ?? [];
     if (proposedIds.length === 0) return;
+    candidateRefreshSequence.current++;
+    setCandidateCountMismatch(false);
     setSegmentBusy(true);
     setError(null);
     try {
@@ -432,14 +464,9 @@ export function KnowledgeSmartIngestAnalysisSection({
               segment.id === segmentId ? payload.segment! : segment,
             ),
           };
-          onScopeChange?.(scopeFromRun(source, nextRun));
           return nextRun;
         });
       }
-      const preConfirmed =
-        run?.segments.filter((segment) => segment.status === "confirmed")
-          .length ?? 0;
-      void refreshCandidates(preConfirmed + proposedIds.length);
     } finally {
       setSegmentBusy(false);
     }
@@ -732,12 +759,7 @@ export function KnowledgeSmartIngestAnalysisSection({
                   silent: true,
                 })
               }
-              onCandidateDraftStateChange={(candidateId, state) => {
-                setCandidateDrafts((current) => ({
-                  ...current,
-                  [candidateId]: state,
-                }));
-              }}
+              onCandidateDraftStateChange={handleCandidateDraftStateChange}
             />
           ) : null}
           {showCandidateSection && candidates.length > 0 ? (

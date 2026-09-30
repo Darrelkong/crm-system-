@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/card";
 import { Card } from "@/components/ui/card";
 import type { KnowledgeCategoryListItem } from "@/lib/knowledge/core-service";
 import type { KnowledgeSegmentCandidateDetail } from "@/lib/knowledge/knowledge-segment-candidate-service";
+import type { CandidateDraftState } from "@/components/knowledge/knowledge-smart-ingest-candidate-workflow";
 import type { OrganizerDraftFields } from "@/lib/knowledge/knowledge-ingest-organizer-draft";
 import { isUsableCandidateOrganizerDraft } from "@/lib/knowledge/knowledge-candidate-organizer-draft-usability";
 import { getRequestedProjectItem } from "@/lib/constants/requested-projects";
@@ -43,13 +44,7 @@ export function KnowledgeSegmentCandidateCard({
   categories: KnowledgeCategoryListItem[];
   locale: "zh-Hans" | "zh-Hant" | "en";
   onUpdated: () => void;
-  onDraftStateChange?: (state: {
-    title: string;
-    summary: string;
-    body: string;
-    organized: boolean;
-    organizationRunId: string | null;
-  }) => void;
+  onDraftStateChange?: (candidateId: string, state: CandidateDraftState) => void;
 }) {
   const { t } = useTranslation();
   const [organizing, setOrganizing] = useState(false);
@@ -211,14 +206,14 @@ export function KnowledgeSegmentCandidateCard({
   const converted = Boolean(candidate.draftArticleId);
 
   useEffect(() => {
-    onDraftStateChange?.({
+    onDraftStateChange?.(candidate.id, {
       title,
       summary,
       body,
       organized,
       organizationRunId,
     });
-  }, [body, onDraftStateChange, organized, organizationRunId, summary, title]);
+  }, [body, candidate.id, onDraftStateChange, organized, organizationRunId, summary, title]);
 
   const categoryName =
     categories.find(

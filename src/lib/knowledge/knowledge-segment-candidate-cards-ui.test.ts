@@ -117,7 +117,7 @@ describe("knowledge segment candidate partial review + refresh stability (2E-4B)
   });
 
   it("loads candidates on mount when confirmedCount > 0 without waiting for proposed zero", () => {
-    assert.match(analysis, /confirmedSegmentCount === 0/);
+    assert.match(analysis, /confirmedCount === 0/);
     assert.match(analysis, /stableAnalysisRunId/);
     assert.doesNotMatch(analysis, /proposedRemaining === 0 && confirmedCount > 0/);
   });
@@ -153,7 +153,7 @@ describe("knowledge segment candidate partial review + refresh stability (2E-4B)
   });
 
   it("does not bind candidate refresh effect to mutable run object identity", () => {
-    assert.match(analysis, /\[confirmedSegmentCount, refreshCandidates, stableAnalysisRunId\]/);
+    assert.match(analysis, /\[confirmedSegmentCount, invalidateCandidateRefresh, refreshCandidates, segmentBusy, stableAnalysisRunId\]/);
     assert.doesNotMatch(analysis, /\[refreshCandidates, run\]/);
   });
 
