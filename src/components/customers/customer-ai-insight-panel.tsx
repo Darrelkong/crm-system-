@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { CustomerAiRatingReference } from "./customer-ai-rating-reference";
 import { Card } from "@/components/ui/card";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import type {
@@ -18,7 +19,6 @@ import { AiInsightPhase2Sections } from "@/components/customers/ai-insight-phase
 import { AiInsightSuggestedMessage } from "@/components/customers/ai-insight-suggested-message";
 import {
   hasRenderablePhase2,
-  shouldDeemphasizeIntentScore,
   shouldShowAdvancedUnavailableNotice,
 } from "@/components/customers/phase2-panel-display";
 import {
@@ -35,13 +35,6 @@ import {
 } from "@/components/customers/ai-insight-component-feedback-host";
 
 const cd = ui.customerDetail;
-
-const INTENT_BADGE_CLASS: Record<string, string> = {
-  high: "bg-emerald-50 text-emerald-800 ring-emerald-200",
-  medium: "bg-amber-50 text-amber-800 ring-amber-200",
-  low: cd.badgeNeutral,
-  unknown: cd.badgeNeutral,
-};
 
 const CONFIDENCE_LEVEL_BADGE_CLASS: Record<AiConfidenceLevel, string> = {
   high: "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200",
@@ -191,12 +184,17 @@ export function CustomerAiInsightPanel({
 
   const loadBundle = useCallback(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
-    setAdvancedUnavailableNotice(false);
-
-    void fetch(`/api/customers/${customerId}/ai-insight`)
+    // Start the external subscription asynchronously, so effect cleanup can cancel
+    // it before either state updates or the GET. No timer or extra request.
+    void Promise.resolve().then(() => {
+      if (cancelled) return null;
+      setLoading(true);
+      setError(null);
+      setAdvancedUnavailableNotice(false);
+      return fetch(`/api/customers/${customerId}/ai-insight`);
+    })
       .then(async (response) => {
+        if (!response) return null;
         if (response.status === 403) {
           return { restricted: true as const };
         }
@@ -206,7 +204,7 @@ export function CustomerAiInsightPanel({
         return response.json() as Promise<InsightBundle>;
       })
       .then((result) => {
-        if (cancelled) return;
+        if (cancelled || !result) return;
         if ("restricted" in result && result.restricted) {
           setRestricted(true);
           setInsight(null);
@@ -370,11 +368,6 @@ export function CustomerAiInsightPanel({
   const phase2 = hasRenderablePhase2(insight?.phase2)
     ? insight.phase2
     : null;
-  const deemphasizeIntentScore = shouldDeemphasizeIntentScore(
-    phase2,
-    insight?.intentScore,
-  );
-
   const insightReady = !!insight && insight.status === "ready";
   const componentFeedback = useAiInsightComponentFeedbackPanel({
     customerId,
@@ -437,6 +430,7 @@ export function CustomerAiInsightPanel({
                 </h4>
                 <p className={`mt-1 text-xs ${cd.muted}`}>
                   {t("customers.basicAnalysis.description")}
+                  {" "}{t("customerRating.systemReferenceNotice")}
                 </p>
               </div>
               <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${cd.badgeNeutral}`}>
@@ -665,38 +659,13 @@ export function CustomerAiInsightPanel({
                     );
                   })()}
 
-                <div className="flex flex-wrap items-center gap-3">
-                  <div>
-                    <p className={`text-xs font-medium ${cd.label}`}>
-                      {t("customers.aiInsight.intentLevel")}
-                    </p>
-                    <span
-                      className={`mt-1 inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${INTENT_BADGE_CLASS[insight.intentLevel] ?? INTENT_BADGE_CLASS.unknown}`}
-                    >
-                      {intentLabel}
-                    </span>
-                  </div>
-                  {!deemphasizeIntentScore && (
-                    <div>
-                      <p className={`text-xs font-medium ${cd.label}`}>
-                        {t("customers.aiInsight.intentScore")}
-                      </p>
-                      <p className={`mt-1 text-lg font-semibold ${cd.strongValue}`}>
-                        {insight.intentScore}
-                      </p>
-                    </div>
-                  )}
-                  {insight.status !== "ready" && (
-                    <div>
-                      <p className={`text-xs font-medium ${cd.label}`}>
-                        {t("customers.aiInsight.confidence")}
-                      </p>
-                      <p className={`mt-1 text-sm ${cd.value}`}>
-                        {formatConfidencePercent(insight.confidence)}%
-                      </p>
-                    </div>
-                  )}
-                </div>
+                <CustomerAiRatingReference t={t} intentLabel={intentLabel}
+                  intentScore={insight.intentScore} riskFlags={insight.riskFlags} />
+                {insight.status !== "ready" && (
+                  <p className={`text-sm ${cd.value}`}>
+                    {t("customers.aiInsight.confidence")}: {formatConfidencePercent(insight.confidence)}%
+                  </p>
+                )}
 
                 <div>
                   <h4 className={cd.sectionTitle}>
@@ -716,18 +685,12 @@ export function CustomerAiInsightPanel({
                   </p>
                 </div>
 
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2">
                   <SignalList
                     title={t("customers.aiInsight.keySignals")}
                     items={insight.keySignals}
                     emptyText={t("customers.aiInsight.noKeySignals")}
                     variant="positive"
-                  />
-                  <SignalList
-                    title={t("customers.aiInsight.riskFlags")}
-                    items={insight.riskFlags}
-                    emptyText={t("customers.aiInsight.noRiskFlags")}
-                    variant="risk"
                   />
                   <SignalList
                     title={t("customers.aiInsight.missingInformation")}
@@ -772,17 +735,6 @@ export function CustomerAiInsightPanel({
                       sectionVisible={true}
                     />
                   </>
-                )}
-
-                {deemphasizeIntentScore && (
-                  <details className="rounded-md border border-slate-200 p-3 dark:border-slate-700">
-                    <summary className={`cursor-pointer text-xs ${cd.muted}`}>
-                      {t("customers.phase2.legacyIntentScore")}
-                    </summary>
-                    <p className={`mt-2 text-sm ${cd.value}`}>
-                      {insight.intentScore}
-                    </p>
-                  </details>
                 )}
 
                 {display.showDraftMessage && (

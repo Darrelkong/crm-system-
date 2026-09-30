@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
+import { getTestD1PlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import * as schema from "../../../drizzle/schema";
 import type { Customer } from "../../../drizzle/schema/customers";
 import type { User } from "../../../drizzle/schema/users";
@@ -89,7 +89,7 @@ async function cleanup() {
 describe("first contact follow-up gate", () => {
   before(async () => {
     process.env.CRM_ALLOW_TEST_DB_BIND = "1";
-    const proxy = await getPlatformProxy();
+    const proxy = await getTestD1PlatformProxy();
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
@@ -431,11 +431,11 @@ describe("first contact follow-up gate route wiring", () => {
     const src = readFileSync(
       join(
         process.cwd(),
-        "src/app/api/customers/[id]/follow-ups/route.ts",
+        "src/lib/follow-ups/create-service.ts",
       ),
       "utf8",
     );
-    const insertIdx = src.indexOf("db.insert(schema.followUps)");
+    const insertIdx = src.indexOf("await commitFollowUpCreate");
     const enforceIdx = src.indexOf("enforceFirstContactFollowUpGate");
     assert.ok(enforceIdx > 0);
     assert.ok(insertIdx > enforceIdx);

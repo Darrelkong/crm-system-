@@ -96,6 +96,7 @@ export default async function CustomersPage({ searchParams }: Props) {
   const listQueryOptions = {
     sortMode: CUSTOMER_LIST_ACTIVE_SORT_MODE,
     automaticReclaimDays: settings.automaticReclaimDays,
+      reclaimWarningDaysBefore: settings.reclaimWarningDaysBefore,
   };
   const { page } = parseCustomerListPageParams({ page: params.page });
 

@@ -32,6 +32,8 @@ function validBody() {
   return {
     channel: "phone",
     outcome: "contact_made",
+    customerRating: "A",
+    expectedCustomerRatingRevision: 0,
     summary: "这是一段足够长的跟进摘要内容",
     customerIntent: "客户希望了解产品报价方案",
     nextFollowUpAt: next,
@@ -57,6 +59,8 @@ async function submitFollowUpLikeForm(options: {
       outcome: String(options.body.outcome ?? ""),
       summary: String(options.body.summary ?? ""),
       customerIntent: String(options.body.customerIntent ?? ""),
+      customerRating: options.body.customerRating,
+      expectedCustomerRatingRevision: options.body.expectedCustomerRatingRevision,
       nextFollowUpAt: (options.body.nextFollowUpAt as string) || null,
       nextAction: (options.body.nextAction as string) || null,
     },
@@ -519,7 +523,7 @@ describe("follow-up create submit single-flight", () => {
     });
     assert.equal(url, "/api/customers/cust-xyz/follow-ups");
     assert.equal(method, "POST");
-    assert.deepEqual(payload, body);
+    assert.deepEqual(payload, { ...body, submissionId: flight.submissionId() });
   });
 });
 
@@ -560,4 +564,30 @@ describe("follow-up create form single-flight wiring", () => {
     assert.doesNotMatch(formSource, /debounce/);
     assert.doesNotMatch(formSource, /Toast|toast/);
   });
+});
+
+it("ten rapid attempts use one POST and one stable identity across a lost-response retry", async () => {
+  const flight = createFollowUpSubmitFlight();
+  const sent: Record<string, unknown>[] = [];
+  const fetchImpl: typeof fetch = async (_url, init) => {
+    sent.push(JSON.parse(String(init?.body)));
+    await delay(5);
+    throw new Error("lost response");
+  };
+  await Promise.all(Array.from({ length: 10 }, () => postFollowUpCreateOnce({
+    flight, customerId: "c1", body: validBody(), fetchImpl,
+  })));
+  assert.equal(sent.length, 1);
+  assert.match(String(sent[0].submissionId), /^[0-9a-f-]{36}$/);
+  await postFollowUpCreateOnce({
+    flight, customerId: "c1", body: { ...validBody(), confirmDuplicateFollowUp: true }, fetchImpl,
+  });
+  assert.equal(sent.length, 2);
+  assert.equal(sent[1].submissionId, sent[0].submissionId);
+  flight.complete();
+  flight.release();
+  assert.equal(flight.isLocked(), true);
+  assert.equal((await postFollowUpCreateOnce({ flight, customerId: "c1", body: validBody(), fetchImpl })).status, "blocked");
+  assert.equal(sent.length, 2);
+  assert.notEqual(createFollowUpSubmitFlight().submissionId(), flight.submissionId());
 });

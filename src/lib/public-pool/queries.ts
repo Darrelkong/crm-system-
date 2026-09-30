@@ -1,3 +1,5 @@
+import { adminPoolRatingOrderBy } from "@/lib/customers/rating/sort";
+import type { CustomerRatingValue } from "@/lib/customers/rating/domain";
 import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { Database } from "@/lib/db";
 import { getDb, schema } from "@/lib/db";
@@ -133,6 +135,7 @@ export type StaffPublicPoolCustomerView = PublicPoolListItemBase & {
 };
 
 export type AdminPublicPoolCustomerView = PublicPoolListItemBase & {
+  customerRating: CustomerRatingValue;
   customerName: string;
   nameStatus: string;
   poolReason: string | null;
@@ -322,6 +325,7 @@ export function formatAdminPublicPoolCustomer(
 
   return {
     ...shared,
+    customerRating: customer.customerRating,
     customerName: customer.customerName,
     nameStatus: customer.nameStatus,
     poolReason: customer.poolReason ?? null,
@@ -365,13 +369,13 @@ export function formatPublicPoolCustomer(
   );
 }
 
-export async function listPublicPoolCustomers() {
+export async function listPublicPoolCustomers(adminRatingOrder = false) {
   const db = getDb();
   return db
     .select()
     .from(schema.customers)
     .where(eq(schema.customers.status, "public_pool"))
-    .orderBy(asc(schema.customers.poolEnteredAt));
+    .orderBy(...(adminRatingOrder ? adminPoolRatingOrderBy() : [asc(schema.customers.poolEnteredAt), asc(schema.customers.id)]));
 }
 
 /** Minimal fields for staff random-claim candidate selection (no PII). */
@@ -531,9 +535,9 @@ export async function listRandomClaimCandidatesForStaff(
   };
 }
 
-async function loadPublicPoolListCustomerData(db: Database) {
+async function loadPublicPoolListCustomerData(db: Database, user: User) {
   recordPublicPoolCustomerListPhysicalLoad();
-  const customers = await listPublicPoolCustomers();
+  const customers = await listPublicPoolCustomers(user.role === "admin");
   recordPublicPoolFollowUpPhysicalLoad();
   const followUpSet = await getCustomerIdsWithFollowUps(
     db,
@@ -569,7 +573,7 @@ export async function formatPublicPoolListForUser(
     user,
     options?.staffStatus,
   );
-  const customerDataPromise = loadPublicPoolListCustomerData(db);
+  const customerDataPromise = loadPublicPoolListCustomerData(db, user);
 
   const [staffStatus, { customers, followUpSet }, tagLabelMap] = await Promise.all([
     staffStatusPromise,

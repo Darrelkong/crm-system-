@@ -1,5 +1,7 @@
 "use client";
 
+import { CustomerRatingBadge } from "@/components/customers/customer-rating-badge";
+import { useTranslation } from "@/i18n/provider";
 import Link from "next/link";
 import { CompletenessBadge } from "@/components/customers/customer-scores-cards";
 import { CustomerNameLabel } from "@/components/customers/customer-name-label";
@@ -105,6 +107,7 @@ export function PublicPoolMobileCard({
   const contact = formatPublicPoolAdminContact(customer);
   const hasWechat = Boolean(contact.wechatId);
   const hasEmail = Boolean(contact.email);
+  const { t } = useTranslation();
   const showPhone = contact.phone !== "—";
 
   return (
@@ -126,6 +129,7 @@ export function PublicPoolMobileCard({
               </Link>
             )}
           />
+          <CustomerRatingBadge rating={customer.customerRating} unratedLabel={t("followUps.unrated")} title={t("customerRating.title")} />
           <p
             className={`mt-1 text-xs ${ui.textSecondary} [overflow-wrap:anywhere]`}
           >

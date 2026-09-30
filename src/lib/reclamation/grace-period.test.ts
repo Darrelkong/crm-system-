@@ -14,6 +14,8 @@ function buildCustomer(
     now.getTime() - idleDays * 24 * 60 * 60 * 1000,
   ).toISOString();
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id: "c1",
     customerCode: null,
     customerName: "Test",

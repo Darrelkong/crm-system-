@@ -9,10 +9,14 @@ export type FollowUpSubmitFlight = {
   /** Unlock after API/network failure so the user can retry. */
   release: () => void;
   isLocked: () => boolean;
+  submissionId: () => string;
+  complete: () => void;
 };
 
 export function createFollowUpSubmitFlight(): FollowUpSubmitFlight {
   let locked = false;
+  let completed = false;
+  let submissionId: string | undefined;
 
   return {
     acquire() {
@@ -23,7 +27,15 @@ export function createFollowUpSubmitFlight(): FollowUpSubmitFlight {
       return true;
     },
     release() {
+      if (completed) return;
       locked = false;
+    },
+    submissionId() {
+      return submissionId ??= crypto.randomUUID();
+    },
+    complete() {
+      completed = true;
+      locked = true;
     },
     isLocked() {
       return locked;
@@ -62,7 +74,10 @@ export async function postFollowUpCreateOnce(options: {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(options.body),
+        body: JSON.stringify({
+          ...(options.body as Record<string, unknown>),
+          submissionId: options.flight.submissionId(),
+        }),
       },
     );
     return { status: "response", response };

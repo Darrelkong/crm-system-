@@ -849,3 +849,44 @@ describe("Phase 5D-3 i18n parity", () => {
     );
   });
 });
+
+describe("mounted store request cancellation", () => {
+  it("invalidates an old GET but can hydrate again after effect replay", async () => {
+    let resolveOld!: (response: Response) => void;
+    const { fetchImpl } = createMockFetch((_call, index) => index === 0
+      ? new Promise<Response>(resolve => { resolveOld = resolve; })
+      : okGet());
+    const client = new AiInsightComponentFeedbackClient(MESSAGES, fetchImpl);
+    const oldLoad = loadReady(client);
+    client.cancelPendingRequests();
+    await loadReady(client);
+    const snapshot = client.getSnapshot();
+    assert.equal(snapshot.hydration, "ready");
+    resolveOld(jsonResponse(403, {}));
+    await oldLoad;
+    assert.equal(client.getSnapshot(), snapshot);
+    client.dispose();
+  });
+
+  it("invalidates an in-flight PUT without publishing a late snapshot", async () => {
+    let resolvePut!: (response: Response) => void;
+    const { fetchImpl } = createMockFetch(call => call.method === "GET"
+      ? okGet()
+      : new Promise<Response>(resolve => { resolvePut = resolve; }));
+    const client = new AiInsightComponentFeedbackClient(MESSAGES, fetchImpl);
+    await loadReady(client);
+    client.submitRating("base_deep", "helpful");
+    client.cancelPendingRequests();
+    const snapshot = client.getSnapshot();
+    let emits = 0;
+    const unsubscribe = client.subscribe(() => { emits++; });
+    resolvePut(okPut("baseDeep", "helpful", []));
+    await flush();
+    assert.equal(client.getSnapshot(), snapshot);
+    assert.equal(emits, 0);
+    unsubscribe();
+    await loadReady(client);
+    assert.equal(client.getSnapshot().targets.base_deep.saving, false);
+    client.dispose();
+  });
+});

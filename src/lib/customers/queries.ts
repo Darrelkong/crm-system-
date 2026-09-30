@@ -55,6 +55,9 @@ export {
 export type ListQueryOptions = {
   sortMode?: CustomerListSortMode;
   automaticReclaimDays?: number;
+  reclaimWarningDaysBefore?: number;
+  /** Internal viewer boundary: unowned masked rows cannot reveal rating through order. */
+  maskUnownedRating?: boolean;
   now?: Date;
 };
 
@@ -71,7 +74,7 @@ export function resolveCustomerListOrderBy(options: ListQueryOptions = {}) {
       return buildCustomerListOrderByForMode(sortMode, reclaimDays, now);
     }
   }
-  return buildCustomerListOrderBy(now, options.automaticReclaimDays);
+  return buildCustomerListOrderBy(now, options.automaticReclaimDays, options.reclaimWarningDaysBefore, options.maskUnownedRating);
 }
 
 export type CustomerListFilter = {
@@ -365,7 +368,7 @@ export async function listCustomersForUser(
 ) {
   const db = getDb();
   const whereClause = buildCustomerListWhere(user, filter);
-  const orderBy = resolveCustomerListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy({ ...options, maskUnownedRating: user.role !== "admin" });
 
   return db
     .select()
@@ -386,7 +389,7 @@ export async function listCustomersForUserPaginated(
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
-  const orderBy = resolveCustomerListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy({ ...options, maskUnownedRating: user.role !== "admin" });
 
   const items =
     total === 0
@@ -419,7 +422,7 @@ export async function searchCustomersForUser(
     buildCustomerListWhere(user, filter),
     buildSearchWhere(term),
   );
-  const orderBy = resolveCustomerListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy({ ...options, maskUnownedRating: user.role !== "admin" });
 
   return db
     .select()
@@ -449,7 +452,7 @@ export async function searchCustomersForUserPaginated(
   const total = await countCustomersWhere(whereClause);
   const pagination = buildCustomerListPagination(total, page);
   const offset = (pagination.page - 1) * pagination.pageSize;
-  const orderBy = resolveCustomerListOrderBy(options);
+  const orderBy = resolveCustomerListOrderBy({ ...options, maskUnownedRating: user.role !== "admin" });
 
   const items =
     total === 0

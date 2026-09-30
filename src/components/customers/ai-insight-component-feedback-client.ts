@@ -166,9 +166,17 @@ export class AiInsightComponentFeedbackClient {
       : null;
   }
 
+  /** Invalidate requests without destroying the store during effect replay. */
+  cancelPendingRequests(): void {
+    this.loadSeq += 1;
+    for (const target of Object.keys(this.putSeq) as ComponentFeedbackUiTarget[]) {
+      this.putSeq[target] += 1;
+    }
+  }
+
   dispose(): void {
     this.disposed = true;
-    this.loadSeq += 1;
+    this.cancelPendingRequests();
     this.listeners.clear();
   }
 

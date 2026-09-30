@@ -10,6 +10,8 @@ import {
 
 function minimalCustomer(overrides: Partial<Customer> = {}): Customer {
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id: "c1",
     customerCode: null,
     customerName: "Test",

@@ -1,4 +1,6 @@
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { CUSTOMER_RATINGS } from "../../src/lib/customers/rating/domain";
+import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users";
 
 export const PINNED_SOURCES = [
@@ -23,6 +25,8 @@ export const customers = sqliteTable(
   "customers",
   {
     id: text("id").primaryKey(),
+    customerRating: text("customer_rating", { enum: CUSTOMER_RATINGS }),
+    customerRatingRevision: integer("customer_rating_revision").notNull().default(0),
     customerCode: text("customer_code"),
     customerName: text("customer_name").notNull(),
     /** confirmed = real name; pending = placeholder X先生 / X女士 (Phase 2B). */
@@ -94,6 +98,8 @@ export const customers = sqliteTable(
     updatedAt: text("updated_at").notNull(),
   },
   (table) => [
+    check("ck_customers_rating", sql`${table.customerRating} IS NULL OR ${table.customerRating} IN (${sql.raw(CUSTOMER_RATINGS.map((r) => "'" + r + "'").join(","))})`),
+    check("ck_customers_rating_revision", sql`typeof(${table.customerRatingRevision}) = 'integer' AND ${table.customerRatingRevision} >= 0`),
     index("idx_customers_owner_id").on(table.ownerId),
     index("idx_customers_created_at").on(table.createdAt),
     index("idx_customers_customer_code").on(table.customerCode),

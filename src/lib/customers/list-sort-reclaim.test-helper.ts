@@ -1,6 +1,6 @@
 import type { Customer } from "../../../drizzle/schema/customers";
 import { compareCustomersForList } from "@/lib/customers/list-sort";
-import { NEAR_RELEASE_RISK_DAYS } from "@/lib/customers/list-sort-reclaim-primitives";
+import { DEFAULT_RATING_WARNING_DAYS } from "@/lib/customers/rating/sort";
 import { isPublicPoolCustomer } from "@/lib/permissions/customers";
 import { isReclamationEligibleCustomer } from "@/lib/reclamation/constants";
 import { isReclaimGraceActive } from "@/lib/reclamation/cycle";
@@ -29,7 +29,7 @@ type ReclaimSortableCustomer = Pick<
 
 function isReclaimSortEligibleCustomer(
   customer: Pick<Customer, "status" | "ownerId" | "salesStage" | "isPinned">,
-  options?: { isCollaborative?: boolean },
+  options?: { isCollaborative?: boolean; warningDaysBefore?: number },
 ): boolean {
   if (options?.isCollaborative) {
     return false;
@@ -47,7 +47,7 @@ export function getReclaimSortKey(
   customer: ReclaimSortableCustomer,
   reclaimDays: number,
   now: Date = new Date(),
-  options?: { isCollaborative?: boolean },
+  options?: { isCollaborative?: boolean; warningDaysBefore?: number },
 ): ReclaimSortKey {
   if (!isReclaimSortEligibleCustomer(customer, options)) {
     return { group: 3, graceUntil: null, daysRemaining: 99_999 };
@@ -76,7 +76,7 @@ export function getNearReleaseRiskSortKey(
   customer: ReclaimSortableCustomer,
   reclaimDays: number,
   now: Date = new Date(),
-  options?: { isCollaborative?: boolean },
+  options?: { isCollaborative?: boolean; warningDaysBefore?: number },
 ): { riskBucket: number; riskGroup: number; graceUntil: string | null } {
   const key = getReclaimSortKey(customer, reclaimDays, now, options);
 
@@ -87,7 +87,7 @@ export function getNearReleaseRiskSortKey(
   const inRiskWindow =
     key.group === 0 ||
     key.group === 1 ||
-    (key.group === 2 && key.daysRemaining <= NEAR_RELEASE_RISK_DAYS);
+    (key.group === 2 && key.daysRemaining <= (options?.warningDaysBefore ?? DEFAULT_RATING_WARNING_DAYS));
 
   if (!inRiskWindow) {
     return { riskBucket: 1, riskGroup: 99_999, graceUntil: null };
@@ -135,40 +135,15 @@ export function compareNearReleaseRiskPriority(
   return 0;
 }
 
-/** Test-only comparator matching DB list order with hidden near-release risk. */
+/** Default comparator delegates to the production in-memory order, with explicit settings. */
 export function compareCustomersForListWithNearReleaseRisk(
-  a: ReclaimSortableCustomer,
-  b: ReclaimSortableCustomer,
-  reclaimDays: number,
-  now: Date = new Date(),
-  collaborativeFlags?: Map<string, boolean>,
+  a: ReclaimSortableCustomer, b: ReclaimSortableCustomer, reclaimDays: number, now = new Date(),
+  collaborativeFlags?: Map<string, boolean>, warningDaysBefore = DEFAULT_RATING_WARNING_DAYS,
 ): number {
-  const pinA = a.isPinned === 1 ? 1 : 0;
-  const pinB = b.isPinned === 1 ? 1 : 0;
-  if (pinB !== pinA) {
-    return pinB - pinA;
-  }
-
-  if (pinA === 1) {
-    const pinnedAtA = a.pinnedAt ?? "";
-    const pinnedAtB = b.pinnedAt ?? "";
-    if (pinnedAtA !== pinnedAtB) {
-      return pinnedAtB.localeCompare(pinnedAtA);
-    }
-  }
-
-  const riskCmp = compareNearReleaseRiskPriority(
-    a,
-    b,
-    reclaimDays,
-    now,
-    collaborativeFlags,
-  );
-  if (riskCmp !== 0) {
-    return riskCmp;
-  }
-
-  return compareCustomersForList(a as Customer, b as Customer, now);
+  return compareCustomersForList(a as Customer, b as Customer, now, {
+    automaticReclaimDays: reclaimDays, reclaimWarningDaysBefore: warningDaysBefore,
+    collaborativeCustomerIds: new Set([...collaborativeFlags ?? []].filter(([, flag]) => flag).map(([id]) => id)),
+  });
 }
 
 export function compareCustomersForReclaimSoonest(

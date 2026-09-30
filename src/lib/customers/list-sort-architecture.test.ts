@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 
 const PRODUCTION_SORT_FILES = [
   "src/lib/customers/list-sort.ts",
+  "src/lib/customers/rating/sort.ts",
   "src/lib/customers/list-sort-reclaim.ts",
   "src/lib/customers/list-sort-reclaim-primitives.ts",
   "src/lib/customers/queries.ts",
@@ -67,7 +68,8 @@ describe("customer list sort architecture", () => {
     const listSort = readSource("src/lib/customers/list-sort.ts");
     const reclaim = readSource("src/lib/customers/list-sort-reclaim.ts");
 
-    assert.match(listSort, /list-sort-reclaim-primitives/);
+    assert.match(listSort, /customers\/rating\/sort/);
+    assert.match(readSource("src/lib/customers/rating/sort.ts"), /list-sort-reclaim-primitives/);
     assert.match(reclaim, /list-sort-reclaim-primitives/);
     assert.doesNotMatch(listSort, /list-sort-reclaim["']/);
   });

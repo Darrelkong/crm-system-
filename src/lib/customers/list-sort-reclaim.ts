@@ -9,8 +9,6 @@ import {
 import type { CustomerListSortMode } from "@/lib/customers/customer-list-sort";
 
 export {
-  NEAR_RELEASE_RISK_DAYS,
-  buildNearReleaseRiskOrderClauses,
   buildReclamationEligibleSql,
   buildReclamationGraceActiveSql,
   buildReclamationIdleDaysSql,

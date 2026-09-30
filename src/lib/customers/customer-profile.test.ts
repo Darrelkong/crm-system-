@@ -36,6 +36,8 @@ const BASE_INPUT = {
 
 function baseCustomer(overrides: Partial<Customer> = {}): Customer {
   return {
+    customerRating: null,
+    customerRatingRevision: 0,
     id: "cust-1",
     customerCode: "EF000001",
     customerName: "測試客戶",

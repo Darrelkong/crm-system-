@@ -305,6 +305,9 @@ export default async function CustomerDetailPage({
       <CustomerDetailClient
         isAdmin={user.role === "admin"}
         view={{
+          customerRating: view.customerRating,
+          customerRatingRevision: view.customerRatingRevision,
+          canCorrectRating: view.accessLevel === "full" && showFollowUpButton && customer.status !== "public_pool" && !customer.deletedAt,
           id: view.id,
           customerCode: user.role === "admin" ? view.customerCode : undefined,
           customerName: view.customerName,

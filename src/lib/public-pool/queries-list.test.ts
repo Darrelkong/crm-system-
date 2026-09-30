@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
-import { getPlatformProxy } from "wrangler";
+import { getTestD1PlatformProxy as getPlatformProxy } from "@/lib/mail/test-d1-platform-proxy";
 import * as schema from "../../../drizzle/schema";
 import { SEED_IDS } from "@/lib/constants/seed-ids";
 import { bindTestDatabase } from "@/lib/db";
@@ -27,6 +27,14 @@ describe("public pool list query scope", () => {
     db = drizzle(proxy.env.DB, { schema });
     bindTestDatabase(db);
     dispose = proxy.dispose;
+    const now = new Date().toISOString();
+    await db.update(schema.users).set({ displayName: "员工 A" }).where(eq(schema.users.id, SEED_IDS.staffA));
+    await db.insert(schema.customers).values([
+      { id: SEED_IDS.customerPublicPool, customerName: "Synthetic Pool", source: "other", status: "public_pool", ownerId: null,
+        customerRating: "S", createdBy: SEED_IDS.admin, createdAt: now, updatedAt: now, poolEnteredAt: now },
+      { id: SEED_IDS.customerStaffA, customerName: "Synthetic Owned", source: "other", status: "active", ownerId: SEED_IDS.staffA,
+        createdBy: SEED_IDS.admin, createdAt: now, updatedAt: now },
+    ]);
   });
 
   after(async () => {
@@ -63,6 +71,8 @@ describe("public pool list query scope", () => {
     assert.equal("poolReason" in poolItem, false);
     assert.equal("previousOwnerDisplayName" in poolItem, false);
     assert.equal("phone" in poolItem, false);
+    assert.equal("customerRating" in poolItem, false);
+    assert.equal("customerRatingRevision" in poolItem, false);
     assert.ok(poolItem.maskedName);
     assert.ok(typeof poolItem.poolReasonPreview === "string" || poolItem.poolReasonPreview === null);
   });
@@ -74,6 +84,7 @@ describe("public pool list query scope", () => {
     assert.equal(poolItem.accessLevel, "full");
     if (poolItem.accessLevel === "full") {
       assert.ok(poolItem.customerName);
+      assert.equal(poolItem.customerRating, "S");
       assert.ok("poolReason" in poolItem);
     }
   });

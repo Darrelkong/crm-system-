@@ -183,10 +183,10 @@ describe("highChurnRiskCustomers — heat level boundary conditions", () => {
   });
 
   it("never-contacted customer (null lastValidFollowUpAt) uses createdAt as anchor", () => {
-    // createdAt 5 days ago, no valid follow-up → daysWithoutValid = 5 >= threshold(4)
+    // No valid follow-up: createdAt at the effective warning threshold.
     const c = makeCustomer({
       lastValidFollowUpAt: null,
-      createdAt: daysAgoIso(5),
+      createdAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     const heat = calculateCustomerHeat(c, DEFAULT_SETTINGS, FIXED_NOW);
     assert.equal(heat.heatLevel, "high_churn_risk");
@@ -358,11 +358,11 @@ describe("staff scoring summary — ownership filter", () => {
     // Simulate calling summarizeScoringForCustomers with only staff A's customers
     const staffACustomer = makeCustomer({
       ownerId: "staff-a",
-      lastValidFollowUpAt: daysAgoIso(5), // high_churn_risk (5 >= 4)
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays), // at the effective warning threshold
     });
     const staffBCustomer = makeCustomer({
       ownerId: "staff-b",
-      lastValidFollowUpAt: daysAgoIso(5), // would also be risk if counted
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays), // would also be risk if counted
     });
 
     // Staff A dashboard: pass only staff A's customers
@@ -388,11 +388,11 @@ describe("staff scoring summary — ownership filter", () => {
     // The SQL for staff uses `status = 'active'`; simulate by excluding non-active
     const activeCustomer = makeCustomer({
       status: "active",
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     const archivedCustomer = makeCustomer({
       status: "archived",
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
 
     // Only active customers are passed (mirrors the SQL WHERE status = 'active')
@@ -426,7 +426,7 @@ describe("staff myReclaimRiskCustomers — reclaim risk boundary", () => {
   it("closed_won customer is NOT reclaim risk (excluded stage)", () => {
     const c = makeCustomer({
       salesStage: "closed_won",
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     assert.equal(isReclaimRisk(c), false);
   });
@@ -434,7 +434,7 @@ describe("staff myReclaimRiskCustomers — reclaim risk boundary", () => {
   it("converted customer is NOT reclaim risk (excluded stage)", () => {
     const c = makeCustomer({
       salesStage: "converted",
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     assert.equal(isReclaimRisk(c), false);
   });
@@ -442,7 +442,7 @@ describe("staff myReclaimRiskCustomers — reclaim risk boundary", () => {
   it("on_hold customer is NOT reclaim risk (excluded stage)", () => {
     const c = makeCustomer({
       salesStage: "on_hold",
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     assert.equal(isReclaimRisk(c), false);
   });
@@ -450,7 +450,7 @@ describe("staff myReclaimRiskCustomers — reclaim risk boundary", () => {
   it("paid customer is NOT reclaim risk (excluded stage)", () => {
     const c = makeCustomer({
       salesStage: "paid",
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     assert.equal(isReclaimRisk(c), false);
   });
@@ -467,7 +467,7 @@ describe("staff myReclaimRiskCustomers — reclaim risk boundary", () => {
     const c = makeCustomer({
       salesStage: "new_lead",
       isPinned: 1,
-      lastValidFollowUpAt: daysAgoIso(5),
+      lastValidFollowUpAt: daysAgoIso(DEFAULT_SETTINGS.reclaimWarningThresholdDays),
     });
     assert.equal(isReclaimRisk(c), false);
   });

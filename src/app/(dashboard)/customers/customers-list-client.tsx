@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "react";
 import { useCustomerLabels } from "@/i18n/use-customer-labels";
 import { useTranslation } from "@/i18n/provider";
 import type { Locale } from "@/i18n/config";
-import { HeatBadge } from "@/components/customers/customer-scores-cards";
+import { CustomerRatingBadge } from "@/components/customers/customer-rating-badge";
 import { PinnedBadge } from "@/components/customers/pinned-badge";
 import { CustomerDetailNavLink } from "@/components/customers/customer-detail-nav-link";
 import { CustomerFamilyIcon } from "@/components/customers/customer-family-icon";
@@ -512,7 +512,7 @@ export function CustomersListClient({
               {project.display}
             </p>
           </div>
-          <HeatBadge level={c.heatLevel} />
+          {!c.isMasked && c.customerRating !== undefined && <CustomerRatingBadge rating={c.customerRating} unratedLabel={t("followUps.unrated")} title={t("customerRating.title")} />}
         </div>
         <div className="mt-3 flex flex-wrap gap-1.5">
           <Badge>{status(c.status)}</Badge>
@@ -738,7 +738,7 @@ export function CustomersListClient({
                   <Th>{t("customers.projectName")}</Th>
                   <Th>{t("customers.salesStage")}</Th>
                   <Th>{t("customers.status")}</Th>
-                  <Th>{t("customers.heatLevel")}</Th>
+                  <Th>{t("customerRating.title")}</Th>
                   <Th>{t("customers.completeness")}</Th>
                   <Th>{t("customers.followUpStatus")}</Th>
                   <Th>{t("customers.dataAccess")}</Th>
@@ -764,7 +764,9 @@ export function CustomersListClient({
                       <Badge>{status(c.status)}</Badge>
                     </Td>
                     <Td>
-                      <HeatBadge level={c.heatLevel} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        {!c.isMasked && c.customerRating !== undefined && <CustomerRatingBadge rating={c.customerRating} unratedLabel={t("followUps.unrated")} title={t("customerRating.title")} />}
+                      </div>
                     </Td>
                     <Td>
                       <span className="text-xs font-medium crm-text">
