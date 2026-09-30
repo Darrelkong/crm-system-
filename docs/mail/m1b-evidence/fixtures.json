@@ -1,0 +1,56 @@
+[
+  {
+    "name": "LONG_HTML",
+    "id": "m1b-long_html",
+    "end": "ACTUAL_END_LONG",
+    "mimeBytes": 308041,
+    "htmlBytes": 307834,
+    "textBytes": 237813,
+    "htmlHash": "6b98e35efe4ec2d2753671c0e0f74282036b83df2f2ece9207c90ef19ca89f2e"
+  },
+  {
+    "name": "TABLE_NEWSLETTER",
+    "id": "m1b-table_newsletter",
+    "end": "ACTUAL_END_TABLE",
+    "mimeBytes": 10804,
+    "htmlBytes": 10522,
+    "textBytes": 7616,
+    "htmlHash": "90740ce095ed95878ed65082492ad0f1f1dedc39dd2321d70924d6b5d56fb482"
+  },
+  {
+    "name": "IMAGE_ONLY_CURRENT_POLICY",
+    "id": "m1b-image_only_current_policy",
+    "end": null,
+    "mimeBytes": 424,
+    "htmlBytes": 33,
+    "textBytes": 0,
+    "htmlHash": "8cafaed8f569fe55afc4cc188a8193beb85f2b62130111fb53111599c1b0cc1f"
+  },
+  {
+    "name": "QUOTED_LONG",
+    "id": "m1b-quoted_long",
+    "end": "ACTUAL_END_QUOTED",
+    "mimeBytes": 12774,
+    "htmlBytes": 12563,
+    "textBytes": 9139,
+    "htmlHash": "0a4a030ef5a872c0b238dd44cab188a6cc3825658949bdd8c77cdb2b7d9c1dc6"
+  },
+  {
+    "name": "SAFE_WIDE_CONTENT",
+    "id": "m1b-safe_wide_content",
+    "end": "ACTUAL_END_WIDE",
+    "mimeBytes": 10708,
+    "htmlBytes": 10472,
+    "textBytes": 9285,
+    "htmlHash": "20710df2a738d98c9c818a4ca281edb05281eeeba07cdbd470400c90d7d2b40b"
+  },
+  {
+    "name": "MALICIOUS_HTML",
+    "id": "m1b-malicious_html",
+    "end": "ACTUAL_END_SAFE",
+    "mimeBytes": 783,
+    "htmlBytes": 59,
+    "textBytes": 32,
+    "htmlHash": "ce9bc46ff909eae5ca9f3b8c40665ea87d098a5ba6922d3336ac174f1db5d2bf"
+  }
+]

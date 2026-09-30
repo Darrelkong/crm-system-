@@ -1,0 +1,50 @@
+[
+  {
+    "name": "LONG_HTML",
+    "htmlBytes": 307834,
+    "textBytes": 237813,
+    "htmlHashMatches": true,
+    "paragraphs": 10003,
+    "endPersisted": true
+  },
+  {
+    "name": "TABLE_NEWSLETTER",
+    "htmlBytes": 10522,
+    "textBytes": 7616,
+    "htmlHashMatches": true,
+    "paragraphs": 401,
+    "endPersisted": true
+  },
+  {
+    "name": "IMAGE_ONLY_CURRENT_POLICY",
+    "htmlBytes": 33,
+    "textBytes": 0,
+    "htmlHashMatches": true,
+    "paragraphs": 0,
+    "endPersisted": null
+  },
+  {
+    "name": "QUOTED_LONG",
+    "htmlBytes": 12563,
+    "textBytes": 9139,
+    "htmlHashMatches": true,
+    "paragraphs": 482,
+    "endPersisted": true
+  },
+  {
+    "name": "SAFE_WIDE_CONTENT",
+    "htmlBytes": 10472,
+    "textBytes": 9285,
+    "htmlHashMatches": true,
+    "paragraphs": 162,
+    "endPersisted": true
+  },
+  {
+    "name": "MALICIOUS_HTML",
+    "htmlBytes": 59,
+    "textBytes": 32,
+    "htmlHashMatches": true,
+    "paragraphs": 2,
+    "endPersisted": true
+  }
+]

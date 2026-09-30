@@ -1,0 +1,1204 @@
+[
+  {
+    "fixture": "LONG_HTML",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 34,
+      "maximum": 34
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": []
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 0,
+      "maximum": 34
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": []
+  },
+  {
+    "fixture": "IMAGE_ONLY_CURRENT_POLICY",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "image-only empty state",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "image-only empty state",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    "documentScroll": {
+      "initial": 34,
+      "maximum": 34
+    },
+    "markerVisible": null,
+    "attachmentVisible": null,
+    "footerVisible": true,
+    "pre": []
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 0,
+      "maximum": 34
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": []
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 0,
+      "maximum": 34
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": [
+      {
+        "clientWidth": 832,
+        "scrollWidth": 19176,
+        "clientHeight": 3687,
+        "scrollHeight": 3687
+      }
+    ]
+  },
+  {
+    "fixture": "MALICIOUS_HTML",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "event handler remains inactive after click",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "safe marker reachable",
+          "pass": true
+        }
+      ],
+      "passed": 7,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "event handler remains inactive after click",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "safe marker reachable",
+          "pass": true
+        }
+      ],
+      "passed": 7,
+      "failed": 0
+    },
+    "documentScroll": {
+      "initial": 26,
+      "maximum": 34
+    },
+    "markerVisible": true,
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "pre": []
+  },
+  {
+    "fixture": "LONG_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 5,
+      "maximum": 95
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": []
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 0,
+      "maximum": 95
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": []
+  },
+  {
+    "fixture": "IMAGE_ONLY_CURRENT_POLICY",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "image-only empty state",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "image-only empty state",
+          "pass": true
+        }
+      ],
+      "passed": 5,
+      "failed": 0
+    },
+    "documentScroll": {
+      "initial": 5,
+      "maximum": 95
+    },
+    "markerVisible": null,
+    "attachmentVisible": null,
+    "footerVisible": true,
+    "pre": []
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 43.5,
+      "maximum": 95
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": []
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "baseline final marker clipped",
+          "pass": true
+        },
+        {
+          "name": "document is the only user-scrollable vertical ancestor",
+          "pass": true
+        },
+        {
+          "name": "baseline content exceeds clipped wrapper",
+          "pass": true
+        },
+        {
+          "name": "baseline intended inner scroller unconstrained",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": false
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": false
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": false
+        }
+      ],
+      "passed": 7,
+      "failed": 3
+    },
+    "documentScroll": {
+      "initial": 0,
+      "maximum": 95
+    },
+    "markerVisible": false,
+    "attachmentVisible": false,
+    "footerVisible": false,
+    "pre": [
+      {
+        "clientWidth": 358,
+        "scrollWidth": 19176,
+        "clientHeight": 3687,
+        "scrollHeight": 3687
+      }
+    ]
+  },
+  {
+    "fixture": "MALICIOUS_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "baseline": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "event handler remains inactive after click",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "safe marker reachable",
+          "pass": true
+        }
+      ],
+      "passed": 7,
+      "failed": 0
+    },
+    "m1cContract": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "event handler remains inactive after click",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "safe marker reachable",
+          "pass": true
+        }
+      ],
+      "passed": 7,
+      "failed": 0
+    },
+    "documentScroll": {
+      "initial": 5,
+      "maximum": 95
+    },
+    "markerVisible": true,
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "pre": []
+  }
+]
