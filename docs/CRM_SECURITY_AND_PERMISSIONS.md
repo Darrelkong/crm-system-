@@ -23,10 +23,10 @@ Last Human Product Review:
 
 # ECHFRONT CRM — security and permissions
 
-## Integration 1B current status — 2026-09-30
+## Integration 1C current status — 2026-09-30
 
-Current source is `integration/crm-reviewed-features`, integrated runtime tree
-`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+Current source is `integration/crm-reviewed-features`, validated runtime tree
+`0aaf985744df9f6852448cd19615950db9e9ab9d`. Exact reviewed tips and merge history
 are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
 documentation remains the foundation; dated earlier gate descriptions below are
 historical evidence, not the current acceptance queue.
@@ -35,8 +35,10 @@ Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
 accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
 ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
 and isolated Preview evidence are retained. These are inherited acceptance
-records, not tests repeated on the integrated tree. **Integration 1C validation
-is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+records. **INTEGRATION 1C LOCAL VALIDATION PASS** is recorded in
+[the closeout evidence](CRM_INTEGRATION_1C.md), separating newly executed checks
+from carried-forward passes. Both inherited SI2 lifecycle fixes are integrated.
+All integrated features remain **NOT PRODUCTION DEPLOYED** and main is unchanged.
 Integrated migration source contains 0087–0091; the last recorded Production
 migration observation remains through 0086 and was not refreshed here.
 Documentation is not release authorization. No main merge, deploy, Production
