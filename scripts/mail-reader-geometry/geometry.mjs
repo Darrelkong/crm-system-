@@ -2,6 +2,8 @@
  * No layout/style mutation and no application-state access.
  */
 export function measureReader({ end }) {
+  // Compute inside the DOM scope: browser tools truncate large returned strings.
+  function textFingerprint(text) { let hash=2166136261; for(let i=0;i<text.length;i++) hash=Math.imul(hash^text.charCodeAt(i),16777619); return `${text.length}:${hash>>>0}`; }
   const body = document.querySelector('.mail-message-body');
   if (!body) throw new Error('Production message body is not mounted');
   function rect(el) {
@@ -33,15 +35,19 @@ export function measureReader({ end }) {
   }
   const article=body.closest('article');
   const attachment=article?Array.from(article.querySelectorAll('span,button,a')).find(el=>el.textContent==='M1B_END_ATTACHMENT.txt'):null;
-  return { viewport:{width:innerWidth,height:innerHeight}, url:location.pathname, chain:nodes.map(item), markerExists:!!marker, marker:visibility(marker), attachment:visibility(attachment), footer:visibility(article?.querySelector('footer')), nav:nav?item(nav):null, document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,scrollTop:document.scrollingElement.scrollTop,scrollHeight:document.scrollingElement.scrollHeight,clientHeight:document.scrollingElement.clientHeight}, pre:Array.from(body.querySelectorAll('pre')).map(item), bodyTextLength:body.textContent.length, emptyState:body.getAttribute('role')==='status'?body.textContent:null, dangerousElementCount:body.querySelectorAll('script,iframe,form,input,object,embed,svg,img,[onclick],[onerror]').length, unsafeLinkCount:Array.from(body.querySelectorAll('a')).filter(a=>/^javascript:/i.test(a.getAttribute('href')??'')).length, executed:document.body.hasAttribute('data-m1b-executed') };
+  return { viewport:{width:innerWidth,height:innerHeight}, url:location.pathname, chain:nodes.map(item), markerExists:!!marker, marker:visibility(marker), attachment:visibility(attachment), footer:visibility(article?.querySelector('footer')), actions:Array.from(article?.querySelectorAll('footer button')??[]).map(el=>({text:el.textContent,...visibility(el)})), nav:nav?item(nav):null, document:{clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,scrollTop:document.scrollingElement.scrollTop,scrollHeight:document.scrollingElement.scrollHeight,clientHeight:document.scrollingElement.clientHeight}, pre:Array.from(body.querySelectorAll('pre')).map(item), bodyTextLength:body.textContent.length, textFingerprint:textFingerprint(body.textContent), remoteResourceCount:body.querySelectorAll('[src],[srcset],link,style,object,embed').length, emptyState:body.getAttribute('role')==='status'?body.textContent:null, dangerousElementCount:body.querySelectorAll('script,iframe,form,input,object,embed,svg,img,[onclick],[onerror]').length, unsafeLinkCount:Array.from(body.querySelectorAll('a')).filter(a=>/^javascript:/i.test(a.getAttribute('href')??'')).length, executed:document.body.hasAttribute('data-m1b-executed') };
 }
 
 /** Accepts measured browser records, not source text. M1C can select fixed mode. */
-export function assertGeometry(record, mode='baseline') {
+export function assertGeometry(record, mode='fixed') {
   const checks=[];
   function check(name,pass) { checks.push({name,pass:!!pass}); }
   const {top,middle,bottom,fixture}=record;
   check('real Mail route',top.url==='/mail');
+  if(mode==='fixed') {
+    check('no external resource markup',bottom.remoteResourceCount===0);
+    if(fixture.end) check('rendered content matches persisted fixture',top.textFingerprint===fixture.textFingerprint&&bottom.textFingerprint===fixture.textFingerprint);
+  }
   check('no active malicious elements',bottom.dangerousElementCount===0&&bottom.unsafeLinkCount===0&&!bottom.executed);
   check('no horizontal document overflow',bottom.document.scrollWidth<=bottom.document.clientWidth+1);
   if(record.firstBottom) check('user-scroll maximum stable',Math.abs(bottom.document.scrollTop-record.firstBottom.document.scrollTop)<=1&&bottom.chain.every((n,i)=>Math.abs(n.scrollTop-record.firstBottom.chain[i].scrollTop)<=1));
@@ -59,7 +65,11 @@ export function assertGeometry(record, mode='baseline') {
       } else {
         check('M1C final marker reachable',bottom.marker.fullyVisible);
         check('M1C inner body has usable vertical scroll range',bottom.chain.some(n=>n.classes.includes('flex-1 overflow-y-auto')&&n.scrollHeight>n.clientHeight+1));
-        check('M1C attachment reachable',bottom.attachment?.fullyVisible);
+        check('M1C attachment reachable',bottom.attachment?.fullyVisible&&bottom.attachment?.hitMatches);
+        check('M1C footer reachable',bottom.footer?.fullyVisible);
+        check('M1C actions unobscured',(bottom.actions??[]).length>0&&(bottom.actions??[]).every(a=>a.fullyVisible&&a.hitMatches));
+        check('M1C no competing document scroll',bottom.document.scrollHeight<=bottom.document.clientHeight+1);
+        check('M1C one primary vertical body scroller',bottom.chain.filter(n=>['auto','scroll'].includes(n.overflowY)&&n.scrollHeight>n.clientHeight+1).length===1);
       }
     } else check('safe marker reachable',bottom.marker.visible);
   } else check('image-only empty state',!!bottom.emptyState);

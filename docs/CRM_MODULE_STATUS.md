@@ -519,3 +519,7 @@ git diff --check
 - Evidence logs: `/tmp/crm-1cc-regression-final.log`, `/tmp/crm-1cc-first-regression.log`, `/tmp/crm-1cc-negative.log`, `/tmp/crm-1cc-original-si2-negative.log`, `/tmp/crm-1cc-focused.log`, `/tmp/crm-1cc-d1.log`, `/tmp/crm-1cc-tsc-final.log`, `/tmp/crm-1cc-eslint-final.log`, `/tmp/crm-1cc-browser.log`.
 
 Accepted SI2, first-hotfix, integration and main refs remain unchanged. Synthetic local source/segment/candidate data was created for reproduction. **NOT Production deployed; no Cloudflare modification or Mail send.** Separately authorized integration and the unfinished Integration 1C gate remain required.
+
+## Mail M1C local layout evidence — 2026-10-01
+
+**M1C LOCAL SCROLL/LAYOUT FIX VALIDATED** on `fix/mail-reader-scroll-geometry`, based on M1B `8a316af37cd8740781d1362b4098d49cf9dfa111`. Real local reader geometry: 158 assertions pass across six synthetic fixtures at desktop/390px; canonical local build and TypeScript pass. One unchanged attachment-action source-regex test debt remains. See [M1C evidence and limitations](mail/MAIL_M1C_READER_SCROLL_FIX.md). **HTML FIDELITY / IMAGE SUPPORT STILL PENDING; NOT MERGED TO MAIN; NOT DEPLOYED.** Mail remains PARTIAL / HYBRID; no transport, sanitizer, image policy or permission change.

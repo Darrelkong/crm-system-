@@ -1,0 +1,1418 @@
+[
+  {
+    "fixture": "LONG_HTML",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 591,
+      "scrollHeight": 387726,
+      "scrollTop": 387135.5,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 728.75,
+        "height": 22.75,
+        "left": 388,
+        "right": 1220,
+        "top": 706,
+        "width": 832,
+        "x": 388,
+        "y": 706
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Reply all",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Forward",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "237813:772890451",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 591,
+      "scrollHeight": 8009,
+      "scrollTop": 7418,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 706.9453125,
+        "height": 22.75,
+        "left": 396,
+        "right": 1212,
+        "top": 684.1953125,
+        "width": 816,
+        "x": 396,
+        "y": 684.1953125
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Reply all",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Forward",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "7616:3337189680",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "IMAGE_ONLY_CURRENT_POLICY",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "image-only empty state",
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 591,
+      "scrollHeight": 591,
+      "scrollTop": 0,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    },
+    "marker": "This message has no readable content.",
+    "attachmentVisible": null,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Reply all",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Forward",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "37:855738648",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 591,
+      "scrollHeight": 18804,
+      "scrollTop": 18212.5,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 713,
+        "height": 22.75,
+        "left": 426,
+        "right": 1220,
+        "top": 690.25,
+        "width": 794,
+        "x": 426,
+        "y": 690.25
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Reply all",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Forward",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "9139:501585084",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 591,
+      "scrollHeight": 28302,
+      "scrollTop": 27711.5,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 728.75,
+        "height": 22.75,
+        "left": 388,
+        "right": 1220,
+        "top": 706,
+        "width": 832,
+        "x": 388,
+        "y": 706
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Reply all",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Forward",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "9285:2116713898",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "MALICIOUS_HTML",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "event handler remains inactive after click",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "safe marker reachable",
+          "pass": true
+        }
+      ],
+      "passed": 9,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 591,
+      "scrollHeight": 591,
+      "scrollTop": 0,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 325.5,
+        "height": 22.75,
+        "left": 388,
+        "right": 1220,
+        "top": 302.75,
+        "width": 832,
+        "x": 388,
+        "y": 302.75
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Reply all",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "Forward",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "32:3056554063",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "LONG_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 468,
+      "scrollHeight": 387726,
+      "scrollTop": 387258.5,
+      "rect": {
+        "bottom": 709,
+        "height": 468,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      }
+    },
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 598.75,
+        "height": 22.75,
+        "left": 16,
+        "right": 374,
+        "top": 576,
+        "width": 358,
+        "x": 16,
+        "y": 576
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "237813:772890451",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 468,
+      "scrollHeight": 8009,
+      "scrollTop": 7541,
+      "rect": {
+        "bottom": 709,
+        "height": 468,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      }
+    },
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 576.9453125,
+        "height": 22.75,
+        "left": 24,
+        "right": 366,
+        "top": 554.1953125,
+        "width": 342,
+        "x": 24,
+        "y": 554.1953125
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "7616:3337189680",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "IMAGE_ONLY_CURRENT_POLICY",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "image-only empty state",
+          "pass": true
+        }
+      ],
+      "passed": 6,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 468,
+      "scrollHeight": 468,
+      "scrollTop": 0,
+      "rect": {
+        "bottom": 709,
+        "height": 468,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      }
+    },
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    },
+    "marker": "This message has no readable content.",
+    "attachmentVisible": null,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "37:855738648",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 468,
+      "scrollHeight": 18804,
+      "scrollTop": 18335.5,
+      "rect": {
+        "bottom": 709,
+        "height": 468,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      }
+    },
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 583,
+        "height": 22.75,
+        "left": 54,
+        "right": 374,
+        "top": 560.25,
+        "width": 320,
+        "x": 54,
+        "y": 560.25
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "9139:501585084",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        }
+      ],
+      "passed": 16,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 468,
+      "scrollHeight": 37266,
+      "scrollTop": 36798,
+      "rect": {
+        "bottom": 709,
+        "height": 468,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      }
+    },
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 598.75,
+        "height": 22.75,
+        "left": 16,
+        "right": 374,
+        "top": 576,
+        "width": 358,
+        "x": 16,
+        "y": 576
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "9285:2116713898",
+    "externalResourceMarkup": 0
+  },
+  {
+    "fixture": "MALICIOUS_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "event handler remains inactive after click",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "safe marker reachable",
+          "pass": true
+        }
+      ],
+      "passed": 9,
+      "failed": 0
+    },
+    "body": {
+      "clientHeight": 468,
+      "scrollHeight": 468,
+      "scrollTop": 0,
+      "rect": {
+        "bottom": 709,
+        "height": 468,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      }
+    },
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    },
+    "marker": {
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 318.5,
+        "height": 22.75,
+        "left": 16,
+        "right": 374,
+        "top": 295.75,
+        "width": 358,
+        "x": 16,
+        "y": 295.75
+      }
+    },
+    "attachmentVisible": true,
+    "footerVisible": true,
+    "actions": [
+      {
+        "text": "Reply",
+        "fullyVisible": true,
+        "hitMatches": true
+      },
+      {
+        "text": "",
+        "fullyVisible": true,
+        "hitMatches": true
+      }
+    ],
+    "textFingerprint": "32:3056554063",
+    "externalResourceMarkup": 0
+  }
+]

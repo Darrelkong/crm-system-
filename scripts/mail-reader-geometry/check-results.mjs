@@ -1,7 +1,7 @@
 /** Re-evaluate captured real browser geometry; never substitutes for a browser run. */
 import { readFileSync } from 'node:fs';
 import { assertGeometry } from './geometry.mjs';
-const [file,mode='baseline']=process.argv.slice(2);
+const [file,mode='fixed']=process.argv.slice(2);
 if(!file||!['baseline','fixed'].includes(mode)) throw new Error('Usage: node check-results.mjs geometry.json [baseline|fixed]');
 const records=JSON.parse(readFileSync(file,'utf8'));
 if(records.length!==12) throw new Error('Expected six fixtures at both viewports');

@@ -188,8 +188,8 @@ function ProductionDetailContent({
     detail.senderName.trim().toLowerCase() !== detail.senderAddress.trim().toLowerCase();
 
   return (
-    <article className="flex flex-1 flex-col overflow-hidden">
-      <header className="mail-reading-header border-b crm-border px-4 py-4 sm:px-6">
+    <article className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      <header className="mail-reading-header shrink-0 border-b crm-border px-4 py-4 sm:px-6">
         <div className="flex flex-wrap items-start gap-2">
           <h2 className="min-w-0 flex-1 text-lg font-semibold crm-text">
             {detail.subject}
@@ -222,7 +222,7 @@ function ProductionDetailContent({
           )}
         </div>
       </header>
-      <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
         <ProductionDetailBody detail={detail} folder={folder} variant={variant} />
       </div>
       {customerAssociation ? (
@@ -231,7 +231,7 @@ function ProductionDetailContent({
           variant={variant === "desktop" ? "desktop" : "mobile"}
         />
       ) : null}
-      <footer className="mail-reading-footer border-t crm-border px-4 py-3 sm:px-6">
+      <footer className="mail-reading-footer shrink-0 border-t crm-border px-4 py-3 sm:px-6">
         {onSeedAction ? (
           <MailProductionMessageActions
             messageId={messageId}
@@ -282,7 +282,7 @@ export function MailProductionReadingPane({
 
   if (!workspace) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {restoreBar}
         <div className="flex flex-1 items-center justify-center p-8 text-sm crm-text-secondary">
           {t("mail.detail.selectMessage")}
@@ -301,7 +301,7 @@ export function MailProductionReadingPane({
 
   if (!selectedMessageId) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {restoreBar}
         <div className="flex flex-1 items-center justify-center p-8 text-sm crm-text-secondary">
           {t("mail.detail.selectMessage")}
@@ -312,7 +312,7 @@ export function MailProductionReadingPane({
 
   if (isLoadingDetail) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {restoreBar}
         <div className="flex flex-1 items-center justify-center p-8 text-sm crm-text-secondary">
           {t("common.loading")}
@@ -326,7 +326,7 @@ export function MailProductionReadingPane({
     (!selectedMessage || selectedMessage.id !== selectedMessageId)
   ) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {restoreBar}
         <div className="flex flex-1 items-center justify-center p-8 text-sm crm-text-secondary">
           {t(resolveMailReadErrorMessageKey(error))}
@@ -343,7 +343,7 @@ export function MailProductionReadingPane({
 
   if (!isProductionDetailReady(detailState)) {
     return (
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {restoreBar}
         <div className="flex flex-1 items-center justify-center p-8 text-sm crm-text-secondary">
           {t("common.loadFailed")}
@@ -365,7 +365,7 @@ export function MailProductionReadingPane({
     : "inbox";
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
       {restoreBar}
       <ProductionDetailContent
         detail={detail}

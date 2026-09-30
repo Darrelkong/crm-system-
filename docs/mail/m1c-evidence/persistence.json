@@ -1,0 +1,38 @@
+[
+  {
+    "fixture": "LONG_HTML",
+    "htmlBytes": 307834,
+    "unchangedHtmlHash": true,
+    "unchangedTextBytes": true
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "htmlBytes": 10522,
+    "unchangedHtmlHash": true,
+    "unchangedTextBytes": true
+  },
+  {
+    "fixture": "IMAGE_ONLY_CURRENT_POLICY",
+    "htmlBytes": 33,
+    "unchangedHtmlHash": true,
+    "unchangedTextBytes": true
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "htmlBytes": 12563,
+    "unchangedHtmlHash": true,
+    "unchangedTextBytes": true
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "htmlBytes": 10472,
+    "unchangedHtmlHash": true,
+    "unchangedTextBytes": true
+  },
+  {
+    "fixture": "MALICIOUS_HTML",
+    "htmlBytes": 59,
+    "unchangedHtmlHash": true,
+    "unchangedTextBytes": true
+  }
+]

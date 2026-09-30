@@ -1,0 +1,135 @@
+[
+  {
+    "case": "re-entry-LONG_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 468,
+    "bodyScroll": 387726,
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "case": "re-entry-MALICIOUS_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 468,
+    "bodyScroll": 468,
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "case": "re-entry-LONG_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 468,
+    "bodyScroll": 387726,
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "case": "resize-390x600",
+    "viewport": {
+      "height": 600,
+      "width": 390
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 224,
+    "bodyScroll": 387726,
+    "document": {
+      "clientHeight": 600,
+      "clientWidth": 390,
+      "scrollHeight": 600,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "case": "resize-1280x900",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 591,
+    "bodyScroll": 387726,
+    "document": {
+      "clientHeight": 900,
+      "clientWidth": 1280,
+      "scrollHeight": 900,
+      "scrollTop": 0,
+      "scrollWidth": 1280
+    }
+  },
+  {
+    "case": "resize-390x844",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 468,
+    "bodyScroll": 387726,
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    }
+  },
+  {
+    "case": "reload-reopen",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "marker": true,
+    "attachment": true,
+    "footer": true,
+    "bodyClient": 468,
+    "bodyScroll": 387726,
+    "document": {
+      "clientHeight": 844,
+      "clientWidth": 390,
+      "scrollHeight": 844,
+      "scrollTop": 0,
+      "scrollWidth": 390
+    }
+  }
+]

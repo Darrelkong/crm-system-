@@ -23,7 +23,7 @@ export default async function MailLayout({
       role={user!.role}
       userName={user!.displayName}
       userEmail={user!.email}
-      contentClassName="flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0"
+      contentClassName="mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0"
     >
       {children}
     </DashboardShell>

@@ -4028,3 +4028,46 @@ a.crm-customer-name {
   padding: 2.5rem 1rem;
 }
 }
+
+/* Mail alone owns a bounded viewport. Keep the real header/nav in the
+   sizing flow, so their content and safe-area padding are counted once. */
+.dashboard-shell:has(.mail-workspace-main) {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.dashboard-shell:has(.mail-workspace-main) > div:has(.mail-workspace-main) {
+  flex: 1;
+  min-height: 0;
+}
+
+.dashboard-shell:has(.mail-workspace-main) div:has(> .mail-workspace-main) {
+  min-height: 0;
+}
+
+.dashboard-shell:has(.mail-workspace-main) > header,
+.dashboard-shell div:has(> .mail-workspace-main) > header,
+.dashboard-shell:has(.mail-workspace-main) > .mobile-bottom-nav {
+  flex-shrink: 0;
+}
+
+.dashboard-shell:has(.mail-workspace-main) > .mobile-bottom-nav {
+  position: relative;
+}
+
+main.mail-workspace-main {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  padding: 0;
+  overflow-y: auto;
+}
+
+.mail-workspace-main .mail-prototype-root {
+  flex: 1;
+  height: 100%;
+  max-height: 100%;
+}

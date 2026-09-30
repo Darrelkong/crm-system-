@@ -6,7 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { measureReader, assertGeometry } from './geometry.mjs';
 
-export async function runReaderGeometry({ tab, viewport, fixtures, evidenceDir, mode='baseline' }) {
+export async function runReaderGeometry({ tab, viewport, fixtures, evidenceDir, mode='fixed' }) {
   const url = new URL(await tab.url());
   if(url.hostname!=='127.0.0.1'||url.port!=='3299'||url.protocol!=='http:'||url.pathname!=='/mail') throw new Error('M1B requires the local /mail fixture at 127.0.0.1:3299');
   if(!['baseline','fixed'].includes(mode)) throw new Error('Unknown assertion mode');
@@ -14,21 +14,26 @@ export async function runReaderGeometry({ tab, viewport, fixtures, evidenceDir, 
   if(fixtures.length!==6||expectedNames.some(n=>!fixtures.some(f=>f.name===n&&f.id===`m1b-${n.toLowerCase()}`))) throw new Error('Wrong fixture manifest');
   await mkdir(evidenceDir,{recursive:true});
   const records=[];
+  const measure=async fixture=>{
+    const result=await tab.playwright.evaluate(measureReader,{end:fixture.end});
+    return result;
+  };
   try {
     for(const size of [{width:1280,height:900},{width:390,height:844}]) {
       await viewport.set(size);
+      await tab.screenshot({fullPage:false});
       const label=size.width===390?'mobile':'desktop';
       for(const name of expectedNames) {
         const fixture=fixtures.find(f=>f.name===name);
         const back=tab.playwright.getByRole('button',{name:size.width===390?'Back to Mail':'Back to message list',exact:true});
-        if(await back.isVisible()) await back.click();
+        if(await back.isVisible()) { await back.click(); await tab.screenshot({fullPage:false}); }
         const row=tab.playwright.getByRole('button',{name:new RegExp(`Synthetic Sender .* M1B ${name}(?: |$)`)});
         await row.click();
         await tab.playwright.getByRole('heading',{name:`M1B ${name}`,exact:true}).waitFor({state:'visible'});
         await tab.playwright.locator('.mail-message-body').waitFor({state:'visible'});
         const capture=async stage=>{
           await writeFile(path.join(evidenceDir,`${label}-${name.toLowerCase()}-${stage}.png`),await tab.screenshot({fullPage:false}));
-          return tab.playwright.evaluate(measureReader,{end:fixture.end});
+          return measure(fixture);
         };
         const top=await capture('top');
         const point=size.width===390?[195,420]:[800,450];
@@ -39,11 +44,11 @@ export async function runReaderGeometry({ tab, viewport, fixtures, evidenceDir, 
         // A second large gesture proves the user-scrollable maximum is stable.
         await tab.scroll(point,'down',1000);
         await tab.screenshot({fullPage:false});
-        const settled=await tab.playwright.evaluate(measureReader,{end:fixture.end});
+        const settled=await measure(fixture);
         const record={fixture,top,middle,bottom:settled,firstBottom:bottom};
         if(name==='MALICIOUS_HTML') {
           await tab.playwright.getByText('SAFE_CLICK_TARGET',{exact:true}).click();
-          record.securityAfterClick=await tab.playwright.evaluate(measureReader,{end:fixture.end});
+          record.securityAfterClick=await measure(fixture);
         }
         record.assertions=assertGeometry(record,mode);
         records.push(record);

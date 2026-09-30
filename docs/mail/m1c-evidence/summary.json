@@ -1,0 +1,760 @@
+{
+  "mode": "fixed",
+  "cases": 12,
+  "passed": 158,
+  "failed": 0,
+  "results": [
+    {
+      "name": "LONG_HTML",
+      "width": 1280,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "TABLE_NEWSLETTER",
+      "width": 1280,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "IMAGE_ONLY_CURRENT_POLICY",
+      "width": 1280,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "image-only empty state",
+            "pass": true
+          }
+        ],
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    {
+      "name": "QUOTED_LONG",
+      "width": 1280,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "SAFE_WIDE_CONTENT",
+      "width": 1280,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "MALICIOUS_HTML",
+      "width": 1280,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "event handler remains inactive after click",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "safe marker reachable",
+            "pass": true
+          }
+        ],
+        "passed": 9,
+        "failed": 0
+      }
+    },
+    {
+      "name": "LONG_HTML",
+      "width": 390,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "TABLE_NEWSLETTER",
+      "width": 390,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "IMAGE_ONLY_CURRENT_POLICY",
+      "width": 390,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "image-only empty state",
+            "pass": true
+          }
+        ],
+        "passed": 6,
+        "failed": 0
+      }
+    },
+    {
+      "name": "QUOTED_LONG",
+      "width": 390,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "SAFE_WIDE_CONTENT",
+      "width": 390,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "long content has scroll extent",
+            "pass": true
+          },
+          {
+            "name": "scroll probes recorded",
+            "pass": true
+          },
+          {
+            "name": "M1C final marker reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C inner body has usable vertical scroll range",
+            "pass": true
+          },
+          {
+            "name": "M1C attachment reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C footer reachable",
+            "pass": true
+          },
+          {
+            "name": "M1C actions unobscured",
+            "pass": true
+          },
+          {
+            "name": "M1C no competing document scroll",
+            "pass": true
+          },
+          {
+            "name": "M1C one primary vertical body scroller",
+            "pass": true
+          }
+        ],
+        "passed": 16,
+        "failed": 0
+      }
+    },
+    {
+      "name": "MALICIOUS_HTML",
+      "width": 390,
+      "checks": {
+        "checks": [
+          {
+            "name": "real Mail route",
+            "pass": true
+          },
+          {
+            "name": "no external resource markup",
+            "pass": true
+          },
+          {
+            "name": "rendered content matches persisted fixture",
+            "pass": true
+          },
+          {
+            "name": "no active malicious elements",
+            "pass": true
+          },
+          {
+            "name": "no horizontal document overflow",
+            "pass": true
+          },
+          {
+            "name": "user-scroll maximum stable",
+            "pass": true
+          },
+          {
+            "name": "event handler remains inactive after click",
+            "pass": true
+          },
+          {
+            "name": "final marker exists",
+            "pass": true
+          },
+          {
+            "name": "safe marker reachable",
+            "pass": true
+          }
+        ],
+        "passed": 9,
+        "failed": 0
+      }
+    }
+  ]
+}
