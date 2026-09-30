@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -24,9 +23,44 @@ Last Human Product Review:
 
 # ECHFRONT CRM — implementation review queue
 
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
+
 **This document is not permission to implement any item automatically.** It records 0E evidence, 0F-B owner-confirmed product rules/directions and proposed verification/acceptance checks. Priority is an engineering assessment of risk/importance, not implementation authorization. Confirmed product direction, current implementation, permission to change code and permission to release are distinct. Team Member is the preferred product term for internal `staff` roles; code identifiers remain unchanged.
 
 Final documentation review is APPROVED — 2026-09-26. The historical 0F-C authorization covered review-status-only finalization, one docs-only commit and the matching feature-branch push. No feature fix, test-suite run, deploy, migration or other GitHub change is authorized by this document. Existing Smart Ingest 2 Human Acceptance and Engineering Closeout remain accepted; its Production release is pending. Evidence shorthand **B** means the feature HEAD in this document header; **M** means its stated main baseline, as defined in the [module register](CRM_MODULE_STATUS.md#evidence-legend).
+
+## Current queue after Integration 1B
+
+F1/F2/F3/F4/SI2 accepted tips are now assembled with traceable merge commits.
+F4F-R has PASSED; **F4 LOCAL ACCEPTANCE IS COMPLETE**, with F4G/H/I retained.
+F3 real-AI acceptance in its approved isolated environment is owner-confirmed.
+Those completed standalone gates must not be mislabeled pending because an older
+ledger below stopped earlier. SI2 standalone/isolated Preview evidence is retained.
+
+**NEXT: separately authorized Integration 1C** cross-feature validation, including
+organizer + rating + idempotent submit composition, Worker task isolation,
+0087–0091 local migration compatibility, privacy/sorting/history boundaries,
+locale/runtime checks and local builds. Integration 1B runs structural checks only.
+Do not start 1C, a main merge, Production preflight/deploy or Mail implementation
+automatically. P1 recovery, policy-drift and unrelated backlog decisions remain
+separately scoped. Historical 1A/1B-A/B2 notes below are retained as dated evidence.
 
 ## 1A / 1B-A release gate update — 2026-09-26
 
@@ -58,7 +92,7 @@ No P1 implementation below was approved by 0F-A or 0F-B; the later 1B-A authoriz
 
 ### P1-01 — Candidate conversion concurrency
 
-- **Status:** LOCAL REMEDIATION IMPLEMENTED — targeted validation evidence recorded; Chat review and 1B-B full validation pending.
+- **Current status:** Accepted SI2 implementation retained at b66bb9e; standalone evidence is recorded in module status. Integrated regression remains for Integration 1C. The older pending-review statements below describe the historical 1B-A gate, not the current queue.
 - **Evidence:** [Conversion service](../src/lib/knowledge/knowledge-segment-candidate-convert-service.ts) now conditionally creates Article/version/audit/linkage in a single D1 batch. [Remediation integration tests](../src/lib/knowledge/knowledge-candidate-remediation.integration.test.ts) exercise simultaneous actors, four injected SQL failure boundaries, uncertain commit response, lifecycle races and three distinct candidate Articles.
 - **Why it matters:** The former split-write path at `d9e94c3` could create duplicates/orphans. This was a release blocker, not a reproduced Production incident; SI2 remains undeployed.
 - **Dependency:** Current schema through 0090 suffices; 0087–0090 are unchanged and no 0091 is created. SQL commit conditions protect source/segment/analysis eligibility, classification revision and current organization/comparison.
@@ -103,7 +137,7 @@ No P1 implementation below was approved by 0F-A or 0F-B; the later 1B-A authoriz
 
 ### P1-06 — Smart Ingest 2 Production Release Audit
 
-- **Status:** 1A COMPLETED — REMEDIATION REQUIRED BEFORE VALIDATION. 1B-A local remediation awaits Chat review / 1B-B full validation. Human Acceptance and Engineering Closeout remain recorded; **NOT PRODUCTION DEPLOYED**.
+- **Current status:** Standalone SI2 acceptance and isolated Preview evidence retained; Integration 1C and a separate Production release audit remain pending. **NOT PRODUCTION DEPLOYED**. The following 1A/1B-A provenance is historical, not a current remediation request.
 - **Evidence:** B contains 14 commits after main; 0D-C verified 0084–0086 APPLIED and 0087–0090 PENDING. [Preview guard](../scripts/deploy-knowledge-preview.mjs) does not allow this branch. [Runbook](CRM_DEPLOYMENT_RUNBOOK.md) records main/AI/schema dependencies.
 - **Why it matters:** Main code, candidate schema and the new AI task must be compatible; branch acceptance alone does not supply tested release artifacts or recovery approval.
 - **Dependency:** P1-01 disposition, recovery checkpoint, exact relevant test results, approved Preview/validation scope, migration/index review and exact release SHA.

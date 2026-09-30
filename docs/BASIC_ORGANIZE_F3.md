@@ -1,5 +1,16 @@
 # Basic Organize F3 — local implementation / release gate
 
+## Current integration status — 2026-09-30
+
+F3 is implemented and real-AI accepted in its approved isolated environment, as explicitly confirmed by the owner. Earlier local-only / remaining-real-AI statements below are historical gate evidence. SI2 now supplies its reviewed typecheck configuration and Vision fix; the old F3A baseline diagnostic is not the integrated typecheck status.
+
+Included in [Integration 1B](CRM_INTEGRATION_1B.md), candidate only. **NOT
+PRODUCTION DEPLOYED. Integration 1C validation is PENDING.** Historical standalone
+branch/base statements and test evidence below remain preserved; integration does
+not retroactively turn those tests into cross-feature validation.
+
+## Standalone origin and historical evidence
+
 2026-09-27. Base: `a481689ad3854b85dfa6073c9aa495453659fb58` (main).
 Branch: `feat/basic-organize-cloudflare-ai`. NOT deployed. No F1/F2/Smart Ingest code merged.
 

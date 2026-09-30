@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -23,6 +22,25 @@ Last Human Product Review:
 2026-09-26 — CHAT/HUMAN REVIEW COMPLETED; OPEN DECISIONS REMAIN DOCUMENTED
 
 # ECHFRONT CRM — architecture
+
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
 
 Current documentation corrected in 0F-B after Chat/Human review (2026-09-26). Open decisions remain documented. Paths describe the verified feature branch. Production observations are the dated 0D/0D-B/0D-C baseline, reused without new Cloudflare queries in this gate. Current source outranks historical architecture prose; deployment metadata does not prove every module's runtime behavior.
 
@@ -86,7 +104,7 @@ Production versions and release commands are recorded in the [runbook](CRM_DEPLO
 
 Production `DB` is `crm-db`, ID `03633dd2-c058-42de-9355-f5450eab7202`, in the verified CRM Cloudflare account `809c05c9f500268e973938fd641eee39`. The config specifies `drizzle/migrations` and no custom `migrations_table`; the installed Wrangler default is `d1_migrations`.
 
-**Production currently stops at migration 0086. Feature branch introduces 0087–0090.** The one approved 0D-C metadata SELECT returned 86 applied rows and no migration after 0090; latest was `0086_knowledge_segment_confirmed_status.sql`, applied at `2026-09-23 14:31:17`. 0084/0085/0086 are APPLIED; 0087/0088/0089/0090 are PENDING. This is a dated result, not authority to repeat the query.
+**Last recorded Production metadata stops at 0086; integrated source introduces 0087–0091.** No live migration state was queried during Integration 1B. The one approved 0D-C metadata SELECT returned 86 applied rows and no migration after 0090; latest was `0086_knowledge_segment_confirmed_status.sql`, applied at `2026-09-23 14:31:17`. 0084/0085/0086 are APPLIED; 0087/0088/0089/0090 are PENDING. This is a dated result, not authority to repeat the query.
 
 | Domain | Main persisted entities | Boundary |
 | --- | --- | --- |
@@ -103,7 +121,29 @@ Production `DB` is `crm-db`, ID `03633dd2-c058-42de-9355-f5450eab7202`, in the v
 | AI operations | Customer insights/feedback, quota/usage events | Customer-provider AI and internal service AI are different integrations. |
 | Operations | Audit/field-change/login logs, import/export/backup jobs, system settings | Coverage and retention differ by workflow. |
 
-The feature schema contains 93 declared tables. The 0D D1 metadata count was 92 tables, including platform/system counting differences; these numbers are not a schema equivalence check. No business-table schema/content query was used to resolve that difference.
+The historical SI2 schema inventory contained 93 declared tables; F4 adds `customer_rating_history`. The 0D D1 metadata count was 92 tables, including platform/system counting differences; these numbers are not a schema equivalence check. No business-table schema/content query was used to resolve that difference.
+
+## Integrated customer workflow architecture
+
+F1's stable submissionId is the follow-up primary key; F4 adds a real SQL revision
+guard, structured history, current rating/revision and audits inside the same D1
+business batch. Canonical replay is recovered before stale-revision rejection.
+Correction uses the rating-history ID for idempotency and changes no follow-up,
+task or reclamation state. Migration 0091 adds nullable rating/default-zero
+revision and history, without inference/backfill. History has customer CASCADE,
+follow-up SET NULL, actor RESTRICT and unique non-null follow-up linkage.
+
+Rating sorting executes before pagination in D1; warning priority uses operational
+reclaimWarningDaysBefore and existing eligibility/grace/countdown logic. Timeline
+loads customer-scoped history with actor names in one query, attaches linked
+confirmations after Next Action, and uses standalone manual/deleted-follow-up
+events. Non-full views do not receive history. See the [F4 contract](CRM_HUMAN_CUSTOMER_RATING.md).
+
+F4G keeps one feedback store per mounted hook lifecycle, invalidates in-flight
+work on cleanup and preserves StrictMode-safe hydration. F4H uses the runtime
+`{{rating}}` / `{{time}}` / `{{reason}}` interpolation contract; F4I maps the
+required-rating field code through the existing resolver. These hotfixes remain
+part of F4 ancestry. F2 changes only privacy styling/fallbacks, not authentication.
 
 ## R2 bucket map
 
@@ -127,6 +167,7 @@ The `AI_SERVICE` binding sends bounded task inputs to `crm-ai`; the AI Worker ha
 | `health_probe`, `structured_probe` | Explicit diagnostics/benchmarks | Qwen default, permitted Llama probe selection. Not safe to run automatically in a read-only gate. |
 | `admin_management_brief` | Admin management assistance | Qwen; validated scoped context and output. |
 | `staff_today_actions` | Team Member action assistance | Qwen; permitted Team Member context. |
+| `basic_text_organize` | Selected CRM text fluency only | Qwen; one invocation, original/proposal review and shared fact/language guards; no customer history retrieval. |
 | `knowledge_organize` | Evidence-grounded article draft organization | Qwen plus caller-side grounding/fidelity/quality checks. |
 | `knowledge_qa` | Answer using authorized published retrieval | Qwen; publication boundary remains in caller. |
 | `knowledge_compare` | Compare draft against visible published candidates | Qwen; candidate snapshot/reference validation. |
@@ -135,7 +176,7 @@ The `AI_SERVICE` binding sends bounded task inputs to `crm-ai`; the AI Worker ha
 
 Current [model constants](../workers/crm-ai/src/models.ts): Qwen `@cf/qwen/qwen3-30b-a3b-fp8`, text probe Llama `@cf/meta/llama-3.1-8b-instruct-fast`, selected vision Gemma `@cf/google/gemma-4-26b-a4b-it`. A second vision constant is not evidence it is selected. Task-level retries/deadlines are bounded; a response deadline does not prove underlying inference cancellation.
 
-Customer insights/follow-up organization also have separate OpenAI-compatible/Gemini provider code in [AI libraries](../src/lib/ai); do not rewrite all AI as one Cloudflare path. Mock output is explicitly gated for development/tests. Production Mock AI must remain off; deterministic dashboard fallback has its own source label.
+Basic Organize returns through AI_SERVICE before external-provider resolution. Customer Insight and the separate AI Organize mode retain their OpenAI-compatible/Gemini paths in [AI libraries](../src/lib/ai); do not couple them to Basic Organize or Knowledge. Comparison-only Preview model/deadline overrides remain scoped to knowledge_compare; Basic Organize retains its accepted Qwen model, 20-second Worker deadline and one-invocation behavior. Mock output is explicitly gated for development/tests. Production Mock AI must remain off; deterministic dashboard fallback has its own source label.
 
 ## Mail architecture
 
@@ -226,9 +267,9 @@ The earlier split-write conversion risk at `d9e94c37fb1af503a116663b8da667db4d7f
 
 - Local Next development uses local OpenNext bindings; fixtures/test sessions are not Production records. Local integration harnesses can migrate/write isolated local D1.
 - `mail-preview.echfronthk.com` appears in `allowedDevOrigins`; that proves allowed origin configuration, not a live tunnel, Worker or Production-equivalent dataset. Actual tunnel state was not inspected.
-- [Knowledge Preview config](../wrangler.knowledge-preview.jsonc) uses `crm-system-knowledge-preview`, D1 `crm-db-knowledge-preview` (`14b75c29-3faf-4389-8aa8-48f06fa75355`) and only `crm-knowledge-sources-preview` R2. It deliberately shares `crm-ai`, so real AI calls are not isolated from the account's AI usage.
+- Current SI2 [Knowledge Preview config](../wrangler.knowledge-preview.jsonc) targets `crm-system-knowledge-preview`, local configuration for D1 `crm-db-si2-preview`, R2 `crm-knowledge-si2-preview` and AI service `crm-ai-si2-preview`. Historical shared-AI/old-Preview resource descriptions are superseded by the isolated B2R configuration; old resources remain preserved. This source statement is not a fresh remote verification.
 - Knowledge Preview has Mock AI off, mail transport disabled, no email binding/cron, and large attachment runtime/send disabled. Its build read-source value is `preview`, which selects prototype Mail, not real Production Mail.
-- [Preview deploy guard](../scripts/deploy-knowledge-preview.mjs) allows only `feat/knowledge-human-acceptance-preview` and `fix/knowledge-dedupe-image-extraction`; current Smart Ingest 2 branch is not allowed. Guard changes/deployment require separate scope.
+- [Preview deploy guard](../scripts/deploy-knowledge-preview.mjs) requires the exact pushed SI2 SHA on `feat/knowledge-smart-ingest-2` and isolated bindings. It does not authorize deployment from this integration branch. No guard change or deployment is part of Integration 1B.
 - [Vision local config](../wrangler.knowledge-vision-validate.jsonc) is a limited real-AI local validation path, not full Preview isolation. [Mail test config](../wrangler.mail-test.jsonc) contains Production resource names and must only be used by the verified local-only harness; never infer safe remote targeting.
 
 ## Backup and architecture limits

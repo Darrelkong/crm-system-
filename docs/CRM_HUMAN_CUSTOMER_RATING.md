@@ -1,5 +1,16 @@
 # Human customer rating — F4B foundation / F4C workflow / F4D–F4E UX
 
+## Current integration status — 2026-09-30
+
+**F4 LOCAL ACCEPTANCE COMPLETE / F4F-R PASS**, explicitly confirmed by the owner. F4G stable feedback lifecycle, F4H timeline interpolation and F4I field-error localization are retained. Earlier statements limiting a particular test to static/render coverage remain accurate historical evidence, not a pending browser gate.
+
+Included in [Integration 1B](CRM_INTEGRATION_1B.md), candidate only. **NOT
+PRODUCTION DEPLOYED. Integration 1C validation is PENDING.** Historical standalone
+branch/base statements and test evidence below remain preserved; integration does
+not retroactively turn those tests into cross-feature validation.
+
+## Standalone origin and historical evidence
+
 Owner-approved contract, 2026-09-27. Branch `feat/human-customer-rating` starts
 at reviewed F1 `146f50f266adbe028ab029c3f6047f794b94e26d`, whose main ancestor is
 `a481689ad3854b85dfa6073c9aa495453659fb58`. No F2/F3/SI2 source is included.
@@ -493,4 +504,4 @@ changed-file ESLint and diff check passed. Local synthetic 390px browser checks
 showed each canonical localized error, no horizontal overflow and blocked saves;
 customer/follow-up/history/task snapshots were identical before and after.
 No completed F4F-R business scenarios were repeated. No Production/Cloudflare
-access or deployment. Only unfinished F4F-R acceptance remains to be resumed.
+access or deployment. At the F4I checkpoint, unfinished F4F-R acceptance remained; this was subsequently completed and owner-confirmed PASS in Integration 1B.

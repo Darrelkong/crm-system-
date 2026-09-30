@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -23,6 +22,25 @@ Last Human Product Review:
 2026-09-26 — CHAT/HUMAN REVIEW COMPLETED; OPEN DECISIONS REMAIN DOCUMENTED
 
 # ECHFRONT CRM — current product specification
+
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
 
 Current documentation corrected in 0F-B after Chat/Human review (2026-09-26). The 0F-A review passed with required revisions; those corrections record owner-confirmed product rules separately from implementation and unresolved decisions. The owner supplied the main baseline and confirmed Smart Ingest 2 Human Acceptance and Engineering Closeout; the 0D Cloudflare observations independently establish resource/version metadata and the migration boundary. No application tests were rerun in 0E, 0F-A or 0F-B. See [module status](CRM_MODULE_STATUS.md) for deployment and evidence limits.
 
@@ -86,6 +104,41 @@ First-contact gates and valid-follow-up rules affect subsequent work. Customer h
 Family/household relationships and associated approval workflows exist. Soft deletion, recycle-bin restoration and purge paths exist; a successful soft-delete action is not proof of disaster recovery. Current recycle retention policy is 90 days in code. Admin import/export paths exist with precheck/job guards; they are not Team Member bulk-access permissions. Contact entities exist, but a general standalone Contacts CRUD product is not established.
 
 Evidence: [customer schema](../drizzle/schema/customers.ts), [customer services](../src/lib/customers), [follow-up validation](../src/lib/follow-ups/validation.ts), [recycle bin](../src/lib/recycle-bin), [import/export permissions](../src/lib/permissions).
+
+### Accepted follow-up, human rating and Basic Organize behavior
+
+F1 provides one stable submission identity, atomic follow-up business effects and
+canonical response-loss replay. The Timeline uses the saved Next Action field.
+F4 extends that transaction with human S/A/B/D ratings; NULL is UNRATED, with no C
+and no inferred/default/backfilled rating. New customers start unrated.
+
+Eight outcomes require an explicit, initially empty rating choice: contact_made,
+replied, interested, considering, not_interested, awaiting_documents,
+awaiting_quotation and awaiting_internal_confirmation. no_contact, no_reply and
+lost_contact preserve rating without an event or revision increment. Same-rating
+confirmation creates history and increments revision. Required-rating writes use
+expected revision/CAS; canonical replay precedes stale rejection. Legacy
+customerIntent remains historical/compatible storage, not a rating source.
+
+Manual correction/clear requires a human reason and authorized full access, is
+forbidden in Public Pool, and changes no follow-up/task/reclaim scheduling state.
+Rating never changes reclaim eligibility/timing or grants S an exemption.
+Normal sorting is rating, then pin, then existing follow-up keys; the configured
+operational reclaim-warning group takes priority. Admin Pool can show/sort retained
+rating; Team Member pre-claim payload/order does not reveal it, and random claim
+is rating-independent. Structured rating history supplies Timeline transitions;
+backdated follow-ups expose the actual rating confirmation time.
+
+Human rating is the primary intent indicator. Heat remains backend compatibility
+data, not a primary customer badge/card. AI intent/score/risk is secondary AI
+Reference and never assigns human rating. F3 Basic Organize uses only the selected
+text and locale through AI_SERVICE → crm-ai → Workers AI, previews before apply,
+preserves language/factual tokens and original input on failure. Customer Insight
+Gemini and the separate external-provider organizer remain independent.
+
+See [F1](FOLLOW_UP_F1_IDEMPOTENCY_TIMELINE.md), [F3](BASIC_ORGANIZE_F3.md) and the
+[locked F4 contract](CRM_HUMAN_CUSTOMER_RATING.md). The earlier unrelated 5/10/45
+product-drift item is not silently resolved by this integration.
 
 ## E. Customer ownership and collaborators
 
@@ -192,13 +245,15 @@ Each confirmed segment can materialize its own persistent candidate. Business id
 
 Each candidate organizes and compares its own segment evidence, preserves lineage and can create/open its own draft article. One Source can therefore create multiple Candidate Articles. Reorganization retains an existing draft link and does not silently overwrite the article. Changed organizer content invalidates a stale comparison before conversion.
 
-Sequential repeat conversion can return the existing article. Concurrent conversion/partial-write safety remains a documented risk, not a proven guarantee. See [P1-01](CRM_IMPLEMENTATION_PLAN.md#p1-01--candidate-conversion-concurrency).
+At the accepted SI2 tip, conversion uses one guarded D1 batch for Article/version/audit/linkage, with canonical replay and current-lineage checks. The former split-write risk is historical; standalone local concurrency/failure evidence is retained in module status. Integration 1C must recheck the integrated path. See [P1-01](CRM_IMPLEMENTATION_PLAN.md#p1-01--candidate-conversion-concurrency).
 
 ## M. Mobile behavior
 
 Responsive customer/work-item views, mobile navigation and PWA/install/resume support exist. Team Member Public Pool intentionally differs from desktop: no pool browsing list, but random claim and quick entry remain. Candidate Open Draft uses a real article link suitable for native mobile navigation.
 
 Historical Safari/resume acceptance is dated evidence. It does not certify every current route/device, Mail feature or new branch. Scope any new mobile acceptance to named flows, browser/device and SHA.
+
+F2 preserves the shared privacy mask with 28px blur, translucent supported-browser styling and opaque/accessibility fallbacks. Watermark, coverage and blocked interaction remain; CRM session/Access behavior is unchanged. [F2 evidence](PRIVACY_OVERLAY_F2.md) is locally accepted, not Production deployed.
 
 ## N. Human-review principles
 
@@ -231,7 +286,7 @@ Use **团队成员 / 團隊成員 / Team Member** in product/UI terminology, ret
 ## Q. Open Human Decisions
 
 1. Final review of the 0F-B corrections is APPROVED — 2026-09-26; clarify any still-missing historical acceptance scope, which remains open.
-2. Decide Smart Ingest 2 release timing and resolution/acceptance of conversion concurrency risk. Acceptance of the feature is not release authorization.
+2. Decide integrated release timing only after Integration 1C and a separate Production release audit. Preserve accepted SI2 conversion atomicity and its regression evidence; acceptance is not release authorization.
 3. Set recovery scope, retention, recovery-time and recovery-point objectives; approve an isolated restore rehearsal and large-file cleanup policy/verification scope.
 4. Prioritize remaining Mail hybrid features and decide required read-audit coverage/retention; scope implementation/privacy/release gates for confirmed read receipts and LATER auto-reply. Their product direction is already confirmed.
 5. Review reported public GitHub exposure and decide repository visibility after integration/collaborator impact review.

@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -24,9 +23,55 @@ Last Human Product Review:
 
 # ECHFRONT CRM — current deployment runbook
 
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
+
 **Procedure documentation only. Nothing in this runbook was executed during 0F-A or 0F-B.** Chat/Human review completed on 2026-09-26 with required revisions, now recorded; open decisions remain. This is the current operational starting point, preserving older documents as historical evidence. Following a documented procedure still requires the owner's action/target authorization. Final documentation review is APPROVED — 2026-09-26; 0F-C authorizes docs-only commit and feature-branch push. No deployment, migration or Cloudflare modification is authorized by this gate.
 
 Team Member refers to internal `staff` roles; identifiers remain unchanged. Product confirmation is separate from implementation and release approval. The [master spec](CRM_MASTER_SPEC.md) records owner-confirmed policies and drift; none authorizes a release or live Access change. Intended Access duration (1 week), CRM absolute ceiling (7 days in source) and CRM idle policy (30 minutes) remain separate; live Access duration was not verified by takeover.
+
+## Integrated candidate release boundary
+
+Integration 1B creates only a local/GitHub candidate. Integration 1C validation is
+pending; there is no authorization to merge main, deploy Preview/Production,
+query Production D1 or change Cloudflare. F4F-R PASS is a completed standalone
+local acceptance gate, not permission to release the integrated tree.
+
+A later authorized preflight must verify final ancestry (F1 already within F4,
+F4G/H/I retained), all applied/pending migration **filenames**, binding isolation,
+compatible crm-ai caller/task versions and a protected D1 recovery checkpoint /
+Time Travel bookmark strategy. Never infer completeness from MAX(id), largest
+filename or the latest applied row. Current release scripts do not establish
+that complete-set proof automatically.
+
+Fresh integrated upgrade order is 0087 → 0088 → 0089 → 0090 → 0091. Prior local
+F4 tests also cover 0086 → 0091 → 0087–0090 and 0086 → 0087–0090 → 0091; integrated
+revalidation belongs to 1C. Preserve filenames/SQL, do not renumber or backfill
+ratings. The last recorded Production observation is 0086; no live refresh or
+remote application occurred here. New application code reads the added schema,
+so later deployment requires the compatible migrations and AI task service.
+
+The canonical future main deploy remains `npm run deploy:production`, after
+separate approval and authorized synthetic smoke preparation. Code rollback does
+not undo migrations or rating/candidate writes; no destructive schema rollback or
+DB restore is implied. Existing SI2 Preview guards remain feature-specific and
+must not be bypassed to deploy this integration branch.
 
 ## Identity, tools and preconditions
 
@@ -34,7 +79,7 @@ Team Member refers to internal `staff` roles; identifiers remain unchanged. Prod
 - Production account: `809c05c9f500268e973938fd641eee39`.
 - Production D1: `crm-db`, `03633dd2-c058-42de-9355-f5450eab7202`, main config `wrangler.jsonc`.
 - Production baseline supplied by owner: main `a481689ad3854b85dfa6073c9aa495453659fb58`; the 0D version snapshot below is separate runtime evidence.
-- Smart Ingest 2 feature HEAD: `d9e94c37fb1af503a116663b8da667db4d7fa6dd`; **NOT Production deployed**. 0087–0090 and Production Release Audit remain PENDING.
+- Reviewed SI2 tip: `b66bb9e0ad90c948a773c914ca18811bac1e83e8`; integrated with the reviewed F4/F2/F3 tips in [Integration 1B](CRM_INTEGRATION_1B.md). All remain **NOT Production deployed**. Integrated source includes 0087–0091; Production release approval remains pending.
 - Use the repository-installed tooling. Do not silently install or upgrade tools during an audit/release. The takeover observed Wrangler 4.136.1.
 
 Before an authorized operation, confirm repository/branch/HEAD, clean or deliberately accounted-for worktree, account and exact config/resource targeting. Confirm credentials without printing them. If OAuth requires human renewal, stop for the human step; a whoami/remote call can refresh local credentials and is not automatically a filesystem-read-only action.

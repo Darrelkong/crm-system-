@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -24,9 +23,48 @@ Last Human Product Review:
 
 # ECHFRONT CRM — module status and evidence
 
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
+
 Current documentation corrected in 0F-B after Chat/Human review (2026-09-26). Open decisions remain documented. This register deliberately separates source presence, test presence/results, human acceptance, deployment and runtime verification. No row uses "complete" as a substitute for those dimensions.
 
 User-facing **Team Member / 团队成员 / 團隊成員** maps to the internal `staff` role; code identifiers are unchanged. Owner-confirmed product rules/direction are an additional evidence dimension, not proof of implementation, runtime verification or release authorization.
+
+## Current integrated module register
+
+Authority: owner Integration 1B acceptance confirmation, 2026-09-30. Feature test
+ledgers below are retained; only the narrow structural checks in the integration
+record were newly run. No cross-feature validation result is claimed yet.
+
+| Integration unit | Accepted source | Current acceptance | Production |
+| --- | --- | --- | --- |
+| F1 via F4 | 146f50f | Implemented/accepted dependency; not applied separately | NOT DEPLOYED |
+| F2 privacy | b525dca | Implemented / accepted locally | NOT DEPLOYED |
+| F3 Basic Organize | 820f92c | Implemented / real-AI accepted in approved isolated environment | NOT DEPLOYED |
+| F4 human rating | c3e2e35 | **LOCAL ACCEPTANCE COMPLETE / F4F-R PASS**; F4G/H/I retained | NOT DEPLOYED |
+| SI2 | b66bb9e | Standalone accepted; isolated Preview evidence retained | NOT DEPLOYED |
+| Integration 1B | ef9acf1 | Candidate assembly and narrow structural checks only | NOT DEPLOYED |
+| Integration 1C | Not executed | **PENDING** cross-feature/migration/build/browser validation | NOT AUTHORIZED |
+
+Migration source is 0087–0091. No Production migration application is claimed.
+F4 browser acceptance is complete; earlier F4G/F4I pending statements are
+historical checkpoints superseded by the owner's explicit confirmation.
 
 ## Evidence legend
 
@@ -42,7 +80,7 @@ User-facing **Team Member / 团队成员 / 團隊成員** maps to the internal `
 
 Tests listed as existing are coverage locations, not a comprehensive count or proof that package scripts select them all. All row evidence is bounded by B/M/D/E as indicated.
 
-## Module register
+## Historical 0F-B module register
 
 | Module | Code Implemented | Tests Exist | Latest Known Test Result | Human Accepted | Production Deployed | Production Verified | Status | Known Gaps | Evidence / SHA |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -82,7 +120,7 @@ Tests listed as existing are coverage locations, not a comprehensive count or pr
 
 **Mail confirmed direction:** independent per-Team Member Mail access/workflow; mailbox separate from sender identity, multiple approved identities per mailbox, From selection, arbitrary validated To/Cc/Bcc, Team Member approval, authorized Admin direct-send, rich text, fixed text/image signatures with user-managed layout, and approximately 100 MB large files subject to technical policy. Existing primitives do not prove every intended UI capability. Read receipts and LATER auto-reply are **CONFIRMED FUTURE PRODUCT DIRECTION — NOT IMPLEMENTED / NOT RELEASE APPROVED**. External click tracking remains **NOT APPROVED / HUMAN DECISION REQUIRED**. See [master specification](CRM_MASTER_SPEC.md#j-mail-center); Mail remains **PARTIAL / HYBRID**.
 
-## Smart Ingest 2 acceptance and release ledger
+## Historical Smart Ingest 2 acceptance and release ledger
 
 | Dimension | Status and provenance |
 | --- | --- |

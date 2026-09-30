@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -23,6 +22,25 @@ Last Human Product Review:
 2026-09-26 — CHAT/HUMAN REVIEW COMPLETED; OPEN DECISIONS REMAIN DOCUMENTED
 
 # ECHFRONT CRM — durable decision log
+
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
 
 Current documentation corrected in 0F-B after Chat/Human review (2026-09-26). Open decisions remain documented. Entries distinguish observed implementation from owner-confirmed product rules/direction. **2026-09-26 is the recording/confirmation date, not an invented original adoption date.** Unless explicitly stated, original adoption dates and historical business rationale remain unknown. Product confirmation is not implementation or release authorization. Team Member is the user-facing term for internal `staff` identifiers.
 
@@ -288,6 +306,17 @@ Current code/schema/tests outrank old proposals. Tests cited here establish inte
 - **Supersedes:** Earlier `Boolean(knowledgeCategoryId)` behavior and 1B-A2 review's documented clear-means-automatic caveat. The earlier review export is historical and is not rewritten.
 - **Validation/approval boundary:** Focused local closure tests and one local checkpoint commit are authorized. No push, 1B-B execution, migration, Cloudflare or Production action is authorized. Smart Ingest 2 remains **NOT PRODUCTION DEPLOYED**; 1A is not relabeled PASS.
 - **Evidence:** [Master specification](CRM_MASTER_SPEC.md), [classification service](../src/lib/knowledge/knowledge-segment-candidate-classification.ts), [closure results](CRM_MODULE_STATUS.md#1b-a3-final-closure-evidence).
+
+## CRM-D025 — Reviewed integration candidate and acceptance reconciliation
+
+- **Date:** 2026-09-30; owner Integration 1B instruction.
+- **Status:** LOCAL/GITHUB INTEGRATION CANDIDATE; Integration 1C PENDING; NOT PRODUCTION DEPLOYED.
+- **Decision:** Preserve exact reviewed feature history by merging SI2 → F4 (already includes F1) → F2 → F3 on `integration/crm-reviewed-features`. Never reapply F1 separately. Preserve F4G/H/I, SI2 atomic candidate lineage and the distinct Basic Organize / Knowledge Workers AI / Customer Insight Gemini boundaries.
+- **Acceptance authority:** Owner confirms F1 accepted through F4, F2 locally accepted, F3 real-AI accepted in its approved environment, **F4 LOCAL ACCEPTANCE COMPLETE / F4F-R PASS**, and retained SI2 standalone/isolated Preview acceptance. This supersedes earlier pending F4 browser wording without rewriting historical test records.
+- **Integration rules:** Source locales are authoritative; regenerate catalogs. Retain SI2 crm-ai typecheck plus F3 Basic Organize test inclusion. Keep migration SQL/filenames 0087–0091 unchanged and inspect complete applied/pending filename sets before any later release.
+- **Scope:** Local branch/worktree, explicit merge commits, reviewed conflict resolution, documentation reconciliation, narrow structural checks and non-force integration-branch push only. No main merge, deployment, Production query/migration, Cloudflare operation or Mail work.
+- **Evidence:** [Integration 1B](CRM_INTEGRATION_1B.md), accepted feature documents and source ancestry. Integrated behavior validation is not claimed; 1C requires separate authorization.
+
 
 ## Recording future decisions
 

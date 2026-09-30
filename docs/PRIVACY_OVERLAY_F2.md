@@ -1,5 +1,16 @@
 # Privacy overlay F2 — local evidence (2026-09-27)
 
+## Current integration status — 2026-09-30
+
+F2 is implemented and accepted locally; the exact reviewed privacy styling is retained.
+
+Included in [Integration 1B](CRM_INTEGRATION_1B.md), candidate only. **NOT
+PRODUCTION DEPLOYED. Integration 1C validation is PENDING.** Historical standalone
+branch/base statements and test evidence below remain preserved; integration does
+not retroactively turn those tests into cross-feature validation.
+
+## Standalone origin and historical evidence
+
 Status: implementation and local validation complete; NOT Production deployed.
 Base: remote main `a481689ad3854b85dfa6073c9aa495453659fb58`.
 Branch: `fix/privacy-overlay-consistency`. No F1 or Smart Ingest 2 ancestry.

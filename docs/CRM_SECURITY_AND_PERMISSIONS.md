@@ -4,14 +4,13 @@ CURRENT
 Repository:
 Darrelkong/crm-system-
 
-Verified branch:
-feat/knowledge-smart-ingest-2
-
-Verified HEAD:
-d9e94c37fb1af503a116663b8da667db4d7fa6dd
-
-Last architecture verification:
+Historical takeover verification:
+feat/knowledge-smart-ingest-2 @ d9e94c37fb1af503a116663b8da667db4d7fa6dd
 2026-09-26
+
+Current integration reconciliation:
+integration/crm-reviewed-features, 2026-09-30
+See the current-status section and CRM_INTEGRATION_1B.md for exact source tips.
 
 Production baseline:
 main @ a481689ad3854b85dfa6073c9aa495453659fb58
@@ -23,6 +22,25 @@ Last Human Product Review:
 2026-09-26 — CHAT/HUMAN REVIEW COMPLETED; OPEN DECISIONS REMAIN DOCUMENTED
 
 # ECHFRONT CRM — security and permissions
+
+## Integration 1B current status — 2026-09-30
+
+Current source is `integration/crm-reviewed-features`, integrated runtime tree
+`ef9acf1e07726a08ac88c30373abefbbcc2a1002`. Exact reviewed tips and merge history
+are recorded in [Integration 1B](CRM_INTEGRATION_1B.md). The SI2 permanent CRM
+documentation remains the foundation; dated earlier gate descriptions below are
+historical evidence, not the current acceptance queue.
+
+Owner confirmation in Integration 1B: F1 is accepted through F4; F2 is locally
+accepted; F3 is real-AI accepted in its approved isolated environment; **F4 LOCAL
+ACCEPTANCE COMPLETE / F4F-R PASS**, retaining F4G/H/I; SI2 standalone acceptance
+and isolated Preview evidence are retained. These are inherited acceptance
+records, not tests repeated on the integrated tree. **Integration 1C validation
+is PENDING.** All integrated features remain **NOT PRODUCTION DEPLOYED**.
+Integrated migration source contains 0087–0091; the last recorded Production
+migration observation remains through 0086 and was not refreshed here.
+Documentation is not release authorization. No main merge, deploy, Production
+query/migration, Cloudflare change or Mail work is authorized by this record.
 
 Current documentation corrected in 0F-B after Chat/Human review (2026-09-26). Open decisions remain documented. This is a map of current authorization behavior and known limits, not a penetration-test certification or permission to change policies. Source code is authoritative over old permission plans. Production Access policy, DNS and business content were not queried by this documentation gate.
 
@@ -93,6 +111,25 @@ Unless stated otherwise, all actors require an active valid CRM session. Archive
 Evidence: [customer permissions](../src/lib/permissions/customers.ts), [approval permissions](../src/lib/permissions/approvals.ts), [approval services](../src/lib/approvals), [import](../src/lib/permissions/import.ts), [export](../src/lib/permissions/export.ts), [user management](../src/lib/permissions/user-management.ts).
 
 Primary owner and primary assignee synchronization is a data integrity boundary. Team Member-sensitive fields include customer identity, contact and requested-business information; being able to view them does not permit editing them. Public-pool status must use the release flow, not an ordinary status PATCH. Archived writes remain blocked even where Admin can read.
+
+## Integrated human-rating and organizer boundaries
+
+Follow-up ratings inherit assertCanAddFollowUp/full-access permission. Manual
+correction requires the same authorized relationship plus a non-Public-Pool,
+non-archived eligible customer; Admin cannot correct a Public Pool rating either.
+Stale conflicts expose only current rating/revision the actor may see. Idempotent
+replay does not grant access to another actor/customer's logical submission.
+
+Team Member pre-claim projections omit rating/revision/history and private owner/
+Heat information; ordering is independent of rating. Admin may see retained Pool
+rating. Masked and archived-basic Timeline responses do not contain rating history
+or reasons. Random claim eligibility, quota/cooldown and selection remain unchanged.
+
+Basic Organize authenticates and applies the existing form/customer permission
+before AI invocation. Only current text/locale plus task/version reach crm-ai;
+no automatic customer/profile/history, Mail or Knowledge retrieval. Diagnostics
+exclude text, matched token values, prompts, reasoning and secrets. F2 retains
+privacy-safe fallback/interaction blocking without modifying auth/session policy.
 
 ## Public Pool privacy and eligibility
 

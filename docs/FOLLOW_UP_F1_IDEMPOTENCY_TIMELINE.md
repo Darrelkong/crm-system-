@@ -1,5 +1,16 @@
 # Follow-up F1: idempotent create and timeline Next Action
 
+## Current integration status — 2026-09-30
+
+F1 is implemented and accepted as the intentional F4 dependency. Its exact commit is already in F4; no separate F1 merge/cherry-pick was performed.
+
+Included in [Integration 1B](CRM_INTEGRATION_1B.md), candidate only. **NOT
+PRODUCTION DEPLOYED. Integration 1C validation is PENDING.** Historical standalone
+branch/base statements and test evidence below remain preserved; integration does
+not retroactively turn those tests into cross-feature validation.
+
+## Standalone origin and historical evidence
+
 2026-09-27. Local implementation/validation only; NOT Production deployed.
 Base: remote main `a481689ad3854b85dfa6073c9aa495453659fb58`.
 Branch: `fix/follow-up-idempotency-timeline`, in a separate worktree.

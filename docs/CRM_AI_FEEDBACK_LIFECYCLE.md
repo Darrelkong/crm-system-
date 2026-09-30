@@ -1,5 +1,16 @@
 # Customer AI feedback store lifecycle — F4G local evidence
 
+## Current integration status — 2026-09-30
+
+F4G remains an isolated baseline-defect fix inherited through F4. The owner subsequently confirmed **F4 LOCAL ACCEPTANCE COMPLETE / F4F-R PASS**; F4F is no longer paused.
+
+Included in [Integration 1B](CRM_INTEGRATION_1B.md), candidate only. **NOT
+PRODUCTION DEPLOYED. Integration 1C validation is PENDING.** Historical standalone
+branch/base statements and test evidence below remain preserved; integration does
+not retroactively turn those tests into cross-feature validation.
+
+## Standalone origin and historical evidence
+
 2026-09-27. Local synthetic validation only; no Production access, deployment,
 remote migration, Gemini generation, Mail send or permission change.
 
@@ -79,5 +90,6 @@ Across initial open, re-entry and reload: 3 insight GETs (one per visit), zero
 feedback-components GETs (no insight), zero unsolicited feedback PUTs. Browser
 console errors: zero. No request storm.
 
-F4F remains paused. Its broader mobile, stale, rating mutation, performance and
-release gates were not resumed by F4G. This evidence does not authorize release.
+At the F4G checkpoint, F4F was paused and its broader gates were not resumed by
+F4G. The owner subsequently confirmed F4F-R PASS / F4 LOCAL ACCEPTANCE COMPLETE
+in Integration 1B. Neither acceptance nor this evidence authorizes release.
