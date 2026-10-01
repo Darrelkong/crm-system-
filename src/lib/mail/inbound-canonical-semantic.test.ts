@@ -55,6 +55,8 @@ describe("inbound canonical semantic comparison", () => {
           originalFilename: "a.pdf",
           displayFilename: "a.pdf",
           sortOrder: 0,
+          contentIdNormalized: null,
+          contentDisposition: null,
         },
       ],
     };

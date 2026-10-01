@@ -1,7 +1,7 @@
 "use client";
 
 import { PanelLeft } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { MailAttachmentViewer } from "@/components/mail/mail-attachment-viewer";
 import { MailMessageBodyRenderer } from "@/components/mail/mail-message-body-renderer";
 import { MailCrmContextPanel } from "@/components/mail/crm/mail-crm-context-panel";
@@ -37,12 +37,14 @@ function ProductionDetailBody({
   const [previewAttachment, setPreviewAttachment] = useState<
     MailDetailPresentation["attachments"][number] | null
   >(null);
+  const inlineContext = useMemo(() => ({ messageId: detail.id, folder, resources: detail.inlineResources ?? [] }), [detail.id, detail.inlineResources, folder]);
   const bodyClassName =
     variant === "desktop" ? "mail-reading-body mx-auto max-w-[52rem]" : "mail-reading-body";
 
   return (
     <div className={bodyClassName}>
       <MailMessageBodyRenderer
+        inlineContext={inlineContext}
         bodyHtml={detail.bodyHtml}
         bodyText={detail.bodyText}
         className="text-sm leading-relaxed crm-text"
@@ -56,6 +58,7 @@ function ProductionDetailBody({
             {t("mail.compose.showQuoted")}
           </p>
           <MailMessageBodyRenderer
+            inlineContext={inlineContext}
             bodyHtml={
               canRenderProductionQuotedHtml(detail.quotedHtml)
                 ? detail.quotedHtml

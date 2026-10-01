@@ -1,0 +1,52 @@
+{
+  "mixedAfter": [
+    {
+      "complete": true,
+      "referrerPolicy": "no-referrer",
+      "src": "http://127.0.0.1:3299/api/mail/messages/4a07dd50-b55b-4f33-9247-50ac0049e003/inline-resources/f4d58ddd-5a32-4be6-89fd-509c8cca0c2c?folder=inbox",
+      "width": 600
+    },
+    {
+      "complete": true,
+      "referrerPolicy": "no-referrer",
+      "src": "http://127.0.0.1:3399/banner.png",
+      "width": 600
+    }
+  ],
+  "mixedRequests": [
+    {
+      "path": "/banner.png",
+      "referer": null,
+      "time": "2026-10-01T19:55:08.970Z"
+    }
+  ],
+  "resizeFinal": {
+    "doc": {
+      "height": 600,
+      "width": 390
+    },
+    "frameHeight": 480,
+    "scrollers": [
+      {
+        "clientHeight": 200,
+        "scrollHeight": 748,
+        "scrollTop": 548
+      },
+      {
+        "clientHeight": 622,
+        "scrollHeight": 622,
+        "scrollTop": 0
+      },
+      {
+        "clientHeight": 480,
+        "scrollHeight": 480,
+        "scrollTop": 0
+      }
+    ],
+    "viewport": {
+      "height": 600,
+      "width": 390
+    }
+  },
+  "lifecycleLogs": []
+}

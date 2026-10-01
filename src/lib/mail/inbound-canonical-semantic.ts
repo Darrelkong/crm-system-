@@ -13,6 +13,8 @@ export type InboundAttachmentSemantic = {
   originalFilename: string;
   displayFilename: string;
   sortOrder: number;
+  contentIdNormalized: string | null;
+  contentDisposition: "inline" | "attachment" | null;
 };
 
 export type InboundCanonicalSemanticGraph = {
@@ -90,6 +92,8 @@ function attachmentKey(row: InboundAttachmentSemantic): string {
     row.originalFilename,
     row.displayFilename,
     String(row.sortOrder),
+    row.contentIdNormalized ?? "",
+    row.contentDisposition ?? "",
   ].join("\0");
 }
 

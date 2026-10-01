@@ -1,3 +1,4 @@
+import type { MailInlineResource } from "@/lib/mail/cid-image";
 import { MailReadApiError } from "@/lib/mail/client/mail-read-api-errors";
 import type {
   AccessibleMailboxView,
@@ -394,6 +395,7 @@ export type MailDetailPresentation = {
   bodyText: string;
   quotedHtml: string | null;
   quotedText: string | null;
+  inlineResources?: MailInlineResource[];
   attachments: MailDetailAttachmentPresentation[];
 };
 
@@ -454,6 +456,7 @@ export function adaptProductionDetailView(
     bodyText: detail.bodyText,
     quotedHtml: detail.quotedHtml,
     quotedText: detail.quotedText,
+    inlineResources: detail.inlineResources,
     attachments: detail.attachments
       .slice()
       .sort((left, right) => left.sortOrder - right.sortOrder)

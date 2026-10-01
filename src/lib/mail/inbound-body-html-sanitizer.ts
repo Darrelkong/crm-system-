@@ -1,8 +1,9 @@
+import { MAIL_CID_ATTRIBUTE, normalizeHtmlCid, encodeInertCid, decodeInertCid } from "./cid-image";
 import sanitizeHtml from "sanitize-html";
 import { MAIL_IMAGE_ATTRIBUTE, remoteImageUrl, imageDimension, encodeInertImage, decodeInertImage } from "./inert-image";
 
 /** Frozen inbound HTML policy — bump when allowlist changes (does not re-sanitize history). */
-export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v4";
+export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v5";
 
 const INBOUND_BODY_ALLOWED_TAGS = [
   "p",
@@ -78,7 +79,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     "*": ["style"],
     a: ["href", "target", "rel"],
-    span: [MAIL_IMAGE_ATTRIBUTE],
+    span: [MAIL_IMAGE_ATTRIBUTE, MAIL_CID_ATTRIBUTE],
     table: ["width", "cellpadding", "cellspacing", "border", "align", "bgcolor"],
     tr: ["align", "valign", "bgcolor"],
     th: ["colspan", "rowspan", "width", "align", "valign", "bgcolor"],
@@ -122,10 +123,18 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   transformTags: {
     "*": (tagName, attribs) => ({ tagName, attribs: layoutAttributes(attribs) }),
     img: (_tagName, attribs): sanitizeHtml.Tag => {
+      if (/^cid:/i.test(attribs.src ?? "")) {
+        const cid = normalizeHtmlCid(attribs.src);
+        return cid
+          ? { tagName: "span", attribs: { [MAIL_CID_ATTRIBUTE]: encodeInertCid({ cid, alt: (attribs.alt ?? "").slice(0, 500), width: imageDimension(attribs.width), height: imageDimension(attribs.height) }) } }
+          : { tagName: "span", attribs: {}, text: `[Inline image unavailable]${attribs.alt ? ` ${attribs.alt.slice(0, 500)}` : ""}` };
+      }
       const url = remoteImageUrl(attribs.src ?? "");
       return { tagName: "span", attribs: url ? { [MAIL_IMAGE_ATTRIBUTE]: encodeInertImage({ url, alt: (attribs.alt ?? "").slice(0, 500), width: imageDimension(attribs.width), height: imageDimension(attribs.height) }) } : {} };
     },
     span: (tagName, attribs): sanitizeHtml.Tag => {
+      const cid = decodeInertCid(attribs[MAIL_CID_ATTRIBUTE] ?? "");
+      if (cid) return { tagName, attribs: { [MAIL_CID_ATTRIBUTE]: encodeInertCid(cid) } };
       const image = decodeInertImage(attribs[MAIL_IMAGE_ATTRIBUTE] ?? "");
       // An incoming reserved descriptor is subject to the same validation as img.
       // Descriptor styles are application-owned; sender CSS cannot hide it.
@@ -158,7 +167,7 @@ export function derivePlainTextFromSanitizedHtml(html: string): string {
 
 /**
  * Sanitizes hostile inbound MIME HTML before canonical persistence.
- * V4 retains allowlisted inline layout and inert remote-image metadata; stylesheet blocks/classes
+ * V5 adds inert, normalized message-scoped CID descriptors. V4 retains allowlisted inline layout and inert remote-image metadata; stylesheet blocks/classes
  * and all executable/active content remain stripped. No historical reprocessing.
  */
 export function sanitizeInboundBodyHtml(rawHtml: string): string | null {

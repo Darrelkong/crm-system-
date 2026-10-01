@@ -1,5 +1,6 @@
 "use client";
 
+import type { MailInlineContext } from "@/lib/mail/cid-image";
 import { Fragment, useMemo, type ReactNode } from "react";
 import {
   isSafePlainTextUrl,
@@ -68,6 +69,7 @@ function renderPlainText(text: string): ReactNode {
 export type MailMessageBodyRendererProps = {
   bodyHtml: string | null | undefined;
   bodyText: string | null | undefined;
+  inlineContext?: MailInlineContext;
   className?: string;
   emptyLabel?: ReactNode;
 };
@@ -81,9 +83,10 @@ export function MailMessageBodyRenderer({
   bodyText,
   className,
   emptyLabel,
+  inlineContext,
 }: MailMessageBodyRendererProps) {
   const { t } = useTranslation();
-  const imageLabels = useMemo(() => ({ blocked: t("mail.detail.imageBlocked"), tiny: t("mail.detail.tinyImageBlocked"), load: t("mail.detail.loadImages"), privacy: t("mail.detail.imagePrivacy"), loaded: t("mail.detail.imagesLoaded") }), [t]);
+  const imageLabels = useMemo(() => ({ unavailable: t("mail.detail.inlineImageUnavailable"), blocked: t("mail.detail.imageBlocked"), tiny: t("mail.detail.tinyImageBlocked"), load: t("mail.detail.loadImages"), privacy: t("mail.detail.imagePrivacy"), loaded: t("mail.detail.imagesLoaded") }), [t]);
   const resolved = resolveMailMessageBody({ bodyHtml, bodyText });
   const rootClassName = [
     "mail-message-body",
@@ -94,7 +97,7 @@ export function MailMessageBodyRenderer({
     .join(" ");
 
   if (resolved.mode === "html") {
-    return <div className={rootClassName}><MailIsolatedHtmlDocument key={resolved.content} html={resolved.content} labels={imageLabels} /></div>;
+    return <div className={rootClassName}><MailIsolatedHtmlDocument key={resolved.content} html={resolved.content} labels={imageLabels} inlineContext={inlineContext} /></div>;
   }
 
   if (resolved.mode === "plain_text") {

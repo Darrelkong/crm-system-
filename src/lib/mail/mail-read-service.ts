@@ -1,3 +1,4 @@
+import { buildMailInlineResourceMap } from "./mail-inline-resource-service";
 import {
   and,
   asc,
@@ -359,7 +360,7 @@ export async function getMessageDetail(
       trustedMimeType: schema.mailStoredFiles.mimeType,
     })
     .from(schema.mailMessageAttachments)
-    .innerJoin(
+    .leftJoin(
       schema.mailStoredFiles,
       eq(
         schema.mailMessageAttachments.storedFileId,
@@ -379,11 +380,12 @@ export async function getMessageDetail(
     message,
     body,
     recipients,
-    attachments: attachmentRows.map((row) =>
+    inlineResources: buildMailInlineResourceMap(`${body.bodyHtmlSanitized ?? ""}${body.quotedHtmlSanitized ?? ""}`, attachmentRows),
+    attachments: attachmentRows.filter(row => row.securityScanStatus !== null && row.trustedMimeType !== null).map((row) =>
       toMailMessageAttachmentMetadataView({
         attachment: row.attachment,
-        securityScanStatus: row.securityScanStatus,
-        trustedMimeType: row.trustedMimeType,
+        securityScanStatus: row.securityScanStatus!,
+        trustedMimeType: row.trustedMimeType!,
       }),
     ),
     thread,

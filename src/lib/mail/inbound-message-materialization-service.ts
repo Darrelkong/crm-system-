@@ -1,4 +1,5 @@
-import { and, asc, eq } from "drizzle-orm";
+import { normalizeContentIdHeader } from "./cid-image";
+import { and, asc, eq, sql } from "drizzle-orm";
 import type { MailInboundIngestionEvent } from "../../../drizzle/schema/mail-inbound-ingestion-events";
 import type { MailInboundMessageMaterialization } from "../../../drizzle/schema/mail-inbound-message-materializations";
 import type { MailMessage } from "../../../drizzle/schema/mail-messages";
@@ -189,6 +190,8 @@ async function loadExistingSemanticGraph(
       originalFilename: row.originalFilename,
       displayFilename: row.displayFilename,
       sortOrder: row.sortOrder,
+      contentIdNormalized: row.contentIdNormalized,
+      contentDisposition: row.contentDisposition,
     })),
   };
 }
@@ -370,6 +373,8 @@ async function persistAttachmentSemantics(
       mimeType: put.mimeType,
       sizeBytes: put.sizeBytes,
       sortOrder: attachment.sortOrder,
+      contentIdNormalized: normalizeContentIdHeader(attachment.contentId),
+      contentDisposition: attachment.disposition,
       storageProvider: put.storageProvider,
       storageBucket: put.storageBucket,
       storageKey: put.storageKey,
@@ -525,6 +530,10 @@ export async function materializeInboundIngestionEvent(
     expectedProcessingVersion?: number;
   },
 ): Promise<MaterializeInboundIngestionEventResult> {
+  // Qualified columns are essential: SQLite can treat an unqualified, missing
+  // double-quoted identifier as a string literal. Fail before claiming or R2 writes.
+  await db.all(sql`SELECT mail_message_attachments.content_id_normalized,
+    mail_message_attachments.content_disposition FROM mail_message_attachments LIMIT 0`);
   const existingMaterialization = await findExistingMaterialization(
     db,
     input.ingestionEventId,
@@ -596,6 +605,8 @@ export async function materializeInboundIngestionEvent(
         originalFilename: row.originalFilename,
         displayFilename: row.displayFilename,
         sortOrder: row.sortOrder,
+        contentIdNormalized: row.contentIdNormalized,
+        contentDisposition: row.contentDisposition,
       })),
     );
 
@@ -750,6 +761,8 @@ function buildNewInboundGraphStatements(
       mimeType: string;
       sizeBytes: number;
       sortOrder: number;
+      contentIdNormalized: string | null;
+      contentDisposition: "inline" | "attachment";
       storageProvider: "r2";
       storageBucket: string;
       storageKey: string;
@@ -859,6 +872,8 @@ function buildNewInboundGraphStatements(
         mimeType: attachment.mimeType,
         sizeBytes: attachment.sizeBytes,
         sortOrder: attachment.sortOrder,
+        contentIdNormalized: attachment.contentIdNormalized,
+        contentDisposition: attachment.contentDisposition,
         deliveryMode: "direct_attachment",
         secureExpiryDays: null,
         createdAt: now,

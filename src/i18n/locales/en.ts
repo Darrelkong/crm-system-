@@ -255,6 +255,7 @@ const en = {
       to: "To",
       subject: "Subject",
       body: "Body",
+      inlineImageUnavailable: "Inline image unavailable",
       imageBlocked: "Image blocked for privacy",
       tinyImageBlocked: "Small image blocked",
       loadImages: "Load remote images",

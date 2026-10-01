@@ -1,3 +1,4 @@
+import type { MailInlineResource } from "@/lib/mail/cid-image";
 import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 
 export type MailReadFolder = "inbox" | "sent" | "trash";
@@ -102,6 +103,7 @@ export type MailMessageDetailView = {
   sentAt: string | null;
   isUnread: boolean;
   isImportantPersonal: boolean;
+  inlineResources?: MailInlineResource[];
   attachments: MailMessageAttachmentMetadataView[];
   thread: MailThreadSummaryView;
   customerAssociation: MailCustomerAssociationView | null;

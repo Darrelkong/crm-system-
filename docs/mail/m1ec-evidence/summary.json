@@ -1,0 +1,121 @@
+{
+  "cid": {
+    "cases": 16,
+    "passed": 194,
+    "failed": 0
+  },
+  "remote": {
+    "cases": 18,
+    "passed": 300,
+    "failed": 0,
+    "preOptInRequests": 0,
+    "postOptInRequests": 20,
+    "requests": [
+      {
+        "path": "/banner.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:41.435Z"
+      },
+      {
+        "path": "/only.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:43.667Z"
+      },
+      {
+        "path": "/one.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:45.284Z"
+      },
+      {
+        "path": "/two.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:45.286Z"
+      },
+      {
+        "path": "/three.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:45.286Z"
+      },
+      {
+        "path": "/pixel.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:46.917Z"
+      },
+      {
+        "path": "/tiny.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:48.650Z"
+      },
+      {
+        "path": "/mixed.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:50.368Z"
+      },
+      {
+        "path": "/alt.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:52.218Z"
+      },
+      {
+        "path": "/safe.png",
+        "referer": null,
+        "time": "2026-10-01T19:49:54.233Z"
+      },
+      {
+        "path": "/banner.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:02.571Z"
+      },
+      {
+        "path": "/only.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:04.181Z"
+      },
+      {
+        "path": "/one.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:05.834Z"
+      },
+      {
+        "path": "/two.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:05.836Z"
+      },
+      {
+        "path": "/three.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:05.836Z"
+      },
+      {
+        "path": "/pixel.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:07.450Z"
+      },
+      {
+        "path": "/tiny.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:09.067Z"
+      },
+      {
+        "path": "/mixed.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:10.701Z"
+      },
+      {
+        "path": "/alt.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:12.435Z"
+      },
+      {
+        "path": "/safe.png",
+        "referer": null,
+        "time": "2026-10-01T19:50:14.267Z"
+      }
+    ]
+  },
+  "fidelity": {
+    "cases": 12,
+    "passed": 180,
+    "failed": 0
+  }
+}

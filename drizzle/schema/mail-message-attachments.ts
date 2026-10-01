@@ -1,4 +1,5 @@
-import { foreignKey, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
+import { check, foreignKey, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { mailMessages } from "./mail-messages";
 import { mailStoredFiles } from "./mail-stored-files";
 import { mailOutboundRevisionAttachments } from "./mail-outbound-revision-attachments";
@@ -28,6 +29,8 @@ export const mailMessageAttachments = sqliteTable(
       .references(() => mailMessages.id),
     storedFileId: text("stored_file_id").notNull(),
     sourceRevisionAttachmentId: text("source_revision_attachment_id"),
+    contentIdNormalized: text("content_id_normalized"),
+    contentDisposition: text("content_disposition", { enum: ["inline", "attachment"] }),
     contentHash: text("content_hash").notNull(),
     originalFilename: text("original_filename").notNull(),
     displayFilename: text("display_filename").notNull(),
@@ -39,6 +42,11 @@ export const mailMessageAttachments = sqliteTable(
     createdAt: text("created_at").notNull(),
   },
   (table) => [
+    check("mail_attachment_cid_valid", sql`${table.contentIdNormalized} IS NULL OR (length(${table.contentIdNormalized}) BETWEEN 1 AND 998 AND ${table.contentIdNormalized} NOT GLOB '*[^!-~]*' AND instr(${table.contentIdNormalized}, '<') = 0 AND instr(${table.contentIdNormalized}, '>') = 0 AND instr(${table.contentIdNormalized}, char(0)) = 0)`),
+    check("mail_attachment_disposition_valid", sql`${table.contentDisposition} IS NULL OR ${table.contentDisposition} IN ('inline', 'attachment')`),
+    index("idx_mail_message_attachments_message_cid")
+      .on(table.messageId, sql`${table.contentIdNormalized} COLLATE BINARY`)
+      .where(sql`${table.contentIdNormalized} IS NOT NULL`),
     foreignKey({
       name: "fk_mail_message_attachments_stored_file_hash",
       columns: [table.storedFileId, table.contentHash],

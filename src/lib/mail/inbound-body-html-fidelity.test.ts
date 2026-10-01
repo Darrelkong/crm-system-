@@ -5,7 +5,7 @@ import { sanitizeOutboundBodyHtml } from "./outbound-body-html-sanitizer";
 import { buildMailIsolatedDocument, MAIL_DOCUMENT_CSP, safeMailDocumentLink } from "./client/mail-isolated-document";
 
 test("versioned v4 retains safe enterprise table presentation", () => {
-  assert.equal(INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, "inbound-v4");
+  assert.equal(INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, "inbound-v5");
   const html = '<table width="600" cellpadding="24" cellspacing="0" border="1" bgcolor="#eeeeee" style="width:600px;max-width:100%;border-collapse:collapse;margin:0 auto"><thead><tr><th colspan="2">Title</th></tr></thead><tbody><tr><td rowspan="2" valign="top" style="padding:24px 16px;border:1px solid #123456;background-color:#eee;font-family:Arial, Helvetica, sans-serif;font-size:24px;line-height:1.5;color:#123456">Body</td></tr></tbody><tfoot><tr><td>End</td></tr></tfoot></table>';
   const safe = sanitizeInboundBodyHtml(html)!;
   for (const retained of ['width="600"','cellpadding="24"','colspan="2"','rowspan="2"','max-width:100%','padding:24px 16px','border:1px solid #123456','font-family:Arial, Helvetica, sans-serif','<tfoot>']) assert.ok(safe.includes(retained), retained);

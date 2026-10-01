@@ -1,3 +1,4 @@
+import type { MailInlineResource } from "@/lib/mail/cid-image";
 import type { MailMessage } from "../../../drizzle/schema/mail-messages";
 import type { MailMessageAttachment } from "../../../drizzle/schema/mail-message-attachments";
 import type { MailMessageBody } from "../../../drizzle/schema/mail-message-bodies";
@@ -74,6 +75,7 @@ export type MailMessageDetailView = {
   sentAt: string | null;
   isUnread: boolean;
   isImportantPersonal: boolean;
+  inlineResources?: MailInlineResource[];
   attachments: MailMessageAttachmentMetadataView[];
   thread: MailThreadSummaryView;
   customerAssociation: SafeDraftCustomerAssociationView | null;
@@ -157,6 +159,7 @@ export function toMailMessageDetailView(input: {
   message: MailMessage;
   body: MailMessageBody;
   recipients: MailMessageDetailRecipientView[];
+  inlineResources?: MailInlineResource[];
   attachments: MailMessageAttachmentMetadataView[];
   thread: MailThreadSummaryView;
   readState: MailMessageReadState | null;
@@ -180,6 +183,7 @@ export function toMailMessageDetailView(input: {
     sentAt: input.message.sentAt,
     isUnread: projected.isUnread,
     isImportantPersonal: projected.isImportantPersonal,
+    inlineResources: input.inlineResources ?? [],
     attachments: input.attachments,
     thread: input.thread,
     customerAssociation: input.customerAssociation ?? null,

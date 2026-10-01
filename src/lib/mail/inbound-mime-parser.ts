@@ -205,7 +205,8 @@ export async function parseInboundMimeBytes(
         sortOrder: index,
         disposition:
           attachment.disposition === "inline" ? "inline" : "attachment",
-        contentId: attachment.contentId?.trim() || null,
+        // Preserve parser metadata; only the versioned CID normalizer may trim it.
+        contentId: attachment.contentId ?? null,
       };
     },
   );

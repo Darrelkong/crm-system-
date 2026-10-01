@@ -3,19 +3,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildMailIsolatedDocument, safeMailDocumentLink } from "@/lib/mail/client/mail-isolated-document";
 
+import { MAIL_CID_ATTRIBUTE, decodeInertCid, mailInlineResourcePath, type MailInlineContext } from "@/lib/mail/cid-image";
 import { MAIL_IMAGE_ATTRIBUTE, decodeInertImage, inertMailImages } from "@/lib/mail/inert-image";
-export type MailImageLabels = { blocked: string; tiny: string; load: string; privacy: string; loaded: string };
-const DEFAULT_IMAGE_LABELS: MailImageLabels = { blocked: "Image blocked for privacy", tiny: "Small image blocked", load: "Load remote images", privacy: "Loading contacts the sender’s image servers and can reveal your IP address and that you opened this message.", loaded: "Remote images enabled for this view" };
+export type MailImageLabels = { unavailable?: string; blocked: string; tiny: string; load: string; privacy: string; loaded: string };
+const DEFAULT_IMAGE_LABELS: MailImageLabels = { unavailable: "Inline image unavailable", blocked: "Image blocked for privacy", tiny: "Small image blocked", load: "Load remote images", privacy: "Loading contacts the sender’s image servers and can reveal your IP address and that you opened this message.", loaded: "Remote images enabled for this view" };
 
 /** Script-disabled same-origin access is solely for trusted parent measurement.
  * No sender JS, popups, forms, top-navigation or embedded resources are allowed.
  */
-export function MailIsolatedHtmlDocument({ html, labels = DEFAULT_IMAGE_LABELS }: { html: string; labels?: MailImageLabels }) {
+export function MailIsolatedHtmlDocument({ html, labels = DEFAULT_IMAGE_LABELS, inlineContext }: { html: string; labels?: MailImageLabels; inlineContext?: MailInlineContext }) {
   const frameRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [loadImages, setLoadImages] = useState(false);
   const images = useMemo(() => inertMailImages(html), [html]);
-  const documentHtml = useMemo(() => buildMailIsolatedDocument(html, loadImages), [html, loadImages]);
+  const documentHtml = useMemo(() => buildMailIsolatedDocument(html, loadImages, Boolean(inlineContext?.resources.some(resource => resource.attachmentId))), [html, loadImages, inlineContext]);
 
   useEffect(() => {
     const frame = frameRef.current;
@@ -49,6 +50,30 @@ export function MailIsolatedHtmlDocument({ html, labels = DEFAULT_IMAGE_LABELS }
           if (!tiny && image.width) placeholder.style.width = `${image.width}px`;
           placeholder.textContent = `${tiny ? labels.tiny : labels.blocked}${image.alt ? ` — ${image.alt}` : ""}`;
         }
+      }
+      for (const placeholder of doc.querySelectorAll<HTMLElement>(`span[${MAIL_CID_ATTRIBUTE}]`)) {
+        const image = decodeInertCid(placeholder.getAttribute(MAIL_CID_ATTRIBUTE) ?? "");
+        if (!image) continue;
+        const unavailable = () => {
+          placeholder.replaceChildren();
+          placeholder.setAttribute("role", "img");
+          placeholder.textContent = `${labels.unavailable ?? DEFAULT_IMAGE_LABELS.unavailable}${image.alt ? ` — ${image.alt}` : ""}`;
+          placeholder.style.cssText = "display:inline-block;max-width:100%;box-sizing:border-box;overflow-wrap:anywhere;background:#f2f2f2;border:1px solid #ccc;padding:4px;color:#444";
+          if (image.width) placeholder.style.width = `${image.width}px`;
+        };
+        const path = inlineContext ? mailInlineResourcePath(inlineContext, image.cid) : null;
+        if (!path) { unavailable(); continue; }
+        if (placeholder.querySelector("img")) continue;
+        const img = doc.createElement("img");
+        img.alt = image.alt;
+        img.referrerPolicy = "no-referrer";
+        img.style.cssText = "max-width:100%;height:auto;vertical-align:middle";
+        if (image.width) img.width = image.width;
+        if (image.height) img.height = image.height;
+        img.addEventListener("error", unavailable, { once: true });
+        // Only an application-generated, message-scoped endpoint. Never sender URLs.
+        img.src = new URL(path, window.location.origin).href;
+        placeholder.replaceChildren(img);
       }
       let cancelled = false;
       let scheduled = 0;
@@ -96,7 +121,7 @@ export function MailIsolatedHtmlDocument({ html, labels = DEFAULT_IMAGE_LABELS }
     frame.addEventListener("load", loaded);
     loaded();
     return () => { frame.removeEventListener("load", loaded); teardownDocument?.(); };
-  }, [documentHtml, labels, loadImages]);
+  }, [documentHtml, labels, loadImages, inlineContext]);
 
   return <>
     {images.length > 0 && <div className="mb-3 rounded border p-3 text-sm crm-text" role="note">

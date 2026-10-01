@@ -1,3 +1,4 @@
+import { inertMailCids } from "../cid-image";
 import { inertMailImages } from "../inert-image";
 
 export type MailMessageBodyMode = "html" | "plain_text" | "empty";
@@ -13,7 +14,7 @@ export type ResolvedMailMessageBody = {
 };
 
 function hasMeaningfulHtml(html: string): boolean {
-  if (inertMailImages(html).length) return true;
+  if (inertMailImages(html).length || inertMailCids(html).length) return true;
   return html
     .replace(/<!--[\s\S]*?-->/g, "")
     .replace(/<[^>]*>/g, " ")
