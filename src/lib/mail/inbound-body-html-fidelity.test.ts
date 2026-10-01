@@ -4,8 +4,8 @@ import { INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, sanitizeInboundBodyHtml, is
 import { sanitizeOutboundBodyHtml } from "./outbound-body-html-sanitizer";
 import { buildMailIsolatedDocument, MAIL_DOCUMENT_CSP, safeMailDocumentLink } from "./client/mail-isolated-document";
 
-test("versioned v3 retains safe enterprise table presentation", () => {
-  assert.equal(INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, "inbound-v3");
+test("versioned v4 retains safe enterprise table presentation", () => {
+  assert.equal(INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, "inbound-v4");
   const html = '<table width="600" cellpadding="24" cellspacing="0" border="1" bgcolor="#eeeeee" style="width:600px;max-width:100%;border-collapse:collapse;margin:0 auto"><thead><tr><th colspan="2">Title</th></tr></thead><tbody><tr><td rowspan="2" valign="top" style="padding:24px 16px;border:1px solid #123456;background-color:#eee;font-family:Arial, Helvetica, sans-serif;font-size:24px;line-height:1.5;color:#123456">Body</td></tr></tbody><tfoot><tr><td>End</td></tr></tfoot></table>';
   const safe = sanitizeInboundBodyHtml(html)!;
   for (const retained of ['width="600"','cellpadding="24"','colspan="2"','rowspan="2"','max-width:100%','padding:24px 16px','border:1px solid #123456','font-family:Arial, Helvetica, sans-serif','<tfoot>']) assert.ok(safe.includes(retained), retained);
@@ -26,7 +26,9 @@ for (const style of [
 
 test("stylesheet/class/image resources remain blocked", () => {
   const safe = sanitizeInboundBodyHtml('<style>@media(max-width:400px){p{color:red}}@import "https://tracking.invalid";</style><p class="wide">Text</p><img src="https://tracking.invalid/pixel" alt="secret"><img src="cid:x"><img src="data:image/png,abc">')!;
-  assert.equal(safe, '<p>Text</p>');
+  assert.match(safe, /<p>Text<\/p>/);
+  assert.match(safe, /data-mail-image-v1=/);
+  assert.doesNotMatch(safe, /<style|class=|<img|\ssrc=|cid:|data:image/);
 });
 
 test("invalid layout attributes and active targets are removed", () => {

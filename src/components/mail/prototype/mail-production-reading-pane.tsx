@@ -223,7 +223,7 @@ function ProductionDetailContent({
         </div>
       </header>
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        <ProductionDetailBody detail={detail} folder={folder} variant={variant} />
+        <ProductionDetailBody key={messageId} detail={detail} folder={folder} variant={variant} />
       </div>
       {customerAssociation ? (
         <MailCrmContextPanel

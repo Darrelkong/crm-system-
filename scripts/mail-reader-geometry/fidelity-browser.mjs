@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 
 export function measureIsolated(body, end) {
   const rect=e=>{const r=e.getBoundingClientRect(); return {top:r.top,bottom:r.bottom,left:r.left,right:r.right,width:r.width,height:r.height};};
-  const marker=Array.from(body.querySelectorAll('p,td,span')).find(e=>e.textContent===end);
+  const marker=Array.from(body.querySelectorAll('p,td,span,div')).find(e=>e.textContent===end);
   // Range captures visible text rather than the full width of its block box.
   const range=body.ownerDocument.createRange(); if(marker) range.selectNodeContents(marker);
   const r=marker?range.getBoundingClientRect():null;
@@ -26,12 +26,12 @@ export async function measureFidelity(tab, fixture, cachedInner) {
   const visible=global&&global.top>=clip.top-1&&global.bottom<=clip.bottom+1&&global.left>=clip.left-1&&global.right<=clip.right+1;
   return {...outer,isolated:inner,frame,markerExists:!!r,marker:{rect:global,fullyVisible:!!visible,visible:!!visible},textFingerprint:inner.textFingerprint,bodyTextLength:inner.textLength,dangerousElementCount:inner.dangerousElementCount,remoteResourceCount:inner.remoteResourceCount,unsafeLinkCount:inner.unsafeLinkCount,executed:inner.executed};
 }
-export async function runFidelity({tab,viewport,fixtures,evidenceDir}) {
+export async function runFidelity({tab,viewport,fixtures,evidenceDir,sizes=[{width:1280,height:900},{width:390,height:844}]}) {
   const url=new URL(await tab.url());
   if(url.origin!=='http://127.0.0.1:3299'||url.pathname!=='/mail')throw new Error('Only local M1 Mail allowed');
   await mkdir(evidenceDir,{recursive:true});
   const records=[];
-  for(const size of [{width:1280,height:900},{width:390,height:844}]) {
+  for(const size of sizes) {
     await viewport.set(size);await tab.screenshot({fullPage:false});
     for(const fixture of fixtures) {
       const back=tab.playwright.getByRole('button',{name:size.width===390?'Back to Mail':'Back to message list',exact:true});

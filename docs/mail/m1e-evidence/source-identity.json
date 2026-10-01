@@ -1,0 +1,67 @@
+[
+  {
+    "file": "public/locales/en.json",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "public/locales/zh-Hans.json",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "public/locales/zh-Hant.json",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/components/mail/mail-isolated-html-document.tsx",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/components/mail/mail-message-body-renderer.tsx",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/components/mail/prototype/mail-production-reading-pane.tsx",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/i18n/locales/en.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/i18n/locales/zh-Hans.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/i18n/locales/zh-Hant.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/lib/mail/client/mail-isolated-document.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/lib/mail/client/mail-message-body.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/lib/mail/inbound-body-html-sanitizer.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  },
+  {
+    "file": "src/lib/mail/inert-image.ts",
+    "buildMatches": true,
+    "runtimeMatches": true
+  }
+]

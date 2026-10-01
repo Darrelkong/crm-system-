@@ -1,0 +1,5742 @@
+[
+  {
+    "name": "REMOTE_BANNER",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy \u2014 Synthetic bannerEND_REMOTE_BANNER"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/banner.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "END_REMOTE_BANNER"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/banner.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:37.440Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": {
+          "top": 802,
+          "bottom": 820,
+          "left": 388,
+          "right": 574.703125
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 940,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -117,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 940,
+        "documentScrollHeight": 940,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 940,
+        "marker": {
+          "bottom": 937,
+          "left": 0,
+          "right": 186.703125,
+          "top": 919
+        },
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "17:3861823332",
+        "textLength": 17,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "17:3861823332",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 1030,
+        "scrollLeft": 0,
+        "scrollTop": 439,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "REMOTE_IMAGE_ONLY",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/only.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/only.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:39.322Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 900,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -77,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 900,
+        "documentScrollHeight": 900,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 900,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 990,
+        "scrollLeft": 0,
+        "scrollTop": 399,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "REMOTE_MULTIPLE",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 3,
+      "sentinel": false,
+      "text": "Image blocked for privacyImage blocked for privacyImage blocked for privacyEND_REMOTE_MULTIPLE"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/one.png",
+          "width": 600
+        },
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/two.png",
+          "width": 600
+        },
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/three.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 3,
+      "sentinel": false,
+      "text": "END_REMOTE_MULTIPLE"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/one.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:41.508Z"
+      },
+      {
+        "path": "/two.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:41.509Z"
+      },
+      {
+        "path": "/three.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:41.509Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": {
+          "top": 802,
+          "bottom": 820,
+          "left": 388,
+          "right": 585.078125
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 2740,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -1917,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 3,
+        "div": null,
+        "documentHeight": 2740,
+        "documentScrollHeight": 2740,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 2740,
+        "marker": {
+          "bottom": 2737,
+          "left": 0,
+          "right": 197.078125,
+          "top": 2719
+        },
+        "remoteResourceCount": 3,
+        "table": null,
+        "td": null,
+        "textFingerprint": "19:3227166338",
+        "textLength": 19,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "19:3227166338",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 3,
+      "remoteResourceCount": 3,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 2830,
+        "scrollLeft": 0,
+        "scrollTop": 2239,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "TRACKING_1X1",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Small image blocked"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 1,
+          "rectHeight": 1,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/pixel.png",
+          "width": 1
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/pixel.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:43.240Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 24,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 322,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 24,
+        "documentScrollHeight": 24,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 24,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 591,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "TINY_REMOTE",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Small image blocked"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 1,
+          "rectHeight": 3,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/tiny.png",
+          "width": 1
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/tiny.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:44.856Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 24,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 322,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 24,
+        "documentScrollHeight": 24,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 24,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 591,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "MIXED_TEXT_IMAGES",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Synthetic enterpriseText beforeImage blocked for privacy \u2014 Mixed bannerEND_MIXED"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 822,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/mixed.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Synthetic enterpriseText beforeEND_MIXED"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/mixed.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:46.490Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": {
+          "top": 759.875,
+          "bottom": 777.875,
+          "left": 414,
+          "right": 507.3515625
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 1061,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -238,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 1061,
+        "documentScrollHeight": 1061,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": {
+          "background": "rgba(0, 0, 0, 0)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Georgia",
+          "fontSize": "32px",
+          "margin": "21.44px 0px",
+          "maxWidth": "none",
+          "padding": "0px",
+          "position": "static",
+          "rect": {
+            "bottom": 95.4375,
+            "height": 48,
+            "left": 26,
+            "right": 574,
+            "top": 47.4375,
+            "width": 548
+          },
+          "width": "548px"
+        },
+        "height": 1061,
+        "marker": {
+          "bottom": 1015.875,
+          "left": 26,
+          "right": 119.3515625,
+          "top": 997.875
+        },
+        "remoteResourceCount": 1,
+        "table": {
+          "background": "rgb(238, 238, 238)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Arial, sans-serif",
+          "fontSize": "16px",
+          "margin": "0px",
+          "maxWidth": "100%",
+          "padding": "0px",
+          "position": "static",
+          "rect": {
+            "bottom": 1060.875,
+            "height": 1060.875,
+            "left": 0,
+            "right": 600,
+            "top": 0,
+            "width": 600
+          },
+          "width": "600px"
+        },
+        "td": {
+          "background": "rgba(0, 0, 0, 0)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Arial, sans-serif",
+          "fontSize": "16px",
+          "margin": "0px",
+          "maxWidth": "none",
+          "padding": "24px",
+          "position": "static",
+          "rect": {
+            "bottom": 1058.875,
+            "height": 1056.875,
+            "left": 2,
+            "right": 598,
+            "top": 2,
+            "width": 596
+          },
+          "width": "548px"
+        },
+        "textFingerprint": "40:4105382656",
+        "textLength": 40,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "40:4105382656",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 1151,
+        "scrollLeft": 0,
+        "scrollTop": 560,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "IMAGE_WITH_ALT",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy \u2014 ECHFRONT synthetic banner"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/alt.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/alt.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:48.007Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 900,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -77,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 900,
+        "documentScrollHeight": 900,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 900,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 990,
+        "scrollLeft": 0,
+        "scrollTop": 399,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "MALICIOUS_IMAGE_URL",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy \u2014 Safe imageEND_IMAGE_SAFE"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 900,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/safe.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "END_IMAGE_SAFE"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/safe.png",
+        "referer": null,
+        "time": "2026-10-01T14:17:49.640Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": {
+          "top": 802,
+          "bottom": 820,
+          "left": 388,
+          "right": 532.9296875
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 940,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -117,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 940,
+        "documentScrollHeight": 940,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 940,
+        "marker": {
+          "bottom": 937,
+          "left": 0,
+          "right": 144.9296875,
+          "top": 919
+        },
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "14:842331252",
+        "textLength": 14,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "14:842331252",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 1030,
+        "scrollLeft": 0,
+        "scrollTop": 439,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "CSS_BACKGROUND_URL",
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 0,
+      "sentinel": false,
+      "text": "END_CSS_SAFE"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 0,
+      "sentinel": false,
+      "text": "END_CSS_SAFE"
+    },
+    "pre": [],
+    "newRequests": [],
+    "bottom": {
+      "viewport": {
+        "height": 900,
+        "width": 1280
+      },
+      "document": {
+        "clientHeight": 900,
+        "clientWidth": 1280,
+        "scrollHeight": 900,
+        "scrollTop": 0,
+        "scrollWidth": 1280
+      },
+      "marker": {
+        "rect": {
+          "top": 267,
+          "bottom": 285,
+          "left": 388,
+          "right": 514.265625
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 24,
+        "left": 388,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 264,
+        "width": 832
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 0,
+        "div": {
+          "background": "rgba(0, 0, 0, 0)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Arial, sans-serif",
+          "fontSize": "16px",
+          "margin": "0px",
+          "maxWidth": "none",
+          "padding": "0px",
+          "position": "static",
+          "rect": {
+            "bottom": 24,
+            "height": 24,
+            "left": 0,
+            "right": 832,
+            "top": 0,
+            "width": 832
+          },
+          "width": "832px"
+        },
+        "documentHeight": 24,
+        "documentScrollHeight": 24,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 24,
+        "marker": {
+          "bottom": 21,
+          "left": 0,
+          "right": 126.265625,
+          "top": 3
+        },
+        "remoteResourceCount": 0,
+        "table": null,
+        "td": null,
+        "textFingerprint": "12:2302304594",
+        "textLength": 12,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "12:2302304594",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 0,
+      "remoteResourceCount": 0,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 591,
+        "clientWidth": 952,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "591px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 591,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 839,
+          "height": 591,
+          "left": 328,
+          "right": 1280,
+          "top": 248,
+          "width": 952,
+          "x": 328,
+          "y": 248
+        },
+        "scrollHeight": 591,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 952,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 352,
+            "right": 430.140625,
+            "top": 852,
+            "width": 78.140625,
+            "x": 352,
+            "y": 852
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 434.140625,
+            "right": 530.6875,
+            "top": 852,
+            "width": 96.546875,
+            "x": 434.140625,
+            "y": 852
+          },
+          "text": "Reply all",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 900,
+            "left": 328,
+            "right": 1280,
+            "top": 111
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 888,
+            "height": 36,
+            "left": 534.6875,
+            "right": 629.2578125,
+            "top": 852,
+            "width": 94.5703125,
+            "x": 534.6875,
+            "y": 852
+          },
+          "text": "Forward",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 900,
+          "left": 328,
+          "right": 1280,
+          "top": 111
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 900,
+          "height": 61,
+          "left": 328,
+          "right": 1280,
+          "top": 839,
+          "width": 952,
+          "x": 328,
+          "y": 839
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 0,
+        "clientWidth": 0,
+        "display": "none",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "auto",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 0,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 0,
+          "height": 0,
+          "left": 0,
+          "right": 0,
+          "top": 0,
+          "width": 0,
+          "x": 0,
+          "y": 0
+        },
+        "scrollHeight": 0,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 0,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "REMOTE_BANNER",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy \u2014 Synthetic bannerEND_REMOTE_BANNER"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/banner.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "END_REMOTE_BANNER"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/banner.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:35.574Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": {
+          "top": 672,
+          "bottom": 690,
+          "left": 16,
+          "right": 202.703125
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 577,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 116,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 577,
+        "documentScrollHeight": 577,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 577,
+        "marker": {
+          "bottom": 574,
+          "left": 0,
+          "right": 186.703125,
+          "top": 556
+        },
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "17:3861823332",
+        "textLength": 17,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "17:3861823332",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 667,
+        "scrollLeft": 0,
+        "scrollTop": 199,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "REMOTE_IMAGE_ONLY",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/only.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/only.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:37.492Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 537,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 156,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 537,
+        "documentScrollHeight": 537,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 537,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 627,
+        "scrollLeft": 0,
+        "scrollTop": 159,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "REMOTE_MULTIPLE",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 3,
+      "sentinel": false,
+      "text": "Image blocked for privacyImage blocked for privacyImage blocked for privacyEND_REMOTE_MULTIPLE"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/one.png",
+          "width": 600
+        },
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/two.png",
+          "width": 600
+        },
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/three.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 3,
+      "sentinel": false,
+      "text": "END_REMOTE_MULTIPLE"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/one.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:39.125Z"
+      },
+      {
+        "path": "/two.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:39.126Z"
+      },
+      {
+        "path": "/three.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:39.127Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": {
+          "top": 672,
+          "bottom": 690,
+          "left": 16,
+          "right": 213.078125
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 1651,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -958,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 3,
+        "div": null,
+        "documentHeight": 1651,
+        "documentScrollHeight": 1651,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 1651,
+        "marker": {
+          "bottom": 1648,
+          "left": 0,
+          "right": 197.078125,
+          "top": 1630
+        },
+        "remoteResourceCount": 3,
+        "table": null,
+        "td": null,
+        "textFingerprint": "19:3227166338",
+        "textLength": 19,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "19:3227166338",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 3,
+      "remoteResourceCount": 3,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 1741,
+        "scrollLeft": 0,
+        "scrollTop": 1273,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "TRACKING_1X1",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Small image blocked"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 1,
+          "rectHeight": 1,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/pixel.png",
+          "width": 1
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/pixel.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:40.740Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 24,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 315,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 24,
+        "documentScrollHeight": 24,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 24,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 468,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "TINY_REMOTE",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Small image blocked"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 1,
+          "rectHeight": 3,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/tiny.png",
+          "width": 1
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/tiny.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:42.373Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 24,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 315,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 24,
+        "documentScrollHeight": 24,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 24,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 468,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "MIXED_TEXT_IMAGES",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Synthetic enterpriseText beforeImage blocked for privacy \u2014 Mixed bannerEND_MIXED"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 459,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/mixed.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Synthetic enterpriseText beforeEND_MIXED"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/mixed.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:44.106Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": {
+          "top": 629.875,
+          "bottom": 647.875,
+          "left": 42,
+          "right": 135.3515625
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 746,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": -53,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 746,
+        "documentScrollHeight": 746,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": {
+          "background": "rgba(0, 0, 0, 0)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Georgia",
+          "fontSize": "32px",
+          "margin": "21.44px 0px",
+          "maxWidth": "none",
+          "padding": "0px",
+          "position": "static",
+          "rect": {
+            "bottom": 143.4375,
+            "height": 96,
+            "left": 26,
+            "right": 332,
+            "top": 47.4375,
+            "width": 306
+          },
+          "width": "306px"
+        },
+        "height": 746,
+        "marker": {
+          "bottom": 700.875,
+          "left": 26,
+          "right": 119.3515625,
+          "top": 682.875
+        },
+        "remoteResourceCount": 1,
+        "table": {
+          "background": "rgb(238, 238, 238)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Arial, sans-serif",
+          "fontSize": "16px",
+          "margin": "0px",
+          "maxWidth": "100%",
+          "padding": "0px",
+          "position": "static",
+          "rect": {
+            "bottom": 745.875,
+            "height": 745.875,
+            "left": 0,
+            "right": 358,
+            "top": 0,
+            "width": 358
+          },
+          "width": "358px"
+        },
+        "td": {
+          "background": "rgba(0, 0, 0, 0)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Arial, sans-serif",
+          "fontSize": "16px",
+          "margin": "0px",
+          "maxWidth": "none",
+          "padding": "24px",
+          "position": "static",
+          "rect": {
+            "bottom": 743.875,
+            "height": 741.875,
+            "left": 2,
+            "right": 356,
+            "top": 2,
+            "width": 354
+          },
+          "width": "306px"
+        },
+        "textFingerprint": "40:4105382656",
+        "textLength": 40,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "40:4105382656",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 836,
+        "scrollLeft": 0,
+        "scrollTop": 368,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "IMAGE_WITH_ALT",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy \u2014 ECHFRONT synthetic banner"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/alt.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": ""
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/alt.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:45.824Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": null,
+        "fullyVisible": false,
+        "visible": false
+      },
+      "markerExists": false,
+      "frame": {
+        "height": 537,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 156,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 537,
+        "documentScrollHeight": 537,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 537,
+        "marker": null,
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "0:2166136261",
+        "textLength": 0,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "0:2166136261",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 627,
+        "scrollLeft": 0,
+        "scrollTop": 159,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "MALICIOUS_IMAGE_URL",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "Image blocked for privacy \u2014 Safe imageEND_IMAGE_SAFE"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [
+        {
+          "complete": true,
+          "height": 900,
+          "rectHeight": 537,
+          "referrer": "no-referrer",
+          "src": "http://127.0.0.1:3399/safe.png",
+          "width": 600
+        }
+      ],
+      "placeholders": 1,
+      "sentinel": false,
+      "text": "END_IMAGE_SAFE"
+    },
+    "pre": [],
+    "newRequests": [
+      {
+        "path": "/safe.png",
+        "referer": null,
+        "time": "2026-10-01T14:18:47.557Z"
+      }
+    ],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": {
+          "top": 672,
+          "bottom": 690,
+          "left": 16,
+          "right": 160.9296875
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 577,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 116,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src http://127.0.0.1:3399; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 1,
+        "div": null,
+        "documentHeight": 577,
+        "documentScrollHeight": 577,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 577,
+        "marker": {
+          "bottom": 574,
+          "left": 0,
+          "right": 144.9296875,
+          "top": 556
+        },
+        "remoteResourceCount": 1,
+        "table": null,
+        "td": null,
+        "textFingerprint": "14:842331252",
+        "textLength": 14,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "14:842331252",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 1,
+      "remoteResourceCount": 1,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 667,
+        "scrollLeft": 0,
+        "scrollTop": 199,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "expected images loaded",
+        "pass": true
+      },
+      {
+        "name": "no-referrer on every image",
+        "pass": true
+      },
+      {
+        "name": "only descriptor URLs activated",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "name": "CSS_BACKGROUND_URL",
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "blocked": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 0,
+      "sentinel": false,
+      "text": "END_CSS_SAFE"
+    },
+    "loaded": {
+      "active": 0,
+      "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+      "images": [],
+      "placeholders": 0,
+      "sentinel": false,
+      "text": "END_CSS_SAFE"
+    },
+    "pre": [],
+    "newRequests": [],
+    "bottom": {
+      "viewport": {
+        "height": 844,
+        "width": 390
+      },
+      "document": {
+        "clientHeight": 844,
+        "clientWidth": 390,
+        "scrollHeight": 844,
+        "scrollTop": 0,
+        "scrollWidth": 390
+      },
+      "marker": {
+        "rect": {
+          "top": 260,
+          "bottom": 278,
+          "left": 16,
+          "right": 142.265625
+        },
+        "fullyVisible": true,
+        "visible": true
+      },
+      "markerExists": true,
+      "frame": {
+        "height": 24,
+        "left": 16,
+        "sandbox": "allow-same-origin",
+        "scrolling": "no",
+        "top": 257,
+        "width": 358
+      },
+      "isolated": {
+        "body": null,
+        "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+        "dangerousElementCount": 0,
+        "div": {
+          "background": "rgba(0, 0, 0, 0)",
+          "border": "0px none rgb(17, 17, 17)",
+          "color": "rgb(17, 17, 17)",
+          "font": "Arial, sans-serif",
+          "fontSize": "16px",
+          "margin": "0px",
+          "maxWidth": "none",
+          "padding": "0px",
+          "position": "static",
+          "rect": {
+            "bottom": 24,
+            "height": 24,
+            "left": 0,
+            "right": 358,
+            "top": 0,
+            "width": 358
+          },
+          "width": "358px"
+        },
+        "documentHeight": 24,
+        "documentScrollHeight": 24,
+        "documentScrollTop": 0,
+        "executed": false,
+        "h1": null,
+        "height": 24,
+        "marker": {
+          "bottom": 21,
+          "left": 0,
+          "right": 126.265625,
+          "top": 3
+        },
+        "remoteResourceCount": 0,
+        "table": null,
+        "td": null,
+        "textFingerprint": "12:2302304594",
+        "textLength": 12,
+        "unsafeLinkCount": 0
+      },
+      "textFingerprint": "12:2302304594",
+      "emptyState": null,
+      "executed": false,
+      "dangerousElementCount": 0,
+      "remoteResourceCount": 0,
+      "unsafeLinkCount": 0,
+      "primaryScroll": {
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "clientHeight": 468,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "0%",
+        "flexGrow": "1",
+        "flexShrink": "1",
+        "height": "468px",
+        "maxHeight": "none",
+        "minHeight": "0px",
+        "offsetHeight": 468,
+        "overflowX": "auto",
+        "overflowY": "auto",
+        "paddingBottom": "16px",
+        "position": "static",
+        "rect": {
+          "bottom": 709,
+          "height": 468,
+          "left": 0,
+          "right": 390,
+          "top": 241,
+          "width": 390,
+          "x": 0,
+          "y": 241
+        },
+        "scrollHeight": 468,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "DIV"
+      },
+      "actions": [
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 766,
+            "height": 44,
+            "left": 16,
+            "right": 326,
+            "top": 722,
+            "width": 310,
+            "x": 16,
+            "y": 722
+          },
+          "text": "Reply",
+          "visible": true
+        },
+        {
+          "effectiveClip": {
+            "bottom": 778,
+            "left": 0,
+            "right": 390,
+            "top": 104
+          },
+          "fullyVisible": true,
+          "hitMatches": true,
+          "rect": {
+            "bottom": 764,
+            "height": 40,
+            "left": 334,
+            "right": 374,
+            "top": 724,
+            "width": 40,
+            "x": 334,
+            "y": 724
+          },
+          "text": "",
+          "visible": true
+        }
+      ],
+      "attachment": null,
+      "footer": {
+        "effectiveClip": {
+          "bottom": 778,
+          "left": 0,
+          "right": 390,
+          "top": 104
+        },
+        "fullyVisible": true,
+        "hitMatches": true,
+        "rect": {
+          "bottom": 778,
+          "height": 69,
+          "left": 0,
+          "right": 390,
+          "top": 709,
+          "width": 390,
+          "x": 0,
+          "y": 709
+        },
+        "visible": true
+      },
+      "nav": {
+        "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+        "clientHeight": 65,
+        "clientWidth": 390,
+        "display": "block",
+        "flexBasis": "auto",
+        "flexGrow": "0",
+        "flexShrink": "0",
+        "height": "66px",
+        "maxHeight": "none",
+        "minHeight": "auto",
+        "offsetHeight": 66,
+        "overflowX": "visible",
+        "overflowY": "visible",
+        "paddingBottom": "8px",
+        "position": "relative",
+        "rect": {
+          "bottom": 844,
+          "height": 66,
+          "left": 0,
+          "right": 390,
+          "top": 778,
+          "width": 390,
+          "x": 0,
+          "y": 778
+        },
+        "scrollHeight": 65,
+        "scrollLeft": 0,
+        "scrollTop": 0,
+        "scrollWidth": 390,
+        "tag": "NAV"
+      }
+    },
+    "checks": [
+      {
+        "name": "zero requests before opt-in",
+        "pass": true
+      },
+      {
+        "name": "no initial img src",
+        "pass": true
+      },
+      {
+        "name": "active content absent",
+        "pass": true
+      },
+      {
+        "name": "initial CSP denies images",
+        "pass": true
+      },
+      {
+        "name": "image-only is readable blocked state",
+        "pass": true
+      },
+      {
+        "name": "no document horizontal overflow",
+        "pass": true
+      },
+      {
+        "name": "no document vertical overflow",
+        "pass": true
+      },
+      {
+        "name": "no competing iframe vertical range",
+        "pass": true
+      },
+      {
+        "name": "final marker reachable",
+        "pass": true
+      },
+      {
+        "name": "footer actions reachable",
+        "pass": true
+      },
+      {
+        "name": "sandbox preserved",
+        "pass": true
+      },
+      {
+        "name": "exact opt-in request count",
+        "pass": true
+      },
+      {
+        "name": "no unexpected resource request",
+        "pass": true
+      },
+      {
+        "name": "no referrer sent",
+        "pass": true
+      }
+    ]
+  }
+]

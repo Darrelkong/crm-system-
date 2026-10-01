@@ -282,3 +282,5 @@ Local D1/R2 files and historical SQL exports are recovery assets, not evidence o
 
 
 Mail M1D local candidate (2026-10-01): versioned `inbound-v3` expands strictly allowed inline sender layout using the existing server sanitizer; the reader uses a script-disabled measured document boundary. Existing stored bodies are not rematerialized. M1C outer scrolling remains authoritative. See [safe HTML contract/evidence](mail/MAIL_M1D_SAFE_HTML_FIDELITY.md). **NOT merged to main / NOT deployed; images and responsive stylesheets remain deferred.**
+
+Mail M1E local candidate (2026-10-01): `inbound-v4` retains validated inert HTTP(S) image descriptors in the existing canonical body. Script-disabled isolated rendering blocks all images initially; per-view explicit loading activates only descriptor URLs. CID identity/disposition is not persisted and requires separate schema review; no migration or historical reprocessing. [Contract and evidence](mail/MAIL_M1E_IMAGE_PRIVACY_AND_CID.md). **NOT merged / NOT deployed.**

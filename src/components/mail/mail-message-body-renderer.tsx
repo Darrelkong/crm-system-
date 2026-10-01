@@ -1,11 +1,12 @@
 "use client";
 
-import { Fragment, type ReactNode } from "react";
+import { Fragment, useMemo, type ReactNode } from "react";
 import {
   isSafePlainTextUrl,
   resolveMailMessageBody,
 } from "@/lib/mail/client/mail-message-body";
 
+import { useTranslation } from "@/i18n/provider";
 import { MailIsolatedHtmlDocument } from "./mail-isolated-html-document";
 
 const PLAIN_TEXT_URL_PATTERN = /(https?:\/\/[^\s<>"']+)/gi;
@@ -81,6 +82,8 @@ export function MailMessageBodyRenderer({
   className,
   emptyLabel,
 }: MailMessageBodyRendererProps) {
+  const { t } = useTranslation();
+  const imageLabels = useMemo(() => ({ blocked: t("mail.detail.imageBlocked"), tiny: t("mail.detail.tinyImageBlocked"), load: t("mail.detail.loadImages"), privacy: t("mail.detail.imagePrivacy"), loaded: t("mail.detail.imagesLoaded") }), [t]);
   const resolved = resolveMailMessageBody({ bodyHtml, bodyText });
   const rootClassName = [
     "mail-message-body",
@@ -91,7 +94,7 @@ export function MailMessageBodyRenderer({
     .join(" ");
 
   if (resolved.mode === "html") {
-    return <div className={rootClassName}><MailIsolatedHtmlDocument html={resolved.content} /></div>;
+    return <div className={rootClassName}><MailIsolatedHtmlDocument key={resolved.content} html={resolved.content} labels={imageLabels} /></div>;
   }
 
   if (resolved.mode === "plain_text") {

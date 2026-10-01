@@ -1,7 +1,8 @@
 import sanitizeHtml from "sanitize-html";
+import { MAIL_IMAGE_ATTRIBUTE, remoteImageUrl, imageDimension, encodeInertImage, decodeInertImage } from "./inert-image";
 
 /** Frozen inbound HTML policy — bump when allowlist changes (does not re-sanitize history). */
-export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v3";
+export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v4";
 
 const INBOUND_BODY_ALLOWED_TAGS = [
   "p",
@@ -77,6 +78,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     "*": ["style"],
     a: ["href", "target", "rel"],
+    span: [MAIL_IMAGE_ATTRIBUTE],
     table: ["width", "cellpadding", "cellspacing", "border", "align", "bgcolor"],
     tr: ["align", "valign", "bgcolor"],
     th: ["colspan", "rowspan", "width", "align", "valign", "bgcolor"],
@@ -119,6 +121,16 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowProtocolRelative: false,
   transformTags: {
     "*": (tagName, attribs) => ({ tagName, attribs: layoutAttributes(attribs) }),
+    img: (_tagName, attribs): sanitizeHtml.Tag => {
+      const url = remoteImageUrl(attribs.src ?? "");
+      return { tagName: "span", attribs: url ? { [MAIL_IMAGE_ATTRIBUTE]: encodeInertImage({ url, alt: (attribs.alt ?? "").slice(0, 500), width: imageDimension(attribs.width), height: imageDimension(attribs.height) }) } : {} };
+    },
+    span: (tagName, attribs): sanitizeHtml.Tag => {
+      const image = decodeInertImage(attribs[MAIL_IMAGE_ATTRIBUTE] ?? "");
+      // An incoming reserved descriptor is subject to the same validation as img.
+      // Descriptor styles are application-owned; sender CSS cannot hide it.
+      return { tagName, attribs: image ? { [MAIL_IMAGE_ATTRIBUTE]: encodeInertImage(image) } : (attribs.style ? { style: attribs.style } : {}) };
+    },
     a: (_tagName, attribs) => {
       const href = attribs.href?.trim();
       if (!href) return { tagName: "a", attribs: {} };
@@ -146,7 +158,7 @@ export function derivePlainTextFromSanitizedHtml(html: string): string {
 
 /**
  * Sanitizes hostile inbound MIME HTML before canonical persistence.
- * V3 retains allowlisted inline layout only; images, stylesheet blocks/classes
+ * V4 retains allowlisted inline layout and inert remote-image metadata; stylesheet blocks/classes
  * and all executable/active content remain stripped. No historical reprocessing.
  */
 export function sanitizeInboundBodyHtml(rawHtml: string): string | null {
@@ -158,17 +170,6 @@ export function sanitizeInboundBodyHtml(rawHtml: string): string | null {
   const sanitized = sanitizeHtml(trimmed, SANITIZE_OPTIONS).trim();
   if (!sanitized) {
     return null;
-  }
-
-  if (/<img\b/i.test(trimmed)) {
-    const withoutImages = sanitizeHtml(trimmed, {
-      ...SANITIZE_OPTIONS,
-      allowedTags: [...INBOUND_BODY_ALLOWED_TAGS],
-    }).trim();
-    if (!withoutImages) {
-      return null;
-    }
-    return withoutImages;
   }
 
   return sanitized;

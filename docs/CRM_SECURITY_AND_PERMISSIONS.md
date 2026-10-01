@@ -241,3 +241,5 @@ Backup files, local databases, WAL sidecars, raw Mail/source objects and local e
 
 
 Mail M1D local security evidence (2026-10-01): server sanitization remains mandatory. The candidate isolated reader uses `sandbox="allow-same-origin"` without script/form/top-navigation permissions, deny-network CSP, and trusted parent-only sizing/link handling. Sender stylesheets, active content and images remain blocked; Mail read/send authorization is unchanged. [Contract and measured security evidence](mail/MAIL_M1D_SAFE_HTML_FIDELITY.md). **NOT merged / NOT deployed.**
+
+Mail M1E local security evidence (2026-10-01): zero pre-opt-in image requests, explicit per-view direct loading with no-referrer and disclosed IP/open-tracking exposure; no CSS resource loading, proxy, sender trust or permission expansion. Script-disabled sandbox and server sanitization retained. CID is not implemented without durable message-scoped mapping. [Evidence and limitations](mail/MAIL_M1E_IMAGE_PRIVACY_AND_CID.md). **NOT merged / NOT deployed.**

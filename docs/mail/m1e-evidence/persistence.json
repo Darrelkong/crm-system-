@@ -1,0 +1,77 @@
+[
+  {
+    "id": "m1b-long_html",
+    "version": "inbound-v2",
+    "historicalHashUnchanged": true
+  },
+  {
+    "id": "m1b-table_newsletter",
+    "version": "inbound-v2",
+    "historicalHashUnchanged": true
+  },
+  {
+    "id": "m1b-image_only_current_policy",
+    "version": "inbound-v2",
+    "historicalHashUnchanged": true
+  },
+  {
+    "id": "m1b-quoted_long",
+    "version": "inbound-v2",
+    "historicalHashUnchanged": true
+  },
+  {
+    "id": "m1b-safe_wide_content",
+    "version": "inbound-v2",
+    "historicalHashUnchanged": true
+  },
+  {
+    "id": "m1b-malicious_html",
+    "version": "inbound-v2",
+    "historicalHashUnchanged": true
+  },
+  {
+    "id": "m1e-remote_banner",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-remote_image_only",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-remote_multiple",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-tracking_1x1",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-tiny_remote",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-mixed_text_images",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-image_with_alt",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-malicious_image_url",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  },
+  {
+    "id": "m1e-css_background_url",
+    "version": "inbound-v4",
+    "canonicalBodyUnchanged": true
+  }
+]

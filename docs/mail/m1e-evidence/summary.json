@@ -1,0 +1,11 @@
+{
+  "imageCases": 18,
+  "imageAssertionsPassed": 300,
+  "imageFailures": [],
+  "preOptInRequests": 0,
+  "postOptInRequests": 20,
+  "unexpectedRequests": 0,
+  "fidelityCases": 12,
+  "fidelityAssertionsPassed": 180,
+  "fidelityFailures": 0
+}

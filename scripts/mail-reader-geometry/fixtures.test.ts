@@ -14,8 +14,10 @@ for (const fixture of readerFixtures()) {
       assert.equal(resolved.mode, "html");
       assert.ok(resolved.content.includes(fixture.end));
     } else {
-      assert.equal(resolved.mode, "empty");
-      assert.equal(html, "<table><tr><td></td></tr></table>");
+      // Fresh materialization now retains inert remote images. Historical v2
+      // stored fixtures remain unchanged in the browser regression manifests.
+      assert.equal(resolved.mode, "html");
+      assert.match(html, /data-mail-image-v1=/);
     }
     if (fixture.name === "LONG_HTML") {
       assert.equal((html.match(/<p>/g) ?? []).length, 10003);

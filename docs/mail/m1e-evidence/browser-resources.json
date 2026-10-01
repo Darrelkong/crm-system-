@@ -1,0 +1,174 @@
+[
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/22a5144ee8d83bca-s.p.woff2?v=1790864669056",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/7d4881bb7e1bf84d-s.p.woff2?v=1790864669056",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/5f521853fd7688f1-s.p.woff2?v=1790864669056",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790864669056",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/icons/apple-touch-icon.png",
+    "kind": "image"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/webpack.js?v=1790864669056",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790864669056",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/layout.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app-pages-internals.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/main-app.js?v=1790864669056",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/22a5144ee8d83bca-s.p.woff2",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/(dashboard)/mail/layout.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/(dashboard)/layout.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/(dashboard)/mail/page.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/__nextjs_font/geist-latin.woff2",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/locales/en.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/me",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/approvals/pending-count",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/notifications/unread-count",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/brand/echfront-crm-logo-mask.png",
+    "kind": "image"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/5f521853fd7688f1-s.p.woff2",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/auth/me",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/mailboxes/accessible",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/compose/context",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/approvals?scope=reviewer&status=pending",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/admin/users",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/mail?_rsc=YdvkTYRObd9XTLJ5",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790864671345",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790864671345",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790864671587",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790864671587",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages?folder=inbox&mailboxId=m1b-synthetic-mailbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/health?resume=1790864671975",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/health",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1e-mixed_text_images?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1e-mixed_text_images/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/758138eca5adde4a.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790864731256",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790864731256",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/app/layout.758138eca5adde4a.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.758138eca5adde4a.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1e-remote_image_only?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1e-remote_image_only/read-state?folder=inbox",
+    "kind": "other"
+  }
+]

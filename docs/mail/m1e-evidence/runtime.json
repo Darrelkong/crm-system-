@@ -1,0 +1,24 @@
+{
+  "imageEnd": {
+    "client": 468,
+    "frameBottom": 693,
+    "height": 627,
+    "navTop": 778,
+    "scrollBottom": 709,
+    "top": 159
+  },
+  "requestsOpenLoadResizeReload": 1,
+  "consentReset": true,
+  "logs": [
+    {
+      "level": "error",
+      "message": "Uncaught TypeError: Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'.",
+      "timestamp": "2026-10-01T14:16:14.059Z"
+    },
+    {
+      "level": "error",
+      "message": "Uncaught TypeError: Failed to execute 'observe' on 'MutationObserver': parameter 1 is not of type 'Node'.",
+      "timestamp": "2026-10-01T14:19:40.921Z"
+    }
+  ]
+}
