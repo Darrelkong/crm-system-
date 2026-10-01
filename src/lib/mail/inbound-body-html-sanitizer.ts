@@ -1,7 +1,7 @@
 import sanitizeHtml from "sanitize-html";
 
 /** Frozen inbound HTML policy — bump when allowlist changes (does not re-sanitize history). */
-export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v2";
+export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v3";
 
 const INBOUND_BODY_ALLOWED_TAGS = [
   "p",
@@ -29,13 +29,47 @@ const INBOUND_BODY_ALLOWED_TAGS = [
   "table",
   "thead",
   "tbody",
+  "tfoot",
+  "caption",
+  "hr",
+  "sub",
+  "sup",
   "tr",
   "th",
   "td",
 ] as const;
 
-const SAFE_CSS_COLOR = /^(?:transparent|currentcolor|#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\([0-9a-z%+,\s.-]{1,80}\))$/i;
-const SAFE_CSS_SIZE = /^(?:0|[1-9][0-9]{0,2}(?:\.[0-9]{1,2})?(?:px|pt|em|rem|%)?)$/i;
+// sanitize-html parses declarations with its existing PostCSS dependency. These
+// anchored value grammars are an allowlist, never a parser for arbitrary CSS.
+const COLOR = String.raw`(?:transparent|currentcolor|black|white|gray|silver|red|maroon|yellow|olive|lime|green|aqua|teal|blue|navy|fuchsia|purple|#[0-9a-f]{3,8}|(?:rgb|rgba|hsl|hsla)\([0-9%+,\s.-]{1,80}\))`;
+const LENGTH = String.raw`(?:0|(?:[0-9]{1,3}|1[0-9]{3}|2000)(?:\.[0-9]{1,2})?(?:px|pt)|[0-9]{1,2}(?:\.[0-9]{1,2})?(?:em|rem)|(?:[0-9]{1,2}|100)(?:\.[0-9]{1,2})?%)`;
+const SPACE = String.raw`(?:0|[0-9]{1,2}(?:\.[0-9]{1,2})?(?:px|pt|em|rem|%))`;
+const SAFE_CSS_COLOR = new RegExp(`^${COLOR}$`, "i");
+const SAFE_CSS_SIZE = new RegExp(`^${LENGTH}$`, "i");
+const SAFE_SPACE = new RegExp(`^${SPACE}(?:\\s+${SPACE}){0,3}$`, "i");
+const SAFE_MARGIN = new RegExp(`^(?:auto|${SPACE})(?:\\s+(?:auto|${SPACE})){0,3}$`, "i");
+const SAFE_BORDER = new RegExp(`^(?:0|none|(?:[0-9]|1[0-9]|20)(?:px|pt) (?:solid|dashed|dotted|double) ${COLOR})$`, "i");
+const FAMILY = String.raw`(?:Arial|Helvetica|Verdana|Georgia|Tahoma|Trebuchet MS|Times New Roman|Courier New|sans-serif|serif|monospace|system-ui)`;
+const SAFE_FONT_FAMILY = new RegExp(`^(?:${FAMILY}|"${FAMILY}"|'${FAMILY}')(?:,\\s*(?:${FAMILY}|"${FAMILY}"|'${FAMILY}')){0,7}$`, "i");
+
+function layoutAttributes(attributes: Record<string, string>) {
+  const result = { ...attributes };
+  const rules: Record<string, RegExp> = {
+    width: /^(?:[1-9][0-9]{0,3}|(?:[1-9][0-9]?|100)%)$/,
+    cellpadding: /^(?:0|[1-9][0-9]?)$/,
+    cellspacing: /^(?:0|[1-9][0-9]?)$/,
+    border: /^(?:0|[1-9]|1[0-9]|20)$/,
+    colspan: /^[1-9][0-9]?$/,
+    rowspan: /^[1-9][0-9]?$/,
+    align: /^(?:left|right|center|justify)$/i,
+    valign: /^(?:top|middle|bottom|baseline)$/i,
+    bgcolor: SAFE_CSS_COLOR,
+  };
+  for (const [name, rule] of Object.entries(rules)) {
+    if (result[name] && !rule.test(result[name])) delete result[name];
+  }
+  return result;
+}
 
 const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedTags: [...INBOUND_BODY_ALLOWED_TAGS],
@@ -43,11 +77,31 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedAttributes: {
     "*": ["style"],
     a: ["href", "target", "rel"],
-    th: ["colspan", "rowspan"],
-    td: ["colspan", "rowspan"],
+    table: ["width", "cellpadding", "cellspacing", "border", "align", "bgcolor"],
+    tr: ["align", "valign", "bgcolor"],
+    th: ["colspan", "rowspan", "width", "align", "valign", "bgcolor"],
+    td: ["colspan", "rowspan", "width", "align", "valign", "bgcolor"],
   },
   allowedStyles: {
     "*": {
+      width: [SAFE_CSS_SIZE, /^auto$/],
+      "max-width": [SAFE_CSS_SIZE],
+      padding: [SAFE_SPACE],
+      margin: [SAFE_MARGIN],
+      ...Object.fromEntries(["top", "right", "bottom", "left"].flatMap(side => [
+        [`padding-${side}`, [new RegExp(`^${SPACE}$`, "i")]],
+        [`margin-${side}`, [new RegExp(`^(?:auto|${SPACE})$`, "i")]],
+        [`border-${side}`, [SAFE_BORDER]],
+      ])),
+      border: [SAFE_BORDER],
+      "border-collapse": [/^(?:collapse|separate)$/],
+      "border-spacing": [SAFE_SPACE],
+      "border-radius": [SAFE_SPACE],
+      "table-layout": [/^(?:auto|fixed)$/],
+      "font-family": [SAFE_FONT_FAMILY],
+      "white-space": [/^(?:normal|nowrap|pre|pre-wrap|pre-line|break-spaces)$/],
+      "word-break": [/^(?:normal|break-all|keep-all|break-word)$/],
+      "overflow-wrap": [/^(?:normal|break-word|anywhere)$/],
       color: [SAFE_CSS_COLOR],
       "background-color": [SAFE_CSS_COLOR],
       "font-weight": [/^(?:normal|bold|bolder|lighter|[1-9]00)$/i],
@@ -64,6 +118,7 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedSchemes: ["http", "https", "mailto", "tel"],
   allowProtocolRelative: false,
   transformTags: {
+    "*": (tagName, attribs) => ({ tagName, attribs: layoutAttributes(attribs) }),
     a: (_tagName, attribs) => {
       const href = attribs.href?.trim();
       if (!href) return { tagName: "a", attribs: {} };
@@ -75,11 +130,8 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
       ) {
         return { tagName: "span", attribs: {}, text: "" };
       }
-      const next: Record<string, string> = { href };
-      if (attribs.target === "_blank") {
-        next.target = "_blank";
-        next.rel = "noopener noreferrer";
-      }
+      const next: Record<string, string> = { href, target: "_blank", rel: "noopener noreferrer" };
+      if (attribs.style) next.style = attribs.style;
       return { tagName: "a", attribs: next };
     },
   },
@@ -94,7 +146,8 @@ export function derivePlainTextFromSanitizedHtml(html: string): string {
 
 /**
  * Sanitizes hostile inbound MIME HTML before canonical persistence.
- * V1 strips remote images (<img>) and all executable/active content.
+ * V3 retains allowlisted inline layout only; images, stylesheet blocks/classes
+ * and all executable/active content remain stripped. No historical reprocessing.
  */
 export function sanitizeInboundBodyHtml(rawHtml: string): string | null {
   const trimmed = rawHtml.trim();

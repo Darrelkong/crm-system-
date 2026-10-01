@@ -6,6 +6,8 @@ import {
   resolveMailMessageBody,
 } from "@/lib/mail/client/mail-message-body";
 
+import { MailIsolatedHtmlDocument } from "./mail-isolated-html-document";
+
 const PLAIN_TEXT_URL_PATTERN = /(https?:\/\/[^\s<>"']+)/gi;
 
 function splitTrailingUrlPunctuation(value: string): {
@@ -89,7 +91,7 @@ export function MailMessageBodyRenderer({
     .join(" ");
 
   if (resolved.mode === "html") {
-    return <div className={rootClassName} dangerouslySetInnerHTML={{ __html: resolved.content }} />;
+    return <div className={rootClassName}><MailIsolatedHtmlDocument html={resolved.content} /></div>;
   }
 
   if (resolved.mode === "plain_text") {

@@ -523,3 +523,8 @@ Accepted SI2, first-hotfix, integration and main refs remain unchanged. Syntheti
 ## Mail M1C local layout evidence — 2026-10-01
 
 **M1C LOCAL SCROLL/LAYOUT FIX VALIDATED** on `fix/mail-reader-scroll-geometry`, based on M1B `8a316af37cd8740781d1362b4098d49cf9dfa111`. Real local reader geometry: 158 assertions pass across six synthetic fixtures at desktop/390px; canonical local build and TypeScript pass. One unchanged attachment-action source-regex test debt remains. See [M1C evidence and limitations](mail/MAIL_M1C_READER_SCROLL_FIX.md). **HTML FIDELITY / IMAGE SUPPORT STILL PENDING; NOT MERGED TO MAIN; NOT DEPLOYED.** Mail remains PARTIAL / HYBRID; no transport, sanitizer, image policy or permission change.
+
+
+## Mail M1D local fidelity evidence — 2026-10-01
+
+**M1D SAFE HTML FIDELITY LOCALLY VALIDATED** on `fix/mail-safe-html-fidelity`, based on M1C `4933c5c6d11facbb6424fe052c9835e2f47de5ab`. Expanded versioned inbound inline-layout allowlist and script-disabled document isolation; 288 browser assertions pass across 18 desktop/mobile cases. M1C scroll regression preserved; TypeScript, focused ESLint and local build pass. Named inherited attachment-action source-regex test debt remains. [Evidence and limitations](mail/MAIL_M1D_SAFE_HTML_FIDELITY.md). **REMOTE/CID IMAGE SUPPORT PENDING M1E; NOT MERGED TO MAIN; NOT DEPLOYED.** No outbound-policy, permission, schema or transport change.

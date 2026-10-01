@@ -279,3 +279,6 @@ The earlier split-write conversion risk at `d9e94c37fb1af503a116663b8da667db4d7f
 The application JSON exporter includes 26 named tables, excludes sessions/password hashes, and omits Mail, Knowledge, authorized-device state and object bytes. Its existence is not complete recovery. The deployed backup Worker version is older than the audited branch; its exact runtime export coverage was not proved from deployment metadata.
 
 Local D1/R2 files and historical SQL exports are recovery assets, not evidence of a successful full-system restore. A WAL-safe local backup helper exists. Preserve sidecars/local-only assets until separate disposition approval. See [recovery gates](CRM_DEPLOYMENT_RUNBOOK.md#backup-and-recovery-checkpoint) and [P1-02](CRM_IMPLEMENTATION_PLAN.md#p1-02--backuprestore-completeness).
+
+
+Mail M1D local candidate (2026-10-01): versioned `inbound-v3` expands strictly allowed inline sender layout using the existing server sanitizer; the reader uses a script-disabled measured document boundary. Existing stored bodies are not rematerialized. M1C outer scrolling remains authoritative. See [safe HTML contract/evidence](mail/MAIL_M1D_SAFE_HTML_FIDELITY.md). **NOT merged to main / NOT deployed; images and responsive stylesheets remain deferred.**

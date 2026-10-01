@@ -1,0 +1,879 @@
+{
+  "actions": [
+    {
+      "clips": [
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 534,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 534,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 534,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 600,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 534,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 522,
+        "height": 44,
+        "left": 16,
+        "right": 326,
+        "top": 478,
+        "width": 310,
+        "x": 16,
+        "y": 478
+      },
+      "text": "Reply",
+      "visible": true
+    },
+    {
+      "clips": [
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 534,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 534,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 534,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 534,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 600,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 534,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 520,
+        "height": 40,
+        "left": 334,
+        "right": 374,
+        "top": 480,
+        "width": 40,
+        "x": 334,
+        "y": 480
+      },
+      "text": "",
+      "visible": true
+    }
+  ],
+  "attachment": {
+    "clips": [
+      {
+        "bottom": 449,
+        "classes": "mail-attachment-list divide-y crm-border",
+        "overflow": "hidden",
+        "top": 403
+      },
+      {
+        "bottom": 465,
+        "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+        "overflow": "auto",
+        "top": 241
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 104
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 104
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 104
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 55
+      },
+      {
+        "bottom": 534,
+        "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+        "overflow": "hidden",
+        "top": 55
+      },
+      {
+        "bottom": 534,
+        "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 55
+      },
+      {
+        "bottom": 534,
+        "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+        "overflow": "auto",
+        "top": 55
+      },
+      {
+        "bottom": 600,
+        "classes": "dashboard-shell crm-app-bg min-h-dvh",
+        "overflow": "hidden",
+        "top": 0
+      }
+    ],
+    "effectiveClip": {
+      "bottom": 449,
+      "left": 16,
+      "right": 374,
+      "top": 403
+    },
+    "fullyVisible": true,
+    "hitMatches": true,
+    "rect": {
+      "bottom": 436,
+      "height": 20,
+      "left": 29,
+      "right": 242.3515625,
+      "top": 416,
+      "width": 213.3515625,
+      "x": 29,
+      "y": 416
+    },
+    "visible": true
+  },
+  "bodyTextLength": 237813,
+  "chain": [
+    {
+      "classes": "mail-message-body mail-message-body--html text-sm leading-relaxed crm-text",
+      "clientHeight": 400104,
+      "clientWidth": 358,
+      "display": "block",
+      "flexBasis": "auto",
+      "flexGrow": "0",
+      "flexShrink": "1",
+      "height": "400104px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 400104,
+      "overflowX": "auto",
+      "overflowY": "auto",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 355,
+        "height": 400104,
+        "left": 16,
+        "right": 374,
+        "top": -399749,
+        "width": 358,
+        "x": 16,
+        "y": -399749
+      },
+      "scrollHeight": 400104,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 358,
+      "tag": "DIV"
+    },
+    {
+      "classes": "mail-reading-body",
+      "clientHeight": 400198,
+      "clientWidth": 358,
+      "display": "block",
+      "flexBasis": "auto",
+      "flexGrow": "0",
+      "flexShrink": "1",
+      "height": "400198px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 400198,
+      "overflowX": "visible",
+      "overflowY": "visible",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 449,
+        "height": 400198,
+        "left": 16,
+        "right": 374,
+        "top": -399749,
+        "width": 358,
+        "x": 16,
+        "y": -399749
+      },
+      "scrollHeight": 400198,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 358,
+      "tag": "DIV"
+    },
+    {
+      "classes": "min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6",
+      "clientHeight": 224,
+      "clientWidth": 390,
+      "display": "block",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "224px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 224,
+      "overflowX": "auto",
+      "overflowY": "auto",
+      "paddingBottom": "16px",
+      "position": "static",
+      "rect": {
+        "bottom": 465,
+        "height": 224,
+        "left": 0,
+        "right": 390,
+        "top": 241,
+        "width": 390,
+        "x": 0,
+        "y": 241
+      },
+      "scrollHeight": 400230,
+      "scrollLeft": 0,
+      "scrollTop": 400006,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+      "clientHeight": 430,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "430px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 430,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 430,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      },
+      "scrollHeight": 430,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "ARTICLE"
+    },
+    {
+      "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+      "clientHeight": 430,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "430px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 430,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 430,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      },
+      "scrollHeight": 430,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+      "clientHeight": 430,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "430px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 430,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 430,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      },
+      "scrollHeight": 430,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+      "clientHeight": 479,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "479px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 479,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 479,
+        "left": 0,
+        "right": 390,
+        "top": 55,
+        "width": 390,
+        "x": 0,
+        "y": 55
+      },
+      "scrollHeight": 479,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+      "clientHeight": 479,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "479px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 479,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 479,
+        "left": 0,
+        "right": 390,
+        "top": 55,
+        "width": 390,
+        "x": 0,
+        "y": 55
+      },
+      "scrollHeight": 479,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+      "clientHeight": 479,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "479px",
+      "maxHeight": "100%",
+      "minHeight": "0px",
+      "offsetHeight": 479,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 479,
+        "left": 0,
+        "right": 390,
+        "top": 55,
+        "width": 390,
+        "x": 0,
+        "y": 55
+      },
+      "scrollHeight": 479,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+      "clientHeight": 479,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "479px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 479,
+      "overflowX": "auto",
+      "overflowY": "auto",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 479,
+        "left": 0,
+        "right": 390,
+        "top": 55,
+        "width": 390,
+        "x": 0,
+        "y": 55
+      },
+      "scrollHeight": 479,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "MAIN"
+    },
+    {
+      "classes": "flex min-w-0 flex-1 flex-col transition-[padding] duration-200 ease-out md:pl-64 lg:pl-72",
+      "clientHeight": 534,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "534px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 534,
+      "overflowX": "visible",
+      "overflowY": "visible",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 534,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrollHeight": 534,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "flex min-h-dvh md:min-h-0",
+      "clientHeight": 534,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "0%",
+      "flexGrow": "1",
+      "flexShrink": "1",
+      "height": "534px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 534,
+      "overflowX": "visible",
+      "overflowY": "visible",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 534,
+        "height": 534,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrollHeight": 534,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "dashboard-shell crm-app-bg min-h-dvh",
+      "clientHeight": 600,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "auto",
+      "flexGrow": "0",
+      "flexShrink": "1",
+      "height": "600px",
+      "maxHeight": "none",
+      "minHeight": "0px",
+      "offsetHeight": 600,
+      "overflowX": "hidden",
+      "overflowY": "hidden",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 600,
+        "height": 600,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrollHeight": 600,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "DIV"
+    },
+    {
+      "classes": "flex min-h-dvh flex-col app-bg",
+      "clientHeight": 600,
+      "clientWidth": 390,
+      "display": "flex",
+      "flexBasis": "auto",
+      "flexGrow": "0",
+      "flexShrink": "1",
+      "height": "600px",
+      "maxHeight": "none",
+      "minHeight": "600px",
+      "offsetHeight": 600,
+      "overflowX": "visible",
+      "overflowY": "visible",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 600,
+        "height": 600,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrollHeight": 600,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "BODY"
+    },
+    {
+      "classes": "__variable_246ccd __variable_c29908 h-full antialiased",
+      "clientHeight": 600,
+      "clientWidth": 390,
+      "display": "block",
+      "flexBasis": "auto",
+      "flexGrow": "0",
+      "flexShrink": "1",
+      "height": "600px",
+      "maxHeight": "none",
+      "minHeight": "100%",
+      "offsetHeight": 600,
+      "overflowX": "visible",
+      "overflowY": "visible",
+      "paddingBottom": "0px",
+      "position": "static",
+      "rect": {
+        "bottom": 600,
+        "height": 600,
+        "left": 0,
+        "right": 390,
+        "top": 0,
+        "width": 390,
+        "x": 0,
+        "y": 0
+      },
+      "scrollHeight": 600,
+      "scrollLeft": 0,
+      "scrollTop": 0,
+      "scrollWidth": 390,
+      "tag": "HTML"
+    }
+  ],
+  "dangerousElementCount": 0,
+  "document": {
+    "clientHeight": 600,
+    "clientWidth": 390,
+    "scrollHeight": 600,
+    "scrollTop": 0,
+    "scrollWidth": 390
+  },
+  "emptyState": null,
+  "executed": false,
+  "footer": {
+    "clips": [
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 104
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 104
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 104
+      },
+      {
+        "bottom": 534,
+        "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 55
+      },
+      {
+        "bottom": 534,
+        "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+        "overflow": "hidden",
+        "top": 55
+      },
+      {
+        "bottom": 534,
+        "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+        "overflow": "hidden",
+        "top": 55
+      },
+      {
+        "bottom": 534,
+        "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+        "overflow": "auto",
+        "top": 55
+      },
+      {
+        "bottom": 600,
+        "classes": "dashboard-shell crm-app-bg min-h-dvh",
+        "overflow": "hidden",
+        "top": 0
+      }
+    ],
+    "effectiveClip": {
+      "bottom": 534,
+      "left": 0,
+      "right": 390,
+      "top": 104
+    },
+    "fullyVisible": true,
+    "hitMatches": true,
+    "rect": {
+      "bottom": 534,
+      "height": 69,
+      "left": 0,
+      "right": 390,
+      "top": 465,
+      "width": 390,
+      "x": 0,
+      "y": 465
+    },
+    "visible": true
+  },
+  "marker": {
+    "rect": {
+      "top": 334,
+      "bottom": 352,
+      "left": 16,
+      "right": 176.046875
+    },
+    "fullyVisible": true,
+    "visible": true
+  },
+  "markerExists": true,
+  "nav": {
+    "classes": "mobile-bottom-nav fixed inset-x-0 bottom-0 z-40 px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 md:hidden",
+    "clientHeight": 65,
+    "clientWidth": 390,
+    "display": "block",
+    "flexBasis": "auto",
+    "flexGrow": "0",
+    "flexShrink": "0",
+    "height": "66px",
+    "maxHeight": "none",
+    "minHeight": "auto",
+    "offsetHeight": 66,
+    "overflowX": "visible",
+    "overflowY": "visible",
+    "paddingBottom": "8px",
+    "position": "relative",
+    "rect": {
+      "bottom": 600,
+      "height": 66,
+      "left": 0,
+      "right": 390,
+      "top": 534,
+      "width": 390,
+      "x": 0,
+      "y": 534
+    },
+    "scrollHeight": 65,
+    "scrollLeft": 0,
+    "scrollTop": 0,
+    "scrollWidth": 390,
+    "tag": "NAV"
+  },
+  "pre": [],
+  "remoteResourceCount": 0,
+  "textFingerprint": "237813:772890451",
+  "unsafeLinkCount": 0,
+  "url": "/mail",
+  "viewport": {
+    "height": 600,
+    "width": 390
+  },
+  "isolated": {
+    "body": null,
+    "csp": "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; font-src 'none'; connect-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'",
+    "dangerousElementCount": 0,
+    "div": null,
+    "documentHeight": 400104,
+    "documentScrollHeight": 400104,
+    "documentScrollTop": 0,
+    "executed": false,
+    "h1": null,
+    "height": 400104,
+    "marker": {
+      "bottom": 400101,
+      "left": 0,
+      "right": 160.046875,
+      "top": 400083
+    },
+    "remoteResourceCount": 0,
+    "table": null,
+    "td": null,
+    "textFingerprint": "237813:772890451",
+    "textLength": 237813,
+    "unsafeLinkCount": 0
+  },
+  "frame": {
+    "height": 400104,
+    "left": 16,
+    "sandbox": "allow-same-origin",
+    "scrolling": "no",
+    "top": -399749,
+    "width": 358
+  }
+}

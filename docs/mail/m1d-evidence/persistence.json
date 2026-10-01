@@ -1,0 +1,32 @@
+[
+  {
+    "id": "m1b-long_html",
+    "version": "inbound-v2",
+    "unchangedHtml": true
+  },
+  {
+    "id": "m1b-table_newsletter",
+    "version": "inbound-v2",
+    "unchangedHtml": true
+  },
+  {
+    "id": "m1b-image_only_current_policy",
+    "version": "inbound-v2",
+    "unchangedHtml": true
+  },
+  {
+    "id": "m1b-quoted_long",
+    "version": "inbound-v2",
+    "unchangedHtml": true
+  },
+  {
+    "id": "m1b-safe_wide_content",
+    "version": "inbound-v2",
+    "unchangedHtml": true
+  },
+  {
+    "id": "m1b-malicious_html",
+    "version": "inbound-v2",
+    "unchangedHtml": true
+  }
+]

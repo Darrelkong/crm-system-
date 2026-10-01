@@ -1,0 +1,130 @@
+{
+  "canaryRequestCount": 0,
+  "requests": [
+    {
+      "method": "GET",
+      "url": "/api/mail/me",
+      "count": 13
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/compose/context",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/approvals?scope=reviewer&status=pending",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/mailboxes/accessible",
+      "count": 2
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages?folder=inbox&mailboxId=m1b-synthetic-mailbox",
+      "count": 12
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1d-enterprise_table/read-state?folder=inbox",
+      "count": 7
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1d-enterprise_table?folder=inbox",
+      "count": 7
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1b-long_html/read-state?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1b-long_html?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1b-table_newsletter/read-state?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1b-table_newsletter?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1b-image_only_current_policy/read-state?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1b-image_only_current_policy?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1b-quoted_long/read-state?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1b-quoted_long?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1b-safe_wide_content/read-state?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1b-safe_wide_content?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1b-malicious_html/read-state?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1b-malicious_html?folder=inbox",
+      "count": 4
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1d-apple_style_no_images/read-state?folder=inbox",
+      "count": 5
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1d-apple_style_no_images?folder=inbox",
+      "count": 5
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1d-malicious_css/read-state?folder=inbox",
+      "count": 5
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1d-malicious_css?folder=inbox",
+      "count": 5
+    },
+    {
+      "method": "PATCH",
+      "url": "/api/mail/messages/m1d-plain_text_compat/read-state?folder=inbox",
+      "count": 1
+    },
+    {
+      "method": "GET",
+      "url": "/api/mail/messages/m1d-plain_text_compat?folder=inbox",
+      "count": 1
+    }
+  ]
+}

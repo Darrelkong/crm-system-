@@ -1,0 +1,286 @@
+[
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/22a5144ee8d83bca-s.p.woff2?v=1790829083705",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/7d4881bb7e1bf84d-s.p.woff2?v=1790829083705",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/5f521853fd7688f1-s.p.woff2?v=1790829083705",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/icons/apple-touch-icon.png",
+    "kind": "image"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790829083705",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790829083705",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app-pages-internals.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/layout.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/webpack.js?v=1790829083705",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/main-app.js?v=1790829083705",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/22a5144ee8d83bca-s.p.woff2",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/(dashboard)/mail/layout.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/(dashboard)/mail/page.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/chunks/app/(dashboard)/layout.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/__nextjs_font/geist-latin.woff2",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/locales/en.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/brand/echfront-crm-logo-mask.png",
+    "kind": "image"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/media/5f521853fd7688f1-s.p.woff2",
+    "kind": "font"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/me",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/approvals/pending-count",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/notifications/unread-count",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/auth/me",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/0e68f4ec80e12b83.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.0e68f4ec80e12b83.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/mail?_rsc=YdvkTYRObd9XTLJ5",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790829086166",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790829086166",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790829086267",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790829086267",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/mailboxes/accessible",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/compose/context",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/approvals?scope=reviewer&status=pending",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/admin/users",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/health?resume=1790829086470",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages?folder=inbox&mailboxId=m1b-synthetic-mailbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/2277432831d343ad.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.2277432831d343ad.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/b3218855c174c04a.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.b3218855c174c04a.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/81b6253d021af2c3.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.81b6253d021af2c3.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/86d6d034681c083e.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.86d6d034681c083e.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1d-enterprise_table?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1d-enterprise_table/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/fdeeedb72c4227e2.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.fdeeedb72c4227e2.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/75ca349fdb18aa5e.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.75ca349fdb18aa5e.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/health",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-long_html?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-long_html/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-table_newsletter?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-table_newsletter/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-image_only_current_policy?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-image_only_current_policy/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-quoted_long?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-quoted_long/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-safe_wide_content?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-safe_wide_content/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-malicious_html?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1b-malicious_html/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1d-apple_style_no_images?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1d-apple_style_no_images/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1d-malicious_css?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/api/mail/messages/m1d-malicious_css/read-state?folder=inbox",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/81a77d61a558bc82.webpack.hot-update.json",
+    "kind": "other"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/layout.css?v=1790829338992",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/css/app/(dashboard)/mail/layout.css?v=1790829338992",
+    "kind": "stylesheet"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/app/layout.81a77d61a558bc82.hot-update.js",
+    "kind": "script"
+  },
+  {
+    "url": "http://127.0.0.1:3299/_next/static/webpack/webpack.81a77d61a558bc82.hot-update.js",
+    "kind": "script"
+  }
+]

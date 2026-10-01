@@ -1,0 +1,18 @@
+{
+  "maliciousClick": {
+    "target": "SAFE_CLICK_TARGET",
+    "scriptOrEventSentinel": false,
+    "activeElementCount": 0,
+    "urlAfter": "http://127.0.0.1:3299/mail"
+  },
+  "plainCompatibility": {
+    "text": "Plain legacy-compatible body.<not-html> remains text.ACTUAL_END_PLAIN",
+    "iframeCount": 0
+  },
+  "reloadAndReopenEnterprise": {
+    "iframeHeight": 4761,
+    "outerScrollHeight": 4793
+  },
+  "reentry": "desktop to 390px and reduced height reopened normally; existing selection reset unchanged",
+  "physicalTouchAndKeyboard": "NOT TESTED"
+}

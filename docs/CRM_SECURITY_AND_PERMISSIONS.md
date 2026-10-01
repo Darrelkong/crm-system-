@@ -238,3 +238,6 @@ Production data queries beyond approved metadata, migrations, deploy/rollback, s
 Read CLI source/behavior where necessary: the installed Wrangler `d1 migrations list` can initialize the tracking table and therefore is unsuitable for a strict read-only audit. Expired OAuth may trigger refresh writes; human credential restoration must follow the authorized scope without exposing credential values. Use the [deployment runbook](CRM_DEPLOYMENT_RUNBOOK.md) for review gates, not old phase shortcuts.
 
 Backup files, local databases, WAL sidecars, raw Mail/source objects and local environment files can contain sensitive data. Preserve recovery assets; do not add them to Git or delete them during documentation work. Backup coverage and proven restore remain separate claims.
+
+
+Mail M1D local security evidence (2026-10-01): server sanitization remains mandatory. The candidate isolated reader uses `sandbox="allow-same-origin"` without script/form/top-navigation permissions, deny-network CSP, and trusted parent-only sizing/link handling. Sender stylesheets, active content and images remain blocked; Mail read/send authorization is unchanged. [Contract and measured security evidence](mail/MAIL_M1D_SAFE_HTML_FIDELITY.md). **NOT merged / NOT deployed.**
