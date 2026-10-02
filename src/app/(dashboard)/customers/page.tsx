@@ -89,6 +89,7 @@ export default async function CustomersPage({ searchParams }: Props) {
       workView: params.workView,
       salesStage: params.salesStage,
       ownerId: params.ownerId,
+      relationship: params.relationship,
     }),
     ...(reclamationCustomerIds !== undefined ? { reclamationCustomerIds } : {}),
   };
@@ -184,6 +185,8 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   return (
     <CustomersListClient
+      // A relationship-tab navigation must not retain the previous scope's rows/page.
+      key={listFilter.relationship ?? "all"}
       initialRows={initialRows}
       pagination={pagination}
       showArchived={showArchived}
