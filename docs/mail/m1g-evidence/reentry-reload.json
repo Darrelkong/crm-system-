@@ -1,0 +1,15 @@
+{
+  "before": {
+    "prefix": "M1F synthetic Reply LONG_HTML",
+    "paragraphs": 10004,
+    "endPresent": true,
+    "quoteCharacters": 200011
+  },
+  "after": {
+    "prefix": "M1F synthetic Reply LONG_HTML",
+    "paragraphs": 10004,
+    "endPresent": true,
+    "quoteCharacters": 200011
+  },
+  "equal": true
+}

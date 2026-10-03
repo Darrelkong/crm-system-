@@ -1,0 +1,167 @@
+[
+  {
+    "name": "unit-final.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/unit-final.log",
+    "sha256": "e411084c64ba8a6e8922bbf0036a7d8322520e9b31eb2cb44ae07e3da559017c",
+    "bytes": 97136,
+    "totals": [
+      "\u2139 tests 256",
+      "\u2139 pass 253",
+      "\u2139 fail 3",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "regex-baseline.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/regex-baseline.log",
+    "sha256": "069db0be68d21ff2beb75a54a741e0711c3a17b81c1b7cbc8adf30d8f78deaba",
+    "bytes": 78464,
+    "totals": [
+      "\u2139 tests 51",
+      "\u2139 pass 48",
+      "\u2139 fail 3",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "permissions.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/permissions.log",
+    "sha256": "76470e267cf9e8376a18aaae0798acdd24019fca59c8c5b06c2aba667fb1a586",
+    "bytes": 2276422,
+    "totals": [
+      "\u2139 tests 11",
+      "\u2139 pass 8",
+      "\u2139 fail 3",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "permissions-baseline.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/permissions-baseline.log",
+    "sha256": "bdcb13ee2fc304468655827ff6c17e4eaf5eb6abf5b8709ff5fed2f40fca229e",
+    "bytes": 4873,
+    "totals": [
+      "\u2139 tests 11",
+      "\u2139 pass 8",
+      "\u2139 fail 3",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "cid-quote-migration.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/cid-quote-migration.log",
+    "sha256": "8eb11a283f59c14aed2dffd45c5735fe557b722ddbccfe82e2f4ed098720bc1e",
+    "bytes": 2426,
+    "totals": [
+      "\u2139 tests 27",
+      "\u2139 pass 27",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "quote-final.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/quote-final.log",
+    "sha256": "dd2df9f562b0e537977b07ac26feacdca48cfecc53cb41195a5fe01501da7496",
+    "bytes": 1075,
+    "totals": [
+      "\u2139 tests 9",
+      "\u2139 pass 9",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "service-tests.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/service-tests.log",
+    "sha256": "d44ab9484ee0a8ba55979c113200eaec69bb2b010140d15a6ed0e0cec230a7f6",
+    "bytes": 10578,
+    "totals": [
+      "\u2139 tests 12",
+      "\u2139 pass 3",
+      "\u2139 fail 0",
+      "\u2139 cancelled 9",
+      "\u2139 skipped 0",
+      "\u2139 todo 0",
+      "\u2139 tests 17",
+      "\u2139 pass 17",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0",
+      "\u2139 tests 15",
+      "\u2139 pass 15",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0",
+      "\u2139 tests 16",
+      "\u2139 pass 16",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "hygiene-tests.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/hygiene-tests.log",
+    "sha256": "3b63754f70c8261af4afc7268ca95ecb778121c4d58b68d5bcbe11914387af52",
+    "bytes": 790,
+    "totals": [
+      "\u2139 tests 7",
+      "\u2139 pass 7",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0"
+    ]
+  },
+  {
+    "name": "eslint.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/eslint.log",
+    "sha256": "f2b739065913a2aa32527202c4e10b7ca0780857bcba812ecb3293ccfcf791ca",
+    "bytes": 2771,
+    "totals": []
+  },
+  {
+    "name": "eslint-m1g.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/eslint-m1g.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "totals": []
+  },
+  {
+    "name": "eslint-canonical-baseline.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/eslint-canonical-baseline.log",
+    "sha256": "ac974e97a58abfdc174238da16b05d39846bf224f901f2c0fd21ec7e7a21164d",
+    "bytes": 2851,
+    "totals": []
+  },
+  {
+    "name": "typecheck-final.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/typecheck-final.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "totals": []
+  },
+  {
+    "name": "build-hygiene.log",
+    "privateLocalPath": "/var/folders/4q/8s0trbh12bs9lmchml8qhkxw0000gn/T/crm-mail-m1g-5hwee7sa/build-hygiene.log",
+    "sha256": "8ebd745c55e7c7076092d293c7aa6ea713c0d95d05a3221b571cf402d418d028",
+    "bytes": 11930,
+    "totals": []
+  }
+]

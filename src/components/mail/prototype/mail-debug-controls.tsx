@@ -15,12 +15,19 @@ const PERMISSION_LEVELS: SharedPermissionLevel[] = [
 
 function isMailDebugEnabled() {
   return (
-    process.env.NODE_ENV === "development" ||
-    process.env.NEXT_PUBLIC_DEBUG_MAIL === "true"
+    process.env.NODE_ENV !== "production" &&
+    (process.env.NODE_ENV === "development" ||
+      process.env.NEXT_PUBLIC_DEBUG_MAIL === "true")
   );
 }
 
 export function MailDebugControls() {
+  // Public build flags must never enable prototype controls in a release.
+  if (!isMailDebugEnabled()) return null;
+  return <EnabledMailDebugControls />;
+}
+
+function EnabledMailDebugControls() {
   const { t } = useTranslation();
   const {
     sharedPermissionLevel,
@@ -34,10 +41,6 @@ export function MailDebugControls() {
   const myMentions = mentionNotifications.filter(
     (n) => n.targetUserId === currentTeamMemberId,
   );
-
-  if (!isMailDebugEnabled()) {
-    return null;
-  }
 
   return (
     <div

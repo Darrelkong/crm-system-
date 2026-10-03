@@ -1,0 +1,28 @@
+{
+  "buildPublicMailSource": "production",
+  "buildDebugFlag": "true (negative control)",
+  "clientMatches": {
+    "Toggle prototype debug controls": [],
+    "children:\"DBG\"": [],
+    "canary.invalid": [],
+    "m1d-network-canary": [],
+    "m1f-local-identity": [],
+    "m1b-local-admin": [],
+    "127.0.0.1:3299": [],
+    "localhost:3299": [],
+    "local-preview-token-1234567890": []
+  },
+  "localPreviewRouteCompiled": [
+    "/local-preview/auth/simulate-idle-expiry/route",
+    "/local-preview/knowledge-fixtures/[fixtureId]/route",
+    "/local-preview/knowledge-fixtures/page",
+    "/local-preview/mail/large-attachment-recipient-preview/route"
+  ],
+  "migrationSha256": "ff9675e71658efd26f35884d3dd3f00bb73fc8ef35ba675dd0bf1dda0f82944c",
+  "productionPreviewRouteGuards": {
+    "authSimulation": "NODE_ENV=production disables before cookie/DB work",
+    "knowledgeFixtures": "same production-disabled helper before fixture read / page render",
+    "mailRecipientPreview": "NODE_ENV=production returns 404 before token/resource work"
+  },
+  "guardTestResult": "Existing auth/Mail guards in 256-test suite; additional Knowledge guard suite 4/4; actual debug component SSR 3/3."
+}

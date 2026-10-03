@@ -1,0 +1,32 @@
+{
+  "totalRequestLogLines": 659,
+  "lifecycleErrorMatches": [],
+  "consoleQualification": "One MutationObserver.observe non-Node error at 2026-10-03T09:15:10.413Z has no source/stack. No recurrence through subsequent cases and reload; attribution not established.",
+  "observed4xx": [
+    [
+      "GET",
+      "/api/auth/me",
+      "401",
+      "674ms (next.js: 603ms, application-code: 71ms)"
+    ],
+    [
+      "GET",
+      "/api/mail/messages/1761ee40-bbb6-4c6a-a314-a944f6bb0154/inline-resources/a4905079-bab1-41af-ab04-69411f5ce1b5?folder=inbox",
+      "415",
+      "193ms (next.js: 1741\u00b5s, application-code: 192ms)"
+    ],
+    [
+      "GET",
+      "/api/mail/messages/1761ee40-bbb6-4c6a-a314-a944f6bb0154/inline-resources/a4905079-bab1-41af-ab04-69411f5ce1b5?folder=inbox",
+      "415",
+      "177ms (next.js: 774\u00b5s, application-code: 176ms)"
+    ],
+    [
+      "GET",
+      "/api/mail/messages/1761ee40-bbb6-4c6a-a314-a944f6bb0154/inline-resources/a4905079-bab1-41af-ab04-69411f5ce1b5?folder=inbox",
+      "415",
+      "190ms (next.js: 2ms, application-code: 188ms)"
+    ]
+  ],
+  "observed4xxExplanation": "Initial expired local authentication session before normal synthetic login; three intentional invalid-byte CID 415 rejections."
+}

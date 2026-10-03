@@ -10,7 +10,8 @@ import { stageInboundProviderEvent } from "./inbound-provider-staging-service";
 import { materializeInboundIngestionEvent } from "./inbound-message-materialization-service";
 import { cidMime } from "../../../scripts/mail-reader-geometry/cid-fixtures";
 import { createSeededComposeDraft } from "./compose-draft-seed-service";
-import { updateDraft, getDraft } from "./draft-service";
+import { createDraft, updateDraft, getDraft } from "./draft-service";
+import { submitRevisionForApproval, getApproval } from "./outbound-approval-service";
 import { createOutboundRevisionFromDraft, recomputeOutboundRevisionContentHash } from "./outbound-revision-service";
 import { buildDraftUpdatePayload, draftDetailToComposeState } from "./client/draft-management";
 import { readLimitedJsonBody } from "@/lib/http/read-limited-json-body";
@@ -78,6 +79,39 @@ test("unrelated actor cannot seed a quote or obtain its private resource metadat
   const other={...actor,userId:"cid-test-other"};
   await assert.rejects(createSeededComposeDraft(conn.db,other,{sourceMessageId:messageId,mode:"reply",folder:"inbox"}));
   await assert.rejects(getMessageDetail(conn.db,other,messageId,{folder:"inbox"}));
+});
+test("editable-prefix updates retain author authorization and reject mixed text", async () => {
+  const draft = await createSeededComposeDraft(conn.db, actor, {sourceMessageId:messageId,mode:"reply",folder:"inbox"});
+  await assert.rejects(updateDraft(conn.db, {...actor,userId:"cid-test-other"}, {
+    draftId:draft.id,expectedAutosaveVersion:draft.autosaveVersion,editableBodyHtml:"<p>Unauthorized change</p>",
+  }));
+  await assert.rejects(updateDraft(conn.db, actor, {
+    draftId:draft.id,expectedAutosaveVersion:draft.autosaveVersion,editableBodyHtml:"<p>Mixed change</p>",bodyText:"Replacement",
+  }), /combined body/);
+  assert.equal((await getDraft(conn.db,actor,draft.id)).bodyHtml,draft.bodyHtml);
+});
+test("non-seeded draft retains combined-body updates and rejects prefix mode", async () => {
+  const created = await createDraft(conn.db,actor,{senderIdentityId:"m1f-identity",mailboxId:"cid-test-box",subject:"M1G synthetic new draft",bodyHtml:"<p>Original</p>"});
+  assert.ok(created.created);
+  const draft = created.item;
+  await assert.rejects(updateDraft(conn.db,actor,{draftId:draft.id,expectedAutosaveVersion:draft.autosaveVersion,editableBodyHtml:"<p>Invalid prefix</p>"}),/canonical quote/);
+  const saved = await updateDraft(conn.db,actor,{draftId:draft.id,expectedAutosaveVersion:draft.autosaveVersion,bodyHtml:"<p>Compatible combined update</p>",bodyText:"Compatible combined update"});
+  assert.equal(saved.bodyHtml,"<p>Compatible combined update</p>");
+});
+test("submitted rich quote revision stays immutable after later prefix and recipient edits", async () => {
+  const draft = await createSeededComposeDraft(conn.db,actor,{sourceMessageId:messageId,mode:"reply_all",folder:"inbox"});
+  const revision = await createOutboundRevisionFromDraft(conn.db,actor,{draftId:draft.id,expectedAutosaveVersion:draft.autosaveVersion});
+  const approval = await submitRevisionForApproval(conn.db,actor,{revisionId:revision.id});
+  const snapshot = await conn.db.select().from(schema.mailOutboundRevisions).where(eq(schema.mailOutboundRevisions.id,revision.id));
+  const recipients = await conn.db.select().from(schema.mailOutboundRevisionRecipients).where(eq(schema.mailOutboundRevisionRecipients.revisionId,revision.id));
+  const attachments = await conn.db.select().from(schema.mailOutboundRevisionAttachments).where(eq(schema.mailOutboundRevisionAttachments.revisionId,revision.id));
+  const current = await getDraft(conn.db,actor,draft.id);
+  await updateDraft(conn.db,actor,{draftId:draft.id,expectedAutosaveVersion:current.autosaveVersion,editableBodyHtml:"<p>Later draft only</p>",recipients:[{recipientType:"to",address:"later@example.invalid",sortOrder:0}]});
+  assert.deepEqual(await conn.db.select().from(schema.mailOutboundRevisions).where(eq(schema.mailOutboundRevisions.id,revision.id)),snapshot);
+  assert.deepEqual(await conn.db.select().from(schema.mailOutboundRevisionRecipients).where(eq(schema.mailOutboundRevisionRecipients.revisionId,revision.id)),recipients);
+  assert.deepEqual(await conn.db.select().from(schema.mailOutboundRevisionAttachments).where(eq(schema.mailOutboundRevisionAttachments.revisionId,revision.id)),attachments);
+  assert.equal((await getApproval(conn.db,actor,approval.id)).currentContentHash,approval.currentContentHash);
+  assert.equal((await recomputeOutboundRevisionContentHash(conn.db,revision.id)).contentHash,revision.contentHash);
 });
 test("no send operation created, existing FK integrity intact",async()=>{
   assert.equal((await conn.raw.prepare("SELECT count(*) AS n FROM mail_send_operations").first())?.n,0);

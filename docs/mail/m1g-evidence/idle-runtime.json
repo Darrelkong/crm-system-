@@ -1,0 +1,11 @@
+{
+  "seconds": 73.225,
+  "newServerLines": [
+    " GET /api/auth/me 200 in 129ms (next.js: 2ms, application-code: 127ms)",
+    " GET /api/mail/me 200 in 268ms (next.js: 92ms, application-code: 176ms)",
+    " GET /api/health 200 in 151ms (next.js: 12ms, application-code: 139ms)",
+    " GET /api/health 200 in 83ms (next.js: 1149µs, application-code: 82ms)",
+    " GET /api/auth/me 200 in 128ms (next.js: 5ms, application-code: 123ms)"
+  ],
+  "newCanaryRequests": 0
+}

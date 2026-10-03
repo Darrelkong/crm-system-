@@ -1,0 +1,39 @@
+{
+  "reader": {
+    "cases": 19,
+    "assertions": 321,
+    "failed": 0
+  },
+  "cid": {
+    "cases": 18,
+    "assertions": 218,
+    "failed": 0
+  },
+  "remote": {
+    "cases": 18,
+    "assertions": 300,
+    "failed": 0
+  },
+  "quote": {
+    "cases": 26,
+    "assertions": 316,
+    "failed": 0
+  },
+  "total": {
+    "cases": 81,
+    "assertions": 1155,
+    "failed": 0
+  },
+  "readerOpenObservationMs": {
+    "min": 537,
+    "median": 770,
+    "max": 2697,
+    "qualification": "Local Next development, includes compilation/automation/image settlement; not a production benchmark."
+  },
+  "probeCorrections": [
+    "Initial ENTERPRISE_TABLE run lacked expected text fingerprint in its invocation. Original deterministic fixture fingerprint supplied; same content/checks passed. Initial two failures retained privately.",
+    "Initial cold CID_SINGLE desktop probe preceded image decoding; unchanged settled case passed. Initial failed probe retained privately.",
+    "Initial cold compose route compile exceeded wait; same completed cases passed after route settled. No timeout/assertion/source weakening.",
+    "Initial remote run omitted harness URL/count contract; corrected invocation completed all cases."
+  ]
+}
