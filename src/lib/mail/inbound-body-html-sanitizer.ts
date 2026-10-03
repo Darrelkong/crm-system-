@@ -5,7 +5,7 @@ import { MAIL_IMAGE_ATTRIBUTE, remoteImageUrl, imageDimension, encodeInertImage,
 /** Frozen inbound HTML policy — bump when allowlist changes (does not re-sanitize history). */
 export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v5";
 
-const INBOUND_BODY_ALLOWED_TAGS = [
+export const INBOUND_BODY_ALLOWED_TAGS = [
   "p",
   "div",
   "span",

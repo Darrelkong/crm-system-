@@ -1,0 +1,5913 @@
+[
+  {
+    "case": "LONG_HTML",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 400184,
+    "quoteScrollHeight": 400184,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 200782,
+        "height": 400184,
+        "left": 742,
+        "right": 1230,
+        "top": -199402,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 200763,
+        "left": 782,
+        "right": 942.046875,
+        "top": 200745
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400394,
+      "scrollTop": 200149,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 801,
+        "height": 400184,
+        "left": 742,
+        "right": 1230,
+        "top": -399383,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782,
+        "left": 782,
+        "right": 942.046875,
+        "top": 764
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400394,
+      "scrollTop": 400130,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "ENTERPRISE_TABLE",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 4873,
+    "quoteScrollHeight": 4873,
+    "tableCount": 2,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all ENTERPRISE_TABLE",
+      "frame": {
+        "bottom": 3126.5,
+        "height": 4873,
+        "left": 742,
+        "right": 1230,
+        "top": -1746.5,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 3083.5,
+        "left": 806,
+        "right": 1022.9453125,
+        "top": 3065.5
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 5083,
+      "scrollTop": 2493.5,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all ENTERPRISE_TABLE",
+      "frame": {
+        "bottom": 801,
+        "height": 4873,
+        "left": 742,
+        "right": 1230,
+        "top": -4072,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 758,
+        "left": 806,
+        "right": 1022.9453125,
+        "top": 740
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 5083,
+      "scrollTop": 4819,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      },
+      {
+        "name": "table typography and padding",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "APPLE_STYLE_NO_IMAGES",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 4209,
+    "quoteScrollHeight": 4209,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward APPLE_STYLE_NO_IMAGES",
+      "frame": {
+        "bottom": 2794.5,
+        "height": 4209,
+        "left": 742,
+        "right": 1230,
+        "top": -1414.5,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 2751.109375,
+        "left": 902.8515625,
+        "right": 1069.140625,
+        "top": 2733.109375
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 4419,
+      "scrollTop": 2161.5,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward APPLE_STYLE_NO_IMAGES",
+      "frame": {
+        "bottom": 801,
+        "height": 4209,
+        "left": 742,
+        "right": 1230,
+        "top": -3408,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 757.609375,
+        "left": 902.8515625,
+        "right": 1069.140625,
+        "top": 739.609375
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 4419,
+      "scrollTop": 4155,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      },
+      {
+        "name": "Apple text hierarchy retained",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "QUOTED_LONG",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 19344,
+    "quoteScrollHeight": 19344,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply QUOTED_LONG",
+      "frame": {
+        "bottom": 10362,
+        "height": 19344,
+        "left": 742,
+        "right": 1230,
+        "top": -8982,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 10343,
+        "left": 862,
+        "right": 1045.1484375,
+        "top": 10325
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 19554,
+      "scrollTop": 9729,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply QUOTED_LONG",
+      "frame": {
+        "bottom": 801,
+        "height": 19344,
+        "left": 742,
+        "right": 1230,
+        "top": -18543,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782,
+        "left": 862,
+        "right": 1045.1484375,
+        "top": 764
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 19554,
+      "scrollTop": 19290,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "PLAIN_TEXT_COMPAT",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 152,
+    "quoteScrollHeight": 152,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all PLAIN_TEXT_COMPAT",
+      "frame": {
+        "bottom": 801,
+        "height": 152,
+        "left": 742,
+        "right": 1230,
+        "top": 649,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782.5,
+        "left": 782,
+        "right": 1061.3515625,
+        "top": 715.5
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 362,
+      "scrollTop": 98,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all PLAIN_TEXT_COMPAT",
+      "frame": {
+        "bottom": 801,
+        "height": 152,
+        "left": 742,
+        "right": 1230,
+        "top": 649,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782.5,
+        "left": 782,
+        "right": 1061.3515625,
+        "top": 715.5
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 362,
+      "scrollTop": 98,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "SAFE_WIDE_CONTENT",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 10598,
+    "quoteScrollHeight": 10598,
+    "tableCount": 1,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward SAFE_WIDE_CONTENT",
+      "frame": {
+        "bottom": 5989,
+        "height": 10598,
+        "left": 742,
+        "right": 22745,
+        "top": -4609,
+        "width": 22003
+      },
+      "marker": {
+        "bottom": 5970,
+        "left": 782,
+        "right": 938.4765625,
+        "top": 5952
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 10808,
+      "scrollTop": 5356,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward SAFE_WIDE_CONTENT",
+      "frame": {
+        "bottom": 801,
+        "height": 10598,
+        "left": 742,
+        "right": 22745,
+        "top": -9797,
+        "width": 22003
+      },
+      "marker": {
+        "bottom": 782,
+        "left": 782,
+        "right": 938.4765625,
+        "top": 764
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 10808,
+      "scrollTop": 10544,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "CID_MULTIPLE",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 1052,
+    "quoteScrollHeight": 1052,
+    "tableCount": 0,
+    "loadedImages": 3,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply CID_MULTIPLE",
+      "frame": {
+        "bottom": 1216,
+        "height": 1052,
+        "left": 742,
+        "right": 1230,
+        "top": 164,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 1196.65625,
+        "left": 782,
+        "right": 1010.2109375,
+        "top": 1178.65625
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 1302,
+      "scrollTop": 623,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply CID_MULTIPLE",
+      "frame": {
+        "bottom": 801,
+        "height": 1052,
+        "left": 742,
+        "right": 1230,
+        "top": -251,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 781.65625,
+        "left": 782,
+        "right": 1010.2109375,
+        "top": 763.65625
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 1302,
+      "scrollTop": 1038,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "CID_IMAGE_ONLY",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 350,
+    "quoteScrollHeight": 350,
+    "tableCount": 0,
+    "loadedImages": 1,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all CID_IMAGE_ONLY",
+      "frame": {
+        "bottom": 865,
+        "height": 350,
+        "left": 742,
+        "right": 1230,
+        "top": 515,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 600,
+      "scrollTop": 272,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all CID_IMAGE_ONLY",
+      "frame": {
+        "bottom": 801,
+        "height": 350,
+        "left": 742,
+        "right": 1230,
+        "top": 451,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 600,
+      "scrollTop": 336,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "REMOTE_IMAGE_ONLY",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 231,
+    "quoteScrollHeight": 231,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward REMOTE_IMAGE_ONLY",
+      "frame": {
+        "bottom": 805.5,
+        "height": 231,
+        "left": 742,
+        "right": 1230,
+        "top": 574.5,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 603,
+      "scrollTop": 334.5,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward REMOTE_IMAGE_ONLY",
+      "frame": {
+        "bottom": 801,
+        "height": 231,
+        "left": 742,
+        "right": 1230,
+        "top": 570,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 603,
+      "scrollTop": 339,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "TRACKING_1X1",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 95,
+    "quoteScrollHeight": 95,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply TRACKING_1X1",
+      "frame": {
+        "bottom": 801,
+        "height": 95,
+        "left": 742,
+        "right": 1230,
+        "top": 706,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 467,
+      "scrollTop": 203,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply TRACKING_1X1",
+      "frame": {
+        "bottom": 801,
+        "height": 95,
+        "left": 742,
+        "right": 1230,
+        "top": 706,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 467,
+      "scrollTop": 203,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "MALICIOUS_HTML",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 144,
+    "quoteScrollHeight": 144,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all MALICIOUS_HTML",
+      "frame": {
+        "bottom": 801,
+        "height": 144,
+        "left": 742,
+        "right": 1230,
+        "top": 657,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782,
+        "left": 782,
+        "right": 938.4921875,
+        "top": 764
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 354,
+      "scrollTop": 90,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all MALICIOUS_HTML",
+      "frame": {
+        "bottom": 801,
+        "height": 144,
+        "left": 742,
+        "right": 1230,
+        "top": 657,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782,
+        "left": 782,
+        "right": 938.4921875,
+        "top": 764
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 354,
+      "scrollTop": 90,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "MALICIOUS_CSS",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 378,
+    "quoteScrollHeight": 378,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward MALICIOUS_CSS",
+      "frame": {
+        "bottom": 879,
+        "height": 378,
+        "left": 742,
+        "right": 1230,
+        "top": 501,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 860,
+        "left": 782,
+        "right": 980.2890625,
+        "top": 842
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 588,
+      "scrollTop": 246,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward MALICIOUS_CSS",
+      "frame": {
+        "bottom": 801,
+        "height": 378,
+        "left": 742,
+        "right": 1230,
+        "top": 423,
+        "width": 488
+      },
+      "marker": {
+        "bottom": 782,
+        "left": 782,
+        "right": 980.2890625,
+        "top": 764
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 588,
+      "scrollTop": 324,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "LONG_HTML",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 400184,
+    "quoteScrollHeight": 400184,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -199805.5,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -199821.5,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 200631.5,
+        "height": 400184,
+        "left": 25,
+        "right": 365,
+        "top": -199552.5,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 200612.5,
+        "left": 65,
+        "right": 225.046875,
+        "top": 200594.5
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400551,
+      "scrollTop": 200191.5,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -399810,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -399826,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 627,
+        "height": 400184,
+        "left": 25,
+        "right": 365,
+        "top": -399557,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608,
+        "left": 65,
+        "right": 225.046875,
+        "top": 590
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400551,
+      "scrollTop": 400196,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "ENTERPRISE_TABLE",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 6793,
+    "quoteScrollHeight": 6793,
+    "tableCount": 2,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -3110,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -3126,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all ENTERPRISE_TABLE",
+      "frame": {
+        "bottom": 3936,
+        "height": 6793,
+        "left": 25,
+        "right": 365,
+        "top": -2857,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 3893,
+        "left": 89,
+        "right": 305.9453125,
+        "top": 3875
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 7160,
+      "scrollTop": 3496,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -6419,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -6435,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all ENTERPRISE_TABLE",
+      "frame": {
+        "bottom": 627,
+        "height": 6793,
+        "left": 25,
+        "right": 365,
+        "top": -6166,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 584,
+        "left": 89,
+        "right": 305.9453125,
+        "top": 566
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 7160,
+      "scrollTop": 6805,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      },
+      {
+        "name": "table typography and padding",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "APPLE_STYLE_NO_IMAGES",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 6530,
+    "quoteScrollHeight": 6530,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -2978.5,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -2994.5,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward APPLE_STYLE_NO_IMAGES",
+      "frame": {
+        "bottom": 3804.5,
+        "height": 6530,
+        "left": 25,
+        "right": 365,
+        "top": -2725.5,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 3760.71875,
+        "left": 111.8515625,
+        "right": 278.140625,
+        "top": 3742.71875
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 6897,
+      "scrollTop": 3364.5,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -6156,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -6172,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward APPLE_STYLE_NO_IMAGES",
+      "frame": {
+        "bottom": 627,
+        "height": 6530,
+        "left": 25,
+        "right": 365,
+        "top": -5903,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 583.21875,
+        "left": 111.8515625,
+        "right": 278.140625,
+        "top": 565.21875
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 6897,
+      "scrollTop": 6542,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      },
+      {
+        "name": "Apple text hierarchy retained",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "QUOTED_LONG",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 22944,
+    "quoteScrollHeight": 22944,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -11185.5,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -11201.5,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply QUOTED_LONG",
+      "frame": {
+        "bottom": 12011.5,
+        "height": 22944,
+        "left": 25,
+        "right": 365,
+        "top": -10932.5,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 11992.5,
+        "left": 145,
+        "right": 328.1484375,
+        "top": 11974.5
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 23311,
+      "scrollTop": 11571.5,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -22570,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -22586,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply QUOTED_LONG",
+      "frame": {
+        "bottom": 627,
+        "height": 22944,
+        "left": 25,
+        "right": 365,
+        "top": -22317,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608,
+        "left": 145,
+        "right": 328.1484375,
+        "top": 590
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 23311,
+      "scrollTop": 22956,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "PLAIN_TEXT_COMPAT",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 152,
+    "quoteScrollHeight": 152,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 222,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 206,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all PLAIN_TEXT_COMPAT",
+      "frame": {
+        "bottom": 627,
+        "height": 152,
+        "left": 25,
+        "right": 365,
+        "top": 475,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608.5,
+        "left": 65,
+        "right": 344.3515625,
+        "top": 541.5
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 519,
+      "scrollTop": 164,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 222,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 206,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all PLAIN_TEXT_COMPAT",
+      "frame": {
+        "bottom": 627,
+        "height": 152,
+        "left": 25,
+        "right": 365,
+        "top": 475,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608.5,
+        "left": 65,
+        "right": 344.3515625,
+        "top": 541.5
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 519,
+      "scrollTop": 164,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "SAFE_WIDE_CONTENT",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 10598,
+    "quoteScrollHeight": 10598,
+    "tableCount": 1,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -5012.5,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -5028.5,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward SAFE_WIDE_CONTENT",
+      "frame": {
+        "bottom": 5838.5,
+        "height": 10598,
+        "left": 25,
+        "right": 22028,
+        "top": -4759.5,
+        "width": 22003
+      },
+      "marker": {
+        "bottom": 5819.5,
+        "left": 65,
+        "right": 221.4765625,
+        "top": 5801.5
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 10965,
+      "scrollTop": 5398.5,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -10224,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -10240,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward SAFE_WIDE_CONTENT",
+      "frame": {
+        "bottom": 627,
+        "height": 10598,
+        "left": 25,
+        "right": 22028,
+        "top": -9971,
+        "width": 22003
+      },
+      "marker": {
+        "bottom": 608,
+        "left": 65,
+        "right": 221.4765625,
+        "top": 590
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 10965,
+      "scrollTop": 10610,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "CID_MULTIPLE",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 741,
+    "quoteScrollHeight": 741,
+    "tableCount": 0,
+    "loadedImages": 3,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -140,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -156,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply CID_MULTIPLE",
+      "frame": {
+        "bottom": 910,
+        "height": 741,
+        "left": 25,
+        "right": 365,
+        "top": 169,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 890.875,
+        "left": 65,
+        "right": 293.2109375,
+        "top": 872.875
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 1164,
+      "scrollTop": 526,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -423,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -439,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply CID_MULTIPLE",
+      "frame": {
+        "bottom": 627,
+        "height": 741,
+        "left": 25,
+        "right": 365,
+        "top": -114,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 607.875,
+        "left": 65,
+        "right": 293.2109375,
+        "top": 589.875
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 1164,
+      "scrollTop": 809,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "CID_IMAGE_ONLY",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 246,
+    "quoteScrollHeight": 246,
+    "tableCount": 0,
+    "loadedImages": 1,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 107.5,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 91.5,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all CID_IMAGE_ONLY",
+      "frame": {
+        "bottom": 662.5,
+        "height": 246,
+        "left": 25,
+        "right": 365,
+        "top": 416.5,
+        "width": 340
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 669,
+      "scrollTop": 278.5,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 72,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 56,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all CID_IMAGE_ONLY",
+      "frame": {
+        "bottom": 627,
+        "height": 246,
+        "left": 25,
+        "right": 365,
+        "top": 381,
+        "width": 340
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 669,
+      "scrollTop": 314,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "REMOTE_IMAGE_ONLY",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 255,
+    "quoteScrollHeight": 255,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -39,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -55,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward REMOTE_IMAGE_ONLY",
+      "frame": {
+        "bottom": 667,
+        "height": 255,
+        "left": 25,
+        "right": 365,
+        "top": 412,
+        "width": 340
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 820,
+      "scrollTop": 425,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -79,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -95,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward REMOTE_IMAGE_ONLY",
+      "frame": {
+        "bottom": 627,
+        "height": 255,
+        "left": 25,
+        "right": 365,
+        "top": 372,
+        "width": 340
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 820,
+      "scrollTop": 465,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "TRACKING_1X1",
+    "mode": "Reply",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 95,
+    "quoteScrollHeight": 95,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 81,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 65,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply TRACKING_1X1",
+      "frame": {
+        "bottom": 627,
+        "height": 95,
+        "left": 25,
+        "right": 365,
+        "top": 532,
+        "width": 340
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 660,
+      "scrollTop": 305,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 81,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 65,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply TRACKING_1X1",
+      "frame": {
+        "bottom": 627,
+        "height": 95,
+        "left": 25,
+        "right": 365,
+        "top": 532,
+        "width": 340
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 660,
+      "scrollTop": 305,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "MALICIOUS_HTML",
+    "mode": "Reply all",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 144,
+    "quoteScrollHeight": 144,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 230,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 214,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all MALICIOUS_HTML",
+      "frame": {
+        "bottom": 627,
+        "height": 144,
+        "left": 25,
+        "right": 365,
+        "top": 483,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608,
+        "left": 65,
+        "right": 221.4921875,
+        "top": 590
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 511,
+      "scrollTop": 156,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 230,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 214,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply all MALICIOUS_HTML",
+      "frame": {
+        "bottom": 627,
+        "height": 144,
+        "left": 25,
+        "right": 365,
+        "top": 483,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608,
+        "left": 65,
+        "right": 221.4921875,
+        "top": 590
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 511,
+      "scrollTop": 156,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "MALICIOUS_CSS",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 390,
+      "height": 844
+    },
+    "quoteHeight": 402,
+    "quoteScrollHeight": 402,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 85.5,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": 69.5,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward MALICIOUS_CSS",
+      "frame": {
+        "bottom": 740.5,
+        "height": 402,
+        "left": 25,
+        "right": 365,
+        "top": 338.5,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 721.5,
+        "left": 65,
+        "right": 263.2890625,
+        "top": 703.5
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 769,
+      "scrollTop": 300.5,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -28,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -44,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 726,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 770,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 726,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 355,
+      "document": {
+        "h": 844,
+        "sh": 844,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Forward MALICIOUS_CSS",
+      "frame": {
+        "bottom": 627,
+        "height": 402,
+        "left": 25,
+        "right": 365,
+        "top": 225,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 608,
+        "left": 65,
+        "right": 263.2890625,
+        "top": 590
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 769,
+      "scrollTop": 414,
+      "scroller": {
+        "bottom": 717,
+        "height": 355,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "LONG_HTML",
+    "mode": "Reply",
+    "expanded": true,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 400160,
+    "quoteScrollHeight": 400160,
+    "tableCount": 0,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 340,
+            "right": 397.8515625,
+            "top": 844,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 878,
+            "height": 32,
+            "left": 403.8515625,
+            "right": 435.8515625,
+            "top": 846,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 1158.2421875,
+            "right": 1268,
+            "top": 844,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 563,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 200587.5,
+        "height": 400160,
+        "left": 353,
+        "right": 1255,
+        "top": -199572.5,
+        "width": 902
+      },
+      "marker": {
+        "bottom": 200568.5,
+        "left": 393,
+        "right": 553.046875,
+        "top": 200550.5
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400262,
+      "scrollTop": 199879.5,
+      "scroller": {
+        "bottom": 789,
+        "height": 563,
+        "left": 328,
+        "right": 1280,
+        "top": 226,
+        "width": 952
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 340,
+            "right": 397.8515625,
+            "top": 844,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 878,
+            "height": 32,
+            "left": 403.8515625,
+            "right": 435.8515625,
+            "top": 846,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 1158.2421875,
+            "right": 1268,
+            "top": 844,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 563,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 768,
+        "height": 400160,
+        "left": 353,
+        "right": 1255,
+        "top": -399392,
+        "width": 902
+      },
+      "marker": {
+        "bottom": 749,
+        "left": 393,
+        "right": 553.046875,
+        "top": 731
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400262,
+      "scrollTop": 399699,
+      "scroller": {
+        "bottom": 789,
+        "height": 563,
+        "left": 328,
+        "right": 1280,
+        "top": 226,
+        "width": 952
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "ENTERPRISE_TABLE",
+    "mode": "Reply all",
+    "expanded": true,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 4801,
+    "quoteScrollHeight": 4801,
+    "tableCount": 2,
+    "loadedImages": 0,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 340,
+            "right": 397.8515625,
+            "top": 844,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 878,
+            "height": 32,
+            "left": 403.8515625,
+            "right": 435.8515625,
+            "top": 846,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 1158.2421875,
+            "right": 1268,
+            "top": 844,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 563,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all ENTERPRISE_TABLE",
+      "frame": {
+        "bottom": 2908,
+        "height": 4801,
+        "left": 353,
+        "right": 1255,
+        "top": -1893,
+        "width": 902
+      },
+      "marker": {
+        "bottom": 2865,
+        "left": 528,
+        "right": 744.9453125,
+        "top": 2847
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 4903,
+      "scrollTop": 2200,
+      "scroller": {
+        "bottom": 789,
+        "height": 563,
+        "left": 328,
+        "right": 1280,
+        "top": 226,
+        "width": 952
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 340,
+            "right": 397.8515625,
+            "top": 844,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 878,
+            "height": 32,
+            "left": 403.8515625,
+            "right": 435.8515625,
+            "top": 846,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 880,
+            "height": 36,
+            "left": 1158.2421875,
+            "right": 1268,
+            "top": 844,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 563,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Reply all ENTERPRISE_TABLE",
+      "frame": {
+        "bottom": 768,
+        "height": 4801,
+        "left": 353,
+        "right": 1255,
+        "top": -4033,
+        "width": 902
+      },
+      "marker": {
+        "bottom": 725,
+        "left": 528,
+        "right": 744.9453125,
+        "top": 707
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 4903,
+      "scrollTop": 4340,
+      "scroller": {
+        "bottom": 789,
+        "height": 563,
+        "left": 328,
+        "right": 1280,
+        "top": 226,
+        "width": 952
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      },
+      {
+        "name": "table typography and padding",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "CID_IMAGE_ONLY",
+    "mode": "Forward",
+    "expanded": false,
+    "size": {
+      "width": 1280,
+      "height": 900
+    },
+    "quoteHeight": 486,
+    "quoteScrollHeight": 486,
+    "tableCount": 0,
+    "loadedImages": 1,
+    "top": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward CID_IMAGE_ONLY",
+      "frame": {
+        "bottom": 933,
+        "height": 486,
+        "left": 742,
+        "right": 1230,
+        "top": 447,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 736,
+      "scrollTop": 340,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 729,
+            "right": 786.8515625,
+            "top": 831,
+            "width": 57.8515625
+          }
+        },
+        {
+          "hit": true,
+          "label": "Attachments",
+          "rect": {
+            "bottom": 865,
+            "height": 32,
+            "left": 792.8515625,
+            "right": 824.8515625,
+            "top": 833,
+            "width": 32
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 867,
+            "height": 36,
+            "left": 1133.2421875,
+            "right": 1243,
+            "top": 831,
+            "width": 109.7578125
+          }
+        }
+      ],
+      "clientHeight": 264,
+      "document": {
+        "h": 900,
+        "sh": 900,
+        "sw": 1280,
+        "w": 1280
+      },
+      "editable": "M1F synthetic Forward CID_IMAGE_ONLY",
+      "frame": {
+        "bottom": 801,
+        "height": 486,
+        "left": 742,
+        "right": 1230,
+        "top": 315,
+        "width": 488
+      },
+      "marker": null,
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 736,
+      "scrollTop": 472,
+      "scroller": {
+        "bottom": 822,
+        "height": 264,
+        "left": 717,
+        "right": 1255,
+        "top": 558,
+        "width": 538
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  },
+  {
+    "case": "LONG_HTML",
+    "mode": "Reply",
+    "size": {
+      "width": 390,
+      "height": 600
+    },
+    "quoteHeight": 400184,
+    "quoteScrollHeight": 400184,
+    "maximum": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -400054,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -400070,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 526,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 482,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 526,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 482,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 111,
+      "document": {
+        "h": 600,
+        "sh": 600,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 383,
+        "height": 400184,
+        "left": 25,
+        "right": 365,
+        "top": -399801,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 364,
+        "left": 65,
+        "right": 225.046875,
+        "top": 346
+      },
+      "markerVisible": false,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400551,
+      "scrollTop": 400440,
+      "scroller": {
+        "bottom": 473,
+        "height": 111,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "bottom": {
+      "buttons": [
+        {
+          "hit": false,
+          "label": "Attachments",
+          "rect": {
+            "bottom": -400024,
+            "height": 16,
+            "left": 290.5625,
+            "right": 378,
+            "top": -400040,
+            "width": 87.4375
+          }
+        },
+        {
+          "hit": true,
+          "label": "Discard draft",
+          "rect": {
+            "bottom": 526,
+            "height": 44,
+            "left": 12,
+            "right": 129.7578125,
+            "top": 482,
+            "width": 117.7578125
+          }
+        },
+        {
+          "hit": true,
+          "label": "Send",
+          "rect": {
+            "bottom": 526,
+            "height": 44,
+            "left": 312.1484375,
+            "right": 378,
+            "top": 482,
+            "width": 65.8515625
+          }
+        }
+      ],
+      "clientHeight": 111,
+      "document": {
+        "h": 600,
+        "sh": 600,
+        "sw": 390,
+        "w": 390
+      },
+      "editable": "M1F synthetic Reply LONG_HTML",
+      "frame": {
+        "bottom": 413,
+        "height": 400184,
+        "left": 25,
+        "right": 365,
+        "top": -399771,
+        "width": 340
+      },
+      "marker": {
+        "bottom": 394,
+        "left": 65,
+        "right": 225.046875,
+        "top": 376
+      },
+      "markerVisible": true,
+      "quoteEditable": false,
+      "sandbox": "allow-same-origin",
+      "scrollHeight": 400551,
+      "scrollTop": 400410,
+      "scroller": {
+        "bottom": 473,
+        "height": 111,
+        "left": 0,
+        "right": 390,
+        "top": 362,
+        "width": 390
+      }
+    },
+    "checks": [
+      {
+        "name": "clean separate editable area",
+        "pass": true
+      },
+      {
+        "name": "original quote metadata",
+        "pass": true
+      },
+      {
+        "name": "expected final content retained",
+        "pass": true
+      },
+      {
+        "name": "final marker wheel-reachable",
+        "pass": true
+      },
+      {
+        "name": "bounded outer compose scroll",
+        "pass": true
+      },
+      {
+        "name": "no inner vertical scroll",
+        "pass": true
+      },
+      {
+        "name": "document bounded",
+        "pass": true
+      },
+      {
+        "name": "send action uncovered",
+        "pass": true
+      },
+      {
+        "name": "quote sandbox script disabled",
+        "pass": true
+      },
+      {
+        "name": "no active content execution",
+        "pass": true
+      },
+      {
+        "name": "CID preview remains authorized",
+        "pass": true
+      },
+      {
+        "name": "zero automatic remote requests",
+        "pass": true
+      }
+    ]
+  }
+]

@@ -1,0 +1,119 @@
+{
+  "desktop-text": {
+    "cases": 6,
+    "passed": 74,
+    "failures": []
+  },
+  "desktop-images": {
+    "cases": 6,
+    "passed": 72,
+    "failures": []
+  },
+  "mobile-text": {
+    "cases": 6,
+    "passed": 74,
+    "failures": []
+  },
+  "mobile-images": {
+    "cases": 6,
+    "passed": 72,
+    "failures": []
+  },
+  "expanded-enterprise": {
+    "cases": 1,
+    "passed": 13,
+    "failures": []
+  },
+  "final-cid-forward": {
+    "cases": 1,
+    "passed": 12,
+    "failures": []
+  },
+  "reader-desktop": {
+    "cases": 6,
+    "passed": 90,
+    "failed": 0,
+    "failures": []
+  },
+  "reader-mobile-rest": {
+    "cases": 3,
+    "passed": 39,
+    "failed": 0,
+    "failures": []
+  },
+  "cid-single-settled": {
+    "cases": 1,
+    "passed": 12,
+    "failures": []
+  },
+  "cid-mobile": {
+    "cases": 8,
+    "passed": 97,
+    "failures": []
+  },
+  "remote-final-desktop": {
+    "cases": 9,
+    "passed": 150,
+    "failures": []
+  },
+  "remote-final-mobile": {
+    "cases": 9,
+    "passed": 150,
+    "failures": []
+  },
+  "reader-mobile-completed-cases": [
+    {
+      "fixture": "LONG_HTML",
+      "passed": 22
+    },
+    {
+      "fixture": "IMAGE_ONLY_CURRENT_POLICY",
+      "passed": 7
+    },
+    {
+      "fixture": "QUOTED_LONG",
+      "passed": 22
+    }
+  ],
+  "cid-desktop-completed-cases": [
+    {
+      "fixture": "CID_MULTIPLE",
+      "passed": 13
+    },
+    {
+      "fixture": "CID_MISSING",
+      "passed": 12
+    },
+    {
+      "fixture": "CID_DUPLICATE",
+      "passed": 12
+    },
+    {
+      "fixture": "CID_IMAGE_ONLY",
+      "passed": 12
+    },
+    {
+      "fixture": "CID_MIXED_TEXT",
+      "passed": 12
+    },
+    {
+      "fixture": "CID_WRONG_MESSAGE",
+      "passed": 12
+    },
+    {
+      "fixture": "CID_BAD_BYTES",
+      "passed": 12
+    }
+  ],
+  "expanded-desktop-completed-cases": [
+    {
+      "fixture": "LONG_HTML",
+      "passed": 12
+    }
+  ],
+  "final-short-viewport-reachable": {
+    "cases": 1,
+    "passed": 12,
+    "failures": []
+  }
+}

@@ -72,6 +72,7 @@ export async function POST(request: Request, context: RouteContext) {
       subject: readStringField(body, "subject"),
       bodyText: readStringField(body, "bodyText"),
       bodyHtml: readStringField(body, "bodyHtml"),
+      editableBodyHtml: readStringField(body, "editableBodyHtml"),
       senderIdentityId: readStringField(body, "senderIdentityId"),
       mailboxId: readStringField(body, "mailboxId"),
       recipients: parseDraftRecipientsField(body.recipients),

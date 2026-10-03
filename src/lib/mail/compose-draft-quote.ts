@@ -1,5 +1,6 @@
 import type { MailMessage } from "../../../drizzle/schema/mail-messages";
-import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
+import { derivePlainTextFromSanitizedHtml } from "@/lib/mail/inbound-body-html-sanitizer";
+import { sanitizeQuoteHtml } from "@/lib/mail/compose-body-html";
 import { formatHongKongDateTime } from "@/lib/timezone";
 import type { VisibleSourceRecipient } from "@/lib/mail/compose-draft-recipient-derivation";
 
@@ -27,25 +28,21 @@ function formatSenderLabel(
 }
 
 function resolveSafeSourceText(source: SourceQuoteBody): string {
-  if (source.quotedText?.trim()) {
-    return source.quotedText.trim();
-  }
-  if (source.bodyText.trim()) {
-    return source.bodyText.trim();
-  }
-  const fromHtml = sanitizeOptionalOutboundBodyHtml(source.bodyHtmlSanitized);
-  if (fromHtml) {
-    return fromHtml.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-  }
-  return "";
+  const body = source.bodyText.trim() || derivePlainTextFromSanitizedHtml(
+    sanitizeQuoteHtml(source.bodyHtmlSanitized ?? "", true) ?? "",
+  );
+  const history = source.quotedText?.trim() || derivePlainTextFromSanitizedHtml(
+    sanitizeQuoteHtml(source.quotedHtmlSanitized ?? "", true) ?? "",
+  );
+  return [body, history].filter(Boolean).join("\n\n");
 }
 
 function resolveSafeSourceHtml(source: SourceQuoteBody): string | null {
-  const quoted = sanitizeOptionalOutboundBodyHtml(source.quotedHtmlSanitized);
-  if (quoted) {
-    return quoted;
-  }
-  return sanitizeOptionalOutboundBodyHtml(source.bodyHtmlSanitized);
+  const body = sanitizeQuoteHtml(source.bodyHtmlSanitized ?? "")
+    || (source.bodyText.trim() ? `<pre>${escapeHtml(source.bodyText)}</pre>` : "");
+  const history = sanitizeQuoteHtml(source.quotedHtmlSanitized ?? "")
+    || (source.quotedText?.trim() ? `<pre>${escapeHtml(source.quotedText)}</pre>` : "");
+  return [body, history ? `<blockquote>${history}</blockquote>` : ""].join("") || null;
 }
 
 function formatRecipientList(recipients: VisibleSourceRecipient[]): string {
@@ -100,7 +97,7 @@ export function buildReplyQuoteBody(input: {
 
   return {
     bodyText,
-    bodyHtml: sanitizeOptionalOutboundBodyHtml(bodyHtml),
+    bodyHtml: sanitizeQuoteHtml(bodyHtml),
   };
 }
 
@@ -153,7 +150,7 @@ export function buildForwardQuoteBody(input: {
 
   return {
     bodyText,
-    bodyHtml: sanitizeOptionalOutboundBodyHtml(bodyHtml),
+    bodyHtml: sanitizeQuoteHtml(bodyHtml),
   };
 }
 

@@ -1346,6 +1346,7 @@ export async function updateDraft(
     subject?: string;
     bodyText?: string;
     bodyHtml?: string;
+    editableBodyHtml?: string;
     recipients?: Array<{
       recipientType: "to" | "cc" | "bcc";
       address: string;

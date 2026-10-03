@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useMailSession } from "@/lib/mail/client/mail-session-provider";
 import { MailFormattingToolbar } from "@/components/mail/prototype/mail-formatting-toolbar";
 import { MailComposeFromSelector } from "@/components/mail/compose/mail-compose-from-selector";
+import { MailComposeQuote } from "@/components/mail/compose/mail-compose-quote";
 import { MailComposeSignatureBlock } from "@/components/mail/compose/mail-compose-signature-block";
 import { MailRecipientChipsField } from "@/components/mail/compose/mail-recipient-chips-field";
 import { MailComposeSubmissionStatus } from "@/components/mail/compose/mail-compose-submission-status";
@@ -606,7 +607,7 @@ function MailComposeEditorBody({
             className={cn(
               "mail-compose-body-scroll min-h-0 flex-1 overflow-y-auto",
               isEmbeddedExpanded &&
-                "mail-compose-body-region flex min-h-0 flex-1 flex-col overflow-hidden",
+                "mail-compose-body-region",
             )}
           >
             {isEmbeddedExpanded && showDraftLoadingLabel ? (
@@ -670,10 +671,8 @@ function MailComposeEditorBody({
                   {t("mail.compose.showQuoted")}
                 </button>
                 {quotedExpanded ? (
-                  <div
-                    className="mail-compose-quoted mt-2 rounded-md border crm-border bg-[var(--color-crm-bg-muted)] px-3 py-2 text-sm leading-relaxed crm-text-secondary"
-                    dangerouslySetInnerHTML={{ __html: state.quotedBodyHtml }}
-                  />
+                  <MailComposeQuote key={state.draftId ?? state.quoteSourceMessageId ?? "quote"}
+                    html={state.quotedBodyHtml} sourceMessageId={state.quoteSourceMessageId} />
                 ) : null}
               </div>
             ) : null}

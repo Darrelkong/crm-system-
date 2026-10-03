@@ -30,7 +30,9 @@ import {
   type SafeDraftRecipientView,
   type SafeDraftView,
 } from "@/lib/mail/draft-serialization";
-import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
+import { splitComposeBodyForEditor, mergeComposeBodyForSave } from "./client/compose-reply-body";
+import { stripHtml } from "./client/draft-management";
+import { sanitizeComposeBodyHtml } from "@/lib/mail/compose-body-html";
 import {
   normalizeOutboundRecipientAddress,
   normalizeOutboundRecipients,
@@ -102,11 +104,12 @@ export function hasMeaningfulDraftContent(input: {
   return false;
 }
 
-/** Persist only server-sanitized working HTML (same policy as Revision body). */
+/** Persist server-sanitized editable content and inert, isolated quote content. */
 function sanitizeDraftBodyHtmlForPersistence(
   rawHtml: string | null | undefined,
+  mode: MailDraft["composeMode"] = "new",
 ): string | null {
-  return sanitizeOptionalOutboundBodyHtml(rawHtml);
+  return sanitizeComposeBodyHtml(rawHtml, mode);
 }
 
 /**
@@ -574,7 +577,7 @@ async function persistDraftRecord(
     sortOrder: recipient.sortOrder ?? index,
   }));
 
-  const bodyHtml = sanitizeDraftBodyHtmlForPersistence(input.bodyHtml);
+  const bodyHtml = sanitizeDraftBodyHtmlForPersistence(input.bodyHtml, input.composeMode ?? "new");
   const now = new Date().toISOString();
   const draftId = crypto.randomUUID();
   const auditId = crypto.randomUUID();
@@ -665,7 +668,7 @@ export async function createDraft(
     );
   }
 
-  const bodyHtml = sanitizeDraftBodyHtmlForPersistence(input.bodyHtml);
+  const bodyHtml = sanitizeDraftBodyHtmlForPersistence(input.bodyHtml, input.composeMode ?? "new");
   const recipients = input.recipients ?? [];
 
   if (
@@ -718,6 +721,7 @@ export async function updateDraft(
     subject?: string;
     bodyText?: string;
     bodyHtml?: string | null;
+    editableBodyHtml?: string;
     sensitivity?: MailDraft["sensitivity"];
     senderIdentityId?: string;
     mailboxId?: string;
@@ -754,10 +758,23 @@ export async function updateDraft(
   const nextVersion = draft.autosaveVersion + 1;
   const auditId = crypto.randomUUID();
 
-  const bodyHtml =
-    input.bodyHtml === undefined
-      ? draft.bodyHtml
-      : sanitizeDraftBodyHtmlForPersistence(input.bodyHtml);
+  let bodyHtml = input.bodyHtml === undefined
+    ? draft.bodyHtml : sanitizeDraftBodyHtmlForPersistence(input.bodyHtml, draft.composeMode);
+  let bodyText = input.bodyText !== undefined ? input.bodyText : draft.bodyText;
+  if (input.editableBodyHtml !== undefined) {
+    if (input.bodyHtml !== undefined || input.bodyText !== undefined) {
+      throw MailServiceError.validation("Editable quote update cannot include a combined body");
+    }
+    const { quotedHtml } = splitComposeBodyForEditor({bodyHtml:draft.bodyHtml ?? "",composeMode:draft.composeMode});
+    if (draft.composeMode === "new" || !quotedHtml) {
+      throw MailServiceError.validation("Editable quote update requires an existing canonical quote");
+    }
+    // Sanitize the editable prefix independently: it cannot introduce a quote
+    // marker to gain the richer quote presentation policy.
+    const editableHtml = sanitizeDraftBodyHtmlForPersistence(input.editableBodyHtml, "new") ?? "";
+    bodyHtml = mergeComposeBodyForSave({editableHtml,quotedHtml,composeMode:draft.composeMode});
+    bodyText = stripHtml(sanitizeComposeBodyHtml(bodyHtml, draft.composeMode, true) ?? "");
+  }
 
   type BatchStatement = Parameters<Database["batch"]>[0][number];
   const statements: BatchStatement[] = [];
@@ -787,8 +804,7 @@ export async function updateDraft(
           input.subject !== undefined
             ? input.subject.normalize("NFC")
             : draft.subject,
-        bodyText:
-          input.bodyText !== undefined ? input.bodyText : draft.bodyText,
+        bodyText,
         bodyHtml,
         sensitivity: input.sensitivity ?? draft.sensitivity,
         senderIdentityId:

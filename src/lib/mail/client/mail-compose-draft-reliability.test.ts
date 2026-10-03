@@ -110,9 +110,11 @@ describe("expanded composer bottom dock", () => {
   const signature = read("../../../components/mail/compose/mail-compose-signature-block.tsx");
   const globals = read("../../../app/globals.css");
 
-  it("uses one flexible body region without toolbar above body in embedded expanded mode", () => {
+  it("lets the expanded quote grow inside one bounded body scroller", () => {
     assert.match(editor, /isEmbeddedExpanded = expanded && !isMobile/);
-    assert.match(editor, /mail-compose-body-region flex min-h-0 flex-1 flex-col overflow-hidden/);
+    // Real end-marker/wheel/hit-test coverage lives in quote-browser.mjs.
+    assert.match(editor, /"mail-compose-body-region"/);
+    assert.doesNotMatch(editor, /mail-compose-body-region flex min-h-0 flex-1 flex-col overflow-hidden/);
     assert.match(editor, /mail-compose-body-scroll min-h-0 flex-1 overflow-y-auto/);
     assert.match(editor, /mail-compose-body-editor--embedded-expanded min-h-full/);
   });

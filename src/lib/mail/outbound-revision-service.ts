@@ -16,7 +16,7 @@ import {
   runMailBatch,
 } from "@/lib/mail/guarded-batch";
 import { MailServiceError } from "@/lib/mail/errors";
-import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
+import { sanitizeComposeBodyHtml } from "@/lib/mail/compose-body-html";
 import {
   assertRevisionSubject,
   normalizeOutboundRecipients,
@@ -285,7 +285,7 @@ async function createImmutableRevisionFromDraftGraph(
   );
 
   const bodyText = draft.bodyText ?? "";
-  const bodyHtmlSanitized = sanitizeOptionalOutboundBodyHtml(draft.bodyHtml);
+  const bodyHtmlSanitized = sanitizeComposeBodyHtml(draft.bodyHtml, draft.composeMode, true);
   if (!bodyText.trim() && !bodyHtmlSanitized) {
     throw MailServiceError.validation("Revision body content is required");
   }

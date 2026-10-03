@@ -365,6 +365,7 @@ const zhHant: Messages = {
         submitBlocked: "請先修正驗證問題後再提交",
       },
       showQuoted: "顯示引用內容",
+      quoteImagesNotice: "引用圖片僅為原郵件預覽。寄出的引用僅包含圖片說明；附件仍按現有附件選擇處理。",
       forwardAttachments: "原郵件附件",
       replyAllWarning: "請確認所有收件人",
     },

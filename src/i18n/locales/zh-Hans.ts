@@ -365,6 +365,7 @@ const zhHans: Messages = {
         submitBlocked: "请先修正验证问题后再提交",
       },
       showQuoted: "显示引用内容",
+      quoteImagesNotice: "引用图片仅为原邮件预览。发出的引用仅包含图片说明；附件仍按现有附件选择处理。",
       forwardAttachments: "原邮件附件",
       replyAllWarning: "请确认所有收件人",
     },

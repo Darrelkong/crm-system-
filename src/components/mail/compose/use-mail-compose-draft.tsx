@@ -38,6 +38,7 @@ import {
 } from "@/lib/mail/client/compose-submission";
 import {
   buildDraftAutosavePayload,
+  buildDraftUpdatePayload,
   buildRecipientLists,
   composeMobileRootClass,
   createEmptyComposeState,
@@ -571,7 +572,7 @@ export function useMailComposeDraft(input: {
       }));
 
       try {
-        const payload = buildDraftAutosavePayload(snapshot);
+        const payload = snapshot.draftId ? buildDraftUpdatePayload(snapshot) : buildDraftAutosavePayload(snapshot);
 
         if (!snapshot.draftId) {
           const created = await createDraft({

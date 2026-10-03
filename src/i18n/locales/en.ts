@@ -392,6 +392,7 @@ const en = {
           "Submission is blocked until validation issues are resolved",
       },
       showQuoted: "Show quoted content",
+      quoteImagesNotice: "Quoted images are previews of the original message. Outgoing quotes include image descriptions only; attachments follow the existing attachment selection.",
       forwardAttachments: "Original attachments",
       replyAllWarning: "Please verify all recipients",
     },

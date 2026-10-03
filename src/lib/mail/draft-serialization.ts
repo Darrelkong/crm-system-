@@ -4,7 +4,7 @@ import type {
   MailDraftAttachment,
 } from "../../../drizzle/schema/mail-draft-attachments";
 import type { MailDraftRecipient } from "../../../drizzle/schema/mail-draft-recipients";
-import { sanitizeOptionalOutboundBodyHtml } from "@/lib/mail/outbound-body-html-sanitizer";
+import { sanitizeComposeBodyHtml } from "@/lib/mail/compose-body-html";
 import type { SafeDraftCustomerAssociationView } from "@/lib/mail/mail-customer-association-service";
 import type { MailSourceMailboxView } from "@/lib/mail/mail-source-mailbox";
 
@@ -71,7 +71,7 @@ export function toSafeDraftView(
   draft: MailDraft,
   sourceMailbox?: MailSourceMailboxView,
 ): SafeDraftView {
-  const bodyHtml = sanitizeOptionalOutboundBodyHtml(draft.bodyHtml);
+  const bodyHtml = sanitizeComposeBodyHtml(draft.bodyHtml, draft.composeMode);
   return {
     id: draft.id,
     authorUserId: draft.authorUserId,

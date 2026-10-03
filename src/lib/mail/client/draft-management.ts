@@ -121,6 +121,8 @@ export type ComposeEditorState = {
   bodyHtml: string;
   composeMode: ComposeDraftSeedMode | "new";
   quotedBodyHtml: string | null;
+  /** Source identity only; authorization is checked again when loading CID preview. */
+  quoteSourceMessageId?: string | null;
   attachments: ComposeAttachmentDraft[];
   saveStatus: ComposeSaveStatus;
   saveError: string | null;
@@ -241,6 +243,7 @@ export function draftDetailToComposeState(item: DraftDetailApiItem): ComposeEdit
     bodyHtml: split.editableHtml,
     composeMode: item.composeMode,
     quotedBodyHtml: split.quotedHtml,
+    quoteSourceMessageId: item.replyToMessageId,
     attachments: item.attachments.map((attachment) => ({
       id: attachment.id,
       name: attachment.displayFilename,
@@ -305,6 +308,18 @@ export function buildDraftAutosavePayload(state: ComposeEditorState): {
     bodyHtml,
     recipients: recipientListsToApiPayload(lists),
   };
+}
+
+/** Persist only the edited prefix of an existing seeded draft. The server owns
+ * the canonical quote; long original messages must not consume the request cap. */
+export function buildDraftUpdatePayload(state: ComposeEditorState) {
+  if (state.draftId && state.composeMode !== "new" && state.quotedBodyHtml) {
+    if (!state.senderIdentityId || !state.mailboxId) throw new Error("Compose From selection is required before saving");
+    return { senderIdentityId: state.senderIdentityId, mailboxId: state.mailboxId,
+      subject: state.subject, editableBodyHtml: state.bodyHtml,
+      recipients: recipientListsToApiPayload(buildRecipientLists(state)) };
+  }
+  return buildDraftAutosavePayload(state);
 }
 
 export function stripHtml(html: string): string {
