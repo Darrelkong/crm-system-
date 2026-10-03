@@ -23,6 +23,57 @@ Last Human Product Review:
 
 # ECHFRONT CRM — module status and evidence
 
+## R1 relationship filter hotfix — 2026-10-03
+
+**LOCAL VALIDATION PASS — NOT MERGED TO MAIN / NOT DEPLOYED.**
+Branch: `fix/r1-customer-relationship-filter`, based exactly on
+`f5ca38e06fe898faed71d22f2431ae40f18515dd`.
+The owner-confirmed R1 release at that base is already deployed; the older
+Integration 1C deployment statements below are historical evidence. R1 final
+acceptance remains blocked by the deployed relationship-filter defect until a
+separately authorized release and Production verification of the correction.
+This task performed no Production operation, migration or Mail work.
+
+`CustomersPage` omitted `relationship` when calling `parseCustomerListFilter`.
+It now forwards the value and keys `CustomersListClient` by the validated
+relationship (`owner`, `collaborator`, or `all`). The key resets stored list rows,
+pagination and search state when a relationship tab changes. Passing the server
+parameter alone does not reset the existing client `useState(initialRows)`.
+Admin ignores this staff-only filter; its key remains `all`. API/search/pagination
+parameter builders and permission predicates were already correct and unchanged.
+
+Validation (synthetic local data only):
+
+- `node --test scripts/customer-relationship.test.mjs`: **12 PASS**. Executes
+  the real server page and API GET with the real Drizzle query/filter predicates
+  against isolated in-memory SQLite. Covers all/owner/collaborator, disjoint
+  ownership/collaboration, invalid values, page 2, scoped search, Admin normal/
+  archived behavior, and exclusion of unrelated/private, archived, Public Pool
+  and pending-approval records. One negative control reproduces the original
+  page omission without changing application files.
+- `node scripts/test-customer-relationship-browser.mjs`, opened through the
+  permitted browser at `http://127.0.0.1:3211`: **31 assertions PASS** under React
+  StrictMode. Real customer-list component, tab links, search effects and
+  pagination handlers; real page props and API results from the local fixture.
+  Six expected API requests, no idle request growth, no React warnings/errors.
+  `RELATIONSHIP_NEGATIVE_CONTROL=without-key` fails at the first collaborator
+  row assertion after an owner-page-2 → collaborator switch, proving the state
+  reset is necessary. Normal mode was rerun successfully afterward.
+- **66 existing focused tests PASS**: `customer-list-filters`,
+  `customer-collaboration-phase3`, `customer-list-sort`, `sales-stage-list-filter`,
+  `list-rows`, `permissions/customers-assignees` and
+  `permissions/customer-sensitive-fields` (run with `node --import tsx --test`).
+- `npx tsc --noEmit`, focused ESLint on the page and four new test/harness files,
+  `npm run build`, and `git diff --check`: **PASS**. Build retains the existing
+  middleware-convention deprecation warning. Generated locales and lockfile unchanged.
+
+Fixture boundaries: auth/environment/settings/scoring/presentation seams are
+local fakes; SQL membership predicates, server page, API read handler and React
+list behavior are real. Next Link navigation is a local adapter that preserves
+one React root and uses the real page's key/props, not a full Next router or a
+Production session. No D1 binding or migration runner is used. The harness does
+not certify live authentication, Production rollout or full CRM acceptance.
+
 ## Integration 1C current status — 2026-09-30
 
 Current source is `integration/crm-reviewed-features`, validated runtime tree
