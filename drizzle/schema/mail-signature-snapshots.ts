@@ -1,10 +1,12 @@
 import {
   foreignKey,
   index,
+  integer,
   sqliteTable,
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { mailCorporateSignatureTemplateVersions } from "./mail-corporate-signature-template-versions";
 import { mailSenderIdentities } from "./mail-sender-identities";
 import { mailSignatureVersions } from "./mail-signature-versions";
 
@@ -34,6 +36,10 @@ export const mailSignatureSnapshots = sqliteTable(
       .notNull()
       .references(() => mailSenderIdentities.id),
     sourceSignatureVersionId: text("source_signature_version_id"),
+    /** Additive corporate provenance. SQL rejects mixed/partial provenance. */
+    sourceCorporateTemplateVersionId: text("source_corporate_template_version_id")
+      .references(() => mailCorporateSignatureTemplateVersions.id),
+    sourceSignatureProfileRevision: integer("source_signature_profile_revision"),
     bodyText: text("body_text").notNull().default(""),
     bodyHtmlSanitized: text("body_html_sanitized"),
     assetRefsJson: text("asset_refs_json"),

@@ -603,3 +603,23 @@ On isolated `fix/mail-mobile-reader-continuity` from main `6273fbda`, background
 ## Mail M1H — local mobile fitting and responsive CSS, 2026-10-04
 
 **M1H PASS WITH DOCUMENTED LIMITATION** in the existing dirty `fix/mail-mobile-reader-continuity` worktree at base `6273fbda`. Preserves the Mobile Continuity implementation; adds mobile proportional fit/original-width presentation and inbound-v6 bounded AST-sanitized class/width-media rules. Authenticated isolated browser58/58 and separate continuity lifecycle21/21 checks pass; focused units181/182 (one unchanged attachment-action source-regex debt), local D1/service28/28, TypeScript, scoped ESLint and isolated production build pass. No outbound CSS permission expansion. [Exact contract, evidence and limits](mail/MAIL_M1H_MOBILE_FIT_RESPONSIVE_HTML.md). Historical CSS loss cannot be restored; arbitrary CSS, physical Safari/touch, Round C and frozen-SHA Round D remain outside this evidence. Original Preview PID58691 was not updated/restarted. **NOT COMMITTED / NOT MERGED / NOT DEPLOYED; no Production action or M2–M5 work. Complete M1 closeout remains pending.** This dated evidence supplements the historical local-browser availability statement above without rewriting its earlier measurements.
+
+
+## M2A corporate signature domain — 2026-10-05 local implementation
+
+Additive domain/schema/renderer only on M1 base
+`4beb5ffef5731cf66a39f8c5f2c67bdd5ec6a4f1`; see
+[focused M2A evidence](mail/MAIL_M2A_CORPORATE_SIGNATURE_DOMAIN.md).
+0093 is locally validated only; no corporate template is seeded/activated and no
+existing signature path is switched. Domain units 24/24 (focused units 50/50),
+migration/replacement checks 46/46 after the authorized 0093 repair. Acceptance
+found an INSERT OR REPLACE history bypass with recursive_triggers OFF; BEFORE
+INSERT conflict guards and a lifecycle UPDATE conflict guard now prevent row
+eviction independently of that setting. Both OFF/ON matrices preserve complete
+template history and corporate snapshot provenance; valid insertion/lifecycle
+updates still pass. Engineering re-acceptance remains the next gate.
+Prior legacy revision integration 17/17 and signature integration 2/13 (11 identical
+baseline-confirmed stale-fixture failures) are retained, not rerun or repaired in
+this SQL-only defect loop. TypeScript, scoped ESLint and diff integrity pass;
+prior isolated production build remains applicable to unchanged runtime source.
+No Preview or Production changes, commit/push, M2B or M3. M2 is not complete.

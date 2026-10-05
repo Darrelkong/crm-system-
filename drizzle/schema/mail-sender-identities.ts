@@ -1,4 +1,4 @@
-import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { sql } from "drizzle-orm";
 import { users } from "./users";
@@ -28,6 +28,12 @@ export const mailSenderIdentities = sqliteTable(
     /** Service layer lowercases; DB enforces lifetime case-insensitive uniqueness. */
     address: text("address").notNull(),
     displayName: text("display_name"),
+    /** NULL is historical/unconfigured; never inferred from actor or mailbox. */
+    signatureIdentityType: text("signature_identity_type", { enum: ["personal", "corporate"] }),
+    signatureJobTitle: text("signature_job_title"),
+    signaturePhone: text("signature_phone"),
+    /** M2B must CAS/increment for every signature-relevant edit. SQL forbids decrease. */
+    signatureProfileRevision: integer("signature_profile_revision").notNull().default(0),
     status: text("status", { enum: MAIL_SENDER_IDENTITY_STATUSES })
       .notNull()
       .default("active"),
