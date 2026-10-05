@@ -1,6 +1,10 @@
 Document status:
 CURRENT
 
+## Mail M1 Safari fit compatibility — local correction, 2026-10-05
+
+Uncommitted correction from preserved `f23ef755`: rendered element/text bounds replace intrinsic `body.scrollWidth` as the isolated reader's width evidence. New browser geometry19/19, authenticated Chromium58/58 and continuity21/21 pass; focused units181/182 retain the unchanged attachment-action source-regex debt. TypeScript, scoped ESLint and isolated production build pass. **PHYSICAL SAFARI RECHECK REQUIRED; public Round C preview unchanged; NOT COMMITTED / NOT DEPLOYED.** [Scope, exact-source evidence and limitations](mail/MAIL_M1_SAFARI_FIT_COMPATIBILITY.md). No responsive-policy, auth, privacy, schema, signature or M2/M3 change.
+
 Repository:
 Darrelkong/crm-system-
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { mailDocumentScale, mailMediaMatches } from "@/lib/mail/client/mail-document-fit";
+import { mailDocumentScale, mailMediaMatches, mailRenderedDocumentWidth } from "@/lib/mail/client/mail-document-fit";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildMailIsolatedDocument, safeMailDocumentLink } from "@/lib/mail/client/mail-isolated-document";
 
@@ -108,7 +108,7 @@ export function MailIsolatedHtmlDocument({ html, labels = DEFAULT_IMAGE_LABELS, 
           if (matches !== null) rule.media.mediaText = matches ? "all" : "not all";
         }
         frame.style.width = `${width}px`;
-        const naturalWidth = Math.max(width, doc.body.scrollWidth);
+        const naturalWidth = mailRenderedDocumentWidth(doc, width);
         frame.style.width = `${naturalWidth}px`;
         const height = Math.ceil(Math.max(doc.body.scrollHeight, doc.body.getBoundingClientRect().height));
         const mobile = window.matchMedia("(max-width: 767px)").matches;

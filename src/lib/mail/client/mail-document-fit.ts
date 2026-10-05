@@ -13,6 +13,22 @@ export function mailMediaMatches(query: string, width: number): boolean | null {
 }
 
 
+/** Measure after the iframe is laid out at the available reader width.
+ * A document/body scrollWidth can include intrinsic table width even when the
+ * table's rendered max-width fits. A Range includes rendered descendant boxes
+ * AND text runs (including overflowing pre/nowrap text), without trusting that
+ * engine-specific scroll extent. It neither selects text nor mutates the DOM.
+ */
+export function mailRenderedDocumentWidth(doc: Document, availableWidth: number): number {
+  const range = doc.createRange();
+  range.selectNodeContents(doc.body);
+  const right = range.getBoundingClientRect().right - doc.body.getBoundingClientRect().left;
+  // Match the control's existing one-pixel tolerance for layout rounding.
+  return Number.isFinite(right) && right > availableWidth + 1
+    ? Math.ceil(right)
+    : availableWidth;
+}
+
 /** Geometry only; never changes the canonical message/quote. */
 export function mailDocumentScale(hostWidth: number, naturalWidth: number, mobile: boolean, original: boolean): number {
   return mobile && !original && hostWidth > 0 && naturalWidth > hostWidth ? hostWidth / naturalWidth : 1;
