@@ -86,7 +86,7 @@ export function MailMessageBodyRenderer({
   inlineContext,
 }: MailMessageBodyRendererProps) {
   const { t } = useTranslation();
-  const imageLabels = useMemo(() => ({ unavailable: t("mail.detail.inlineImageUnavailable"), blocked: t("mail.detail.imageBlocked"), tiny: t("mail.detail.tinyImageBlocked"), load: t("mail.detail.loadImages"), privacy: t("mail.detail.imagePrivacy"), loaded: t("mail.detail.imagesLoaded") }), [t]);
+  const imageLabels = useMemo(() => ({ fit: t("mail.detail.fitToScreen"), original: t("mail.detail.originalWidth"), unavailable: t("mail.detail.inlineImageUnavailable"), blocked: t("mail.detail.imageBlocked"), tiny: t("mail.detail.tinyImageBlocked"), load: t("mail.detail.loadImages"), privacy: t("mail.detail.imagePrivacy"), loaded: t("mail.detail.imagesLoaded") }), [t]);
   const resolved = resolveMailMessageBody({ bodyHtml, bodyText });
   const rootClassName = [
     "mail-message-body",

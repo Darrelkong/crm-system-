@@ -874,3 +874,91 @@ describe("mail workspace runtime", () => {
     assert.equal(snapshot.selectedMessage, null);
   });
 });
+
+describe("reader continuity during background revalidation", () => {
+  it("retains the selected detail throughout same-context refresh, even off page one", async () => {
+    const { api } = createApiMock();
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMailboxes();
+    await runtime.getSnapshot().selectMessage("message-1");
+    const transitions: Array<string | null> = [];
+    runtime.subscribe(() => transitions.push(runtime.getSnapshot().selectedMessageId));
+    api.fetchMessages = async () => ({ items: [], nextCursor: "later-page" });
+    await runtime.getSnapshot().refreshMessages();
+    assert.equal(runtime.getSnapshot().selectedMessageId, "message-1");
+    assert.equal(runtime.getSnapshot().selectedMessage?.bodyHtml, "<p>Body</p>");
+    assert.ok(transitions.every(id => id === "message-1"));
+  });
+});
+
+// Exercise the real store/API contract; the component's focus, visible and
+// 60-second triggers all call this same stable refresh method.
+describe("background reader authorization and response ordering", () => {
+  async function reading() {
+    const { api, calls } = createApiMock();
+    const runtime = createMailWorkspaceRuntime(api);
+    await runtime.getSnapshot().loadMailboxes();
+    await runtime.getSnapshot().selectMessage("message-1");
+    return { api, calls, runtime };
+  }
+  for (const trigger of ["focus", "hidden-to-visible", "poll cycle 1", "poll cycle 2"]) {
+    it(`${trigger} retains the authorized document without a loading/empty transition`, async () => {
+      const { runtime, calls } = await reading();
+      const states: Array<ReturnType<typeof runtime.getSnapshot>> = [];
+      runtime.subscribe(() => states.push(runtime.getSnapshot()));
+      await runtime.getSnapshot().refreshMessages();
+      assert.ok(states.every(s => s.selectedMessageId === "message-1" && s.selectedMessage?.bodyHtml === "<p>Body</p>" && !s.isLoadingDetail));
+      assert.equal(calls.details.length, 2);
+    });
+  }
+  for (const endpoint of ["list", "detail"] as const) {
+    it(`${endpoint} network failure retains the reader`, async () => {
+      const { api, runtime } = await reading();
+      if (endpoint === "list") api.fetchMessages = async () => { throw new Error("offline"); };
+      else api.fetchMessageDetail = async () => { throw new Error("offline"); };
+      await runtime.getSnapshot().refreshMessages();
+      assert.equal(runtime.getSnapshot().selectedMessage?.id, "message-1");
+    });
+    for (const status of [401, 403, 404]) {
+      it(`${endpoint} ${status} clears sensitive detail`, async () => {
+        const { api, runtime } = await reading();
+        const reject = async (): Promise<never> => { throw new MailReadApiError(status, "Unavailable"); };
+        if (endpoint === "list") api.fetchMessages = reject;
+        else api.fetchMessageDetail = reject;
+        await runtime.getSnapshot().refreshMessages();
+        assert.equal(runtime.getSnapshot().selectedMessage, null);
+        assert.equal(runtime.getSnapshot().selectedMessageId, null);
+      });
+    }
+  }
+  for (const navigation of ["back", "folder", "mailbox", "search", "logout"] as const) {
+    it(`late background response cannot undo deliberate ${navigation}`, async () => {
+      const { api, runtime } = await reading();
+      let resolve!: (value: MailMessageDetailView) => void;
+      api.fetchMessageDetail = () => new Promise(r => { resolve = r; });
+      const refreshing = runtime.getSnapshot().refreshMessages();
+      if (navigation === "back") runtime.getSnapshot().clearReadingSelection();
+      if (navigation === "logout") runtime.getSnapshot().clearSensitiveState();
+      if (navigation === "folder") await runtime.getSnapshot().selectFolder("sent");
+      if (navigation === "mailbox") await runtime.getSnapshot().selectMailbox("mailbox-2");
+      if (navigation === "search") await runtime.getSnapshot().setMessageSearchQuery("another");
+      resolve(detailFixture());
+      await refreshing;
+      assert.equal(runtime.getSnapshot().selectedMessage, null);
+    });
+  }
+  it("newest concurrent revalidation wins, including stale denial", async () => {
+    const { api, runtime } = await reading();
+    let rejectOld!: (error: Error) => void;
+    let resolveNew!: (value: MailMessageDetailView) => void;
+    api.fetchMessageDetail = () => new Promise((_, reject) => { rejectOld = reject; });
+    const older = runtime.getSnapshot().refreshMessages();
+    api.fetchMessageDetail = () => new Promise(resolve => { resolveNew = resolve; });
+    const newer = runtime.getSnapshot().refreshMessages();
+    resolveNew({ ...detailFixture(), subject: "Latest" });
+    await newer;
+    rejectOld(new MailReadApiError(404, "stale"));
+    await older;
+    assert.equal(runtime.getSnapshot().selectedMessage?.subject, "Latest");
+  });
+});

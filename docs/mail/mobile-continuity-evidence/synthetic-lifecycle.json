@@ -1,0 +1,29 @@
+{
+  "ok": true,
+  "checks": [
+    "real isolated reader mounted",
+    "real outer reader has scroll range",
+    "mobile metadata inside primary scroll owner",
+    "hidden: bounded refresh count",
+    "hidden: document identity retained",
+    "hidden: selection and position retained",
+    "visible: bounded refresh count",
+    "visible: document identity retained",
+    "visible: selection and position retained",
+    "focus: bounded refresh count",
+    "focus: document identity retained",
+    "focus: selection and position retained",
+    "poll1: bounded refresh count",
+    "poll1: document identity retained",
+    "poll1: selection and position retained",
+    "poll2: bounded refresh count",
+    "poll2: document identity retained",
+    "poll2: selection and position retained",
+    "network error retains reader",
+    "access denial removes private document",
+    "no lifecycle errors"
+  ],
+  "listCalls": 7,
+  "detailCalls": 7,
+  "errors": []
+}

@@ -1,0 +1,1363 @@
+{
+  "checks": [
+    {
+      "label": "normal synthetic login",
+      "pass": true
+    },
+    {
+      "label": "default scale 390,844",
+      "pass": true
+    },
+    {
+      "label": "default bounded width 390,844",
+      "pass": true
+    },
+    {
+      "label": "no iframe vertical scroll 390,844",
+      "pass": true
+    },
+    {
+      "label": "fitted final marker/footer 390,844",
+      "pass": true
+    },
+    {
+      "label": "original natural width contained 390,844",
+      "pass": true
+    },
+    {
+      "label": "ordinary horizontal pan 390,844",
+      "pass": true
+    },
+    {
+      "label": "original final marker/footer 390,844",
+      "pass": true
+    },
+    {
+      "label": "return to fitted 390,844",
+      "pass": true
+    },
+    {
+      "label": "responsive visibility 390,844",
+      "pass": true
+    },
+    {
+      "label": "responsive safe table style 390,844",
+      "pass": true
+    },
+    {
+      "label": "original mode retains mobile media rules 390,844",
+      "pass": true
+    },
+    {
+      "label": "default scale 390,600",
+      "pass": true
+    },
+    {
+      "label": "default bounded width 390,600",
+      "pass": true
+    },
+    {
+      "label": "no iframe vertical scroll 390,600",
+      "pass": true
+    },
+    {
+      "label": "fitted final marker/footer 390,600",
+      "pass": true
+    },
+    {
+      "label": "original natural width contained 390,600",
+      "pass": true
+    },
+    {
+      "label": "ordinary horizontal pan 390,600",
+      "pass": true
+    },
+    {
+      "label": "original final marker/footer 390,600",
+      "pass": true
+    },
+    {
+      "label": "return to fitted 390,600",
+      "pass": true
+    },
+    {
+      "label": "responsive visibility 390,600",
+      "pass": true
+    },
+    {
+      "label": "responsive safe table style 390,600",
+      "pass": true
+    },
+    {
+      "label": "original mode retains mobile media rules 390,600",
+      "pass": true
+    },
+    {
+      "label": "default scale 1280,900",
+      "pass": true
+    },
+    {
+      "label": "default bounded width 1280,900",
+      "pass": true
+    },
+    {
+      "label": "no iframe vertical scroll 1280,900",
+      "pass": true
+    },
+    {
+      "label": "fitted final marker/footer 1280,900",
+      "pass": true
+    },
+    {
+      "label": "responsive visibility 1280,900",
+      "pass": true
+    },
+    {
+      "label": "responsive safe table style 1280,900",
+      "pass": true
+    },
+    {
+      "label": "flexible mail no meaningless control",
+      "pass": true
+    },
+    {
+      "label": "extreme pre fitted overview",
+      "pass": true
+    },
+    {
+      "label": "extreme original accessible",
+      "pass": true
+    },
+    {
+      "label": "new selection resets mode",
+      "pass": true
+    },
+    {
+      "label": "real polling retains document and scroll",
+      "pass": true
+    },
+    {
+      "label": "10k paragraph reader remains complete",
+      "pass": true
+    },
+    {
+      "label": "hostile active content blocked",
+      "pass": true
+    },
+    {
+      "label": "zero automatic external resource attempts",
+      "pass": true
+    },
+    {
+      "label": "wide remote image inert before opt-in",
+      "pass": true
+    },
+    {
+      "label": "explicit allowlisted load without referrer",
+      "pass": true
+    },
+    {
+      "label": "mode toggles retain document/images without refetch",
+      "pass": true
+    },
+    {
+      "label": "late image height and final marker",
+      "pass": true
+    },
+    {
+      "label": "M1EC CID_SINGLE authorized rendering/fail-closed",
+      "pass": true
+    },
+    {
+      "label": "M1EC CID_MULTIPLE authorized rendering/fail-closed",
+      "pass": true
+    },
+    {
+      "label": "M1EC CID_MISSING authorized rendering/fail-closed",
+      "pass": true
+    },
+    {
+      "label": "M1EC CID_DUPLICATE authorized rendering/fail-closed",
+      "pass": true
+    },
+    {
+      "label": "separate clean prefix Reply",
+      "pass": true
+    },
+    {
+      "label": "safe read-only quote Reply",
+      "pass": true
+    },
+    {
+      "label": "Bcc/self excluded Reply",
+      "pass": true
+    },
+    {
+      "label": "metadata/subject Reply",
+      "pass": true
+    },
+    {
+      "label": "separate clean prefix Reply all",
+      "pass": true
+    },
+    {
+      "label": "safe read-only quote Reply all",
+      "pass": true
+    },
+    {
+      "label": "Bcc/self excluded Reply all",
+      "pass": true
+    },
+    {
+      "label": "metadata/subject Reply all",
+      "pass": true
+    },
+    {
+      "label": "separate clean prefix Forward",
+      "pass": true
+    },
+    {
+      "label": "safe read-only quote Forward",
+      "pass": true
+    },
+    {
+      "label": "Bcc/self excluded Forward",
+      "pass": true
+    },
+    {
+      "label": "metadata/subject Forward",
+      "pass": true
+    },
+    {
+      "label": "no unintended remote load through reader or quote",
+      "pass": true
+    }
+  ],
+  "cases": [
+    {
+      "name": "original-observation",
+      "size": [
+        390,
+        844
+      ],
+      "top": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 5638,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 5725.18505859375,
+          "width": 358,
+          "height": 5462.18505859375,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 0.4475
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 5695.468203125,
+          "bottom": 5706.208203125
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      },
+      "original": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 12381,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 12469,
+          "width": 800,
+          "height": 12206,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 1
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 800,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 12402.59375,
+          "bottom": 12426.59375
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "fixed-long",
+      "size": [
+        390,
+        844
+      ],
+      "top": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 5638,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 5725.18505859375,
+          "width": 358,
+          "height": 5462.18505859375,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 0.4475
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 5695.468203125,
+          "bottom": 5706.208203125
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      },
+      "end": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 12381,
+          "scrollTop": 11776
+        },
+        "frame": {
+          "left": 16,
+          "top": -11513,
+          "bottom": 693,
+          "width": 800,
+          "height": 12206,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 1
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 800,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 626.59375,
+          "bottom": 650.59375
+        },
+        "markerVisible": true,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "responsive",
+      "size": [
+        390,
+        844
+      ],
+      "responsive": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 605,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 320.2799987792969,
+          "width": 358,
+          "height": 57.279998779296875,
+          "naturalWidth": 800,
+          "naturalHeight": 128,
+          "innerScrollHeight": 128,
+          "scale": 0.4475
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 291.64,
+          "bottom": 305.065
+        },
+        "markerVisible": true,
+        "mobileVisible": true,
+        "desktopVisible": false,
+        "padding": "12px",
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "original-observation",
+      "size": [
+        390,
+        600
+      ],
+      "top": {
+        "viewport": [
+          390,
+          600
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 465,
+          "width": 390,
+          "height": 361,
+          "clientHeight": 361,
+          "scrollHeight": 5638,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 5725.18505859375,
+          "width": 358,
+          "height": 5462.18505859375,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 0.4475
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 5695.468203125,
+          "bottom": 5706.208203125
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      },
+      "original": {
+        "viewport": [
+          390,
+          600
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 465,
+          "width": 390,
+          "height": 361,
+          "clientHeight": 361,
+          "scrollHeight": 12381,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 12469,
+          "width": 800,
+          "height": 12206,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 1
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 800,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 12402.59375,
+          "bottom": 12426.59375
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "fixed-long",
+      "size": [
+        390,
+        600
+      ],
+      "top": {
+        "viewport": [
+          390,
+          600
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 465,
+          "width": 390,
+          "height": 361,
+          "clientHeight": 361,
+          "scrollHeight": 5638,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 5725.18505859375,
+          "width": 358,
+          "height": 5462.18505859375,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 0.4475
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 5695.468203125,
+          "bottom": 5706.208203125
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      },
+      "end": {
+        "viewport": [
+          390,
+          600
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 465,
+          "width": 390,
+          "height": 361,
+          "clientHeight": 361,
+          "scrollHeight": 12381,
+          "scrollTop": 12020
+        },
+        "frame": {
+          "left": 16,
+          "top": -11757,
+          "bottom": 449,
+          "width": 800,
+          "height": 12206,
+          "naturalWidth": 800,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 1
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 800,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 382.59375,
+          "bottom": 406.59375
+        },
+        "markerVisible": true,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "responsive",
+      "size": [
+        390,
+        600
+      ],
+      "responsive": {
+        "viewport": [
+          390,
+          600
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 465,
+          "width": 390,
+          "height": 361,
+          "clientHeight": 361,
+          "scrollHeight": 361,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 263,
+          "bottom": 320.2799987792969,
+          "width": 358,
+          "height": 57.279998779296875,
+          "naturalWidth": 800,
+          "naturalHeight": 128,
+          "innerScrollHeight": 128,
+          "scale": 0.4475
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 291.64,
+          "bottom": 305.065
+        },
+        "markerVisible": true,
+        "mobileVisible": true,
+        "desktopVisible": false,
+        "padding": "12px",
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "fixed-long",
+      "size": [
+        1280,
+        900
+      ],
+      "top": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "docWidth": 1280,
+        "scroller": {
+          "left": 328,
+          "top": 248,
+          "bottom": 839,
+          "width": 952,
+          "height": 591,
+          "clientHeight": 591,
+          "scrollHeight": 12238,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 388,
+          "top": 264,
+          "bottom": 12470,
+          "width": 832,
+          "height": 12206,
+          "naturalWidth": 832,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 1
+        },
+        "host": {
+          "width": 832,
+          "scrollWidth": 832,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 12403.59375,
+          "bottom": 12427.59375
+        },
+        "markerVisible": false,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      },
+      "end": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "docWidth": 1280,
+        "scroller": {
+          "left": 328,
+          "top": 248,
+          "bottom": 839,
+          "width": 952,
+          "height": 591,
+          "clientHeight": 591,
+          "scrollHeight": 12238,
+          "scrollTop": 11647
+        },
+        "frame": {
+          "left": 388,
+          "top": -11383,
+          "bottom": 823,
+          "width": 832,
+          "height": 12206,
+          "naturalWidth": 832,
+          "naturalHeight": 12206,
+          "innerScrollHeight": 12206,
+          "scale": 1
+        },
+        "host": {
+          "width": 832,
+          "scrollWidth": 832,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 756.59375,
+          "bottom": 780.59375
+        },
+        "markerVisible": true,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "responsive",
+      "size": [
+        1280,
+        900
+      ],
+      "responsive": {
+        "viewport": [
+          1280,
+          900
+        ],
+        "docWidth": 1280,
+        "scroller": {
+          "left": 328,
+          "top": 248,
+          "bottom": 839,
+          "width": 952,
+          "height": 591,
+          "clientHeight": 591,
+          "scrollHeight": 591,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 388,
+          "top": 264,
+          "bottom": 416,
+          "width": 832,
+          "height": 152,
+          "naturalWidth": 832,
+          "naturalHeight": 152,
+          "innerScrollHeight": 152,
+          "scale": 1
+        },
+        "host": {
+          "width": 832,
+          "scrollWidth": 832,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 340,
+          "bottom": 370
+        },
+        "markerVisible": true,
+        "mobileVisible": false,
+        "desktopVisible": true,
+        "padding": "24px",
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "polling",
+      "requests": [
+        {
+          "path": "/api/mail/me",
+          "status": 200,
+          "time": 1791119770216
+        },
+        {
+          "path": "/api/mail/messages",
+          "status": 200,
+          "time": 1791119774877
+        },
+        {
+          "path": "/api/mail/messages/m1h-m1h_fixed_long",
+          "status": 200,
+          "time": 1791119775001
+        }
+      ]
+    },
+    {
+      "name": "10k-long",
+      "longEnd": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 400327,
+          "scrollTop": 399722
+        },
+        "frame": {
+          "left": 16,
+          "top": -399505,
+          "bottom": 599,
+          "width": 358,
+          "height": 400104,
+          "naturalWidth": 358,
+          "naturalHeight": 400104,
+          "innerScrollHeight": 400104,
+          "scale": 1
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 575,
+          "bottom": 599
+        },
+        "markerVisible": true,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "hostile",
+      "hostile": {
+        "viewport": [
+          390,
+          844
+        ],
+        "docWidth": 390,
+        "scroller": {
+          "left": 0,
+          "top": 104,
+          "bottom": 709,
+          "width": 390,
+          "height": 605,
+          "clientHeight": 605,
+          "scrollHeight": 605,
+          "scrollTop": 0
+        },
+        "frame": {
+          "left": 16,
+          "top": 359,
+          "bottom": 454,
+          "width": 358,
+          "height": 95,
+          "naturalWidth": 358,
+          "naturalHeight": 95,
+          "innerScrollHeight": 95,
+          "scale": 1
+        },
+        "host": {
+          "width": 358,
+          "scrollWidth": 358,
+          "scrollLeft": 0,
+          "verticalRange": 0
+        },
+        "marker": {
+          "top": 430,
+          "bottom": 454
+        },
+        "markerVisible": true,
+        "mobileVisible": null,
+        "desktopVisible": null,
+        "padding": null,
+        "active": 0,
+        "executed": false,
+        "sandbox": "allow-same-origin",
+        "footerUncovered": true
+      }
+    },
+    {
+      "name": "compose Reply",
+      "subject": "Re: M1B M1H_RESPONSIVE",
+      "recipientCount": 1
+    },
+    {
+      "name": "compose Reply all",
+      "subject": "Re: M1B ENTERPRISE_TABLE",
+      "recipientCount": 1
+    },
+    {
+      "name": "compose Forward",
+      "subject": "Fwd: M1B REMOTE_IMAGE_ONLY",
+      "recipientCount": 0
+    }
+  ],
+  "errors": [],
+  "warnings": {
+    "The resource http://127.0.0.1:3330/_next/static/media/5f521853fd7688f1-s.p.woff2?[redacted] was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.": 5,
+    "The resource http://127.0.0.1:3330/_next/static/css/app/layout.css?[redacted] was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.": 5,
+    "The resource http://127.0.0.1:3330/_next/static/media/22a5144ee8d83bca-s.p.woff2?[redacted] was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.": 5,
+    "The resource http://127.0.0.1:3330/_next/static/media/7d4881bb7e1bf84d-s.p.woff2?[redacted] was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.": 5,
+    "The resource http://127.0.0.1:3330/_next/static/css/app/(dashboard)/mail/layout.css?[redacted] was preloaded using link preload but not used within a few seconds from the window's load event. Please make sure it has an appropriate `as` value and it is preloaded intentionally.": 5
+  },
+  "requests": [
+    {
+      "path": "/api/mail/me",
+      "status": 200,
+      "time": 1791119711670
+    },
+    {
+      "path": "/api/mail/approvals",
+      "status": 200,
+      "time": 1791119713506
+    },
+    {
+      "path": "/api/mail/mailboxes/accessible",
+      "status": 200,
+      "time": 1791119713539
+    },
+    {
+      "path": "/api/mail/compose/context",
+      "status": 200,
+      "time": 1791119713549
+    },
+    {
+      "path": "/api/mail/messages",
+      "status": 200,
+      "time": 1791119714514
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long/read-state",
+      "status": 200,
+      "time": 1791119715739
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long",
+      "status": 200,
+      "time": 1791119715847
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive/read-state",
+      "status": 200,
+      "time": 1791119718161
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive",
+      "status": 200,
+      "time": 1791119718256
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long/read-state",
+      "status": 200,
+      "time": 1791119720624
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long",
+      "status": 200,
+      "time": 1791119721170
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive/read-state",
+      "status": 200,
+      "time": 1791119723820
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive",
+      "status": 200,
+      "time": 1791119723894
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long/read-state",
+      "status": 200,
+      "time": 1791119725607
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long",
+      "status": 200,
+      "time": 1791119725679
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive/read-state",
+      "status": 200,
+      "time": 1791119727110
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive",
+      "status": 200,
+      "time": 1791119727175
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_flexible/read-state",
+      "status": 200,
+      "time": 1791119728497
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_flexible",
+      "status": 200,
+      "time": 1791119728571
+    },
+    {
+      "path": "/api/mail/messages/m1b-safe_wide_content/read-state",
+      "status": 200,
+      "time": 1791119729782
+    },
+    {
+      "path": "/api/mail/messages/m1b-safe_wide_content",
+      "status": 200,
+      "time": 1791119729859
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long/read-state",
+      "status": 200,
+      "time": 1791119731152
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long",
+      "status": 200,
+      "time": 1791119731218
+    },
+    {
+      "path": "/api/mail/me",
+      "status": 200,
+      "time": 1791119770216
+    },
+    {
+      "path": "/api/mail/messages",
+      "status": 200,
+      "time": 1791119774877
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_fixed_long",
+      "status": 200,
+      "time": 1791119775001
+    },
+    {
+      "path": "/api/mail/messages/m1b-long_html/read-state",
+      "status": 200,
+      "time": 1791119797766
+    },
+    {
+      "path": "/api/mail/messages/m1b-long_html",
+      "status": 200,
+      "time": 1791119797839
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_hostile/read-state",
+      "status": 200,
+      "time": 1791119800273
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_hostile",
+      "status": 200,
+      "time": 1791119800340
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_image_wide/read-state",
+      "status": 200,
+      "time": 1791119801482
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_image_wide",
+      "status": 200,
+      "time": 1791119801558
+    },
+    {
+      "path": "/api/mail/messages/7bb43d30-742b-4639-87b2-4578de58fe30/read-state",
+      "status": 200,
+      "time": 1791119803581
+    },
+    {
+      "path": "/api/mail/messages/7bb43d30-742b-4639-87b2-4578de58fe30",
+      "status": 200,
+      "time": 1791119803649
+    },
+    {
+      "path": "/api/mail/messages/7bb43d30-742b-4639-87b2-4578de58fe30/inline-resources/049fdec5-9404-48fe-b868-220a8a6b83bd",
+      "status": 200,
+      "time": 1791119805520
+    },
+    {
+      "path": "/api/mail/messages/f52ea27d-5332-4218-b486-03ede95b848f/read-state",
+      "status": 200,
+      "time": 1791119806066
+    },
+    {
+      "path": "/api/mail/messages/f52ea27d-5332-4218-b486-03ede95b848f",
+      "status": 200,
+      "time": 1791119806135
+    },
+    {
+      "path": "/api/mail/messages/f52ea27d-5332-4218-b486-03ede95b848f/inline-resources/8c9bf7ac-5318-4bc1-a22e-6e265187987e",
+      "status": 200,
+      "time": 1791119806513
+    },
+    {
+      "path": "/api/mail/messages/f52ea27d-5332-4218-b486-03ede95b848f/inline-resources/b70b585e-f8ca-4f4d-a8e2-bacca9aefafb",
+      "status": 200,
+      "time": 1791119806514
+    },
+    {
+      "path": "/api/mail/messages/204aea81-3f09-42f3-b88b-e1b092a3c06a/read-state",
+      "status": 200,
+      "time": 1791119807106
+    },
+    {
+      "path": "/api/mail/messages/204aea81-3f09-42f3-b88b-e1b092a3c06a",
+      "status": 200,
+      "time": 1791119807191
+    },
+    {
+      "path": "/api/mail/messages/1d8a9688-c656-4842-9e4d-645d8a80f401/read-state",
+      "status": 200,
+      "time": 1791119808305
+    },
+    {
+      "path": "/api/mail/messages/1d8a9688-c656-4842-9e4d-645d8a80f401",
+      "status": 200,
+      "time": 1791119808378
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive/read-state",
+      "status": 200,
+      "time": 1791119809545
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive",
+      "status": 200,
+      "time": 1791119809614
+    },
+    {
+      "path": "/api/mail/messages/m1h-m1h_responsive/compose-draft",
+      "status": 201,
+      "time": 1791119811505
+    },
+    {
+      "path": "/api/mail/drafts/8c739bfb-4f92-4f2d-b863-b2ea5eb2aba6",
+      "status": 200,
+      "time": 1791119812394
+    },
+    {
+      "path": "/api/mail/drafts/8c739bfb-4f92-4f2d-b863-b2ea5eb2aba6",
+      "status": 200,
+      "time": 1791119812397
+    },
+    {
+      "path": "/api/mail/approvals",
+      "status": 200,
+      "time": 1791119813627
+    },
+    {
+      "path": "/api/mail/sender-identities/m1f-local-identity/signature",
+      "status": 200,
+      "time": 1791119813713
+    },
+    {
+      "path": "/api/mail/messages/m1d-enterprise_table/read-state",
+      "status": 200,
+      "time": 1791119813819
+    },
+    {
+      "path": "/api/mail/messages/m1d-enterprise_table",
+      "status": 200,
+      "time": 1791119813899
+    },
+    {
+      "path": "/api/mail/messages/m1d-enterprise_table/compose-draft",
+      "status": 201,
+      "time": 1791119814764
+    },
+    {
+      "path": "/api/mail/drafts/214c94bd-cee2-4e67-a1a3-8eeb3084f219",
+      "status": 200,
+      "time": 1791119815041
+    },
+    {
+      "path": "/api/mail/drafts/214c94bd-cee2-4e67-a1a3-8eeb3084f219",
+      "status": 200,
+      "time": 1791119815045
+    },
+    {
+      "path": "/api/mail/approvals",
+      "status": 200,
+      "time": 1791119815191
+    },
+    {
+      "path": "/api/mail/sender-identities/m1f-local-identity/signature",
+      "status": 200,
+      "time": 1791119815244
+    },
+    {
+      "path": "/api/mail/messages/m1e-remote_image_only/read-state",
+      "status": 200,
+      "time": 1791119816022
+    },
+    {
+      "path": "/api/mail/messages/m1e-remote_image_only",
+      "status": 200,
+      "time": 1791119816086
+    },
+    {
+      "path": "/api/mail/messages/m1e-remote_image_only/compose-draft",
+      "status": 201,
+      "time": 1791119817132
+    },
+    {
+      "path": "/api/mail/drafts/69735a5b-a492-4bd5-b18c-86227899e0d2",
+      "status": 200,
+      "time": 1791119817386
+    },
+    {
+      "path": "/api/mail/drafts/69735a5b-a492-4bd5-b18c-86227899e0d2",
+      "status": 200,
+      "time": 1791119817387
+    },
+    {
+      "path": "/api/mail/approvals",
+      "status": 200,
+      "time": 1791119817512
+    },
+    {
+      "path": "/api/mail/sender-identities/m1f-local-identity/signature",
+      "status": 200,
+      "time": 1791119817572
+    }
+  ],
+  "external": [],
+  "canary": [
+    {
+      "path": "/banner.png",
+      "referer": null
+    }
+  ],
+  "completed": true
+}

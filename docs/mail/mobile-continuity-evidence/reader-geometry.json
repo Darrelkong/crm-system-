@@ -1,0 +1,2822 @@
+[
+  {
+    "fixture": "LONG_HTML",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "frame": {
+      "height": 400104,
+      "left": 388,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 264,
+      "width": 832
+    },
+    "scroll": {
+      "clientHeight": 591,
+      "scrollHeight": 400230,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "typography": {
+      "h1": null,
+      "table": null,
+      "td": null,
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 708,
+        "bottom": 726,
+        "left": 388,
+        "right": 548.046875
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 900,
+        "left": 328,
+        "right": 1280,
+        "top": 111
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 900,
+        "height": 61,
+        "left": 328,
+        "right": 1280,
+        "top": 839,
+        "width": 952,
+        "x": 328,
+        "y": 839
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "frame": {
+      "height": 8175,
+      "left": 388,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 264,
+      "width": 832
+    },
+    "scroll": {
+      "clientHeight": 591,
+      "scrollHeight": 8301,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "typography": {
+      "h1": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "32px",
+        "margin": "21.44px 0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 72.4375,
+          "height": 48,
+          "left": 3,
+          "right": 316.2890625,
+          "top": 24.4375,
+          "width": 313.2890625
+        },
+        "width": "313.289px"
+      },
+      "table": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 8174.875,
+          "height": 8174.875,
+          "left": 0,
+          "right": 319.2890625,
+          "top": 0,
+          "width": 319.2890625
+        },
+        "width": "319.289px"
+      },
+      "td": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "1px",
+        "position": "static",
+        "rect": {
+          "bottom": 8172.875,
+          "height": 8170.875,
+          "left": 2,
+          "right": 317.2890625,
+          "top": 2,
+          "width": 315.2890625
+        },
+        "width": "313.289px"
+      },
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 688.875,
+        "bottom": 706.875,
+        "left": 391,
+        "right": 555.203125
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 900,
+        "left": 328,
+        "right": 1280,
+        "top": 111
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 900,
+        "height": 61,
+        "left": 328,
+        "right": 1280,
+        "top": 839,
+        "width": 952,
+        "x": 328,
+        "y": 839
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "frame": {
+      "height": 19280,
+      "left": 388,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 264,
+      "width": 832
+    },
+    "scroll": {
+      "clientHeight": 591,
+      "scrollHeight": 19406,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "typography": {
+      "h1": null,
+      "table": null,
+      "td": null,
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 692,
+        "bottom": 710,
+        "left": 468,
+        "right": 651.1484375
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 900,
+        "left": 328,
+        "right": 1280,
+        "top": 111
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 900,
+        "height": 61,
+        "left": 328,
+        "right": 1280,
+        "top": 839,
+        "width": 952,
+        "x": 328,
+        "y": 839
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "frame": {
+      "height": 10382,
+      "left": 388,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 264,
+      "width": 21963
+    },
+    "scroll": {
+      "clientHeight": 591,
+      "scrollHeight": 10508,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "typography": {
+      "h1": null,
+      "table": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 10342,
+          "height": 6422,
+          "left": 0,
+          "right": 9214.9296875,
+          "top": 3920,
+          "width": 9214.9296875
+        },
+        "width": "9214.93px"
+      },
+      "td": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "1px",
+        "position": "static",
+        "rect": {
+          "bottom": 10340,
+          "height": 6418,
+          "left": 2,
+          "right": 9071.96875,
+          "top": 3922,
+          "width": 9069.96875
+        },
+        "width": "9067.97px"
+      },
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 708,
+        "bottom": 726,
+        "left": 388,
+        "right": 544.4765625
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 900,
+        "left": 328,
+        "right": 1280,
+        "top": 111
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 900,
+        "height": 61,
+        "left": 328,
+        "right": 1280,
+        "top": 839,
+        "width": 952,
+        "x": 328,
+        "y": 839
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "ENTERPRISE_TABLE",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "frame": {
+      "height": 4761,
+      "left": 388,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 264,
+      "width": 832
+    },
+    "scroll": {
+      "clientHeight": 591,
+      "scrollHeight": 4793,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "typography": {
+      "h1": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(255, 255, 255)",
+        "color": "rgb(255, 255, 255)",
+        "font": "Georgia, serif",
+        "fontSize": "32px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 72,
+          "height": 48,
+          "left": 140,
+          "right": 692,
+          "top": 24,
+          "width": 552
+        },
+        "width": "552px"
+      },
+      "table": {
+        "background": "rgb(238, 242, 246)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px 116px",
+        "maxWidth": "100%",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 4761,
+          "height": 4761,
+          "left": 116,
+          "right": 716,
+          "top": 0,
+          "width": 600
+        },
+        "width": "600px"
+      },
+      "td": {
+        "background": "rgb(22, 50, 79)",
+        "border": "0px none rgb(255, 255, 255)",
+        "color": "rgb(255, 255, 255)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "24px",
+        "position": "static",
+        "rect": {
+          "bottom": 96,
+          "height": 96,
+          "left": 116,
+          "right": 716,
+          "top": 0,
+          "width": 600
+        },
+        "width": "552px"
+      },
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 762,
+        "bottom": 780,
+        "left": 528,
+        "right": 744.9453125
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 900,
+        "left": 328,
+        "right": 1280,
+        "top": 111
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 900,
+        "height": 61,
+        "left": 328,
+        "right": 1280,
+        "top": 839,
+        "width": 952,
+        "x": 328,
+        "y": 839
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "complete expected body",
+          "pass": true
+        },
+        {
+          "name": "final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "no document overflow",
+          "pass": true
+        },
+        {
+          "name": "footer actions reachable",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "600px design or responsive max-width",
+          "pass": true
+        },
+        {
+          "name": "sender padding retained",
+          "pass": true
+        },
+        {
+          "name": "sender background retained",
+          "pass": true
+        },
+        {
+          "name": "sender typography isolated",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "APPLE_STYLE_NO_IMAGES",
+    "viewport": {
+      "height": 900,
+      "width": 1280
+    },
+    "frame": {
+      "height": 3973,
+      "left": 388,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 264,
+      "width": 832
+    },
+    "scroll": {
+      "clientHeight": 591,
+      "scrollHeight": 4005,
+      "rect": {
+        "bottom": 839,
+        "height": 591,
+        "left": 328,
+        "right": 1280,
+        "top": 248,
+        "width": 952,
+        "x": 328,
+        "y": 248
+      }
+    },
+    "typography": {
+      "h1": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(29, 29, 31)",
+        "color": "rgb(29, 29, 31)",
+        "font": "Arial, Helvetica, sans-serif",
+        "fontSize": "48px",
+        "margin": "24px 0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 100.796875,
+          "height": 52.796875,
+          "left": 116,
+          "right": 716,
+          "top": 48,
+          "width": 600
+        },
+        "width": "600px"
+      },
+      "table": null,
+      "td": null,
+      "div": {
+        "background": "rgb(245, 245, 247)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, Helvetica, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px 92px",
+        "maxWidth": "600px",
+        "padding": "24px",
+        "position": "static",
+        "rect": {
+          "bottom": 3972.609375,
+          "height": 3972.609375,
+          "left": 92,
+          "right": 740,
+          "top": 0,
+          "width": 648
+        },
+        "width": "600px"
+      }
+    },
+    "end": {
+      "rect": {
+        "top": 761.609375,
+        "bottom": 779.609375,
+        "left": 720.8515625,
+        "right": 887.140625
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 111
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-reading-column flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[var(--color-crm-bg)]",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-main-content-pane relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-workspace-body flex min-h-0 min-w-0 flex-1 overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-desktop-workspace relative hidden min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 62
+        },
+        {
+          "bottom": 900,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 900,
+        "left": 328,
+        "right": 1280,
+        "top": 111
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 900,
+        "height": 61,
+        "left": 328,
+        "right": 1280,
+        "top": 839,
+        "width": 952,
+        "x": 328,
+        "y": 839
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "complete expected body",
+          "pass": true
+        },
+        {
+          "name": "final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "no document overflow",
+          "pass": true
+        },
+        {
+          "name": "footer actions reachable",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "sender hierarchy preserved",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "LONG_HTML",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "frame": {
+      "height": 400104,
+      "left": 16,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 217,
+      "width": 358
+    },
+    "scroll": {
+      "clientHeight": 605,
+      "scrollHeight": 400327,
+      "rect": {
+        "bottom": 709,
+        "height": 605,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      }
+    },
+    "typography": {
+      "h1": null,
+      "table": null,
+      "td": null,
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 578,
+        "bottom": 596,
+        "left": 16,
+        "right": 176.046875
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 844,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 778,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 778,
+        "height": 69,
+        "left": 0,
+        "right": 390,
+        "top": 709,
+        "width": 390,
+        "x": 0,
+        "y": 709
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "TABLE_NEWSLETTER",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "frame": {
+      "height": 8175,
+      "left": 16,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 217,
+      "width": 358
+    },
+    "scroll": {
+      "clientHeight": 605,
+      "scrollHeight": 8398,
+      "rect": {
+        "bottom": 709,
+        "height": 605,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      }
+    },
+    "typography": {
+      "h1": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "32px",
+        "margin": "21.44px 0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 72.4375,
+          "height": 48,
+          "left": 3,
+          "right": 316.2890625,
+          "top": 24.4375,
+          "width": 313.2890625
+        },
+        "width": "313.289px"
+      },
+      "table": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 8174.875,
+          "height": 8174.875,
+          "left": 0,
+          "right": 319.2890625,
+          "top": 0,
+          "width": 319.2890625
+        },
+        "width": "319.289px"
+      },
+      "td": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "1px",
+        "position": "static",
+        "rect": {
+          "bottom": 8172.875,
+          "height": 8170.875,
+          "left": 2,
+          "right": 317.2890625,
+          "top": 2,
+          "width": 315.2890625
+        },
+        "width": "313.289px"
+      },
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 558.875,
+        "bottom": 576.875,
+        "left": 19,
+        "right": 183.203125
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 844,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 778,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 778,
+        "height": 69,
+        "left": 0,
+        "right": 390,
+        "top": 709,
+        "width": 390,
+        "x": 0,
+        "y": 709
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "QUOTED_LONG",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "frame": {
+      "height": 19280,
+      "left": 16,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 217,
+      "width": 358
+    },
+    "scroll": {
+      "clientHeight": 605,
+      "scrollHeight": 19503,
+      "rect": {
+        "bottom": 709,
+        "height": 605,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      }
+    },
+    "typography": {
+      "h1": null,
+      "table": null,
+      "td": null,
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 562,
+        "bottom": 580,
+        "left": 96,
+        "right": 279.1484375
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 844,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 778,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 778,
+        "height": 69,
+        "left": 0,
+        "right": 390,
+        "top": 709,
+        "width": 390,
+        "x": 0,
+        "y": 709
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "SAFE_WIDE_CONTENT",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "frame": {
+      "height": 10382,
+      "left": 16,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 217,
+      "width": 21963
+    },
+    "scroll": {
+      "clientHeight": 605,
+      "scrollHeight": 10605,
+      "rect": {
+        "bottom": 709,
+        "height": 605,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      }
+    },
+    "typography": {
+      "h1": null,
+      "table": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 10342,
+          "height": 6422,
+          "left": 0,
+          "right": 9214.9296875,
+          "top": 3920,
+          "width": 9214.9296875
+        },
+        "width": "9214.93px"
+      },
+      "td": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "1px",
+        "position": "static",
+        "rect": {
+          "bottom": 10340,
+          "height": 6418,
+          "left": 2,
+          "right": 9071.96875,
+          "top": 3922,
+          "width": 9069.96875
+        },
+        "width": "9067.97px"
+      },
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 578,
+        "bottom": 596,
+        "left": 16,
+        "right": 172.4765625
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 844,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 778,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 778,
+        "height": 69,
+        "left": 0,
+        "right": 390,
+        "top": 709,
+        "width": 390,
+        "x": 0,
+        "y": 709
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "real Mail route",
+          "pass": true
+        },
+        {
+          "name": "no external resource markup",
+          "pass": true
+        },
+        {
+          "name": "rendered content matches persisted fixture",
+          "pass": true
+        },
+        {
+          "name": "no active malicious elements",
+          "pass": true
+        },
+        {
+          "name": "no horizontal document overflow",
+          "pass": true
+        },
+        {
+          "name": "user-scroll maximum stable",
+          "pass": true
+        },
+        {
+          "name": "final marker exists",
+          "pass": true
+        },
+        {
+          "name": "long content has scroll extent",
+          "pass": true
+        },
+        {
+          "name": "scroll probes recorded",
+          "pass": true
+        },
+        {
+          "name": "M1C final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C inner body has usable vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "M1C attachment reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C footer reachable",
+          "pass": true
+        },
+        {
+          "name": "M1C actions unobscured",
+          "pass": true
+        },
+        {
+          "name": "M1C no competing document scroll",
+          "pass": true
+        },
+        {
+          "name": "M1C one primary vertical body scroller",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 22,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "ENTERPRISE_TABLE",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "frame": {
+      "height": 4809,
+      "left": 16,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 217,
+      "width": 358
+    },
+    "scroll": {
+      "clientHeight": 605,
+      "scrollHeight": 4938,
+      "rect": {
+        "bottom": 709,
+        "height": 605,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      }
+    },
+    "typography": {
+      "h1": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(255, 255, 255)",
+        "color": "rgb(255, 255, 255)",
+        "font": "Georgia, serif",
+        "fontSize": "32px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 120,
+          "height": 96,
+          "left": 24,
+          "right": 334,
+          "top": 24,
+          "width": 310
+        },
+        "width": "310px"
+      },
+      "table": {
+        "background": "rgb(238, 242, 246)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "100%",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 4809,
+          "height": 4809,
+          "left": 0,
+          "right": 358,
+          "top": 0,
+          "width": 358
+        },
+        "width": "358px"
+      },
+      "td": {
+        "background": "rgb(22, 50, 79)",
+        "border": "0px none rgb(255, 255, 255)",
+        "color": "rgb(255, 255, 255)",
+        "font": "Arial, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "none",
+        "padding": "24px",
+        "position": "static",
+        "rect": {
+          "bottom": 144,
+          "height": 144,
+          "left": 0,
+          "right": 358,
+          "top": 0,
+          "width": 358
+        },
+        "width": "310px"
+      },
+      "div": null
+    },
+    "end": {
+      "rect": {
+        "top": 632,
+        "bottom": 650,
+        "left": 40,
+        "right": 256.9453125
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 844,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 778,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 778,
+        "height": 69,
+        "left": 0,
+        "right": 390,
+        "top": 709,
+        "width": 390,
+        "x": 0,
+        "y": 709
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "complete expected body",
+          "pass": true
+        },
+        {
+          "name": "final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "no document overflow",
+          "pass": true
+        },
+        {
+          "name": "footer actions reachable",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "600px design or responsive max-width",
+          "pass": true
+        },
+        {
+          "name": "sender padding retained",
+          "pass": true
+        },
+        {
+          "name": "sender background retained",
+          "pass": true
+        },
+        {
+          "name": "sender typography isolated",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 14,
+      "failed": 0
+    }
+  },
+  {
+    "fixture": "APPLE_STYLE_NO_IMAGES",
+    "viewport": {
+      "height": 844,
+      "width": 390
+    },
+    "frame": {
+      "height": 4777,
+      "left": 16,
+      "sandbox": "allow-same-origin",
+      "scrolling": "no",
+      "top": 217,
+      "width": 358
+    },
+    "scroll": {
+      "clientHeight": 605,
+      "scrollHeight": 4906,
+      "rect": {
+        "bottom": 709,
+        "height": 605,
+        "left": 0,
+        "right": 390,
+        "top": 104,
+        "width": 390,
+        "x": 0,
+        "y": 104
+      }
+    },
+    "typography": {
+      "h1": {
+        "background": "rgba(0, 0, 0, 0)",
+        "border": "0px none rgb(29, 29, 31)",
+        "color": "rgb(29, 29, 31)",
+        "font": "Arial, Helvetica, sans-serif",
+        "fontSize": "48px",
+        "margin": "24px 0px",
+        "maxWidth": "none",
+        "padding": "0px",
+        "position": "static",
+        "rect": {
+          "bottom": 100.796875,
+          "height": 52.796875,
+          "left": 24,
+          "right": 334,
+          "top": 48,
+          "width": 310
+        },
+        "width": "310px"
+      },
+      "table": null,
+      "td": null,
+      "div": {
+        "background": "rgb(245, 245, 247)",
+        "border": "0px none rgb(17, 17, 17)",
+        "color": "rgb(17, 17, 17)",
+        "font": "Arial, Helvetica, sans-serif",
+        "fontSize": "16px",
+        "margin": "0px",
+        "maxWidth": "600px",
+        "padding": "24px",
+        "position": "static",
+        "rect": {
+          "bottom": 4776.421875,
+          "height": 4776.421875,
+          "left": 0,
+          "right": 358,
+          "top": 0,
+          "width": 358
+        },
+        "width": "310px"
+      }
+    },
+    "end": {
+      "rect": {
+        "top": 631.421875,
+        "bottom": 649.421875,
+        "left": 111.8515625,
+        "right": 278.140625
+      },
+      "fullyVisible": true,
+      "visible": true
+    },
+    "footer": {
+      "clips": [
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 104
+        },
+        {
+          "bottom": 778,
+          "classes": "flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-mobile-workspace flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "mail-prototype-root flex h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] max-h-[calc(100dvh-var(--dashboard-header-offset,3.5rem))] min-h-0 min-w-0 flex-col overflow-hidden",
+          "overflow": "hidden",
+          "top": 55
+        },
+        {
+          "bottom": 778,
+          "classes": "crm-main-content pb-24 md:pb-8 mail-workspace-main flex h-full min-h-0 w-full max-w-none min-w-0 flex-col px-0 py-0",
+          "overflow": "auto",
+          "top": 55
+        },
+        {
+          "bottom": 844,
+          "classes": "dashboard-shell crm-app-bg min-h-dvh",
+          "overflow": "hidden",
+          "top": 0
+        }
+      ],
+      "effectiveClip": {
+        "bottom": 778,
+        "left": 0,
+        "right": 390,
+        "top": 104
+      },
+      "fullyVisible": true,
+      "hitMatches": true,
+      "rect": {
+        "bottom": 778,
+        "height": 69,
+        "left": 0,
+        "right": 390,
+        "top": 709,
+        "width": 390,
+        "x": 0,
+        "y": 709
+      },
+      "visible": true
+    },
+    "checks": {
+      "checks": [
+        {
+          "name": "complete expected body",
+          "pass": true
+        },
+        {
+          "name": "final marker reachable",
+          "pass": true
+        },
+        {
+          "name": "no document overflow",
+          "pass": true
+        },
+        {
+          "name": "footer actions reachable",
+          "pass": true
+        },
+        {
+          "name": "script-disabled sandbox",
+          "pass": true
+        },
+        {
+          "name": "no inner vertical scroll range",
+          "pass": true
+        },
+        {
+          "name": "height stable",
+          "pass": true
+        },
+        {
+          "name": "network denied",
+          "pass": true
+        },
+        {
+          "name": "active content absent",
+          "pass": true
+        },
+        {
+          "name": "sender hierarchy preserved",
+          "pass": true
+        },
+        {
+          "name": "no canary network resource observed",
+          "pass": true
+        }
+      ],
+      "passed": 11,
+      "failed": 0
+    }
+  }
+]

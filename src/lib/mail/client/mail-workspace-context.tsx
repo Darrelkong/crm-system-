@@ -83,6 +83,8 @@ export type LoadMessagesInput = {
   folder: MailReadFolder;
   reset?: boolean;
   previousFolder?: MailWorkspaceFolder;
+  /** List revalidation only; deliberate navigation must still clear detail. */
+  preserveReadingSelection?: boolean;
   search?: string | null;
 };
 
@@ -596,6 +598,10 @@ export function createMailWorkspaceRuntime(
       );
     }
 
+    const preserveReadingSelection =
+      sameFolderRefresh && input.preserveReadingSelection === true;
+    if (reset && !preserveReadingSelection) detailRequestSequence += 1;
+
     const cachedTarget = reset && !sameFolderRefresh
       ? messageFolderCache.get(
           buildMessageFolderCacheKey(scope, mailboxId, input.folder, search),
@@ -613,9 +619,13 @@ export function createMailWorkspaceRuntime(
       drafts: [],
       ...(reset
         ? {
-            selectedMessageId: null,
-            selectedMessage: null,
-            isLoadingDetail: false,
+            ...(!preserveReadingSelection
+              ? {
+                  selectedMessageId: null,
+                  selectedMessage: null,
+                  isLoadingDetail: false,
+                }
+              : {}),
             ...(sameFolderRefresh
               ? {}
               : {
@@ -686,10 +696,9 @@ export function createMailWorkspaceRuntime(
         }
         return;
       }
-      setState({
-        isLoadingMessages: false,
-        error: toWorkspaceError(error),
-      });
+      const failure = toWorkspaceError(error);
+      if ([401, 403, 404].includes(failure.status)) clearSensitiveState();
+      setState({ isLoadingMessages: false, error: failure });
     }
   }
 
@@ -1234,12 +1243,44 @@ export function createMailWorkspaceRuntime(
       return;
     }
     const folder = state.selectedFolder;
-    await loadMessages({
-      scope: state.mailboxScope,
-      mailboxId,
-      folder,
-      reset: true,
-    });
+    // The list's first page cannot establish whether an open message remains
+    // available. Revalidate that message through the existing authorized API.
+    const messageId = state.selectedMessageId;
+    const shouldRevalidateDetail = Boolean(
+      messageId && state.selectedMessage && !state.isLoadingDetail,
+    );
+    const detailSequence = shouldRevalidateDetail
+      ? ++detailRequestSequence
+      : detailRequestSequence;
+    const isCurrentDetail = () =>
+      detailSequence === detailRequestSequence &&
+      state.selectedMessageId === messageId &&
+      state.selectedFolder === folder;
+    const revalidateDetail = async () => {
+      if (!messageId || !shouldRevalidateDetail) return;
+      try {
+        const item = await api.fetchMessageDetail({ messageId, folder });
+        if (!isCurrentDetail()) return;
+        setState({ selectedMessage: item });
+      } catch (error) {
+        if (!isCurrentDetail()) return;
+        const failure = toWorkspaceError(error);
+        if ([401, 403].includes(failure.status)) clearSensitiveState();
+        else if (failure.status === 404) clearReadingSelection();
+        // Transient/network failure retains the authorized document and position.
+        setState({ error: failure });
+      }
+    };
+    await Promise.all([
+      revalidateDetail(),
+      loadMessages({
+        scope: state.mailboxScope,
+        mailboxId,
+        folder,
+        reset: true,
+        preserveReadingSelection: true,
+      }),
+    ]);
   }
 
   async function markMessageRead(input: MarkMessageReadInput) {

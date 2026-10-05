@@ -115,6 +115,7 @@ export function MailPrototypeShell({
   const mobileSettingsRef = useRef<HTMLButtonElement>(null);
   const desktopSettingsRef = useRef<HTMLButtonElement>(null);
   const customerHandledRef = useRef(false);
+  const handledMessageLinkRef = useRef<string | null>(null);
   const {
     loading: sessionLoading,
     error: sessionError,
@@ -381,28 +382,35 @@ export function MailPrototypeShell({
     setMobileView((current) => (current === "compose" ? current : "list"));
   }, [workspace?.selectedFolder]);
 
+  const linkedMessageId = searchParams.get("messageId");
+  const selectProductionMessage = workspace?.selectMessage;
   useEffect(() => {
-    const messageId = searchParams.get("messageId");
-    if (!messageId || !effectiveMailAccessEnabled) return;
-    if (isProduction && workspace) {
-      void workspace.selectMessage(messageId);
-      if (isMobileViewport) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- preserve deep-link mobile navigation
-        setMobileView("detail");
-      }
+    if (!linkedMessageId || !effectiveMailAccessEnabled) {
+      handledMessageLinkRef.current = null;
       return;
     }
-    openMessageFromNotification(messageId);
-    if (isMobileViewport) {
-      setMobileView("detail");
+    // Initial list loading clears selection. Resolve a notification only after
+    // bootstrap, and consume it once rather than on every workspace snapshot.
+    if (
+      isProduction &&
+      (!workspace?.selectedMailboxId || workspace.isLoadingMessages)
+    ) return;
+    if (handledMessageLinkRef.current === linkedMessageId) return;
+    handledMessageLinkRef.current = linkedMessageId;
+    if (isProduction && selectProductionMessage) {
+      void selectProductionMessage(linkedMessageId);
+    } else {
+      openMessageFromNotification(linkedMessageId);
     }
+    setMobileView("detail");
   }, [
     isProduction,
     effectiveMailAccessEnabled,
-    isMobileViewport,
+    linkedMessageId,
+    selectProductionMessage,
+    workspace?.selectedMailboxId,
+    workspace?.isLoadingMessages,
     openMessageFromNotification,
-    searchParams,
-    workspace,
   ]);
 
   if (sessionLoading) {

@@ -236,6 +236,8 @@ const zhHans: Messages = {
       to: "收件人",
       subject: "主题",
       body: "正文",
+      fitToScreen: "适应屏幕",
+      originalWidth: "原始宽度",
       inlineImageUnavailable: "内嵌图片暂不可用",
       imageBlocked: "为保护隐私，图片已屏蔽",
       tinyImageBlocked: "小图片已屏蔽",

@@ -255,6 +255,8 @@ const en = {
       to: "To",
       subject: "Subject",
       body: "Body",
+      fitToScreen: "Fit to screen",
+      originalWidth: "Original width",
       inlineImageUnavailable: "Inline image unavailable",
       imageBlocked: "Image blocked for privacy",
       tinyImageBlocked: "Small image blocked",

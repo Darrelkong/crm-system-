@@ -11,7 +11,8 @@ import { splitComposeBodyForEditor, mergeComposeBodyForSave, type ComposeBodyMod
  * Editable/new content retains the existing outbound policy.
  */
 export function sanitizeQuoteHtml(html: string, forDelivery = false): string | null {
-  const safe = sanitizeInboundBodyHtml(html);
+  // M1H reader CSS must not silently expand the accepted quote-v1 outbound policy.
+  const safe = sanitizeInboundBodyHtml(html, false);
   if (!safe || !forDelivery) return safe;
   return sanitizeHtml(safe, {
     // Only the already-sanitized inbound result enters this transformation.

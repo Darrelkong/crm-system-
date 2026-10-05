@@ -19,7 +19,7 @@ test("HTML CID scheme and percent decoding once, case and plus preserved", () =>
   for (const bad of ["https://a@b", "cid:%zz", "cid:a%20@b", "cid:%3Ca@b%3E", "cid:a%00@b", "cid:a%2540b"]) assert.equal(normalizeHtmlCid(bad), null);
 });
 test("v5 canonical descriptor contains only normalized safe metadata and is idempotent", () => {
-  assert.equal(INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, "inbound-v5");
+  assert.equal(INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION, "inbound-v6");
   const html = sanitizeInboundBodyHtml('<img src="CID:Logo%40Example" alt="&lt;Logo&gt;" width="600" height="240" onerror="evil()" srcset="https://bad.invalid/a" style="background:url(https://bad.invalid/a)">')!;
   assert.deepEqual(inertMailCids(html), [{cid:"Logo@Example",alt:"<Logo>",width:600,height:240}]);
   assert.doesNotMatch(html, /<img|\ssrc=|srcset|onerror|url\(|attachmentId|messageId/);

@@ -190,42 +190,63 @@ function ProductionDetailContent({
   const showSenderAddress =
     detail.senderName.trim().toLowerCase() !== detail.senderAddress.trim().toLowerCase();
 
-  return (
-    <article className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-      <header className="mail-reading-header shrink-0 border-b crm-border px-4 py-4 sm:px-6">
-        <div className="flex flex-wrap items-start gap-2">
-          <h2 className="min-w-0 flex-1 text-lg font-semibold crm-text">
-            {detail.subject}
-          </h2>
-          {detail.isImportant && (
-            <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
-              {t("mail.flag.important")}
+  const metadata = (
+    <header className="mail-reading-header shrink-0 border-b crm-border px-4 py-4 sm:px-6">
+      <div className="flex flex-wrap items-start gap-2">
+        <h2 className="min-w-0 flex-1 text-lg font-semibold crm-text">
+          {detail.subject}
+        </h2>
+        {detail.isImportant && (
+          <span className="rounded-md bg-amber-500/10 px-2 py-0.5 text-xs text-amber-700 dark:text-amber-300">
+            {t("mail.flag.important")}
+          </span>
+        )}
+      </div>
+      <div className="mt-3 space-y-1 text-sm">
+        <p className="crm-text">
+          <span className="font-medium">{detail.senderName}</span>
+          {showSenderAddress && (
+            <span className="crm-text-secondary">
+              {" "}
+              &lt;{detail.senderAddress}&gt;
             </span>
           )}
-        </div>
-        <div className="mt-3 space-y-1 text-sm">
-          <p className="crm-text">
-            <span className="font-medium">{detail.senderName}</span>
-            {showSenderAddress && (
-              <span className="crm-text-secondary">
-                {" "}
-                &lt;{detail.senderAddress}&gt;
-              </span>
-            )}
+        </p>
+        {detail.recipientLines.map((group) => (
+          <p key={group.type} className="crm-text-secondary">
+            {t(`mail.compose.${group.type}`)}: {group.addresses.join(", ")}
           </p>
-          {detail.recipientLines.map((group) => (
-            <p key={group.type} className="crm-text-secondary">
-              {t(`mail.compose.${group.type}`)}: {group.addresses.join(", ")}
-            </p>
-          ))}
-          {detail.timestamp && (
-            <p className="text-xs crm-text-secondary">
-              {formatHongKongDateTime(detail.timestamp)}
-            </p>
-          )}
-        </div>
-      </header>
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        ))}
+        {detail.timestamp && (
+          <p className="text-xs crm-text-secondary">
+            {formatHongKongDateTime(detail.timestamp)}
+          </p>
+        )}
+      </div>
+    </header>
+  );
+
+  return (
+    <article className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+      {variant === "desktop" ? metadata : null}
+      <div className="mail-message-scroll min-h-0 min-w-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+        {variant !== "desktop" ? (
+          <header className="mail-reading-header mb-4 break-words border-b crm-border pb-3">
+            <h2 className="text-base font-semibold crm-text">{detail.subject}</h2>
+            <p className="mt-1 text-sm crm-text">{detail.senderName}</p>
+            <details className="mt-1 text-xs crm-text-secondary">
+              <summary className="cursor-pointer">
+                {detail.timestamp ? formatHongKongDateTime(detail.timestamp) : null}
+                {" · "}{t("common.details")}
+              </summary>
+              <p className="mt-2">{detail.senderAddress}</p>
+              {detail.recipientLines.map((group) => (
+                <p key={group.type}>{t(`mail.compose.${group.type}`)}: {group.addresses.join(", ")}</p>
+              ))}
+              {detail.isImportant ? <p>{t("mail.flag.important")}</p> : null}
+            </details>
+          </header>
+        ) : null}
         <ProductionDetailBody key={messageId} detail={detail} folder={folder} variant={variant} />
       </div>
       {customerAssociation ? (

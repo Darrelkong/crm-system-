@@ -236,6 +236,8 @@ const zhHant: Messages = {
       to: "收件人",
       subject: "主旨",
       body: "正文",
+      fitToScreen: "適應螢幕",
+      originalWidth: "原始寬度",
       inlineImageUnavailable: "內嵌圖片暫時無法使用",
       imageBlocked: "為保護隱私，圖片已封鎖",
       tinyImageBlocked: "小圖片已封鎖",

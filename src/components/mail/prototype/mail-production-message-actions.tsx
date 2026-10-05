@@ -54,6 +54,9 @@ export function MailProductionMessageActions({
           ) : null}
           {t("mail.compose.reply")}
         </Button>
+        <Button type="button" className="flex-1" variant="secondary" disabled={pending} onClick={() => invoke("forward")}>
+          {t("mail.compose.forward")}
+        </Button>
         <div ref={moreRef} className="relative">
           <button
             type="button"
@@ -72,14 +75,6 @@ export function MailProductionMessageActions({
                 label={t("mail.compose.replyAll")}
                 onClick={() => {
                   invoke("reply_all");
-                  setMoreOpen(false);
-                }}
-              />
-              <ActionMenuItem
-                icon={<Forward className="h-4 w-4" />}
-                label={t("mail.compose.forward")}
-                onClick={() => {
-                  invoke("forward");
                   setMoreOpen(false);
                 }}
               />

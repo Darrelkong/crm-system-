@@ -1,9 +1,10 @@
+import { safeMailClasses, sanitizeMailStylesheets } from "./mail-responsive-css";
 import { MAIL_CID_ATTRIBUTE, normalizeHtmlCid, encodeInertCid, decodeInertCid } from "./cid-image";
 import sanitizeHtml from "sanitize-html";
 import { MAIL_IMAGE_ATTRIBUTE, remoteImageUrl, imageDimension, encodeInertImage, decodeInertImage } from "./inert-image";
 
 /** Frozen inbound HTML policy — bump when allowlist changes (does not re-sanitize history). */
-export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v5";
+export const INBOUND_BODY_HTML_SANITIZER_POLICY_VERSION = "inbound-v6";
 
 export const INBOUND_BODY_ALLOWED_TAGS = [
   "p",
@@ -167,16 +168,27 @@ export function derivePlainTextFromSanitizedHtml(html: string): string {
 
 /**
  * Sanitizes hostile inbound MIME HTML before canonical persistence.
- * V5 adds inert, normalized message-scoped CID descriptors. V4 retains allowlisted inline layout and inert remote-image metadata; stylesheet blocks/classes
- * and all executable/active content remain stripped. No historical reprocessing.
+ * V6 adds bounded parsed stylesheets/classes and width media rules. V5 CID and
+ * V4 remote-image descriptors remain inert. No historical reprocessing.
  */
-export function sanitizeInboundBodyHtml(rawHtml: string): string | null {
+export function sanitizeInboundBodyHtml(rawHtml: string, responsiveStyles = true): string | null {
   const trimmed = rawHtml.trim();
   if (!trimmed) {
     return null;
   }
 
-  const sanitized = sanitizeHtml(trimmed, SANITIZE_OPTIONS).trim();
+  const sheets = responsiveStyles ? sanitizeMailStylesheets(trimmed, SANITIZE_OPTIONS.allowedStyles!["*"]) : { css: "", classes: new Set<string>() };
+  // Original style nodes are still discarded by sanitize-html. Only bounded,
+  // newly serialized AST output is inserted; no raw stylesheet reaches a browser.
+  const transforms = Object.fromEntries(Object.entries(SANITIZE_OPTIONS.transformTags!).map(([tag, transform]) => [tag, (name: string, attributes: Record<string, string>) => {
+    const next = typeof transform === "function" ? transform(name, attributes) : { tagName: transform, attribs: attributes };
+    const classes = safeMailClasses(attributes.class, sheets.classes);
+    if (classes && !next.attribs[MAIL_IMAGE_ATTRIBUTE] && !next.attribs[MAIL_CID_ATTRIBUTE]) next.attribs.class = classes;
+    else delete next.attribs.class;
+    return next;
+  }]));
+  const body = sanitizeHtml(trimmed, { ...SANITIZE_OPTIONS, allowedAttributes: { ...SANITIZE_OPTIONS.allowedAttributes, "*": ["style", "class"] }, transformTags: transforms }).trim();
+  const sanitized = body ? `${sheets.css ? `<style>${sheets.css}</style>` : ""}${body}` : "";
   if (!sanitized) {
     return null;
   }
